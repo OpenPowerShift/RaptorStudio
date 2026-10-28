@@ -453,12 +453,14 @@ jobs:
             linux)        FILES="dist/raptor-studio-$V-linux-amd64.deb dist/raptor-studio-$V-linux-x86_64.AppImage" ;;
           esac
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
+          # attest-build-provenance takes a comma- or newline-separated list.
+          echo "subjects=$(echo $FILES | tr ' ' ',')" >> "$GITHUB_OUTPUT"
           ls -lh $FILES
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: ${{ steps.arts.outputs.files }}
+          subject-path: ${{ steps.arts.outputs.subjects }}
 
       - name: Upload to the GitHub Release
         env:
