@@ -362,11 +362,23 @@ jobs:
           # Wait for the installer process only: `Start-Process -Wait` also
           # waits for everything it spawns, and that hung the job for 30 min.
           # NSIS: `/S` silent, `/D=` the install folder (last, unquoted).
-          $p = Start-Process -FilePath $exe -ArgumentList '/S', '/D=C:\Program Files\GTK3-Runtime Win64' -PassThru
-          if (-not $p.WaitForExit(300000)) { throw "GTK3 runtime installer did not finish in 5 minutes" }
-          if ($p.ExitCode -ne 0) { throw "GTK3 runtime installer exited with $($p.ExitCode)" }
-          if (-not (Test-Path "C:\Program Files\GTK3-Runtime Win64\bin\libpango-1.0-0.dll")) {
-            throw "GTK3 runtime did not install where installer/raptor.spec looks"
+          # The installer has also crashed on exit (0xC0000005) after a clean
+          # run elsewhere, so success is judged by the files it leaves: a
+          # bad exit with the runtime in place is a warning, and a missing
+          # runtime gets one more attempt.
+          $bin = "C:\Program Files\GTK3-Runtime Win64\bin"
+          # This release of the runtime puts 80 DLLs in bin; fewer means a
+          # partial install.
+          function Test-Gtk { (Test-Path "$bin\libpango-1.0-0.dll") -and ((Get-ChildItem "$bin\*.dll").Count -ge 80) }
+          foreach ($attempt in 1, 2) {
+            $p = Start-Process -FilePath $exe -ArgumentList '/S', '/D=C:\Program Files\GTK3-Runtime Win64' -PassThru
+            if (-not $p.WaitForExit(300000)) { $p.Kill(); Write-Warning "attempt $($attempt): did not finish in 5 minutes" }
+            elseif ($p.ExitCode -ne 0) { Write-Warning "attempt $($attempt): installer exited with $($p.ExitCode)" }
+            if (Test-Gtk) { break }
+          }
+          "GTK3 DLLs installed: $((Get-ChildItem "$bin\*.dll" -ErrorAction SilentlyContinue).Count)"
+          if (-not (Test-Gtk)) {
+            throw "GTK3 runtime is missing or incomplete where installer/raptor.spec looks"
           }
 
       - name: Install package + PyInstaller
