@@ -147,7 +147,7 @@ current value).
 |Animate |Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model. |
 |Run Settings… |Open the Run panel — the single editor for trials, termination, analyses and recording |
 |Trials |Trials the next run will use. Edit them in the Run panel (Simulate ▸ Run Settings), which owns every run setting. |number, now 1
-|Cores for full-speed runs |A full-speed run splits its trials across this many cores (this machine has 8). Sweep and Compare use them too. Any number from 2 up gives the same results; one core gives Raptor 7's exact sequence, statistically the same answer but not bit-identical. |number, now 8
+|Cores for full-speed runs |A full-speed run splits its trials across this many cores (by default, every core this machine has). Sweep and Compare use them too. Any number from 2 up gives the same results; one core gives Raptor 7's exact sequence, statistically the same answer but not bit-identical. |number, every core by default
 |===
 
 ==== Control

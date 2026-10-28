@@ -106,6 +106,11 @@ def generate_lines():
     lines.append("current value).")
     lines.append("")
 
+    # The cores control states this machine's core count; the reference must
+    # read the same wherever it is generated (CI runners have 2 cores).
+    from raptor.gui import cores
+    cores_spin = getattr(w, "_cores_spin", None)
+
     ribbon = w._ribbon
     for i in range(ribbon.tab_bar.count()):
         title = ribbon.tab_bar.tabText(i)
@@ -141,6 +146,10 @@ def generate_lines():
                         label = "tick box"
                     else:
                         label = "text"
+                    if widget is cores_spin:
+                        tip = tip.replace(f"(this machine has {cores.available()})",
+                                          "(by default, every core this machine has)")
+                        label = "number, every core by default"
                     rows.append((control_name(widget, group), tip, label))
             if not rows:
                 continue
