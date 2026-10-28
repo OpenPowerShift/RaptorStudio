@@ -15,13 +15,23 @@ merge to main ─▶ release-please PR ─▶ merge it ─▶ tag vX.Y.Z + GitHu
 Already done for this repository; repeat only for a fork or a new maintainer.
 
 1. **Environments** (Settings → Environments):
-   - `testpypi`: no protection rules.
    - `pypi`: **Required reviewers** = the maintainers who may approve a release. Tick *Prevent self-review* only if
      there is more than one maintainer.
-2. **Trusted publishers.** On [PyPI](https://pypi.org/manage/account/publishing/) and on
-   [TestPyPI](https://test.pypi.org/manage/account/publishing/), for each of the two projects `raptor-studio` and
-   `raptor-studio-mcp`: GitHub publisher, owner `OpenPowerShift`, repository `RaptorStudio`, workflow `release.yml`,
-   environment **`pypi`** on PyPI and **`testpypi`** on TestPyPI. No API tokens are used anywhere.
+   - `pypi-mcp`, `testpypi`, `testpypi-mcp`: no protection rules. `pypi-mcp` only ever runs after the approved `pypi`
+     job.
+2. **Trusted publishers**: four of them, one per project per index, each with its own environment. PyPI refuses two
+   pending publishers with the same configuration for different project names. All use the GitHub publisher with
+   owner `OpenPowerShift`, repository `RaptorStudio` and workflow `release.yml`:
+
+   | Index | Project | Environment |
+   |---|---|---|
+   | [PyPI](https://pypi.org/manage/account/publishing/) | `raptor-studio` | `pypi` |
+   | PyPI | `raptor-studio-mcp` | `pypi-mcp` |
+   | [TestPyPI](https://test.pypi.org/manage/account/publishing/) | `raptor-studio` | `testpypi` |
+   | TestPyPI | `raptor-studio-mcp` | `testpypi-mcp` |
+
+   Once a project exists, its publisher is on the project's own page (Manage → Publishing). No API tokens are used
+   anywhere.
 3. **`RELEASE_PLEASE_TOKEN`** (Settings → Secrets and variables → Actions): a fine-grained personal access token, or a
    GitHub App token, with *Contents* and *Pull requests* read/write on this repository. A release created with the
    default `GITHUB_TOKEN` does not start `release.yml`, so without this secret every release stalls after the tag.
@@ -68,10 +78,10 @@ In Actions → **Release** → the run for `vX.Y.Z`:
 
 1. **test** runs the full suite, about 30 minutes.
 2. **Build sdist + wheel** checks the built version matches the tag.
-3. **Publish to TestPyPI** uploads both packages.
+3. **Publish raptor_studio / raptor_studio_mcp to TestPyPI** uploads each package from its own environment.
 4. **Smoke-test the TestPyPI upload** downloads both packages back from TestPyPI, checks they are byte-identical to
    the build, installs them in a clean environment (dependencies from PyPI) and runs `tools/release_smoke.py`.
-5. **Publish to PyPI (needs approval)** shows *Waiting*.
+5. **Publish raptor-studio to PyPI (needs approval)** shows *Waiting*.
 
 If any step before the approval fails, nothing public has happened apart from the TestPyPI upload. Fix the cause on
 `main`, then either re-run the failed jobs (Re-run failed jobs) or, if the fix changes the code, delete the GitHub
@@ -102,7 +112,7 @@ A PyPI version can never be uploaded twice, even after deleting it. Approve only
 
 These run on their own, about 30 minutes:
 
-- **Publish to PyPI**.
+- **Publish raptor-studio to PyPI**, then **Publish raptor-studio-mcp to PyPI**.
 - **Publish to the MCP Registry**: checks `server.json` matches the tag, then retries for up to five minutes while PyPI
   catches up.
 - **Installers** for Windows, macOS (Apple Silicon and Intel) and Linux, uploaded to the GitHub Release.

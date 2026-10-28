@@ -89,13 +89,23 @@ jobs:
           if-no-files-found: error
 
   # ------------------------------------------------------------ testpypi
+  # One environment per package, on both indexes: PyPI refuses two
+  # *pending* trusted publishers with the same owner/repo/workflow/
+  # environment for different project names, so each package publishes
+  # from its own environment (testpypi / testpypi-mcp, pypi / pypi-mcp).
   testpypi:
-    name: Publish to TestPyPI
+    name: Publish ${{ matrix.package }} to TestPyPI
     needs: build
     runs-on: ubuntu-latest
-    # Its own environment (no reviewers), so the TestPyPI trusted
-    # publishers name `testpypi` and never the gated `pypi`.
-    environment: testpypi
+    strategy:
+      matrix:
+        include:
+          - package: raptor_studio
+            environment: testpypi
+          - package: raptor_studio_mcp
+            environment: testpypi-mcp
+    # No reviewers on these: the gate is the `pypi` job below.
+    environment: ${{ matrix.environment }}
     permissions:
       id-token: write
     steps:
@@ -103,10 +113,14 @@ jobs:
         with:
           name: dist
           path: dist/
+      # `raptor_studio-*` does not match `raptor_studio_mcp-*`.
+      - name: Select this package's files
+        run: mkdir upload && mv dist/${{ matrix.package }}-* upload/ && ls upload
       # `skip-existing` so a re-run after a later failure can still go on.
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          packages-dir: upload/
           skip-existing: true
 
   testpypi-smoke:
@@ -162,7 +176,7 @@ jobs:
 
   # ---------------------------------------------------------------- pypi
   pypi:
-    name: Publish to PyPI (needs approval)
+    name: Publish raptor-studio to PyPI (needs approval)
     needs: testpypi-smoke
     runs-on: ubuntu-latest
     # The `pypi` environment has required reviewers (Settings ->
@@ -176,16 +190,40 @@ jobs:
         with:
           name: dist
           path: dist/
+      - name: Select this package's files
+        run: mkdir upload && mv dist/raptor_studio-* upload/ && ls upload
       # Safe here because these are the build's own files: a re-run after a
       # partial upload skips what is already there instead of failing.
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          packages-dir: upload/
+          skip-existing: true
+
+  pypi-mcp:
+    name: Publish raptor-studio-mcp to PyPI
+    # Runs only after the approved `pypi` job; its own environment has no
+    # reviewers, so one approval releases both packages.
+    needs: pypi
+    runs-on: ubuntu-latest
+    environment: pypi-mcp
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Select this package's files
+        run: mkdir upload && mv dist/raptor_studio_mcp-* upload/ && ls upload
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
           skip-existing: true
 
   # ------------------------------------------------------- mcp registry
   mcp-registry:
     name: Publish to the MCP Registry
-    needs: pypi
+    needs: pypi-mcp
     runs-on: ubuntu-latest
     permissions:
       id-token: write      # GitHub OIDC login to the registry (no secret)
@@ -381,7 +419,7 @@ jobs:
   # --------------------------------------------------------- checksums
   checksums:
     name: SHA256SUMS
-    needs: [pypi, installers]
+    needs: [pypi, pypi-mcp, installers]
     runs-on: ubuntu-latest
     permissions:
       contents: write
