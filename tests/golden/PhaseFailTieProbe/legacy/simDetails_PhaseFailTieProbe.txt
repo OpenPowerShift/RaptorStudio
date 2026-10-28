@@ -1,0 +1,131 @@
+Begining Procedure RunEFPA......
+
+out-500path  EFPAout=1
+   Power  through link 21
+500path  EFPAout=1
+   out  through link 5
+out-650path  EFPAout=1
+   Power  through link 22
+650path  EFPAout=1
+   out  through link 10
+out-900path  EFPAout=1
+   Power  through link 23
+900path  EFPAout=1
+   out  through link 15
+n1  EFPAout=1
+   end  through link 30
+Power  EFPAout=1
+   end  through link 30
+n2  EFPAout=1
+   end  through link 30
+Comm  EFPAout=1
+   end  through link 30
+n37  EFPAout=1
+   Power  through link 40
+n38  EFPAout=1
+   Power  through link 40
+Attitude  EFPAout=1
+   n1  through link 17
+Thermal  EFPAout=1
+   n2  through link 25
+LowGain  EFPAout=1
+   Comm  through link 28
+HighGain  EFPAout=1
+   Comm  through link 29
+SolarP_500W  EFPAout=1
+   500path  through link 4
+BatteriesNiCd  EFPAout=1
+   500path  through link 4
+Bus_UR  EFPAout=1
+   500path  through link 4
+SolarP_650W  EFPAout=1
+   650path  through link 9
+BatteriesNiH  EFPAout=1
+   650path  through link 9
+Bus_QR  EFPAout=1
+   650path  through link 9
+SolarP_900W  EFPAout=1
+   900path  through link 14
+BatteriesNaS  EFPAout=1
+   900path  through link 14
+Bus_FR  EFPAout=1
+   900path  through link 14
+Nuclear_Reactor  EFPAout=1
+   Power  through link 33
+Tether-A  EFPAout=1
+   n38  through link 38
+Tether-B  EFPAout=1
+   n38  through link 39
+Inspection  EFPAout=1
+   Power  through link 33
+Ground_Control  EFPAout=1
+   n37  through link 35
+
+
+Capacity Algorithm Results
+500path  CapOutNum=1
+   Power  through link 21  Priority = 1
+650path  CapOutNum=1
+   Power  through link 22  Priority = 1
+900path  CapOutNum=1
+   Power  through link 23  Priority = 1
+start  CapOutNum=1
+   n1  through link 17  Priority = 1
+n1  CapOutNum=5
+   500path  through link 4  Priority = 50
+   650path  through link 9  Priority = 30
+   900path  through link 14  Priority = 10
+   Power  through link 33  Priority = 20
+   Power  through link 40  Priority = 40
+Power  CapOutNum=1
+   end  through link 30  Priority = 1
+CAP STATS:  CapNodes = 7
+            CapLinks = 10
+0.000000  Inspection  1.000000
+0.000000  BatteriesNiCd  0.189819
+0.000000  Bus_UR  0.547693
+10.000000  Ground_Control  1.000000
+15.000000  BatteriesNiCd  0.716614
+15.000000  Bus_UR  0.086392
+20.000000  Inspection  1.000000
+28.000000  BatteriesNiCd  0.013876
+28.000000  Bus_UR  0.502485
+30.000000  Attitude  0.114413
+30.000000  Thermal  0.335825
+30.000000  Inspection  1.000000
+40.000000  Ground_Control  1.000000
+45.000000  BatteriesNiCd  0.721133
+45.000000  Bus_UR  0.990557
+50.000000  Inspection  1.000000
+50.335825  Thermal  0.402842
+50.335825  Bus_UR  43.394499
+60.000000  Inspection  1.000000
+70.000000  Ground_Control  1.000000
+80.000000  Inspection  1.000000
+80.738668  Attitude  0.642731
+80.738668  Thermal  0.153357
+90.000000  Inspection  1.000000
+0.000000  Inspection  1.000000
+0.000000  BatteriesNiCd  0.539911
+0.000000  Bus_UR  0.898753
+10.000000  Ground_Control  1.000000
+15.000000  BatteriesNiCd  0.018988
+15.000000  Bus_UR  0.160650
+20.000000  Inspection  0.000000
+28.000000  BatteriesNiCd  0.255998
+28.000000  Bus_UR  0.969885
+30.000000  Attitude  0.537795
+30.000000  Thermal  0.354836
+30.000000  Inspection  1.000000
+40.000000  Ground_Control  0.000000
+50.000000  Inspection  1.000000
+50.354836  Thermal  0.447752
+50.354836  Bus_UR  33.916541
+60.000000  Inspection  1.000000
+70.000000  Ground_Control  1.000000
+80.000000  Inspection  1.000000
+80.802588  Attitude  0.067578
+80.802588  Thermal  0.313953
+89.271377  BatteriesNiCd  0.062976
+89.271377  Bus_UR  0.246064
+90.000000  Inspection  1.000000

@@ -1,0 +1,18 @@
+Begining Procedure RunEFPA......
+
+join  EFPAout=1
+   end  through link 5
+BlockA  EFPAout=1
+   join  through link 2
+BlockB  EFPAout=1
+   join  through link 4
+0.000000  BlockB  0.452836
+0.000000  BlockB  0.430722
+0.000000  BlockB  0.659085
+0.000000  BlockB  0.516078
+0.000000  BlockB  0.043101
+0.000000  BlockB  0.435442
+0.000000  BlockB  0.342675
+0.000000  BlockB  0.540538
+0.000000  BlockB  0.423455
+0.000000  BlockB  0.229022

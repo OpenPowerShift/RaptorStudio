@@ -1,0 +1,181 @@
+[[ch-redundancy]]
+== Redundancy: Two Pumps Are Better Than One
+
+*Time: about 20 minutes.*
+*New ideas: parallel branches, the OR node, why redundancy helps.*
+
+=== You will learn
+
+* What a *redundant* connection is.
+* How to split and rejoin branches with a node.
+* What the node rule "need 1 of 2" means.
+
+=== You need
+
+* <<ch-first-model>> finished.
+* The file `models/Espresso1.rbds`.
++
+opsmodel:Espresso1[]
+
+=== The story
+
+You run an espresso cart. Your machine has one boiler and one water
+pump. When the pump dies mid-morning, you sell nothing until it is
+fixed. Painful.
+
+So you buy a second pump. Now the machine works while *at least one*
+pump still lives. Engineers call this **redundancy**: extra copies of a
+part so one failure does not kill the system.
+
+Question for the simulator: *how much does the second pump really buy
+me?* Mission: survive a **500-hour** season without any downtime.
+
+=== One new idea: the OR node
+
+A series chain cannot express "either pump is fine". We need a
+junction. In RAPTOR Studio a junction is called a **node**.
+
+image::parallel-pumps.svg[Two pumps in parallel, joined by an OR node]
+
+Our model:
+
+. Flow leaves **Start** and reaches the *split* node.
+. The split node feeds two branches: **Pump_A** and **Pump_B**.
+. Both branches flow into the node **Either_pump**.
+. **Either_pump** has the rule *"need 1 of 2"*: it stays up while at
+   least one input branch works.
+. From there, flow passes through the **Boiler**, then to **End**.
+
+[TIP]
+====
+Read nodes as voting rules. "Need 1 of 2" is an OR gate. "Need 2 of 2"
+is an AND gate. <<ch-voting>> generalizes this to votes like "need 4 of 6".
+====
+
+=== Open the model
+
+Open `models/Espresso1.rbds`. Compare the canvas with the diagram above.
+
+image::espresso-loaded.png[Espresso1 loaded: Pump_A and Pump_B in parallel, then Boiler in series]
+
+Select the green **Either_pump** node and look at the Inspector: the
+node type is *Regular*, with k = 1 (need) out of n = 2 (inputs).
+
+The block data:
+
+[cols="3,2,2,2,2",options="header"]
+|===
+|Block |Failure dist |Param 1 |Param 2 |Repair
+|Pump_A |Exponential |400 |— |None
+|Pump_B |Exponential |400 |— |None
+|Boiler |Weibull |2.0 |900 |None
+|===
+
+Mission settings: stop at **500 hours**, 10 trials.
+
+=== Run it
+
+Set the run count to 10 on the *Simulate* tab and press F5.
+
+Look at **Reliability (Mean)** in *Final Results*. With many trials the
+long-run answer settles near **0.37**.
+
+Now do the comparison that makes the lesson stick. Delete Pump_B
+(select it, press Del), connect Pump_A straight to Either_pump's
+position so the model is a plain series chain again, and run again.
+One-pump reliability lands near **0.21**.
+
+[cols="3,2",options="header"]
+|===
+|Machine |Chance to survive 500 h
+|One pump (series) |about 0.21
+|Two pumps (parallel) |about 0.37
+|===
+
+Almost double — from one €40 part.
+
+[NOTE]
+====
+Why not 0.21 × 2 = 0.42? Redundancy never doubles reliability. While
+both pumps live, the spare one just idles. It only pays when the first
+one dies — and both die eventually. The engine counts every one of
+those stories.
+====
+
+=== Watch one trial
+
+The Results panel's *Event Log* tab shows one trial as a list of
+moments. Find a trial where both pumps died. You will see lines like:
+
+----
+241.299072   Block  Pump_A   Failed    Operating_time=241.299072
+241.299072   Block  Pump_A   Done      No_repair
+241.299072   Node   Either_pump   Degraded   1-1/2 ...
+----
+
+Read it like a story: Pump_A dies at hour 241. The node notices it lost
+one of its two inputs, but keeps flowing — *Degraded*, not dead. The
+system shrugs and carries on. Later, if Pump_B also dies, the node goes
+*Bad*, and End goes down with it.
+
+This ripple — part fails, node re-checks, system re-checks — is how
+every event in every model travels.
+
+.Limits of this model
+[NOTE]
+====
+The 0.37-vs-0.21 result only holds because Pump_A and Pump_B fail
+*independently* — the engine draws each one's death time from its own
+private stream. Real twin pumps often share a power supply, a water
+line, or a mounting bracket. If a surge fries both pumps at once, that
+shared cause is invisible to this model — it would need dependency
+between the blocks to capture, which this book reaches only in a later
+chapter. Never trust a redundancy number until you have asked what the
+two parts have in common besides the job they share.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |What node rule models "the system works while at least one of its
+two parts works"?
+|2 |Your cart has two pumps AND one boiler. Why did we not put a
+second boiler in?
+|3 |In the event log, what is the difference between a *Degraded* node
+and a *Bad* node?
+|===
+
+.Answers
+[%collapsible]
+====
+. A node with k = 1, n = 2 — "need 1 of 2".
+. The boiler is in series: a second boiler would help, but the point
+   of the lesson is the OR node. Also: one boiler, two pumps matches
+   the cart's actual plumbing.
+. *Degraded*: the node lost inputs but still has enough to pass flow.
+   *Bad*: not enough inputs remain; flow stops and the system goes red.
+====
+
+=== Exercise
+
+Make the pumps unequal: set Pump_B's failure Param 1 from `400` to
+`150` (a cheap, weak pump). Predict first: does 500-hour reliability go
+up or down, and by roughly how much? Then run 100 trials and check.
+
+.Answer
+[%collapsible]
+====
+down. A 150-hour pump is near-dead by hour 500
+(survival ≈ 3.6%), so the second pump almost never rescues a season.
+Expect roughly 0.30 at 100 trials — most of the gain from Pump_A alone.
+====
+
+=== What you learned
+
+* Parallel branches plus a "need 1 of n" node give redundancy.
+* Redundancy helps a lot, but never doubles reliability.
+* Nodes re-check themselves after each failure and pass the news on.
+
+Next chapter: what happens to that math when the "backup" secretly
+answers to the primary.

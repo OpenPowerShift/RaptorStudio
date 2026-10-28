@@ -1,0 +1,112 @@
+End_Of_Run Report for input.rbd  Sat Sep 05 20:05:47 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.997142857
+MTBDE                      698.000000
+MDT                        2.000000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              700.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  3
+
+
+
+***LOGISTICS***
+
+MTBM                  232.666667
+MTBMu                 232.666667
+MTBMs                 N/A
+MMT                   2.000000
+MMTu                  2.000000
+MMTs                  N/A
+GreenPercent          71.428571
+YellowPercent         28.285714
+RedPercent            0.285714
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         500.000000     500.000000     500.000000            N/A
+DT                             2.000000       2.000000       2.000000            N/A
+TBM                            0.000000     166.666667     500.000000     288.675135
+RT                             2.000000       2.000000       2.000000            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      1   Cells                        1
+BlockB                      1   Cells                        0
+BlockC                      1   Cells                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            1          0          0         0.71          1          0          2 
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.997142857
+MTBDE                      698.000000
+MDT                        2.000000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              700.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  3
+
+
+
+***LOGISTICS***
+
+MTBM                  232.666667
+MTBMu                 232.666667
+MTBMs                 N/A
+MMT                   2.000000
+MMTu                  2.000000
+MMTs                  N/A
+GreenPercent          71.428571
+YellowPercent         28.285714
+RedPercent            0.285714
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         500.000000     500.000000     500.000000            N/A
+DT                             2.000000       2.000000       2.000000            N/A
+TBM                            0.000000     166.666667     500.000000     288.675135
+RT                             2.000000       2.000000       2.000000            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      1   Cells                        1
+BlockB                      1   Cells                        0
+BlockC                      1   Cells                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            1          0          0         0.71          1          0          2 
+
+
+
+
+

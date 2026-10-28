@@ -1,0 +1,192 @@
+.TH "RAPTOR-RUN" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-run \- Simulate MODEL and print or write the results. The model file is never modified.
+.SH SYNOPSIS
+\fBraptor run\fR [\-h] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] [\-o DIR] [\-f {text,json,ndjson,csv,markdown,none}] [\-\-json PATH] [\-r NAME] [\-\-legacy\-names] [\-\-metrics LIST] [\-\-progress {auto,bar,json,none}] [\-\-strict] [\-\-workspace DIR] [\-\-hierarchy NAME|ID] [\-\-deps {up,system,refuse}] [\-\-pools {full,share,refuse}] [\-\-streams {keep,separate}] [\-\-treat KEY=VALUE] MODEL
+.SH DESCRIPTION
+Simulate MODEL and print or write the results. The model file is never modified.
+.SH OPTIONS
+.SS Run control
+.TP
+\fB\-n\fR, \fB\-\-runs\fR \fIN\fR
+number of runs (default: the model's)
+.TP
+\fB\-t\fR, \fB\-\-length\fR \fIT\fR
+run length for a time\-terminated run
+.TP
+\fB\-\-stop\fR \fIKIND[=VALUE]\fR
+time | failures=N | cycles=N (default: the model's)
+.TP
+\fB\-\-stats\-start\fR \fIT\fR
+start statistics at T
+.TP
+\fB\-\-seed\fR \fIN\fR
+salt every random stream (default: Raptor's fixed seed table)
+.TP
+\fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
+parallel workers (default 1; N>1 is reproducible but not draw\-identical to 1)
+.TP
+\fB\-\-timeout\fR \fIDURATION\fR
+give up after DURATION, e.g. 90s, 10m (default 10m); partial results are kept
+.TP
+\fB\-\-analysis\fR \fILIST\fR
+weak,cost,capacity (replaces the model's setting); 'none' clears all
+.TP
+\fB\-\-importance\fR \fIMODE\fR
+IEC 61078 Annex D importance measures estimated by re\-simulation: improvement (RRW, Vesely\-Fussell), risk (RAW), both (adds Birnbaum). Costs one extra batch per block, two for 'both'
+.TP
+\fB\-\-weak\-type\fR \fITYPE\fR
+weak\-link analysis type
+.SS Changing parameters (a copy; the model file is untouched unless \-\-save\-model)
+.TP
+\fB\-s\fR, \fB\-\-set\fR \fIPATH=VALUE\fR
+change one field, repeatable; see 'raptor help set\-paths'
+.TP
+\fB\-\-set\-file\fR \fIFILE\fR
+many PATH=VALUE lines (or a TOML/JSON table)
+.TP
+\fB\-\-save\-model\fR \fIPATH\fR
+also write the changed model to PATH
+.SS Output
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fIDIR\fR
+write result files to DIR (default: none unless \-r is given, then ./<model>\-results)
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json|ndjson|csv|markdown|none}\fR
+summary on stdout (default text)
+.TP
+\fB\-\-json\fR \fIPATH\fR
+write the full structured results (schema raptor\-results/1) to PATH ('\-' = stdout)
+.TP
+\fB\-r\fR, \fB\-\-report\fR \fINAME\fR
+also write a Raptor 7\-format text file, repeatable: ao\-plot, capacity\-plot, core\-file, cumulative\-by\-time, cumulative\-by\-trial, diagnostics, domain\-tree, down\-times, end\-of\-run, end\-times, events, failure\-times, final, final\-results, interim\-cost, key\-params, mission\-file, sim\-details, all
+.TP
+\fB\-\-legacy\-names\fR
+name files as Raptor 7 does (rpt_events_<Model>.txt ...); the default
+.TP
+\fB\-\-metrics\fR \fILIST\fR
+limit the summary, e.g. Availability,MTBDE,MDT
+.TP
+\fB\-\-progress\fR \fI{auto|bar|json|none}\fR
+progress on stderr
+.TP
+\fB\-\-strict\fR
+treat model warnings as errors (exit 3)
+.TP
+\fB\-\-workspace\fR \fIDIR\fR
+keep run artefacts in DIR (default: a temporary directory, deleted afterwards)
+.SS Isolated hierarchy (a port extension, not a raptor feature)
+.TP
+\fB\-\-hierarchy\fR \fINAME|ID\fR
+run only this hierarchy, its input always available; the results are labelled as isolated
+.TP
+\fB\-\-deps\fR \fI{up|system|refuse}\fR
+elements following something outside: assume it is always up (default), follow the extract's own end, or stop
+.TP
+\fB\-\-pools\fR \fI{full|share|refuse}\fR
+spare and resource pools shared with outside blocks: the whole pool (default), scaled by the share of users inside, or stop
+.TP
+\fB\-\-streams\fR \fI{keep|separate}\fR
+draws on a shared random stream: keep (default) or give each its own unused stream
+.TP
+\fB\-\-treat\fR \fIKEY=VALUE\fR
+one item: block:ID.dep=up|system|refuse, pool:NAME.stock=N, resource:NAME.units=N; repeatable
+.SH EXAMPLES
+.PP
+Check one hierarchy on its own (a port extension; the results are labelled isolated).
+.RS
+.nf
+\fBraptor run plant.rbd \-\-hierarchy Cooling \-n 200\fR
+.fi
+.RE
+.PP
+Simulate with the model's own settings and print a summary table.
+.RS
+.nf
+\fBraptor run pump.rbd\fR
+.fi
+.RE
+.PP
+500 runs, a different random seed, structured results to a file.
+.RS
+.nf
+\fBraptor run pump.rbd \-n 500 \-\-seed 7 \-\-json results.json\fR
+.fi
+.RE
+.PP
+Try a different failure distribution without editing the model.
+.RS
+.nf
+\fBraptor run pump.rbd \-\-set 'block:Pump A.fail_dist=weibull' \-\-set 'block:Pump A.fail_params=1.5,500'\fR
+.fi
+.RE
+.PP
+Also write every Raptor 7\-format report into out/.
+.RS
+.nf
+\fBraptor run pump.rbd \-r all \-o out/\fR
+.fi
+.RE
+.PP
+Run until the 10th system failure, 50 times.
+.RS
+.nf
+\fBraptor run pump.rbd \-\-stop failures=10 \-n 50\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1), \fBraptor\-set\-paths\fR(7)
+.SH EXIT STATUS
+.TP
+\fB0\fR
+success
+.TP
+\fB1\fR
+runtime error
+.TP
+\fB2\fR
+usage error
+.TP
+\fB3\fR
+model invalid (validation errors)
+.TP
+\fB4\fR
+model refused: a shape Raptor 7 cannot run
+.TP
+\fB5\fR
+timed out or aborted; partial results written
+.TP
+\fB6\fR
+output could not be written
+.TP
+\fB130\fR
+interrupted (Ctrl\-C); partial results written
+.SH ENVIRONMENT
+.TP
+\fBRAPTOR_DEBUG\fR
+same as \-\-debug
+.TP
+\fBRAPTOR_DEV_FEATURES\fR
+same as \-\-dev\-features
+.TP
+\fBRAPTOR_CONFIG\fR
+path of the settings file (same as \-\-config)
+.TP
+\fBRAPTOR_WORKSPACE\fR
+default for \-\-workspace
+.TP
+\fBRAPTOR_SEED\fR
+salt for every random stream (same as \-\-seed)
+.TP
+\fBNO_COLOR\fR
+disable colour output
+.TP
+\fBXDG_CONFIG_HOME, XDG_DATA_HOME\fR
+base directories
+.SH FILES
+.TP
+\fB$XDG_CONFIG_HOME/raptor\-studio/config.toml\fR
+settings file (see raptor\-config(5))
+.TP
+\fB$XDG_DATA_HOME/raptor\-studio/mcp\fR
+default MCP server workspace

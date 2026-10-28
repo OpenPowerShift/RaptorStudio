@@ -1,0 +1,18 @@
+Package: raptor-studio
+Version: __VERSION__
+Section: science
+Priority: optional
+Architecture: amd64
+Maintainer: OpenPowerShift <info@openpowershift.com>
+Depends: libegl1, libgl1, libxkbcommon0, libdbus-1-3, libfontconfig1,
+ libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1,
+ libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0,
+ libpango-1.0-0, libpangocairo-1.0-0
+Recommends: libnss3
+Installed-Size: __INSTALLED_KB__
+Description: Reliability block diagram simulation (open Python port of Raptor 7)
+ RAPTOR Studio draws reliability block diagrams, runs Monte Carlo
+ reliability simulations and reports reliability, availability and
+ cost numbers. Includes an in-app tutorial book, a field-by-field
+ reference manual (F1) and a stepping debugger.
+Homepage: https://github.com/openpowershift/RaptorStudio

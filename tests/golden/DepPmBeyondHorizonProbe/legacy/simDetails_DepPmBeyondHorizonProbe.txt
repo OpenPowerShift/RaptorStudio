@@ -1,0 +1,10 @@
+Begining Procedure RunEFPA......
+
+nodeC  EFPAout=1
+   end  through link 5
+nodeDep  EFPAout=1
+   end  through link 6
+BlockC  EFPAout=1
+   nodeC  through link 2
+BlockDep  EFPAout=1
+   nodeDep  through link 4

@@ -1,0 +1,130 @@
+.TH "RAPTOR-SWEEP" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-sweep \- Run MODEL once per combination of the \-\-vary values (a cartesian product), on copies, and tabulate the metrics.
+.SH SYNOPSIS
+\fBraptor sweep\fR [\-h] \-\-vary SPEC [\-\-metric NAME] [\-f {text,json,csv}] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
+.SH DESCRIPTION
+Run MODEL once per combination of the \-\-vary values (a cartesian product), on copies, and tabulate the metrics.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-vary\fR \fISPEC\fR
+PATH=START:STOP:STEP or PATH=v1,v2,...; repeat for a grid
+.TP
+\fB\-\-metric\fR \fINAME\fR
+metric(s) to tabulate (default Availability); repeatable
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json|csv}\fR
+
+.SS Run control
+.TP
+\fB\-n\fR, \fB\-\-runs\fR \fIN\fR
+number of runs (default: the model's)
+.TP
+\fB\-t\fR, \fB\-\-length\fR \fIT\fR
+run length for a time\-terminated run
+.TP
+\fB\-\-stop\fR \fIKIND[=VALUE]\fR
+time | failures=N | cycles=N (default: the model's)
+.TP
+\fB\-\-stats\-start\fR \fIT\fR
+start statistics at T
+.TP
+\fB\-\-seed\fR \fIN\fR
+salt every random stream (default: Raptor's fixed seed table)
+.TP
+\fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
+parallel workers (default 1; N>1 is reproducible but not draw\-identical to 1)
+.TP
+\fB\-\-timeout\fR \fIDURATION\fR
+give up after DURATION, e.g. 90s, 10m (default 10m); partial results are kept
+.TP
+\fB\-\-analysis\fR \fILIST\fR
+weak,cost,capacity (replaces the model's setting); 'none' clears all
+.TP
+\fB\-\-importance\fR \fIMODE\fR
+IEC 61078 Annex D importance measures estimated by re\-simulation: improvement (RRW, Vesely\-Fussell), risk (RAW), both (adds Birnbaum). Costs one extra batch per block, two for 'both'
+.TP
+\fB\-\-weak\-type\fR \fITYPE\fR
+weak\-link analysis type
+.SS Changing parameters (a copy; the model file is untouched unless \-\-save\-model)
+.TP
+\fB\-s\fR, \fB\-\-set\fR \fIPATH=VALUE\fR
+change one field, repeatable; see 'raptor help set\-paths'
+.TP
+\fB\-\-set\-file\fR \fIFILE\fR
+many PATH=VALUE lines (or a TOML/JSON table)
+.TP
+\fB\-\-save\-model\fR \fIPATH\fR
+also write the changed model to PATH
+.SH EXAMPLES
+.PP
+Availability for five values of the Weibull scale.
+.RS
+.nf
+\fBraptor sweep pump.rbd \-\-vary 'block:Pump A.fail_params[1]=200:1000:200' \-n 50\fR
+.fi
+.RE
+.PP
+A 2 x 2 grid as CSV.
+.RS
+.nf
+\fBraptor sweep pump.rbd \-\-vary 'system.length=1000,2000' \-\-vary 'node:Voter.k=1,2' \-f csv\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1), \fBraptor\-set\-paths\fR(7)
+.SH EXIT STATUS
+.TP
+\fB0\fR
+success
+.TP
+\fB1\fR
+runtime error
+.TP
+\fB2\fR
+usage error
+.TP
+\fB3\fR
+model invalid (validation errors)
+.TP
+\fB4\fR
+model refused: a shape Raptor 7 cannot run
+.TP
+\fB5\fR
+timed out or aborted; partial results written
+.TP
+\fB6\fR
+output could not be written
+.TP
+\fB130\fR
+interrupted (Ctrl\-C); partial results written
+.SH ENVIRONMENT
+.TP
+\fBRAPTOR_DEBUG\fR
+same as \-\-debug
+.TP
+\fBRAPTOR_DEV_FEATURES\fR
+same as \-\-dev\-features
+.TP
+\fBRAPTOR_CONFIG\fR
+path of the settings file (same as \-\-config)
+.TP
+\fBRAPTOR_WORKSPACE\fR
+default for \-\-workspace
+.TP
+\fBRAPTOR_SEED\fR
+salt for every random stream (same as \-\-seed)
+.TP
+\fBNO_COLOR\fR
+disable colour output
+.TP
+\fBXDG_CONFIG_HOME, XDG_DATA_HOME\fR
+base directories
+.SH FILES
+.TP
+\fB$XDG_CONFIG_HOME/raptor\-studio/config.toml\fR
+settings file (see raptor\-config(5))
+.TP
+\fB$XDG_DATA_HOME/raptor\-studio/mcp\fR
+default MCP server workspace

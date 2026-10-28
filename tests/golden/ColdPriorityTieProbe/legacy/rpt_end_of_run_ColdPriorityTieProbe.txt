@@ -1,0 +1,822 @@
+End_Of_Run Report for input.rbd  Wed Sep 30 16:53:58 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.932880821
+MTBDE                      17.473575
+MDT                        1.257194
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     39
+NumberOfComponentFailures  52
+
+
+
+***LOGISTICS***
+
+MTBM                  13.105182
+MTBMu                 13.105182
+MTBMs                 N/A
+MMT                   1.420090
+MMTu                  1.420090
+MMTs                  N/A
+GreenPercent          75.370549
+YellowPercent         17.917533
+RedPercent            6.711918
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.021832      17.406045      70.104142      15.944728
+DT                             0.228165       1.257194      18.207130       3.309550
+TBM                            0.000000      13.987814      66.929259      14.147272
+RT                             1.000000       1.420090      15.207130       2.218453
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    2   Infinite                     2
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    4   Infinite                     4
+LowGain                    12   Infinite                    12
+MidGain                    34   Infinite                    34
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            1         4.83            5            5          0 
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.889680140
+MTBDE                      15.114217
+MDT                        1.874155
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     43
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  12.035395
+MTBMu                 12.035395
+MTBMs                 N/A
+MMT                   1.794797
+MMTu                  1.794797
+MMTs                  N/A
+GreenPercent          71.801047
+YellowPercent         17.166967
+RedPercent            11.031986
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.495593      14.779205      48.445909      13.697441
+DT                             0.109760       1.874155      18.393447       4.237047
+TBM                            0.000000      13.018049      48.945909      14.375518
+RT                             1.000000       1.794797      15.393447       2.906752
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    4   Infinite                     4
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    7   Infinite                     7
+LowGain                     7   Infinite                     7
+MidGain                    36   Infinite                    36
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            1         4.74            5            5          0 
+
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.940205588
+MTBDE                      27.472807
+MDT                        1.747193
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     25
+NumberOfComponentFailures  30
+
+
+
+***LOGISTICS***
+
+MTBM                  22.894006
+MTBMu                 22.894006
+MTBMs                 N/A
+MMT                   1.847734
+MMTu                  1.847734
+MMTs                  N/A
+GreenPercent          83.706138
+YellowPercent         10.314421
+RedPercent            5.979441
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.820443      27.435348     110.806351      27.373173
+DT                             0.095535       1.747193      18.259196       4.414929
+TBM                            0.000000      24.302118     111.306351      27.453168
+RT                             1.000000       1.847734      15.259196       3.213205
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    2   Infinite                     2
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    4   Infinite                     4
+LowGain                     3   Infinite                     3
+MidGain                    21   Infinite                    20
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            1         4.85            5            5          0 
+
+
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.870730800
+MTBDE                      20.518350
+MDT                        3.046166
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     31
+NumberOfComponentFailures  44
+
+
+
+***LOGISTICS***
+
+MTBM                  14.456110
+MTBMu                 14.456110
+MTBMs                 N/A
+MMT                   2.317965
+MMTu                  2.317965
+MMTs                  N/A
+GreenPercent          74.723840
+YellowPercent         12.349240
+RedPercent            12.926920
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.113620      19.689485     111.811363      23.803485
+DT                             0.440679       3.046166      16.613093       5.389061
+TBM                            0.000000      16.021805      78.775192      18.173968
+RT                             1.000000       2.317965      13.613093       3.465326
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    6   Infinite                     6
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    4   Infinite                     4
+LowGain                     7   Infinite                     7
+MidGain                    27   Infinite                    27
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            1         4.69            5            5          0 
+
+
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.926884412
+MTBDE                      21.841583
+MDT                        1.722933
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     31
+NumberOfComponentFailures  42
+
+
+
+***LOGISTICS***
+
+MTBM                  16.121168
+MTBMu                 16.121168
+MTBMs                 N/A
+MMT                   1.663791
+MMTu                  1.663791
+MMTs                  N/A
+GreenPercent          80.367194
+YellowPercent         12.321247
+RedPercent            7.311559
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.182612      21.189712      86.318555      23.118098
+DT                             0.031700       1.722933      15.319046       3.879718
+TBM                            0.000000      16.931698      86.818555      21.620977
+RT                             1.000000       1.663791      12.319046       2.455948
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    3   Infinite                     3
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    5   Infinite                     5
+LowGain                     9   Infinite                     9
+MidGain                    25   Infinite                    25
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            1         4.82            5            5          0 
+
+
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.939294946
+MTBDE                      18.544729
+MDT                        1.198515
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     37
+NumberOfComponentFailures  46
+
+
+
+***LOGISTICS***
+
+MTBM                  14.916412
+MTBMu                 14.916412
+MTBMs                 N/A
+MMT                   1.384788
+MMTu                  1.384788
+MMTs                  N/A
+GreenPercent          78.344838
+YellowPercent         15.584657
+RedPercent            6.070505
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.570040      18.168588      84.312103      17.860894
+DT                             0.500000       1.198515      13.472032       2.830545
+TBM                            0.000000      15.580169      80.953387      16.875806
+RT                             1.000000       1.384788      10.472032       1.829462
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    2   Infinite                     2
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    5   Infinite                     5
+LowGain                     8   Infinite                     8
+MidGain                    31   Infinite                    31
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            1         4.86            5            5          0 
+
+
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.932632356
+MTBDE                      25.232887
+MDT                        1.822669
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     27
+NumberOfComponentFailures  33
+
+
+
+***LOGISTICS***
+
+MTBM                  20.645089
+MTBMu                 20.645089
+MTBMs                 N/A
+MMT                   1.735222
+MMTu                  1.735222
+MMTs                  N/A
+GreenPercent          82.142171
+YellowPercent         11.121064
+RedPercent            6.736764
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.583729      25.232887      79.258868      28.235235
+DT                             0.500000       1.822669      17.545220       4.169251
+TBM                            0.000000      21.964092      79.758868      26.241159
+RT                             1.000000       1.735222      14.545220       2.928245
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    3   Infinite                     3
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    3   Infinite                     3
+LowGain                     3   Infinite                     3
+MidGain                    24   Infinite                    24
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            1         4.84            5            2          0 
+
+
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.891800889
+MTBDE                      21.715352
+MDT                        2.634648
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     30
+NumberOfComponentFailures  44
+
+
+
+***LOGISTICS***
+
+MTBM                  14.805922
+MTBMu                 14.805922
+MTBMs                 N/A
+MMT                   2.065810
+MMTu                  2.065810
+MMTs                  N/A
+GreenPercent          76.843396
+YellowPercent         12.336693
+RedPercent            10.819911
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.021419      21.513433      77.890010      18.993646
+DT                             0.143797       2.634648      15.329173       4.908139
+TBM                            0.000000      16.116211      77.224378      19.279763
+RT                             1.000000       2.065810      12.329173       3.033451
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    5   Infinite                     5
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    5   Infinite                     5
+LowGain                     9   Infinite                     9
+MidGain                    25   Infinite                    25
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            1         4.73            5            5          0 
+
+
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.932638267
+MTBDE                      23.492836
+MDT                        1.696819
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     29
+NumberOfComponentFailures  35
+
+
+
+***LOGISTICS***
+
+MTBM                  19.465493
+MTBMu                 19.465493
+MTBMs                 N/A
+MMT                   1.669738
+MMTu                  1.669738
+MMTs                  N/A
+GreenPercent          82.333017
+YellowPercent         10.930810
+RedPercent            6.736173
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.119091      23.471267     112.758141      28.102440
+DT                             0.358429       1.696819      14.272579       3.547534
+TBM                            0.000000      20.553174     110.751879      24.917238
+RT                             1.000000       1.669738      11.272579       2.278662
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    3   Infinite                     3
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    5   Infinite                     5
+LowGain                     4   Infinite                     4
+MidGain                    23   Infinite                    23
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         4.85            5            5          0 
+
+
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.925250804
+MTBDE                      19.879286
+MDT                        1.606008
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     34
+NumberOfComponentFailures  44
+
+
+
+***LOGISTICS***
+
+MTBM                  15.361266
+MTBMu                 15.361266
+MTBMs                 N/A
+MMT                   1.616007
+MMTu                  1.616007
+MMTs                  N/A
+GreenPercent          78.229870
+YellowPercent         14.295211
+RedPercent            7.474920
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.140608      18.813759      67.142732      19.814939
+DT                             0.500000       1.606008      17.212741       3.732583
+TBM                            0.000000      15.767548      64.806909      17.967282
+RT                             1.000000       1.616007      14.212741       2.450325
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    3   Infinite                     3
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                    5   Infinite                     5
+LowGain                     7   Infinite                     7
+MidGain                    29   Infinite                    29
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          0          2         2.00          2          2          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            1         4.82            5            5          0 
+
+
+
+
+

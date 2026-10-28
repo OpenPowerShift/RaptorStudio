@@ -1,0 +1,66 @@
+Final_Results_Report for input.rbd  Thu Oct 01 13:58:45 2026
+
+
+Results from 60 runs of sim time 6000.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.598309943     0.659889950     0.717645260     0.025656933     0.003312296     
+MTBDE                    71.355852       87.083169       134.510076      11.144823       1.438790        
+MDT                      32.659011       45.060831       72.386475       7.683756        0.991969        
+Dependability            0.570715262     0.644974261     0.712894747     0.030587694     0.003948854     
+Reliability              0.000000000     0.002777778     0.166666667     0.021516574     0.002777778     
+Conditional_Reliability  0.000000000     0.002777778     0.166666667     0.021516574     0.002777778     
+System_Failures          29              46.083333       56              5.276400        0.681180        
+Cycles_Completed         5               5.160000        5               0.088681        0.011449        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     12.169016       14.296194       16.248572       0.837676        0.108143        
+MTBMu                    12.169016       14.296194       16.248572       0.837676        0.108143        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      11.686089       12.479834       13.196775       0.326081        0.042097        
+MMTu                     11.686089       12.479834       13.196775       0.326081        0.042097        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            34.034281       39.424975       46.570722       2.357420        0.304342        
+Yellow_Percent           22.834150       26.564020       31.435294       1.527727        0.197229        
+Red_Percent              28.235474       34.011005       40.169006       2.565693        0.331230        
+Mission_Green_Percent    31.713042       37.109384       43.705460       2.482044        0.320431        
+Mission_Yellow_Percent   22.997560       27.388042       32.552510       1.862322        0.240425        
+Mission_Red_Percent      28.710525       35.502574       42.928474       3.058769        0.394885        
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+S1B1                  Infinite                     9        13.53        19         1.76 
+S1B2                  Infinite                     7        17.03        24         3.50 
+S1B3                  Infinite                     8        11.70        15         1.39 
+S1B4                  Infinite                     8        13.03        16         1.64 
+S2B1                  Infinite                    12        15.30        18         1.24 
+S2B2                  Infinite                    13        18.20        23         2.31 
+S2B3                  Infinite                    27        32.05        36         1.98 
+S3B1                  Infinite                     9        15.42        25         3.30 
+S3B2                  Infinite                     4         8.13        11         1.74 
+S3B3                  Infinite                     2         5.50        14         2.14 
+S3B4                  Infinite                    10        17.33        27         3.67 
+S4B1                  Infinite                     1        10.32        15         2.73 
+S4B2                  Infinite                     8        15.03        20         2.16 
+S4B3                  Infinite                    15        16.87        19         0.91 
+S4B4                  Infinite                     6         9.92        14         1.93 
+S5B1                  Infinite                    13        14.92        17         0.77 
+S5B2                  Infinite                    16        26.10        34         3.72 
+S5B3                  Infinite                     9        17.05        26         4.61 
+
+
+

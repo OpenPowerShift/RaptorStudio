@@ -1,0 +1,98 @@
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  None
+
+     Failed Events:      GateEvt
+
+     Idle Components:    unnamed
+
+EFFECTS
+
+     Down Nodes:         join
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  None
+
+     Failed Events:      GateEvt
+
+     Idle Components:    unnamed
+
+EFFECTS
+
+     Down Nodes:         join
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+

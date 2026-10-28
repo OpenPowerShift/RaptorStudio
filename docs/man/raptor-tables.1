@@ -1,0 +1,67 @@
+.TH "RAPTOR-TABLES" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-tables \- Write the model's input tables (and, with \-\-run, the result tables of a fresh run) as CSV, text or a spreadsheet.
+.SH SYNOPSIS
+\fBraptor tables\fR [\-h] [\-\-run] [\-\-table KEY] [\-\-list] [\-\-format {csv,txt,report,xlsx}] [\-o DIR] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
+.SH DESCRIPTION
+Write the model's input tables (and, with \-\-run, the result tables of a fresh run) as CSV, text or a spreadsheet.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-run\fR
+run the model first and include result tables
+.TP
+\fB\-\-table\fR \fIKEY\fR
+a table key (see \-\-list); repeatable
+.TP
+\fB\-\-list\fR
+list the available tables and exit
+.TP
+\fB\-\-format\fR \fI{csv|txt|report|xlsx}\fR
+output format(s); default csv
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fIDIR\fR
+folder (default ./Tables beside the model)
+.SS Run control
+.TP
+\fB\-n\fR, \fB\-\-runs\fR \fIN\fR
+number of runs (default: the model's)
+.TP
+\fB\-t\fR, \fB\-\-length\fR \fIT\fR
+run length for a time\-terminated run
+.TP
+\fB\-\-stop\fR \fIKIND[=VALUE]\fR
+time | failures=N | cycles=N (default: the model's)
+.TP
+\fB\-\-stats\-start\fR \fIT\fR
+start statistics at T
+.TP
+\fB\-\-seed\fR \fIN\fR
+salt every random stream (default: Raptor's fixed seed table)
+.TP
+\fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
+parallel workers (default 1; N>1 is reproducible but not draw\-identical to 1)
+.TP
+\fB\-\-timeout\fR \fIDURATION\fR
+give up after DURATION, e.g. 90s, 10m (default 10m); partial results are kept
+.TP
+\fB\-\-analysis\fR \fILIST\fR
+weak,cost,capacity (replaces the model's setting); 'none' clears all
+.TP
+\fB\-\-importance\fR \fIMODE\fR
+IEC 61078 Annex D importance measures estimated by re\-simulation: improvement (RRW, Vesely\-Fussell), risk (RAW), both (adds Birnbaum). Costs one extra batch per block, two for 'both'
+.TP
+\fB\-\-weak\-type\fR \fITYPE\fR
+weak\-link analysis type
+.SS Changing parameters (a copy; the model file is untouched unless \-\-save\-model)
+.TP
+\fB\-s\fR, \fB\-\-set\fR \fIPATH=VALUE\fR
+change one field, repeatable; see 'raptor help set\-paths'
+.TP
+\fB\-\-set\-file\fR \fIFILE\fR
+many PATH=VALUE lines (or a TOML/JSON table)
+.TP
+\fB\-\-save\-model\fR \fIPATH\fR
+also write the changed model to PATH
+.SH SEE ALSO
+\fBraptor\fR(1)

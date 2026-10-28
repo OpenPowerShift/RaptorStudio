@@ -1,0 +1,54 @@
+= Decision records and a worked trace
+:toc: macro
+
+Short records of choices the code does not explain by itself, then one small model followed through the engine. This page says what was chosen and why.
+
+toc::[]
+
+[[decisions]]
+== Decisions
+
+=== One process per block, not one per MODSIM method
+
+*Context.* Source has `Run`, `Repair`, `PerformPM` and `ObtainPMprereqs` as separate TELL processes on one block. *Decision.* The port runs them as one generator (`BlockProcess`), one method per source step, and reproduces the boundaries between the source processes with explicit zero-length hops. *Why.* A single generator keeps a block's state (clock, spare in hand, PM flags) in one place and makes an interrupt's target unambiguous. The cost is that every place source starts a new TELL must be a visible hop, or same-instant order drifts; the state matrix (`state-machine.adoc`) lists every wait so none is hidden. *Consequence.* A dependent block needed no second lifecycle: it is the same process with a different source of wakes.
+
+=== Same-instant order is an owner-group calendar, not plain FIFO
+
+*Context.* Real Raptor's event log fixes an order for simultaneous activities. Plain `(time, insertion order)` reproduced most of it, and failed in a way that only tracing the legacy binary explained. *Decision.* Records belong to the owner object's group, a plain hop joins its own owner's group, an `Interrupt` re-stamps the group to the tail, and pool and end-of-run processes have tiers. *Why.* This is what the binary does, found by debugger traces of Raptor 7, not a design preference; each rule is pinned by a capture. *Consequence.* Where a tie is not yet explained (the three in `scheduler-and-ordering.adoc`) the fix is a trace, not a guess.
+
+=== Interrupts are queued, FIFO, and a re-interrupt is a no-op
+
+*Context.* `Interrupt(obj, "Run")` in MODSIM does not run the target at once. *Decision.* `Scheduler.interrupt` queues a wake; a second interrupt of the same handle in the same instant does nothing (`ER3-29`, traced at the MODSIM `Interrupt` routine). *Why.* Dependency chains and same-instant failures rely on the target seeing exactly one wake, at its queue position, and on effects (a `Dependence_Idle`) applying in the order they were issued. *Consequence.* Anything that must happen "now" to the target has to be done by the issuer, not by interrupting.
+
+=== A guard for what real crashes on, a warning for what real runs
+
+*Context.* Several models are legal in the file format but unusual. *Decision.* Refuse (`UnrunnableModel`, an error in `validate`) only where real Raptor itself crashes: a cold-standby path that depends on another path into the same cold node, a cycle-terminated run with no phases, capacity analysis with no Start or End node, a hierarchy whose output is unwired. Dependency cycles, which real runs, only warn. *Why.* Refusing a model real runs would make the port less capable than the product it reproduces.
+
+[[trace]]
+== A worked trace
+
+`tests/golden/Ch07Dependent` is five blocks in series (Casing, Armature, Magnets, Brushes, PowerSupply); Armature and Brushes follow PowerSupply and go Idle when it is down. The first lines of a run:
+
+----
+0.000000   Block  Casing       Good        InitializeStress=1.000000     <1>
+   ... one such line per block, in id order ...
+40.623681  Block  PowerSupply  Failed      Operating_time=40.623681     <2>
+40.623681  Block  PowerSupply  Repairing   No_resources_used
+40.623681  Block  Armature     Idle        Dependence                   <3>
+40.623681  Node   end          Idle        0-1/1_di6                    <4>
+40.623681  System State_change Red         _d5                          <5>
+40.623681  Block  Brushes      Idle        Dependence                   <3>
+40.623681  Node   end          Bad         0-1/1_df6                    <6>
+41.854340  Block  PowerSupply  Repaired    MaintTime=1.230659           <7>
+41.854340  Block  Armature     Good        DependenceStress=1.000000    <8>
+----
+<1> Kickoff: each block initialises and draws its first life (`kickoff.py`); nothing moves until every block has logged.
+<2> `BlockProcess._fail_wait` ends by timeout; the failure is drawn, `change_block_state` logs it and returns the deltas.
+<3> The cascade's `BackFlowDependencies(Down)` (`dependency.back_flow_dependencies`) wakes each follower with `Dependence_Idle`; each is a queued interrupt, so they run after PowerSupply's own turn.
+<4> Armature's Idle changes the path into `end`; the node re-aggregates with the link Idle (`_di6`).
+<5> The system check runs once the instant has settled (`Red`, cause `_d5`: block 5 is down).
+<6> Brushes' Idle then removes the last path: the node is now Bad (`_df6`, the link failed).
+<7> Repair completes after a drawn time (`BlockProcess._repair_wait`).
+<8> `AllUp` back-flow resumes each follower; `DependenceStress` is the stress it resumes at.
+
+The order of 3 to 6 is not free: the second follower's line comes after the node's and the system's, because each wake is its own queued record. Reversing them is exactly the kind of drift the byte-exact event-log guard (`tests/unit/test_event_log_fidelity.py`) catches.

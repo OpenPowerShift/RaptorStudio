@@ -1,0 +1,54 @@
+Final_Results_Report for PooledGraceRepairProbe.rbd  Wed Sep 23 15:56:12 2026
+
+
+Results from 1 run of sim time 50.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.200000000     0.200000000     0.200000000     N/A             N/A             
+MTBDE                    5.000000        5.000000        5.000000        N/A             N/A             
+MDT                      20.000000       20.000000       20.000000       N/A             N/A             
+Reliability              0.000000000     0.000000000     0.000000000     N/A             N/A             
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     N/A             N/A             
+System_Failures          2               2.000000        2               N/A             N/A             
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     2.500000        2.500000        2.500000        N/A             N/A             
+MTBMu                    2.500000        2.500000        2.500000        N/A             N/A             
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      10.000000       10.000000       10.000000       N/A             N/A             
+MMTu                     10.000000       10.000000       10.000000       N/A             N/A             
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            20.000000       20.000000       20.000000       N/A             N/A             
+Yellow_Percent           0.000000        0.000000        0.000000        N/A             N/A             
+Red_Percent              80.000000       80.000000       80.000000       N/A             N/A             
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+BlockA                TestPool                     1         1.00         1          N/A 
+BlockB                TestPool                     1         1.00         1          N/A 
+
+
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+TestPool                      0.00         2.00         0.00         0.00         0.00         0.00         4.00 
+
+
+

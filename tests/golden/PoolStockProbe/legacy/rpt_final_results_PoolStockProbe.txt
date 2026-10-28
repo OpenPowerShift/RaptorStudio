@@ -1,0 +1,76 @@
+Final_Results_Report for input.rbd  Thu Sep 17 04:42:22 2026
+
+
+Results from 10 runs of sim time 730.500000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.810715589     0.965223908     1.000000000     0.058191652     0.018401816     
+MTBDE                    174.002491      >605.847046     >730.500000     N/A             N/A             
+MDT(5-runs)              8.258646        42.330907       138.272262      54.991706       24.593039       
+Reliability              0.000000000     0.500000000     1.000000000     0.527046277     0.166666667     
+Conditional_Reliability  0.000000000     0.500000000     1.000000000     0.527046277     0.166666667     
+System_Failures          0               1.000000        4               1.414214        0.447214        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     28.201321       40.642554       52.178571       6.983039        2.208231        
+MTBMu                    65.803082       142.866852      365.250000      88.567983       28.007655       
+MTBMs                    49.352311       61.451214       66.409091       4.874010        1.541297        
+MMT                      12.646527       19.811150       27.239823       4.839325        1.530329        
+MMTu                     33.135889       57.328030       82.810949       13.300917       4.206119        
+MMTs                     3.265880        3.578649        3.829802        0.201103        0.063594        
+Green_Percent            30.927972       56.617422       76.603238       14.275281       4.514240        
+Yellow_Percent           23.396762       39.904969       64.350600       13.348498       4.221166        
+Red_Percent              0.000000        3.477609        18.928441       5.819165        1.840182        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+Attitude              Infinite                     0         0.10         1         0.32 
+BatteriesNaS          Cells                        0         0.30         1         0.48 
+BatteriesNiCd         Cells                        0         0.90         2         0.57 
+Bus_FR                Electronics                  0         1.40         3         1.07 
+Bus_UR                Electronics                  0         0.60         2         0.70 
+HighGain              Infinite                     1         2.00         4         1.15 
+LowGain               Infinite                     0         0.10         1         0.32 
+SolarP_500W           PhotoVPanels                 0         0.30         1         0.48 
+SolarP_900W           PhotoVPanels                 0         0.00         0         0.00 
+Thermal               Custom                       0         0.40         1         0.52 
+
+
+Custom_Sparing
+
+blockName            InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Thermal                       1.00         0.00         0.60         0.94         1.00         0.60         0.00 
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Cells                         3.00         1.00         1.80         2.43         3.00         2.80         0.00 
+Electronics                   4.00         0.00         2.00         2.95         4.00         2.00         0.00 
+PhotoVPanels                  2.00         0.00         1.70         1.95         2.00         1.70         0.00 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes    EndNumRes    NumDelays
+Astronauts                    5.00         0.40         4.13         5.00         3.90         2.30 
+
+

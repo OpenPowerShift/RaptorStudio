@@ -1,0 +1,15 @@
+Single Point Failure File        rpt_single_point_failures_Phasing3.txt            19 Sep 2026
+
+
+   Phase                  Block
+
+   D000-075_Orbit         Attitude            
+   D000-075_Orbit         Thermal             
+   D076-150_Orbit         Attitude            
+   D076-150_Orbit         Thermal             
+   D151-225_Orbit         Attitude            
+   D151-225_Orbit         Thermal             
+   D226-300_Orbit         Attitude            
+   D226-300_Orbit         Thermal             
+   D301-360_Orbit         Attitude            
+   D301-360_Orbit         Thermal             

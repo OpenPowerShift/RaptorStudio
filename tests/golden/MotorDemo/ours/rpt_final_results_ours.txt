@@ -1,0 +1,48 @@
+Final_Results_Report for input.rbd  PROBE
+
+
+Results from 25 runs of sim time 36.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.726184837     0.927892862     1.000000000     0.078862552     0.015772510     
+MTBDE                    26.142654       >32.394643      >35.799092      N/A             N/A             
+MDT(18-runs)             0.200908        3.605357        9.857346        2.743251        0.646590        
+Reliability              0.000000000     0.280000000     1.000000000     0.458257569     0.091651514     
+Conditional_Reliability  0.000000000     0.280000000     1.000000000     0.458257569     0.091651514     
+System_Failures          0               0.720000        1               0.458258        0.091652        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     16.252698       >30.575441      >35.799092      N/A             N/A             
+MTBMu                    16.252698       >30.575441      >35.799092      N/A             N/A             
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT(2-runs)              3.439391        3.796523        4.153654        0.505061        0.357132        
+MMTu(2-runs)             3.439391        3.796523        4.153654        0.505061        0.357132        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            72.618484       92.789286       100.000000      7.886255        1.577251        
+Yellow_Percent           0.000000        0.000000        0.000000        0.000000        0.000000        
+Red_Percent              0.000000        7.210714        27.381516       7.886255        1.577251        
+
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+Armature              Custom                       0         0.00         0         0.00 
+Brushes               Custom                       0         0.00         0         0.00 
+Casing                Custom                       0         0.04         1         0.20 
+Magnets               Custom                       0         0.04         1         0.20 
+PowerSupply           Custom                       0         0.68         1         0.48 
+
+

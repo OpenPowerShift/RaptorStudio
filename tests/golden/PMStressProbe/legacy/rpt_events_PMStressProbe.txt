@@ -1,0 +1,21 @@
+Event_Log 	for 	input.rbd	 	Sat Sep 19 12:29:05 2026
+
+
+0.000000          	System   	Begin_Run_1           	--               	--
+0.000000          	System   	State_change          	Mission          	Began_a_mission
+0.000000          	Block    	PmStress              	Good             	InitializeStress=0.500000
+0.000000          	Block    	Idle                  	Good             	InitializeStress=1.000000
+0.000000          	Block    	PmStress              	StessLevel       	CombStress=0.500000
+150.000000        	Block    	PmStress              	PM_is_due        	Scheduled_PM
+150.000000        	Block    	PmStress              	PM               	beginning_PM
+150.000000        	Node     	join                  	Degraded         	1-1/2_dp2_ur4
+150.000000        	System   	State_change          	Yellow           	system_change_status
+152.000000        	Block    	PmStress              	PM_complete      	MaintTime=2.000000
+152.000000        	Block    	PmStress              	Good             	Stress=0.500000
+152.000000        	Node     	join                  	Good             	2-1/2_ur2_ur4
+152.000000        	Block    	PmStress              	StessLevel       	CombStress=0.500000
+152.000000        	System   	State_change          	Green            	system_change_status
+300.000000        	Block    	PmStress              	Done             	End_sim
+300.000000        	Block    	Idle                  	Done             	End_sim
+300.000000        	System   	Phase_change          	Mission_success  	Finished_a_mission
+300.000000        	System   	Simulation_Terminate  	--               	--

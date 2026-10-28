@@ -1,0 +1,12 @@
+Begining Procedure RunEFPA......
+
+join  EFPAout=1
+   end  through link 5
+A  EFPAout=1
+   join  through link 2
+B  EFPAout=1
+   join  through link 4
+C  EFPAout=1
+   join  through link 7
+D  EFPAout=1
+   join  through link 9

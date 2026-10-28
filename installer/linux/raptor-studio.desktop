@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Raptor Studio
+GenericName=Reliability Simulation
+Comment=Reliability block diagram simulation (open Python port of Raptor 7)
+Exec=raptor-studio
+Icon=raptor-studio
+Terminal=false
+Categories=Science;Engineering;Education;
+Keywords=reliability;rbd;simulation;raptor;

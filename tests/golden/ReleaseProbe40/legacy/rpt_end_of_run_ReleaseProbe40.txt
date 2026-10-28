@@ -1,0 +1,146 @@
+End_Of_Run Report for input.rbd  Sat Sep 05 21:40:52 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.050000000
+MTBDE                      0.750000
+MDT                        14.250000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              30.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  21
+
+
+
+***LOGISTICS***
+
+MTBM                  0.065217
+MTBMu                 0.071429
+MTBMs                 0.750000
+MMT                   2.956331
+MMTu                  3.066667
+MMTs                  1.963309
+GreenPercent          5.000000
+YellowPercent         0.000000
+RedPercent            95.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.500000       0.750000       1.000000       0.353553
+DT                             3.500000      14.250000      25.000000      15.202796
+TBM                            0.000000       1.380952       3.500000       0.929859
+RT                             3.000000       3.066667       3.200000       0.097014
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+AFirst                      6   Infinite                     6
+BlockD                      8   Infinite                     8
+ZLast                       7   Infinite                     7
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.050000000
+MTBDE                      0.750000
+MDT                        14.250000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              30.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  21
+
+
+
+***LOGISTICS***
+
+MTBM                  0.065217
+MTBMu                 0.071429
+MTBMs                 0.750000
+MMT                   2.937317
+MMTu                  3.066667
+MMTs                  1.773172
+GreenPercent          5.000000
+YellowPercent         0.000000
+RedPercent            95.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.500000       0.750000       1.000000       0.353553
+DT                             3.500000      14.250000      25.000000      15.202796
+TBM                            0.000000       1.380952       3.500000       0.866986
+RT                             3.000000       3.066667       3.200000       0.097014
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+AFirst                      6   Infinite                     6
+BlockD                      8   Infinite                     8
+ZLast                       7   Infinite                     7
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.050000000
+MTBDE                      0.750000
+MDT                        14.250000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              30.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  21
+
+
+
+***LOGISTICS***
+
+MTBM                  0.065217
+MTBMu                 0.071429
+MTBMs                 0.750000
+MMT                   3.021547
+MMTu                  3.066667
+MMTs                  2.615469
+GreenPercent          5.000000
+YellowPercent         0.000000
+RedPercent            95.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.500000       0.750000       1.000000       0.353553
+DT                             3.500000      14.250000      25.000000      15.202796
+TBM                            0.000000       1.399891       3.500000       0.859528
+RT                             3.000000       3.066667       3.200000       0.097014
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+AFirst                      6   Infinite                     6
+BlockD                      8   Infinite                     8
+ZLast                       7   Infinite                     7
+
+
+
+

@@ -1,0 +1,213 @@
+[[ch-dependency]]
+== Dependency: The Backup That Wasn't
+
+*Time: about 25 minutes.*
+*New ideas: dependency, the idle state, why a diagram can lie about
+redundancy.*
+
+=== You will learn
+
+* What it means for one block to *depend* on another.
+* Why a dependent block's own failure clock can pause.
+* How to catch redundancy that exists on the page but not in practice.
+
+=== You need
+
+* <<ch-first-model>> and <<ch-redundancy>> finished.
+* The file `models/EspressoDep1.rbds`.
++
+opsmodel:EspressoDep1[]
+
+=== The story
+
+Remember the espresso cart from <<ch-redundancy>>? Two pumps, either one
+keeps the pressure up, reliability climbed from about 0.21 to about
+0.37. The cart has been running for a season now, and the mechanic who
+serviced it made one small change to save a part: instead of wiring
+Pump_B's activation relay to its own switch, she spliced it into
+Pump_A's control board. Cheaper. Fewer wires. The diagram in the shop
+manual still shows two independent pumps.
+
+Is it still two independent pumps?
+
+=== One new idea: dependency
+
+Every block you have built so far answers to nothing but its own dice.
+Real parts are not always so private. A **dependent** block watches
+another element and reacts to it: when the thing it depends on goes
+down, the dependent block is pulled into an **Idle** state — not
+failed, not running, just paused. Its own failure clock stops counting.
+The moment the depended-upon element comes back, the dependent block
+picks up exactly where it left off.
+
+Open `models/EspressoDep1.rbds`. On the canvas it is pixel-for-pixel
+Espresso1: Pump_A and Pump_B feed **Either_pump** ("need 1 of 2"), then
+the Boiler, same as before. Look closely at Pump_B's box, though — a
+small blue circle sits in its bottom-left corner. Hover over the block
+and a dashed line appears, running straight to Pump_A:
+
+image::espressodep-badge.png[Pump_B's dependency badge, hovered: a dashed line points to Pump_A]
+
+That badge and its connector are how a dependency shows on the canvas:
+without them it would have *no* visual feedback at all, and you would
+have to keep a separate hand-drawn dependency diagram just to avoid
+losing track of it. RAPTOR Studio draws the link for you — but only
+if you notice the badge. Two boxes, two links into a vote node: at a
+glance, this diagram still looks exactly like chapter 2's independent
+pair, which is precisely how the mechanic's wiring shortcut goes
+unnoticed until someone hovers, clicks, or opens the Inspector.
+
+[TIP]
+====
+This is the simplest of three dependency flavors the full engine
+recognizes — an *elemental* dependency, one block depending on one
+named other block (badge glyph **D**). *Local* dependency ties a block
+to its own downstream node instead (glyph **L**), and *system*
+dependency ties it to the whole model's up/down status (glyph **S**).
+This chapter's model, and the mechanism verified below, is the
+elemental case.
+====
+
+=== Open the Inspector
+
+Select Pump_B and check its **Deps** tab. The *Dependency* group has
+**Dependent on:** selected, with the combo pointing at `Pump_A block -
+001`. Underneath, the *Effects (%)* group reads:
+
+[cols="3,2",options="header"]
+|===
+|Field |Value
+|Nothing % |0.00
+|Idle % |100.00
+|PM % |0.00
+|Failure % |0.00
+|===
+
+100% Idle, no other outcome possible: Pump_B is set to go Idle, every
+time, the instant Pump_A is down. Select Pump_A and its own Dependency
+group shows **Independent** — it answers to nothing. Both pumps still
+use the same dice as before — Exponential, mean 400 hours, no repair.
+
+=== Run it
+
+Press F5 at 10 trials, then raise it to 2000 for the long-run number.
+Watch one trial's event log for the moment it happens:
+
+----
+0.000000     Block   Pump_A         Good        InitializeStress=1.000000
+0.000000     Block   Pump_B         Good        InitializeStress=1.000000
+241.299072   Block   Pump_A         Failed      Operating_time=241.299072
+241.299072   Block   Pump_A         Done        No_repair
+241.299072   Block   Pump_B         Idle        Dependence
+241.299072   Node    Either_pump    Degraded    1-1/2_ur4_di5
+241.299072   Node    Either_pump    Idle        0-1/2_df4_di5
+----
+
+Read the last four lines slowly. Pump_A dies. Pump_B — perfectly
+healthy, still well inside its own 400-hour mean — is yanked into
+`Idle` on the very same line, tagged `Dependence`. The node briefly
+shows `Degraded` (one of two branches still reads as up) and then
+immediately drops to `Idle` once it notices Pump_B's branch went with
+it. The two-branch vote never actually had two independent branches to
+vote on.
+
+[cols="4,2",options="header"]
+|===
+|Model |Reliability at 500 h
+|Espresso1 (independent pumps, <<ch-redundancy>>) |about 0.37
+|EspressoDep1 (Pump_B depends on Pump_A) |about 0.21
+|===
+
+That second number is not a new figure. It is <<ch-redundancy>>'s own
+*single-pump* result, to three digits. Wiring Pump_B's relay off Pump_A
+did not weaken the redundancy a little. It deleted it. Pump_B can be in
+perfect health for the entire mission — it never once gets the chance
+to matter, because the moment it would matter (Pump_A being down) is
+exactly the moment it is forced to sit out.
+
+[NOTE]
+====
+Why so exact? Whenever Pump_A is up, the "need 1 of 2" node is already
+satisfied by Pump_A alone — Pump_B's own state is irrelevant. Whenever
+Pump_A is down, Pump_B is forced Idle by the dependency, so it can
+never be the one covering. There is no scenario left in which Pump_B's
+health changes the outcome. Two parallel boxes on the canvas, one
+working system underneath.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |Pump_B is healthy and Pump_A is Repairing. What state is Pump_B in,
+and why?
+|2 |A colleague says "the numbers can't be right — Pump_B still shows
+up in the diagram working fine most of the time." Is that consistent
+with reliability collapsing to the single-pump figure? Why?
+|3 |Name the one change to `EspressoDep1.rbds` that would restore
+Espresso1's original ~0.37.
+|===
+
+.Answers
+[%collapsible]
+====
+. Idle, tagged `Dependence` — the dependency forces it into Idle the
+   instant Pump_A (what it depends on) is anything but Running, and
+   Pump_A entering Repairing counts.
+. Yes. Pump_B being "healthy" only means it hasn't independently
+   failed — it says nothing about whether it's ever actually covering
+   for Pump_A. Since Pump_B is forced Idle for the entire time it
+   would need to cover, its own health never once changes the
+   system's outcome.
+. Clear Pump_B's dependency fields (`DepNum=0`, `DepType=None`) so it
+   goes back to answering only its own dice — that is exactly
+   Espresso1 from <<ch-redundancy>>.
+====
+
+=== Exercise
+
+Before running anything: if you rewired the *other* way — Pump_A's
+relay spliced onto Pump_B's control board instead, so Pump_A is now the
+dependent one — would reliability end up higher, lower, or about the
+same as this chapter's ~0.21? Write down your answer. Then edit the
+file (swap which pump carries the `depnum`/`depType`/`depIdle` fields),
+run 2000 trials, and check yourself. What does the result tell you
+about whether it was ever really about which *pump* was better?
+
+.Answer
+[%collapsible]
+====
+About the same, ~0.21–0.22 either way. Both pumps draw from
+the identical Exponential(400) distribution, so it makes no difference
+which one is nominated as "the real one" — the system's reliability is
+always whichever pump is independent, alone.
+====
+
+.Limits of this model
+[NOTE]
+====
+This chapter used the simplest dependency: 100% Idle, one block
+depending on one other block. A dependent block can also be set to go
+Idle only *some* of the time (and otherwise keep running, be sent for
+maintenance, or be induced to fail outright), using the percentages in
+its dependency settings; this chapter does not demonstrate those mixes.
+In the field, dependency is also
+easy to introduce by accident: a shared power rail, a shared control
+signal, a single technician who can only be in one place. None of
+those show up as a **D** badge
+unless someone has already told the model about them — the badge
+warns you about dependency you declared, not dependency you forgot to
+notice in the first place.
+====
+
+=== What you learned
+
+* A dependent block pauses (Idle) while what it depends on is down,
+  and its failure clock resumes exactly where it left off.
+* Dependency has its own small badge and hover connector — real,
+  useful, and easy to miss on a diagram that otherwise looks ordinary.
+* A redundant-looking diagram can hide a single point of failure: if
+  the backup depends on the primary, the system's real reliability is
+  the primary's alone, no matter how good the backup is.
+
+Next chapter: voting with more than two — six motors, four needed.

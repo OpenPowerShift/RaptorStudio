@@ -1,0 +1,173 @@
+End_Of_Run Report for input.rbd  Wed Sep 02 07:33:34 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      30.000000
+MDT                        N/A
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              30.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  10.000000
+MTBMu                 15.000000
+MTBMs                 30.000000
+MMT                   11.500000
+MMTu                  22.000000
+MMTs                  1.000000
+GreenPercent          20.000000
+YellowPercent         80.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                            3.000000      14.000000      25.000000      15.556349
+RT                            22.000000      22.000000      22.000000            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      2   Infinite                     2
+BlockB                      0   Infinite                     0
+BlockC                      0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            1            0         0.20            1            0          0 
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      30.000000
+MDT                        N/A
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              30.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  10.000000
+MTBMu                 15.000000
+MTBMs                 30.000000
+MMT                   11.500000
+MMTu                  22.000000
+MMTs                  1.000000
+GreenPercent          20.000000
+YellowPercent         80.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                            3.000000      14.000000      25.000000      15.556349
+RT                            22.000000      22.000000      22.000000            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      2   Infinite                     2
+BlockB                      0   Infinite                     0
+BlockC                      0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            1            0         0.20            1            0          0 
+
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      30.000000
+MDT                        N/A
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              30.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  10.000000
+MTBMu                 15.000000
+MTBMs                 30.000000
+MMT                   11.500000
+MMTu                  22.000000
+MMTs                  1.000000
+GreenPercent          20.000000
+YellowPercent         80.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                            3.000000      14.000000      25.000000      15.556349
+RT                            22.000000      22.000000      22.000000            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      2   Infinite                     2
+BlockB                      0   Infinite                     0
+BlockC                      0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            1            0         0.20            1            0          0 
+
+
+
+
+

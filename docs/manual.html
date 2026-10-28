@@ -1,0 +1,2639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 2.0.26">
+<title>RAPTOR Studio Reference Manual</title>
+<link rel="stylesheet" href="./ops_asciidoctor.css">
+</head>
+<body class="article toc2 toc-left">
+<div id="header">
+<h1>RAPTOR Studio Reference Manual</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#system-settings">Model tab → Project Settings</a></li>
+<li><a href="#data-tables">Data Tables</a></li>
+<li><a href="#block-defaults">Block Defaults</a></li>
+<li><a href="#mass-edit">Mass Edit</a></li>
+<li><a href="#input-rules">Values and links Raptor 7 refuses</a></li>
+<li><a href="#results">Results dock</a>
+<ul class="sectlevel2">
+<li><a href="#_a_hierarchys_body_and_its_dsi">A hierarchy&#8217;s body and its DSI</a></li>
+<li><a href="#_editing_while_results_are_showing">Editing while results are showing</a></li>
+</ul>
+</li>
+<li><a href="#run">The Run panel</a></li>
+<li><a href="#cores">Cores, Animate and repeatable results</a></li>
+<li><a href="#differences">Comparing two models</a></li>
+<li><a href="#several-models">Several models at once</a></li>
+<li><a href="#ai-assistant">AI assistant (MCP)</a></li>
+<li><a href="#files-and-reports">Recording</a></li>
+<li><a href="#run-manifest">What a result set records about itself</a></li>
+<li><a href="#stepping">Debug tab: stepping debugger</a></li>
+<li><a href="#extract-hierarchy">Checking part of a model: Extract Hierarchy</a></li>
+<li><a href="#export-tables">Exporting tables</a></li>
+<li><a href="#preferences">Preferences</a></li>
+<li><a href="#files">Files and formats</a></li>
+<li><a href="#standards">IEC 61078 and standards alignment</a></li>
+<li><a href="#fidelity">Fidelity and known limits</a></li>
+<li><a href="#ui-reference">UI Reference</a></li>
+<li><a href="#generated-ui-reference">Every ribbon control</a>
+<ul class="sectlevel2">
+<li><a href="#_model_tab">Model tab</a></li>
+<li><a href="#_arrange_tab">Arrange tab</a></li>
+<li><a href="#_data_tab">Data tab</a></li>
+<li><a href="#_simulate_tab">Simulate tab</a></li>
+<li><a href="#_debug_tab">Debug tab</a></li>
+<li><a href="#_results_tab">Results tab</a></li>
+<li><a href="#_view_tab">View tab</a></li>
+<li><a href="#_help_tab">Help tab</a></li>
+<li><a href="#_file_view">File view</a></li>
+<li><a href="#_data_tables_columns">Data Tables columns</a></li>
+</ul>
+</li>
+<li><a href="#_about">About</a></li>
+</ul>
+</div>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This is the <strong>field and workflow reference</strong> for RAPTOR Studio: what
+every control does, dialog by dialog. It does not teach simulation
+concepts. For the guided tour (dice, diagrams, redundancy, standby, cost,
+weak links, a tuned data centre), read the companion book,
+<strong>Break It Before It Breaks</strong>
+(<a href="../new_docs/book.html">User Guide</a>); the links in this manual point
+into its chapters.</p>
+</div>
+<div class="paragraph">
+<p>Help layers, cheapest first:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Tooltips</strong> — hover any ribbon button or dialog field.</p>
+</li>
+<li>
+<p><strong>F1</strong> — press it over the Project Settings, Results, Data Tables,
+Run, Simulate or Inspector surface to jump straight to this manual&#8217;s
+matching section.</p>
+</li>
+<li>
+<p><strong>Status bar</strong> — narration during runs and stepping; preflight
+warnings before a run.</p>
+</li>
+<li>
+<p><strong>This manual</strong> — what a control does and how a workflow fits
+together.</p>
+</li>
+<li>
+<p><strong>The User Guide</strong> — why the pieces exist and when to reach for them.</p>
+</li>
+<li>
+<p><strong><a href="formulas.html">Formulas quick reference</a></strong> — every metric the
+engine reports, as an equation, one page.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="system-settings">Model tab → Project Settings</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Project Settings is the Inspector page (Model ▸ Project Settings, or the
+Project Settings entry in Model Explorer). It is not a modal: the page
+stays open beside the canvas. Run settings are edited in the Run panel;
+the Inspector shows read-only echoes for those fields. Model-wide fields
+(units, flow generated, costs, flags) are edited here.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 30%;">
+<col style="width: 40%;">
+<col style="width: 30%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Field</th>
+<th class="tableblock halign-left valign-top">Meaning</th>
+<th class="tableblock halign-left valign-top">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Time units</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Label used in every report ("hours", "miles", "cycles")</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A label only; values are never converted</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Termination type</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">TimeSim (run a fixed mission), FailSim (stop after N system failures), CycleSim</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The User Guide&#8217;s models all use TimeSim</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Term condition</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The mission length (TimeSim) or failure count (FailSim)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">See <a href="../new_docs/book.html#ch-first-model">Your First Model</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Statistics start time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Discard everything before this time from the statistics</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Warm-up / transient removal</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Number of runs</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Read-only echo of trials per simulation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Edit in the Run panel; more runs give tighter SEMs (<a href="../new_docs/book.html#ch-trials">Many Trials</a>)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Flow generated</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Demand offered at the Start node each hour</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../new_docs/book.html#ch-capacity">Capacity analysis</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">System red cost</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cost per hour the system is fully down</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../new_docs/book.html#ch-cost">Cost analysis</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cost of lost flow</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Price per unit of unmet demand</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Billed against capacity shortfall</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Green/Yellow threshold</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Read-only echo; edit in Results ▸ Bands</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default 0.95</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yellow/Red threshold</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Read-only echo; edit in Results ▸ Bands</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default 0.90</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ignore negative-value warning</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Suppress the warning when a parameter is set negative</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Off by default</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ignore start failures</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Discard failures in the first instant</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Counted nowhere in the results</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">System comment</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Free-text note stored with the model</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shows in the .rbd COMMENTS section</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Link analysis</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Collect per-block/per-node state times during runs</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../new_docs/book.html#ch-weaklink">Weak Links</a>; adds the weak-colour view</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cost analysis</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sum purchase/repair/downtime/lost-flow money</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../new_docs/book.html#ch-cost">Cost</a>; adds the COST report</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity analysis</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Track flow against demand, not just up/down</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../new_docs/book.html#ch-capacity">Capacity</a>; needs Start + End nodes</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">System streams A…Anc</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RNG stream numbers</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Same seeds ⇒ same story (<a href="../new_docs/book.html#ch-trials">Many Trials</a>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="data-tables">Data Tables</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Open from <strong>View → Panels → Data Tables</strong>. It edits the model as
+spreadsheets, one tab per element type or per section of the <code>.rbds</code>
+file. Only some cells are editable; invalid values revert on entry.
+Blocks, Nodes and Events show the hierarchy level currently on the
+canvas; the header says “current level: 8 of 17 blocks…” when the model
+has nested levels. Use Model Explorer to reach the others.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Tab</th>
+<th class="tableblock halign-left valign-top">Columns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Blocks</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Failure Dist, Failure Param 1–3, # Failure Params, Repair
+Dist, Repair Param 1–3, # Repair Params, PM Frequency, plus read-only
+Failure/Repair Mean and Std Dev computed from the current parameters</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nodes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Type (Regular / Start / End / Hierarchy In-Out), Required
+good (k), Out</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Events</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Distro, Param, Stream</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spare Pools</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">PoolName, RSO, Stock, NewSp, ArriveEvery, ESO, EmerTime, SLO, Level,
+Quan, SLOTime — see <a href="#system-settings">Model tab → Project Settings</a>'s sparing fields and <a href="../new_docs/book.html#ch-sparing">Sparing</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Resources</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">PoolName, NumIn, SpareCost, FixedPerUse, PerTimeUnit, Phases</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Triggers</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">TriggerName, IDnum, Repeats, InitUsed, Dist, Param1–3 — schedules
+Preventive Maintenance</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Phases</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">PhaseName, Num, Mission, Dist, Param1–3 — mission-phase durations and
+sequencing</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sparing</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Sparing Type, Pool Name, Resource, New Spares, Order
+Interval — one row per block, cross-referencing the two pool tabs
+above</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Preventive Maintenance</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Frequency, Needs spare, Refresh, Defer (non-mission), Defer
+(unavailable), Failure resets — lists only blocks with PM enabled</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="block-defaults">Block Defaults</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Data ▸ Block Defaults</strong> sets what a block you add to the diagram starts with: its
+failure and repair distributions (all three parameters, labelled for the law you
+pick, with the resulting Mean and Std Dev shown) and its sparing type. <strong>Reset
+Defaults</strong> returns to the factory values (Exponential failure, Lognormal repair,
+infinite spares).</p>
+</div>
+<div class="paragraph">
+<p><strong>Block template</strong> starts from a block of a library: after <strong>Data ▸ Import Library</strong>
+the list holds <strong>Default</strong> plus every block in that library, and choosing one fills
+the distributions from it. Until a library has been imported the list is greyed,
+with the reason in its tooltip. The defaults are yours, not the model&#8217;s: they are
+remembered between sessions and never change a block already in a model.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="mass-edit">Mass Edit</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Select two or more elements, then <strong>Data ▸ Mass Edit</strong>. There is one tab per
+kind of element in the selection, and only the tabs for what you selected
+apply. Each tab has a <strong>Rename</strong> row with three modes:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Add as suffix</strong> (the default) — each element keeps its own name and
+gains your text at the end: <code>Pump</code> → <code>Pump_v2</code>.</p>
+</li>
+<li>
+<p><strong>Add as prefix</strong> — the same at the front: <code>Pump</code> → <code>A_Pump</code>.</p>
+</li>
+<li>
+<p><strong>Replace name</strong> — every selected element gets <strong>exactly</strong> your text, so
+use it on a single kind of thing you genuinely want identically named.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Leave the text blank to keep all names. The whole edit is one undo step.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="input-rules">Values and links Raptor 7 refuses</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>RAPTOR Studio applies Raptor 7&#8217;s own input checks, with Raptor 7&#8217;s own
+messages, wherever you edit: the Inspector, Data Tables, the dialogs, the
+canvas, the <code>raptor</code> command line and the MCP server.</p>
+</div>
+<div class="paragraph">
+<p>Warnings in the app name the affected element — and, for a link, its
+From and To endpoints — and say which setting to change. Source-code
+references are kept in developer/API output, not shown in the UI.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>A value its dialogs refuse</strong> is refused when you commit it, and the
+model is left as it was: a PM stagger at or above the PM frequency, a
+cost below 0, a name with a space or over 20 characters, a success
+probability above 1, a growth/decay limit on the wrong side of the
+failure mean, and the rest of Raptor 7&#8217;s dialog checks.</p>
+</li>
+<li>
+<p><strong>A name up to 20 characters fits on its block.</strong> A block widens for
+a long name, up to twice its usual width, equally either side of its
+centre, so nothing around it moves and the file is unchanged. A name
+too wide even for that (twenty W&#8217;s) is cut short with "…" and shown
+whole when you point at it.</p>
+</li>
+<li>
+<p><strong>A link it will not let you draw</strong> is refused when you draw it: a
+block, event or hierarchy takes one link in and one out, a Start or In
+marker one link out, an End or Out marker one link in. Paths split and
+join at a node.</p>
+</li>
+<li>
+<p><strong>A model it will not run</strong> is refused at Run: every block, event,
+hierarchy and node must connect from something and to something, the
+run length and statistics start must be in range, and cycle termination
+needs phases.</p>
+</li>
+<li>
+<p><strong>A distribution change keeps the mean.</strong> When you change a
+distribution anywhere (the Inspector, the Blocks, Phases and Triggers tabs
+of the Data Tables, the distribution editor used for phase lengths and
+spare pools, Block Defaults and Mass Edit), the new one starts with valid
+parameters that give the <strong>same mean</strong> as the old one, so a Fixed 0.25
+changed to Binomial becomes a valid Binomial with a mean of 0.25 rather
+than a half-filled one.</p>
+</li>
+<li>
+<p><strong>Rules that tie several fields together let you type one field at a
+time.</strong> Triangular needs Min &lt; Mode &lt; Max and Uniform needs Min ≤ Max, so
+the set is briefly invalid while you change the first field. The value is
+held, with the reason shown, and is applied once the set is valid. A
+dialog that edits a distribution keeps <strong>OK</strong> off while the set is
+invalid and says why under the fields.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>A file written by another tool is still opened, as Raptor 7 opens it.
+The Issues list (the <strong>Issues</strong> button on the Model tab, or the badge at the
+right of the status bar) shows anything in it that Raptor 7 would refuse
+to draw or type as a warning, and a problem a model already has never blocks an unrelated
+edit. Choosing a growth/decay type fills in the values Raptor 7 puts back
+when it refuses the current ones (a base of 1, a limit either side of the
+mean), so the type can be changed before the rate.</p>
+</div>
+<div class="paragraph">
+<p>The distribution lists offer what Raptor 7 offers for each choice, with one
+addition: a failure law can also be Fixed (a block that fails at the same
+time on every run). Raptor 7&#8217;s failure list leaves Fixed out, but it runs a
+model that uses it. Only a block&#8217;s failure and repair laws can be Empirical
+(their data points are kept in the file); the repair list also has None. A value a file
+already holds outside a list is kept and shown, marked as not offered by
+Raptor 7 there.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="results">Results dock</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After a run (or a stepped Finish) the Results dock offers:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Overview</strong> — health-bar summary per run: green/yellow/red
+percentages, availability at a glance.</p>
+</li>
+<li>
+<p><strong>Final Results</strong> — the Final_Results report: Minimum/Mean/Maximum/
+St.Dev/SEM for Availability, MTBDE, MDT, Reliability, plus the
+LOGISTICS, SPARING, COST and CAPACITY sections when enabled.</p>
+</li>
+<li>
+<p><strong>Event Log</strong> — the per-trial story, one coloured row per event
+(<a href="../new_docs/book.html#ch-redundancy">Redundancy</a>). Filter by text ("Failed", a block name). During a stepped
+session this tab fills line by line.</p>
+</li>
+<li>
+<p><strong>Graphs</strong> — availability/convergence and capacity plots. A plot mode
+is selectable only when the run collected enough data; otherwise its
+tooltip/empty state says exactly what to tick under Run panel ▸
+Recording (<a href="../new_docs/book.html#ch-trials">Many Trials</a>).
+<strong>Multi-run Ao</strong> auto-fits its Y axis to the observed min/max, so a
+narrow availability band is readable instead of a flat line at 1.0.
+The single-run <strong>Capacity (Flow)</strong> plot shows the run&#8217;s average flow
+and capacity as horizontal reference lines; <strong>Multi-run Capacity
+(Flow)</strong> shows min/average/max flow and capacity across every run.</p>
+</li>
+<li>
+<p><strong>Report Text</strong> — the report text exactly as produced.</p>
+</li>
+<li>
+<p><strong>Capacity</strong> / <strong>Cost</strong> / <strong>Weak Link</strong> — sub-tabs of Final Results.
+They are always present after a run; each has an explanatory empty
+state when its analysis was not enabled.</p>
+</li>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="_a_hierarchys_body_and_its_dsi">A hierarchy&#8217;s body and its DSI</h3>
+<div class="paragraph">
+<p>A hierarchy oval carries <strong>two</strong> pieces of state, and they answer
+different questions:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The <strong>body</strong> colour is the hierarchy&#8217;s own status — what its Out marker
+is doing: green (no loss of redundancy), yellow (operating, but
+something inside has failed), red (the subsystem cannot function), plus
+blue for standby, brown for idle and orange for preventive maintenance.</p>
+</li>
+<li>
+<p>The <strong>two stacked downward triangles in the centre</strong> are Raptor 7&#8217;s
+<strong>Descendant Status Indicator</strong> (DSI, manual Ch.16). They show the
+worst status of the <strong>hierarchies inside this one</strong>, not this
+hierarchy&#8217;s own state. Their six colours are the same node states —
+green, yellow, blue, brown, orange, red — and they are white when the
+hierarchy&#8217;s output is Linked and black when it is Cut (Failure Effects
+View, and a phased model&#8217;s Link/Cut attributes).</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>So a <strong>green body with a yellow or red DSI</strong> means the hierarchy itself
+still works, but something deeper is degraded or down. A <strong>red body</strong>
+means this subsystem is down. A yellow body means loss of redundancy
+here, even if the DSI is green. The DSI is only meaningful when there is
+another level below; on a leaf hierarchy it matches the body and
+disappears into it.</p>
+</div>
+<div class="paragraph">
+<p>The hierarchy&#8217;s <strong>name sits inside the oval</strong> at rest. While a simulation
+view is using the body (Animate, a stepped run, Failure Effects View, or the
+after-run triangles) the name moves <strong>under the oval</strong>, so the colours and
+triangles never clash with the text; a Weak Link or overlay value, when shown,
+goes under it.</p>
+</div>
+<div class="paragraph">
+<p>During <strong>Animate</strong> or a stepped run both are live. <strong>After a run</strong> the
+DSI shows the share of time, over every run, that the inside was
+working, partly failed, on standby or down, coloured by the same bands
+as the Weak Link view, and it is re-coloured if you change the
+thresholds. It needs <strong>Weak Link analysis</strong> to be on: after a run
+without it there is no DSI, rather than a misleading one. Point at the
+triangles (or the body) for a plain-words explanation of what they are
+showing.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>The after-run average DSI is a RAPTOR Studio extension. Raptor 7 turns
+the DSI lime green when a run completes; the body still carries the
+run&#8217;s final state until the next run.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_editing_while_results_are_showing">Editing while results are showing</h3>
+<div class="paragraph">
+<p>Every tab stays editable. Results, though, describe the model as it was
+when the run finished, so the first edit that could change a simulated
+number (a distribution, a link, a dependency, a new or deleted element)
+asks once:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Discard results &amp; edit</strong> — the results are cleared and the edit stands.</p>
+</li>
+<li>
+<p><strong>Keep results (undo this edit)</strong> — the edit is reverted and nothing
+changes.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Moving elements, panning, zooming, selecting and changing the run settings
+(trials, run length, analyses) never ask, because they cannot change a
+result. While results are showing, the Inspector says so in a line at its
+top. That line has a <strong>Clear results</strong> button, which discards the results
+and makes the whole model editable without waiting for the question.</p>
+</div>
+<div class="paragraph">
+<p>Results-tab ribbon extras beyond the dock itself:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Show on Canvas</strong> — five colourings of the diagram from the last
+run (Weak Links, Capacity, Cost, Spares, Importance); one shows at a
+time, and turning one on clears the others. Each is offered only when
+the run produced its data. A run does not turn one on by itself.</p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Weak Links</strong> — paints every block, node, event and hierarchy by
+its availability, dependability or reliability against the model&#8217;s
+Green/Yellow and Yellow/Red thresholds (needs Weak Link analysis on).
+The metric value is printed under each element, with 3 decimal places
+by default; change that under <strong>Preferences ▸ Advanced ▸ Weak Link
+value digits</strong>. Text on a coloured fill switches to black or white to
+keep readable contrast on both themes. The <strong>Bands</strong> group beside it
+picks the metric and holds the two thresholds.</p>
+</li>
+<li>
+<p><strong>Capacity</strong> — each capacity node by its average utilization
+(Green &lt; 70 %, Yellow &lt; 90 %, Red ≥ 90 %). A node with unrestricted
+flow has no utilization and stays plain.</p>
+</li>
+<li>
+<p><strong>Cost</strong> — each block by its total life-cycle cost, relative to the
+most expensive block (Red at two-thirds of it or more, Yellow at a
+third or more).</p>
+</li>
+<li>
+<p><strong>Spares</strong> — a block Red if it ever ran out of spares or reached
+end of life; the share of run time and the sparing cost are on hover.</p>
+</li>
+<li>
+<p><strong>Importance</strong> — each block by the importance measure the Importance tab
+ranks by (Vesely–Fussell, since Birnbaum saturates in a series model), banded
+against the largest value in this run (Red at two-thirds or more,
+Yellow at a third or more), with its rank badged on the block and the
+value printed under it. Red here means <strong>most leverage — fix this
+first</strong>, not <strong>this is failing</strong>: it is a ranking, not a health reading.
+Needs Importance measures enabled for the run.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><strong>Spread</strong> — bands the <strong>active</strong> colouring by this result set&#8217;s own
+values: the best quarter Green, the worst quarter Red, the middle half
+Yellow (the quartiles). It applies to Weak Links or Cost; Capacity and
+Spares are fixed/flag bands, so Spread says so and changes nothing.
+With Weak Links it sets the two thresholds;
+fixed bands such as 0.95 / 0.90 paint every block of a highly
+available model Green, which says nothing about which is weakest. The
+thresholds are ordinary model settings afterwards (shown to six
+decimals), and changing them never discards the results on screen —
+they only change the colours. With Cost showing, Spread bands the
+blocks by cost quartile instead of by thirds of the dearest one, so a
+single very expensive block no longer leaves all the others Green.</p>
+</li>
+<li>
+<p><strong>Float Window</strong> — the Results in a window of their own, with the
+usual title bar: move it to another screen, maximize it, find it in
+the taskbar. Closing that window puts the Results back in the main
+window.</p>
+</li>
+<li>
+<p><strong>Single-Point Failures</strong> — lists every component whose failure
+alone brings the system down (the series elements), exportable as
+text.</p>
+</li>
+<li>
+<p><strong>Domains…</strong> — for each node, which elements' failures can
+propagate to it.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="run">The Run panel</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Every setting that describes a <strong>run</strong> is edited in the <strong>Run</strong> dock,
+tabbed alongside Results and Data Tables at the bottom of the window,
+raised automatically on the Simulate tab (and openable any time from
+<strong>View ▸ Panels ▸ Run Panel</strong>, or the Simulate tab&#8217;s <strong>Run Settings…</strong>
+button).</p>
+</div>
+<div class="paragraph">
+<p>The Run panel is the single editor for trials, stop condition,
+statistics start, analyses, recording and cores. The Simulate ribbon&#8217;s
+Trials and Cores boxes, the Inspector&#8217;s Project Settings page and
+Preferences are read-only echoes. Green/Yellow and Yellow/Red thresholds
+are edited in <strong>Results ▸ Bands</strong>, not in Project Settings.</p>
+</div>
+<div class="paragraph">
+<p>If the model has a display unit (say years on an hours-native model),
+the run length and statistics start are shown <strong>in that unit</strong> and
+stored in the model&#8217;s own. Under <strong>Stop at: system failures</strong> or <strong>phase
+cycles</strong> the run-length figure is a plain count and is never converted —
+the row label changes to say which kind of number it is.</p>
+</div>
+<div class="paragraph">
+<p>A readiness line at the top says whether the model can run, and <strong>why</strong>
+not when it cannot, rather than presenting a greyed button with no
+explanation. The panel <strong>locks while a run is in progress</strong>: the values
+it holds are the ones the run is actually using, and a 20-minute batch
+must not have its settings changed underneath it.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 71.4286%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Section</th>
+<th class="tableblock halign-left valign-top">What it sets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Experiment</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A starting <strong>Profile</strong> (Quick check / Steady state / Endurance /
+Endgame) that seeds the rest, <strong>Trials</strong>, <strong>Stop at</strong> (time, system
+failures or phase cycles — the run-length label and unit follow the
+choice), and <strong>Statistics from</strong>. The <strong>Cores</strong> box is a read-only
+readout of the machine setting (edit it in the Run panel); it is
+greyed, with the reason, while Animate is on or a run is going.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Analysis</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Link, Cost and Capacity. Each is a switch with its purpose
+written beside it.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Recording</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Which outputs a run collects. Additive rather than a single "level",
+so "state intervals, but no multi-gigabyte event log" is expressible.
+Each dependent plot is <strong>disabled with a stated reason</strong> until its
+analysis is on, and turning an analysis off clears the plot it fed.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stepping</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Parameters for the interactive debugger: multi-step event count,
+run-to target time, and the breakpoint block.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>A stepped session spans the run count the model is configured for. <strong>Jump</strong> lets the current run finish and stops at the next
+run&#8217;s first change; <strong>Finish</strong> completes every run that is left and shows
+the results of all of them.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="cores">Cores, Animate and repeatable results</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Run</strong> (F5) runs at full speed in the background, splitting the trials
+across the processor cores in the <strong>Cores</strong> box beside it on the Simulate
+tab, and in the Run panel beside Trials (one setting, shown in both). The
+box reads, say, "8 of 8": the cores a run will use, out of the
+cores this computer has. The same count is shown in the status bar, in the
+Run panel&#8217;s readiness line and in the Sweep and Compare windows before they
+start. The Run panel&#8217;s Cores field is the editor; <strong>Automatic</strong> uses every
+core.</p>
+</div>
+<div class="paragraph">
+<p><strong>Animate</strong> is the other way to run: one core, with each event drawn on the
+diagram as it happens. The Cores box, in both places, greys out while it
+is on, and while any run is going, and says why when you point at it.</p>
+</div>
+<div class="paragraph">
+<p>The core count is <strong>a setting of this computer, not of the model</strong>. It is
+not saved in the <code>.rbd</code> or <code>.rbds</code> file, so a model opened on another
+computer runs on that computer&#8217;s own cores, and a count set higher than a
+computer has is capped at what it has.</p>
+</div>
+<div class="paragraph">
+<p><strong>Will I get the same numbers as a colleague?</strong></p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 71.4286%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">How the model is run</th>
+<th class="tableblock halign-left valign-top">What you get</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Animate, or Cores set to 1</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Raptor 7&#8217;s exact sequence of random numbers, so the same results as
+Raptor 7 and as anyone else running on one core.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2 or more cores</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The same results on every computer and at every core count from 2 up:
+the trials are always split into the same 64 slices, each with its own
+random stream, whatever the number of cores doing the work.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The two rows are <strong>statistically the same answer</strong> but not identical to
+the last digit, because the multi-core run draws its dice from different
+parts of the random streams. The difference is usually within about
+±2×SEM (the standard error the results report); with few trials it can be
+large, as any small sample&#8217;s is. To
+repeat a result exactly, run it the same way: on one core (Animate, or Cores
+1) to match Raptor 7, or on any number of cores from 2 up to match another
+multi-core run. A computer with a single core always runs the one-core way.</p>
+</div>
+<div class="paragraph">
+<p><strong>Stop and Pause</strong> work on a multi-core run between slices: Stop keeps the
+trials already finished, Pause starts no new slice until you resume. <strong>Jump</strong>
+(skip one trial) is unavailable on a multi-core run, because trials are run
+in slices; its tooltip says so.</p>
+</div>
+<div class="paragraph">
+<p><strong>Sweep</strong> and <strong>Compare</strong> (Simulate ▸ Batch) always run at full speed on the
+chosen cores, on a copy of the model: the open model is not changed.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="differences">Comparing two models</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>File ▸ Differences…</strong> says what is different between the open model —
+as it is now, unsaved edits included — and another model:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Its saved file</strong>: what you have changed since the last save.</p>
+</li>
+<li>
+<p><strong>Another model</strong>: any <code>.rbd</code> or <code>.rbds</code> file, in either combination.</p>
+</li>
+<li>
+<p><strong>An open or recent model</strong>: the list shows the models open in your other
+windows first (compared as they are now, unsaved edits included), then
+the Recent list.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>It compares the models themselves, not their results (for results, run
+them side by side with Simulate ▸ Compare, whose <strong>What&#8217;s different?</strong>
+button opens this window for the selected model). Nothing is run.</p>
+</div>
+<div class="paragraph">
+<p>Rows are grouped by element: a field that changed shows its value in
+the other model and in this one; an element only in this model reads
+<strong>new here</strong>, one only in the other <strong>only in</strong> that model; renames are
+listed as such, and their links still match. Connections, rates, system
+settings, spare pools, resources, triggers and phases are compared the
+same way. Double-click an element to find it on the canvas, on whatever
+hierarchy level it is.</p>
+</div>
+<div class="paragraph">
+<p>Elements are matched by name (and by ID when names do not settle it;
+against the saved file, by ID, so a rename is a rename). Positions, and
+the values a model computes from its links and distributions, are left
+out unless <strong>Also show layout and computed values</strong> is ticked. <strong>Export…</strong>
+writes the list as CSV or Markdown.</p>
+</div>
+<div class="paragraph">
+<p>The same comparison is <code>raptor diff A B</code> on the command line and the
+<code>diff_models</code> tool for AI assistants.</p>
+</div>
+<div class="paragraph">
+<p>In Simulate ▸ Compare, the <strong>Add models</strong> button is a menu: choose a file,
+or a model open in another window, which is run as it is now, unsaved
+edits included.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="several-models">Several models at once</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A second model opens in a <strong>second window</strong>. <strong>Open</strong>, <strong>New</strong> and the
+examples do this whenever the window you are in holds a model worth
+keeping, meaning one with a file or one you have edited. A window with
+nothing in it, or with a new model you have not touched, is reused
+instead. If the file you choose is already open, that window is brought
+forward rather than opening it twice.</p>
+</div>
+<div class="paragraph">
+<p>Each window is a whole RAPTOR Studio window with its own model, undo
+history and results. To keep the older behaviour, where opening a model
+replaces the one in the window, set <strong>Preferences ▸ Working ▸ Open another
+model in</strong> to <strong>this window</strong>.</p>
+</div>
+<div class="paragraph">
+<p>The windows know about one another in two places: Compare&#8217;s <strong>Add models</strong>
+menu and Differences' <strong>An open or recent model</strong> list both offer the models
+open in other windows (see <a href="#differences">Comparing two models</a>). Crash recovery keeps one
+copy per window; the first window you open after a crash offers all of
+them.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="ai-assistant">AI assistant (MCP)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>RAPTOR Studio includes a Model Context Protocol (MCP) server, so an AI
+assistant can build, validate, simulate and explain models with the same
+engine as the app and the <code>raptor</code> command line. The assistant works on
+its own copies in a <strong>workspace</strong> folder; it never changes a model open in
+this window.</p>
+</div>
+<div class="paragraph">
+<p>The server is an optional extra:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">pip install "raptor-studio[mcp]"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>File ▸ AI Assistant</strong> (a top level entry in the File view, repeated on
+the Help tab) opens this page. Step-by-step setup for Claude Code, Claude
+Desktop, OpenCode and any other MCP client, with worked examples, is in
+the User Guide:
+<a href="../new_docs/book.html#ch-mcp">RAPTOR from an AI Assistant</a>. The
+generated reference for every tool, option and transport is
+<a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md">the
+MCP server reference</a>.</p>
+</div>
+<div class="paragraph">
+<p>Over stdio the client starts the server itself:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor-studio-mcp --workspace ~/raptor-models</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To keep one server running for several clients, use Streamable HTTP:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor-studio-mcp --transport http --port 8765 --token-file ~/.raptor-token</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The token (at least 16 characters) is required; the User Guide&#8217;s MCP chapter
+shows how to make one.</p>
+</div>
+<div class="paragraph">
+<p>The installer build of RAPTOR Studio does not include the MCP server; use
+the Python package above.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="files-and-reports">Recording</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Recording is chosen in the Run panel&#8217;s <strong>Recording</strong> section (above) and
+is stored <strong>with the model</strong>, so two models open side by side each keep
+their own choices. Plot and log collection is <strong>opt-in</strong>: unticked items
+are never collected, so long simulations cost no extra memory, and
+ticked items are <strong>streamed to a temp file</strong> as the run progresses,
+never held in RAM.</p>
+</div>
+<div class="paragraph">
+<p>The four kinds are:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 71.4286%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Toggle</th>
+<th class="tableblock halign-left valign-top">Collects</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Event Log</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Each run&#8217;s event log for the Results ▸ Event Log tab (on by
+default).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Availability Plot</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Per-Trial / Interval / Multi-run Ao data for the Graphs tab (the
+availability plot file).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity Plot</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Flow-vs-capacity data for the Graphs tab&#8217;s Capacity plot and the live
+per-node capacity readouts (capacity plot file). Requires Capacity
+Analysis.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cost Plot</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Interim cost rows (interim cost file). Requires Cost Analysis.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Use <strong>the Graphs tab’s Export Data… button</strong> to save a plot&#8217;s rows to a file. If a FailSim/CycleSim run reaches the
+t = 10,000,000 safety bound without meeting its termination condition,
+a warning is shown in the status bar and the Summary notes — the
+numbers then cover only the simulated portion.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="run-manifest">What a result set records about itself</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Results ▸ Overview tab opens with one line describing the run
+these numbers came from: trials, stop condition, analyses, what was
+recorded, the model&#8217;s content hash and a short run id. The full
+manifest is in the line&#8217;s tooltip.</p>
+</div>
+<div class="paragraph">
+<p>That is deliberate. Simulation is an experiment, not an animation, and
+a number you cannot trace to the settings that produced it is an
+animation with figures attached. The model hash covers the
+<strong>engineering</strong> content only — distributions, topology, dependencies,
+phases — so changing the trial count for a convergence sweep does not
+retroactively invalidate results already on screen, while changing a
+failure distribution does.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="stepping">Debug tab: stepping debugger</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The <strong>Debug</strong> tab&#8217;s <strong>Step</strong> group carries the verbs you press in a
+loop: <strong>Step</strong> (F6), <strong>Next Time</strong> (Shift+F6), <strong>Finish</strong>, <strong>Terminate</strong>
+and <strong>Restart</strong>, plus a <strong>More Steps</strong> menu for the less common ways to
+advance. The <strong>parameters</strong> those need — multi-step count, run-to time,
+breakpoint block — are in the Run panel&#8217;s <strong>Stepping</strong> section, where
+there is room to label and explain them.</p>
+</div>
+<div class="paragraph">
+<p>Press <strong>Step</strong> to start an interactive single run: the first press
+performs the kickoff at t = 0, every later press advances one event, the
+diagram re-colours live, and the status bar narrates. <strong>Next Time</strong>
+advances every event at the current sim time in one click. <strong>More
+Steps</strong> holds <strong>Step to next change</strong>, <strong>Multi</strong> (advance N events) and
+<strong>Run to time</strong>. The breakpoint
+stops stepping when the chosen block enters Repairing. <strong>Restart</strong>
+discards the stepped run and begins a fresh one; <strong>Terminate</strong>
+finalizes at the current sim time and keeps partial results; <strong>Finish</strong>
+completes the run and produces full reports.</p>
+</div>
+<div class="paragraph">
+<p>While <strong>Animate</strong> is on, the status bar carries a live
+<strong>system-status square</strong> (green = fully working, yellow = degraded,
+red = fully down) and cumulative readouts — Ao, MTBDE, MDT, tracked
+average <strong>R</strong> (mission success), and the green/yellow/red time split.
+Turning Animate off runs at full speed on several cores (see
+<a href="#cores">Cores, Animate and repeatable results</a>); the speed dial then greys out, because an
+animation speed only means something when something is being animated.</p>
+</div>
+<div class="paragraph">
+<p><strong>Animate is a display setting, not part of the model.</strong> Toggling it
+never marks your file unsaved, adds nothing to the undo stack, and works
+while a stepped run is paused. It is remembered between sessions
+(Preferences ▸ Working ▸ <strong>Animate by default</strong>), exactly like the zoom
+level and the pan position are.</p>
+</div>
+<div class="paragraph">
+<p><strong>Failure Effects</strong> opens Failure Effects View: the model is shown
+all-operating (phase 1, for a phased model), with nothing simulated and
+no dice thrown. Click a block to fail it, click it again to put it
+back; an element a dependency has forced to fail, idle or into
+maintenance is drawn hatched, and clicking a hatched block cycles
+through the other outcomes its dependency allows. <strong>Fail</strong> and
+<strong>Repair</strong> do the same for the selected block or event (or arm the next
+click). On a phased model <strong>Prev Phase</strong> and <strong>Next Phase</strong> move through
+the phases (applying each phase&#8217;s Cut, Linked and stress changes),
+<strong>Clear Failures</strong> repairs everything but stays in the phase, and
+<strong>Reset All</strong> returns to phase 1 with everything operating. <strong>Status</strong>
+opens the system-status summary (failed components, induced failures,
+down and degraded nodes, system colour) and <strong>Log</strong> appends the same
+text to a file, byte for byte what a Failure Effects log contains. They sit on the
+<strong>Debug</strong> tab beside the stepping verbs. Failure Effects View and a run
+are separate modes: Run and Step are unavailable while it is open, and
+editing the model closes it. <code>raptor fev</code> does the same from the
+command line. The Weak Link, Capacity and Cost switches are run
+settings, so they live on the <strong>Simulate</strong> tab next to Run. A walkthrough
+is in the User Guide&#8217;s <a href="../new_docs/book.html#ch-debugger">debugger chapter</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="extract-hierarchy">Checking part of a model: Extract Hierarchy</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Select one hierarchy oval and press <strong>Extract Hierarchy…</strong> on the <strong>Simulate</strong>
+tab. The hierarchy becomes a standalone model: its input node is the start
+and its output node the end, so its input is always available. The dialog
+lists what crosses the hierarchy&#8217;s boundary and how each kind is treated:
+elements that follow something outside (assumed always up, or following the
+extract&#8217;s own end), spare and resource pools shared with outside blocks (the
+whole pool, or scaled by the share of users inside), and random streams shared
+with outside elements (kept, or each given its own). Save the extract as an
+<code>.rbd</code> or <code>.rbds</code>; it can be opened in this window and run like any model, and
+<code>raptor run --hierarchy NAME</code> and
+<code>raptor extract</code> do the same from the command line, and the MCP <code>simulate</code> tool
+takes a <code>hierarchy</code> argument.</p>
+</div>
+<div class="paragraph">
+<p>Its results are
+labelled as an isolated run. No treatment can make an isolated run reproduce the draws the
+hierarchy would have had inside the whole model, so compare averages, not
+individual runs.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="export-tables">Exporting tables</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>File ▸ Print and Export ▸ Export Tables…</strong> (also a button on the Data Tables and
+Results docks) writes the model&#8217;s tables, and a run&#8217;s result tables, to
+files.</p>
+</div>
+<div class="paragraph">
+<p>Pick the tables in two groups:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Inputs</strong>&#8201;&#8212;&#8201;the model&#8217;s own data: System Settings, Blocks (a readable
+summary, and optionally every column of the file), Nodes, Events,
+Hierarchies, Links (with the connected elements' names), Spare Pools,
+Resources, Triggers, Phases and Comments. Only the kinds the model
+actually has are listed.</p>
+</li>
+<li>
+<p><strong>Results</strong>&#8201;&#8212;&#8201;after a run: each section of the Final Results report
+(Summary, Logistics, Sparing, Resources, Cost, &#8230;&#8203;), the per-run
+figures, and capacity samples. The event log, the End-of-Run report and
+the interim cost report are long, so they are offered but not ticked.
+Before any run the group is listed but greyed out, saying why.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Then pick the formats&#8201;&#8212;&#8201;any combination:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Format</th>
+<th class="tableblock halign-left valign-top">What you get</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spreadsheet (<code>.xlsx</code>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One workbook: a <strong>Run Info</strong> tab (the model, runs, run length, analyses
+  and when it ran), then a <strong>tab per table</strong>. Numbers are real numbers (so
+  they sort and chart) shown to six places for probabilities and two for
+  money and percentages, names stay text, and the header row is frozen
+  with a filter on it. The End-of-Run and interim cost reports are text,
+  so they are saved beside the workbook as <code>.txt</code> files.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">CSV</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One <code>.csv</code> file per table (UTF-8, opens correctly in a spreadsheet).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Text&#8201;&#8212;&#8201;one file per table</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fixed-width plain text, numbers right-aligned.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Text&#8201;&#8212;&#8201;one combined report</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Every chosen table in a single text file, with a contents list.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Files go to a folder called <strong>Tables</strong> beside the model file (change it
+with <strong>Browse…</strong>), named <code>&lt;model&gt;_&lt;table&gt;.&lt;ext&gt;</code>, or <code>&lt;model&gt;_tables.xlsx</code> /
+<code>&lt;model&gt;_tables.txt</code> for the workbook and combined report. Files of the
+same names are replaced&#8201;&#8212;&#8201;the dialog counts them before you export. The
+tables reflect the model as it is on screen, including edits you have not
+saved. Your format choices are remembered.</p>
+</div>
+<div class="paragraph">
+<p>An AI assistant using the MCP server can read and write the same tables
+with <code>list_tables</code>, <code>get_table</code> and <code>export_tables</code>; see the <a href="../new_docs/book.html#ch-mcp">MCP chapter</a>
+of the User Guide.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="preferences">Preferences</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>View ▸ Appearance ▸ Preferences…</strong> is one scrolling page of sections: <strong>New models</strong>,
+<strong>Working</strong>, <strong>This model</strong>, <strong>Advanced</strong> and <strong>Developer</strong>. The list on the left
+jumps to a section; the <strong>Filter</strong> box above it hides every setting (and
+section) that does not match what you type, across all sections at once, so
+you never have to hunt through them. Settings in <strong>This model</strong> are stored
+with the model file; the rest belong to you and are remembered between
+sessions.</p>
+</div>
+<div class="paragraph">
+<p><strong>Working</strong> also holds <strong>Open another model in</strong>: a new window (the
+default) or this window (see <a href="#several-models">Several models at once</a>).</p>
+</div>
+<div class="paragraph">
+<p>The <strong>Display unit</strong> setting accepts either one of the built-in choices or a
+unit name of your own (say <code>cycles</code>); durations are then shown in that
+unit and stored in the model&#8217;s own.</p>
+</div>
+<div class="paragraph">
+<p>Preferences, Help and the other dialogs do not lock the application:
+the Help window stays usable, and can be closed, while a dialog is open.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="files">Files and formats</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><code>.rbds</code> — the <strong>native</strong> format (JSON). Save / Save As write it by
+default; it is the only format that keeps annotations and a few other
+RAPTOR Studio fields.</p>
+</li>
+<li>
+<p><code>.rbd</code> — the <strong>classic</strong> format (Latin-1 text,
+sectioned). Opens and round-trips; saving data the classic format cannot hold
+(annotations, for example) as <code>.rbd</code> drops it, with a warning
+first. Import RBD merges a <code>.rbd</code> or <code>.rbds</code> file in as one hierarchy.</p>
+</li>
+<li>
+<p>Export Library / Import Library — reuse blocks across models.</p>
+</li>
+<li>
+<p>Open / New / the examples — each opens in a new window when the current
+one holds a model worth keeping (see <a href="#several-models">Several models at once</a>). File ▸ New
+groups the starting examples into <strong>Basics</strong>, <strong>Advanced</strong>, and
+<strong>Tutorial Examples</strong>; every tutorial card names the feature it
+exercises.</p>
+</li>
+<li>
+<p>Print… / Export PDF… — a report: a cover with the title block, the run
+information and the key figures; a contents page; each hierarchy
+level&#8217;s diagram; the model data; the results, grouped as on screen;
+Weak Link analysis; the graph; and, if ticked, the event log and the
+raw reports. Wide tables, diagrams and report text get landscape pages;
+a long chain of blocks is cut into strips that are stacked down the
+page in reading order (each strip repeats a little of the one before, so
+no block is split), and a branching diagram is fitted to its page. The
+Print and Export dialog&#8217;s <strong>Pages across</strong> gives a level at least that many
+strips. Print sends the same report to the printer.</p>
+</li>
+<li>
+<p>Export Tables… — the model&#8217;s tables and a run&#8217;s results as CSV, text
+or one spreadsheet (see <a href="#export-tables">Exporting tables</a>).</p>
+</li>
+<li>
+<p>Export Diagram SVG… — the current hierarchy level as a scalable
+vector file.</p>
+</li>
+<li>
+<p>Save Bitmap / Copy View — PNG of the diagram, file or clipboard.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="standards">IEC 61078 and standards alignment</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>RAPTOR Studio is an RBD <strong>simulator</strong>, not an analytical IEC 61078
+solver. The standard defines series, parallel and m-out-of-n logic and
+the Boolean/BDD/closed-form methods for evaluating it. This application
+simulates the same structures, which lets it include repair, spares,
+phases, dependencies and limited resources.</p>
+</div>
+<div class="paragraph">
+<p>There is no standards-specific menu or results page. The one Annex D
+feature is <strong>Run ▸ Analysis ▸ Importance measures</strong>, which estimates
+Birnbaum, RAW, RRW and Vesely-Fussell importance by re-simulation and
+shows them in <strong>Results ▸ Final Results ▸ Importance</strong>. It costs one extra
+batch per block (two with Birnbaum), so it is off unless selected. The
+definitions and equations are on the Formulas page (Help ▸ Formulas) and
+are deliberately not repeated in the tab. The User Guide appendix carries
+the in-app clause comparison, and <code>docs/IEC61078.md</code> in the repository
+records the full table. Neither is an application control.</p>
+</div>
+<div class="paragraph">
+<p>What is supported:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>series, parallel and mixed structures;</p>
+</li>
+<li>
+<p>m-out-of-n voting for identical or different blocks;</p>
+</li>
+<li>
+<p>repaired and non-repaired blocks;</p>
+</li>
+<li>
+<p>one-In/one-Out hierarchies as sub-RBDs;</p>
+</li>
+<li>
+<p>simulation of standby, dependencies, spares, repair resources, PM and
+phases.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>What is not implemented: minimal cut/tie sets, Boolean/BDD evaluation,
+analytical (non-simulated) importance factors, criticality and DIM importance,
+PFD<sub>avg</sub>, Vesely/unconditional failure intensities, repeated/common blocks,
+multi-port transfer gates, non-coherent blocks, PAND/SEQ and CCF
+beta factors.</p>
+</div>
+<div class="paragraph">
+<p>The numerical regression checks against the standard&#8217;s worked examples run
+as part of the project&#8217;s test suite.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="fidelity">Fidelity and known limits</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>RAPTOR Studio&#8217;s engine is a port of the simulation in Raptor 7, built from
+its source and checked against the real program. This section says how far
+that goes and where it stops.</p>
+</div>
+<div class="paragraph">
+<p><strong>What is checked.</strong> More than 200 models were run in Raptor 7 itself and the
+results compared with this engine&#8217;s: the End of Run and Final Results
+reports, the detailed event log line by line, the random numbers drawn (where
+Raptor 7&#8217;s draw log was captured), the Single Point Failure file, the Failure Effects View log, the
+points at which Step and Jump stop, the input checks Raptor 7 refuses to
+run, and the start-up trace and developer hover text of its <code>/d</code> and <code>/dev</code>
+switches. Every comparison made matches, apart from two models whose draw logs
+could not be compared. The models were chosen to exercise every
+feature: standby and cold standby, spares and repair resources, preventive
+maintenance, dependencies, phases, events and hierarchies.</p>
+</div>
+<div class="paragraph">
+<p><strong>What is not proven.</strong> When several things become ready at the same
+simulated instant, the original&#8217;s runtime decides which goes first, and its
+rules are not published. This engine uses rules worked out from the source
+and from captures, and they reproduce every captured model exactly. They are
+fitted rules: they have not been shown to be the original&#8217;s rules, so a
+model with a tie shape no captured model has could in principle order such
+events differently. This can only change the order of lines in the event log
+that carry the same time, or, in a rare tie, which of two blocks fails or is
+repaired first. It does not change the maths: availability, MTBF and the
+other results stay statistically the same, and any one run&#8217;s results move
+only if the order of those events changes.</p>
+</div>
+<div class="paragraph">
+<p><strong>Where this port differs on purpose.</strong></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The Fixed failure law is offered, although Raptor 7&#8217;s list lacks it.
+Raptor 7 runs files that use it.</p>
+</li>
+<li>
+<p>Collapse Selection reconnects the links around the group; Raptor 7
+deletes them.</p>
+</li>
+<li>
+<p>A cold-standby partner that depends on another partner of the same node is
+refused at Run, because Raptor 7 crashes on it. A cycle of dependencies runs,
+with a warning, as it does in Raptor 7.</p>
+</li>
+<li>
+<p>Failure Effects View does not draw flow numbers for a capacity analysis.</p>
+</li>
+<li>
+<p>The PDF report, the spreadsheet export and the Run Info sheet are new;
+Raptor 7 has no equivalent. Their numbers are those of the reports.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><strong>One core or several.</strong> Only a one-core run (Animate, or Cores set to 1)
+reproduces Raptor 7&#8217;s numbers exactly; a run on several cores gives the same
+answer statistically but not to the last digit (see <a href="#cores">Cores, Animate and repeatable results</a>). Compare with
+Raptor 7 on one core.</p>
+</div>
+<div class="paragraph">
+<p><strong>If a result looks wrong.</strong> Compare the model with Raptor 7 if you have it,
+and keep the Run Info (the seed, the software version and the model&#8217;s
+digest are recorded with each result set) so the run can be repeated. The
+project&#8217;s repository documents every rule it reproduces from Raptor 7,
+and its status, for anyone who wants the detail.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="ui-reference">UI Reference</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Every ribbon tab, group and control with its tooltip and shortcut.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="generated-ui-reference">Every ribbon control</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Each ribbon tab, group by group: the control&#8217;s name, what its
+tooltip says, and its shortcut (or, for a field, its kind and
+current value).</p>
+</div>
+<div class="sect2">
+<h3 id="_model_tab">Model tab</h3>
+<div class="sect3">
+<h4 id="_clipboard">Clipboard</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Paste</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Paste previously copied elements with fresh ids</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cut</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Copy and delete the selected elements</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Copy</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Copy the selected elements</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Select All</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Select all blocks/nodes/events/hierarchies (Ctrl+A)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+A</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_tools">Tools</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Select</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Select tool (Q)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Q</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Connect</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the source element, then the target</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_build">Build</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add Block</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new block</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add Node</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Regular node</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add Event</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add Hierarchy</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new hierarchy (with its In/Out markers)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Collapse Selection</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Delete Selected</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Delete selected blocks/nodes (Del)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Del</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_model">Model</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Project Settings</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Project Settings — simulation-wide configuration for this model</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Issues</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No problems stop a run. Click for the list (F7)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">F7</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_annotate">Annotate</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Text</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click to place a text annotation (double-click to edit)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rectangle</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Drag a rectangle annotation</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ellipse</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Drag an ellipse annotation</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Arrow</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click to place the tail, click again to place the head</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_hierarchy">Hierarchy</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Import RBD</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Merge an existing model file in as one hierarchy: its Start/End markers become the new level&#8217;s In/Out</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Extract Hierarchy…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save the selected hierarchy as a standalone model (its input always available) and open it to run on its own. Shows what crosses the hierarchy&#8217;s boundary and how each crossing is treated.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Up</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ascend one hierarchy level (or double-click an Out marker)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Home</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Return to the home level</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Go to hierarchy</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Go to a hierarchy</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_arrange_tab">Arrange tab</h3>
+<div class="sect3">
+<h4 id="_layout">Layout</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Auto Layout</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rearrange by graph flow (columns left-to-right). Selections are laid out alone. (Ctrl+L)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+L</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Snap to Grid</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Align dragged/placed items to the grid (new work only — opened files are never reshuffled)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_order">Order</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Bring to Front</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Place the selected annotations in front of every diagram element (Ctrl+Shift+])</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+]</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Bring Forward</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Move the selected annotations one step up the stack (Ctrl+])</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+]</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Send Backward</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Move the selected annotations one step down the stack (Ctrl+[)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+[</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Send to Back</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Place the selected annotations behind every diagram element (links and hierarchy ovals included) (Ctrl+Shift+[)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+[</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_align">Align</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Align</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Align or evenly distribute the selected elements and annotations (select 2+ to align, 3+ to distribute)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Flip Horizontal</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mirror the selected items left-to-right about the middle of their span (select 2+). Shapes keep their size; only positions reflect.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Flip Vertical</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mirror the selected items top-to-bottom about the middle of their span (select 2+). Shapes keep their size; only positions reflect.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_data_tab">Data tab</h3>
+<div class="sect3">
+<h4 id="_reliability_data">Reliability Data</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Phases…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Phases — mission phase durations and per-element Active/Link/Cut assignment</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rates…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rates library — named, reusable value expressions (e.g. a failure rate derived from km/yr usage) that Failure/Repair Param fields can link to instead of retyping the same derivation on every block</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spare Pools…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spare Pools — stock levels, arrival cadence, emergency shipping</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Resources…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Resource Pools — shared crew/equipment, cost per use</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Triggers…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Triggers — schedules Preventive Maintenance (PM)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_bulk_edit">Bulk Edit</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Block Defaults…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Set the default failure/repair distribution for NEW blocks</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mass Edit…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Apply a failure/repair distribution to all selected elements at once (select 2+ elements)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_library">Library</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export Library</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save every block of this model as reusable templates</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Import Library</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add a block template from a library file, or update same-named blocks' failure/repair data</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_simulate_tab">Simulate tab</h3>
+<div class="sect3">
+<h4 id="_run">Run</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run the simulation (F5): at full speed on the cores shown beside it, or animated on one core when Animate is on</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">F5</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Animate</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Animate: a clean run you can watch&#8201;&#8212;&#8201;on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run Settings…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open the Run panel — the single editor for trials, termination, analyses and recording</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Trials</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Trials the next run will use. Edit them in the Run panel (Simulate ▸ Run Settings), which owns every run setting.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">number, now 1</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cores for full-speed runs</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A full-speed run splits its trials across this many cores (this machine has 8). Sweep and Compare use them too. Any number from 2 up gives the same results; one core gives Raptor 7&#8217;s exact sequence, statistically the same answer but not bit-identical.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">number, now 8</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_control">Control</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Pause</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Pause</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stop</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stop</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Jump</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">While stepping: let this run finish and stop at the next run&#8217;s first change. In a background batch: abandon the current run and start the next one</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_animation">Animation</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Speed</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How fast an animated run is drawn. Applies only while Animate is on</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_batch">Batch</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sweep…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run the model once per value of one number&#8201;&#8212;&#8201;a failure or repair parameter, a rate, the k of a k-of-n node&#8201;&#8212;&#8201;and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compare…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run several models&#8201;&#8212;&#8201;this one and others from disk&#8201;&#8212;&#8201;with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_debug_tab">Debug tab</h3>
+<div class="sect3">
+<h4 id="_step">Step</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Step</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Advance the simulation ONE event (F6) — watch states change event-by-event</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">F6</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Next Time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Advance to the next DISTINCT simulation time (Shift+F6) — steps through every event at the current time in one click</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shift+F6</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Finish</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run the stepped simulation to completion and produce reports</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">More Steps</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Other ways to advance: to the next change, several events at once, or run to a target time</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Restart</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Restart (B-11): discard this stepped run and begin a fresh one — all state reset to kickoff values</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Terminate</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Early Terminate: finalize the stepped run at the CURRENT sim time — partial results are kept</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Focus Event</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Centre the view on the element that changed at each step</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_failure_effects">Failure Effects</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Failure Effects</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Failure Effects View: fail and repair blocks by clicking them and see what happens to the system, with nothing simulated. Click again to leave.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fail</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fail a block (or an event) NOW. Select one first, or click Fail then click it. Opens Failure Effects View if it is not open.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Repair</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Put a failed block (or event) back to Running NOW. Select one first, or click Repair then click it.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Status</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Display Failure Effects: the failed components, the induced failures, the down and degraded nodes and the system status</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Clear Failures</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Small eraser: repair every failed or PM block and every failed event, and stay in this phase. A block that is Idle stays Idle.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Reset All</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Large eraser: everything operating again, back to phase 1.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Log</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Interactive Log: write this session&#8217;s system status summary to a text file</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_phase">Phase</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Prev Phase</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Failure Effects View: go to the previous phase (wraps to the last).</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Next Phase</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Failure Effects View: go to the next phase (wraps to the first).</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Go To Phase…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Failure Effects View: choose a phase from the list and go straight to it.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_results_tab">Results tab</h3>
+<div class="sect3">
+<h4 id="_show">Show</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show Results</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Bring the Results panel to the front, full height (Ctrl+Shift+R)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+R</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Float Window</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open the Results panel as its own resizable window</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Clear Results</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Empty every results tab and return to the placeholder</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Single-Point Failures</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">List every component that alone can fail the system — series elements; export as a text file</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Domains…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Domain of each node — which elements' failures can propagate to it</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_show_on_canvas">Show on Canvas</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Links</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Colour every block, node, event and hierarchy by its post-simulation availability, dependability or reliability, against the model&#8217;s G/Y and Y/R thresholds; the value is printed under each element (digits in Preferences ▸ Advanced). Enable Weak Link in the Run panel&#8217;s Analysis section.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each capacity node by its average utilization (Green &lt; 70% · Yellow &lt; 90% · Red ≥ 90%). Needs Capacity analysis and at least one node without unrestricted flow.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cost</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each block by its total life-cycle cost, relative to the most expensive block (Green &lt; 1/3 · Yellow &lt; 2/3 · Red ≥ 2/3); Spread bands it by quartile instead. Needs Cost Analysis.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spares</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each block Red if it ever ran out of spares or reached end of life during the run (% of run time and sparing cost on hover), Green otherwise. Needs Weak Link analysis.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Importance</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each block by its importance, using the measure the Importance tab ranks by (Vesely–Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), Yellow ≥ ⅓, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Needs Importance measures enabled for the run.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_bands">Bands</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spread</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Band the ACTIVE colouring by this result set&#8217;s values: the best quarter Green, the worst quarter Red, the middle half Yellow. Applies to Weak Links or Cost; Capacity and Spares use fixed or flag bands. For Weak Links it sets the two thresholds.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Green/Yellow threshold</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Green/Yellow band: elements at or above this metric are Green</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">number, now 0.95</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yellow/Red threshold</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yellow/Red band: elements below this metric are Red</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">number, now 0.9</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Link metric</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Which metric the Weak Link bands use: dependability excludes standby/PM/dependency time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice, now Availability</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_view_tab">View tab</h3>
+<div class="sect3">
+<h4 id="_zoom">Zoom</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fit</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fit all: fit the whole diagram to the window (Ctrl+0)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Selection</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom to selection: fit the selected elements in the window (Ctrl+Shift+0)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom In</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom into the diagram (Ctrl+= or Ctrl+wheel)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+=</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom Out</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom out of the diagram (Ctrl+- or Ctrl+wheel)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+-</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom %</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom percent: set an exact zoom percentage</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Hierarchy</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom to hierarchy: enter the selected hierarchy oval (like double-clicking it)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_panels">Panels</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Explorer</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Explorer</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inspector</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inspector</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Results</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Results</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run Panel</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show the Run panel — trials, termination, analyses and recording for the next run</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Data Tables</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show the Data Tables panel — every block/node in an editable grid</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Reset Layout</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_appearance">Appearance</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Dark Theme</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Toggle light/dark theme</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Preferences…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Preferences: defaults for new models, working habits, this model&#8217;s display unit, advanced and developer options</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Block labels</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice, now Mean</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show phase on block labels</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Which phase&#8217;s law the block labels describe. 'Model' shows the model&#8217;s own unphased data; a phase shows that phase&#8217;s stress-adjusted failure time, or that the block is cut. Disabled when the model has no phases.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice, now Model</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_help_tab">Help tab</h3>
+<div class="sect3">
+<h4 id="_documentation">Documentation</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">User Guide</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open the User Guide: reliability simulation from scratch, with companion models</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Reference Manual</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open the field-by-field reference: every ribbon control, dialog setting and workflow. Tip: F1 jumps straight to the section for the focused dock or dialog</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Formulas</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Reliability formulas quick reference — every metric the engine reports (availability, MTBDE, MDT, reliability, SEM), the distribution table, and the limits of an RBD model, all on one page</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">AI Assistant</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Set up an AI assistant over MCP (Claude Code, Claude Desktop, OpenCode, &#8230;&#8203;): opens the documentation</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Keyboard Shortcuts</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Every shortcut key, one page</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_support">Support</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">About</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">About RAPTOR Studio — version, credits and licence</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Report Issue</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Report a bug or request a feature — opens the GitHub issue tracker with a new, prefilled issue</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_file_view">File view</h3>
+<div class="paragraph">
+<p>The File button, left of the tabs, opens a full-page view:
+a searchable list of recent files, the file commands,
+Print and Export, and a top level AI Assistant link to the
+documentation.</p>
+</div>
+<div class="sect3">
+<h4 id="_file">File</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">New</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Create a new blank model (Ctrl+N)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+N</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open an .rbd or .rbds file (Ctrl+O)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+O</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save (Ctrl+S)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+S</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save As</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save to a new .rbds or .rbd file (Ctrl+Shift+S)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+S</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Close</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Close the current model (with save prompt)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Quit</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Quit RAPTOR Studio (Ctrl+Q)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Q</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Differences…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What is different between this model and another: its saved file (what you have changed), any model, or a recent one&#8201;&#8212;&#8201;parameters and wiring. Nothing is run.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_print_and_export">Print and Export</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Print…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Print diagrams, simulation results and the Weak Link analysis with a project title block (Ctrl+P)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+P</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export PDF…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save the printable report (diagram + results + weak link) as a PDF file</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export Tables…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Write the model&#8217;s tables (blocks, nodes, links, &#8230;&#8203; ) and a run&#8217;s result tables as CSV, text or one spreadsheet with a tab per table</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export Diagram SVG…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save the currently displayed hierarchy level as a scalable vector (.svg) file, for editing or embedding elsewhere at any resolution</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save Bitmap</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save the diagram view as a PNG image</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Copy View</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Copy the current view to the clipboard as a high-resolution PNG</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_ai_assistant">AI Assistant</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">AI Assistant</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Set up an AI assistant over MCP (Claude Code, Claude Desktop, OpenCode, &#8230;&#8203;): opens the documentation</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_data_tables_columns">Data Tables columns</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 80%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Tab</th>
+<th class="tableblock halign-left valign-top">Columns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Blocks</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_about">About</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>RAPTOR Studio: reliability block diagram modelling and Monte Carlo
+simulation. The ribbon reference above is produced from the application
+itself, so it always matches the controls you see.</p>
+</div>
+<div class="copyright-footer">Copyright © 2026 OpenPowerShift · RAPTOR Studio.<br>
+Original RAPTOR © ARINC / Booz Allen Hamilton, released as open source under the Booz Allen Public License v1.0 — thanks, BAH! New code in this port: Apache License 2.0.</div>
+</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,168 @@
+[[ch-cost]]
+== Cost: The Bill Arrives
+
+*Time: about 30 minutes.*
+*New ideas: cost analysis, purchase vs. operating cost, the price of
+lost flow, reading the COST report.*
+
+=== You will learn
+
+* What the engine bills for: repairs, downtime, and (with <<ch-capacity>>)
+  every lost megalitre.
+* How the COST section is organised — Operating, Life_cycle_cost,
+  Cost_Summary, Grand_Total.
+* Why the biggest line item is usually one you never budgeted.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-capacity>> finished.
+* The files `models/Water2.rbds` (the water utility, now with a bill).
++
+opsmodel:Water2[]
+
+=== The story
+
+The pumps held, the pipes held — and then the invoice from reality
+arrived. Every pump repair sends a crew (money per hour) and a
+callout fee. Every hour the town is completely dry, the utility
+trucks in emergency water. And every megalitre that never made it
+through the pipes — the yellow-time shortfall of <<ch-capacity>> — has a
+price too.
+
+Simulation already knew about all of it. Cost analysis just adds up
+the arithmetic.
+
+=== Three places money lives
+
+Open `models/Water2.rbds` and choose **Model → Project Settings**:
+
+image::water2-sysconfig.png[Project Settings: cost fields for the water utility]
+
+Money is configured in three places:
+
+* **Per block** — each pump carries its own price tag: 40 000 to buy,
+  a 2 000 callout per repair, and 100 per repair-hour of crew time.
+  (These live on the block's row in the `.rbds` file — fourteen cost
+  fields covering purchase, running, repair, PM, and spares.)
+* **System red cost: 5 000 per hour** — the emergency-trucking bill
+  while the whole town is dry.
+* **Cost of lost flow: 40 per megalitre** — <<ch-capacity>>'s shortfall,
+  now with a price.
+
+[NOTE]
+====
+Cost analysis and capacity analysis are independent switches. With
+cost on but capacity off, you still get repair and downtime bills —
+there is simply no lost-flow line, because nothing is being lost.
+====
+
+=== Run it
+
+Run **200 trials** of the 8760-hour mission. The end-of-run report
+grows a ***COST*** section. For one typical run:
+
+[cols="4,2",options="header"]
+|===
+|Cost section row |This run
+|Operating → Repair totals |about 180 000
+|Life_cycle_cost → Purchase |120 000
+|Cost_Summary → SystemLostFlowCost |about 2 200 000
+|Cost_Summary → SystemDownCost |0.00
+|Grand_Total |about 2 400 000
+|===
+
+Averaged over the year of 200 trials:
+
+[cols="4,2",options="header"]
+|===
+|Where the money goes |Per year
+|Lost water (40 × shortfall) |about 2 500 000
+|Pump repairs (callout + crew) |about 215 000
+|Pumps themselves (bought once) |120 000
+|*Grand total* |*about 2 900 000*
+|===
+
+Read that table twice. The three pumps — bought, crewed, called out —
+cost about 335 000 a year. The *water the town never received* costs
+2 500 000. The failure bill is not the repair bill; it is the
+shortfall bill, and it is seven times larger.
+
+[TIP]
+====
+SystemDownCost is zero here because the town is almost never fully
+dry (<<ch-capacity>>: red about 0.007% of the year). If your cost report
+shows a fat SystemDownCost row, your problem is stoppages; if it
+shows a fat SystemLostFlowCost row, your problem is *size* — and no
+repair crew on earth can fix size.
+====
+
+.Limits of this model
+[NOTE]
+====
+Every price in this model is a flat, unchanging number: a repair costs
+the same in year one and year ten, and a dollar today is worth exactly
+one dollar next year. Real budgeting cares about *when* money moves —
+a dollar spent buying reliability today is worth more than a dollar
+saved on downtime a decade out, once you discount for inflation and
+the time value of money. This engine happily totals costs across any
+mission length you set, but it will not discount them for you; a
+multi-year business case built on these numbers needs that layer added
+by hand afterward.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |Why does the Repair column differ from the callout fee times the
+number of failures?
+|2 |The utility doubles the price of water to 80 per megalitre. Which
+report rows change, and which stay put?
+|3 |Purchase cost appears once in Life_cycle_cost but the mission is
+one year. What happens to its share of Grand_Total on a ten-year study?
+|===
+
+.Answers
+[%collapsible]
+====
+. The Repair column bills the *whole visit*: the 2 000 callout plus
+   the crew's 100 per hour for a 24-hour fix — 4 400 per failure,
+   times roughly sixteen failures per pump per year.
+. Only SystemLostFlowCost doubles (and Grand_Total follows). Repair,
+   Purchase, and SystemDownCost stay put: the physics did not change,
+   only the price tag attached to the shortfall.
+. Purchase is charged once at the start of each run, so it stays
+   120 000 while ten years of repair and shortfall bills stack up
+   around it. Its *share* of Grand_Total shrinks — one reason long
+   studies make durable equipment look good.
+====
+
+=== Exercise
+
+<<ch-capacity>>'s exercise upsized Pump_C's pipe to nominal 60 / max 100.
+Do it again on `Water2.rbds` (edit that link's `nomFlow`/`MaxFlow` in
+the file), run 100 trials, and compare grand totals. Estimate the
+yearly saving, then answer: if the bigger pipe costs 250 000 to
+install, how soon does it pay for itself?
+
+.Answer
+[%collapsible]
+====
+The upsize cuts the shortfall from about 63 000 to about
+50 000 megalitres a year, so the lost-water bill drops from about
+2.5 M to about 2.0 M — a saving near 500 000 per year. A 250 000
+pipe pays for itself in about six months. (Your trial-to-trial
+numbers will wander; the saving is far larger than the noise.)
+====
+
+=== What you learned
+
+* Cost analysis sums three streams: per-block costs, red-hour costs,
+  and lost-flow costs.
+* The COST section reads top to bottom: per-block Operating, then
+  Life_cycle_cost, then Cost_Summary and Grand_Total.
+* The dominant cost is often the invisible one — flow that never
+  arrived.
+
+Next: put series, sparing, PM, and cost together on one production
+line, then find the part that *deserves* your money — the weak link.

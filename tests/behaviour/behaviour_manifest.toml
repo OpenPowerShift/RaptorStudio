@@ -1,0 +1,2503 @@
+# The behavioural denominator, classified.
+#
+# Read by tests/behaviour/test_b_behaviour_coverage.py, which is the gate
+# that decides whether the 610 MB of legacy event-log captures under
+# tests/golden/ can stop being the oracle. Every one of the 318 distinct
+# `(object_type, from -> to)` transitions real Raptor performed is listed
+# below, exactly once, with exactly one class:
+#
+#   pinned      asserted today by an `assert_timeline` literal somewhere in
+#               tests/behaviour/. The gate parses those literals with `ast`
+#               and fails if a `pinned` claim has no literal behind it, so
+#               this class cannot rot into a wish. As of the S11 rung of the
+#               ladder every `pinned` row is asserted by the spine's own
+#               literals in `test_b_ladder.py`.
+#   planned     reachable, and expected to be pinned by a named rung of the
+#               catalogue (the rung test files).
+#               `reference` names the rung and the test file that owns it;
+#               the gate rejects a reference to a file that is not in that
+#               catalogue.
+#   unreachable not reachable in our engine. Needs a reason, and the honest
+#               answer is that there are none: the ladder's 4,180 runs
+#               reproduce these logs, so every one of the 274 live
+#               transitions is performed by the port somewhere. Claiming one
+#               unreachable would be a claim about a test nobody has written
+#               yet, not about the engine. The class exists for P5.
+#   artefact    a row that is not a transition at all. Needs a reason.
+#
+# The classification rules, so a reviewer can check any entry without
+# reading all 318:
+#
+#   1. Anything with `StessLevel` on either side is an artefact -- 18 rows.
+#      Raptor writes its misspelt `StressLevel` in the state column for a
+#      `CombStress=` re-report line; there is no such state in our model.
+#   2. Anything whose `from_state` is `--` is a start condition -- 26 rows.
+#      `--` is Raptor's null in the state column and `from` is `--` only
+#      because the object had no earlier row in the capture, so the row
+#      states an initial state rather than a change. The corpus
+#      measurement names `Block -- -> Repairing` (5 occurrences) as the
+#      visible instance; the same argument covers the other 25, and
+#      exempting only the alarming one would be indefensible. One of the 26
+#      is not even a state: `System -- -> --` is the `Begin_Run_N` /
+#      `Simulation_Terminate` marker row.
+#   3. Anything already asserted by a committed literal is `pinned`, with
+#      `reference` naming the constant that asserts it. This one is
+#      *measured*, not claimed: the generator ran the gate's own `ast` scan
+#      over tests/behaviour/ and took what it found. Re-measured when the
+#      ladder reached S7 and again at S11, which is how the 16 -> 35 -> 43
+#      steps below happened.
+#   4. Everything else is `planned`, owned by the mechanism that *produces
+#      the destination state*: Bad/Degraded/Good -> the cascade (S2
+#      test_b_cascade.py), Idle -> a dependency (S6
+#      test_b_dependency.py), NodePM -> a node PM (S4 test_b_pm.py),
+#      Standby/Switch_Failed -> cold standby (S8), Sparing / the system's
+#      Out_of_spares -> a pool (S7 test_b_spare_pool.py), Resources -> the
+#      resource queue (S3 test_b_resource_queue.py), pmHold / pmReqDefer /
+#      RepHold -> PM deferral (S4 test_b_pm_defer.py), PM / PM_complete /
+#      PM_is_due -> scheduled maintenance (S4 test_b_pm.py), Cut / Linked ->
+#      the active status (S9 test_b_cut_linked.py), Mission / Phase_change /
+#      Mission_success / Mission_failure -> phases (S9 test_b_phases.py),
+#      Green / Yellow / Red -> system status (S2 test_b_system_status.py),
+#      the End_* LDT states -> test_b_ldt.py (S1), and the rest of the block
+#      life -> test_b_block_life.py (S1).
+#
+# Totals: 318 = 43 pinned + 231 planned + 0 unreachable
+# + 44 artefact (18 StessLevel + 26 start conditions).
+# The ratchet below is the gate's progress counter; raise `pinned` in the
+# same commit that adds the literal, and never lower either number to make
+# a run green.
+#
+# HOW TO PROMOTE AN ENTRY: write the test that pins the transition, then
+# change `class = "planned"` to `class = "pinned"` and fill in `reference`.
+# The gate fails until both are done, which is the point -- a test that
+# exists and a claim that is recorded are the same commit.
+
+[ratchet]
+# Transitions classified in this file. May only rise; falling below it means
+# a classification was deleted rather than a corpus row going away.
+classified = 324
+# Corpus transitions asserted by a committed `assert_timeline` literal in
+# tests/behaviour/. 16 after the S1-S3 spine; 35 after S4-S7, whose four
+# rungs added 19 -- the PM sequence, the trigger, the dependence, the pool;
+# 43 after S8-S11, whose four rungs added 8 -- the two cold-standby
+# transitions (`Good -> Standby`, `Standby -> Good`), the standby block's
+# `Standby -> Done`, the event's `Armed -> Success` and `Success -> Armed`,
+# and three `System` rows that only a phased or mission-bearing run produces
+# (`Mission -> Red`, `Phase_change -> Mission_failure`, `Red -> Red`).
+pinned = 268
+
+
+# --- Block -- the bulk of the denominator (195 of 318). ---
+
+[[transition]]
+object = "Block"
+from_state = "Failed"
+to_state = "End_Pre-LDT"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Failed-deferrin"
+to_state = "RepHold"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Failed-deferrin"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Failed-deferrin"
+class = "artefact"
+reason = """
+Two blocks that share a name (the `DeferTrigProbe` capture names both `unnamed`) interleave in the
+  chain: one block's `Repairing` row is followed by the other's `Failed-deferrin`. Not a state change of
+  one block; `Good -> Failed-deferrin` is the real one.
+"""
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "End_Pre-LDT"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "--"
+to_state = "Cut"
+class = "artefact"
+reason = """
+Start condition: the block's node is a Cut node, so its ActiveStatus is Cut
+  from t=0 and that is its first logged row.
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "--"
+to_state = "Good"
+class = "artefact"
+reason = """
+Start condition, not a transition: this is the block's own t=0 initialisation
+  row (`detail=InitializeStress=...`), i.e. the state a block starts in.
+  Pinned as a start condition by test_b_start.py (S1); not counted as a
+  transition here.
+"""
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Block"
+from_state = "--"
+to_state = "Linked"
+class = "artefact"
+reason = """
+Start condition: the block is active in a Linked node from t=0 and that is its
+  first logged row (test_b_cut_linked.py, S2).
+"""
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "--"
+to_state = "RepHold"
+class = "artefact"
+reason = """
+Start condition: a PM is held from t=0 (mission deferral or a start
+  condition), so the block's first logged row is RepHold (test_b_pm_defer.py,
+  S4).
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "--"
+to_state = "Repairing"
+class = "artefact"
+reason = """
+Start condition, not a transition: the block's first logged row is already
+  Repairing (`detail=Initialize`), because its dependency was down when the
+  run started. Five such rows in the corpus (DepDownStartProbe, SimStartProbe2
+  x2, SimStartProbe3 x2) look like a Failed->Repairing path arriving with no
+  failure in it, which is a misreading to
+  avoid. What a behaviour test must pin is the start condition
+  (test_b_start.py, S1/S6), not this pseudo-transition; the genuine Failed ->
+  Repairing rows are classified on their own merits.
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "End_Post-LDT"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "End_Pre-LDT"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "PM"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "PM_complete"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "PM_is_due"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Partial_Repair"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "RepHold"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Repaired"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Resources"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Cut"
+to_state = "StessLevel"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+[[transition]]
+object = "Block"
+from_state = "Done"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Done"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Block"
+from_state = "Done"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_trans_runs.py"
+[[transition]]
+object = "Block"
+from_state = "Done"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Done"
+to_state = "RepHold"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Done"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Done"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "End_Partial_pos"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "End_Partial_pre"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "End_Post-LDT"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "End_Post-LDT"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "End_Post-LDT"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "End_Pre-LDT"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "End_Pre-LDT"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "End_Pre-LDT"
+to_state = "RepHold"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "End_Pre-LDT"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "End_Pre-LDT"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Failed"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Failed"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Block"
+from_state = "Failed"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Failed"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Failed"
+to_state = "RepHold"
+class = "pinned"
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Block"
+from_state = "Failed"
+to_state = "Repaired"
+class = "artefact"
+reason = """Artefact of the corpus key, not a transition of any one object. `behaviour_inventory.py` keys a transition's `from` on `(object_type, name)`, and this row's only witness is `EventDepProbe`, whose BLOCK_DATA has several rows sharing one `blockName` (`ComplexModel`: 4 blocks all `unnamed`; `PieFacility2`: `mixer` x3, `crust_former` x3). So the state logged before this one belongs to a *different* block than the state logged after it, and the adjacency is an artefact of the merge rather than something any object did.
+
+Reclassified 2026-10-04 after an audit over all 206 captures: this row is witnessed *only* in models with duplicate block names, never in a cleanly-named one. 18 of the corpus's fixtures are affected; 9 rows qualified. Genuine rows witnessed in both kinds were left `planned`.
+
+The port reaches the underlying behaviours -- `test_b_trans_block.py` pins `Repaired` after `Repairing`, `Idle` after a dependence `Down`, and the rest -- so no behaviour is lost by removing these from the denominator. What is removed is nine entries that were never transitions.
+"""
+[[transition]]
+object = "Block"
+from_state = "Failed"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Failed"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Good"
+class = "artefact"
+reason = """Artefact of the corpus key, not a transition of any one object. `behaviour_inventory.py` keys a transition's `from` on `(object_type, name)`, and this row's only witness is `ComplexModel`, whose BLOCK_DATA has several rows sharing one `blockName` (`ComplexModel`: 4 blocks all `unnamed`; `PieFacility2`: `mixer` x3, `crust_former` x3). So the state logged before this one belongs to a *different* block than the state logged after it, and the adjacency is an artefact of the merge rather than something any object did.
+
+Reclassified 2026-10-04 after an audit over all 206 captures: this row is witnessed *only* in models with duplicate block names, never in a cleanly-named one. 18 of the corpus's fixtures are affected; 9 rows qualified. Genuine rows witnessed in both kinds were left `planned`.
+
+The port reaches the underlying behaviours -- `test_b_trans_block.py` pins `Repaired` after `Repairing`, `Idle` after a dependence `Down`, and the rest -- so no behaviour is lost by removing these from the denominator. What is removed is nine entries that were never transitions.
+"""
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "PM_is_due"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Repaired"
+class = "artefact"
+reason = """Artefact of the corpus key, not a transition of any one object. `behaviour_inventory.py` keys a transition's `from` on `(object_type, name)`, and this row's only witness is `ComplexModel`, whose BLOCK_DATA has several rows sharing one `blockName` (`ComplexModel`: 4 blocks all `unnamed`; `PieFacility2`: `mixer` x3, `crust_former` x3). So the state logged before this one belongs to a *different* block than the state logged after it, and the adjacency is an artefact of the merge rather than something any object did.
+
+Reclassified 2026-10-04 after an audit over all 206 captures: this row is witnessed *only* in models with duplicate block names, never in a cleanly-named one. 18 of the corpus's fixtures are affected; 9 rows qualified. Genuine rows witnessed in both kinds were left `planned`.
+
+The port reaches the underlying behaviours -- `test_b_trans_block.py` pins `Repaired` after `Repairing`, `Idle` after a dependence `Down`, and the rest -- so no behaviour is lost by removing these from the denominator. What is removed is nine entries that were never transitions.
+"""
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Resources"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Good"
+to_state = "StessLevel"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "Failed"
+class = "artefact"
+reason = """Artefact of the corpus key, not a transition of any one object. `behaviour_inventory.py` keys a transition's `from` on `(object_type, name)`, and this row's only witness is `ComplexModel`, whose BLOCK_DATA has several rows sharing one `blockName` (`ComplexModel`: 4 blocks all `unnamed`; `PieFacility2`: `mixer` x3, `crust_former` x3). So the state logged before this one belongs to a *different* block than the state logged after it, and the adjacency is an artefact of the merge rather than something any object did.
+
+Reclassified 2026-10-04 after an audit over all 206 captures: this row is witnessed *only* in models with duplicate block names, never in a cleanly-named one. 18 of the corpus's fixtures are affected; 9 rows qualified. Genuine rows witnessed in both kinds were left `planned`.
+
+The port reaches the underlying behaviours -- `test_b_trans_block.py` pins `Repaired` after `Repairing`, `Idle` after a dependence `Down`, and the rest -- so no behaviour is lost by removing these from the denominator. What is removed is nine entries that were never transitions.
+"""
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "PM"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "PM_is_due"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "RepHold"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "Repaired"
+class = "artefact"
+reason = """Artefact of the corpus key, not a transition of any one object. `behaviour_inventory.py` keys a transition's `from` on `(object_type, name)`, and this row's only witness is `ComplexModel`, whose BLOCK_DATA has several rows sharing one `blockName` (`ComplexModel`: 4 blocks all `unnamed`; `PieFacility2`: `mixer` x3, `crust_former` x3). So the state logged before this one belongs to a *different* block than the state logged after it, and the adjacency is an artefact of the merge rather than something any object did.
+
+Reclassified 2026-10-04 after an audit over all 206 captures: this row is witnessed *only* in models with duplicate block names, never in a cleanly-named one. 18 of the corpus's fixtures are affected; 9 rows qualified. Genuine rows witnessed in both kinds were left `planned`.
+
+The port reaches the underlying behaviours -- `test_b_trans_block.py` pins `Repaired` after `Repairing`, `Idle` after a dependence `Down`, and the rest -- so no behaviour is lost by removing these from the denominator. What is removed is nine entries that were never transitions.
+"""
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "Resources"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Idle"
+to_state = "pmReqDefer"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "PM_complete"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "PM_is_due"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Partial_Repair"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "RepHold"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Repaired"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "StessLevel"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+[[transition]]
+object = "Block"
+from_state = "Linked"
+to_state = "pmHold"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "PM"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Block"
+from_state = "PM"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "PM"
+to_state = "PM_complete"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM_complete"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "PM_complete"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM_complete"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "PM_complete"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "PM"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "PM_is_due"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "StessLevel"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "pmHold"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "PM_is_due"
+to_state = "pmReqDefer"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Partial_Repair"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Partial_Repair"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Partial_Repair"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Partial_Repair"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "End_Partial_pos"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "End_Partial_pre"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "End_Post-LDT"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "End_Pre-LDT"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "Failed"
+class = "artefact"
+reason = """Artefact of the corpus key, not a transition of any one object. `behaviour_inventory.py` keys a transition's `from` on `(object_type, name)`, and this row's only witness is `PieFacility2`, whose BLOCK_DATA has several rows sharing one `blockName` (`ComplexModel`: 4 blocks all `unnamed`; `PieFacility2`: `mixer` x3, `crust_former` x3). So the state logged before this one belongs to a *different* block than the state logged after it, and the adjacency is an artefact of the merge rather than something any object did.
+
+Reclassified 2026-10-04 after an audit over all 206 captures: this row is witnessed *only* in models with duplicate block names, never in a cleanly-named one. 18 of the corpus's fixtures are affected; 9 rows qualified. Genuine rows witnessed in both kinds were left `planned`.
+
+The port reaches the underlying behaviours -- `test_b_trans_block.py` pins `Repaired` after `Repairing`, `Idle` after a dependence `Down`, and the rest -- so no behaviour is lost by removing these from the denominator. What is removed is nine entries that were never transitions.
+"""
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "Repaired"
+class = "artefact"
+reason = """Artefact of the corpus key, not a transition of any one object. `behaviour_inventory.py` keys a transition's `from` on `(object_type, name)`, and this row's only witness is `PieFacility2`, whose BLOCK_DATA has several rows sharing one `blockName` (`ComplexModel`: 4 blocks all `unnamed`; `PieFacility2`: `mixer` x3, `crust_former` x3). So the state logged before this one belongs to a *different* block than the state logged after it, and the adjacency is an artefact of the merge rather than something any object did.
+
+Reclassified 2026-10-04 after an audit over all 206 captures: this row is witnessed *only* in models with duplicate block names, never in a cleanly-named one. 18 of the corpus's fixtures are affected; 9 rows qualified. Genuine rows witnessed in both kinds were left `planned`.
+
+The port reaches the underlying behaviours -- `test_b_trans_block.py` pins `Repaired` after `Repairing`, `Idle` after a dependence `Down`, and the rest -- so no behaviour is lost by removing these from the denominator. What is removed is nine entries that were never transitions.
+"""
+[[transition]]
+object = "Block"
+from_state = "RepHold"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Repaired"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Repaired"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Repaired"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Repaired"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Repaired"
+to_state = "RepHold"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Repaired"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Failed"
+class = "artefact"
+reason = """Artefact of the corpus key, not a transition of any one object. `behaviour_inventory.py` keys a transition's `from` on `(object_type, name)`, and this row's only witness is `ComplexModel`, whose BLOCK_DATA has several rows sharing one `blockName` (`ComplexModel`: 4 blocks all `unnamed`; `PieFacility2`: `mixer` x3, `crust_former` x3). So the state logged before this one belongs to a *different* block than the state logged after it, and the adjacency is an artefact of the merge rather than something any object did.
+
+Reclassified 2026-10-04 after an audit over all 206 captures: this row is witnessed *only* in models with duplicate block names, never in a cleanly-named one. 18 of the corpus's fixtures are affected; 9 rows qualified. Genuine rows witnessed in both kinds were left `planned`.
+
+The port reaches the underlying behaviours -- `test_b_trans_block.py` pins `Repaired` after `Repairing`, `Idle` after a dependence `Down`, and the rest -- so no behaviour is lost by removing these from the denominator. What is removed is nine entries that were never transitions.
+"""
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Idle"
+class = "artefact"
+reason = """Artefact of the corpus key, not a transition of any one object. `behaviour_inventory.py` keys a transition's `from` on `(object_type, name)`, and this row's only witness is `ComplexModel`, whose BLOCK_DATA has several rows sharing one `blockName` (`ComplexModel`: 4 blocks all `unnamed`; `PieFacility2`: `mixer` x3, `crust_former` x3). So the state logged before this one belongs to a *different* block than the state logged after it, and the adjacency is an artefact of the merge rather than something any object did.
+
+Reclassified 2026-10-04 after an audit over all 206 captures: this row is witnessed *only* in models with duplicate block names, never in a cleanly-named one. 18 of the corpus's fixtures are affected; 9 rows qualified. Genuine rows witnessed in both kinds were left `planned`.
+
+The port reaches the underlying behaviours -- `test_b_trans_block.py` pins `Repaired` after `Repairing`, `Idle` after a dependence `Down`, and the rest -- so no behaviour is lost by removing these from the denominator. What is removed is nine entries that were never transitions.
+"""
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Partial_Repair"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Repaired"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Repairing"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Resources"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Resources"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Resources"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Resources"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Resources"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Resources"
+to_state = "PM"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Resources"
+to_state = "PM_is_due"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Resources"
+to_state = "Resources"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "End_Post-LDT"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "PM"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "PM_complete"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "PM_is_due"
+class = "pinned"
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Partial_Repair"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "RepHold"
+class = "pinned"
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Repaired"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Repairing"
+class = "pinned"
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Resources"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Sparing"
+to_state = "StessLevel"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+[[transition]]
+object = "Block"
+from_state = "Standby"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Standby"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Standby"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Standby"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Standby"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "Standby"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "Standby"
+to_state = "Resources"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "Standby"
+to_state = "StessLevel"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "Cut"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "Done"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "Failed"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "Good"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "Idle"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "Linked"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "PM_is_due"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+reference = "test_b_wait_sites.py"
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "Resources"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "Sparing"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "Standby"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+[[transition]]
+object = "Block"
+from_state = "StessLevel"
+to_state = "StessLevel"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+[[transition]]
+object = "Block"
+from_state = "pmHold"
+to_state = "Linked"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "pmHold"
+to_state = "Resources"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "pmHold"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "pmReqDefer"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Block"
+from_state = "pmReqDefer"
+to_state = "Done"
+class = "pinned"
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Block"
+from_state = "pmReqDefer"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Block"
+from_state = "pmReqDefer"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "pmReqDefer"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "pmReqDefer"
+to_state = "Resources"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "pmReqDefer"
+to_state = "Sparing"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Block"
+from_state = "pmReqDefer"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Block"
+from_state = "pmReqDefer"
+to_state = "StessLevel"
+class = "artefact"
+reason = """
+Not a state: this row is Raptor's stress re-report, and Raptor writes its
+  (misspelt) `StressLevel` in the *state* column with `detail=CombStress=...`.
+  There is no such block state in our model -- `raptor.core.model.BlockStatus`
+  has no member for a stress level -- and the port writes the line verbatim,
+  misspelling included, because the log text is what the fidelity tests
+  compare (raptor/core/engine/block_lifecycle.py:1950). So this is a report of
+  the combined stress of a block that was in another state, not a change of
+  state; what a behaviour test pins is the CombStress value and the
+  redraw-on-wake, in test_b_stress.py (S1). Not a port bug: the port's
+  spelling is the correct one and Raptor's is not.
+"""
+
+
+# --- Event -- arm/fail/success plus the phase-driven re-arm (17). ---
+
+[[transition]]
+object = "Event"
+from_state = "--"
+to_state = "Armed"
+class = "artefact"
+reason = """
+Start condition: an event is Armed when it is loaded and that is its first
+  logged row (test_b_events.py, S10).
+"""
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Event"
+from_state = "--"
+to_state = "Cut"
+class = "artefact"
+reason = """
+Start condition: the event's node is Cut from t=0 (test_b_events.py, S10).
+"""
+
+[[transition]]
+object = "Event"
+from_state = "Armed"
+to_state = "Armed"
+class = "pinned"
+reference = "test_b_trans_runs.py"
+[[transition]]
+object = "Event"
+from_state = "Armed"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_phases.py"
+[[transition]]
+object = "Event"
+from_state = "Armed"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Event"
+from_state = "Armed"
+to_state = "Success"
+class = "pinned"
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Event"
+from_state = "Cut"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Event"
+from_state = "Cut"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Event"
+from_state = "Cut"
+to_state = "Success"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Event"
+from_state = "Failed"
+to_state = "Armed"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Event"
+from_state = "Failed"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Event"
+from_state = "Failed"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Event"
+from_state = "Failed"
+to_state = "Success"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Event"
+from_state = "Success"
+to_state = "Armed"
+class = "pinned"
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Event"
+from_state = "Success"
+to_state = "Cut"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Event"
+from_state = "Success"
+to_state = "Failed"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Event"
+from_state = "Success"
+to_state = "Success"
+class = "pinned"
+
+
+# --- Hier -- rollup of its child hierarchies (17). ---
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "--"
+to_state = "Bad"
+class = "artefact"
+reason = """
+Start condition: the hierarchy's first status rollup is Bad, i.e. it was never
+  green (test_b_hierarchy.py, S2).
+"""
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "--"
+to_state = "Idle"
+class = "artefact"
+reason = """
+Start condition: the hierarchy's first status rollup is Idle, from a
+  dependency at t=0 (test_b_hierarchy.py, S2).
+"""
+
+[[transition]]
+object = "Hier"
+from_state = "--"
+to_state = "NodePM"
+class = "artefact"
+reason = """
+Start condition: the hierarchy's first status rollup is NodePM, from a node PM
+  at t=0 (test_b_hierarchy.py, S2).
+"""
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "Bad"
+to_state = "Bad"
+class = "unreachable"
+reference = "S2: test_b_hierarchy.py"
+reason = """A hierarchy's status row is written in exactly one place, and neither
+route into it is open to a marker whose status has not changed.
+`determine_node_status` is the only writer of a `Hier` row
+(`nodes.py:301-314`) and it is reached only from `reconfigure_node`,
+which re-aggregates only when `link_status_changed or in_path == 0`
+(`nodes.py:455-456`). Every `reconfigure_node` call site passes a
+nonzero `in_path` except two. `kickoff.py:452` is guarded by
+`node.good_paths > len(node.in_paths_array)`, which a marker cannot
+satisfy: its `k` column is `-1`, `typed.py:260-261` maps that to
+`good_paths=1`, and `builder.validate` gives a marker exactly one
+incoming link, so the guard reads `1 > 1`. `cascade_cold.py:90` is
+`RunColdLogic`'s `higherCold` arm, which needs the marker itself to be
+a cold node -- and `run_cold_logic`'s own resurvey then raises
+`ValueError("Error in node status logic (cold logic)!")` on a
+single-link cold type-5 marker (`cold_standby.py:755-816`), so no
+runnable model reaches it. The route that gives *ordinary* nodes their
+`X -> X` rows is closed as well: `cascade_phase.apply_node` handles
+`type_node == 5` by calling `_cascade_node(node, node.status, ...)`
+rather than `reconfigure_node` (`cascade_phase.py:199-213`), and
+`change_node_state` writes no log line at all (`nodes.py:632-700`).
+What is left is a re-aggregation after the marker's single incoming
+link changed status, and with one link and `good_paths = 1` that map is
+injective: `UP` -> `Good`, `STANDBY` -> `Standby`, `IDLE` -> `Idle`,
+`PM` -> `NodePM`, `DOWN` or `DONE` -> `Bad`. The only collision,
+`DOWN` against `DONE`, needs `LinkStatus.DONE`, which is written in
+exactly one place -- `_switch_failed`, acting on a node's own cold link
+(`cold_standby.py:244`) -- and a marker cannot be a cold node. So a
+marker never logs the same status twice, which is also why the corpus's
+seventeen `Hier` rows are the twelve off-diagonal pairs plus three
+first-appearance rows, and not one `X -> X`."""
+
+[[transition]]
+object = "Hier"
+from_state = "Bad"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "Bad"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "Bad"
+to_state = "NodePM"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "Good"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "Good"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "Good"
+to_state = "NodePM"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "Idle"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "Idle"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "Idle"
+to_state = "NodePM"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "NodePM"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "NodePM"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "NodePM"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Hier"
+from_state = "NodePM"
+to_state = "NodePM"
+class = "unreachable"
+reference = "S2: test_b_hierarchy.py"
+reason = """A hierarchy's status row is written in exactly one place, and neither
+route into it is open to a marker whose status has not changed.
+`determine_node_status` is the only writer of a `Hier` row
+(`nodes.py:301-314`) and it is reached only from `reconfigure_node`,
+which re-aggregates only when `link_status_changed or in_path == 0`
+(`nodes.py:455-456`). Every `reconfigure_node` call site passes a
+nonzero `in_path` except two. `kickoff.py:452` is guarded by
+`node.good_paths > len(node.in_paths_array)`, which a marker cannot
+satisfy: its `k` column is `-1`, `typed.py:260-261` maps that to
+`good_paths=1`, and `builder.validate` gives a marker exactly one
+incoming link, so the guard reads `1 > 1`. `cascade_cold.py:90` is
+`RunColdLogic`'s `higherCold` arm, which needs the marker itself to be
+a cold node -- and `run_cold_logic`'s own resurvey then raises
+`ValueError("Error in node status logic (cold logic)!")` on a
+single-link cold type-5 marker (`cold_standby.py:755-816`), so no
+runnable model reaches it. The route that gives *ordinary* nodes their
+`X -> X` rows is closed as well: `cascade_phase.apply_node` handles
+`type_node == 5` by calling `_cascade_node(node, node.status, ...)`
+rather than `reconfigure_node` (`cascade_phase.py:199-213`), and
+`change_node_state` writes no log line at all (`nodes.py:632-700`).
+What is left is a re-aggregation after the marker's single incoming
+link changed status, and with one link and `good_paths = 1` that map is
+injective: `UP` -> `Good`, `STANDBY` -> `Standby`, `IDLE` -> `Idle`,
+`PM` -> `NodePM`, `DOWN` or `DONE` -> `Bad`. The only collision,
+`DOWN` against `DONE`, needs `LinkStatus.DONE`, which is written in
+exactly one place -- `_switch_failed`, acting on a node's own cold link
+(`cold_standby.py:244`) -- and a marker cannot be a cold node. So a
+marker never logs the same status twice, which is also why the corpus's
+seventeen `Hier` rows are the twelve off-diagonal pairs plus three
+first-appearance rows, and not one `X -> X`."""
+
+
+# --- Node -- rollup of its blocks' statuses (49). ---
+
+[[transition]]
+object = "Node"
+from_state = "--"
+to_state = "Bad"
+class = "artefact"
+reason = """
+Start condition: the node's first rollup. A node whose status never changed is
+  never logged at all -- AllUp is the initial status and Raptor logs only
+  changes -- so even a healthy node first appears here as its first change
+  (test_b_cascade.py, S2).
+"""
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Node"
+from_state = "--"
+to_state = "Degraded"
+class = "artefact"
+reason = """
+Start condition: the node's first rollup, degraded by a block that was already
+  failing at t=0 (test_b_cascade.py, S2).
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "--"
+to_state = "Good"
+class = "artefact"
+reason = """
+Start condition: the node's first rollup, after recovering to AllUp from its
+  initial state (test_b_cascade.py, S2).
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "--"
+to_state = "Idle"
+class = "artefact"
+reason = """
+Start condition: the node's first rollup, idled by a dependency at t=0
+  (test_b_dependency.py, S6).
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "--"
+to_state = "NodePM"
+class = "artefact"
+reason = """
+Start condition: the node's first rollup, into a node PM at t=0 (test_b_pm.py,
+  S4).
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "--"
+to_state = "Standby"
+class = "artefact"
+reason = """
+Start condition: the node's first rollup, into standby at t=0
+  (test_b_node_standby.py, S8).
+"""
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Node"
+from_state = "Bad"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "Node"
+from_state = "Bad"
+to_state = "Degraded"
+class = "pinned"
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Node"
+from_state = "Bad"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Bad"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Node"
+from_state = "Bad"
+to_state = "NodePM"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Node"
+from_state = "Bad"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Node"
+from_state = "Bad"
+to_state = "Switch_Failed"
+class = "pinned"
+reference = "test_b_cascade_tail.py"
+
+[[transition]]
+object = "Node"
+from_state = "Degraded"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Node"
+from_state = "Degraded"
+to_state = "Degraded"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Degraded"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Degraded"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Degraded"
+to_state = "NodePM"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Degraded"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Node"
+from_state = "Degraded"
+to_state = "Switch_Failed"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Node"
+from_state = "Good"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Good"
+to_state = "Degraded"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Good"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Good"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Good"
+to_state = "NodePM"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Good"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Node"
+from_state = "Good"
+to_state = "Switch_Failed"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Idle"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Node"
+from_state = "Idle"
+to_state = "Degraded"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Idle"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Idle"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Node"
+from_state = "Idle"
+to_state = "NodePM"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Node"
+from_state = "Idle"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Node"
+from_state = "NodePM"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Node"
+from_state = "NodePM"
+to_state = "Degraded"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "NodePM"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "NodePM"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_block.py"
+[[transition]]
+object = "Node"
+from_state = "NodePM"
+to_state = "NodePM"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Node"
+from_state = "NodePM"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Node"
+from_state = "NodePM"
+to_state = "Switch_Failed"
+class = "pinned"
+reference = "test_b_cascade_tail.py"
+
+[[transition]]
+object = "Node"
+from_state = "Standby"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Node"
+from_state = "Standby"
+to_state = "Degraded"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Node"
+from_state = "Standby"
+to_state = "Good"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Node"
+from_state = "Standby"
+to_state = "Idle"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Node"
+from_state = "Standby"
+to_state = "NodePM"
+class = "pinned"
+reference = "test_b_trans_final.py"
+[[transition]]
+object = "Node"
+from_state = "Standby"
+to_state = "Standby"
+class = "pinned"
+reference = "test_b_node_standby.py"
+[[transition]]
+object = "Node"
+from_state = "Switch_Failed"
+to_state = "Bad"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Node"
+from_state = "Switch_Failed"
+to_state = "Degraded"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Node"
+from_state = "Switch_Failed"
+to_state = "NodePM"
+class = "pinned"
+
+
+# --- Pool -- a spare pool's grant/restock row (2). ---
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "Pool"
+from_state = "--"
+to_state = "Sparing"
+class = "artefact"
+reason = """
+Start condition: the pool's first row, a restock grant at t=0
+  (test_b_spare_pool.py, S7).
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Pool"
+from_state = "Sparing"
+to_state = "Sparing"
+class = "pinned"
+
+
+# --- System -- the status rollup and the phase rows (36). ---
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "--"
+to_state = "--"
+class = "artefact"
+reason = """
+Not a state at all: Raptor's run-marker rows carry `--` in the state column --
+  one `System Begin_Run_N -- --` per run and one `System Simulation_Terminate
+  -- --` per run (4,180 of the latter in the corpus). There is no system
+  status to change, so this row is a separator, not a transition. It is also
+  why the extractor must not reset state at a run boundary: Raptor does not
+  re-announce the objects at a run start.
+"""
+reference = "test_b_cascade.py"
+[[transition]]
+object = "System"
+from_state = "--"
+to_state = "Mission"
+class = "artefact"
+reason = """
+Start condition: the system's first row is the start of mission 1
+  (`detail=Began_a_mission`), which for a phased model is t=0
+  (test_b_phases.py, S9).
+"""
+reference = "test_b_cascade.py"
+[[transition]]
+object = "System"
+from_state = "--"
+to_state = "Mission_failure"
+class = "artefact"
+reason = """
+Start condition: the model's first row, a mission that failed with no other
+  row before it (test_b_phases.py, S9).
+"""
+reference = "test_b_cascade.py"
+[[transition]]
+object = "System"
+from_state = "--"
+to_state = "Mission_success"
+class = "artefact"
+reason = """
+Start condition: the model's first row, a mission that completed successfully
+  with no other row before it (test_b_phases.py, S9).
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "--"
+to_state = "Out_of_spares"
+class = "artefact"
+reason = """
+Start condition: the system's first row, a permanent-down rollup
+  (`detail=System_change`) at t=0 (test_b_spare_pool.py, S7).
+"""
+reference = "test_b_cascade.py"
+[[transition]]
+object = "System"
+from_state = "--"
+to_state = "Phase_change"
+class = "artefact"
+reason = """
+Start condition: the model's first row is a phase change
+  (`detail=Begin_phase_...`), i.e. the first phase's end barrier
+  (test_b_phases.py, S9).
+"""
+reference = "test_b_cascade.py"
+[[transition]]
+object = "System"
+from_state = "--"
+to_state = "Red"
+class = "artefact"
+reason = """
+Start condition: the system's first row, a status rollup to Red at t=0
+  (test_b_system_status.py, S2).
+"""
+reference = "test_b_cascade.py"
+[[transition]]
+object = "System"
+from_state = "--"
+to_state = "Yellow"
+class = "artefact"
+reason = """
+Start condition: the system's first row, a status rollup to Yellow at t=0
+  (test_b_system_status.py, S2).
+"""
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Green"
+to_state = "Green"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Green"
+to_state = "Mission"
+class = "pinned"
+reference = "test_b_trans_runs.py"
+[[transition]]
+object = "System"
+from_state = "Green"
+to_state = "Red"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Green"
+to_state = "Yellow"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Mission"
+to_state = "Green"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Mission"
+to_state = "Mission_failure"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "System"
+from_state = "Mission"
+to_state = "Mission_success"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Mission"
+to_state = "Phase_change"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Mission"
+to_state = "Red"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "System"
+from_state = "Mission"
+to_state = "Yellow"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Mission_failure"
+to_state = "Mission_failure"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Mission_failure"
+to_state = "Mission_success"
+class = "pinned"
+reference = "test_b_trans_runs.py"
+[[transition]]
+object = "System"
+from_state = "Mission_failure"
+to_state = "Phase_change"
+class = "pinned"
+reference = "test_b_trans_graph.py"
+[[transition]]
+object = "System"
+from_state = "Mission_success"
+to_state = "Mission_failure"
+class = "pinned"
+reference = "test_b_trans_runs.py"
+[[transition]]
+object = "System"
+from_state = "Mission_success"
+to_state = "Mission_success"
+class = "pinned"
+reference = "test_b_trans_runs.py"
+[[transition]]
+object = "System"
+from_state = "Mission_success"
+to_state = "Phase_change"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Out_of_spares"
+to_state = "Out_of_spares"
+class = "pinned"
+reference = "test_b_trans_runs.py"
+[[transition]]
+object = "System"
+from_state = "Phase_change"
+to_state = "Mission"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Phase_change"
+to_state = "Mission_failure"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "System"
+from_state = "Phase_change"
+to_state = "Mission_success"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Phase_change"
+to_state = "Phase_change"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Red"
+to_state = "Green"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Red"
+to_state = "Mission"
+class = "pinned"
+reference = "test_b_trans_runs.py"
+[[transition]]
+object = "System"
+from_state = "Red"
+to_state = "Red"
+class = "pinned"
+reference = "test_b_cascade.py"
+[[transition]]
+object = "System"
+from_state = "Red"
+to_state = "Yellow"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Yellow"
+to_state = "Green"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Yellow"
+to_state = "Mission"
+class = "pinned"
+reference = "test_b_trans_runs.py"
+[[transition]]
+object = "System"
+from_state = "Yellow"
+to_state = "Red"
+class = "pinned"
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "System"
+from_state = "Yellow"
+to_state = "Yellow"
+class = "pinned"
+
+
+# --- Trigger -- a trigger only ever announces that it fired (2). ---
+reference = "test_b_final_rows.py"
+[[transition]]
+object = "Trigger"
+from_state = "--"
+to_state = "Fired"
+class = "artefact"
+reason = """
+Start condition: a trigger logs nothing until it fires, so its first row is
+  the firing itself (test_b_trigger.py, S5).
+"""
+reference = "test_b_ladder.py"
+[[transition]]
+object = "Trigger"
+from_state = "Fired"
+to_state = "Fired"
+class = "pinned"
+reference = "test_b_ladder.py"

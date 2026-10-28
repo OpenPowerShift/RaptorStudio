@@ -1,0 +1,38 @@
+.TH "RAPTOR-SET" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-set \- Apply each PATH=VALUE to MODEL and save. Writes to \-o OUT, or with \-\-in\-place to MODEL itself (a .bak copy is kept with \-\-backup). Without either, nothing is written.
+.SH SYNOPSIS
+\fBraptor set\fR [\-h] [\-\-set\-file FILE] [\-o OUT | \-\-in\-place] [\-\-backup] MODEL [PATH=VALUE ...]
+.SH DESCRIPTION
+Apply each PATH=VALUE to MODEL and save. Writes to \-o OUT, or with \-\-in\-place to MODEL itself (a .bak copy is kept with \-\-backup). Without either, nothing is written.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-set\-file\fR \fIFILE\fR
+
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fIOUT\fR
+
+.TP
+\fB\-\-in\-place\fR
+
+.TP
+\fB\-\-backup\fR
+with \-\-in\-place, keep MODEL.bak
+.SH EXAMPLES
+.PP
+Change a setting and save under a new name.
+.RS
+.nf
+\fBraptor set pump.rbd system.runs=200 \-o pump200.rbds\fR
+.fi
+.RE
+.PP
+Change in place, keeping pump.rbds.bak.
+.RS
+.nf
+\fBraptor set pump.rbds system.runs=200 \-\-in\-place \-\-backup\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1), \fBraptor\-set\-paths\fR(7)

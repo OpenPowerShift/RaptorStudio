@@ -1,0 +1,70 @@
+Final_Results_Report for input.rbd  PROBE
+
+
+Results from 100 runs of sim time 4000.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.788402518     0.972945230     0.998198633     0.031508518     0.003150852     
+MTBDE                    382.426636      1055.169583     3990.960327     740.003368      74.000337       
+MDT                      2.401823        21.925655       120.912847      21.587604       2.158760        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          1               4.870000        10              2.144549        0.214455        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     38.726438       51.079559       61.834347       5.196781        0.519678        
+MTBMu                    38.726438       51.079559       61.834347       5.196781        0.519678        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      10.942863       13.161125       14.656672       0.763072        0.076307        
+MMTu                     10.942863       13.161125       14.656672       0.763072        0.076307        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            40.816132       67.535399       78.198706       6.984429        0.698443        
+Yellow_Percent           20.898097       29.759124       44.709472       4.837315        0.483731        
+Red_Percent              0.180137        2.705477        21.159748       3.150852        0.315085        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+S1B1                  Motors                       2         5.13         9         1.40 
+S1B2                  Motors                       1         7.34        13         2.36 
+S1B3                  Motors                       1         6.02        13         2.40 
+S2B1                  Seals                        5         7.95        11         1.33 
+S2B2                  Seals                        4         8.90        19         2.72 
+S2B3                  Seals                        3         7.18        11         1.27 
+S3B1                  Filters                      1         4.88        10         1.60 
+S3B2                  Filters                      2         5.87         9         1.42 
+S3B3                  Filters                      3         7.61        14         2.14 
+S4B1                  Custom                       4         6.03         8         0.67 
+S4B2                  Custom                       2         4.57         8         1.13 
+S4B3                  Infinite                     1         5.25         9         1.50 
+
+
+Custom_Sparing
+
+blockName            InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+S4B1                          2.00         5.03         0.56         1.48         2.30         1.00         0.03 
+S4B2                          1.00         6.54         0.25         2.26         3.53         2.97         0.00 
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Motors                        4.00        20.00         1.12         3.83         7.05         5.51         1.24 
+Seals                         3.00        21.33         0.00         0.96         3.17         0.30         9.42 
+Filters                       4.00        17.80         0.45         2.98         4.68         3.44         0.04 
+
+

@@ -1,0 +1,51 @@
+.TH "RAPTOR-EXTRACT" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-extract \- Build a standalone model from one hierarchy (its In node becomes Start, its Out node End) and save it, or list what crosses its boundary. A port extension: Raptor 7 has no such feature, but the saved .rbd opens in it.
+.SH SYNOPSIS
+\fBraptor extract\fR [\-h] \-\-hierarchy NAME|ID [\-o FILE] [\-\-report\-hazards] [\-f {text,json}] [\-\-deps {up,system,refuse}] [\-\-pools {full,share,refuse}] [\-\-streams {keep,separate}] [\-\-treat KEY=VALUE] MODEL
+.SH DESCRIPTION
+Build a standalone model from one hierarchy (its In node becomes Start, its Out node End) and save it, or list what crosses its boundary. A port extension: Raptor 7 has no such feature, but the saved .rbd opens in it.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-hierarchy\fR \fINAME|ID\fR
+
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fIFILE\fR
+write the extract here (.rbd or .rbds)
+.TP
+\fB\-\-report\-hazards\fR
+list what crosses the boundary and the treatment each would get; write nothing
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+
+.SS Isolated hierarchy (a port extension, not a raptor feature)
+.TP
+\fB\-\-deps\fR \fI{up|system|refuse}\fR
+elements following something outside: assume it is always up (default), follow the extract's own end, or stop
+.TP
+\fB\-\-pools\fR \fI{full|share|refuse}\fR
+spare and resource pools shared with outside blocks: the whole pool (default), scaled by the share of users inside, or stop
+.TP
+\fB\-\-streams\fR \fI{keep|separate}\fR
+draws on a shared random stream: keep (default) or give each its own unused stream
+.TP
+\fB\-\-treat\fR \fIKEY=VALUE\fR
+one item: block:ID.dep=up|system|refuse, pool:NAME.stock=N, resource:NAME.units=N; repeatable
+.SH EXAMPLES
+.PP
+List what crosses the Cooling hierarchy's boundary and what would be done about it.
+.RS
+.nf
+\fBraptor extract plant.rbd \-\-hierarchy Cooling \-\-report\-hazards\fR
+.fi
+.RE
+.PP
+Save Cooling as a standalone model that opens in Raptor 7.
+.RS
+.nf
+\fBraptor extract plant.rbd \-\-hierarchy Cooling \-o cooling.rbd \-\-deps system \-\-pools share\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1)

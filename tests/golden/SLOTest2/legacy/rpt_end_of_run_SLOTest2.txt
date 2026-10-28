@@ -1,0 +1,108 @@
+End_Of_Run Report for input.rbd  Wed Aug 26 21:16:48 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.011864951
+MTBDE                      0.131833
+MDT                        10.979278
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     27
+NumberOfComponentFailures  27
+
+
+
+***LOGISTICS***
+
+MTBM                  0.131833
+MTBMu                 0.131833
+MTBMs                 N/A
+MMT                   2.000000
+MMTu                  2.000000
+MMTs                  N/A
+GreenPercent          1.186495
+YellowPercent         0.000000
+RedPercent            98.813505
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.000949       0.131833       0.588651       0.134875
+DT                             2.000000      10.979278      21.966358       9.847468
+TBM                            0.060325      10.819157      22.250403      10.076447
+RT                             2.000000       2.000000       2.000000       0.000000
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+unnamed                    27   Cells                       26
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            2         24          0         0.09          2          0         13 
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.010761306
+MTBDE                      0.119570
+MDT                        10.991541
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     27
+NumberOfComponentFailures  27
+
+
+
+***LOGISTICS***
+
+MTBM                  0.119570
+MTBMu                 0.119570
+MTBMs                 N/A
+MMT                   2.000000
+MMTu                  2.000000
+MMTs                  N/A
+GreenPercent          1.076131
+YellowPercent         0.000000
+RedPercent            98.923869
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.001636       0.119570       0.396392       0.104321
+DT                             2.000000      10.991541      21.949970       9.865980
+TBM                            0.061635      10.822361      22.244890      10.055811
+RT                             2.000000       2.000000       2.000000       0.000000
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+unnamed                    27   Cells                       26
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            2         24          0         0.09          2          0         13 
+
+
+
+
+

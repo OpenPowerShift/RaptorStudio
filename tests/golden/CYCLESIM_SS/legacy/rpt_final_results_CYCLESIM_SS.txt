@@ -1,0 +1,50 @@
+Final_Results_Report for input.rbd  Fri Aug 28 08:26:46 2026
+
+
+Results from 2 runs of 3000 cycles:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.933295679     0.933480668     0.933665656     0.000261613     0.000184988     
+MTBDE                    13.788019       13.798959       13.809898       0.015471        0.010939        
+MDT                      0.980728        0.983091        0.985455        0.003342        0.002363        
+Dependability            0.933295679     0.933480668     0.933665656     0.000261613     0.000184988     
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     N/A             N/A             
+Failures_After_Reset     2298            2299.500000     2301            2.121320        1.500000        
+Active_Stat_Time         33989.839295    33991.801151    33993.763007    2.774484        1.961857        
+
+Stats started after 1000 cycles
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     4.175603        4.176740        4.177876        0.001607        0.001136        
+MTBMu                    30.339527       31.307216       32.274906       1.368519        0.967689        
+MTBMs                    4.796105        4.820583        4.845060        0.034617        0.024478        
+MMT                      1.129376        1.133540        1.137704        0.005889        0.004164        
+MMTu                     2.000000        2.000000        2.000000        0.000000        0.000000        
+MMTs                     1.000000        1.000000        1.000000        0.000000        0.000000        
+Green_Percent            87.648897       87.781474       87.914050       0.187492        0.132577        
+Yellow_Percent           5.415518        5.566593        5.717668        0.213653        0.151075        
+Red_Percent              6.633434        6.651933        6.670432        0.026161        0.018499        
+Mission_Green_Percent    87.648897       87.781474       87.914050       0.187492        0.132577        
+Mission_Yellow_Percent   5.415518        5.566593        5.717668        0.213653        0.151075        
+Mission_Red_Percent      6.633434        6.651933        6.670432        0.026161        0.018499        
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+BlockA                Infinite                   480       493.00       506        18.38 
+BlockB                Infinite                   503       521.50       540        26.16 
+
+
+

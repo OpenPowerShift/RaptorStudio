@@ -1,0 +1,205 @@
+= Block lifecycle
+:toc: macro
+
+`raptor/core/engine/block_lifecycle.py` · `BlockProcess` · Raptor 7: `RBDBlockObj`
+
+toc::[]
+
+== Purpose
+
+Each ordinary block lives its own life as one simulation process. It runs until it fails, gets a spare and resources, is repaired, and runs again. Along the way it may stop for preventive maintenance (PM), go idle or into standby because of what it depends on, and finally end as `Done` (out of spares, not repairable) or at the end of the run. Each change of state is reported to the cascade, which updates nodes, the system and dependent blocks. Those can in turn interrupt this block's wait.
+
+Blocks that depend on another block (`dep_type == "RBDBlock"`) run the same process: a dependency is only a source of `Dependence_*` wakes. (They used to have a separate, simpler generator; folding it in fixed its ordering, spare-cost and phase-stress differences from real Raptor, and lifted its refusal of PM spares, resources, pool sparing and down-starts.)
+
+== Source anchors
+
+[cols="3,3,4",options="header"]
+|===
+| Source | Port | Notes
+| `Run` | `BlockProcess._run_turn`, with its Idle wait in `BlockProcess._idle_wait`, its fail-wait in `BlockProcess._fail_wait`, and a switch-failed cold-standby block's redraw in `BlockProcess._cold_path_redraw` | One turn: draw or resume the fail clock, wait, resolve the wake
+| `Repair` | `BlockProcess._repair`, with its steps in `BlockProcess._enter_repair`, `BlockProcess._pre_ldt`, `BlockProcess._wait_for_spare` (via `BlockProcess._wait_for_custom_spare` or `BlockProcess._wait_for_pool_spare`), `BlockProcess._obtain_repair_resource` and `BlockProcess._repair_wait` | Spare check, pre-LDT, waits for spare and resources, repair, post-LDT
+| `PerformPM`, `ObtainPMprereqs` | `BlockProcess._obtain_pm_prereqs` (its spare step in `BlockProcess._obtain_pm_spare`, which hands a pool or Custom spare to `BlockProcess._obtain_pm_pool_spare` or `BlockProcess._obtain_pm_custom_spare`, and its resource step in `BlockProcess._obtain_pm_resource`, which requests through `BlockProcess._request_pm_resource`, wakes `Run` with the hop `BlockProcess._run_wake_hop` returns, and postpones a mission-phase pmMisDefer PM through `BlockProcess._misdefer_give_back`) then `BlockProcess._perform_pm`, run in order by `BlockProcess._preventive_maintenance`, which `BlockProcess._run_turn` enters when `pm.due` | Separate TELL processes in source; zero-length hops here
+| `DetermineNewState` | the routing at the end of a turn, and `BlockProcess._apply_maintenance_completed` (with `BlockProcess._dependency_node` and `BlockProcess._recheck_after_repair`) | "Maintenance Completed" decides Running, Idle or Standby
+| `CheckForSpare` | `BlockProcess._check_for_spare` (its Custom and SparePool arms in `BlockProcess._check_custom_stock` and `BlockProcess._check_pool_stock`), called at the start of `BlockProcess._repair` | Runs in the `Run` turn in source, before `Repair` is spawned
+| `OrderStock` | `BlockProcess._spawn_custom_stock_order` | A block-owned TELL for Custom sparing
+| `GetStartCond` | `get_start_cond` (module function) | Down-starts send the first turn straight to `Repair`
+| `ChangeBlockState` | `blocks.change_block_state`, called through `BlockProcess._transition` | Logs the change and returns the `StateDeltas` for the cascade
+|===
+
+Source has `Run`, `Repair`, `PerformPM` and `ObtainPMprereqs` as separate TELL processes. The port runs them as *one process per block*, and restores source's ordering with explicit zero-length hops (see <<port-only>>).
+
+== Structure
+
+`BlockProcess.run` is only a skeleton: the kickoff barrier, the start conditions (`BlockProcess._start_custom_spares`, `BlockProcess._post_ldt_start`, `BlockProcess._down_start`), then the loop below. The work happens in sub-generators, each named after the source method it ports: `BlockProcess._run_turn` (`Run`), `BlockProcess._idle_wait` (`Run`'s Idle / ZeroWait wait, entered from a turn and returning an `IdleExit`), `BlockProcess._preventive_maintenance` (entered from a turn; it runs `BlockProcess._obtain_pm_prereqs` (`ObtainPMprereqs`), then `BlockProcess._perform_pm` (`PerformPM`) unless the PM was deferred) and `BlockProcess._repair` (`Repair`):
+
+[mermaid]
+....
+flowchart TD
+    start(["run(): kickoff barrier<br/>(yield 0.0 at t=0)"]) --> prologue["start-up: _start_custom_spares(),<br/>_post_ldt_start() or _down_start(),<br/>PM stagger"]
+    prologue --> turn["_run_turn()<br/>one turn of Run"]
+    turn -->|"_Turn.LOOP<br/>(benign wake, PM done, re-park)"| turn
+    turn -->|"_Turn.STOP<br/>(Done, end of run)"| stop([life ends])
+    turn -->|"RepairRequest(start_val, sim_time)<br/>(failure, or a down-start's first turn)"| repair["_repair()<br/>Repair"]
+    repair -->|"False: maintenance completed"| turn
+    repair -->|"True: Done / end of run"| stop
+....
+
+Inside a turn of `Run`:
+
+[mermaid]
+....
+flowchart TD
+    A{"down-start<br/>first turn?"} -->|yes| R[["RepairRequest"]]
+    A -->|no| B["compute stress; draw a life<br/>or resume clock.fail_time_left"]
+    B --> C{"stress <= 0<br/>or Idle?"}
+    C -->|yes| Z["park until woken: _idle_wait() when Idle,<br/>ZeroWait when stress <= 0<br/>(startup-failure draw on switch-on)"]
+    C -->|no| P{"PM due first?<br/>(_pm_race)"}
+    P -->|yes| PM["_preventive_maintenance():<br/>_obtain_pm_prereqs() -> _perform_pm()<br/>(PMhold while waiting)"]
+    P -->|no| W["_fail_wait(): yield remaining life"]
+    W -->|"life elapsed"| F["_record_failure(): log Failed"] --> R
+    W -->|"interrupted: Wake(reason)"| D{"dispatch on<br/>InterruptReason"}
+    Z -->|"Wake(reason)"| D
+    D -->|"state already applied<br/>(STATE_ALREADY_APPLIED)"| L[["_Turn.LOOP"]]
+    D -->|"Induced_Failure"| F
+    D -->|"OBPM over threshold,<br/>Triggered_PM_Due"| PM
+    PM --> MC["Maintenance Completed"] --> L
+....
+
+== States
+
+Transitions this process makes itself, with the comment `ChangeBlockState` logs for each. A failure only logs `Failed`: the status stays Running until `BlockProcess._repair` makes the first transition. Idle and Standby are also set from outside by the dependency and cold-standby dispatch, which then interrupts the block (see <<interactions>>).
+
+[mermaid]
+....
+stateDiagram-v2
+    [*] --> Running: Initialize
+    Running --> Repairing: Failed, repair starts
+    Running --> RepHold: Failed, Waiting_for_Spare / LDT
+    RepHold --> Repairing: spare and resources obtained
+    Repairing --> RepHold: postLDT
+    Running --> PMhold: pmReqDefer
+    PMhold --> PM: prerequisites obtained
+    Running --> PM: beginning_PM
+    Repairing --> Running: Maintenance Completed
+    RepHold --> Running: Maintenance Completed (after post-LDT)
+    PM --> Running: Maintenance Completed
+    Running --> Idle: Dependence
+    Idle --> Running: woken, dependency restored
+    Running --> Standby: cold-standby switch (external)
+    Standby --> Running: switched on (external)
+    Running --> Done: No_spares / No_repair
+    Running --> Done: End_sim
+    Done --> [*]
+....
+
+"Maintenance Completed" can also end in Idle or Standby. `dependency.repair_completion_status` decides which, from what the block depends on.
+
+[[interactions]]
+== Interactions
+
+One failure, as it moves from a block to a dependent block:
+
+[mermaid]
+....
+sequenceDiagram
+    participant S as Scheduler
+    participant B as BlockProcess (block A)
+    participant CB as blocks.change_block_state
+    participant C as orchestrator._Cascade
+    participant N as cascade / nodes / system_status
+    participant D as dependency.back_flow_dependencies
+    participant B2 as BlockProcess (dependent block B)
+
+    S->>B: resume at end of fail-wait
+    B->>B: _run_turn: _record_failure logs Failed (status still Running), returns RepairRequest
+    B->>CB: _repair: _transition(REPAIRING, ...) (RepHold first if it must wait)
+    CB-->>B: event-log lines + StateDeltas
+    B->>C: on_transition(old_status, deltas, ...) = _Cascade.apply
+    C->>D: block-level dependents
+    D->>C: _dispatch_dependency(B, Idle, ...)
+    C->>B2: change B's state (Idle), then scheduler.interrupt(B, DEPENDENCE_IDLE)
+    C->>N: reconfigure_after_block_change -> node status -> system status
+    B->>S: yield repair time (inside _repair)
+    S->>B2: resume B's wait with Wake(DEPENDENCE_IDLE)
+    B2->>B2: reason is in STATE_ALREADY_APPLIED: resume, re-park Idle
+....
+
+The callbacks that connect a `BlockProcess` to the rest of the engine are constructor arguments, all wired up by `orchestrator` when a run starts:
+
+[cols="2,3,4",options="header"]
+|===
+| Argument | Called when | Goes to
+| `on_transition` | after every state change | `_Cascade.apply`: dependency back-flow, node and system status
+| `wake_block` | a Custom spare arrives from RSO/ESO | `scheduler.interrupt` on this block
+| `spawn_order_a_spare`, `spawn_order_stock` | a pooled spare is short, or stock falls to the SLO level | new pool-owned processes
+| `check_system_status`, `resend_back_flow`, `flush_cold_changes` | at "Maintenance Completed" | the cascade's deferred system check, `ResendBackFlow`, cold-standby changes
+|===
+
+[[state]]
+== State it owns
+
+A `BlockProcess` is built once per block per run from what it needs from the rest of the run (`block_env.py`):
+
+* a `block_env.BlockEnv`, built once per run by the driver and shared by every block: the scheduler, the log, the run's switches, the node and block lookups, and the cascade;
+* a `block_env.BlockPools`: the shared pools this block draws on, and what it can spawn to refill them;
+* a `block_env.CascadePort`: the three calls the block makes back into the cascade when its maintenance completes (`check_system_status`, `resend_back_flow`, `flush_cold_changes`). The orchestrator's `_Cascade` implements it.
+
+What persists between waits is on the instance:
+
+[cols="2,2,4",options="header"]
+|===
+| Record | Attribute | Holds
+| `FailClock` | `clock` | `clock.fail_time_left` (source's `FailTimeLeft`), `clock.pm_time_left`, `clock.operating_time`, `clock.race_raw_life`, `clock.stress`, `clock.wait_duration`
+| `PmRequest` | `pm` | `pm.due`, `pm.reason`, `pm.benign_continue_pending` (a PM-race win carried over a benign wake), `pm.prereqs_secured`, `pm.resource_pending` and `pm.spare_pending` (outstanding asynchronous prerequisites, reconciled by `BlockProcess._claim_pm_grant`), `pm.spare_pickup`, `pm.spare_pickup_pass`
+| `HopFlags` | `hops` | which zero-length boundary was already crossed: `hops.run_hop_taken`, `hops.pm_handback_taken`, `hops.pm_async_pickup`, `hops.quiet_rewait`, `hops.induced_now`, `hops.handback_from_pmhold`, `hops.first_run_pass`
+| `DownStart` | `down_start` | `down_start.repair_time` (source's `startVal`), `down_start.partial_pre_ldt` (`firstPreLDT`)
+| (none) | `custom_spares` | the block's private Custom spares queue
+|===
+
+Each record is a small dataclass in `block_lifecycle.py`, documented field by field.
+
+One repair's spare is not carried between turns, so it is not on the instance: `BlockProcess._check_for_spare` returns a `SpareRequest` (whether a spare is already held, whether Custom stock was empty, an emergency order outstanding, the spare-pool early grab and its stock-level re-order), which `BlockProcess._repair` hands to `BlockProcess._wait_for_spare`.
+
+[[port-only]]
+== Port-only devices and deliberate deviations
+
+These exist because one process stands in for several source processes:
+
+* *Zero-length hops (`yield 0.0`)* stand in for the start of a separate TELL process. Examples:
+** the kickoff barrier at t=0;
+** the `TELL METHOD Repair` seam in `BlockProcess._enter_repair`;
+** the PM hand-back hops.
++
+A requeue takes a fresh sequence number, so the continuation runs behind everything already pending in that instant, as a newly spawned TELL does in source. A hop that must instead keep its owner group's position yields `Wait(group_head=True)` (the kickoff barrier); the PM hand-back's `Run` wake yields a `Wait` that requeues it as a `BlockTrigger` record or an interrupt re-stamp (`BlockProcess._run_wake_hop`).
+* *Asynchronous PM prerequisites.* Source's `ObtainPMprereqs` is its own process and waits for a pooled resource or spare while `Run` carries on. The port records the outstanding request (`pm.resource_pending`/`pm.spare_pending`) and reconciles a landed grant at the next wake (`BlockProcess._claim_pm_grant`). The count is published as `block.pm_prerequisites_deferred` for `ControlPMtriggers`.
+* *Wake dispatch.* A wait handles the `InterruptReason`s that can reach it. Reasons whose state change the sender has already applied (`STATE_ALREADY_APPLIED`) just resume. There are three dispatchers, one per kind of source wait. Each shared one has a table in its docstring of how its sites differ:
+** `BlockProcess._on_fail_wait_wake`: source's `ON INTERRUPT` arm of `Run`'s fail-wait. It is shared by the ordinary fail-wait and the beyond-horizon wait (a life that ends after the run) and returns `_Wake.LOOP` or `_Wake.PROCEED`.
+** `BlockProcess._on_pm_boundary_wake`: the PM path's two zero-length TELL boundaries (`ObtainPMprereqs`, and the hand-back before `PerformPM`). There most reasons are notifications, because `ObtainPMprereqs` is a separate process in source.
+** The Idle / ZeroWait wait keeps its own handler, inside `BlockProcess._idle_wait`. It has a different shape: it parks until woken, and it redraws or dispatches straight to PM. It tells the turn how it left through an `IdleExit` (`was_idle`, `pm_due`, `pm_reason`).
++
+What may end each wait (its full length, and which interrupt reasons) is one table, `wait_sites.WAKE_POLICY`, keyed by `wait_sites.WaitSite`. The handlers above still do the checking; the table is the contract a reviewer checks against the source, and `state-coverage.adoc` shows which of its cells the models reach. Per-site differences that a capture has not confirmed are marked `SITE-VARIANT` in the code. One of them, at the beyond-horizon wait, counts an induced failure twice. `DepFailBeyondHorizonProbe` reaches it (the port reports 36 component failures where one count per failure gives 24); a real capture of that probe decides which is right.
+* *OBPM copies with no capture.* The OBPM wake copies at the PM hand-back and the ZeroWait site are moved verbatim. They are unreachable (delivery is refused while `waiting_for_pm_prerequisites`) or not reachable by any capturable model.
+
+== Invariants
+
+* Time never goes backwards, and the calendar head is never earlier than the current time.
+* A block's `op_status` and `active_status` are always enum members.
+* A block that reaches `Done` stays `Done` for the rest of the run.
+* A wake with a reason a wait site does not handle raises `UnexpectedWake` rather than guessing.
+
+The first three are checked at every step by `raptor/core/engine/invariants.py` (`InvariantChecker`), across the whole corpus and on generated models.
+
+== Tests and fixtures
+
+* `state-coverage.adoc` (generated): which interrupt reasons reach each wait site (`wait_sites.WaitSite`) and which status changes a block makes, across the snapshot models. Empty cells are paths no model exercises.
+* `tests/unit/test_engine_snapshot.py`: every model's output, byte for byte against the last run. Every engine change is gated on this.
+* `tests/unit/test_event_log_fidelity.py`, `tests/unit/test_golden_fidelity.py`: event logs and reports against real RAPTOR captures (0 of 2,141 runs differ).
+* `tests/unit/test_engine_properties.py`: generated models covering sparing, PM, standby stress, pools, resources and dependencies.
+* `tests/unit/test_block_lifecycle.py` and `tests/unit/single_block.py`: a single block driven through the scheduler.
+* Probes that pin particular paths, all under `tests/golden/`:
+** PM hold: `PmHoldProbe`;
+** pool exhaustion: `PoolExhaustDoneProbe`;
+** startup failures: `StartupFailuresProbe`;
+** down-starts in LDT: `SimStartLdtProbe`;
+** OBPM: `DepPmFarWaitProbe`, `DepPmBeyondHorizonProbe`;
+** an induced failure at the beyond-horizon wait: `DepFailBeyondHorizonProbe` (awaiting capture; `tests/unit/test_dep_fail_beyond_horizon_probe.py`).

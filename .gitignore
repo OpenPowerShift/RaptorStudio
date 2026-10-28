@@ -1,0 +1,53 @@
+# Wine prefixes used to run the legacy Raptor 7 executables — large,
+# machine-specific, and fully regenerable.
+.wine-raptor/
+.wine-raptor-demo/
+.wine-raptor-beta4/
+.wine-raptor32/
+
+# Third-party reference material and release notes kept locally only.
+/reference/
+
+# Local-only legacy working material (the old sample-model corpus and its
+# generator scripts) -- see legacy/README.md. Only that README is tracked.
+/legacy/*
+!/legacy/README.md
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Local dev venv (created 2026-08-21 to install PySide6 for GUI work --
+# the system Python is externally-managed/PEP-668-locked, so this is the
+# only way to `pip install` anything locally without --break-system-packages)
+.venv/
+
+# Local Claude Code settings/state (machine-specific, not project config)
+.claude/
+
+# Modsim runtime error log, written to cwd by Raptor7Student.exe on crash
+mserr.txt
+
+# Raw /sd per-draw RNG dumps. Raptor7Student.exe APPENDS them to the cwd
+# on every launch, so a copy at the repo root is contaminated scratch.
+# The curated captures live next to their fixtures as
+# tests/golden/<Name>/legacy/simDetails*.txt (not affected by these
+# root-anchored patterns).
+/simDetails*
+
+# Local tool configs, not project config
+/config.json
+
+.coverage
+diagram.png
+
+
+# Research write-ups (the PWR1000 model and its retrospective): local only, not
+# part of the public repository.
+/research/

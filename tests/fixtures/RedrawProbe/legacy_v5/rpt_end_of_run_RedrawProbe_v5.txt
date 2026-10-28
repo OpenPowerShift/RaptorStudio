@@ -1,0 +1,140 @@
+End_Of_Run Report for input.rbd  Wed Sep 09 22:52:04 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      100.000000
+MDT                        N/A
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              100.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  6
+
+
+
+***LOGISTICS***
+
+MTBM                  2.500000
+MTBMu                 16.666667
+MTBMs                 2.941176
+MMT                   8.033922
+MMTu                  7.625365
+MMTs                  8.094004
+GreenPercent          5.000000
+YellowPercent         95.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                            2.000000       9.021137      16.357908       5.083732
+RT                             1.357908       7.625365      13.185966       4.945205
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      1   Infinite                     1
+BlockG                      0   Infinite                     0
+BlockG2                     0   Infinite                     0
+BlockG2_2                   0   Infinite                     0
+BlockG2_3                   0   Infinite                     0
+BlockG3                     0   Infinite                     0
+BlockG4                     0   Infinite                     0
+BlockG5                     0   Infinite                     0
+BlockH                      1   Infinite                     1
+BlockN                      4   Infinite                     4
+BlockR                      0   Infinite                     0
+BlockR2                     0   Infinite                     0
+BlockR3                     0   Infinite                     0
+BlockR4                     0   Infinite                     0
+BlockR5                     0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            8            0         3.34            8            3         15 
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.914583309
+MTBDE                      30.486110
+MDT                        2.847223
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              100.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  9
+
+
+
+***LOGISTICS***
+
+MTBM                  2.406798
+MTBMu                 10.162037
+MTBMs                 3.153736
+MMT                   8.242030
+MMTu                  9.564218
+MMTs                  7.877288
+GreenPercent          5.000000
+YellowPercent         86.458331
+RedPercent            8.541669
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           5.344236      28.874992      66.280740      32.752113
+DT                             1.998016       2.847223       3.885905       0.958100
+TBM                            2.000000       9.462960      19.376248       5.726623
+RT                             0.566247       9.564218      26.588223       7.972347
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      2   Infinite                     2
+BlockG                      0   Infinite                     0
+BlockG2                     0   Infinite                     0
+BlockG2_2                   0   Infinite                     0
+BlockG2_3                   0   Infinite                     0
+BlockG3                     0   Infinite                     0
+BlockG4                     0   Infinite                     0
+BlockG5                     0   Infinite                     0
+BlockH                      2   Infinite                     2
+BlockN                      5   Infinite                     5
+BlockR                      0   Infinite                     0
+BlockR2                     0   Infinite                     0
+BlockR3                     0   Infinite                     0
+BlockR4                     0   Infinite                     0
+BlockR5                     0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            8            0         3.29            8            4         31 
+
+
+
+
+

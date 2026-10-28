@@ -1,0 +1,3182 @@
+End_Of_Run Report for IsolateCold.rbd  Sat Oct 10 19:29:29 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999333333
+MTBDE                      2998.000000
+MDT                        2.000000
+Dependability              0.999050404
+Reliability                0.800000000
+ConditionalReliability     0.800000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  1499.000000
+MTBMu                 1499.000000
+MTBMs                 N/A
+MMT                   14.281111
+MMTu                  14.281111
+MMTs                  N/A
+GreenPercent          99.047926
+YellowPercent         0.885407
+RedPercent            0.066667
+MissionGreenPercent   98.643872
+MissionYellowPercent  1.261168
+MissionRedPercent     0.094960
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        1506.665287    1506.665287    1506.665287            N/A
+DT                             2.000000       2.000000       2.000000            N/A
+TBM                          751.484127    1129.074707    1506.665287     533.993719
+RT                             9.599468      14.281111      18.962754       6.620843
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       1   Infinite                     1
+S10B4                       1   Infinite                     1
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.99            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1798800.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.40          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.60          600 6.000000E-07              0 999333332.33    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.60          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         67.20        0.00        0.00        0.00        0.00        0.00     1665.13        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1579.95       96.52        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       34.65        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1647.15      131.17        0.00        0.00        0.00        0.00     3045.13        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        2.66        0.00 
+S10B4                      0.00        4.52        0.00 
+
+Totals                     0.00        7.18        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1732.33        0.00        0.00     1732.33 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1676.47        2.66        0.00     1703.09 
+S10B4                       0.63       34.65        4.52        0.00       39.80 
+
+Block_Totals               25.04     4823.45        7.18        0.00     4855.67 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       24.00      114.25      156.25 
+
+Resource_Totals            18.00       24.00      114.25      156.25 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4855.67
+Events                      0.00
+SparePools                  0.00
+Resources                 156.25
+SystemDownCost             10.62
+SystemLostFlowCost       1668.00
+
+________________________________
+Grand_Total              6690.54
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.999333333  0.999333333  0.800000000  99.047926   0.885407   0.066667   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.993679082  0.993679082  0.800000000
+S10B4                   0.996800177  0.996800177  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.885407   99.114593    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    99.367908    0.000000    0.000000    0.632092    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.680018    0.000000    0.000000    0.319982    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999333333
+MTBDE                      2998.000000
+MDT                        2.000000
+Dependability              0.999058420
+Reliability                0.800000000
+ConditionalReliability     0.800000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  2998.000000
+MTBMu                 2998.000000
+MTBMs                 N/A
+MMT                   22.018281
+MMTu                  22.018281
+MMTs                  N/A
+GreenPercent          99.266057
+YellowPercent         0.667276
+RedPercent            0.066667
+MissionGreenPercent   98.963401
+MissionYellowPercent  0.942441
+MissionRedPercent     0.094158
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         350.267636     350.267636     350.267636            N/A
+DT                             2.000000       2.000000       2.000000            N/A
+TBM                          350.267636     350.267636     350.267636            N/A
+RT                            22.018281      22.018281      22.018281            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       1   Infinite                     1
+S10B4                       0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.99            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1798800.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.40          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.60          600 6.000000E-07              0 999333332.33    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.60          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         50.65        0.00        0.00        0.00        0.00        0.00     1668.79        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1578.33      112.07        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1628.98      112.07        0.00        0.00        0.00        0.00     3048.79        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        2.66        0.00 
+S10B4                      0.00        0.00        0.00 
+
+Totals                     0.00        2.66        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1719.44        0.00        0.00     1719.44 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1690.40        2.66        0.00     1717.02 
+S10B4                       0.63        0.00        0.00        0.00        0.63 
+
+Block_Totals               25.04     4789.84        2.66        0.00     4817.54 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       12.00       88.07      118.07 
+
+Resource_Totals            18.00       12.00       88.07      118.07 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4817.54
+Events                      0.00
+SparePools                  0.00
+Resources                 118.07
+SystemDownCost             10.62
+SystemLostFlowCost       1668.00
+
+________________________________
+Grand_Total              6614.23
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.999333333  0.999333333  0.800000000  99.266057   0.667276   0.066667   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.992660573  0.992660573  0.800000000
+S10B4                   1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.667276   99.332724    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    99.266057    0.000000    0.000000    0.733943    0.000000    0.000000    0.000000    0.000000
+S10B4                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999333333
+MTBDE                      2998.000000
+MDT                        2.000000
+Dependability              0.999039746
+Reliability                0.800000000
+ConditionalReliability     0.800000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  2998.000000
+MTBMu                 2998.000000
+MTBMs                 N/A
+MMT                   16.165428
+MMTu                  16.165428
+MMTs                  N/A
+GreenPercent          99.461152
+YellowPercent         0.472181
+RedPercent            0.066667
+MissionGreenPercent   99.223854
+MissionYellowPercent  0.680120
+MissionRedPercent     0.096025
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         984.250189     984.250189     984.250189            N/A
+DT                             2.000000       2.000000       2.000000            N/A
+TBM                          984.250189     984.250189     984.250189            N/A
+RT                            16.165428      16.165428      16.165428            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       1   Infinite                     1
+S10B4                       0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.99            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1798800.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.40          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.60          600 6.000000E-07              0 999333332.33    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.60          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         35.84        0.00        0.00        0.00        0.00        0.00     1672.07        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1581.43       82.28        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1617.27       82.28        0.00        0.00        0.00        0.00     3052.07        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        2.66        0.00 
+S10B4                      0.00        0.00        0.00 
+
+Totals                     0.00        2.66        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1707.91        0.00        0.00     1707.91 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1663.71        2.66        0.00     1690.33 
+S10B4                       0.63        0.00        0.00        0.00        0.63 
+
+Block_Totals               25.04     4751.62        2.66        0.00     4779.32 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       12.00       64.66       94.66 
+
+Resource_Totals            18.00       12.00       64.66       94.66 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4779.32
+Events                      0.00
+SparePools                  0.00
+Resources                  94.66
+SystemDownCost             10.62
+SystemLostFlowCost       1668.00
+
+________________________________
+Grand_Total              6552.60
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.999333333  0.999333333  0.800000000  99.461152   0.472181   0.066667   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.994611524  0.994611524  0.800000000
+S10B4                   1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.472181   99.527819    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    99.461152    0.000000    0.000000    0.538848    0.000000    0.000000    0.000000    0.000000
+S10B4                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998000000
+MTBDE                      998.000000
+MDT                        2.000000
+Dependability              0.997189551
+Reliability                0.400000000
+ConditionalReliability     0.400000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  4
+
+
+
+***LOGISTICS***
+
+MTBM                  748.500000
+MTBMu                 748.500000
+MTBMs                 N/A
+MMT                   14.889400
+MMTu                  14.889400
+MMTs                  N/A
+GreenPercent          98.014747
+YellowPercent         1.785253
+RedPercent            0.200000
+MissionGreenPercent   97.826168
+MissionYellowPercent  1.892787
+MissionRedPercent     0.281045
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         439.834049     915.835892    1724.916343     704.318922
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                           44.344844     687.876919    1682.571499     701.358150
+RT                             9.644223      14.889400      19.780712       4.429230
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       2   Infinite                     2
+S10B4                       2   Infinite                     2
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.98            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1796400.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         1.20          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       598.80          600 6.000000E-07              0 997999999.00    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       598.80          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0        135.50        0.00        0.00        0.00        0.00        0.00     1650.01        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1570.51      187.13        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       82.28        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1706.02      269.41        0.00        0.00        0.00        0.00     3030.01        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        5.32        0.00 
+S10B4                      0.00        9.04        0.00 
+
+Totals                     0.00       14.36        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1785.51        0.00        0.00     1785.51 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1757.65        5.32        0.00     1786.93 
+S10B4                       0.63       82.28        9.04        0.00       91.95 
+
+Block_Totals               25.04     5005.44       14.36        0.00     5044.84 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       48.00      238.23      304.23 
+
+Resource_Totals            18.00       48.00      238.23      304.23 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   5044.84
+Events                      0.00
+SparePools                  0.00
+Resources                 304.23
+SystemDownCost             31.86
+SystemLostFlowCost       5004.00
+
+________________________________
+Grand_Total             10384.93
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.998000000  0.998000000  0.400000000  98.014747   1.785253   0.200000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.987745099  0.987745099  0.600000000
+S10B4                   0.992402368  0.992402368  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     1.785253   98.214747    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    98.774510    0.000000    0.000000    1.225490    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.240237    0.000000    0.000000    0.759763    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.997333333
+MTBDE                      748.000000
+MDT                        2.000000
+Dependability              0.996169647
+Reliability                0.600000000
+ConditionalReliability     0.600000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  5
+
+
+
+***LOGISTICS***
+
+MTBM                  598.400000
+MTBMu                 598.400000
+MTBMs                 N/A
+MMT                   14.189352
+MMTu                  14.189352
+MMTs                  N/A
+GreenPercent          97.954011
+YellowPercent         1.779322
+RedPercent            0.266667
+MissionGreenPercent   97.611469
+MissionYellowPercent  2.005495
+MissionRedPercent     0.383035
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.429080     363.467622    1032.962647     479.463689
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                            3.429080     512.714683    1103.702926     529.991789
+RT                            11.493274      14.189352      18.982694       3.166481
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       3   Infinite                     3
+S10B4                       2   Infinite                     2
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            4         5.98            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1795200.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         1.60          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       598.40          600 6.000000E-07              0 997333332.34    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       598.40          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0        140.11        0.00        0.00        0.00        0.00        0.00     1648.99        0.00 
+S10B2                   0         79.38        0.00        0.00        0.00        0.00        0.00     1376.52        0.00 
+S10B3                   0       1566.83      222.50        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       98.32        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1786.32      320.81        0.00        0.00        0.00        0.00     3025.51        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        7.98        0.00 
+S10B4                      0.00        9.04        0.00 
+
+Totals                     0.00       17.02        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1789.10        0.00        0.00     1789.10 
+S10B2                       0.45     1455.90        0.00        0.00     1456.35 
+S10B3                      23.96     1789.33        7.98        0.00     1821.27 
+S10B4                       0.63       98.32        9.04        0.00      107.99 
+
+Block_Totals               25.04     5132.64       17.02        0.00     5174.70 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       60.00      283.79      361.79 
+
+Resource_Totals            18.00       60.00      283.79      361.79 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   5174.70
+Events                      0.00
+SparePools                  0.00
+Resources                 361.79
+SystemDownCost             42.48
+SystemLostFlowCost       6672.00
+
+________________________________
+Grand_Total             12250.97
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.997333333  0.997333333  0.600000000  97.954011   1.779322   0.266667   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.985429151  0.985429151  0.600000000
+S10B4                   0.990921930  0.990921930  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     1.845989   98.154011    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.252237   99.747763    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    98.542915    0.000000    0.000000    1.457085    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.092193    0.000000    0.000000    0.907807    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999333333
+MTBDE                      2998.000000
+MDT                        2.000000
+Dependability              0.999059420
+Reliability                0.800000000
+ConditionalReliability     0.800000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  2998.000000
+MTBMu                 2998.000000
+MTBMs                 N/A
+MMT                   14.556890
+MMTu                  14.556890
+MMTs                  N/A
+GreenPercent          99.514770
+YellowPercent         0.418563
+RedPercent            0.066667
+MissionGreenPercent   99.315404
+MissionYellowPercent  0.590538
+MissionRedPercent     0.094058
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        1247.224019    1247.224019    1247.224019            N/A
+DT                             2.000000       2.000000       2.000000            N/A
+TBM                         1247.224019    1247.224019    1247.224019            N/A
+RT                            14.556890      14.556890      14.556890            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       0   Infinite                     0
+S10B4                       1   Infinite                     1
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         6.00            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1798800.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.40          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.60          600 6.000000E-07              0 999333332.33    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.60          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         31.77        0.00        0.00        0.00        0.00        0.00     1672.97        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1590.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       52.55        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1621.77       52.55        0.00        0.00        0.00        0.00     3052.97        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        0.00        0.00 
+S10B4                      0.00        4.52        0.00 
+
+Totals                     0.00        4.52        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1704.74        0.00        0.00     1704.74 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1590.00        0.00        0.00     1613.96 
+S10B4                       0.63       52.55        4.52        0.00       57.70 
+
+Block_Totals               25.04     4727.29        4.52        0.00     4756.85 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       12.00       58.23       88.23 
+
+Resource_Totals            18.00       12.00       58.23       88.23 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4756.85
+Events                      0.00
+SparePools                  0.00
+Resources                  88.23
+SystemDownCost             10.62
+SystemLostFlowCost       1668.00
+
+________________________________
+Grand_Total              6523.70
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.999333333  0.999333333  0.800000000  99.514770   0.418563   0.066667   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   1.000000000  1.000000000  1.000000000
+S10B4                   0.995147703  0.995147703  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.418563   99.581437    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.514770    0.000000    0.000000    0.485230    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998000000
+MTBDE                      998.000000
+MDT                        2.000000
+Dependability              0.998132970
+Reliability                0.600000000
+ConditionalReliability     0.600000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  3
+
+
+
+***LOGISTICS***
+
+MTBM                  998.000000
+MTBMu                 998.000000
+MTBMs                 N/A
+MMT                   13.046066
+MMTu                  13.046066
+MMTs                  N/A
+GreenPercent          98.695393
+YellowPercent         1.104607
+RedPercent            0.200000
+MissionGreenPercent   98.611549
+MissionYellowPercent  1.201748
+MissionRedPercent     0.186703
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         298.694777     946.686281    2175.792207    1064.962050
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                          298.694777     948.019614    2177.792207    1065.570967
+RT                             9.391481      13.046066      16.182097       3.424878
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       3   Infinite                     3
+S10B4                       0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.99            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1796400.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         1.20          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       598.80          600 6.000000E-07              0 997999999.00    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       598.80          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         83.84        0.00        0.00        0.00        0.00        0.00     1661.44        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1569.26      199.21        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1653.10      199.21        0.00        0.00        0.00        0.00     3041.44        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        7.98        0.00 
+S10B4                      0.00        0.00        0.00 
+
+Totals                     0.00        7.98        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1745.28        0.00        0.00     1745.28 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1768.47        7.98        0.00     1800.41 
+S10B4                       0.63        0.00        0.00        0.00        0.63 
+
+Block_Totals               25.04     4893.75        7.98        0.00     4926.77 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       36.00      156.55      210.55 
+
+Resource_Totals            18.00       36.00      156.55      210.55 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4926.77
+Events                      0.00
+SparePools                  0.00
+Resources                 210.55
+SystemDownCost             31.86
+SystemLostFlowCost       5004.00
+
+________________________________
+Grand_Total             10173.19
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.998000000  0.998000000  0.600000000  98.695393   1.104607   0.200000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.986953934  0.986953934  0.600000000
+S10B4                   1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     1.104607   98.895393    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    98.695393    0.000000    0.000000    1.304607    0.000000    0.000000    0.000000    0.000000
+S10B4                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999333333
+MTBDE                      2998.000000
+MDT                        2.000000
+Dependability              0.999034557
+Reliability                0.800000000
+ConditionalReliability     0.800000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  2998.000000
+MTBMu                 2998.000000
+MTBMs                 N/A
+MMT                   15.960053
+MMTu                  15.960053
+MMTs                  N/A
+GreenPercent          99.467998
+YellowPercent         0.465335
+RedPercent            0.066667
+MissionGreenPercent   99.229574
+MissionYellowPercent  0.673882
+MissionRedPercent     0.096544
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         326.923520     326.923520     326.923520            N/A
+DT                             2.000000       2.000000       2.000000            N/A
+TBM                          326.923520     326.923520     326.923520            N/A
+RT                            15.960053      15.960053      15.960053            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       0   Infinite                     0
+S10B4                       1   Infinite                     1
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.99            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1798800.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.40          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.60          600 6.000000E-07              0 999333332.33    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.60          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         35.32        0.00        0.00        0.00        0.00        0.00     1672.18        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1590.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       57.62        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1625.32       57.62        0.00        0.00        0.00        0.00     3052.18        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        0.00        0.00 
+S10B4                      0.00        4.52        0.00 
+
+Totals                     0.00        4.52        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1707.50        0.00        0.00     1707.50 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1590.00        0.00        0.00     1613.96 
+S10B4                       0.63       57.62        4.52        0.00       62.77 
+
+Block_Totals               25.04     4735.12        4.52        0.00     4764.68 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       12.00       63.84       93.84 
+
+Resource_Totals            18.00       12.00       63.84       93.84 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4764.68
+Events                      0.00
+SparePools                  0.00
+Resources                  93.84
+SystemDownCost             10.62
+SystemLostFlowCost       1668.00
+
+________________________________
+Grand_Total              6537.14
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.999333333  0.999333333  0.800000000  99.467998   0.465335   0.066667   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   1.000000000  1.000000000  1.000000000
+S10B4                   0.994679982  0.994679982  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.465335   99.534665    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.467998    0.000000    0.000000    0.532002    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998000000
+MTBDE                      998.000000
+MDT                        2.000000
+Dependability              0.998083764
+Reliability                0.600000000
+ConditionalReliability     0.600000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  3
+
+
+
+***LOGISTICS***
+
+MTBM                  998.000000
+MTBMu                 998.000000
+MTBMs                 N/A
+MMT                   16.230667
+MMTu                  16.230667
+MMTs                  N/A
+GreenPercent          98.376933
+YellowPercent         1.423067
+RedPercent            0.200000
+MissionGreenPercent   98.483664
+MissionYellowPercent  1.324712
+MissionRedPercent     0.191624
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         378.283194     711.334101    1111.919359     371.451440
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                          380.283194     712.667434    1113.919359     371.635002
+RT                            13.125258      16.230667      18.527119       2.790311
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       1   Infinite                     1
+S10B4                       2   Infinite                     2
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.98            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1796400.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         1.20          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       598.80          600 6.000000E-07              0 997999999.00    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       598.80          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0        108.01        0.00        0.00        0.00        0.00        0.00     1656.09        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1580.18       94.30        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00      108.90        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1688.19      203.20        0.00        0.00        0.00        0.00     3036.09        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        2.66        0.00 
+S10B4                      0.00        9.04        0.00 
+
+Totals                     0.00       11.70        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1764.10        0.00        0.00     1764.10 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1674.48        2.66        0.00     1701.10 
+S10B4                       0.63      108.90        9.04        0.00      118.57 
+
+Block_Totals               25.04     4927.48       11.70        0.00     4964.22 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       36.00      194.77      248.77 
+
+Resource_Totals            18.00       36.00      194.77      248.77 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4964.22
+Events                      0.00
+SparePools                  0.00
+Resources                 248.77
+SystemDownCost             31.86
+SystemLostFlowCost       5004.00
+
+________________________________
+Grand_Total             10248.85
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.998000000  0.998000000  0.600000000  98.376933   1.423067   0.200000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.993824294  0.993824294  0.800000000
+S10B4                   0.989945039  0.989945039  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     1.423067   98.576933    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    99.382429    0.000000    0.000000    0.617571    0.000000    0.000000    0.000000    0.000000
+S10B4                    98.994504    0.000000    0.000000    1.005496    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999333333
+MTBDE                      2998.000000
+MDT                        2.000000
+Dependability              0.999062397
+Reliability                0.800000000
+ConditionalReliability     0.800000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  2998.000000
+MTBMu                 2998.000000
+MTBMs                 N/A
+MMT                   17.324658
+MMTu                  17.324658
+MMTs                  N/A
+GreenPercent          99.422511
+YellowPercent         0.510822
+RedPercent            0.066667
+MissionGreenPercent   99.187817
+MissionYellowPercent  0.718422
+MissionRedPercent     0.093760
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        2770.500143    2770.500143    2770.500143            N/A
+DT                             2.000000       2.000000       2.000000            N/A
+TBM                         2770.500143    2770.500143    2770.500143            N/A
+RT                            17.324658      17.324658      17.324658            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       0   Infinite                     0
+S10B4                       1   Infinite                     1
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.99            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1798800.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.40          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.60          600 6.000000E-07              0 999333332.33    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.60          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         38.77        0.00        0.00        0.00        0.00        0.00     1671.42        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1590.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       62.54        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1628.77       62.54        0.00        0.00        0.00        0.00     3051.42        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        0.00        0.00 
+S10B4                      0.00        4.52        0.00 
+
+Totals                     0.00        4.52        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1710.19        0.00        0.00     1710.19 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1590.00        0.00        0.00     1613.96 
+S10B4                       0.63       62.54        4.52        0.00       67.69 
+
+Block_Totals               25.04     4742.73        4.52        0.00     4772.29 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       12.00       69.30       99.30 
+
+Resource_Totals            18.00       12.00       69.30       99.30 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4772.29
+Events                      0.00
+SparePools                  0.00
+Resources                  99.30
+SystemDownCost             10.62
+SystemLostFlowCost       1668.00
+
+________________________________
+Grand_Total              6550.21
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.999333333  0.999333333  0.800000000  99.422511   0.510822   0.066667   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   1.000000000  1.000000000  1.000000000
+S10B4                   0.994225114  0.994225114  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.510822   99.489178    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.422511    0.000000    0.000000    0.577489    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_11*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998666667
+MTBDE                      1498.000000
+MDT                        2.000000
+Dependability              0.998131776
+Reliability                0.600000000
+ConditionalReliability     0.600000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  1498.000000
+MTBMu                 1498.000000
+MTBMs                 N/A
+MMT                   10.685028
+MMTu                  10.685028
+MMTs                  N/A
+GreenPercent          99.176874
+YellowPercent         0.689792
+RedPercent            0.133333
+MissionGreenPercent   99.120009
+MissionYellowPercent  0.693169
+MissionRedPercent     0.186822
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         833.539284    1491.995631    2150.451978     931.197896
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                          833.539284    1492.995631    2152.451978     932.612110
+RT                            10.685028      10.685028      10.685028            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       1   Infinite                     1
+S10B4                       1   Infinite                     1
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.99            6            5          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1797600.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.80          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.20          600 6.000000E-07              0 998666665.67    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.20          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         52.36        0.00        0.00        0.00        0.00        0.00     1668.41        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1582.58       71.30        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       38.57        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1634.93      109.88        0.00        0.00        0.00        0.00     3048.41        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        2.66        0.00 
+S10B4                      0.00        4.52        0.00 
+
+Totals                     0.00        7.18        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1720.77        0.00        0.00     1720.77 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1653.88        2.66        0.00     1680.50 
+S10B4                       0.63       38.57        4.52        0.00       43.72 
+
+Block_Totals               25.04     4793.22        7.18        0.00     4825.44 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       24.00       98.78      140.78 
+
+Resource_Totals            18.00       24.00       98.78      140.78 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4825.44
+Events                      0.00
+SparePools                  0.00
+Resources                 140.78
+SystemDownCost             21.24
+SystemLostFlowCost       3336.00
+
+________________________________
+Grand_Total              8323.45
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.998666667  0.998666667  0.600000000  99.176874   0.689792   0.133333   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.995330420  0.995330420  0.800000000
+S10B4                   0.996438324  0.996438324  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.689792   99.310208    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    99.533042    0.000000    0.000000    0.466958    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.643832    0.000000    0.000000    0.356168    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_12*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999333333
+MTBDE                      2998.000000
+MDT                        2.000000
+Dependability              0.999060893
+Reliability                0.800000000
+ConditionalReliability     0.800000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  2998.000000
+MTBMu                 2998.000000
+MTBMs                 N/A
+MMT                   7.433083
+MMTu                  7.433083
+MMTs                  N/A
+GreenPercent          99.752231
+YellowPercent         0.181103
+RedPercent            0.066667
+MissionGreenPercent   99.650977
+MissionYellowPercent  0.255112
+MissionRedPercent     0.093911
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        2452.467724    2452.467724    2452.467724            N/A
+DT                             2.000000       2.000000       2.000000            N/A
+TBM                         2452.467724    2452.467724    2452.467724            N/A
+RT                             7.433083       7.433083       7.433083            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       0   Infinite                     0
+S10B4                       1   Infinite                     1
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         6.00            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1798800.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.40          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.60          600 6.000000E-07              0 999333332.33    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.60          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         13.75        0.00        0.00        0.00        0.00        0.00     1676.96        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1590.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       26.83        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1603.75       26.83        0.00        0.00        0.00        0.00     3056.96        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        0.00        0.00 
+S10B4                      0.00        4.52        0.00 
+
+Totals                     0.00        4.52        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1690.70        0.00        0.00     1690.70 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1590.00        0.00        0.00     1613.96 
+S10B4                       0.63       26.83        4.52        0.00       31.98 
+
+Block_Totals               25.04     4687.54        4.52        0.00     4717.10 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       12.00       29.73       59.73 
+
+Resource_Totals            18.00       12.00       29.73       59.73 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4717.10
+Events                      0.00
+SparePools                  0.00
+Resources                  59.73
+SystemDownCost             10.62
+SystemLostFlowCost       1668.00
+
+________________________________
+Grand_Total              6455.45
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.999333333  0.999333333  0.800000000  99.752231   0.181103   0.066667   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   1.000000000  1.000000000  1.000000000
+S10B4                   0.997522306  0.997522306  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.181103   99.818897    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.752231    0.000000    0.000000    0.247769    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_13*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      3000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  0
+
+
+
+***LOGISTICS***
+
+MTBM                  3000.000000
+MTBMu                 3000.000000
+MTBMs                 N/A
+MMT                   N/A
+MMTu                  N/A
+MMTs                  N/A
+GreenPercent          100.000000
+YellowPercent         0.000000
+RedPercent            0.000000
+MissionGreenPercent   100.000000
+MissionYellowPercent  0.000000
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+No Component Failures!
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       0   Infinite                     0
+S10B4                       0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            6         6.00            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1800000.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.00            0
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                600       600.00          600 6.000000E-07      999999999 999999999.00    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                          600       600.00          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0          0.00        0.00        0.00        0.00        0.00        0.00     1680.00        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1590.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1590.00        0.00        0.00        0.00        0.00        0.00     3060.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        0.00        0.00 
+S10B4                      0.00        0.00        0.00 
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1680.00        0.00        0.00     1680.00 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1590.00        0.00        0.00     1613.96 
+S10B4                       0.63        0.00        0.00        0.00        0.63 
+
+Block_Totals               25.04     4650.00        0.00        0.00     4675.04 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00        0.00        0.00       18.00 
+
+Resource_Totals            18.00        0.00        0.00       18.00 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4675.04
+Events                      0.00
+SparePools                  0.00
+Resources                  18.00
+SystemDownCost              0.00
+SystemLostFlowCost          0.00
+
+________________________________
+Grand_Total              4693.04
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   1.000000000  1.000000000  1.000000000
+S10B4                   1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B4                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_14*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      3000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  0
+
+
+
+***LOGISTICS***
+
+MTBM                  3000.000000
+MTBMu                 3000.000000
+MTBMs                 N/A
+MMT                   N/A
+MMTu                  N/A
+MMTs                  N/A
+GreenPercent          100.000000
+YellowPercent         0.000000
+RedPercent            0.000000
+MissionGreenPercent   100.000000
+MissionYellowPercent  0.000000
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+No Component Failures!
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       0   Infinite                     0
+S10B4                       0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            6         6.00            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1800000.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.00            0
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                600       600.00          600 6.000000E-07      999999999 999999999.00    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                          600       600.00          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0          0.00        0.00        0.00        0.00        0.00        0.00     1680.00        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1590.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1590.00        0.00        0.00        0.00        0.00        0.00     3060.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        0.00        0.00 
+S10B4                      0.00        0.00        0.00 
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1680.00        0.00        0.00     1680.00 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1590.00        0.00        0.00     1613.96 
+S10B4                       0.63        0.00        0.00        0.00        0.63 
+
+Block_Totals               25.04     4650.00        0.00        0.00     4675.04 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00        0.00        0.00       18.00 
+
+Resource_Totals            18.00        0.00        0.00       18.00 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4675.04
+Events                      0.00
+SparePools                  0.00
+Resources                  18.00
+SystemDownCost              0.00
+SystemLostFlowCost          0.00
+
+________________________________
+Grand_Total              4693.04
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   1.000000000  1.000000000  1.000000000
+S10B4                   1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B4                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_15*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998000000
+MTBDE                      998.000000
+MDT                        2.000000
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  5
+
+
+
+***LOGISTICS***
+
+MTBM                  598.800000
+MTBMu                 598.800000
+MTBMs                 N/A
+MMT                   9.994354
+MMTu                  9.994354
+MMTs                  N/A
+GreenPercent          98.334274
+YellowPercent         1.465726
+RedPercent            0.200000
+MissionGreenPercent   99.549313
+MissionYellowPercent  0.450687
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         511.378724     845.905555    1312.996032     416.926153
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                          131.378500     508.343333    1314.996032     471.761245
+RT                             7.563805       9.994354      13.335734       2.088183
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       1   Infinite                     1
+S10B4                       4   Infinite                     4
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.98            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1796400.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         1.20          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       598.80          600 6.000000E-07              0 997999999.00    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       598.80          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0        111.25        0.00        0.00        0.00        0.00        0.00     1655.38        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1584.76       50.28        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00      144.74        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1696.01      195.02        0.00        0.00        0.00        0.00     3035.38        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        2.66        0.00 
+S10B4                      0.00       18.08        0.00 
+
+Totals                     0.00       20.74        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1766.62        0.00        0.00     1766.62 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1635.04        2.66        0.00     1661.66 
+S10B4                       0.63      144.74       18.08        0.00      163.45 
+
+Block_Totals               25.04     4926.41       20.74        0.00     4972.19 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       60.00      199.89      277.89 
+
+Resource_Totals            18.00       60.00      199.89      277.89 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4972.19
+Events                      0.00
+SparePools                  0.00
+Resources                 277.89
+SystemDownCost             31.86
+SystemLostFlowCost       5004.00
+
+________________________________
+Grand_Total             10285.93
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.998000000  0.998000000  1.000000000  98.334274   1.465726   0.200000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.996707373  0.996707373  1.000000000
+S10B4                   0.986635370  0.986635370  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     1.465726   98.534274    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    99.670737    0.000000    0.000000    0.329263    0.000000    0.000000    0.000000    0.000000
+S10B4                    98.663537    0.000000    0.000000    1.336463    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_16*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998666667
+MTBDE                      1498.000000
+MDT                        2.000000
+Dependability              0.998135208
+Reliability                0.600000000
+ConditionalReliability     0.600000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  3
+
+
+
+***LOGISTICS***
+
+MTBM                  998.666667
+MTBMu                 998.666667
+MTBMs                 N/A
+MMT                   16.537435
+MMTu                  16.537435
+MMTs                  N/A
+GreenPercent          98.346257
+YellowPercent         1.520410
+RedPercent            0.133333
+MissionGreenPercent   98.491902
+MissionYellowPercent  1.321619
+MissionRedPercent     0.186479
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         443.661091    1187.525345    1931.389599    1051.982917
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                           96.241517     824.430736    1933.389599     975.969984
+RT                            10.964560      16.537435      21.384319       5.247680
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       3   Infinite                     3
+S10B4                       0   Infinite                     0
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.98            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1797600.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.80          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.20          600 6.000000E-07              0 998666665.67    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.20          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0        115.40        0.00        0.00        0.00        0.00        0.00     1654.46        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1563.71      252.53        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1679.10      252.53        0.00        0.00        0.00        0.00     3034.46        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        7.98        0.00 
+S10B4                      0.00        0.00        0.00 
+
+Totals                     0.00        7.98        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1769.86        0.00        0.00     1769.86 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1816.23        7.98        0.00     1848.17 
+S10B4                       0.63        0.00        0.00        0.00        0.63 
+
+Block_Totals               25.04     4966.09        7.98        0.00     4999.11 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       36.00      198.45      252.45 
+
+Resource_Totals            18.00       36.00      198.45      252.45 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4999.11
+Events                      0.00
+SparePools                  0.00
+Resources                 252.45
+SystemDownCost             21.24
+SystemLostFlowCost       3336.00
+
+________________________________
+Grand_Total              8608.80
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.998666667  0.998666667  0.600000000  98.346257   1.520410   0.133333   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.983462565  0.983462565  0.600000000
+S10B4                   1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     1.520410   98.479590    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    98.346257    0.000000    0.000000    1.653743    0.000000    0.000000    0.000000    0.000000
+S10B4                   100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_17*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998666667
+MTBDE                      1498.000000
+MDT                        2.000000
+Dependability              0.998148968
+Reliability                0.600000000
+ConditionalReliability     0.600000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  1498.000000
+MTBMu                 1498.000000
+MTBMs                 N/A
+MMT                   9.033770
+MMTu                  9.033770
+MMTs                  N/A
+GreenPercent          99.397749
+YellowPercent         0.468918
+RedPercent            0.133333
+MissionGreenPercent   99.163910
+MissionYellowPercent  0.650987
+MissionRedPercent     0.185103
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         306.599208     373.666848     440.734489      94.847967
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                          306.599208     374.666848     442.734489      96.262180
+RT                             7.601679       9.033770      10.465861       2.025283
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       1   Infinite                     1
+S10B4                       1   Infinite                     1
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.99            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1797600.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         0.80          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       599.20          600 6.000000E-07              0 998666665.67    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       599.20          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0         35.59        0.00        0.00        0.00        0.00        0.00     1672.12        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1585.97       38.69        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       37.78        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1621.56       76.47        0.00        0.00        0.00        0.00     3052.12        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        2.66        0.00 
+S10B4                      0.00        4.52        0.00 
+
+Totals                     0.00        7.18        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1707.71        0.00        0.00     1707.71 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1624.66        2.66        0.00     1651.28 
+S10B4                       0.63       37.78        4.52        0.00       42.93 
+
+Block_Totals               25.04     4750.16        7.18        0.00     4782.38 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       24.00       72.27      114.27 
+
+Resource_Totals            18.00       24.00       72.27      114.27 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4782.38
+Events                      0.00
+SparePools                  0.00
+Resources                 114.27
+SystemDownCost             21.24
+SystemLostFlowCost       3336.00
+
+________________________________
+Grand_Total              8253.89
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.998666667  0.998666667  0.600000000  99.397749   0.468918   0.133333   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.997466107  0.997466107  0.800000000
+S10B4                   0.996511380  0.996511380  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     0.468918   99.531082    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    99.746611    0.000000    0.000000    0.253389    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.651138    0.000000    0.000000    0.348862    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_18*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.997333333
+MTBDE                      748.000000
+MDT                        2.000000
+Dependability              0.998068585
+Reliability                0.600000000
+ConditionalReliability     0.600000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  5
+
+
+
+***LOGISTICS***
+
+MTBM                  598.400000
+MTBMu                 598.400000
+MTBMs                 N/A
+MMT                   15.971350
+MMTu                  15.971350
+MMTs                  N/A
+GreenPercent          97.338108
+YellowPercent         2.395225
+RedPercent            0.266667
+MissionGreenPercent   98.443278
+MissionYellowPercent  1.363581
+MissionRedPercent     0.193142
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         223.528271     720.631266    1818.460315     748.443886
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                          225.528271     577.705013    1168.943499     379.077289
+RT                             9.319724      15.971350      21.169327       4.882580
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       2   Infinite                     2
+S10B4                       3   Infinite                     3
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.97            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1795200.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         1.60          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       598.40          600 6.000000E-07              0 997333332.34    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       598.40          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0        181.80        0.00        0.00        0.00        0.00        0.00     1639.76        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1568.82      203.37        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00      144.05        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1750.62      347.41        0.00        0.00        0.00        0.00     3019.76        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        5.32        0.00 
+S10B4                      0.00       13.56        0.00 
+
+Totals                     0.00       18.88        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1821.56        0.00        0.00     1821.56 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1772.19        5.32        0.00     1801.47 
+S10B4                       0.63      144.05       13.56        0.00      158.24 
+
+Block_Totals               25.04     5117.80       18.88        0.00     5161.72 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       60.00      319.43      397.43 
+
+Resource_Totals            18.00       60.00      319.43      397.43 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   5161.72
+Events                      0.00
+SparePools                  0.00
+Resources                 397.43
+SystemDownCost             42.48
+SystemLostFlowCost       6672.00
+
+________________________________
+Grand_Total             12273.62
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.997333333  0.997333333  0.600000000  97.338108   2.395225   0.266667   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.986682015  0.986682015  0.800000000
+S10B4                   0.986699069  0.986699069  0.600000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     2.395225   97.604775    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    98.668202    0.000000    0.000000    1.331798    0.000000    0.000000    0.000000    0.000000
+S10B4                    98.669907    0.000000    0.000000    1.330093    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_19*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998267406
+MTBDE                      998.267406
+MDT                        1.732594
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  4
+
+
+
+***LOGISTICS***
+
+MTBM                  748.700555
+MTBMu                 748.700555
+MTBMs                 N/A
+MMT                   12.667991
+MMTu                  12.667991
+MMTs                  N/A
+GreenPercent          98.350861
+YellowPercent         1.475880
+RedPercent            0.173259
+MissionGreenPercent   99.573378
+MissionYellowPercent  0.426622
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           8.927625     628.097063    1254.731395     622.935432
+DT                             1.197781       1.732594       2.000000       0.463161
+TBM                           10.927625     472.072797    1254.731395     567.794112
+RT                             9.099828      12.667991      17.934412       3.745974
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       2   Infinite                     2
+S10B4                       2   Infinite                     2
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            4         5.98            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1796881.33
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         1.04          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       598.96          600 6.000000E-07              0 998267405.25    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       598.96          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0        115.05        0.00        0.00        0.00        0.00        0.00     1654.53        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1574.07      153.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       74.41        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1689.12      227.41        0.00        0.00        0.00        0.00     3034.53        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        5.32        0.00 
+S10B4                      0.00        9.04        0.00 
+
+Totals                     0.00       14.36        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1769.58        0.00        0.00     1769.58 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1727.07        5.32        0.00     1756.35 
+S10B4                       0.63       74.41        9.04        0.00       84.08 
+
+Block_Totals               25.04     4951.07       14.36        0.00     4990.47 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       48.00      202.69      268.69 
+
+Resource_Totals            18.00       48.00      202.69      268.69 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4990.47
+Events                      0.00
+SparePools                  0.00
+Resources                 268.69
+SystemDownCost             27.60
+SystemLostFlowCost       4334.95
+
+________________________________
+Grand_Total              9621.70
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.998267406  0.998267406  1.000000000  98.350861   1.475880   0.173259   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.989980061  0.989980061  1.000000000
+S10B4                   0.993129285  0.993129285  0.800000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     1.515806   98.484194    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    98.998006    0.000000    0.000000    1.001994    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.312928    0.000000    0.000000    0.687072    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_20*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998000000
+MTBDE                      998.000000
+MDT                        2.000000
+Dependability              0.999074420
+Reliability                0.800000000
+ConditionalReliability     0.800000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  3
+
+
+
+***LOGISTICS***
+
+MTBM                  998.000000
+MTBMu                 998.000000
+MTBMs                 N/A
+MMT                   15.515118
+MMTu                  15.515118
+MMTs                  N/A
+GreenPercent          98.448488
+YellowPercent         1.351512
+RedPercent            0.200000
+MissionGreenPercent   99.049357
+MissionYellowPercent  0.858085
+MissionRedPercent     0.092558
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         138.722645     910.000571    1822.937837     850.996904
+DT                             2.000000       2.000000       2.000000       0.000000
+TBM                          140.722645     911.333904    1822.937837     849.924225
+RT                            10.437688      15.515118      20.541556       5.052127
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S10B1                       0   Infinite                     0
+S10B2                       0   Infinite                     0
+S10B3                       2   Infinite                     2
+S10B4                       1   Infinite                     1
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            6            5         5.98            6            6          0 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 600
+UnitsProduced          1796400.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                                0         1.20          600
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       598.80          600 6.000000E-07              0 997999999.00    999999999         1.00   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       598.80          600          N/A            N/A          N/A          N/A          N/A   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S10B1                   0        102.58        0.00        0.00        0.00        0.00        0.00     1657.29        0.00 
+S10B2                   0          0.00        0.00        0.00        0.00        0.00        0.00     1380.00        0.00 
+S10B3                   0       1573.58      157.68        0.00        0.00        0.00        0.00        0.00        0.00 
+S10B4                   0          0.00       56.19        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          1676.16      213.88        0.00        0.00        0.00        0.00     3037.29        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+S10B1                      0.00        0.00        0.00 
+S10B2                      0.00        0.00        0.00 
+S10B3                      0.00        5.32        0.00 
+S10B4                      0.00        4.52        0.00 
+
+Totals                     0.00        9.84        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S10B1                       0.00     1759.87        0.00        0.00     1759.87 
+S10B2                       0.45     1380.00        0.00        0.00     1380.45 
+S10B3                      23.96     1731.27        5.32        0.00     1760.55 
+S10B4                       0.63       56.19        4.52        0.00       61.34 
+
+Block_Totals               25.04     4927.33        9.84        0.00     4962.21 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Techs                      18.00       36.00      186.18      240.18 
+
+Resource_Totals            18.00       36.00      186.18      240.18 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   4962.21
+Events                      0.00
+SparePools                  0.00
+Resources                 240.18
+SystemDownCost             31.86
+SystemLostFlowCost       5004.00
+
+________________________________
+Grand_Total             10238.25
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J10                     0.998000000  0.998000000  0.800000000  98.448488   1.351512   0.200000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S10B1                   1.000000000  1.000000000  1.000000000
+S10B2                   1.000000000  1.000000000  1.000000000
+S10B3                   0.989673585  0.989673585  0.800000000
+S10B4                   0.994811296  0.994811296  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S10B1                     1.351512   98.648488    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B2                     0.000000  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S10B3                    98.967359    0.000000    0.000000    1.032641    0.000000    0.000000    0.000000    0.000000
+S10B4                    99.481130    0.000000    0.000000    0.518870    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+

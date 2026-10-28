@@ -1,0 +1,46 @@
+Final_Results_Report for WakeOrderDependent.rbd  Sat Aug 22 11:06:04 2026
+
+
+Results from 20 runs of sim time 3007.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.896242102     0.904921849     0.911872298     0.004051342     0.000905908     
+MTBDE                    10.610236       11.343316       11.921739       0.328035        0.073351        
+MDT                      1.152174        1.190547        1.230453        0.023179        0.005183        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          230             240.050000      254             5.986608        1.338646        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     4.954128        5.287085        5.584521        0.167586        0.037473        
+MTBMu                    17.165605       20.890313       26.365385       2.776228        0.620783        
+MTBMs                    6.905852        7.111561        7.433243        0.130278        0.029131        
+MMT                      1.211813        1.256353        1.294455        0.026188        0.005856        
+MMTu                     2.000000        2.000000        2.000000        0.000000        0.000000        
+MMTs                     1.000000        1.000000        1.000000        0.000000        0.000000        
+Green_Percent            86.820180       87.865480       88.942549       0.655974        0.146680        
+Yellow_Percent           1.845612        2.626705        3.507150        0.412027        0.092132        
+Red_Percent              8.812770        9.507815        10.375790       0.405134        0.090591        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+BlockC                Infinite                    35        45.85        58         6.57 
+BlockDep              Infinite                    69        86.50       102        10.89 
+
+
+

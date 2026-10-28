@@ -1,0 +1,70 @@
+= Scheduler and same-instant ordering
+:toc: macro
+
+`raptor/core/scheduler.py` · MODSIM's event calendar, owner groups, `Interrupt` · Raptor 7: `ChooseNext`, `CallEndSimulation`
+
+toc::[]
+
+== Purpose
+
+A simulation is a set of generators (a block's life, a phase clock, a trigger, a pool's replenishment) that `yield` how long they want to wait. The scheduler resumes them in time order. What makes this port faithful is not the time order, which is easy, but the order of everything that happens at the *same* instant: real Raptor's event log prints those lines in a particular sequence, and getting it wrong changes results (which block gets a spare first, whether a PM is due before or after a phase change). Most fidelity work on this engine has been about that order.
+
+== Source anchors
+
+[cols="3,3,4",options="header"]
+|===
+| MODSIM runtime / source | Port | Notes
+| `WAIT DURATION d` | `yield d` (a `float`) or `yield Wait(...)` | `Wait` shapes one requeue: `group_head`, `owner`, `retail`, `replaces`
+| `Interrupt(obj, "Run")` | `Scheduler.interrupt`, delivering a `Wake(reason)` | Queued, not immediate; a re-interrupt of the same handle in one instant replaces the pending one (see <<decisions,the decision records>>)
+| Owner-group calendar (`[owner+0xc]`, recovered by tracing) | `Owner`, `OwnerGroup`, `Scheduler._first_pushed` and the requeue in `Scheduler.step` | One group per owner object; groups, not single records, are ordered
+| `ChooseNext` | `scheduler.choose_next` | Applies only from `CallEndSimulation`'s selection to the end of that instant
+| `CallEndSimulation` | the System owner's end-of-run process, tier `endsim` | Runs last among ordinary records
+| `Trigger.Release` / `WAIT FOR trig TO Fire` | a far-future park plus an `interrupt`; waiters kept by the caller | The waiter list order is the release order
+|===
+
+== Structure
+
+Each calendar entry carries `(time, seq)`. `seq` is insertion order, so ties are FIFO, with four refinements that each came from a real capture or a debugger trace:
+
+* A handle's whole causal *turn* at one instant stays pinned where it was first disturbed (`_first_pushed`), so an interrupt replaces the pending wait rather than moving the process to the back.
+* Records belong to *owner groups*. A process's plain `yield 0.0` joins its own owner's group; an `Interrupt` re-stamp (`retail=True`) sends the group to the calendar tail; a resource `Give` resume is a record of its own owner.
+* Tiers: pool processes first (`front_tier`), ordinary records, then `CallEndSimulation`.
+* The kickoff barrier (`group_head`) is a hop *inside* real's single `Run` start.
+
+[mermaid]
+....
+flowchart LR
+    pop["pop the earliest time"] --> tier{"tier"}
+    tier -->|"front (pools)"| run
+    tier -->|"ordinary"| grp["owner-group order,<br/>then seq (FIFO)"]
+    tier -->|"endsim"| last["CallEndSimulation<br/>+ choose_next"]
+    grp --> run["resume the generator<br/>(None, or Wake if interrupted)"]
+    last --> run
+    run -->|"yield d / Wait"| requeue["requeue into its owner's group"]
+    requeue --> pop
+....
+
+== Interactions
+
+A dependency Down at one instant: block A's failure turn ends by calling `Scheduler.interrupt` on dependent B. The interrupt is a *queued* entry for B, so B's `Dependence_Idle` wake runs after A's remaining same-instant steps, in B's owner group, not inside A's call.
+
+== Port-only devices and deliberate deviations
+
+* Real's calendar is a heap with owner groups; the port reproduces the observable order (owner-group position, FIFO, tiers) rather than the data structure. The four refinements above were found by capture or a debugger trace rather than read from source.
+* `RandomGen` streams are not part of the scheduler, but the order of same-instant draws follows from it, which is why an order bug shows up first in a `/sd` diff.
+
+== Ties that took a debugger trace to explain
+
+Every known same-instant tie is reproduced. The hardest:
+
+`DepCycleMixedProbe`: a block fails at exactly the run length and induces another's failure. After `CallEndSimulation` selects, `ChooseNext` is live; if the system then turns Red inside `ChangeStatus`, that call runs `SetTieBreaking(FALSE)` and the rest of the instant is plain calendar order, so the already-queued `EndSimulation` runs before the interrupted `Run` and the induced failure never happens. If the system was already Red, `ChooseNext` stays live and the interrupt is delivered first. `Scheduler.switch_off_tie_breaking` ports it; in the plain order `EndSimulation` has no last-place tier.
+
+Also solved (2026-09-30): a block failing at a phase boundary and a PM clock expiring at one. The causes were `ConductPhaseChange` being a TELL (it starts at the tail of the instant) and a phantom `UpdateCumulativeValues` ticker; see `events-and-phases.adoc`.
+
+== Invariants
+
+`raptor/core/engine/invariants.py` checks that time never moves backwards and the calendar head is never in the past on every step under the property tests.
+
+== Tests and fixtures
+
+`tests/unit/test_scheduler.py` and the byte-exact event-log guard `test_event_log_fidelity.py` (over 100 captures).

@@ -1,0 +1,20 @@
+Begining Procedure RunEFPA......
+
+Begining Procedure RunEFPA......
+
+join  EFPAout=1
+   end  through link 7
+PMA  EFPAout=1
+   join  through link 2
+PMB  EFPAout=1
+   join  through link 4
+Begining Procedure RunEFPA......
+
+join  EFPAout=1
+   end  through link 7
+PMA  EFPAout=1
+   join  through link 2
+PMB  EFPAout=1
+   join  through link 4
+PMC  EFPAout=1
+   join  through link 6

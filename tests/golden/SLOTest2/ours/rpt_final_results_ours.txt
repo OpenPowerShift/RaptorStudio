@@ -1,0 +1,44 @@
+Final_Results_Report for input.rbd  PROBE
+
+
+Results from 2 runs of sim time 300.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.010761306     0.011313129     0.011864951     0.000780395     0.000551823     
+MTBDE                    0.119570        0.125701        0.131833        0.008671        0.006131        
+MDT                      10.979278       10.985410       10.991541       0.008671        0.006131        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          27              27.000000       27              0.000000        0.000000        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     0.119570        0.125701        0.131833        0.008671        0.006131        
+MTBMu                    0.119570        0.125701        0.131833        0.008671        0.006131        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      2.000000        2.000000        2.000000        0.000000        0.000000        
+MMTu                     2.000000        2.000000        2.000000        0.000000        0.000000        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            1.076131        1.131313        1.186495        0.078040        0.055182        
+Yellow_Percent           0.000000        0.000000        0.000000        0.000000        0.000000        
+Red_Percent              98.813505       98.868687       98.923869       0.078040        0.055182        
+
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+unnamed               Cells                       26        26.00        26         0.00 
+
+

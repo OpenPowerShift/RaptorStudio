@@ -1,0 +1,284 @@
+[project]
+name = "raptor-studio"
+version = "0.8.0"
+description = "RAPTOR Studio — reliability block diagram simulation (open Python port of Raptor 7)"
+readme = "README.md"
+requires-python = ">=3.12"
+keywords = ["reliability", "simulation", "rbd", "ram", "raptor", "monte-carlo"]
+authors = [{ name = "OpenPowerShift" }]
+urls = { Homepage = "https://github.com/openpowershift/RaptorStudio", Issues = "https://github.com/openpowershift/RaptorStudio/issues" }
+# Dual-licence: original RAPTOR-derived material stays under the Booz
+# Allen Public License v1.0 (LICENSE); OpenPowerShift's new code is
+# Apache-2.0 (LICENSES/Apache-2.0.txt). Attribution: NOTICE.md.
+license = "LicenseRef-BAPL-1.0 AND Apache-2.0"
+license-files = ["LICENSE", "LICENSES/Apache-2.0.txt", "NOTICE.md", "THIRD_PARTY_NOTICES.md"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Manufacturing",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+]
+
+# The installable product IS the GUI app: PySide6 is a runtime
+# dependency, not a dev-only extra. WebEngine (the in-app help viewer)
+# ships inside PySide6-Essentials. weasyprint makes the PDF report (Export
+# PDF and Print); on Linux/macOS it needs system Pango (see README).
+#
+# PINNED (2026-09-13, user report: help opened in the browser): the
+# sub-packages MUST all carry the SAME version -- an Essentials-only
+# dependency let PySide6-Essentials drift to 6.11.2 while
+# PySide6/Addons stayed 6.11.1, and the mismatched Qt libraries broke
+# the QtWebEngine import (undefined symbol) so the in-app help viewer
+# silently fell back to the system browser. The full `PySide6`
+# meta-package installs all sub-packages from ONE version; the exact
+# patch pin keeps a partial upgrade from ever recurring. NOT optional.
+dependencies = [
+    "PySide6==6.11.1",
+    "weasyprint>=61",
+]
+
+[project.optional-dependencies]
+# pytest imports PySide6 unconditionally for the whole tests/ tree, so
+# the dev extra repeats nothing new except the test-only tooling.
+# ruff = linter (`python -m ruff check .`), mypy = type checker
+# (`python -m mypy raptor`) -- see [tool.ruff]/[tool.mypy] below.
+dev = ["pytest", "pytest-cov", "pytest-xdist", "hypothesis", "pyinstaller>=6", "build", "ruff", "mypy"]
+mcp = ["mcp>=2.2,<3", "pydantic>=2"]
+
+[project.scripts]
+raptor = "raptor.cli.main:main"
+raptor-studio-mcp = "raptor.mcp.server:main"
+
+[project.gui-scripts]
+raptor-studio = "raptor.gui.app:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The six agent-authored UI sweeps (tests/integration/) are marked
+# `slow` (~200s total, subprocess offscreen MainWindow runs) — excluded
+# from the default run; execute explicitly with:
+#   pytest tests/integration -m slow
+addopts = '-m "not slow and not fidelity and not long"'
+markers = [
+    "slow: end-to-end UI smoke sweeps (subprocess, offscreen)",
+    "long: analytical/statistical cross-checks and documentation gates that cost minutes (IEC 61078 Monte Carlo, book number checks); excluded from everyday runs, executed by the CI `long-checks` job and nightly coverage",
+    "gui: applied AUTOMATICALLY by tests/conftest.py to any module importing PySide6 / raptor.gui (or under tests/integration); exclude with -m 'not gui and not slow and not fidelity and not long' for engine work",
+    "fidelity: applied AUTOMATICALLY by tests/conftest.py to the whole-output comparison suites that compare a run against a file real Raptor wrote (test_engine_snapshot, test_event_log_fidelity, test_golden_fidelity, test_plot_report_fidelity, test_probe_fidelity_captures, test_random_draw_count, test_reports, test_sd_diff_sweep, test_write_back_characterization). 1,030 tests, ~78% of the default run's wall clock. Excluded from the default run; run them with `-m fidelity`, which is what the nightly and push-to-main CI jobs do. Passing `-m` on the command line REPLACES this file's expression, so `engine_coverage.py`'s own `-m \"not slow and not gui\"` still selects them",
+]
+
+[tool.coverage.run]
+# Branch coverage on the engine only (GUI
+# coverage is a separate, unstarted question). No pytest-cov dependency:
+# `coverage` was already present transitively, and it auto-discovers
+# this section from `pyproject.toml` -- `coverage run -m pytest &&
+# coverage report` reproduces the recorded baseline with no CLI flags.
+branch = true
+source = ["raptor.core"]
+
+[tool.coverage.report]
+skip_empty = true
+# Engine invariant checks (`if not ok: raise EngineInvariantError(...)`,
+# formerly `assert`s) can only fire if the engine is broken. An `assert` was
+# never a branch; the explicit `if`/`raise` is, and counting its untaken side
+# would lower branch coverage without anything being less tested.
+exclude_also = [
+    "raise (EngineInvariantError|UnexpectedWake)\\b",
+]
+
+[tool.ruff]
+# The runtime is CPython 3.14 (see .venv); the code already uses 3.12
+# f-string syntax.
+target-version = "py312"
+extend-exclude = [
+    "new_docs", "docs",  # docs build output + reference material
+    "spec_rs",         # behavioural specification tree (its own scripts)
+    "tools",           # QA/tracing tooling: import-star + one-liner style
+    "tests/integration/sweeps",  # UI sweep scripts: import-star + one-liner style
+    "tests/fixtures",  # probe model fixtures + their verify_*.py scripts
+    "installer", "reference", "legacy",
+]
+
+[tool.ruff.lint]
+# Bug-focused ruleset (pyflakes, pycodestyle's E4/E7/E9 error families)
+# plus flake8-bugbear (B), pyupgrade (UP),
+# flake8-simplify (SIM), ruff's own rules (RUF), perflint (PERF), and the
+# function-size rules (C901 complexity, PLR0912 branches, PLR0915
+# statements). The style-heavy E701/E702/E731/E741 (semicolon/lambda/`l`
+# names) and F405 (import-star, the sweep scripts) families stay out.
+select = [
+    "E4", "E711", "E712", "E713", "E714", "E721", "E9", "F",
+    "B", "UP", "SIM", "RUF", "PERF", "C901", "PLR0912", "PLR0915",
+]
+# Style-only rules, deliberately not enforced:
+ignore = [
+    "B905",     # zip() without strict=: the code zips parallel columns on purpose
+    "SIM102",   # collapsible nested if: nesting often mirrors the MODSIM source
+    "SIM105",   # contextlib.suppress over try/except/pass
+    "SIM108",   # ternary over if/else
+    "SIM114",   # merge if branches with the same body
+    "SIM905",   # str.split() of a literal
+    "RUF001", "RUF002", "RUF003",  # non-ASCII glyphs (µ, ×, ⬡) are intended text
+    "RUF005",   # unpacking over list concatenation
+    "RUF012",   # ClassVar on mutable class attributes (Qt widget constants)
+    "RUF100",   # keeps documentary `noqa` for rules that are not enabled
+    "PERF401",  # list comprehension over append loops
+    "PERF403",  # dict comprehension over a for-loop
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+# Package __init__ files re-export names by design.
+"**/__init__.py" = ["F401"]
+# Tests import after sys.path setup and use fixtures imperatively; long
+# scenario tests and blind `pytest.raises(Exception)` are acceptable there.
+"tests/**" = ["E402", "F811", "B017", "B018", "RUF015", "RUF043", "SIM115", "SIM222", "PERF102",
+              "C901", "PLR0912", "PLR0915"]
+# Function-size baseline: these files already hold
+# functions over the limits. New files get the limits; lower this list as
+# functions are split (block_lifecycle.py and orchestrator.py first).
+"raptor/api/analyse.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/api/build.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/api/markdown.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/api/annotations.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/api/render.py" = ["C901", "PLR0912"]
+"raptor/api/run.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/api/validate.py" = ["C901", "PLR0912"]
+# distro_rules.py is the PROMOTED (not rewritten) `_validate_distro_params`,
+# moved verbatim out of gui/ui/inspector.py to give the distribution rules a
+# Qt-free home (review D-04). The waiver travels with the code: the function
+# is a 1:1 port of Raptor 7's CheckValidInput, and splitting it would
+# make the mapping to the source harder to audit, which is the opposite of
+# the reason for the move. Lowering this is a separate piece of work, and
+# should be done by splitting per-distribution rule groups, not by raising
+# the threshold.
+"raptor/core/distro_rules.py" = ["C901", "PLR0912"]
+"raptor/core/engine/block_lifecycle.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/accounting.py" = ["C901", "PLR0912"]
+"raptor/core/engine/blocks.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/capacity.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/cold_standby.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/dependency.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/diststats.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/events.py" = ["C901", "PLR0912"]
+"raptor/core/engine/graph.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/nodes.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/orchestrator.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/runner.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/diagram_annotations.py" = ["C901"]
+"raptor/gui/ui/diagram_commands.py" = ["C901", "PLR0912"]
+"raptor/gui/ui/diagram_live.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/diagram_menu.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/preflight.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/load.py" = ["C901", "PLR0912"]
+"raptor/core/engine/cascade_dependency.py" = ["C901"]
+"raptor/core/engine/cascade_phase.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/costs.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/driver.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/kickoff.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/phasing.py" = ["C901", "PLR0912"]
+"raptor/core/engine/report_format.py" = ["C901", "PLR0912", "PLR0915"]
+# Added when `ruff check` was found failing in CI: functions that grew past the
+# limits over the 0.1.0 work (CLI, isolate, FEV/FMECA, cumulative, .rbl). Same
+# rule as above -- lower these as the functions are split.
+"raptor/api/isolate.py" = ["C901", "PLR0912"]
+"raptor/cli/cmd_run.py" = ["C901", "PLR0912"]
+"raptor/cli/cmd_tools.py" = ["C901", "PLR0915"]
+"raptor/cli/main.py" = ["C901", "PLR0912"]
+"raptor/cli/runopts.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/dev_options.py" = ["C901"]
+"raptor/core/engine/cumulative.py" = ["C901", "PLR0912"]
+"raptor/core/engine/fev.py" = ["C901", "PLR0912"]
+"raptor/core/engine/fmeca.py" = ["C901", "PLR0912"]
+"raptor/core/fileio/rbl.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/diagram_items.py" = ["PLR0915"]
+"raptor/mcp/tools_run.py" = ["C901"]
+"raptor/core/engine/reporting.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/reports.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/engine/spf.py" = ["C901"]
+"raptor/core/engine/system_status.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/fileio/builder.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/fileio/legacy_layout.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/fileio/rbd.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/fileio/rbds.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/core/rng.py" = ["C901", "PLR0912"]
+"raptor/gui/ui/data_tables.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/diagram.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/dialogs.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/empirical_dialog.py" = ["C901", "PLR0915"]
+"raptor/gui/ui/explorer.py" = ["C901", "PLR0915"]
+"raptor/gui/ui/expr_eval.py" = ["C901", "PLR0912"]
+"raptor/gui/ui/help_viewer.py" = ["PLR0915"]
+"raptor/gui/ui/inspector.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/main_window.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/phasing_dialog.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/plots.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/pool_dialogs.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/printing.py" = ["PLR0915"]
+"raptor/gui/ui/rates_dialog.py" = ["PLR0915"]
+"raptor/gui/ui/results.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/render/worker.py" = ["C901", "PLR0912", "PLR0915"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["raptor"]
+# PySide6 ships its own stubs; everything else third-party is
+# untyped -- don't drown in import errors.
+ignore_missing_imports = true
+# Incremental adoption baseline: the codebase long predates the
+# checker -- flag type errors, but don't demand annotations.
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+
+[build-system]
+requires = ["setuptools>=77"]  # PEP 639 `license` expression
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["raptor*"]
+
+# The window icon and the splash logo are read from the package at start-up.
+[tool.setuptools.package-data]
+"raptor.gui.resources" = ["*.png", "examples/*.png"]
+"raptor.mcp" = ["output_schemas.json"]
+
+# The rendered help docs, the book chapters and the tutorial models are part
+# of the app (in-app Help viewer, opsmodel:// buttons, the MCP server's
+# read_doc/search_docs and examples). Data files land in the install scheme's
+# data directory (sys.prefix, or the user base for `pip install --user`);
+# raptor/bundled.py finds them there or in a checkout. The PyInstaller
+# installers bundle the same trees from the repo checkout.
+[tool.setuptools.data-files]
+"docs" = ["docs/manual.html", "docs/formulas.html", "docs/ops_asciidoctor.css", "docs/RBDS_FORMAT.md",
+         "docs/KEYBOARD_SHORTCUTS.md", "docs/IEC61078.md", "docs/MCP.md"]
+# MathJax (Apache-2.0, see its LICENSE) typesets the formulas page offline: the page loads it from js/.
+"docs/js" = ["docs/js/mathjax-config.js"]
+"docs/js/mathjax" = ["docs/js/mathjax/startup.js", "docs/js/mathjax/core.js", "docs/js/mathjax/LICENSE"]
+"docs/js/mathjax/input" = ["docs/js/mathjax/input/asciimath.js"]
+"docs/js/mathjax/output" = ["docs/js/mathjax/output/chtml.js"]
+"docs/js/mathjax/output/chtml/fonts" = ["docs/js/mathjax/output/chtml/fonts/tex.js"]
+"docs/js/mathjax/output/chtml/fonts/woff-v2" = ["docs/js/mathjax/output/chtml/fonts/woff-v2/*.woff"]
+"new_docs" = ["new_docs/book.html", "new_docs/book.adoc", "new_docs/ops_asciidoctor.css"]
+# Sources for the MCP server's search_docs / read_doc / raptor://docs/*.
+"new_docs/chapters" = ["new_docs/chapters/*.adoc"]
+"new_docs/images" = ["new_docs/images/*"]
+"new_docs/models" = ["new_docs/models/*"]
+# Man pages and shell completions for the `raptor` command (generated from
+# the parser by `python -m raptor.cli.manpages docs/man`; a test fails if the
+# committed copies are stale).
+"share/man/man1" = ["docs/man/*.1"]
+"share/man/man5" = ["docs/man/*.5"]
+"share/man/man7" = ["docs/man/*.7"]
+"share/bash-completion/completions" = ["docs/completions/raptor"]
+"share/zsh/site-functions" = ["docs/completions/_raptor"]
+"share/fish/vendor_completions.d" = ["docs/completions/raptor.fish"]

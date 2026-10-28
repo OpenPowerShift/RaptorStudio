@@ -1,0 +1,1472 @@
+End_Of_Run Report for input.rbd  Wed Sep 30 17:22:57 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998631075
+MTBDE                      364.750000
+MDT                        0.500000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  28
+
+
+
+***LOGISTICS***
+
+MTBM                  26.053571
+MTBMu                 26.053571
+MTBMs                 N/A
+MMT                   14.214925
+MMTu                  14.214925
+MMTs                  N/A
+GreenPercent          42.452838
+YellowPercent         57.410270
+RedPercent            0.136893
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           5.724269     228.818074     451.911879     315.502285
+DT                             0.500000       0.500000       0.500000       0.000000
+TBM                            0.000000      25.928571      49.000000      15.938952
+RT                             6.000000      14.214925     119.708890      29.607659
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    0   Infinite                     0
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                     11   Electronics                 11
+Bus_UR_B                   15   Infinite                    15
+HighGain                    2   Infinite                     2
+LowGain                     0   Infinite                     0
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          3         3.00          4          4          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          9          0         0.71          2          0          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         4.23            5            5          2 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.943982255  0.943982255  0.000000000  48.417621  45.980604   5.601775   0.000000   0.000000   0.000000
+650path                 1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+900path                 1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+BusUR_fanout            1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Comm                    0.998631075  0.998631075  0.000000000  67.172761  32.690347   0.136893   0.000000   0.000000   0.000000
+n1                      0.999315537  1.000000000  1.000000000  99.931554   0.000000   0.000000   0.000000   0.000000   0.068446
+n2                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Power                   1.000000000  1.000000000  1.000000000  94.398225   5.601775   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                0.999315537  1.000000000  1.000000000
+BatteriesNaS            1.000000000  1.000000000  1.000000000
+BatteriesNiCd           1.000000000  1.000000000  1.000000000
+BatteriesNiH            1.000000000  1.000000000  1.000000000
+Bus_FR                  1.000000000  1.000000000  1.000000000
+Bus_QR                  1.000000000  1.000000000  1.000000000
+Bus_UR                  0.606803230  0.606803230  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.671727608  0.671727608  0.000000000
+LowGain                 1.000000000  1.000000000  1.000000000
+SolarP_500W             1.000000000  1.000000000  1.000000000
+SolarP_650W             1.000000000  1.000000000  1.000000000
+SolarP_900W             1.000000000  1.000000000  1.000000000
+Thermal                 1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                 99.931554    0.000000    0.068446    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNaS            100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNiCd           100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNiH            100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_FR                  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_QR                  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_UR                   60.680323    0.000000    0.000000    9.034908   30.284769    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 67.172761    0.000000    0.000000   32.005884    0.821355    0.000000    0.000000    0.000000
+LowGain                  32.690347   67.309653    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W             100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_650W             100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_900W             100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+Thermal                 100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.943982255  0.943982255  0.000000000    86.19738    5.1151
+650path                 1.000000000  1.000000000  1.000000000    730.5000N/A
+900path                 1.000000000  1.000000000  1.000000000    730.5000N/A
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 48.417621  45.980604   5.601775   0.000000   0.000000   0.000000
+650path                100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+900path                100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.954254098
+MTBDE                      116.180436
+MDT                        5.569564
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     6
+NumberOfComponentFailures  33
+
+
+
+***LOGISTICS***
+
+MTBM                  21.123716
+MTBMu                 21.123716
+MTBMs                 N/A
+MMT                   13.419909
+MMTu                  13.419909
+MMTs                  N/A
+GreenPercent          40.790361
+YellowPercent         54.635048
+RedPercent            4.574590
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.179076     113.328898     285.000000     105.320134
+DT                             0.500000       5.569564       9.000000       3.357310
+TBM                            0.000000      22.000000      49.000000      17.611736
+RT                             6.000000      13.419909     121.143711      22.646467
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    0   Infinite                     0
+BatteriesNaS                1   Cells                        1
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                1   Cells                        1
+Bus_FR                      1   Electronics                  1
+Bus_QR                      0   Electronics                  0
+Bus_UR                     12   Electronics                 12
+Bus_UR_B                   15   Infinite                    15
+HighGain                    1   Infinite                     1
+LowGain                     0   Infinite                     0
+SolarP_500W                 1   PhotoVPanels                 1
+SolarP_650W                 1   PhotoVPanels                 1
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          1         2.22          3          2          0 
+PhotoVPanels                     2          0          0         1.91          2          0          0 
+Electronics                      2         12          0         0.62          2          1          1 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         3.90            5            2          7 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.901453599  0.901453599  0.000000000  59.219354  30.926006   9.854640   0.000000   0.000000   0.000000
+650path                 0.896892793  0.896892793  0.000000000  89.689279   0.000000  10.310721   0.000000   0.000000   0.000000
+900path                 0.773935735  0.773935735  0.000000000  77.393573   0.000000  22.606427   0.000000   0.000000   0.000000
+BusUR_fanout            0.965082599  0.965082599  0.000000000  96.508260   0.000000   3.491740   0.000000   0.000000   0.000000
+Comm                    0.954254098  0.999283239  0.000000000  79.345378  16.080032   0.068446   0.000000   0.000000   4.506144
+n1                      0.991333597  1.000000000  1.000000000  99.133360   0.000000   0.000000   0.000000   0.000000   0.866640
+n2                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Power                   0.954938561  0.954938561  0.000000000  58.242617  37.251239   4.506144   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                0.991333597  1.000000000  1.000000000
+BatteriesNaS            0.773935735  0.829999212  0.000000000
+BatteriesNiCd           0.965082599  1.000000000  1.000000000
+BatteriesNiH            0.896892793  0.925636240  0.000000000
+Bus_FR                  0.932453578  0.932453578  0.000000000
+Bus_QR                  0.896892793  1.000000000  1.000000000
+Bus_UR                  0.672291899  0.672291899  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.793453777  0.820311693  0.000000000
+LowGain                 0.954938561  1.000000000  1.000000000
+SolarP_500W             0.965082599  0.965082599  0.000000000
+SolarP_650W             0.896892793  0.966536138  0.000000000
+SolarP_900W             0.773935735  1.000000000  1.000000000
+Thermal                 1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                 99.133360    0.000000    0.866640    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNaS             77.393573    0.000000    6.754642    5.231840   10.619945    0.000000    0.000000    0.000000
+BatteriesNiCd            96.508260    0.000000    3.491740    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNiH             89.689279    0.000000    3.105264    7.137011    0.068446    0.000000    0.000000    0.000000
+Bus_FR                   93.245358    0.000000    0.000000    3.423936    3.330706    0.000000    0.000000    0.000000
+Bus_QR                   89.689279    0.000000   10.310721    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_UR                   67.229190    0.000000    0.000000    9.856263   22.914547    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 79.345378    0.000000    3.274111   16.583670    0.796841    0.000000    0.000000    0.000000
+LowGain                  16.080032   79.413824    4.506144    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W              96.508260    0.000000    0.000000    3.217955    0.273785    0.000000    0.000000    0.000000
+SolarP_650W              89.689279    0.000000    7.205457    1.520771    1.584493    0.000000    0.000000    0.000000
+SolarP_900W              77.393573    0.000000   22.606427    0.000000    0.000000    0.000000    0.000000    0.000000
+Thermal                 100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.866536198  0.866536198  0.000000000    70.33385    10.832
+650path                 0.896892793  0.896892793  0.000000000    327.5900    37.659
+900path                 0.773935735  0.773935735  0.000000000    282.6800    82.569
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 58.239526  28.414094  13.346380   0.000000   0.000000   0.000000
+650path                 89.689279   0.000000  10.310721   0.000000   0.000000   0.000000
+900path                 77.393573   0.000000  22.606427   0.000000   0.000000   0.000000
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.887943634
+MTBDE                      92.663261
+MDT                        11.693882
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     7
+NumberOfComponentFailures  36
+
+
+
+***LOGISTICS***
+
+MTBM                  18.017856
+MTBMu                 18.017856
+MTBMs                 N/A
+MMT                   11.707924
+MMTu                  11.707924
+MMTs                  N/A
+GreenPercent          41.815690
+YellowPercent         46.978673
+RedPercent            11.205637
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          15.307820      92.663261     182.234970      59.842713
+DT                             2.140018      11.693882      33.145601      10.359722
+TBM                            0.000000      20.166667      49.000000      16.654908
+RT                             6.000000      11.707924      73.034377      14.725811
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    1   Infinite                     1
+BatteriesNaS                1   Cells                        1
+BatteriesNiCd               1   Cells                        1
+BatteriesNiH                1   Cells                        1
+Bus_FR                      1   Electronics                  1
+Bus_QR                      1   Electronics                  1
+Bus_UR                     13   Electronics                 12
+Bus_UR_B                   15   Infinite                    15
+HighGain                    0   Infinite                     0
+LowGain                     0   Infinite                     0
+SolarP_500W                 1   PhotoVPanels                 1
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     1   Custom                       1
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          0         0.45          1          0          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          0         1.89          3          1          0 
+PhotoVPanels                     2          0          1         1.94          2          1          0 
+Electronics                      2         12          0         0.59          2          0          2 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         3.59            5            2          5 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.934027222  0.934027222  0.000000000  59.916922  33.485800   6.597278   0.000000   0.000000   0.000000
+650path                 0.848820292  0.848820292  0.000000000  84.882029   0.000000  15.117971   0.000000   0.000000   0.000000
+900path                 0.933102075  0.933102075  0.000000000  93.310207   0.000000   6.689793   0.000000   0.000000   0.000000
+BusUR_fanout            0.812835459  0.812835459  0.000000000  81.283546   0.000000  18.716454   0.000000   0.000000   0.000000
+Comm                    0.887943634  1.000000000  1.000000000  88.794363   0.000000   0.000000   0.000000   0.000000  11.205637
+n1                      0.957593731  0.983027297  0.000000000  95.759373   0.000000   1.653357   0.000000   0.000000   2.587270
+n2                      0.980287468  0.980287468  0.000000000  98.028747   0.000000   1.971253   0.000000   0.000000   0.000000
+Power                   0.924189739  0.924189739  0.000000000  62.744694  29.674280   7.581026   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                0.957593731  0.983027297  0.000000000
+BatteriesNaS            0.963147028  0.963147028  0.000000000
+BatteriesNiCd           0.812835459  0.841095006  0.000000000
+BatteriesNiH            0.848820292  0.927074747  0.000000000
+Bus_FR                  0.933102075  0.968805435  0.000000000
+Bus_QR                  0.848820292  0.909550649  0.000000000
+Bus_UR                  0.711841205  0.711841205  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.887943634  1.000000000  1.000000000
+LowGain                 0.887943634  1.000000000  1.000000000
+SolarP_500W             0.812835459  0.960305800  0.000000000
+SolarP_650W             0.933230373  1.000000000  1.000000000
+SolarP_900W             0.933102075  1.000000000  1.000000000
+Thermal                 0.980287468  0.980287468  0.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                 95.759373    0.000000    2.587270    1.242680    0.410678    0.000000    0.000000    0.000000
+BatteriesNaS             96.314703    0.000000    0.000000    3.644229    0.041068    0.000000    0.000000    0.000000
+BatteriesNiCd            81.283546    0.000000    3.359852    9.997861    5.358741    0.000000    0.000000    0.000000
+BatteriesNiH             84.882029    0.000000    8.441008    6.608516    0.068446    0.000000    0.000000    0.000000
+Bus_FR                   93.310207    0.000000    3.685297    2.662264    0.342231    0.000000    0.000000    0.000000
+Bus_QR                   84.882029    0.000000    6.676963    5.074304    3.366705    0.000000    0.000000    0.000000
+Bus_UR                   71.184120    0.000000    0.000000    9.856263   18.959617    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 88.794363    0.000000   11.205637    0.000000    0.000000    0.000000    0.000000    0.000000
+LowGain                   0.000000   88.794363   11.205637    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W              81.283546    0.000000   15.356602    3.086067    0.273785    0.000000    0.000000    0.000000
+SolarP_650W              93.323037    0.000000    6.676963    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_900W              93.310207    0.000000    6.689793    0.000000    0.000000    0.000000    0.000000    0.000000
+Thermal                  98.028747    0.000000    0.000000    1.881114    0.090139    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.769714310  0.769714310  0.000000000    93.71271    28.037
+650path                 0.848820292  0.848820292  0.000000000    310.0316    55.218
+900path                 0.933102075  0.933102075  0.000000000    340.8155    24.434
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 51.508921  25.462510  23.028569   0.000000   0.000000   0.000000
+650path                 84.882029   0.000000  15.117971   0.000000   0.000000   0.000000
+900path                 93.310207   0.000000   6.689793   0.000000   0.000000   0.000000
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.923990662
+MTBDE                      168.743795
+MDT                        13.881205
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  36
+
+
+
+***LOGISTICS***
+
+MTBM                  18.749311
+MTBMu                 18.749311
+MTBMs                 N/A
+MMT                   14.570113
+MMTu                  14.570113
+MMTs                  N/A
+GreenPercent          40.562745
+YellowPercent         51.836321
+RedPercent            7.600934
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          26.699737     128.544036     285.000000     117.620763
+DT                             3.000000      13.881205      23.706021       9.557001
+TBM                            0.000000      20.166667      49.000000      19.090060
+RT                             6.000000      14.570113     101.594830      20.814398
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    0   Infinite                     0
+BatteriesNaS                1   Cells                        1
+BatteriesNiCd               2   Cells                        2
+BatteriesNiH                1   Cells                        1
+Bus_FR                      0   Electronics                  0
+Bus_QR                      2   Electronics                  2
+Bus_UR                     12   Electronics                 12
+Bus_UR_B                   15   Infinite                    15
+HighGain                    1   Infinite                     1
+LowGain                     0   Infinite                     0
+SolarP_500W                 1   PhotoVPanels                 1
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 1   PhotoVPanels                 1
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          0         1.87          3          0          1 
+PhotoVPanels                     2          0          0         1.72          2          0          0 
+Electronics                      2         12          0         0.60          2          0          2 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         3.53            5            2         11 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.893365463  0.893365463  0.000000000  58.507396  30.829150  10.663454   0.000000   0.000000   0.000000
+650path                 0.816719169  0.816719169  0.000000000  81.671917   0.000000  18.328083   0.000000   0.000000   0.000000
+900path                 0.912582430  0.912582430  0.000000000  91.258243   0.000000   8.741757   0.000000   0.000000   0.000000
+BusUR_fanout            0.768843566  0.768843566  0.000000000  76.884357   0.000000  23.115643   0.000000   0.000000   0.000000
+Comm                    0.923990662  0.995575059  0.000000000  78.491492  13.907574   0.410678   0.000000   0.000000   7.190256
+n1                      0.987679671  1.000000000  1.000000000  98.767967   0.000000   0.000000   0.000000   0.000000   1.232033
+n2                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Power                   0.928097438  0.928097438  0.000000000  49.421401  43.388343   7.190256   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                0.987679671  1.000000000  1.000000000
+BatteriesNaS            0.912582430  0.912582430  0.000000000
+BatteriesNiCd           0.768843566  0.768843566  0.000000000
+BatteriesNiH            0.816719169  0.910318329  0.000000000
+Bus_FR                  0.912582430  1.000000000  1.000000000
+Bus_QR                  0.816719169  0.816719169  0.000000000
+Bus_UR                  0.657084189  0.657084189  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.784914920  0.845724691  0.000000000
+LowGain                 0.928097438  1.000000000  1.000000000
+SolarP_500W             0.768843566  0.968765234  0.000000000
+SolarP_650W             0.816719169  1.000000000  1.000000000
+SolarP_900W             0.912582430  0.937632298  0.000000000
+Thermal                 1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                 98.767967    0.000000    1.232033    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNaS             91.258243    0.000000    0.000000    4.654690    4.087067    0.000000    0.000000    0.000000
+BatteriesNiCd            76.884357    0.000000    0.000000    8.900157   14.215487    0.000000    0.000000    0.000000
+BatteriesNiH             81.671917    0.000000   10.282025    4.511657    3.534401    0.000000    0.000000    0.000000
+Bus_FR                   91.258243    0.000000    8.741757    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_QR                   81.671917    0.000000    0.000000    9.313699    9.014384    0.000000    0.000000    0.000000
+Bus_UR                   65.708419    0.000000    0.000000    9.034908   25.256674    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 78.491492    0.000000    7.190256   13.907574    0.410678    0.000000    0.000000    0.000000
+LowGain                  13.907574   78.902170    7.190256    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W              76.884357    0.000000   20.636751    2.205107    0.273785    0.000000    0.000000    0.000000
+SolarP_650W              81.671917    0.000000   18.328083    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_900W              91.258243    0.000000    2.671609    2.003615    4.066533    0.000000    0.000000    0.000000
+Thermal                 100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.693009851  0.693009851  0.000000000    56.24930    24.917
+650path                 0.816719169  0.816719169  0.000000000    298.3066    66.943
+900path                 0.912582430  0.912582430  0.000000000    666.6414    63.858
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 54.084497  15.216488  30.699015   0.000000   0.000000   0.000000
+650path                 81.671917   0.000000  18.328083   0.000000   0.000000   0.000000
+900path                 91.258243   0.000000   8.741757   0.000000   0.000000   0.000000
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.973319676
+MTBDE                      118.501670
+MDT                        3.248330
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     6
+NumberOfComponentFailures  31
+
+
+
+***LOGISTICS***
+
+MTBM                  22.935807
+MTBMu                 22.935807
+MTBMs                 N/A
+MMT                   19.974448
+MMTu                  19.974448
+MMTs                  N/A
+GreenPercent          26.997002
+YellowPercent         70.334965
+RedPercent            2.668032
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          20.995112     117.779963     242.249090      84.573036
+DT                             0.500000       3.248330       9.000000       4.260747
+TBM                            0.000000      23.419355      49.000000      18.401718
+RT                             6.000000      19.974448     111.376251      31.487041
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    0   Infinite                     0
+BatteriesNaS                1   Cells                        1
+BatteriesNiCd               1   Cells                        1
+BatteriesNiH                1   Cells                        1
+Bus_FR                      1   Electronics                  1
+Bus_QR                      0   Electronics                  0
+Bus_UR                      8   Electronics                  8
+Bus_UR_B                   15   Infinite                    15
+HighGain                    4   Infinite                     4
+LowGain                     0   Infinite                     0
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          0         1.34          3          1          0 
+PhotoVPanels                     2          0          2         2.00          2          2          0 
+Electronics                      2          8          0         0.76          2          1          1 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         3.85            5            4          7 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.874731397  0.874731397  0.000000000  43.218726  44.254414  12.526860   0.000000   0.000000   0.000000
+650path                 0.941713408  0.941713408  0.000000000  94.171341   0.000000   5.828659   0.000000   0.000000   0.000000
+900path                 0.918107512  0.918107512  0.000000000  91.810751   0.000000   8.189249   0.000000   0.000000   0.000000
+BusUR_fanout            0.872441297  0.872441297  0.000000000  87.244130   0.000000  12.755870   0.000000   0.000000   0.000000
+Comm                    0.973319676  0.997194990  0.000000000  51.569881  45.762086   0.273785   0.000000   0.000000   2.394247
+n1                      0.999315537  1.000000000  1.000000000  99.931554   0.000000   0.000000   0.000000   0.000000   0.068446
+n2                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Power                   0.976057526  0.976057526  0.000000000  64.828436  32.777317   2.394247   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                0.999315537  1.000000000  1.000000000
+BatteriesNaS            0.918107512  0.956990573  0.000000000
+BatteriesNiCd           0.872441297  0.872441297  0.000000000
+BatteriesNiH            0.941713408  0.941713408  0.000000000
+Bus_FR                  0.918107512  0.957620794  0.000000000
+Bus_QR                  0.941713408  1.000000000  1.000000000
+Bus_UR                  0.485563421  0.485563421  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.515698814  0.528348791  0.000000000
+LowGain                 0.976057526  1.000000000  1.000000000
+SolarP_500W             0.872441297  1.000000000  1.000000000
+SolarP_650W             0.941713408  1.000000000  1.000000000
+SolarP_900W             0.918107512  1.000000000  1.000000000
+Thermal                 1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                 99.931554    0.000000    0.068446    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNaS             91.810751    0.000000    4.063056    4.085125    0.041068    0.000000    0.000000    0.000000
+BatteriesNiCd            87.244130    0.000000    0.000000    3.695814    9.060056    0.000000    0.000000    0.000000
+BatteriesNiH             94.171341    0.000000    0.000000    5.760213    0.068446    0.000000    0.000000    0.000000
+Bus_FR                   91.810751    0.000000    4.126193    3.720825    0.342231    0.000000    0.000000    0.000000
+Bus_QR                   94.171341    0.000000    5.828659    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_UR                   48.556342    0.000000    0.000000    6.570842   44.872816    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 51.569881    0.000000    2.394247   44.351881    1.683990    0.000000    0.000000    0.000000
+LowGain                  45.762086   51.843666    2.394247    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W              87.244130    0.000000   12.755870    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_650W              94.171341    0.000000    5.828659    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_900W              91.810751    0.000000    8.189249    0.000000    0.000000    0.000000    0.000000    0.000000
+Thermal                 100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.764520966  0.764520966  0.000000000    50.77114    15.637
+650path                 0.941713408  0.941713408  0.000000000    687.9216    42.578
+900path                 0.918107512  0.918107512  0.000000000    335.3387    29.911
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 40.217927  36.234170  23.547903   0.000000   0.000000   0.000000
+650path                 94.171341   0.000000   5.828659   0.000000   0.000000   0.000000
+900path                 91.810751   0.000000   8.189249   0.000000   0.000000   0.000000
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.934457230
+MTBDE                      170.655252
+MDT                        11.969748
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  35
+
+
+
+***LOGISTICS***
+
+MTBM                  19.503457
+MTBMu                 19.503457
+MTBMs                 N/A
+MMT                   14.361052
+MMTu                  14.361052
+MMTs                  N/A
+GreenPercent          48.086746
+YellowPercent         45.358977
+RedPercent            6.554277
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.985034     165.715051     400.761980     191.106535
+DT                             0.500000      11.969748      28.111084      12.694929
+TBM                            0.000000      20.742857      49.000000      18.471547
+RT                             6.000000      14.361052     118.244042      21.619109
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    0   Infinite                     0
+BatteriesNaS                1   Cells                        1
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                2   Cells                        2
+Bus_FR                      2   Electronics                  2
+Bus_QR                      0   Electronics                  0
+Bus_UR                     12   Electronics                 12
+Bus_UR_B                   15   Infinite                    15
+HighGain                    1   Infinite                     1
+LowGain                     0   Infinite                     0
+SolarP_500W                 1   PhotoVPanels                 1
+SolarP_650W                 1   PhotoVPanels                 1
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          0         1.62          3          1          0 
+PhotoVPanels                     2          0          0         1.88          2          0          0 
+Electronics                      2         12          0         0.60          2          0          2 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         3.66            5            5          7 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.896836162  0.896836162  0.000000000  58.316222  31.367394  10.316384   0.000000   0.000000   0.000000
+650path                 0.865572293  0.865572293  0.000000000  86.557229   0.000000  13.442771   0.000000   0.000000   0.000000
+900path                 0.897881122  0.897881122  0.000000000  89.788112   0.000000  10.211888   0.000000   0.000000   0.000000
+BusUR_fanout            0.960849824  0.960849824  0.000000000  96.084982   0.000000   3.915018   0.000000   0.000000   0.000000
+Comm                    0.934457230  0.999268065  0.000000000  78.167188  15.278535   0.068446   0.000000   0.000000   6.485831
+n1                      0.961518023  1.000000000  1.000000000  96.151802   0.000000   0.000000   0.000000   0.000000   3.848198
+n2                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Power                   0.935141693  0.935141693  0.000000000  68.651875  24.862294   6.485831   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                0.961518023  1.000000000  1.000000000
+BatteriesNaS            0.897881122  0.956055869  0.000000000
+BatteriesNiCd           0.960849824  1.000000000  1.000000000
+BatteriesNiH            0.865572293  0.865572293  0.000000000
+Bus_FR                  0.897881122  0.897881122  0.000000000
+Bus_QR                  0.865572293  1.000000000  1.000000000
+Bus_UR                  0.658643144  0.658643144  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.781671880  0.802848065  0.000000000
+LowGain                 0.935141693  1.000000000  1.000000000
+SolarP_500W             0.960849824  0.960849824  0.000000000
+SolarP_650W             0.865572293  0.962872188  0.000000000
+SolarP_900W             0.897881122  1.000000000  1.000000000
+Thermal                 1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                 96.151802    0.000000    3.848198    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNaS             89.788112    0.000000    6.084869    3.656014    0.471005    0.000000    0.000000    0.000000
+BatteriesNiCd            96.084982    0.000000    3.915018    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNiH             86.557229    0.000000    0.000000   12.543624    0.899146    0.000000    0.000000    0.000000
+Bus_FR                   89.788112    0.000000    0.000000    6.955120    3.256768    0.000000    0.000000    0.000000
+Bus_QR                   86.557229    0.000000   13.442771    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_UR                   65.864314    0.000000    0.000000    9.856263   24.279423    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 78.167188    0.000000    2.637633   16.186727    3.008452    0.000000    0.000000    0.000000
+LowGain                  15.278535   78.235634    6.485831    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W              96.084982    0.000000    0.000000    3.080777    0.834241    0.000000    0.000000    0.000000
+SolarP_650W              86.557229    0.000000   10.105172    3.063813    0.273785    0.000000    0.000000    0.000000
+SolarP_900W              89.788112    0.000000   10.211888    0.000000    0.000000    0.000000    0.000000    0.000000
+Thermal                 100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.857685986  0.857685986  0.000000000    62.65396    10.396
+650path                 0.865572293  0.865572293  0.000000000    316.1502    49.099
+900path                 0.897881122  0.897881122  0.000000000    327.9510    37.298
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 56.014424  29.754175  14.231401   0.000000   0.000000   0.000000
+650path                 86.557229   0.000000  13.442771   0.000000   0.000000   0.000000
+900path                 89.788112   0.000000  10.211888   0.000000   0.000000   0.000000
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.903034190
+MTBDE                      219.888825
+MDT                        23.611175
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  35
+
+
+
+***LOGISTICS***
+
+MTBM                  18.847614
+MTBMu                 18.847614
+MTBMs                 N/A
+MMT                   14.144957
+MMTu                  14.144957
+MMTs                  N/A
+GreenPercent          34.389728
+YellowPercent         55.913691
+RedPercent            9.696581
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.624364     219.888825     607.306427     336.270808
+DT                             0.500000      23.611175      53.500000      27.142262
+TBM                            0.000000      20.744704      49.000000      16.735598
+RT                             6.000000      14.144957     114.695406      22.252595
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    2   Infinite                     2
+BatteriesNaS                1   Cells                        1
+BatteriesNiCd               2   Cells                        2
+BatteriesNiH                1   Cells                        1
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                     11   Electronics                 11
+Bus_UR_B                   15   Infinite                    15
+HighGain                    2   Infinite                     2
+LowGain                     0   Infinite                     0
+SolarP_500W                 1   PhotoVPanels                 1
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          0         1.73          3          0          1 
+PhotoVPanels                     2          0          1         1.82          2          1          0 
+Electronics                      2         10          0         0.69          2          1          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         3.78            5            4          8 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.930589578  0.930589578  0.000000000  49.309283  43.749675   6.941042   0.000000   0.000000   0.000000
+650path                 0.942990276  0.942990276  0.000000000  94.299028   0.000000   5.700972   0.000000   0.000000   0.000000
+900path                 0.948987727  0.948987727  0.000000000  94.898773   0.000000   5.101227   0.000000   0.000000   0.000000
+BusUR_fanout            0.889602931  0.889602931  0.000000000  88.960293   0.000000  11.039707   0.000000   0.000000   0.000000
+Comm                    0.903034190  0.998486377  0.000000000  69.824628  20.478791   0.136893   0.000000   0.000000   9.559688
+n1                      0.903718652  0.903718652  0.000000000  90.371865   0.000000   9.628135   0.000000   0.000000   0.000000
+n2                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Power                   0.987679671  0.987679671  0.000000000  74.288283  24.479684   1.232033   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                0.903718652  0.903718652  0.000000000
+BatteriesNaS            0.948987727  0.948987727  0.000000000
+BatteriesNiCd           0.889602931  0.921308031  0.000000000
+BatteriesNiH            0.942990276  0.942990276  0.000000000
+Bus_FR                  1.000000000  1.000000000  1.000000000
+Bus_QR                  1.000000000  1.000000000  1.000000000
+Bus_UR                  0.602327173  0.602327173  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.698246283  0.698246283  0.000000000
+LowGain                 0.904403115  1.000000000  1.000000000
+SolarP_500W             0.889602931  0.962756992  0.000000000
+SolarP_650W             0.942990276  1.000000000  1.000000000
+SolarP_900W             0.948987727  1.000000000  1.000000000
+Thermal                 1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                 90.371865    0.000000    0.000000    1.893706    7.734428    0.000000    0.000000    0.000000
+BatteriesNaS             94.898773    0.000000    0.000000    5.060160    0.041068    0.000000    0.000000    0.000000
+BatteriesNiCd            88.960293    0.000000    3.441314    6.922781    0.675612    0.000000    0.000000    0.000000
+BatteriesNiH             94.299028    0.000000    0.000000    5.632526    0.068446    0.000000    0.000000    0.000000
+Bus_FR                  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_QR                  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_UR                   60.232717    0.000000    0.000000    8.213552   31.553730    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 69.824628    0.000000    0.000000   29.065028    1.110344    0.000000    0.000000    0.000000
+LowGain                  20.478791   69.961521    9.559688    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W              88.960293    0.000000    7.598393    3.167529    0.273785    0.000000    0.000000    0.000000
+SolarP_650W              94.299028    0.000000    5.700972    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_900W              94.898773    0.000000    5.101227    0.000000    0.000000    0.000000    0.000000    0.000000
+Thermal                 100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.838584496  0.838584496  0.000000000    55.68963    10.719
+650path                 0.942990276  0.942990276  0.000000000    688.8543    41.645
+900path                 0.948987727  0.948987727  0.000000000    693.2355    37.264
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 46.401861  37.456588  16.141550   0.000000   0.000000   0.000000
+650path                 94.299028   0.000000   5.700972   0.000000   0.000000   0.000000
+900path                 94.898773   0.000000   5.101227   0.000000   0.000000   0.000000
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.928111175
+MTBDE                      169.496303
+MDT                        13.128697
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  32
+
+
+
+***LOGISTICS***
+
+MTBM                  21.187038
+MTBMu                 21.187038
+MTBMs                 N/A
+MMT                   13.729496
+MMTu                  13.729496
+MMTs                  N/A
+GreenPercent          39.613313
+YellowPercent         53.197805
+RedPercent            7.188882
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          49.039087     160.192598     369.302929     144.735058
+DT                             0.500000      13.128697      29.982249      12.390609
+TBM                            0.000000      22.687500      49.000000      13.720009
+RT                             6.000000      13.729496     112.543472      21.080945
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    0   Infinite                     0
+BatteriesNaS                2   Cells                        2
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      1   Electronics                  1
+Bus_QR                      1   Electronics                  1
+Bus_UR                     11   Electronics                 11
+Bus_UR_B                   15   Infinite                    15
+HighGain                    1   Infinite                     1
+LowGain                     0   Infinite                     0
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 1   PhotoVPanels                 1
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          1         2.26          3          2          0 
+PhotoVPanels                     2          0          1         1.91          2          1          0 
+Electronics                      2         12          0         0.62          2          1          1 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         3.89            5            5          7 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.937521335  0.937521335  0.000000000  52.909718  40.842416   6.247867   0.000000   0.000000   0.000000
+650path                 0.867963034  0.867963034  0.000000000  86.796303   0.000000  13.203697   0.000000   0.000000   0.000000
+900path                 0.837167099  0.837167099  0.000000000  83.716710   0.000000  16.283290   0.000000   0.000000   0.000000
+BusUR_fanout            1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Comm                    0.928111175  0.999263064  0.000000000  77.062525  15.748593   0.068446   0.000000   0.000000   7.120436
+n1                      0.999315537  1.000000000  1.000000000  99.931554   0.000000   0.000000   0.000000   0.000000   0.068446
+n2                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Power                   0.928795638  0.928795638  0.000000000  72.617616  20.261948   7.120436   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                0.999315537  1.000000000  1.000000000
+BatteriesNaS            0.889932133  0.889932133  0.000000000
+BatteriesNiCd           1.000000000  1.000000000  1.000000000
+BatteriesNiH            0.920546933  1.000000000  1.000000000
+Bus_FR                  0.837167099  0.940708923  0.000000000
+Bus_QR                  0.867963034  0.942877547  0.000000000
+Bus_UR                  0.645263275  0.645263275  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.770625245  0.829703773  0.000000000
+LowGain                 0.928795638  1.000000000  1.000000000
+SolarP_500W             1.000000000  1.000000000  1.000000000
+SolarP_650W             0.867963034  0.916137094  0.000000000
+SolarP_900W             0.888134026  1.000000000  1.000000000
+Thermal                 1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                 99.931554    0.000000    0.068446    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNaS             88.993213    0.000000    0.000000   10.924651    0.082136    0.000000    0.000000    0.000000
+BatteriesNiCd           100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNiH             92.054693    0.000000    7.945307    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_FR                   83.716710    0.000000   11.006787    3.492446    1.784057    0.000000    0.000000    0.000000
+Bus_QR                   86.796303    0.000000    7.945307    4.865953    0.392437    0.000000    0.000000    0.000000
+Bus_UR                   64.526327    0.000000    0.000000    9.034908   26.438765    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 77.062525    0.000000    7.120436   15.406362    0.410678    0.000000    0.000000    0.000000
+LowGain                  15.748593   77.130971    7.120436    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W             100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_650W              86.796303    0.000000    5.258390    3.040139    4.905168    0.000000    0.000000    0.000000
+SolarP_900W              88.813403    0.000000   11.186597    0.000000    0.000000    0.000000    0.000000    0.000000
+Thermal                 100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.937521335  0.937521335  0.000000000    114.1432    7.6067
+650path                 0.867963034  0.867963034  0.000000000    317.0234    48.226
+900path                 0.837167099  0.837167099  0.000000000    203.8501    39.649
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 52.909718  40.842416   6.247867   0.000000   0.000000   0.000000
+650path                 86.796303   0.000000  13.203697   0.000000   0.000000   0.000000
+900path                 83.716710   0.000000  16.283290   0.000000   0.000000   0.000000
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.970866826
+MTBDE                      177.304554
+MDT                        5.320446
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  35
+
+
+
+***LOGISTICS***
+
+MTBM                  20.263378
+MTBMu                 20.263378
+MTBMs                 N/A
+MMT                   13.641546
+MMTu                  13.641546
+MMTs                  N/A
+GreenPercent          44.061592
+YellowPercent         53.025091
+RedPercent            2.913317
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.250289     104.929554     236.000000     106.449755
+DT                             0.500000       5.320446       9.000000       4.349703
+TBM                            0.000000      20.814487      49.000000      16.737510
+RT                             6.000000      13.641546      97.410774      18.756427
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    0   Infinite                     0
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               1   Cells                        1
+BatteriesNiH                2   Cells                        2
+Bus_FR                      1   Electronics                  1
+Bus_QR                      2   Electronics                  2
+Bus_UR                     12   Electronics                 12
+Bus_UR_B                   15   Infinite                    15
+HighGain                    1   Infinite                     1
+LowGain                     0   Infinite                     0
+SolarP_500W                 1   PhotoVPanels                 1
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          0         1.47          3          1          0 
+PhotoVPanels                     2          0          1         2.00          2          1          0 
+Electronics                      2         14          0         0.55          2          1          1 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         3.60            5            5          7 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.902333537  0.902333537  0.000000000  61.649671  28.583683   9.766646   0.000000   0.000000   0.000000
+650path                 0.785694557  0.785694557  0.000000000  78.569456   0.000000  21.430544   0.000000   0.000000   0.000000
+900path                 0.966466918  0.966466918  0.000000000  96.646692   0.000000   3.353308   0.000000   0.000000   0.000000
+BusUR_fanout            0.899510061  0.899510061  0.000000000  89.951006   0.000000  10.048994   0.000000   0.000000   0.000000
+Comm                    0.970866826  0.999295495  0.000000000  76.930048  20.156635   0.068446   0.000000   0.000000   2.844871
+n1                      0.987679671  1.000000000  1.000000000  98.767967   0.000000   0.000000   0.000000   0.000000   1.232033
+n2                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Power                   0.971551288  0.971551288  0.000000000  59.477411  37.677718   2.844871   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                0.987679671  1.000000000  1.000000000
+BatteriesNaS            0.966466918  1.000000000  1.000000000
+BatteriesNiCd           0.899510061  0.901970828  0.000000000
+BatteriesNiH            0.785694557  0.865687605  0.000000000
+Bus_FR                  0.966466918  0.966466918  0.000000000
+Bus_QR                  0.785694557  0.834934076  0.000000000
+Bus_UR                  0.697475008  0.697475008  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.769300477  0.781911444  0.000000000
+LowGain                 0.971551288  1.000000000  1.000000000
+SolarP_500W             0.899510061  0.996976174  0.000000000
+SolarP_650W             0.785694557  1.000000000  1.000000000
+SolarP_900W             0.966466918  1.000000000  1.000000000
+Thermal                 1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                 98.767967    0.000000    1.232033    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNaS             96.646692    0.000000    3.353308    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNiCd            89.951006    0.000000    0.272821    3.025137    6.751036    0.000000    0.000000    0.000000
+BatteriesNiH             78.569456    0.000000    9.240406   12.053246    0.136893    0.000000    0.000000    0.000000
+Bus_FR                   96.646692    0.000000    0.000000    3.011077    0.342231    0.000000    0.000000    0.000000
+Bus_QR                   78.569456    0.000000    5.897414    8.845552    6.687578    0.000000    0.000000    0.000000
+Bus_UR                   69.747501    0.000000    0.000000    9.856263   20.396236    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 76.930048    0.000000    1.612838   13.334808    8.122306    0.000000    0.000000    0.000000
+LowGain                  20.156635   76.998494    2.844871    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W              89.951006    0.000000    9.776173    0.000000    0.272821    0.000000    0.000000    0.000000
+SolarP_650W              78.569456    0.000000   21.430544    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_900W              96.646692    0.000000    3.353308    0.000000    0.000000    0.000000    0.000000    0.000000
+Thermal                 100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.814163927  0.814163927  0.000000000    54.06788    12.341
+650path                 0.785694557  0.785694557  0.000000000    191.3166    52.183
+900path                 0.966466918  0.966466918  0.000000000    706.0040    24.495
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 58.590311  22.826082  18.583607   0.000000   0.000000   0.000000
+650path                 78.569456   0.000000  21.430544   0.000000   0.000000   0.000000
+900path                 96.646692   0.000000   3.353308   0.000000   0.000000   0.000000
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.986995209
+MTBDE                      360.500000
+MDT                        4.750000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  30
+
+
+
+***LOGISTICS***
+
+MTBM                  24.033333
+MTBMu                 24.033333
+MTBMs                 N/A
+MMT                   11.394397
+MMTu                  11.394397
+MMTs                  N/A
+GreenPercent          58.817980
+YellowPercent         39.881541
+RedPercent            1.300479
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         103.085766     240.250000     377.414234     193.979520
+DT                             0.500000       4.750000       9.000000       6.010408
+TBM                            0.000000      24.200000      49.000000      20.653527
+RT                             6.000000      11.394397     125.767236      22.728697
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    0   Infinite                     0
+BatteriesNaS                1   Cells                        1
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                     12   Electronics                 12
+Bus_UR_B                   15   Infinite                    15
+HighGain                    1   Infinite                     1
+LowGain                     0   Infinite                     0
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 1   PhotoVPanels                 1
+Thermal                     0   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Thermal                     1          0          1         1.00          1          1          0 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Cells                            3          1          2         2.66          3          3          0 
+PhotoVPanels                     2          0          1         1.66          2          1          0 
+Electronics                      2         11          0         0.65          2          1          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Astronauts                       5            0         4.25            5            5          3 
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 0.876796715  0.876796715  0.000000000  63.356404  24.323268  12.320329   0.000000   0.000000   0.000000
+650path                 1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+900path                 0.907555142  0.907555142  0.000000000  90.755514   0.000000   9.244486   0.000000   0.000000   0.000000
+BusUR_fanout            1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Comm                    0.986995209  0.999306999  0.000000000  82.372726  16.326795   0.068446   0.000000   0.000000   1.232033
+n1                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+n2                      1.000000000  1.000000000  1.000000000 100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+Power                   0.987679671  0.987679671  0.000000000  79.667218  19.100749   1.232033   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+Attitude                1.000000000  1.000000000  1.000000000
+BatteriesNaS            0.907555142  0.907555142  0.000000000
+BatteriesNiCd           1.000000000  1.000000000  1.000000000
+BatteriesNiH            1.000000000  1.000000000  1.000000000
+Bus_FR                  0.907555142  1.000000000  1.000000000
+Bus_QR                  1.000000000  1.000000000  1.000000000
+Bus_UR                  0.689005517  0.689005517  0.000000000
+Bus_UR_B                0.821355236  0.821355236  0.000000000
+HighGain                0.823727261  0.823727261  0.000000000
+LowGain                 0.987679671  1.000000000  1.000000000
+SolarP_500W             1.000000000  1.000000000  1.000000000
+SolarP_650W             1.000000000  1.000000000  1.000000000
+SolarP_900W             0.907555142  0.938803037  0.000000000
+Thermal                 1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+Attitude                100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNaS             90.755514    0.000000    0.000000    4.985274    4.259212    0.000000    0.000000    0.000000
+BatteriesNiCd           100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+BatteriesNiH            100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_FR                   90.755514    0.000000    9.244486    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_QR                  100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+Bus_UR                   68.900552    0.000000    0.000000    9.856263   21.243186    0.000000    0.000000    0.000000
+Bus_UR_B                 82.135524    0.000000    0.000000   11.704312    6.160164    0.000000    0.000000    0.000000
+HighGain                 82.372726    0.000000    0.000000   17.216596    0.410678    0.000000    0.000000    0.000000
+LowGain                  16.326795   82.441172    1.232033    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_500W             100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_650W             100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+SolarP_900W              90.755514    0.000000    3.328483    1.677325    4.238678    0.000000    0.000000    0.000000
+Thermal                 100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+HIERARCHY_RESULTS
+
+Hierarchy                        Ao           Do            R       MTBDE       MDT
+500path                 0.876796715  0.876796715  0.000000000    64.05000    9.0000
+650path                 1.000000000  1.000000000  1.000000000    730.5000N/A
+900path                 0.907555142  0.907555142  0.000000000    662.9690    67.530
+
+Hierarchy                  %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+500path                 63.356404  24.323268  12.320329   0.000000   0.000000   0.000000
+650path                100.000000   0.000000   0.000000   0.000000   0.000000   0.000000
+900path                 90.755514   0.000000   9.244486   0.000000   0.000000   0.000000
+
+
+

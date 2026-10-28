@@ -1,0 +1,66 @@
+Final_Results_Report for input.rbd  PROBE
+
+
+Results from 10 runs of 100 cycles:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Units_Produced           4167862.20      4277643.59      4421023.65      86963.18        27500.17        
+Mean_Flow                41678.622038    42776.435939    44210.236477    869.631761      275.001709      
+Mean_Capacity            41678.622038    42776.435939    44210.236477    869.631761      275.001709      
+Availability             0.964325830     0.983319307     0.998883603     0.013546230     0.004283694     
+MTBDE                    468.849016      1014.940699     2398.834792     549.513495      173.771425      
+MDT                      1.731260        12.672793       28.116276       9.086417        2.873377        
+Dependability            0.965104809     0.982875670     0.998660700     0.013209810     0.004177309     
+Reliability              0.400000000     0.750000000     0.000000000     1.840893503     0.582141640     
+Conditional_Reliability  0.400000000     0.750000000     0.000000000     1.840893503     0.582141640     
+System_Failures          1               2.800000        5               1.135292        0.359011        
+Ending_Sim_Time          2392.934678     2398.881670     2402.541586     3.244694        1.026062        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     26.327647       27.947281       29.485301       1.075112        0.339980        
+MTBMu                    62.617106       70.893448       82.718441       6.646285        2.101740        
+MTBMs                    44.517579       46.332691       51.763083       2.061677        0.651960        
+MMT                      15.110911       16.122471       17.620908       0.886950        0.280478        
+MMTu                     32.311748       36.195919       39.105775       2.039316        0.644888        
+MMTs                     3.282217        3.525310        3.647974        0.109654        0.034676        
+Green_Percent            19.234546       24.130418       28.406933       3.318379        1.049364        
+Yellow_Percent           70.721220       74.201513       78.830063       3.167138        1.001537        
+Red_Percent              0.111640        1.668069        3.567417        1.354623        0.428369        
+Mission_Green_Percent    17.657642       22.821088       26.772791       3.126928        0.988821        
+Mission_Yellow_Percent   72.378569       75.466479       80.295188       3.031804        0.958741        
+Mission_Red_Percent      0.133930        1.712433        3.489519        1.320981        0.417731        
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+Attitude              Infinite                     1         1.10         2         0.32 
+BatteriesNaS          Cells                        0         1.20         3         1.03 
+BatteriesNiCd         Cells                        4         6.40        11         2.59 
+BatteriesNiH          Cells                        0         1.90         3         0.99 
+Bus_FR                Electronics                  0         3.40         5         1.71 
+Bus_QR                Electronics                  1         3.10         5         1.20 
+Bus_UR                Electronics                  2         8.30        13         3.23 
+HighGain              Infinite                     0         0.10         1         0.32 
+LowGain               Infinite                     0         0.40         3         0.97 
+Nuclear_Reactor       Infinite                     0         0.30         2         0.67 
+SolarP_500W           PhotoVPanels                 0         1.10         2         0.57 
+SolarP_650W           PhotoVPanels                 2         2.10         3         0.32 
+SolarP_900W           PhotoVPanels                 1         1.50         2         0.53 
+Tether-A              Infinite                     0         1.50         4         1.27 
+Tether-B              Infinite                     0         1.00         3         1.05 
+Thermal               Custom                       0         0.70         2         0.82 
+
+

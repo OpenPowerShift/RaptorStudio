@@ -1,0 +1,179 @@
+End_Of_Run Report for ReleaseProbe4.rbd  Thu Sep 24 07:00:46 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.278596922
+MTBDE                      4.178954
+MDT                        10.821046
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              30.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  6
+
+
+
+***LOGISTICS***
+
+MTBM                  1.044738
+MTBMu                 1.392985
+MTBMs                 4.178954
+MMT                   9.471582
+MMTu                  15.119303
+MMTs                  1.000000
+GreenPercent          15.473641
+YellowPercent         12.386051
+RedPercent            72.140308
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.500000       4.178954       4.857908       0.960186
+DT                             0.142092      10.821046      21.500000      15.102321
+TBM                            0.000000       4.976318      24.500000       9.637109
+RT                             1.357908      15.119303      22.000000      11.917718
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      2   Infinite                     2
+BlockB                      0   Infinite                     0
+BlockC                      2   Infinite                     2
+BlockD                      0   Infinite                     0
+BlockE                      2   Infinite                     2
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            1            0         0.15            1            0          2 
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.263901633
+MTBDE                      3.958525
+MDT                        11.041475
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              30.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  5
+
+
+
+***LOGISTICS***
+
+MTBM                  1.131007
+MTBMu                 1.583410
+MTBMs                 3.958525
+MMT                   9.916590
+MMTu                  15.860984
+MMTs                  1.000000
+GreenPercent          10.000000
+YellowPercent         16.390163
+RedPercent            73.609837
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.000000       3.250000       3.500000       0.353553
+DT                             0.582951      11.041475      21.500000      14.790587
+TBM                            0.000000       5.600000      24.500000      10.638374
+RT                             3.582951      15.860984      22.000000      10.633088
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      2   Infinite                     2
+BlockB                      0   Infinite                     0
+BlockC                      1   Infinite                     1
+BlockD                      0   Infinite                     0
+BlockE                      2   Infinite                     2
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            1            0         0.10            1            0          2 
+
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.216666667
+MTBDE                      3.250000
+MDT                        11.750000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              30.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  5
+
+
+
+***LOGISTICS***
+
+MTBM                  0.928571
+MTBMu                 1.300000
+MTBMs                 3.250000
+MMT                   11.500000
+MMTu                  22.000000
+MMTs                  1.000000
+GreenPercent          10.000000
+YellowPercent         11.666667
+RedPercent            78.333333
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.000000       3.250000       3.500000       0.353553
+DT                             2.000000      11.750000      21.500000      13.788582
+TBM                            0.000000       5.600000      24.500000      10.638374
+RT                            22.000000      22.000000      22.000000       0.000000
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      2   Infinite                     2
+BlockB                      0   Infinite                     0
+BlockC                      1   Infinite                     1
+BlockD                      0   Infinite                     0
+BlockE                      2   Infinite                     2
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            1            0         0.10            1            0          2 
+
+
+
+
+

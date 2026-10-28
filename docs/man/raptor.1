@@ -1,0 +1,117 @@
+.TH "RAPTOR" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor \- RAPTOR Studio: reliability block diagram simulation. With no command, or just a model file, opens the desktop application.
+.SH SYNOPSIS
+\fBraptor\fR [\-h] [\-V] [\-v] [\-q] [\-\-log\-level LEVEL] [\-\-log\-file PATH] [\-\-debug] [\-\-config PATH] [\-\-no\-config] [\-\-color {auto,always,never}] [\-\-dev\-features LIST] COMMAND ...
+.SH DESCRIPTION
+RAPTOR Studio: reliability block diagram simulation. With no command, or just a model file, opens the desktop application.
+.SH OPTIONS
+.SS Global options
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+show program's version number and exit
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+more detail on stderr (repeat: \-vv)
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+errors only
+.TP
+\fB\-\-log\-level\fR \fILEVEL\fR
+debug|info|warning|error (default warning)
+.TP
+\fB\-\-log\-file\fR \fIPATH\fR
+also write the log to PATH
+.TP
+\fB\-\-debug\fR
+debug tracing and a native\-crash backtrace (same as RAPTOR_DEBUG=1)
+.TP
+\fB\-\-config\fR \fIPATH\fR
+settings file (default $XDG_CONFIG_HOME/raptor\-studio/config.toml)
+.TP
+\fB\-\-no\-config\fR
+ignore the settings file and RAPTOR_* defaults
+.TP
+\fB\-\-color\fR \fI{auto|always|never}\fR
+colour output (honours NO_COLOR)
+.TP
+\fB\-\-dev\-features\fR \fILIST\fR
+enable developer options: comma list, 'all' or 'none' (same as RAPTOR_DEV_FEATURES)
+.SH EXAMPLES
+.PP
+Open the desktop application.
+.RS
+.nf
+\fBraptor\fR
+.fi
+.RE
+.PP
+Open pump.rbd in the desktop application.
+.RS
+.nf
+\fBraptor pump.rbd\fR
+.fi
+.RE
+.PP
+Simulate 100 runs and read one number.
+.RS
+.nf
+\fBraptor run pump.rbd \-n 100 \-f json | jq .summary.Availability\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\-gui\fR(1), \fBraptor\-run\fR(1), \fBraptor\-validate\fR(1), \fBraptor\-info\fR(1), \fBraptor\-get\fR(1), \fBraptor\-set\fR(1), \fBraptor\-config\fR(5)
+.SH EXIT STATUS
+.TP
+\fB0\fR
+success
+.TP
+\fB1\fR
+runtime error
+.TP
+\fB2\fR
+usage error
+.TP
+\fB3\fR
+model invalid (validation errors)
+.TP
+\fB4\fR
+model refused: a shape Raptor 7 cannot run
+.TP
+\fB5\fR
+timed out or aborted; partial results written
+.TP
+\fB6\fR
+output could not be written
+.TP
+\fB130\fR
+interrupted (Ctrl\-C); partial results written
+.SH ENVIRONMENT
+.TP
+\fBRAPTOR_DEBUG\fR
+same as \-\-debug
+.TP
+\fBRAPTOR_DEV_FEATURES\fR
+same as \-\-dev\-features
+.TP
+\fBRAPTOR_CONFIG\fR
+path of the settings file (same as \-\-config)
+.TP
+\fBRAPTOR_WORKSPACE\fR
+default for \-\-workspace
+.TP
+\fBRAPTOR_SEED\fR
+salt for every random stream (same as \-\-seed)
+.TP
+\fBNO_COLOR\fR
+disable colour output
+.TP
+\fBXDG_CONFIG_HOME, XDG_DATA_HOME\fR
+base directories
+.SH FILES
+.TP
+\fB$XDG_CONFIG_HOME/raptor\-studio/config.toml\fR
+settings file (see raptor\-config(5))
+.TP
+\fB$XDG_DATA_HOME/raptor\-studio/mcp\fR
+default MCP server workspace

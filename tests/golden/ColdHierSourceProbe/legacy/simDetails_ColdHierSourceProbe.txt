@@ -1,0 +1,186 @@
+Begining Procedure RunEFPA......
+
+n1  EFPAout=1
+   end  through link 6
+n2  EFPAout=1
+   end  through link 6
+Comm  EFPAout=1
+   end  through link 6
+Power  EFPAout=1
+   end  through link 6
+500path  EFPAout=1
+   out  through link 26
+650path  EFPAout=1
+   out  through link 28
+900path  EFPAout=1
+   out  through link 30
+out-500path  EFPAout=1
+   Power  through link 22
+out-650path  EFPAout=1
+   Power  through link 23
+out-900path  EFPAout=1
+   Power  through link 24
+SolarP_500W  EFPAout=1
+   500path  through link 16
+BatteriesNiCd  EFPAout=1
+   500path  through link 16
+Bus_UR  EFPAout=1
+   500path  through link 16
+Thermal  EFPAout=1
+   n2  through link 5
+Attitude  EFPAout=1
+   n1  through link 4
+LowGain  EFPAout=1
+   Comm  through link 8
+HighGain  EFPAout=1
+   Comm  through link 15
+SolarP_650W  EFPAout=1
+   650path  through link 17
+SolarP_900W  EFPAout=1
+   900path  through link 18
+Bus_QR  EFPAout=1
+   650path  through link 17
+BatteriesNiH  EFPAout=1
+   650path  through link 17
+Bus_FR  EFPAout=1
+   900path  through link 18
+BatteriesNaS  EFPAout=1
+   900path  through link 18
+0.000000  SolarP_500W  60324767.936229
+0.000000  BatteriesNiCd  166168561.613264
+0.000000  Bus_UR  60204089.566262
+0.000000  Thermal  147215133.846602
+0.000000  Attitude  100000000.399861
+0.000000  LowGain  48.977198
+0.000000  LowGain  25.096041
+0.000000  LowGain  85.551761
+0.000000  LowGain  13.763799
+0.000000  LowGain  43.358817
+0.000000  LowGain  8.892339
+0.000000  LowGain  15.122531
+0.000000  LowGain  29.144817
+0.000000  LowGain  6.538635
+0.000000  LowGain  0.189759
+0.000000  LowGain  56.808937
+0.000000  LowGain  5.024020
+0.000000  LowGain  11.429927
+0.000000  LowGain  26.965092
+0.000000  LowGain  32.754266
+0.000000  LowGain  3.642119
+0.000000  LowGain  21.789597
+0.000000  LowGain  117.730174
+0.000000  LowGain  8.840587
+0.000000  LowGain  45.445602
+0.000000  LowGain  2.085871
+0.000000  LowGain  9.298322
+0.000000  LowGain  12.327014
+0.000000  LowGain  2.134940
+0.000000  LowGain  28.165436
+0.000000  LowGain  79.278440
+0.000000  LowGain  36.570599
+0.000000  LowGain  0.327101
+0.000000  LowGain  27.251751
+0.000000  LowGain  0.611565
+0.000000  LowGain  12.405559
+0.000000  LowGain  7.619532
+0.000000  LowGain  62.299336
+0.000000  LowGain  4.125966
+0.000000  LowGain  5.880028
+0.000000  LowGain  3.220817
+0.000000  LowGain  21.781901
+0.000000  LowGain  47.425875
+0.000000  LowGain  34.405202
+0.000000  LowGain  5.999170
+0.000000  LowGain  29.145380
+0.000000  LowGain  28.845599
+0.000000  LowGain  53.889466
+0.000000  LowGain  10.574557
+0.000000  LowGain  55.300176
+0.000000  LowGain  28.043296
+0.000000  LowGain  19.629507
+0.000000  LowGain  16.847062
+0.000000  LowGain  11.573078
+0.000000  LowGain  59.203532
+0.000000  LowGain  38.233489
+0.000000  LowGain  13.028018
+0.000000  LowGain  27.744055
+0.000000  LowGain  2.680862
+0.000000  LowGain  1.024656
+0.000000  LowGain  4.760072
+0.000000  LowGain  2.957298
+0.000000  LowGain  8.785078
+0.000000  LowGain  13.986518
+0.000000  LowGain  13.710315
+0.000000  LowGain  16.033440
+0.000000  LowGain  2.984811
+0.000000  LowGain  23.624265
+0.000000  LowGain  28.853516
+0.000000  LowGain  7.795053
+0.000000  LowGain  6.271188
+0.000000  LowGain  13.033197
+0.000000  LowGain  3.654715
+0.000000  LowGain  7.802338
+0.000000  LowGain  0.538228
+0.000000  LowGain  25.078646
+0.000000  LowGain  24.436052
+0.000000  LowGain  4.068048
+0.000000  LowGain  49.929734
+0.000000  LowGain  5.571941
+0.000000  LowGain  40.115938
+0.000000  LowGain  11.572367
+0.000000  LowGain  27.460681
+0.000000  LowGain  45.125601
+0.000000  LowGain  6.296080
+0.000000  LowGain  54.748712
+0.000000  LowGain  15.133970
+0.000000  LowGain  1.929037
+0.000000  LowGain  24.709391
+0.000000  LowGain  0.136459
+0.000000  LowGain  19.575089
+0.000000  LowGain  7.084186
+0.000000  LowGain  2.314883
+0.000000  LowGain  8.955868
+0.000000  LowGain  4.706946
+0.000000  LowGain  18.840171
+0.000000  LowGain  4.989499
+0.000000  LowGain  10.112238
+0.000000  LowGain  19.486115
+0.000000  LowGain  8.501543
+0.000000  LowGain  9.865505
+0.000000  LowGain  8.524017
+0.000000  LowGain  14.821777
+0.000000  LowGain  10.839990
+0.000000  LowGain  5.232313
+0.000000  HighGain  19.671840
+0.000000  SolarP_650W  14750328.755237
+0.000000  SolarP_900W  62253166.395107
+0.000000  Bus_QR  101496841.445928
+0.000000  BatteriesNiH  153575671.168289
+0.000000  Bus_FR  108931694.897533
+0.000000  BatteriesNaS  1533204.038793
+0.000000  link 8  0.025303
+0.000000  500W-PowerString  287.774699
+0.000000  650W-PowerString  287.405580
+0.000000  900W-PowerString  287.852897
+2.000020  link 8  0.822104
+2.000020  LowGain  7.486155
+19.671840  Attitude  0.538120
+23.671840  HighGain  9.842172
+23.774699  500W-PowerString  287.805508
+33.514012  Attitude  0.474989
+37.514012  HighGain  52.965881
+47.405580  650W-PowerString  287.478069
+71.852897  900W-PowerString  286.424786
+90.479892  Attitude  0.403636
+94.479892  HighGain  17.610355
+112.090247  Attitude  0.145817
+116.090247  HighGain  0.571845
+116.662092  Attitude  0.371419
+120.662092  HighGain  40.060504
+160.722596  Attitude  0.566838
+164.722596  HighGain  1.511036
+166.233632  Attitude  0.933862
+168.233632  Attitude  9.437307
+178.670939  Attitude  100000000.090204
+178.670939  HighGain  44.130913
+187.273503  LowGain  21.045003

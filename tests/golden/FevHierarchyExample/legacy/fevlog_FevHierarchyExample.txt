@@ -1,0 +1,188 @@
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  HighGain
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     Comm
+
+CRITICALITY
+
+     System Status = Yellow
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  LowGain
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     Comm
+
+CRITICALITY
+
+     System Status = Yellow
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  LowGain, HighGain
+
+     Induced Failures:   Attitude
+
+EFFECTS
+
+     Down Nodes:         n1, Comm
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  LowGain, HighGain
+
+     PM Components:      Attitude
+
+EFFECTS
+
+     Down Nodes:         n1, Comm
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  LowGain, HighGain
+
+     Idle Components:    Attitude
+
+EFFECTS
+
+     Down Nodes:         n1, Comm
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  LowGain, HighGain
+
+EFFECTS
+
+     Down Nodes:         Comm
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  LowGain, HighGain
+
+     Induced Failures:   Attitude
+
+EFFECTS
+
+     Down Nodes:         n1, Comm
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+

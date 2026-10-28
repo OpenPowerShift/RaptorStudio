@@ -1,0 +1,1311 @@
+{
+ "add_annotation": {
+  "properties": {
+   "annotation": {
+    "type": "object"
+   },
+   "annotation_id": {
+    "type": "integer"
+   },
+   "summary": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "annotation",
+   "annotation_id",
+   "summary"
+  ],
+  "type": "object"
+ },
+ "add_block": {
+  "properties": {
+   "block_id": {
+    "type": "string"
+   },
+   "name": {
+    "type": "string"
+   },
+   "warnings": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "block_id",
+   "name",
+   "warnings"
+  ],
+  "type": "object"
+ },
+ "add_event": {
+  "properties": {
+   "event_id": {
+    "type": "string"
+   },
+   "name": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "event_id",
+   "name"
+  ],
+  "type": "object"
+ },
+ "add_hierarchy": {
+  "properties": {
+   "hier_id": {
+    "type": "string"
+   },
+   "in_id": {
+    "type": "integer"
+   },
+   "name": {
+    "type": "string"
+   },
+   "out_id": {
+    "type": "integer"
+   },
+   "parent": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "hier_id",
+   "in_id",
+   "name",
+   "out_id",
+   "parent"
+  ],
+  "type": "object"
+ },
+ "add_node": {
+  "properties": {
+   "name": {
+    "type": "string"
+   },
+   "node_id": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "name",
+   "node_id"
+  ],
+  "type": "object"
+ },
+ "auto_layout": {
+  "properties": {
+   "elements_moved": {
+    "type": "integer"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "moved": {
+    "type": "boolean"
+   },
+   "scope": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "elements_moved",
+   "model_id",
+   "moved",
+   "scope"
+  ],
+  "type": "object"
+ },
+ "build_model": {
+  "properties": {
+   "model_id": {
+    "type": "string"
+   },
+   "summary": {
+    "type": "string"
+   },
+   "validation": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "model_id",
+   "summary"
+  ],
+  "type": "object"
+ },
+ "close_model": {
+  "properties": {
+   "closed": {
+    "type": "array"
+   },
+   "failed": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "closed",
+   "failed"
+  ],
+  "type": "object"
+ },
+ "collapse_selection": {
+  "properties": {
+   "hier_id": {
+    "type": "string"
+   },
+   "in_id": {
+    "type": "integer"
+   },
+   "moved": {
+    "type": "array"
+   },
+   "name": {
+    "type": "string"
+   },
+   "out_id": {
+    "type": "integer"
+   },
+   "parent": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "hier_id",
+   "in_id",
+   "moved",
+   "name",
+   "out_id",
+   "parent"
+  ],
+  "type": "object"
+ },
+ "compare_models": {
+  "properties": {
+   "best": {
+    "type": "object"
+   },
+   "deltas": {
+    "type": "object"
+   },
+   "labels": {
+    "type": "array"
+   },
+   "markdown": {
+    "type": "string"
+   },
+   "metrics": {
+    "type": "object"
+   },
+   "models_or_runs": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "best",
+   "deltas",
+   "labels",
+   "markdown",
+   "metrics",
+   "models_or_runs"
+  ],
+  "type": "object"
+ },
+ "configure_block_defaults": {
+  "properties": {
+   "block_defaults": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "block_defaults"
+  ],
+  "type": "object"
+ },
+ "configure_maintenance": {
+  "properties": {
+   "applied": {
+    "type": "boolean"
+   },
+   "element": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "applied",
+   "element"
+  ],
+  "type": "object"
+ },
+ "configure_phases": {
+  "properties": {
+   "assigned": {
+    "type": "integer"
+   },
+   "phases": {
+    "type": "integer"
+   },
+   "removed": {
+    "type": "integer"
+   },
+   "unassigned": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "assigned",
+   "phases",
+   "removed",
+   "unassigned"
+  ],
+  "type": "object"
+ },
+ "configure_sparing": {
+  "properties": {
+   "applied": {
+    "type": "boolean"
+   },
+   "element": {
+    "type": "object"
+   },
+   "warnings": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "applied",
+   "element",
+   "warnings"
+  ],
+  "type": "object"
+ },
+ "configure_system": {
+  "properties": {
+   "applied": {
+    "type": "array"
+   },
+   "ok": {
+    "type": "boolean"
+   },
+   "previous": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "applied",
+   "ok",
+   "previous"
+  ],
+  "type": "object"
+ },
+ "connect": {
+  "properties": {
+   "link_id": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "link_id"
+  ],
+  "type": "object"
+ },
+ "create_model": {
+  "properties": {
+   "model_id": {
+    "type": "string"
+   },
+   "summary": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "model_id",
+   "summary"
+  ],
+  "type": "object"
+ },
+ "delete_annotation": {
+  "properties": {
+   "deleted": {
+    "type": "integer"
+   },
+   "kind": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "deleted",
+   "kind"
+  ],
+  "type": "object"
+ },
+ "delete_element": {
+  "properties": {
+   "deleted": {
+    "type": "string"
+   },
+   "id": {
+    "type": "string"
+   },
+   "kind": {
+    "type": "string"
+   },
+   "links_removed": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "deleted",
+   "id",
+   "kind",
+   "links_removed"
+  ],
+  "type": "object"
+ },
+ "delete_file": {
+  "properties": {
+   "bytes": {
+    "type": "integer"
+   },
+   "deleted": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "bytes",
+   "deleted"
+  ],
+  "type": "object"
+ },
+ "describe_metrics": {
+  "properties": {
+   "isolation": {
+    "type": "object"
+   },
+   "metrics": {
+    "type": "array"
+   },
+   "model_hash": {
+    "type": "string"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "notes": {
+    "type": "array"
+   },
+   "run_id": {
+    "type": "string"
+   },
+   "runs": {
+    "type": "integer"
+   },
+   "units": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "metrics"
+  ],
+  "type": "object"
+ },
+ "describe_model": {
+  "properties": {
+   "block_names": {
+    "type": "array"
+   },
+   "blocks": {
+    "type": "integer"
+   },
+   "event_names": {
+    "type": "array"
+   },
+   "events": {
+    "type": "integer"
+   },
+   "hierarchies": {
+    "type": "array"
+   },
+   "link_count": {
+    "type": "integer"
+   },
+   "links": {
+    "type": [
+     "array",
+     "integer"
+    ]
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "name": {
+    "type": "string"
+   },
+   "node_names": {
+    "type": "array"
+   },
+   "nodes": {
+    "type": "integer"
+   },
+   "nodes_detail": {
+    "type": "array"
+   },
+   "system": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "blocks",
+   "events",
+   "link_count",
+   "links",
+   "model_id",
+   "name",
+   "nodes"
+  ],
+  "type": "object"
+ },
+ "diff_models": {
+  "properties": {
+   "a": {
+    "type": "object"
+   },
+   "b": {
+    "type": "object"
+   },
+   "elements": {
+    "type": "object"
+   },
+   "identical": {
+    "type": "boolean"
+   },
+   "ignored": {
+    "type": "array"
+   },
+   "links": {
+    "type": "object"
+   },
+   "phases": {
+    "type": "object"
+   },
+   "project": {
+    "type": "array"
+   },
+   "rates": {
+    "type": "object"
+   },
+   "resources": {
+    "type": "object"
+   },
+   "schema": {
+    "type": "string"
+   },
+   "spare_pools": {
+    "type": "object"
+   },
+   "structure": {
+    "type": "array"
+   },
+   "summary": {
+    "type": "object"
+   },
+   "system": {
+    "type": "array"
+   },
+   "total_changes": {
+    "type": "integer"
+   },
+   "triggers": {
+    "type": "object"
+   },
+   "truncated": {
+    "type": "boolean"
+   },
+   "warnings": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "a",
+   "b",
+   "elements",
+   "identical",
+   "ignored",
+   "links",
+   "phases",
+   "project",
+   "rates",
+   "resources",
+   "schema",
+   "spare_pools",
+   "structure",
+   "summary",
+   "system",
+   "total_changes",
+   "triggers",
+   "truncated",
+   "warnings"
+  ],
+  "type": "object"
+ },
+ "estimate_runtime": {
+  "properties": {
+   "advice": {
+    "type": "string"
+   },
+   "baseline_seconds": {
+    "type": "number"
+   },
+   "cached": {
+    "type": "boolean"
+   },
+   "estimate_seconds": {
+    "type": "number"
+   },
+   "importance_batches": {
+    "type": "integer"
+   },
+   "importance_blocks": {
+    "type": "integer"
+   },
+   "importance_mode": {
+    "type": "string"
+   },
+   "importance_seconds": {
+    "type": "number"
+   },
+   "per_run_ms": {
+    "type": "number"
+   },
+   "pilot_runs": {
+    "type": "integer"
+   },
+   "range": {
+    "type": "object"
+   },
+   "seconds_estimate": {
+    "type": "number"
+   },
+   "setup_s": {
+    "type": "number"
+   },
+   "total_batches": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "advice",
+   "baseline_seconds",
+   "cached",
+   "estimate_seconds",
+   "importance_batches",
+   "importance_blocks",
+   "importance_mode",
+   "importance_seconds",
+   "per_run_ms",
+   "pilot_runs",
+   "range",
+   "seconds_estimate",
+   "setup_s",
+   "total_batches"
+  ],
+  "type": "object"
+ },
+ "extract_hierarchy": {
+  "properties": {
+   "count": {
+    "type": "integer"
+   },
+   "hazards": {
+    "type": "array"
+   },
+   "isolation": {
+    "type": "object"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "name": {
+    "type": "string"
+   }
+  },
+  "required": [],
+  "type": "object"
+ },
+ "failure_effects": {
+  "properties": {
+   "affected": {
+    "type": "array"
+   },
+   "criticality": {
+    "type": "number"
+   },
+   "effects": {
+    "type": "object"
+   },
+   "log": {
+    "type": "array"
+   },
+   "phase": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "system_status": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "affected",
+   "criticality",
+   "effects",
+   "log",
+   "phase",
+   "system_status"
+  ],
+  "type": "object"
+ },
+ "get_element": {
+  "properties": {
+   "dependency": {
+    "type": "object"
+   },
+   "div_flow": {
+    "type": "integer"
+   },
+   "downstream": {
+    "type": "array"
+   },
+   "failure": {
+    "type": "object"
+   },
+   "full_flow": {
+    "type": "integer"
+   },
+   "id": {
+    "type": "integer"
+   },
+   "k": {
+    "type": "integer"
+   },
+   "kind": {
+    "type": "string"
+   },
+   "logistics_delay": {
+    "type": "object"
+   },
+   "maintenance": {
+    "type": "object"
+   },
+   "n": {
+    "type": "integer"
+   },
+   "name": {
+    "type": "string"
+   },
+   "node_type": {
+    "type": "string"
+   },
+   "parent": {
+    "type": "integer"
+   },
+   "phasing": {
+    "type": "boolean"
+   },
+   "position": {
+    "type": "object"
+   },
+   "repair": {
+    "type": "object"
+   },
+   "sparing": {
+    "type": "object"
+   },
+   "upstream": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "id",
+   "kind"
+  ],
+  "type": "object"
+ },
+ "get_report": {
+  "properties": {
+   "lines": {
+    "type": "array"
+   },
+   "next_offset": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "section": {
+    "type": "string"
+   },
+   "total": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "lines",
+   "next_offset",
+   "section",
+   "total"
+  ],
+  "type": "object"
+ },
+ "get_table": {
+  "properties": {
+   "display_unit": {
+    "type": "string"
+   },
+   "group": {
+    "type": "string"
+   },
+   "headers": {
+    "type": "array"
+   },
+   "key": {
+    "type": "string"
+   },
+   "next_offset": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "notes": {
+    "type": "array"
+   },
+   "rows": {
+    "type": "array"
+   },
+   "title": {
+    "type": "string"
+   },
+   "total_rows": {
+    "type": "integer"
+   },
+   "units": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "display_unit",
+   "group",
+   "headers",
+   "key",
+   "next_offset",
+   "notes",
+   "rows",
+   "title",
+   "total_rows",
+   "units"
+  ],
+  "type": "object"
+ },
+ "get_timeseries": {
+  "properties": {
+   "decimated_from": {
+    "type": "integer"
+   },
+   "envelope": {
+    "type": [
+     "null",
+     "object"
+    ]
+   },
+   "runs_included": {
+    "type": "integer"
+   },
+   "series": {
+    "type": "string"
+   },
+   "t": {
+    "type": "array"
+   },
+   "values": {
+    "type": [
+     "array",
+     "object"
+    ]
+   }
+  },
+  "required": [
+   "decimated_from",
+   "envelope",
+   "runs_included",
+   "series",
+   "t",
+   "values"
+  ],
+  "type": "object"
+ },
+ "list_annotations": {
+  "properties": {
+   "annotations": {
+    "type": "array"
+   },
+   "count": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "annotations",
+   "count"
+  ],
+  "type": "object"
+ },
+ "list_distributions": {
+  "properties": {
+   "distributions": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "distributions"
+  ],
+  "type": "object"
+ },
+ "list_models": {
+  "properties": {
+   "examples": {
+    "type": "array"
+   },
+   "models": {
+    "type": "array"
+   },
+   "next_offset": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "total": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "examples",
+   "models",
+   "next_offset",
+   "total"
+  ],
+  "type": "object"
+ },
+ "list_tables": {
+  "properties": {
+   "model_id": {
+    "type": "string"
+   },
+   "run_id": {
+    "type": [
+     "null",
+     "string"
+    ]
+   },
+   "tables": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "model_id",
+   "run_id",
+   "tables"
+  ],
+  "type": "object"
+ },
+ "manage_rates": {
+  "properties": {
+   "description": {
+    "type": "string"
+   },
+   "expr": {
+    "type": "string"
+   },
+   "name": {
+    "type": "string"
+   },
+   "rates": {
+    "type": "array"
+   },
+   "value": {
+    "type": "number"
+   }
+  },
+  "required": [],
+  "type": "object"
+ },
+ "open_model": {
+  "properties": {
+   "model_id": {
+    "type": "string"
+   },
+   "summary": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "model_id",
+   "summary"
+  ],
+  "type": "object"
+ },
+ "ping": {
+  "properties": {
+   "result": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "result"
+  ],
+  "type": "object"
+ },
+ "read_doc": {
+  "properties": {
+   "file": {
+    "type": "string"
+   },
+   "name": {
+    "type": "string"
+   },
+   "next_offset": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "offset": {
+    "type": "integer"
+   },
+   "text": {
+    "type": "string"
+   },
+   "total_lines": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "file",
+   "name",
+   "next_offset",
+   "offset",
+   "text",
+   "total_lines"
+  ],
+  "type": "object"
+ },
+ "redo_last_edit": {
+  "properties": {
+   "restored_version": {
+    "type": "integer"
+   },
+   "summary": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "restored_version",
+   "summary"
+  ],
+  "type": "object"
+ },
+ "save_model_as": {
+  "properties": {
+   "bytes": {
+    "type": "integer"
+   },
+   "dropped": {
+    "type": "array"
+   },
+   "format": {
+    "type": "string"
+   },
+   "path": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "bytes",
+   "dropped",
+   "format",
+   "path"
+  ],
+  "type": "object"
+ },
+ "search_docs": {
+  "properties": {
+   "results": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "results"
+  ],
+  "type": "object"
+ },
+ "simulate": {
+  "properties": {
+   "caveats": {
+    "type": "array"
+   },
+   "display_unit": {
+    "type": "string"
+   },
+   "estimate_seconds": {
+    "type": "number"
+   },
+   "estimated_wall_seconds": {
+    "type": [
+     "null",
+     "number"
+    ]
+   },
+   "isolation": {
+    "type": "object"
+   },
+   "model_hash": {
+    "type": "string"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "requested_runs": {
+    "type": "integer"
+   },
+   "run_id": {
+    "type": "string"
+   },
+   "runs": {
+    "type": "integer"
+   },
+   "summary": {
+    "type": "object"
+   },
+   "total_seconds": {
+    "type": "number"
+   },
+   "truncated": {
+    "type": "boolean"
+   },
+   "units": {
+    "type": "string"
+   },
+   "wall_seconds": {
+    "type": "number"
+   },
+   "warnings": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "caveats",
+   "display_unit",
+   "estimate_seconds",
+   "estimated_wall_seconds",
+   "model_hash",
+   "model_id",
+   "requested_runs",
+   "run_id",
+   "runs",
+   "summary",
+   "total_seconds",
+   "truncated",
+   "units",
+   "wall_seconds",
+   "warnings"
+  ],
+  "type": "object"
+ },
+ "single_point_failures": {
+  "properties": {
+   "cached": {
+    "type": "boolean"
+   },
+   "count": {
+    "type": "integer"
+   },
+   "elapsed_seconds": {
+    "type": "number"
+   },
+   "next_offset": {
+    "type": "null"
+   },
+   "offset": {
+    "type": "integer"
+   },
+   "spofs": {
+    "type": "array"
+   },
+   "total": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "cached",
+   "count",
+   "elapsed_seconds",
+   "next_offset",
+   "offset",
+   "spofs",
+   "total"
+  ],
+  "type": "object"
+ },
+ "sweep_parameter": {
+  "properties": {
+   "all_rows_identical": {
+    "type": "boolean"
+   },
+   "field": {
+    "type": "string"
+   },
+   "markdown": {
+    "type": "string"
+   },
+   "monotonic": {
+    "type": "boolean"
+   },
+   "rows": {
+    "type": "array"
+   },
+   "selector": {
+    "type": "string"
+   },
+   "warnings": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "all_rows_identical",
+   "field",
+   "markdown",
+   "monotonic",
+   "rows",
+   "selector",
+   "warnings"
+  ],
+  "type": "object"
+ },
+ "undo_last_edit": {
+  "properties": {
+   "restored_version": {
+    "type": "integer"
+   },
+   "summary": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "restored_version",
+   "summary"
+  ],
+  "type": "object"
+ },
+ "update_annotation": {
+  "properties": {
+   "annotation": {
+    "type": "object"
+   },
+   "annotation_id": {
+    "type": "integer"
+   },
+   "summary": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "annotation",
+   "annotation_id",
+   "summary"
+  ],
+  "type": "object"
+ },
+ "update_element": {
+  "properties": {
+   "changed": {
+    "type": "object"
+   },
+   "element": {
+    "type": "object"
+   },
+   "warnings": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "changed",
+   "element",
+   "warnings"
+  ],
+  "type": "object"
+ },
+ "validate_model": {
+  "properties": {
+   "errors": {
+    "type": "array"
+   },
+   "groups": {
+    "type": "array"
+   },
+   "runnable": {
+    "type": "boolean"
+   },
+   "warnings": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "errors",
+   "groups",
+   "runnable",
+   "warnings"
+  ],
+  "type": "object"
+ },
+ "workspace_info": {
+  "properties": {
+   "allowed_read": {
+    "type": "array"
+   },
+   "allowed_write": {
+    "type": "array"
+   },
+   "block_defaults": {
+    "type": "object"
+   },
+   "max_bytes": {
+    "type": "integer"
+   },
+   "max_models": {
+    "type": "integer"
+   },
+   "max_total_models": {
+    "type": "integer"
+   },
+   "retain_days": {
+    "type": "integer"
+   },
+   "root": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "allowed_read",
+   "allowed_write",
+   "block_defaults",
+   "max_bytes",
+   "max_models",
+   "max_total_models",
+   "retain_days",
+   "root"
+  ],
+  "type": "object"
+ }
+}

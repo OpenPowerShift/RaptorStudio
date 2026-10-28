@@ -1,0 +1,556 @@
+/* ================================================================
+   Open Power Shift · Asciidoctor theme (RAPTOR Studio help)
+   Structure follows the official v2.0.x asciidoctor.css selectors;
+   light/dark auto, ops brand colors, emoji admonition icons.
+   Verified against the HTML Asciidoctor 2.0.x emits (icons=font:
+   admonition icon cell is <i class="fa icon-note">, no .title div).
+   ================================================================ */
+
+/* ----- CSS Variables (Light default) ----- */
+:root {
+  color-scheme: light dark;
+
+  /* Brand Colors */
+  --ops-steel:      #475569;
+  --ops-tangerine:  #fb923c;
+  --ops-lightsteel: #94a3b8;
+  --ops-error:      #dc2626;
+
+  /* Background scale */
+  --ops-bg-50:  #fbfbfb;
+  --ops-bg-100: #f7f8f8;
+  --ops-bg-200: #edeef0;
+  --ops-bg-300: #e0e2e6;
+  --ops-bg-400: #bdc3cb;
+  --ops-bg-500: #95a0ad;
+  --ops-bg-600: #6f7c8a;
+  --ops-bg-700: #535e68;
+  --ops-bg-800: #394046;
+  --ops-bg-900: #23282c;
+
+  /* Theming */
+  --color-text:          var(--ops-steel);
+  --color-background:    #ffffff;
+  --color-link:          #ea7317;   /* tangerine darkened for AA contrast on white */
+  --color-heading:       var(--ops-steel);
+  --color-border:        var(--ops-bg-300);
+  --color-code-bg:       var(--ops-bg-100);
+  --color-code-text:     var(--ops-steel);
+  --color-table-stripe:  var(--ops-bg-50);
+  --color-admonition-bg: var(--ops-bg-50);
+
+  /* Admonition borders */
+  --admonition-note:      var(--ops-steel);
+  --admonition-tip:       var(--ops-tangerine);
+  --admonition-important: var(--ops-error);
+  --admonition-caution:   #e67e22;
+  --admonition-warning:   var(--ops-error);
+
+  /* Font stack */
+  --font-family: system-ui, -apple-system, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+  --font-family-monospace: 'JetBrains Mono', 'Fira Code', 'Cascadia Code',
+                           'DejaVu Sans Mono', Menlo, Consolas, monospace;
+}
+
+/* ----- Dark Mode (overwrites all) ----- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text:          #e2e8f0;
+    --color-background:    #1e293b;
+    --color-link:          var(--ops-tangerine);
+    --color-heading:       #f1f5f9;
+    --color-border:        var(--ops-bg-700);
+    --color-code-bg:       var(--ops-bg-900);
+    --color-code-text:     #cbd5e1;
+    --color-table-stripe:  var(--ops-bg-800);
+    --color-admonition-bg: var(--ops-bg-800);
+  }
+}
+
+/* ----- RESET & BASE (official structure) ----- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { font-size: 100%; scroll-behavior: smooth; }
+
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  line-height: 1.6;
+  margin: 0 auto;
+  padding: 0.5rem 2rem 2rem 2rem;
+  max-width: 64rem;
+  word-wrap: anywhere;
+  tab-size: 4;
+}
+
+img, svg { border: 0; max-width: 100%; }
+hr {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5rem 0;
+}
+mark { background: #fef08a; color: #000; padding: 0 0.2rem; }
+
+/* ----- HEADER / TOC ----- */
+#header {
+  padding: 1.5rem 0 1rem 0;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: 2rem;
+}
+#header h1 {
+  color: var(--color-heading);
+  font-size: 2.6rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+#header .details {
+  color: var(--ops-lightsteel);
+  font-size: 0.95rem;
+}
+#header #toc {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+}
+#toc #toctitle {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+#toc ul {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+#toc ul ul { padding-left: 1.5rem; }
+#toc a {
+  color: var(--color-link);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+#toc a:hover { border-bottom-color: var(--color-link); }
+
+/* Wide viewports (and the in-app help viewer): pin the TOC as a
+   fixed left sidebar, like the official toc-left layout. */
+@media (min-width: 80rem) {
+  body.toc2 {
+    max-width: none;
+    margin: 0;
+    padding-left: 17rem;
+  }
+  body.toc2 #toc {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 15rem;
+    margin: 0;
+    padding: 1rem;
+    overflow-y: auto;
+    border-top: 0;
+    border-right: 1px solid var(--color-border);
+  }
+  body.toc2 #header,
+  body.toc2 #content,
+  body.toc2 #footer { max-width: 64rem; }
+}
+
+/* ----- CONTENT SECTIONS ----- */
+#content { padding: 0.5rem 0; }
+.sect1 { margin-top: 2.5rem; }
+.sect1 > h2 {
+  font-size: 1.8rem;
+  border-bottom: 2px solid var(--ops-lightsteel);
+  padding-bottom: 0.3rem;
+  color: var(--color-heading);
+}
+.sect2 { margin-top: 1.8rem; }
+.sect2 > h3 { font-size: 1.4rem; color: var(--color-heading); }
+.sect3 { margin-top: 1.4rem; }
+.sect3 > h4 { font-size: 1.2rem; color: var(--color-heading); }
+.sect4 { margin-top: 1.2rem; }
+.sect4 > h5 { font-size: 1.1rem; color: var(--color-heading); }
+
+h1, h2, h3, h4, h5, h6 { line-height: 1.2; }
+
+/* ----- PARAGRAPHS, LISTS, LINKS ----- */
+p { margin: 0 0 1rem 0; }
+a {
+  color: var(--color-link);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+a:hover { border-bottom-color: var(--color-link); }
+ul, ol {
+  padding-left: 1.8rem;
+  margin-bottom: 1rem;
+}
+li { margin-bottom: 0.2rem; }
+dl { margin-bottom: 1rem; }
+dt { font-weight: 600; color: var(--color-heading); }
+dd { margin-left: 1.5rem; margin-bottom: 0.5rem; }
+
+/* ----- CHECKLIST -----
+   Without icons=font Asciidoctor emits literal "☐"/"✓" characters. */
+ul.checklist { list-style: none; padding-left: 0; }
+ul.checklist li p { margin: 0; }
+
+/* ----- INLINE FORMATTING ----- */
+strong, b { font-weight: 700; }
+sub, sup { font-size: 0.75em; line-height: 1; }
+sub { vertical-align: sub; }
+sup { vertical-align: super; }
+
+/* ----- CODE & VERBATIM ----- */
+code, kbd, samp {
+  font-family: var(--font-family-monospace);
+  font-size: 0.9em;
+}
+code {
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+pre {
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  border-left: 4px solid var(--ops-tangerine);
+  font-family: var(--font-family-monospace);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: normal;
+}
+pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+.literalblock pre,
+.listingblock pre {
+  background: var(--color-code-bg);
+  border-left: 4px solid var(--ops-lightsteel);
+}
+.listingblock .title,
+.literalblock .title {
+  font-weight: 600;
+  color: var(--color-heading);
+  margin-bottom: 0.25rem;
+}
+
+/* ----- CALLOUTS (conum) ----- */
+.conum {
+  display: inline-block;
+  background: var(--ops-tangerine);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  width: 1.4em;
+  height: 1.4em;
+  line-height: 1.4em;
+  text-align: center;
+  margin: 0 0.1em;
+  font-style: normal;
+}
+pre .conum { margin-left: 0.4em; }
+
+/* ----- TABLES (official structure) ----- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+  border: 1px solid var(--color-border);
+}
+th, td {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--color-table-stripe);
+  font-weight: 600;
+}
+tr:nth-child(even) td { background: var(--color-table-stripe); }
+
+/* Table frames & grids (note the class dots) */
+table.tableblock.frame-all  { border: 1px solid var(--color-border); }
+table.tableblock.frame-none { border: 0; }
+table.tableblock.grid-all td,
+table.tableblock.grid-all th { border: 1px solid var(--color-border); }
+table.tableblock.grid-rows td,
+table.tableblock.grid-rows th {
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  border-left: 0; border-right: 0;
+}
+table.tableblock.grid-cols td,
+table.tableblock.grid-cols th {
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  border-top: 0; border-bottom: 0;
+}
+
+/* ----- IMAGES / FIGURES ----- */
+.imageblock {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+.imageblock img { height: auto; }
+.imageblock .title {
+  font-weight: 600;
+  font-style: italic;
+  color: var(--ops-lightsteel);
+  margin-top: 0.4rem;
+}
+
+/* ----- EXAMPLE, SIDEBAR, QUOTE, VERSE BLOCKS ----- */
+.exampleblock {
+  background: var(--color-admonition-bg);
+  border-left: 6px solid var(--ops-lightsteel);
+  padding: 0.5rem 1.5rem;
+  margin: 1.5rem 0;
+  border-radius: 8px;
+}
+.exampleblock .title { font-weight: 700; color: var(--color-heading); }
+
+/* ----- COLLAPSIBLE BLOCKS -----
+   [%collapsible] on an example block emits a BARE <details> (no
+   .exampleblock class) wrapping <summary class="title"> + div.content,
+   so it needs the example-block chrome spelled out here. Used by the
+   tutorial's per-chapter Check yourself / Exercise answer boxes. */
+details {
+  background: var(--color-admonition-bg);
+  border-left: 6px solid var(--ops-tangerine);
+  margin: 1.5rem 0;
+  border-radius: 8px;
+}
+details > summary.title {
+  cursor: pointer;
+  padding: 0.6rem 1.5rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  list-style: none;
+  user-select: none;
+}
+details > summary.title::-webkit-details-marker { display: none; }
+details > summary.title::before {
+  content: "\25B8";                     /* right-pointing triangle */
+  display: inline-block;
+  margin-right: 0.55rem;
+  color: var(--ops-tangerine);
+  transition: transform 0.15s ease-in-out;
+}
+details[open] > summary.title::before { transform: rotate(90deg); }
+details > summary.title:hover { color: var(--color-link); }
+details > summary.title:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: -2px;
+}
+details > summary.title + .content { padding: 0 1.5rem 0.5rem; }
+
+.sidebarblock {
+  background: var(--color-admonition-bg);
+  border: 1px solid var(--color-border);
+  padding: 0.5rem 1.5rem;
+  margin: 1.5rem 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+}
+.sidebarblock .title { font-weight: 700; color: var(--color-heading); }
+
+.quoteblock {
+  margin: 1.5rem 0;
+  padding: 0.5rem 1.5rem 0.5rem 3rem;
+  border-left: 6px solid var(--ops-tangerine);
+  background: var(--color-admonition-bg);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}
+.quoteblock .attribution {
+  text-align: right;
+  font-style: normal;
+  color: var(--ops-lightsteel);
+  font-size: 0.9rem;
+}
+.quoteblock .attribution cite::before { content: "— "; }
+
+.verseblock {
+  margin: 1.5rem 0;
+  padding: 0.5rem 1.5rem;
+  background: var(--color-admonition-bg);
+  border-radius: 8px;
+  font-family: var(--font-family-monospace);
+  white-space: pre-wrap;
+}
+
+/* ----- UI ELEMENTS (kbd, menuseq, path) ----- */
+kbd {
+  display: inline-block;
+  background: var(--color-code-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.1rem 0.5rem;
+  font-family: var(--font-family-monospace);
+  font-size: 0.85rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.keyseq kbd { margin: 0 0.1rem; }
+.menuseq { font-weight: 500; }
+.menuseq .menu { color: var(--color-heading); }
+.menuseq .submenu { color: var(--ops-lightsteel); }
+.menuseq .menuitem { font-weight: 600; }
+.path { font-family: var(--font-family-monospace); font-size: 0.9em; }
+
+/* ----- ROLE UTILITIES (text alignment, sizing) ----- */
+.text-left     { text-align: left; }
+.text-right    { text-align: right; }
+.text-center   { text-align: center; }
+.text-justify  { text-align: justify; }
+.small { font-size: 0.85rem; }
+.big   { font-size: 1.2rem; }
+.underline    { text-decoration: underline; }
+.line-through { text-decoration: line-through; }
+.overline     { text-decoration: overline; }
+
+/* ================================================================
+   ADMONITIONS
+   Rendered without icons=font, so no FontAwesome dependency:
+   .admonitionblock > table > td.icon > div.title ("Note") +
+   td.content. The .title text is hidden and replaced with an
+   emoji glyph per type.
+   ================================================================ */
+.admonitionblock { margin: 1.5rem 0; }
+.admonitionblock > table {
+  border: 0;
+  border-left: 6px solid;   /* per-type color below */
+  background: var(--color-admonition-bg);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+.admonitionblock > table td {
+  border: 0;
+  padding: 0.8rem 1.2rem;
+  vertical-align: middle;
+  background: transparent;  /* stripe rule targets td; keep these clear */
+}
+.admonitionblock > table tr { background: transparent; }
+.admonitionblock td.icon {
+  width: 3.2rem;
+  text-align: center;
+  padding-right: 0.2rem;
+}
+.admonitionblock td.icon .title {
+  font-size: 0;             /* hide the "Note"/"Tip" text … */
+  line-height: 1;
+}
+.admonitionblock td.icon .title::before {
+  display: block;           /* … and show the emoji instead */
+  font-size: 1.8rem;
+  line-height: 1;
+}
+.admonitionblock td.content { padding-left: 0.5rem; }
+.admonitionblock td.content > .title {
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+.admonitionblock.note      > table { border-left-color: var(--admonition-note); }
+.admonitionblock.tip       > table { border-left-color: var(--admonition-tip); }
+.admonitionblock.important > table { border-left-color: var(--admonition-important); }
+.admonitionblock.caution   > table { border-left-color: var(--admonition-caution); }
+.admonitionblock.warning   > table { border-left-color: var(--admonition-warning); }
+
+.admonitionblock.note      td.icon .title::before { content: "📘"; }
+.admonitionblock.tip       td.icon .title::before { content: "💡"; }
+.admonitionblock.important td.icon .title::before { content: "❗"; }
+.admonitionblock.caution   td.icon .title::before { content: "⚠️"; }
+.admonitionblock.warning   td.icon .title::before { content: "🚨"; }
+
+/* ----- FOOTNOTES ----- */
+#footnotes {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  color: var(--ops-lightsteel);
+}
+
+/* ----- FOOTER ----- */
+#footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--color-border);
+  font-size: 0.9rem;
+  color: var(--ops-lightsteel);
+  text-align: center;
+}
+#footer-text { margin: 0; }
+
+/* ----- opsmodel:: macro (open a model in RAPTOR Studio) ----- */
+.ops-open-model {
+  display: inline-block;
+  background: var(--ops-tangerine);
+  color: #fff;
+  border-bottom: 0;
+  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+.ops-open-model:hover {
+  background: #ea7317;
+  border-bottom: 0;
+  color: #fff;
+}
+
+/* ----- PRINT ADJUSTMENTS ----- */
+@media print {
+  html { scroll-behavior: auto; }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    max-width: 100%;
+    margin: 1cm;
+    padding: 0;
+  }
+  body.toc2 { padding-left: 0; }
+  body.toc2 #toc,
+  #header #toc { display: none; }
+  .admonitionblock > table { box-shadow: none; border-left-width: 3px; }
+  /* Answer boxes must print expanded — three spellings so old and new
+     Chromium/WebKit/Gecko all reveal a closed <details>. */
+  details { display: block; border-left-width: 3px; }
+  details::details-content { content-visibility: visible !important; }
+  details:not([open]) > *:not(summary) { display: block !important; }
+  details > summary.title::before { content: none; }
+  pre { border-left-width: 2px; }
+  a { color: #000 !important; border-bottom: 1px solid #000; }
+  th, td { border-color: #aaa; }
+}
+
+/* ----- COPYRIGHT FOOTER (user ask: "add a copyright with the current
+   year and OpenPowerShift as a footer on all Asciidoc documents") ----- */
+.copyright-footer {
+  margin-top: 3em;
+  padding-top: 1em;
+  border-top: 1px solid var(--color-border);
+  color: var(--ops-bg-400, #8b8f96);
+  font-size: 0.85rem;
+}

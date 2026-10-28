@@ -1,0 +1,207 @@
+[[ch-transients]]
+== Transients: The Honeymoon Every New Machine Gets
+
+*Time: about 25 minutes.*
+*New ideas: startup transients, steady-state behaviour, delayed
+statistics gathering.*
+
+=== You will learn
+
+* Why every simulation starts with a hidden, optimistic bias.
+* How to tell a "new machine" number from a "steady state" number.
+* How to discard the honeymoon and measure what a system is *really*
+  like once it has settled in.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-trials>> finished.
+* The file `models/Laundromat1.rbds`.
++
+opsmodel:Laundromat1[]
+
+=== The story
+
+Every model in this book so far has started the same way: at t = 0,
+every part is brand new. That is not a modelling choice you made — it
+is the simulator's own default, and it is not always true to life. A
+laundromat's washing machine, fresh out of the crate, is not a fair
+stand-in for the same machine three years into daily service. If you
+only ever simulate short missions, you are quietly asking "how good is
+this thing when it's new?" — even when the question you meant to ask
+was "how good is this thing, most of the time, for years to come?"
+
+=== One new idea: the startup transient
+
+Open `models/Laundromat1.rbds`. One block, `Washer`, Weibull wear-out
+(shape 2.5, scale 200 hours), repaired in about 12 hours when it
+breaks. The file ships set to a 200-hour mission — one wear cycle,
+roughly the kind of mission length <<ch-first-model>> through
+<<ch-trials>> have all used. Press F5 at 200 trials.
+
+[cols="3,2",options="header"]
+|===
+|Measure |This 200-hour run
+|Availability |about 0.96
+|===
+
+image::laundromat-naive.png[Laundromat1 Overview tab: the naive 200-hour run, Availability about 0.96]
+
+That number is not wrong. It is answering a real question: *"how does
+a fresh washer perform over its first 200 hours?"* But every one of
+those 200 trials started the same way — brand new, zero wear, zero
+chance yet to have failed even once. This early-life advantage is
+called a **startup transient**: a real, measurable bias toward
+optimism that fades only once a system has lived through enough of its
+own history to behave like *itself*, not like a showroom model.
+
+[TIP]
+====
+A startup transient is not a modelling mistake — it is simulation
+theory, the same way sampling noise in <<ch-trials>> is not a mistake.
+Every simulator that starts "as good as new" carries this bias; the
+question is only whether your mission length is short enough for it to
+matter.
+====
+
+=== Find the steady state
+
+Open **Project Settings**. Stretch the mission from 200 to **2200
+hours** — long enough that the first 200 "new machine" hours become a
+small fraction of the whole — and run 200 trials again.
+
+[cols="3,2",options="header"]
+|===
+|Measure |200 h (naive) |2200 h (full run)
+|Availability |about 0.96 |about 0.94
+|===
+
+The number moved. Not because anything about the washer changed — the
+same dice, the same wear curve — but because a longer run dilutes the
+honeymoon with a much larger stretch of ordinary, already-broken-in
+behaviour. This is the system settling into its **steady state**: the
+behaviour it actually has, most of the time, once "new" has worn off.
+
+=== One more idea: delayed statistics gathering
+
+Stretching the mission and eyeballing the drift works, but it mixes
+the honeymoon back in — it is diluted, not gone. RAPTOR Studio has a
+sharper tool: **Statistics start time**, in the same Project Settings
+dialog. Set it to **2000 hours** (keep the mission at 2200) and run
+again:
+
+[cols="3,2",options="header"]
+|===
+|Measure |200 h (naive) |2200 h, delayed to 2000 h
+|Availability |about 0.96 |about 0.94
+|===
+
+Watch the event log for the moment it happens:
+
+----
+1903.428623   System   State_change   Green   system_change_status
+
+2000.000000  Started Gathering Statistics
+2058.425471   Block   Washer   Failed   Operating_time=154.996848
+----
+
+At exactly `t = 2000`, every counter in the report — Availability,
+MTBDE, MDT, all of it — zeroes out and starts over, mid-run, with the
+washer already mid-life. The final report reads as if the mission
+*began* at 2000 hours, in whatever state the system had already
+reached by then. Everything from 0 to 2000 hours ran, and mattered —
+it is *why* the washer is mid-life at the reset — but none of it is
+*counted*.
+
+[NOTE]
+====
+Naive and delayed-stats gave nearly the same number here (about 0.94
+either way) because 2200 hours is already long enough to mostly dilute
+a 200-hour honeymoon on its own. The gap would be far starker on a
+shorter total run — try 400 hours total with statistics starting at
+200, and compare. Delayed-stats gathering does not depend on the
+total mission being long enough to dilute the bias; it removes it
+outright, however long the honeymoon actually is.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |Why is the 200-hour, brand-new-washer number *not* a wrong answer —
+just an answer to a different question than "steady state"?
+|2 |What happens to every report counter at the instant Statistics
+start time is reached?
+|3 |A colleague proposes fixing the bias by just running 10x more
+trials at 200 hours each. Would that remove the startup transient?
+Why or why not?
+|===
+
+.Answers
+[%collapsible]
+====
+. It answers a real question — "how good is a fresh washer over its
+   first 200 hours?" — honestly. It is only the wrong number if the
+   question you actually meant was about long-term, steady-state
+   behaviour instead.
+. Every monitored counter (Availability, MTBDE, MDT, and the rest)
+   zeroes out and restarts from that instant, using the system's
+   CURRENT state as the new starting point — the time before the
+   reset still happened and still shaped that current state, it is
+   just no longer counted.
+. No. More trials at the same 200-hour length gives a *tighter*
+   estimate of the same biased "new machine" number — narrower error
+   bars around the wrong target, not a shift toward the true
+   steady-state figure. Only a longer mission, or Statistics start
+   time, removes the bias itself.
+====
+
+=== Exercise
+
+The laundromat's owner wants to quote *new* customers a number: "how
+reliable is this washer in its first week?" Which of this chapter's
+two numbers should go on the flyer — and which one should go in the
+maintenance budget spreadsheet instead? Then verify your instinct: run
+`Laundromat1.rbds` at its original 200-hour, zero-delay setting for
+2000 trials, and compare the tightness of that estimate (its SEM)
+against a 2000-trial run of the 2200-hour, 2000-hour-delayed setting.
+
+.Answer
+[%collapsible]
+====
+The first-week number (about 0.96) belongs on the flyer —
+it is a true, honest answer to "how will this feel to a new
+customer." The steady-state number (about 0.94) belongs in the
+budget — it is what the owner should actually plan repair costs and
+staffing around for the long haul. The two 2000-trial SEMs come out
+close to each other (both a few thousandths) — running longer per
+trial does not cost you much precision, so there is little reason to
+prefer the naive setting once you know the honeymoon is there to be
+removed.
+====
+
+.Limits of this model
+[NOTE]
+====
+This chapter used a single wearing-out part, which makes the
+honeymoon easy to see and easy to explain. Real startup transients are
+often driven by more than part age: the manual's own version of this
+lesson uses a model with spare-parts logistics, where the bigger bias
+is that every stockroom starts *completely full* and every resource
+starts *completely available* — a bias about supply, not about wear.
+A system with sparing (<<ch-sparing>>) or shared resources carries
+both kinds of transient at once, and this chapter's simple single-part
+case does not show you the logistics half.
+====
+
+=== What you learned
+
+* Every simulation starts "as good as new" by default — a real bias,
+  not a modelling error, called a startup transient.
+* A long enough mission dilutes the bias; **Statistics start time**
+  removes it outright, at whatever instant you choose.
+* Neither the "new" number nor the "steady-state" number is universally
+  right — pick the one that matches the question you are actually
+  asking.
+
+Next chapter: parts that run out, and what happens when the shelf
+finally goes bare.

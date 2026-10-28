@@ -1,0 +1,61 @@
+{
+ "ComplexModel:edited": {
+  "changed": [
+   "HIERARCHY_DATA[0].xPos=11.562500"
+  ],
+  "digest": "4ed93dfd3121a18c86296095f3e0d95d241d753eb249f3eff78db796817a69e5",
+  "idempotent": true,
+  "renamed": 2
+ },
+ "ComplexModel:untouched": {
+  "changed": [],
+  "digest": "09ace82631cd3293fbd3f27594d859c538dd92a986311ace5f1b4a46b3704135",
+  "idempotent": true,
+  "renamed": 0
+ },
+ "EventDepProbe:edited": {
+  "changed": [
+   "EVENT_DATA[0].xPos=3.437500",
+   "EVENT_DATA[0].yPos=-2.500000"
+  ],
+  "digest": "fa8a7eb48673f8d713e527c3b8e437c5c142fdc05f8ef4340afa26cec9ca0c33",
+  "idempotent": true,
+  "renamed": 2
+ },
+ "EventDepProbe:untouched": {
+  "changed": [],
+  "digest": "3d9b6c7b7f1ab780b6f0834781f745489caf4cc487cd6cde60df3da633e5c1ae",
+  "idempotent": true,
+  "renamed": 0
+ },
+ "Phasing3:edited": {
+  "changed": [
+   "EVENT_DATA[0].xPos=9.062500",
+   "EVENT_DATA[1].xPos=9.062500",
+   "HIERARCHY_DATA[0].xPos=11.562500",
+   "HIERARCHY_DATA[1].xPos=11.562500",
+   "HIERARCHY_DATA[2].xPos=11.562500"
+  ],
+  "digest": "58714fc457ceefafb94f00b5f63c0ab8783e1fc0c0c5df53130c3ce7c2b62405",
+  "idempotent": true,
+  "renamed": 2
+ },
+ "Phasing3:untouched": {
+  "changed": [],
+  "digest": "5d5303cfd27da54665cb04b45b7aebf47c52532420e630e370a78de708223ef6",
+  "idempotent": true,
+  "renamed": 0
+ },
+ "TwoBlockRedundancy:edited": {
+  "changed": [],
+  "digest": "13f21b1feb5a9e5590b1270aa79910dbc96d39f1dc5847af699021c285017f5f",
+  "idempotent": true,
+  "renamed": 2
+ },
+ "TwoBlockRedundancy:untouched": {
+  "changed": [],
+  "digest": "f119873a8c72898cfd15c69678708be9cb2e94ea54334b4a1a4ff742503bb387",
+  "idempotent": true,
+  "renamed": 0
+ }
+}

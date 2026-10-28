@@ -1,0 +1,145 @@
+End_Of_Run Report for input.rbd  PROBE
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.616352201
+MTBDE                      9.800000
+MDT                        6.100000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              79.500000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  7.000000
+MTBMu                 49.000000
+MTBMs                 8.166667
+MMT                   20.000000
+MMTu                  60.000000
+MMTs                  13.333333
+GreenPercent          16.352201
+YellowPercent         45.283019
+RedPercent            38.364780
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.000000       9.800000      15.000000       6.220932
+DT                             1.000000       6.100000      12.000000       5.572253
+TBM                           10.000000      10.000000      10.000000            N/A
+RT                            60.000000      60.000000      60.000000            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+PMA                         1   Infinite                     1
+PMB                         0   Infinite                     0
+PMC                         0   Infinite                     0
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.616352201
+MTBDE                      9.800000
+MDT                        6.100000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              79.500000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  7.000000
+MTBMu                 49.000000
+MTBMs                 8.166667
+MMT                   20.000000
+MMTu                  60.000000
+MMTs                  13.333333
+GreenPercent          16.352201
+YellowPercent         45.283019
+RedPercent            38.364780
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.000000       9.800000      15.000000       6.220932
+DT                             1.000000       6.100000      12.000000       5.572253
+TBM                           10.000000      10.000000      10.000000            N/A
+RT                            60.000000      60.000000      60.000000            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+PMA                         1   Infinite                     1
+PMB                         0   Infinite                     0
+PMC                         0   Infinite                     0
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.616352201
+MTBDE                      9.800000
+MDT                        6.100000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              79.500000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  7.000000
+MTBMu                 49.000000
+MTBMs                 8.166667
+MMT                   20.000000
+MMTu                  60.000000
+MMTs                  13.333333
+GreenPercent          16.352201
+YellowPercent         45.283019
+RedPercent            38.364780
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.000000       9.800000      15.000000       6.220932
+DT                             1.000000       6.100000      12.000000       5.572253
+TBM                           10.000000      10.000000      10.000000            N/A
+RT                            60.000000      60.000000      60.000000            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+PMA                         1   Infinite                     1
+PMB                         0   Infinite                     0
+PMC                         0   Infinite                     0
+
+
+

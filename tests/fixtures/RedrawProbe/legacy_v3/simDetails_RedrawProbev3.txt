@@ -1,0 +1,60 @@
+Begining Procedure RunEFPA......
+
+n1  EFPAout=1
+   end  through link 7
+N  EFPAout=1
+   P  through link 6
+P  EFPAout=1
+   end  through link 7
+BlockH  EFPAout=1
+   N  through link 5
+BlockG  EFPAout=1
+   N  through link 5
+BlockR  EFPAout=1
+   N  through link 5
+BlockG2  EFPAout=1
+   P  through link 9
+BlockN  EFPAout=1
+   end  through link 11
+BlockA  EFPAout=1
+   end  through link 12
+0.000000  BlockR  103148.330588
+0.000000  BlockA  42.422853
+5.000000  BlockR  0.577767
+15.000000  BlockN  1.357908
+15.000000  BlockR  0.988878
+15.000000  BlockG  18.197383
+15.000000  BlockG2  1.455647
+23.357908  BlockN  3.582951
+25.455647  BlockG2  0.135673
+33.940859  BlockN  13.185966
+34.591320  BlockG2  8.544343
+38.197383  BlockR  0.614553
+52.422853  BlockA  128.328214
+57.126825  BlockN  70.872493
+57.126825  BlockR  0.213983
+57.126825  BlockG  3.101556
+57.126825  BlockG2  3.829377
+65.228381  BlockR  0.614409
+0.000000  BlockR  268451.234134
+0.000000  BlockA  14.355988
+5.000000  BlockR  0.103470
+15.000000  BlockN  8.260849
+15.000000  BlockR  0.863165
+15.000000  BlockG  9.324668
+15.000000  BlockG2  4.625847
+24.355988  BlockA  60.810657
+28.625847  BlockG2  7.319627
+29.324668  BlockR  0.279039
+45.945474  BlockN  0.566247
+45.945474  BlockR  0.908516
+45.945474  BlockG  1.186597
+45.945474  BlockG2  2.475553
+52.132071  BlockR  0.041585
+62.132071  BlockN  1.098424
+62.132071  BlockR  0.795442
+62.132071  BlockG  7.258858
+62.132071  BlockG2  7.081996
+70.230495  BlockN  26.588223
+74.390928  BlockR  0.248779
+95.166644  BlockA  93.824059

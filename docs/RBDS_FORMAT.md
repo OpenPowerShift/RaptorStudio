@@ -1,0 +1,561 @@
+# `.rbds` — RAPTOR Studio Model Format (v1)
+
+**Status:** default save format for new models. Legacy `.rbd` files open
+exactly as before and are re-saved as `.rbd` unless you explicitly Save
+As `.rbds`.
+
+## Goals
+
+1. **Simple** — one UTF-8 JSON document, human-readable, diff-friendly.
+2. **Each value stored once** — a setting lives in exactly one place, so
+   editing the file by hand (or by an AI) always takes effect.
+3. **Complete** — every Raptor 7 column is kept, so nothing is lost and a
+   `.rbd` → `.rbds` → `.rbd` round trip is byte-exact.
+4. **Extensible** — unknown keys are preserved on read→write.
+5. **AI-generatable** — friendly snake_case names for everything an
+   author needs; a minimal valid file is ~30 lines.
+
+## Top-level shape
+
+```json
+{
+  "format": "raptor-studio",
+  "version": 1,
+  "meta":       { "generator": "RAPTOR Studio 0.8.0", "file_name": "..." },
+  "system":     { ...mission-wide settings (not the run settings)... },
+  "experiment": { ...the run settings: trials, termination, analyses... },
+  "elements": {
+    "blocks":       [ Block, ... ],
+    "nodes":        [ Node, ... ],
+    "events":       [ Event, ... ],
+    "hierarchies":  [ Hierarchy, ... ]
+  },
+  "links":          [ Link, ... ],
+  "spare_pools":    [ SparePool, ... ],
+  "resources":      [ Resource, ... ],
+  "triggers":       [ Trigger, ... ],
+  "phases":         [ Phase, ... ],
+  "defaults":       { "blocks": Block, ... },
+  "comments":       [ {"type": "...", "id": 1, "name": "...",
+                       "text": "..."} ],
+  "rates": [...], "formulas": {...}, "annotations": [...],
+  "display_unit": "...", "view_transform": {...}, "project_meta": {...}
+}
+```
+
+`meta.generator` records the program and version that wrote the file; it
+is informational. The model's file name is the file's own name. `defaults` holds the hidden template rows Raptor 7 keeps
+in a model (the settings a new element starts from); they are not
+elements. A default row that is not first in its section carries
+`"at": <index>` so its place is kept.
+
+All sections except `"format"` are optional. A reader merges whatever is
+present over its built-in defaults, exactly like opening a sparse legacy
+file.
+
+## Element objects
+
+Every element has **two layers**, and each value is in exactly one:
+
+1. **Friendly fields** — the ones authors (human or AI) set:
+   `id`, `name`, `parent` (hierarchy id, 0 = home), `x`, `y`, plus the
+   per-kind fields listed below. All optional; sensible defaults. Numbers
+   are JSON numbers (`"fail_dist": 4`, not `"4"`).
+2. **`"legacy"`** — every other Raptor 7 column, verbatim as text
+   (`PMMisDefer`, `SpType`, …). Edit these here; they have no friendly
+   name yet.
+
+Precedence on read: defaults ← `legacy` ← friendly fields. A friendly
+field always wins over the same column in `legacy`.
+
+**One exception keeps round trips byte-exact.** Raptor 7 does not always
+spell a number the same way (`"1"` in one file, `"1.000000"` in another).
+When the reader would not rebuild a column's exact text from its friendly
+value, the writer also keeps that text in `legacy`; the reader then keeps
+the `legacy` spelling as long as the two agree in value. Change the
+friendly value and the change wins.
+
+### Values the reader computes (never stored)
+
+A value that follows from the rest of the model is not written, so a hand
+edit cannot leave it stale. The reader computes:
+
+| Value | From |
+|---|---|
+| a node's incoming paths (`n`) and outgoing links (`Out`) | the links |
+| a block's or event's link counts (`In`, `Out`) | the links |
+| a block's parameter counts (`#FParam`, `#RParam`) | its distribution (not for Empirical, whose count is its number of points) |
+| a link's level (`parent`) | its two ends, when they are on the same level; a link into or out of a hierarchy stores it |
+| a rate's `value` | its `expr` |
+| a linked field's number | its rate or expression in `formulas` |
+| the header counts | the rows |
+
+**One column is not carried.** `imageString`, the original's system-status picture, is dropped on write
+(the product shows the system colour in the status bar instead). A `.rbds` read back fills it from the
+template's default so a `.rbd` made from it still opens in real Raptor. A legacy `.rbd` opened and saved
+as `.rbd` keeps whatever value it had; only the `.rbds` route forgets it.
+
+**Ids and references.** `id` is optional; an omitted id is auto-assigned from
+**one pool shared across every element kind** (Block, Node, Event, Hierarchy,
+Link), in section order (blocks → nodes → events → hierarchies → links). The
+value therefore depends on how many elements of *other* kinds precede it:
+declare four blocks first and the first node becomes `5`, not `1`. The format
+itself only requires uniqueness *within* a kind (see the Block `id` row), but
+because auto-assigned numbers are pooled, any element that another field points
+at by id — `parent`, a hierarchy's `in_id`/`out_id`, a dependency `dep_num`, or
+a `["Block", n]`-style link endpoint — should be given an **explicit `id`**
+rather than left to auto-assignment.
+
+### Block
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| id | int | required | unique among Blocks (NOT globally -- a Node/Event/Hierarchy may legitimately share this same number; real Raptor allows it, every reference elsewhere pairs an id with its kind, e.g. `"Block:2"`) |
+| name | str | "unnamed" | no spaces, at most 20 characters (RAPTOR Studio refuses longer names) |
+| parent | int | 0 | hierarchy id this block lives in |
+| x, y | float | 0,0 | canvas position (model units) |
+| fail_dist | int | 4 | distribution code (see table) |
+| fail_params | [f,f,f] | [100,0,0] | up to 3 params |
+| fail_stream | int | 203 | ±1..110 independent (negative = antithetic) or 201..210 = system A–J |
+| repair_dist | int | 7 | code |
+| repair_params | [f,f,f] | [10,2,0] | |
+| repair_stream | int | 203 | same encoding |
+| uses_phasing | bool | false | element runs a phase schedule (the schedule itself is the `P 001`… columns in `legacy`) |
+| dep_type | str | "None" | what this block follows: `RBDBlock`, `RBDNode`, `RBDEvent`, `RBDHier` or `None` (see Dependency below) |
+| dep_num | int | 0 | id of the element it follows; `-1` = its own node (local), `-2` = the whole system |
+| dep_nothing, dep_idle, dep_pm, dep_fail | float % | 0, 100, 0, 0 | what happens when the followed element goes down: no effect / forced Idle / preventive maintenance / induced failure. Should add to 100 |
+
+`fail_dist` and `repair_dist` also accept a distribution **name**
+(`"Weibull"`, `"Uniform Real"`, `"Pearson 5"`; see the table below); the
+writer stores the code. An unknown name is an error.
+
+#### Dependency
+
+A dependent block reacts when the element it follows goes down. The
+percentages give the chance of each reaction: **Idle** pauses the block
+(its failure clock stops and resumes when the target is back), **nothing**
+leaves it alone, **pm** sends it for preventive maintenance and **fail**
+induces a failure. For `dep_type = RBDHier`, `dep_num` is the hierarchy's
+**Out** node id, not the hierarchy id. Use `get_element` (MCP) to read the
+decoded setting with a plain-English `meaning`, and `update_element` to
+change it. A block that depends on the unit it backs up gives no independent
+redundancy: it is idle exactly when it is needed.
+
+### Node
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| id | int | required | unique among Nodes only -- see the Block `id` row above |
+| name | str | | optional; at most 20 characters, no spaces. `start` and `end` are reserved |
+| type | int | 2 | 1 Start · 2 Regular · 3 End · 4 In-marker · 5 Out-marker |
+| parent | int | 0 | |
+| x, y | float | | |
+| k | int | 1 | required-good count (K-of-N). `-1` is the "K-of-N dialog never opened" sentinel: it is stored and reported as `-1`, and treated as **1** when the model runs — it does **not** mean "all incoming paths required"; use `k = n` for an all-required node. Real Raptor ignores `k` on an **End** node (it needs one good path there) and its GUI never offers it: put the K-of-N on a node in front of End and link that node to End. `validate_model` warns about an End node with `k > 1`. |
+| full_flow | int 0/1 | 1 | "Unrestricted flow" — 1 lets all flow pass straight through this node; **0 makes it a capacity boundary** (see Links/System below) |
+| div_flow | int 0/1 | 1 | "Use any available path" — 0 also makes the node a capacity boundary |
+
+A node's incoming and outgoing link counts are computed from the links
+(see "Values the reader computes").
+
+**Start and In markers allow one outgoing link.** A `Node` of type
+`start` (1) or `in` (4) may carry a single outgoing link, and an `end` (3)
+or `out` (5) marker a single incoming one. Fanning a Start/In marker out to
+several branches therefore needs an ordinary node first:
+
+```
+Start -> Split -> (A | B | C)
+```
+
+`build_model` enforces this with RAPTOR Studio's own message; a spec that
+links a Start/In marker to two elements is refused.
+
+**Fan-in/fan-out only happens through a Node.** A Block or Event allows
+at most one incoming and one outgoing link; two blocks feeding the same
+downstream element, or one block feeding two others, must each route
+through an intermediate Node instead of linking block-to-block directly.
+Raptor 7 also needs a Node's `n` to equal its real incoming link count
+exactly; the `.rbds` reader computes it from the links, so only `k` needs
+setting when not all paths are required. Violating the fan-in/fan-out
+rule is an `ERROR` from `build_model`'s validation (ported from
+`builder.validate()`); on a hand-edited `.rbd` it crashes real Raptor
+with `MODSIM Runtime error: Access Violation` instead, so the check
+exists to catch it first. `create_model(template="parallel"|"k_of_n")`
+builds a correct converge-through-a-Node example to copy.
+
+### Event
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| id, name, parent, x, y | | | as Block |
+| prob | float 0..1 | 0.5 | firing probability |
+
+### Hierarchy
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| id | int | required | referenced by children's `parent` |
+| name | str | | oval label; at most 20 characters, no spaces |
+| parent | int | 0 | enclosing hierarchy (nesting) |
+| in_id, out_id | int | required | ids of its type-4/5 marker nodes |
+| x, y | float | | oval position on the PARENT level |
+
+**The In/Out marker nodes' own `parent` must be the hierarchy's `id`
+itself** (they live *inside* the hierarchy they mark), not the
+hierarchy's own `parent` (its enclosing level). E.g. hierarchy `id=100`
+with `in_id=3, out_id=4` needs node 3 and node 4 each written with
+`"parent": 100` — not `0` or the id of whatever hierarchy `100` itself
+nests inside. Getting this backwards is caught by `validate_model`
+(`ERROR: node ... is hierarchy ...'s 'in'/'out' marker but its own
+parent=... -- must equal ...`); before that check existed it crashed
+model-building with a bare `KeyError`.
+
+### Link
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| id | int | required | unique among links |
+| from | ["Block"\|"Node"\|"Event"\|"Hier", id] | required | source endpoint |
+| to | same | required | target endpoint |
+| parent | int | from its ends | level the link is drawn on. Only needed (and only written) for a link whose ends are on different levels |
+| cold_pri | int | 50 | cold-standby priority (lower switches in first) |
+| a_prob | float | 1.0 | probability an automatic switchover succeeds |
+| auto_time, man_time | float | 0 | automatic / manual switchover time |
+| nom_flow | int | -2 | nominal flow this link carries; `-2` = even share of the node's flow, `-1` = `flow_generated`, `>= 0` = an explicit cap |
+| max_flow | int | -1 | maximum flow this link can carry; same `-2`/`-1` sentinels, `>= 0` = explicit cap |
+| cap_pri | int | 50 | capacity priority — lower fills first when a boundary node distributes flow |
+
+Capacity caps (`nom_flow`/`max_flow`) bind **only on links entering a
+capacity-boundary node** — a node with `full_flow = 0` or `div_flow = 0`
+(or a Start/End node). On any other (transparent) node the caps are
+ignored. See `capacity_analysis` / `flow_generated` under System below.
+
+Both flow fields are **whole numbers**. The legacy `.rbd` format stores
+them with `ReadInt`/`WriteInt`, so a decimal is refused on entry
+(`Nominal flow must be a whole number!` / `Max flow must be a whole
+number!`) and reported by `validate_model`: the reader stops at the
+decimal point, which shifts every later token and makes Raptor 7 crash
+with `MODSIM Runtime error: Access Violation` while opening the file. The
+analyses engine already truncates a fractional value (`133.76` behaves as
+`133`), so enter the whole number you mean.
+
+### Auxiliary tables (spare pools, resources, triggers, phases)
+
+These four sections are **keyed** lists rather than element lists: each entry
+is a flat object whose friendly field names map onto the legacy table columns,
+and none of them carries a meaningful numeric id.
+
+```json
+"spare_pools": [
+  {"name": "RackSpares", "stock": 33, "new_spares": 1,
+   "arrive_every": 730, "eso": 1, "emer_time": 730,
+   "slo": 0, "level": 0, "quantity": 1, "slo_time": 24,
+   "rso": 1, "spare_cost": 1.0, "emer_ship_cost": 1.0}
+],
+"resources": [
+  {"name": "Crew", "num_in": 2, "spare_cost": 1.0,
+   "fixed_per_use": 100.0, "per_time_unit": 50.0, "phases": 0}
+],
+"triggers": [
+  {"name": "Storm", "repeats": 1, "init_used": 0.0,
+   "dist": 8, "params": [288, 1, 0]}
+],
+"phases": [
+  {"name": "Summer", "num": 1, "mission": 1,
+   "duration_dist": 19, "params": [8760, 0, 0]}
+]
+```
+
+| Section | Friendly fields |
+|---|---|
+| `spare_pools` | `name`, `stock`, `new_spares`, `arrive_every`, `eso`, `emer_time`, `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost` |
+| `resources` | `name`, `num_in`, `spare_cost`, `fixed_per_use`, `per_time_unit`, `phases` |
+| `triggers` | `name`, `repeats`, `init_used`, `dist`, `params` |
+| `phases` | `name`, `num`, `mission`, `duration_dist`, `params` |
+
+A block's `sparing_type` is `Infinite`, `Custom`, `Pooled` or `Resource`.
+With `Custom`, the block's own `stock`/`restock_every` govern. With `Pooled`,
+the **pool's** `stock` and `arrive_every` govern; the block's own `stock`
+column is not used. `dist`/`duration_dist` accept a name or a code, like
+`fail_dist`.
+
+The API addresses these rows by name (`Pool:RackSpares`, `Resource:Crew`,
+`Trigger:Storm`, `Phase:Summer`), and they can be created and edited on a live
+model through `manage_spare_pools`, `manage_resources` and `manage_triggers`
+(`configure_phases` for phases) — not only at `build_model` time.
+
+### System
+
+Friendly names for the mission-wide knobs (all optional):
+
+`units` ("hours"), `graphics` ("GraphicsOn"/"GraphicsOff"),
+`flow_generated` (int, the demand injected at the Start node),
+`node_anal_type` ("Availability"/"Dependability"),
+`gy_threshold`, `yr_threshold` (floats, availability-style bands),
+`sys_streams` ([10+ ints], seeds for shared streams A–J),
+`red_cost`, `lost_cost`. Other SYSTEM_DATA columns are in its `legacy`.
+
+### Experiment (run settings)
+
+The run settings live here and nowhere else:
+
+```json
+"experiment": {
+  "trials": 200,
+  "termination_type": "TimeSim",      // "TimeSim" | "FailSim" | "CycleSim"
+  "term_condition": 8760.0,           // run length, or failure / cycle count
+  "start_stats": 0.0,
+  "analyses": ["weak", "cost"],       // any of "weak", "cost", "capacity"
+  "importance": "none",               // "none" | "improvement" | "risk" | "both"
+  "recording": {"event_log": true, "ao_plot": false, "capacity_plot": false,
+                "cost_plot": false, "ao_interval": 10.0, "cost_interval": 720.0}
+}
+```
+
+`importance` switches on the Annex D importance estimate: `improvement` gives
+RRW and Vesely–Fussell, `risk` gives RAW and `both` adds Birnbaum. It costs one
+extra batch per block (two for `both`), so it defaults to `none`.
+
+A file without `experiment` (written before it existed) takes its run
+settings from the system row's `NumRuns`, `TerminationType`,
+`TermCondition`, `StartStats` and analysis columns in `system.legacy`;
+with none there either, the defaults apply (1 trial, a 1000-unit
+time-terminated run, no analyses).
+
+With `capacity_analysis` on, set `flow_generated` to the total flow
+entering the Start node and put explicit `nom_flow`/`max_flow` caps on
+the links that feed a capacity-boundary node (`full_flow = 0` or
+`div_flow = 0`). Caps on links entering any other node are ignored, and
+`flow_generated <= 0` means there is no flow to distribute, so the
+analysis reports nothing useful.
+
+## Distribution codes
+
+1 Beta · 2 Chi-square · 3 Binomial · 4 Exponential · 5 Erlang ·
+6 Gamma · 7 Lognormal · 8 Normal · 9 Uniform Int · 10 Uniform Real ·
+11 Pearson V · 12 Pearson VI · 13 Poisson · 14 Triangular · 15 Weibull ·
+16 Empirical · 17 Point Estimate · 18 None · 19 Fixed ·
+20 Exp. Power · 21 Extreme Value · 22 Laplace
+
+## Annotations (.rbds only)
+
+Annotations are drawing overlays (text boxes, rectangles, ellipses,
+arrows) that live on top of the diagram. They exist ONLY in `.rbds` —
+the legacy `.rbd` format has no representation, and saving to `.rbd`
+drops them (the GUI warns first).
+
+```json
+"annotations": [
+  {
+    "kind": "text",           // "text" | "rect" | "ellipse" | "arrow"
+    "id": 1,
+    "parent": 0,              // hierarchy level drawn on
+    "x": 120.0, "y": 80.0,
+    "w": 140.0, "h": 40.0,    // rect/ellipse only
+    "x1": 0.0, "y1": 0.0,     // arrow only: tail
+    "x2": 100.0, "y2": 0.0,   // arrow only: head (arrowhead drawn here)
+    "text": "Check this branch",
+    "z": 20,                     // stacking band -- see "Z-order" below
+    "border_colour": "#5D7080",  // null = draw no border (any kind)
+    "border_width": 0,        // 0 = no border; arrow's own default is 2
+    "line_style": "solid",    // "solid" | "dash" | "dot" | "dash-dot" |
+                               // "dash-dot-dot" -- rect/ellipse/arrow border
+    "fill_colour": null,      // null = transparent; arrow has no fill
+    "text_colour": "#132238",
+    "font_family": "sans-serif",
+    "font_size": 10,
+    "font_bold": false,
+    "font_italic": false
+  }
+]
+```
+
+Unknown keys inside an annotation are preserved verbatim under
+`"_extra"` on read and re-emitted unchanged.
+
+**`text` is meaningful only for `kind: "text"`.** The renderer draws text
+for text annotations only; a `rect`, `ellipse` or `arrow` ignores the
+field, so `update_annotation(text=…)` on one of those kinds stores a
+value nothing displays. It round-trips through the file unchanged.
+
+**No colour = `null`.** `border_colour: null` and `fill_colour: null`
+both mean "draw nothing here" and are honoured identically for every
+kind, including a text box's frame. A `border_width` of `0` is the other
+way to suppress a border, and the two compose: a null colour always wins.
+
+**Per-kind style defaults are NOT stored here.** The context menu's
+"Set as Default for New Rectangles" remembers the style for each kind in
+the application's own settings (QSettings), not in the `.rbds`: it is a
+personal preference for new shapes, not model data, and a `.rbds` has to
+stay portable between Raptor Studio installs and plain Raptor. Only the
+fields that kind actually has are kept (a rectangle stores no font, a
+text box no line style), and a default saved for one kind never applies
+to another.
+
+**Z-order (`z`).** Annotations have three stacking bands, so a note can
+sit behind the reliability elements, in the middle (the default), or in
+front of everything:
+
+| `z` | band | relative to |
+|---|---|---|
+| `-50` | behind | below the grid, links, hierarchy ovals **and** blocks/nodes/events |
+| `20` | middle (default) | above every element, below the drag handles |
+| `40` | front | above every element |
+
+The GUI's *Bring Forward* / *Send Backward* step to the next value
+actually in use on the current hierarchy level (the three bands plus any
+custom value an entry or `update_annotation` carries), so a step always
+lands on a real slot rather than an arbitrary increment. A newly placed
+annotation takes the topmost value in use on its level, so "newest on
+top" holds even after a *Bring to Front*.
+
+The value is persisted per annotation and round-trips through undo/redo,
+level changes, save and reload.
+
+**Coordinate space.** `x`/`y` (top-left for text/rect/ellipse) and
+`x1`/`y1`/`x2`/`y2` (arrow tail/head) are **scene** coordinates, i.e. the
+values the GUI stores from `item.scenePos()`. They are *not* model
+coordinates. The canvas maps model coordinates to scene coordinates with
+`scene_x = (x − origin_x) · scale` and `scene_y = (flip_base − y) · scale`
+using the frozen `view_transform` (below); writing model coordinates
+straight into an annotation places it in the wrong spot. The MCP
+`add_annotation` tool handles this for you: `adjacent_to="SomeBlock"`
+places relative to a named element with no coordinates, and explicit
+`x`/`y` are taken as scene coordinates.
+
+**`view_transform`.** `.rbds`-only frozen canvas transform,
+`{scale, origin_x, flip_base, dx_min, dy_min}`. It is written the first
+time the model is laid out and then reused verbatim on every open, so
+element positions and annotation geometry stay put between sessions. A
+hand-authored file without it has one derived on open, deterministically,
+from the element positions.
+
+**Anchor metadata.** An annotation created by name (`adjacent_to` or
+`from_`/`to`) additionally carries an `anchor` object —
+`{"target": "B1", "side": "right", "gap": 12}` or
+`{"from": "A", "to": "B"}`. It is display/round-trip metadata: the
+renderer ignores it (the geometry is authoritative), but `list_annotations`
+reports it and `update_annotation` can re-anchor from it.
+
+## Rates (.rbds only)
+
+The named Rates library: reusable value expressions with a human-readable
+basis. A rate is defined once and referenced from any numeric field as
+`@RateName`, optionally scaled (`@RateName * 1.4`). Entries are:
+
+```json
+"rates": [
+  {
+    "name": "HighwayRate",
+    "expr": "0.00015 * 20000 / 8760",   // the typed expression
+    "value": 0.0003424657534246575,      // the resolved float (authoritative)
+    "description": "0.00015 fail/km, 20000 km/yr"   // optional basis
+  }
+]
+```
+
+`expr` is the derivation; the reader computes `value` from it (the writer
+does not store `value` when there is an `expr`). A rate given only a
+`value` is a plain constant.
+Legacy `.rbd` has no representation, so saving to `.rbd` drops the
+library (the GUI confirms first).
+
+## Formulas (.rbds only)
+
+The expression or rate behind a field, so reopening a model shows *why*
+a value is what it is and a rate change reaches every field that uses it.
+Keyed `"<kind>:<element id>:<legacy column>"` (for example
+`"block:5:FParam1"`).
+
+```json
+"formulas": {
+  "block:5:FParam1": {"expr": "0.00015 * 20000 / 8760"},
+  "block:5:FParam2": {"rate": "HighwayRate"}
+}
+```
+
+A bare `@RateName` field is stored as `{"rate": <name>}`; an arithmetic
+expression (with or without an embedded `@Rate`) as `{"expr": <text>}`.
+Plain numbers have no entry. On read, every linked field is set from its
+rate or expression, so the link wins over a number typed into the field:
+to give a linked field a plain number, delete its `formulas` entry.
+
+## Display units (.rbds only)
+
+`display_unit` overrides how times are *shown and entered* without
+touching any stored value: an hours-native model can be viewed in years.
+`null` (or absent) means "use the model's native `units`".
+
+```json
+"display_unit": "years"
+```
+
+## Frozen canvas transform (.rbds only)
+
+`view_transform` remembers the diagram's canvas scale/origin so a model
+reopens on the same grid it was saved on. Without it, moving one element
+can shrink the model's global closest-spacing and rescale the whole canvas
+on reopen. Keys are all floats:
+
+```json
+"view_transform": {
+  "scale": 24.0,
+  "origin_x": 0.0,
+  "flip_base": 0.0,
+  "dx_min": 0.0,
+  "dy_min": 0.0
+}
+```
+
+Legacy `.rbd` has no representation and re-derives a fresh transform on
+each load.
+
+## Extensibility rules
+
+* Readers MUST ignore unknown keys at every level (but preserve them —
+  see below).
+* Writers MUST round-trip unknown keys verbatim. Implementation: each
+  parsed object keeps an `_extra` dict; the writer emits it unchanged.
+* Bumping `version` is only for breaking changes; additive fields do
+  NOT bump it. A reader refuses a `version` newer than its own.
+* Writers emit one value per setting and never a value the reader computes
+  (see "Element objects").
+
+## Minimal example (two fans in parallel, then a power supply)
+
+Node path counts (`n`, `out`) are left out: the reader counts them from the
+links. This example is part of the parser's own regression suite and validates clean.
+
+```json
+{
+  "format": "raptor-studio",
+  "version": 1,
+  "elements": {
+    "blocks": [
+      {"id": 1, "name": "Fan_A", "fail_dist": "Exponential",
+       "fail_params": [800, 0, 0]},
+      {"id": 2, "name": "Fan_B", "fail_dist": "Exponential",
+       "fail_params": [800, 0, 0]},
+      {"id": 3, "name": "PSU", "fail_dist": "Weibull",
+       "fail_params": [1.5, 1200, 0]}
+    ],
+    "nodes": [
+      {"id": 4, "type": 1, "name": "start"},
+      {"id": 5, "type": 2, "name": "split"},
+      {"id": 6, "type": 2, "name": "either_fan", "k": 1},
+      {"id": 7, "type": 3, "name": "end"}
+    ]
+  },
+  "links": [
+    {"id": 1, "from": ["Node", 4], "to": ["Node", 5]},
+    {"id": 2, "from": ["Node", 5], "to": ["Block", 1]},
+    {"id": 3, "from": ["Node", 5], "to": ["Block", 2]},
+    {"id": 4, "from": ["Block", 1], "to": ["Node", 6]},
+    {"id": 5, "from": ["Block", 2], "to": ["Node", 6]},
+    {"id": 6, "from": ["Node", 6], "to": ["Block", 3]},
+    {"id": 7, "from": ["Block", 3], "to": ["Node", 7]}
+  ],
+  "system": {"units": "hours"},
+  "experiment": {"trials": 100, "termination_type": "TimeSim",
+                 "term_condition": 1000.0}
+}
+```

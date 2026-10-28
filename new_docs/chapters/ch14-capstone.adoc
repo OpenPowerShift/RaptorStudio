@@ -1,0 +1,296 @@
+[[ch-capstone]]
+== Capstone: The Data Centre, Engineered to a Target
+
+*Time: about 45 minutes.*
+*New ideas: availability targets, N / N+1 / 2N design vocabulary,
+tuning a system against a standard, and every tool from the earlier
+chapters working together.*
+
+=== You will learn
+
+* How real availability tiers are stated — and what a "five nines"
+  demand actually means in minutes per year.
+* How redundancy vocabulary (N, N+1, 2N) maps onto the RBD pieces you
+  have been drawing since <<ch-voting>>.
+* The tuning loop: measure, find the weak link, fix it, re-measure —
+  until the number is met.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-weaklink>> finished — this chapter uses all of them.
+* The files `models/DC1.rbds` (baseline) and `models/DC2.rbds` (tuned).
++
+opsmodel:DC2[]
+
+=== The story
+
+A colocation provider wants a new hall and hands you a slide with one
+number on it: **99.98% availability**. That is the neighbourhood of
+what the data-centre industry calls a *Tier III* facility — Uptime
+Institute's tier scheme runs from about 99.67% (Tier I) to about
+99.995% (Tier IV), and TIA-942 uses a similar rated-1-to-4 scale.
+Put the target in hours: one year is 8 760 hours, so 99.98% allows
+about **1.6 hours of downtime per year**. Everything else in this
+chapter is the pursuit of those 96 minutes.
+
+The industry's shorthand for redundancy:
+
+* **N** — just enough capacity for the load. One of it fails, you're
+  down.
+* **N+1** — one spare beyond need (<<ch-voting>>'s k-of-n vote, one
+  forgiven failure).
+* **2N** — a complete second copy of everything (two full chains,
+  either alone carries the load).
+
+You own the tools for all three. Time to build.
+
+=== The facility, drawn as three ovals
+
+Open `models/DC1.rbds`. <<ch-hierarchy>>'s hierarchy idea, at building
+scale — the home level is just three ovals in series (power, cooling,
+IT), because the hall works only if *all three* work:
+
+image::dc-loaded.png[DC1 home level: Power_sub, Cooling_sub, IT_sub in series]
+
+Step inside each oval (double-click, as in <<ch-hierarchy>>):
+
+* **Power_sub** — the grid feed `Utility_A` with a cold-standby
+  `Generator` behind the automatic transfer switch (<<ch-standby>>'s
+  pattern: the ATS needs 0.1 h to wake the genset), then `UPS`, then
+  `Switchgear`.
+* **Cooling_sub** — three `CRAC` units voting 2-of-3 (N+1 cooling),
+  feeding a `Chill_Pump`. All three CRACs draw replacement parts from
+  one shared shelf, `CRAC_Spares` (<<ch-sparing>>'s Pooled type, not
+  Custom): three units in stock, resupplied every 30 days, with
+  emergency shipping if the shelf ever actually runs dry. One shared
+  shelf instead of three private ones is the realistic choice here —
+  a facility rarely stocks a private spare per unit when the units are
+  interchangeable.
+* **IT_sub** — dual `PDU`s (either carries), then three `Server_Row`s
+  voting 2-of-3 (N+1 rows).
+
+image::dc-power-inside.png[Inside Power_sub: utility, standby generator, ATS, UPS, switchgear]
+
+Twelve blocks, three hierarchies, one cold standby pair, two votes,
+one series backbone — every shape from the first ten chapters of this
+book, wearing hard hats.
+
+=== Run the baseline
+
+Run **200 trials** of the 8 760-hour mission:
+
+[cols="4,2",options="header"]
+|===
+|Measure |DC1 result
+|Availability |about 99.948%
+|Downtime per year |about 4.5 h
+|MTBDE |about 1 090 h
+|MDT |about 0.5 h
+|Stoppages per year |about 9
+|===
+
+Ninety-nine point nine five percent sounds excellent — and misses the
+target by nearly three times. The downtime budget was 1.6 hours; the
+facility spends 4.5. Now do what <<ch-weaklink>> taught: *blame someone*.
+Read the event logs and ask which part was down at each red:
+
+[cols="3,2",options="header"]
+|===
+|Blamed for downtime |Hours per year
+|ATS transfer gaps (utility out) |about 0.8
+|Switchgear (single string, N) |about 2.1
+|UPS |about 0.6
+|Generator fails while carrying |about 0.5
+|Chill_Pump |about 0.4
+|===
+
+The table reads like a to-do list, sorted.
+
+=== Tune it: three moves
+
+Open `models/DC2.rbds` — the same facility after the design review.
+Three changes, each answering one line of the blame table:
+
+1. **Dual switchgear strings, one under PM.** `Switchgear_A` and
+   `Switchgear_B` now sit in parallel — 2N for the distribution
+   layer. Weekly preventive maintenance (<<ch-pm>>) on string A is
+   now *concurrent*: string B carries the load for those two hours,
+   so service costs zero availability. This is exactly what the
+   standards mean by *concurrently maintainable*.
+2. **A faster transfer switch.** ATS gap 0.1 h → 0.05 h. The utility
+   still fails eight-odd times a year; each transfer now costs half
+   as much.
+3. **A priority spares contract.** UPS and pump repairs drop from
+   4 h to 2 h (edit their repair parameter). Same failures, half the
+   outage each.
+
+Note what the moves have in common: none of them makes any part
+*less likely to fail*. They shrink the *consequence* of failure —
+<<ch-weaklink>>'s other dial.
+
+=== Run the tuned facility
+
+Run **200 trials** again:
+
+[cols="4,2,2",options="header"]
+|===
+|Measure |DC1 |DC2
+|Availability |about 99.948% |about *99.984%*
+|Downtime per year |about 4.5 h |about *1.4 h*
+|MDT |about 0.50 h |about 0.15 h
+|Yellow time (degraded) |about 1.6% |about 2.8%
+|===
+
+The target was 1.6 hours; DC2 comes in at about 1.4 — Tier III
+reached, with a little margin. Notice the price, though: yellow time
+nearly doubled. Redundancy converts hard stoppages into soft
+degradation — the CRAC that used to stop the hall now merely trims
+its margin, the PM that used to be an outage is now a yawn on the
+health bar. A well-tuned facility is *yellower* than a fragile one.
+
+[NOTE]
+====
+The simulator does not certify anything. Real standards compliance
+depends on construction, commissioning, operations, and audit —
+fault-tree detail no 12-block model carries. What the model *does*
+buy you is the ranking: which design moves buy hours, and which buy
+nothing. Spend the model, then spend the concrete.
+====
+
+And <<ch-cost>>'s question — what does downtime cost? — has a blunt
+answer here. At a data-centre rate of 300 000 per down-hour, DC1's
+year costs about **1.36 million** in outages; DC2's about **0.42
+million**. The redundancy was not free to build, but the model says
+it pays for itself in months.
+
+.Limits of this model
+[NOTE]
+====
+Two honesty checks belong on every number in this chapter. First,
+independence: every failure in DC1/DC2 is drawn on its own private
+dice, exactly like every earlier chapter — but a real hall has shared
+risk a twelve-block diagram cannot see (one utility substation feeding
+both "independent" strings, one cooling loop, one fire-suppression
+system). This is **common-cause failure**, and it is the single
+biggest reason paper redundancy calculations disappoint in practice —
+model it explicitly with dependency, or treat every redundancy number
+here as an optimistic ceiling. Second, precision: before quoting
+99.984% to a customer, do the arithmetic <<ch-trials>> taught you,
+rather than trusting a headline number on faith.
+====
+
+=== Is 99.984% a real number, or 200-trial noise?
+
+DC2's own 200-trial run reports Availability Mean 0.999835, SEM
+0.0000140. Apply <<ch-trials>>'s own rule of thumb:
+
+> *Answer ≈ Mean ± 2 × SEM = 0.999835 ± 0.0000280, roughly
+> 0.999807 to 0.999863.*
+
+The whole interval sits above the 99.98% (0.9998) target — DC2 clears
+its Tier III number with real margin, not by luck of the draw. That
+might be surprising: the
+xref:../docs/formulas.html#rare-events[Formulas quick reference]
+warned that pinning down a rare event can need tens of thousands of
+trials. The difference is *what* is being counted. A four-nines
+**Reliability** figure (ch-events' own territory) is one 0-or-1 coin
+flip per run — you need enormous trial counts to see enough of the
+rare "1" outcomes to trust the average. **Availability** is not a coin
+flip: every one of these 200 runs already measures a full 8 760-hour
+year, hour by hour, so even one run carries far more information about
+the system's true up/down ratio than one Reliability trial ever could.
+Precision comes cheap here because the metric itself is generous with
+data, not because 200 is a magic number — a model reporting Reliability
+at these odds would need <<ch-trials>>'s rare-event math in earnest.
+
+[NOTE]
+====
+The normal-approximation interval above is least trustworthy exactly
+at the extremes (fractions very near 0 or 1) — the same warning
+<<ch-trials>> gives for Reliability. It happens to hold up fine here
+because 2×SEM (0.0000280) is tiny next to the distance from 1.0 (about
+0.00016): the interval never gets close enough to the boundary to
+distort. Always check that distance before trusting the interval, not
+just the SEM on its own.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |The three server rows vote 2-of-3. In N/N+1 vocabulary, what is
+that, and what failure does it *not* protect against?
+|2 |DC2 doubled the switchgear but kept a single utility feed and a
+single generator. Name one failure that still stops the whole hall.
+|3 |Why did yellow time *rise* after tuning, and why is that the
+expected signature of a good design?
+|4 |All three CRACs draw from one shared spare shelf instead of each
+keeping its own. Name one advantage and one risk of sharing.
+|===
+
+.Answers
+[%collapsible]
+====
+. N+1 — one row beyond the two needed. It forgives any *single*
+   row failure, but not two at once, and not a failure of the PDU
+   pair or anything upstream of the vote.
+. Plenty of candidates: the generator failing while it carries the
+   load during a utility outage, the UPS, the Chill_Pump, or both
+   PDUs failing together — each is still a single point that stops
+   every string. 2N switchgear removed only the switchgear's own
+   entry from the blame table.
+. Redundancy converts stoppages into degradations: a failed CRAC or
+   row now trims margin (yellow) instead of stopping the hall (red),
+   and PM happens under cover of the spare string. Yellow rising
+   while red falls is the health-bar signature of consequence being
+   traded for uptime.
+. Advantage: one shelf of 3 covers whatever mix of CRACs actually
+   fails — three private shelves of one spare each would need to
+   restock the *specific* unit that broke, wasting capacity sitting
+   idle on the other two shelves. Risk: two CRACs failing close
+   together now compete for the same stock, something three separate
+   shelves could never let happen — pooling trades "wasted spares" for
+   "a shared risk of running out."
+====
+
+=== Exercise
+
+The provider now waves a new slide: **99.99%**. DC2 is not there yet
+— find the next line of the blame table yourself. Run DC2, count the
+red-stretch causes from the event logs, and identify the single
+biggest remaining contributor. Then make *one* change to the model —
+a second utility feed so the generator never carries, a faster
+Chill_Pump repair, your pick — and run 200 trials. Did you clear
+0.88 hours? What became the new weak link?
+
+.Answer
+[%collapsible]
+====
+The blame table's leaders are the ATS transfer gaps
+(about 0.4 h/yr) and generator failures while carrying (about 0.4
+h/yr) — the same utility outage wearing two hats. Adding a second
+utility feed removes both (the generator never starts), taking the
+year to roughly 0.5–0.6 h of downtime — about 99.994%, past the
+99.99% line. The new weak link is the Chill_Pump: a single, unredundant
+block in the cooling path, now responsible for a third of what little
+downtime remains. (It is N — and N is always next.)
+====
+
+=== What you learned
+
+* Availability targets convert to downtime budgets in hours per year;
+  99.98% means 1.6 hours — the number that disciplines every design
+  choice.
+* N, N+1, and 2N are your old friends the series chain, the k-of-n
+  vote, and the parallel pair, wearing industry badges.
+* Tuning is the <<ch-weaklink>> loop at facility scale: blame table, fix
+  the leader by shrinking *consequence*, re-run, and stop when the
+  budget is met — watching yellow grow as red shrinks.
+
+You have come a long way from a camping lantern. Same dice, same
+event log, same three numbers — just aimed at bigger machines. Go
+point the simulator at something that matters to you.
+
+Next, the strangest lens in the toolbox: watching the simulation
+think, one event at a time. Then one last capstone — the hardest of
+the three, because this time nobody hands you the model.

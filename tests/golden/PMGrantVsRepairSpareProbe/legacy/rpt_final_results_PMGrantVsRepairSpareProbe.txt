@@ -1,0 +1,62 @@
+Final_Results_Report for input.rbd  Thu Sep 17 18:29:42 2026
+
+
+Results from 1 run of sim time 100.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.450000000     0.450000000     0.450000000     N/A             N/A             
+MTBDE                    11.250000       11.250000       11.250000       N/A             N/A             
+MDT                      13.750000       13.750000       13.750000       N/A             N/A             
+Reliability              0.000000000     0.000000000     0.000000000     N/A             N/A             
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     N/A             N/A             
+System_Failures          4               4.000000        4               N/A             N/A             
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     7.500000        7.500000        7.500000        N/A             N/A             
+MTBMu                    7.500000        7.500000        7.500000        N/A             N/A             
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      17.000000       17.000000       17.000000       N/A             N/A             
+MMTu                     17.000000       17.000000       17.000000       N/A             N/A             
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            5.000000        5.000000        5.000000        N/A             N/A             
+Yellow_Percent           40.000000       40.000000       40.000000       N/A             N/A             
+Red_Percent              55.000000       55.000000       55.000000       N/A             N/A             
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+PmDeferRepair         Spares                       2         2.00         2          N/A 
+ResHolder             Infinite                     4         4.00         4          N/A 
+
+
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Spares                        0.00         2.00         0.00         0.00         0.00         0.00         2.00 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes    EndNumRes    NumDelays
+Techs                         1.00         0.00         0.15         1.00         0.00         5.00 
+
+

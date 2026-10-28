@@ -1,0 +1,31 @@
+# Known, evidenced departures from Raptor 7's captured output.
+#
+# THIS FILE IS EMPTY ON PURPOSE: every golden fixture currently matches its
+# Raptor 7 capture exactly, so there is no allowance to record. Keep it that
+# way; add an entry only for a departure that is understood and written up in
+# the internal engine ledger, never to make a red test green.
+#
+# Read by:
+#   tests/unit/test_golden_fidelity.py  -- the `report_fidelity` table
+#       (full-text comparison of our End of Run / Final Results reports with
+#       the capture in tests/golden/<Name>/legacy/);
+#   tests/unit/test_sd_diff_sweep.py    -- the `sd_diff` table
+#       (draw-for-draw comparison with the capture's simDetails file).
+#
+# A fixture with no entry must match exactly (modulo each test's own built-in
+# fp32 tolerance, which needs no entry). An entry turns the failure into an
+# xfail, and the test still fails if the recorded shape changes, or if the
+# fixture starts matching while the entry is still here (delete it then).
+#
+# Format:
+#
+#   [report_fidelity.<Fixture>]
+#   eor = "why the End of Run report differs"      # either axis may be omitted
+#   fr  = "why the Final Results report differs"
+#
+#   [sd_diff.<Fixture>]
+#   reason = "why the draws differ"
+#   count_real = 1234          # exact draw counts measured now
+#   count_ours = 1230
+#   first_divergence = 512     # omit when the overlapping draws match
+#   crashes = false            # true when the port refuses the model

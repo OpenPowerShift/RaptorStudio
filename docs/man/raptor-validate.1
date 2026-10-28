@@ -1,0 +1,86 @@
+.TH "RAPTOR-VALIDATE" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-validate \- Check each MODEL the way a run would, without running. Exit 3 if any model has errors (or warnings, with \-\-strict).
+.SH SYNOPSIS
+\fBraptor validate\fR [\-h] [\-f {text,json}] [\-\-strict] MODEL [MODEL ...]
+.SH DESCRIPTION
+Check each MODEL the way a run would, without running. Exit 3 if any model has errors (or warnings, with \-\-strict).
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+
+.TP
+\fB\-\-strict\fR
+warnings are failures too
+.SH EXAMPLES
+.PP
+Check several models.
+.RS
+.nf
+\fBraptor validate *.rbd\fR
+.fi
+.RE
+.PP
+Fail (exit 3) on warnings too; machine\-readable.
+.RS
+.nf
+\fBraptor validate pump.rbd \-\-strict \-f json\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1)
+.SH EXIT STATUS
+.TP
+\fB0\fR
+success
+.TP
+\fB1\fR
+runtime error
+.TP
+\fB2\fR
+usage error
+.TP
+\fB3\fR
+model invalid (validation errors)
+.TP
+\fB4\fR
+model refused: a shape Raptor 7 cannot run
+.TP
+\fB5\fR
+timed out or aborted; partial results written
+.TP
+\fB6\fR
+output could not be written
+.TP
+\fB130\fR
+interrupted (Ctrl\-C); partial results written
+.SH ENVIRONMENT
+.TP
+\fBRAPTOR_DEBUG\fR
+same as \-\-debug
+.TP
+\fBRAPTOR_DEV_FEATURES\fR
+same as \-\-dev\-features
+.TP
+\fBRAPTOR_CONFIG\fR
+path of the settings file (same as \-\-config)
+.TP
+\fBRAPTOR_WORKSPACE\fR
+default for \-\-workspace
+.TP
+\fBRAPTOR_SEED\fR
+salt for every random stream (same as \-\-seed)
+.TP
+\fBNO_COLOR\fR
+disable colour output
+.TP
+\fBXDG_CONFIG_HOME, XDG_DATA_HOME\fR
+base directories
+.SH FILES
+.TP
+\fB$XDG_CONFIG_HOME/raptor\-studio/config.toml\fR
+settings file (see raptor\-config(5))
+.TP
+\fB$XDG_DATA_HOME/raptor\-studio/mcp\fR
+default MCP server workspace

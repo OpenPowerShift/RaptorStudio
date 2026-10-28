@@ -1,0 +1,44 @@
+Event_Log 	for 	PmCustomESOProbe.rbd	 	Tue Sep 22 19:36:35 2026
+
+
+0.000000          	System   	Begin_Run_1           	--               	--
+0.000000          	Block    	ResHolder             	Good             	InitializeStress=1.000000
+0.000000          	Block    	PmCustom              	Good             	InitializeStress=1.000000
+5.000000          	Block    	ResHolder             	Failed           	Operating_time=5.000000
+5.000000          	Block    	ResHolder             	Repairing        	1Techs
+5.000000          	Node     	join                  	Degraded         	1-1/2_df2_ur4
+5.000000          	System   	State_change          	Yellow           	_d3
+10.000000         	Block    	PmCustom              	PM_is_due        	Scheduled_PM
+10.000000         	Block    	PmCustom              	pmReqDefer       	No_spare_in_stock-Custom
+10.000000         	Block    	PmCustom              	Sparing          	Spare_ordered_(stock=0)
+25.000000         	Block    	ResHolder             	Repaired         	MaintTime=20.000000
+25.000000         	Block    	ResHolder             	Good             	Stress=1.000000
+25.000000         	Node     	join                  	Good             	2-1/2_ur2_ur4
+25.000000         	System   	State_change          	Green            	system_change_status
+30.000000         	Block    	ResHolder             	Failed           	Operating_time=5.000000
+30.000000         	Block    	ResHolder             	Repairing        	1Techs
+30.000000         	Node     	join                  	Degraded         	1-1/2_df2_ur4
+30.000000         	System   	State_change          	Yellow           	_d3
+34.000000         	Block    	PmCustom              	Sparing          	Ordered_spare_arrives_(stock=0)
+34.000000         	Block    	PmCustom              	Sparing          	Spare_Arrived
+50.000000         	Block    	ResHolder             	Repaired         	MaintTime=20.000000
+50.000000         	Block    	ResHolder             	Good             	Stress=1.000000
+50.000000         	Node     	join                  	Good             	2-1/2_ur2_ur4
+50.000000         	Block    	PmCustom              	Resources        	Obtained_1_Resource(s)
+50.000000         	Block    	PmCustom              	PM               	beginning_PM
+50.000000         	Node     	join                  	Degraded         	1-1/2_ur2_dp4
+51.000000         	Block    	PmCustom              	PM_complete      	MaintTime=1.000000
+51.000000         	Block    	PmCustom              	Good             	Stress=1.000000
+51.000000         	Node     	join                  	Good             	2-1/2_ur2_ur4
+51.000000         	System   	State_change          	Green            	system_change_status
+55.000000         	Block    	ResHolder             	Failed           	Operating_time=5.000000
+55.000000         	Block    	ResHolder             	Repairing        	1Techs
+55.000000         	Node     	join                  	Degraded         	1-1/2_df2_ur4
+55.000000         	System   	State_change          	Yellow           	_d3
+61.000000         	Block    	PmCustom              	PM_is_due        	Scheduled_PM
+61.000000         	Block    	PmCustom              	pmReqDefer       	No_spare_in_stock-Custom
+61.000000         	Block    	PmCustom              	Sparing          	Spare_ordered_(stock=0)
+65.000000         	Block    	ResHolder             	Done             	End_sim
+65.000000         	Block    	PmCustom              	Done             	End_sim
+65.000000         	System   	Phase_change          	Mission_success  	Finished_a_mission
+65.000000         	System   	Simulation_Terminate  	--               	--

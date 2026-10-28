@@ -1,0 +1,56 @@
+End_Of_Run Report for PooledLDTOrderProbe.rbd  Wed Sep 23 16:02:08 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.200000000
+MTBDE                      5.000000
+MDT                        20.000000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              50.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  4
+
+
+
+***LOGISTICS***
+
+MTBM                  2.500000
+MTBMu                 2.500000
+MTBMs                 N/A
+MMT                   10.000000
+MMTu                  10.000000
+MMTs                  N/A
+GreenPercent          20.000000
+YellowPercent         0.000000
+RedPercent            80.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           5.000000       5.000000       5.000000       0.000000
+DT                             0.000000      20.000000      40.000000      28.284271
+TBM                            0.000000      12.500000      45.000000      21.794495
+RT                            10.000000      10.000000      10.000000       0.000000
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                      2   TestPool                     1
+BlockB                      2   TestPool                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+TestPool                         0          2          0         0.00          0          0          2 
+
+
+
+
+

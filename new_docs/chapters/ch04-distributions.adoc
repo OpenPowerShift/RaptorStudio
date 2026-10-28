@@ -1,0 +1,191 @@
+[[ch-distributions]]
+== Distributions: Same Average, Different Luck
+
+*Time: about 25 minutes.*
+*New ideas: failure distributions, why the shape matters, the warranty
+trap.*
+
+=== You will learn
+
+* What a failure distribution is and how to read its parameters.
+* Why two parts with the *same average life* behave totally differently.
+* How to pick a distribution without fooling yourself.
+
+=== You need
+
+* <<ch-first-model>>, <<ch-redundancy>> and <<ch-voting>> finished.
+* The three files `models/Toaster_Fixed.rbds`, `models/Toaster_Expo.rbds`,
++
+opsmodel:Toaster_Expo[]
+  and `models/Toaster_Weibull.rbds`.
+
+=== The story
+
+Three factories sell heating elements. All three claim: *"average life
+about 1000 hours."* You run a toaster warranty service. Your warranty:
+**600 hours, full refund**.
+
+Same promise, three contracts. But averages hide the shape of the
+risk. One factory builds parts that die like clockwork at exactly
+1000 hours. One builds parts where any hour is equally dangerous. One
+builds parts that usually live long but sometimes fail in the first
+weeks (a bad batch from a dirty oven — it happens).
+
+Question: *which factory costs us the least in refunds?*
+
+=== One new idea: the failure distribution
+
+A **failure distribution** is the dice the engine rolls for each
+block's death time. You already met three of them. Now look under the
+hood:
+
+image::dist-shapes.svg[Three distributions, same average, different shapes]
+
+[cols="3,2,3",options="header"]
+|===
+|Distribution |Parameters |Character
+|Fixed |life |Dies on schedule. Zero surprise.
+|Exponential |mean |No memory. Every hour carries the same risk, so many very early failures.
+|Weibull |shape, scale |Tunable. Shape > 1 means parts wear out; early failures get rare.
+|===
+
+How to read the curves above:
+
+* **Red spike (Fixed):** nothing happens for 1000 hours, then the part
+  dies. Within your 600-hour warranty: never.
+* **Blue curve (Exponential):** highest risk is right now, at age
+  zero. A scary share of parts die young even though the average is
+  still 1000 hours.
+* **Green curve (Weibull, shape 1.5):** risk starts low, grows with
+  age. Fewer early deaths than Exponential.
+
+[TIP]
+====
+The Exponential's "no memory" property is real physics for electronics:
+a transistor does not know how old it is. It is terrible physics for
+toaster elements, which clearly wear out. Choose dice that match the
+physics, not dice that match the spreadsheet.
+====
+
+=== Run the trio
+
+Open each file and press F5. All three use 40 trials and stop at
+600 hours. Then raise the run count to 500 for smoother numbers.
+
+[cols="4,2,2",options="header"]
+|===
+|Element |Reliability at 600 h |Refund rate
+|Toaster_Fixed |1.00 |0%
+|Toaster_Weibull |about 0.67 |about 33%
+|Toaster_Expo |about 0.55 |about 45%
+|===
+
+About one in ten toasters from the Exponential factory dies before 100
+hours — 1 − e^(−100/1000) ≈ 9.5% — while its brochure still says
+"average 1000 hours". The Fixed
+factory never pays a refund but also never surprises anyone. This gap
+between *average* and *early-failure risk* is called the **warranty
+trap**, and whole product lines have died in it.
+
+=== Where these names come from
+
+You will meet more dice later (Normal, Gamma, Lognormal, Triangular,
+Empirical). Two rules cover most choices:
+
+. If parts fail from *random events, not wear* (electronics, software,
+   power cuts): Exponential.
+. If parts *wear out* (bearings, belts, heating elements, tires):
+   Weibull with shape between 1.5 and 3.
+
+When you have real repair records, the *Empirical* distribution uses
+your data directly as the dice — no guessing about families at all.
+
+=== One more idea: the hazard function and the bathtub curve
+
+There is a name for "how risky is this part *right now*, given it has
+survived this long": the **hazard function**. It is not the same
+question as "what's the average life" — a part can have a long average
+life and still be extremely risky at this exact moment.
+
+Three shapes cover almost every real component, and they stack into
+the classic **bathtub curve**:
+
+[cols="2,3,3",options="header"]
+|===
+|Life stage |Hazard shape |Matches
+
+|Infant mortality |falling — early failures thin out |Weibull, shape < 1
+|Useful life |flat — memoryless, age does not matter |Exponential
+|Wear-out |rising — risk grows with age |Weibull, shape > 1
+|===
+
+This is *why* the toaster factories' shapes matter so much: Exponential
+sits permanently in the flat middle of the bathtub (constant risk,
+forever), while Weibull-1.5 starts in the falling-risk zone and slides
+into the rising one. Burn-in testing exists to walk a part past the
+falling-early-life knee before it ships to you. <<ch-pm>> exists to pull
+a wear-out part off the rising edge *before* it climbs too high, by
+resetting its clock on a schedule.
+
+The full 22-distribution table — every mean formula and when to reach
+for each family — lives in the
+xref:../docs/formulas.html#dist-means[Formulas quick reference];
+this chapter only needed the three that make the shape argument.
+
+.Limits of this model
+[NOTE]
+====
+Choosing Fixed, Exponential or Weibull for these toasters was a
+*modelling decision*, not a measurement. With only a handful of real
+field failures, several distribution families can fit the data about
+equally well while implying very different early-life risk — exactly
+the gap this chapter is built around. A small sample tells you less
+about the *shape* of the risk than it feels like it should.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |Two parts have equal mean life. Can one be much worse inside a
+short warranty? How?
+|2 |Which distribution has no memory?
+|3 |Your bearings crack from metal fatigue, which gets worse with
+age. Which family fits: Exponential or Weibull with shape 2?
+|===
+
+.Answers
+[%collapsible]
+====
+. Yes. Give one part a distribution with heavy early risk — for
+   example Exponential — while the other is Fixed or a wear-out
+   Weibull. Equal averages, very different early-failure rates.
+. Exponential.
+. Weibull with shape 2: risk grows with age, which is what fatigue
+   does.
+====
+
+=== Exercise
+
+The warranty office proposes cutting the warranty to 400 hours. For
+`Toaster_Expo`, compute the expected refund rate by hand:
+P(die before t) = 1 − e^(−t/1000). Check your answer against a 500-trial
+run.
+
+.Answer
+[%collapsible]
+====
+1 − e^(−400/1000) = 1 − 0.670 ≈ 33%. The simulation agrees
+(about 0.33 at 500 trials).
+====
+
+=== What you learned
+
+* Distributions are dice; parameters set their shape, not just their
+  average.
+* Equal averages do not mean equal risk, especially early in life.
+* Match the dice to the physics: random shocks → Exponential,
+  wear-out → Weibull.
+
+Next chapter: parts that get repaired. Availability, MTBF, and why a
+machine that always breaks can still be a good machine.

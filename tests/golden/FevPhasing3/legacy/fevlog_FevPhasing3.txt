@@ -1,0 +1,246 @@
+
+PHASING SCENARIO
+
+     Phase Name:         D000-075_Orbit
+
+     Phase Number:       1
+
+     Cut Components:     SolarP_500W, BatteriesNiCd, Bus_UR, Ground_Control
+
+     Linked Components:  None
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Subsystems:     500path
+
+     Down Nodes:         500path, n37
+
+     Degraded Nodes:     Power
+
+CRITICALITY
+
+     System Status = Yellow
+
+
+*****************************************************************
+
+
+PHASING SCENARIO
+
+     Phase Name:         D076-150_Orbit
+
+     Phase Number:       2
+
+     Cut Components:     None
+
+     Linked Components:  None
+
+
+FAILURES
+
+     Failed Components:  None
+
+     Induced Failures:   SolarP_500W, BatteriesNiCd, Bus_UR
+
+EFFECTS
+
+     Down Subsystems:     500path
+
+     Down Nodes:         500path
+
+     Degraded Nodes:     Power
+
+CRITICALITY
+
+     System Status = Yellow
+
+
+*****************************************************************
+
+
+PHASING SCENARIO
+
+     Phase Name:         D076-150_Orbit
+
+     Phase Number:       2
+
+     Cut Components:     None
+
+     Linked Components:  None
+
+
+FAILURES
+
+     Failed Components:  Thermal, SolarP_500W, BatteriesNiCd, Bus_UR
+
+     Induced Failures:   Attitude
+
+     Idle Components:    LowGain, HighGain
+
+EFFECTS
+
+     Down Subsystems:     500path
+
+     Down Nodes:         500path, n1, n2, Comm
+
+     Degraded Nodes:     Power
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+PHASING SCENARIO
+
+     Phase Name:         D076-150_Orbit
+
+     Phase Number:       2
+
+     Cut Components:     None
+
+     Linked Components:  None
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+PHASING SCENARIO
+
+     Phase Name:         D151-225_Orbit
+
+     Phase Number:       3
+
+     Cut Components:     None
+
+     Linked Components:  None
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+PHASING SCENARIO
+
+     Phase Name:         D226-300_Orbit
+
+     Phase Number:       4
+
+     Cut Components:     None
+
+     Linked Components:  None
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+PHASING SCENARIO
+
+     Phase Name:         D151-225_Orbit
+
+     Phase Number:       3
+
+     Cut Components:     None
+
+     Linked Components:  None
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+PHASING SCENARIO
+
+     Phase Name:         D000-075_Orbit
+
+     Phase Number:       1
+
+     Cut Components:     SolarP_500W, BatteriesNiCd, Bus_UR, Ground_Control
+
+     Linked Components:  None
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Subsystems:     500path
+
+     Down Nodes:         500path, n37
+
+     Degraded Nodes:     Power
+
+CRITICALITY
+
+     System Status = Yellow
+
+
+*****************************************************************
+

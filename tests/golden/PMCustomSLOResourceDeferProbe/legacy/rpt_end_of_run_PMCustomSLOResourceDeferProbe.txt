@@ -1,0 +1,70 @@
+End_Of_Run Report for input.rbd  Fri Sep 18 07:18:29 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      65.000000
+MDT                        N/A
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              65.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  3
+
+
+
+***LOGISTICS***
+
+MTBM                  13.000000
+MTBMu                 21.666667
+MTBMs                 32.500000
+MMT                   10.500000
+MMTu                  20.000000
+MMTs                  1.000000
+GreenPercent          20.000000
+YellowPercent         80.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                            5.000000      18.333333      25.000000      11.547005
+RT                            20.000000      20.000000      20.000000       0.000000
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+PmCustom                    0   Custom                       2
+ResHolder                   3   Infinite                     3
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+PmCustom                    1          1          0         0.15          1          0          2 
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Spares                           0          0          0         0.00          0          0          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            1            0         0.20            1            0          2 
+
+
+
+
+

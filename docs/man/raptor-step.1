@@ -1,0 +1,51 @@
+.TH "RAPTOR-STEP" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-step \- Run one replication (\-\-run, default the first) one state change at a time (the window's Step button) and print, for every stop, the time, the system state, the event\-log lines written and the blocks whose status changed. Stops after \-\-events stops, at the first stop at or past \-\-until, when the \-\-break block changes status, or at the end of the run (the last record has done=true).
+.SH SYNOPSIS
+\fBraptor step\fR [\-h] [\-\-run N] [\-\-until T] [\-\-events N] [\-\-break SEL] [\-\-fine] [\-f {ndjson,text}] MODEL
+.SH DESCRIPTION
+Run one replication (\-\-run, default the first) one state change at a time (the window's Step button) and print, for every stop, the time, the system state, the event\-log lines written and the blocks whose status changed. Stops after \-\-events stops, at the first stop at or past \-\-until, when the \-\-break block changes status, or at the end of the run (the last record has done=true).
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-run\fR \fIN\fR
+step run N (default 1); runs 1 to N\-1 are jumped over, as the window's Jump does
+.TP
+\fB\-\-until\fR \fIT\fR
+stop at the first stop at or past time T
+.TP
+\fB\-\-events\fR \fIN\fR
+stop after N stops
+.TP
+\fB\-\-break\fR \fISEL\fR
+stop when this block (name or number) changes status
+.TP
+\fB\-\-fine\fR
+advance one calendar entry per stop instead of one state change
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{ndjson|text}\fR
+
+.SH EXAMPLES
+.PP
+The first ten stops of run 1: time, system state, event\-log lines and the blocks that changed.
+.RS
+.nf
+\fBraptor step pump.rbd \-\-events 10 \-f text\fR
+.fi
+.RE
+.PP
+The same for run 3: runs 1 and 2 are jumped over first, so run 3 sees the random numbers a batch gives it.
+.RS
+.nf
+\fBraptor step pump.rbd \-\-run 3 \-\-events 5\fR
+.fi
+.RE
+.PP
+NDJSON, one object per stop, until Pump A changes status or time 5000 is reached.
+.RS
+.nf
+\fBraptor step pump.rbd \-\-break 'Pump A' \-\-until 5000\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1)

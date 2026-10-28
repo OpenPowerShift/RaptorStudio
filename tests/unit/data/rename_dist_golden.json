@@ -1,0 +1,80 @@
+{
+ "dist:F": {
+  "attrs": {
+   "fail_distro": 3
+  },
+  "row": {
+   "FDist": "3"
+  }
+ },
+ "dist:R": {
+  "attrs": {
+   "num_repair_params": 4,
+   "repair_distro": 5
+  },
+  "row": {
+   "#RParam": "4",
+   "RDist": "5"
+  }
+ },
+ "dist:no_file": {
+  "fail_distro": 2,
+  "num_fail_params": 3
+ },
+ "rename:ComplexModel:block": {
+  "comment": [
+   {
+    "ID": "3",
+    "Name": "Renamed_X",
+    "Type": "block"
+   }
+  ],
+  "item": "Renamed_X",
+  "obj_name": "Renamed_X",
+  "row": {
+   "blockName": "Renamed_X"
+  }
+ },
+ "rename:ComplexModel:hier": {
+  "comment": [
+   {
+    "ID": "10",
+    "Name": "Renamed_X",
+    "Type": "hier"
+   }
+  ],
+  "item": "Renamed_X",
+  "obj_name": "Renamed_X",
+  "row": {
+   "hierarchyName": "Renamed_X"
+  }
+ },
+ "rename:ComplexModel:node": {
+  "comment": [
+   {
+    "ID": "1",
+    "Name": "Renamed_X",
+    "Type": "node"
+   }
+  ],
+  "item": "Renamed_X",
+  "obj_name": "Renamed_X",
+  "row": {
+   "Name": "Renamed_X"
+  }
+ },
+ "rename:EventDepProbe:event": {
+  "comment": [
+   {
+    "ID": "1",
+    "Name": "Renamed_X",
+    "Type": "event"
+   }
+  ],
+  "item": "Renamed_X",
+  "obj_name": "Renamed_X",
+  "row": {
+   "eventName": "Renamed_X"
+  }
+ }
+}

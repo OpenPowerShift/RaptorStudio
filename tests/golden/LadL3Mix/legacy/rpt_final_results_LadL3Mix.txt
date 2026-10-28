@@ -1,0 +1,87 @@
+Final_Results_Report for input.rbd  Thu Oct 01 09:39:01 2026
+
+
+Results from 60 runs of sim time 5000.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.970400737     0.983927582     0.991723392     0.004317449     0.000557380     
+MTBDE                    142.705991      222.579248      309.913560      40.211695       5.191308        
+MDT                      2.319922        3.520831        6.036377        0.715699        0.092396        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          16              22.816667       34              4.085907        0.527488        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     11.314938       11.721489       12.242385       0.201094        0.025961        
+MTBMu                    41.865599       49.350460       58.588557       3.444241        0.444650        
+MTBMs                    14.883520       15.392458       15.857109       0.210287        0.027148        
+MMT                      5.471959        5.987666        6.448655        0.244543        0.031570        
+MMTu                     11.525987       12.899836       14.571297       0.724160        0.093489        
+MMTs                     3.563472        3.827122        3.989261        0.085968        0.011098        
+Green_Percent            58.209242       62.549060       66.523343       1.735646        0.224071        
+Yellow_Percent           31.905433       35.843698       39.818919       1.678488        0.216692        
+Red_Percent              0.827661        1.607242        2.959926        0.431745        0.055738        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+S1B1                  Motors                      12        15.92        20         1.62 
+S1B2                  Motors                       2         4.30         6         1.05 
+S1B3                  Motors                       1         7.68        15         2.89 
+S1B4                  Motors                      32        32.00        32         0.00 
+S2B1                  Seals                        4         6.03         9         0.92 
+S2B2                  Seals                       20        21.67        23         0.73 
+S2B3                  Seals                        3         5.45         9         1.45 
+S2B4                  Seals                       32        32.00        32         0.00 
+S3B1                  Filters                      2         4.13         6         0.93 
+S3B2                  Filters                      1         5.08         8         1.57 
+S3B3                  Filters                      2         3.78         7         1.11 
+S3B4                  Filters                      3         6.78        12         2.17 
+S4B1                  Infinite                     0         2.55         8         1.76 
+S4B2                  Infinite                    20        21.57        25         1.25 
+S4B3                  Infinite                     3         4.75         6         0.68 
+S4B4                  Infinite                     1         4.75        10         1.90 
+S5B1                  Infinite                    34        35.47        39         1.05 
+S5B2                  Infinite                    21        23.23        26         1.42 
+S5B3                  Infinite                    13        16.05        19         1.56 
+S5B4                  Infinite                     0         0.43         2         0.62 
+S6B1                  Infinite                     0         0.02         1         0.13 
+S6B2                  Infinite                     1         5.43        10         2.04 
+S6B3                  Infinite                     1         5.32        10         2.06 
+S6B4                  Infinite                    12        12.00        12         0.00 
+
+
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Motors                        8.00       100.00         6.83        26.58        48.10        48.10         0.00 
+Seals                         6.00        66.20         1.82         5.61         8.90         7.05         0.00 
+Filters                       8.00       100.00         7.65        46.69        88.22        88.22         0.00 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes    EndNumRes    NumDelays
+Techs                         5.00         0.00         4.62         5.00         4.67         3.03 
+Crane                         2.00         0.00         1.77         2.00         1.90        20.10 
+
+

@@ -1,0 +1,56 @@
+Final_Results_Report for input.rbd  PROBE
+
+
+Results from 10 runs of sim time 730.500000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.655480868     0.747231237     0.846901642     0.061457302     0.019434505     
+MTBDE                    15.372942       20.803388       32.589356       5.360632        1.695181        
+MDT                      4.301475        6.846943        9.539900        1.580189        0.499699        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          18              27.300000       34              4.762119        1.505914        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     10.640639       14.557206       19.956827       3.101041        0.980635        
+MTBMu                    10.640639       14.557206       19.956827       3.101041        0.980635        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      4.157266        6.614688        9.712997        1.893763        0.598861        
+MMTu                     4.157266        6.614688        9.712997        1.893763        0.598861        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            47.847859       56.433123       69.801912       7.338027        2.320488        
+Yellow_Percent           4.556143        18.290000       26.535995       7.559942        2.390664        
+Red_Percent              15.309836       25.276876       34.451913       6.145730        1.943451        
+
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+Attitude              Infinite                     0         3.30         6         2.00 
+BatteriesNaS          Cells                        0         0.60         2         0.70 
+BatteriesNiCd         Cells                        0         0.70         2         0.82 
+BatteriesNiH          Cells                        0         1.00         2         0.47 
+Bus_FR                Electronics                  0         0.70         3         0.95 
+Bus_QR                Electronics                  0         0.90         3         0.99 
+Bus_UR                Electronics                  0         0.80         3         1.03 
+HighGain              Infinite                    18        26.00        31         4.06 
+LowGain               Infinite                     1         3.10         8         2.08 
+SolarP_500W           PhotoVPanels                 0         0.40         1         0.52 
+SolarP_650W           PhotoVPanels                 0         0.10         1         0.32 
+SolarP_900W           PhotoVPanels                 0         0.30         1         0.48 
+Thermal               Custom                       0         0.40         1         0.52 
+
+

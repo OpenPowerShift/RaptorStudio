@@ -1,0 +1,49 @@
+= Pools, spares and resources
+:toc: macro
+
+`raptor/core/engine/pool.py` · Raptor 7: `PoolObj`, `CheckForSpare`, `OrderASpare`, `OrderStock`, `GenerateSpares`
+
+toc::[]
+
+== Purpose
+
+A block that fails needs a *spare* (from an infinite supply, its own Custom stock, or a shared spare pool) and possibly *resources* (people or tools from a resource pool) before its repair can start. Pools are FIFO queues that give and take back; spare pools are also replenished in the background by routine, emergency and stock-level ordering.
+
+== Source anchors
+
+[cols="3,3,4",options="header"]
+|===
+| Source | Port | Notes
+| `PoolObj` (a MODSIM `ResourceObj`: `Give`, `TakeBack`) | `pool.ResourceQueue` | No Raptor code to port: the language's `RESOURCE` semantics, strict FIFO with head-of-line blocking
+| `GenerateSpares` (RSO) | `pool.generate_spares_process` | Routine arrivals
+| `OrderASpare` (ESO) | `pool.order_a_spare_process` | Emergency order, spawned as a deferred TELL
+| `OrderStock` (SLO) | `pool.order_stock_process` | Stock-level order
+| `CheckForSpare` | `BlockProcess._check_for_spare` | Runs in the block's own turn, before `Repair`
+|===
+
+== Structure
+
+`Give` is two-stage: a request that can be met is granted at once, otherwise the block parks (`REPAIR_POOL_SPARE`, `REPAIR_RESOURCE` in the block state machine); a `TakeBack` or arrival grants the head of the queue by interrupting it with `Pool_Available` and a token saying whether the grant is for a repair or a PM.
+
+[mermaid]
+....
+flowchart LR
+    fail["block fails"] --> chk["check stock;<br/>maybe order a spare (ESO)"]
+    chk --> req["request a spare"]
+    req -->|in stock| have["spare in hand"]
+    req -->|empty| wait["RepHold: Waiting_for_Spare"]
+    wait -->|"arrival / take-back"| have
+    have --> res["request resources"]
+    res --> rep["repair"]
+    rep --> back["resources taken back;<br/>waiters woken in FIFO order"]
+....
+
+== Port-only devices and deliberate deviations
+
+* Pool processes are in the scheduler's front tier: at one instant a pool's own records run before ordinary ones.
+* A block asking for a resource count other than one uses none (`NumRes` other than 1; source's check is `numDiffRes=1`); a ColdPool or Resource `SpType` string loads as "no sparing".
+* Dependent blocks run the ordinary process, so they take spares and resources exactly as other blocks do.
+
+== Tests and fixtures
+
+`tests/unit/test_eso_probes.py`, `test_er3_05_no_repair_check_spare.py`, `test_run_control.py`; captures `PoolExhaustDoneProbe`, `PoolStockProbe`, `PoolSloGrabProbe`, `PooledLDTOrderProbe`, `PMSpareCustom`, `DepPmSpareProbe`, `NumRes2PoolProbe`.

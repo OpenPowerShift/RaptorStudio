@@ -1,0 +1,9 @@
+Single Point Failure File        rpt_single_point_failures_MotorDemo.txt            19 Sep 2026
+
+
+Block
+   Casing              
+   Armature            
+   Magnets             
+   Brushes             
+   PowerSupply         

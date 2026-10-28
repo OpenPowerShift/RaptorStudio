@@ -1,0 +1,85 @@
+.TH "RAPTOR-MCP" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-mcp \- Start the MCP server so an AI assistant can build, validate and simulate models. Options are those of raptor\-studio\-mcp.
+.SH SYNOPSIS
+\fBraptor mcp\fR [rest ...]
+.SH DESCRIPTION
+Start the MCP server so an AI assistant can build, validate and simulate models. Options are those of raptor\-studio\-mcp.
+.SH EXAMPLES
+.PP
+Serve MCP over stdio (what an assistant launches).
+.RS
+.nf
+\fBraptor mcp\fR
+.fi
+.RE
+.PP
+Serve MCP over HTTP on localhost with a bearer token.
+.RS
+.nf
+\fBraptor mcp \-\-transport http \-\-port 8765 \-\-token\-file ~/.raptor\-token\fR
+.fi
+.RE
+.PP
+Pick a free port; the first line of output is the URL.
+.RS
+.nf
+\fBraptor mcp \-\-transport http \-\-port 0 \-\-token\-file ~/.raptor\-token\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1)
+.SH EXIT STATUS
+.TP
+\fB0\fR
+success
+.TP
+\fB1\fR
+runtime error
+.TP
+\fB2\fR
+usage error
+.TP
+\fB3\fR
+model invalid (validation errors)
+.TP
+\fB4\fR
+model refused: a shape Raptor 7 cannot run
+.TP
+\fB5\fR
+timed out or aborted; partial results written
+.TP
+\fB6\fR
+output could not be written
+.TP
+\fB130\fR
+interrupted (Ctrl\-C); partial results written
+.SH ENVIRONMENT
+.TP
+\fBRAPTOR_DEBUG\fR
+same as \-\-debug
+.TP
+\fBRAPTOR_DEV_FEATURES\fR
+same as \-\-dev\-features
+.TP
+\fBRAPTOR_CONFIG\fR
+path of the settings file (same as \-\-config)
+.TP
+\fBRAPTOR_WORKSPACE\fR
+default for \-\-workspace
+.TP
+\fBRAPTOR_SEED\fR
+salt for every random stream (same as \-\-seed)
+.TP
+\fBNO_COLOR\fR
+disable colour output
+.TP
+\fBXDG_CONFIG_HOME, XDG_DATA_HOME\fR
+base directories
+.SH FILES
+.TP
+\fB$XDG_CONFIG_HOME/raptor\-studio/config.toml\fR
+settings file (see raptor\-config(5))
+.TP
+\fB$XDG_DATA_HOME/raptor\-studio/mcp\fR
+default MCP server workspace

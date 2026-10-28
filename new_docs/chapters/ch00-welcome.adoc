@@ -1,0 +1,185 @@
+[[ch-welcome]]
+== Welcome
+
+*Time: about 10 minutes. You need: nothing yet.*
+
+=== What this book is
+
+This book teaches you how to predict when things break — before they do.
+You will build small models of real machines, run them through thousands
+of possible futures, and read the results like an engineer.
+
+You will use **RAPTOR Studio**, a free, open program for building
+reliability block diagrams and simulating them.
+
+The book has twenty-three short chapters, from this welcome to the
+last capstone. Each chapter adds
+exactly one new idea. Each chapter has a small, complete example you
+build or open yourself. The examples are everyday objects: a camping
+lantern, an espresso machine, a delivery drone, a toaster, a soda
+vending machine — building up to a data centre engineered to a
+reliability target.
+
+=== How to use this book
+
+. Read the story at the start of a chapter. It sets up one problem.
+. Build the model in RAPTOR Studio, or open the ready-made `.rbds` file
+   from the `models` folder.
+. Run the simulation. Compare your numbers with the book's numbers.
+. Answer the *Check yourself* questions, then open the *Answers* box
+   below them to mark yourself.
+. Do the exercise. It is small, and it stretches the idea one step. Its
+   *Answer* box sits right underneath it — no peeking until you have run
+   the thing.
+. Read the *Limits of this model* box. Every chapter's example is
+   built to teach one idea clearly, which means it deliberately leaves
+   something out. Knowing what is missing is as much a part of
+   reliability engineering as knowing what is there.
+
+TIP: Every control on every ribbon tab and dialog is documented in the
+*xref:../docs/manual.html[Reference Manual]*. Every formula this book
+quotes — availability, MTBDE, SEM, the lot — is collected on one page
+in the *xref:../docs/formulas.html[Formulas quick reference]*. Press
+kbd:[F1] in the app to jump to the manual section for whatever panel
+you are using.
+
+[NOTE]
+====
+Your simulation numbers will not match the book digit for digit. The
+engine rolls dice. Different dice rolls give slightly different answers.
+<<ch-trials>> explains how close is close enough.
+====
+
+=== Meet the workbench
+
+Start RAPTOR Studio. It opens on the start page: a blank model and some
+of this guide's example models to begin from, the files you used
+recently, and this guide one click away.
+
+image::start-page.png[The start page: New (a blank model and examples), Recent and Learn]
+
+Pick **Blank model**, an example, or a recent file — or press Esc for an
+empty workbench. The workbench is a ribbon with tabs, a canvas in the
+middle, and dockable panels around it:
+
+image::app-first-look.png[The RAPTOR Studio main window]
+
+* **Model Explorer** (left): a list of every part of your model.
+* **Canvas** (centre): your diagram. You draw here.
+* **Inspector** (right): details of whatever you select.
+* **Data Tables** (bottom): a spreadsheet-like view of all blocks,
+  nodes, and events. Fast for typing many numbers.
+* **Results** (bottom): appears after you run a simulation.
+* **Run** (bottom, a tab beside Results): trials, run length, analyses and
+  recording for the next run.
+
+The blue **File** button, left of the tabs, brings the start page back:
+New (a blank model, or any example as a new, unsaved copy), a searchable
+list of your recent files, Open, Save, Save As and Close, and a *Print
+and Export* page (Print, Export PDF, Export Tables, Export Diagram SVG,
+Save Bitmap, Copy View). Press Esc to go back to the model.
+
+The *New* page offers a blank model and every example: the *Basics*,
+one idea each from this guide, and the *Advanced* ones — a hospital's
+emergency power, a water-treatment works, a data centre and a phased
+flight — larger systems that use several features at once, with a Rates
+library behind their numbers.
+
+image::start-new.png[The New page: a blank model, the Basics and the Advanced examples]
+
+The ribbon tabs:
+
+[cols="1,3"]
+|===
+|Ribbon tab |What lives there
+
+|Model
+|Paste, Cut, Copy, Select All; Select and Connect; Add
+Block/Node/Event/Hierarchy, Collapse, Delete; Project Settings and Issues
+(F7): a tick when the model can run, a red cross when it cannot, click it
+for the list; Annotate (Text, Rectangle, Ellipse, Arrow); Import RBD, Extract
+Hierarchy and hierarchy navigation
+
+|Arrange
+|Auto Layout and Snap to Grid; stacking order (Bring to Front ... Send to
+Back); Align & Distribute, Flip
+
+|Data
+|Phases, Rates, Spare Pools, Resources, Triggers; Block Defaults and Mass
+Edit; Export and Import Library
+
+|Simulate
+|Run (F5) and Animate; Trials and Cores; Run Settings; Pause, Stop, Jump;
+animation speed; Sweep and Compare. Trials, run length, the analyses (Weak
+Link, Cost, Capacity, Importance measures) and recording are set in the
+*Run* panel
+
+|Debug
+|The step debugger (Step, Next Time, Finish, More Steps, Restart,
+Terminate); Failure Effects (fail / repair a component and watch the
+consequences) and phase stepping
+
+|Results
+|Show Results, Float Window, Clear Results, Single-Point Failures, Domains;
+Show on Canvas (Weak Links, Capacity, Cost, Spares and Importance
+colourings) and their Bands
+
+|View
+|Zoom (Fit, Selection, In/Out, percent, Hierarchy); every panel
+(Explorer, Inspector, Results, Run, Data Tables, Reset Layout); Theme
+and Preferences
+
+|Help
+|User Guide, Reference Manual, Formulas, AI Assistant, Keyboard Shortcuts,
+About, Report Issue
+|===
+
+TIP: The **Data Tables** panel — a spreadsheet-like view of every
+block, node and event, fast for typing many numbers — is not its own
+tab. Open it from *View → Panels → Data Tables*.
+
+=== The one big idea
+
+Reliability simulation answers one question:
+
+> *If I run this machine for this long, how often does it still work at
+> the end — and how often does it work along the way?*
+
+To answer it, the simulator needs three things:
+
+. **Parts** that can fail — called *blocks*.
+. **Rules for how the parts connect** — called the *diagram*.
+. **Rules for how parts fail and get fixed** — *distributions*.
+
+That is all. The next chapter starts with one part and one rule.
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |What program do you use in this book, and what older tool does it
+match?
+|2 |Name the three things the simulator needs.
+|===
+
+.Answers
+[%collapsible]
+====
+. RAPTOR Studio, the open Python program you are using. It carries on
+   from Raptor 7, opens its models, and reads and writes `.rbds` files.
+. Parts (blocks), connection rules (links and nodes), and failure and
+   repair rules (distributions).
+====
+
+
+=== Annotating your diagram
+
+The Model ribbon has an *Annotate* group with Text, Rectangle, Ellipse
+and Arrow tools; their stacking order is on the Arrange ribbon. Click the canvas to place; drag to move; use the
+corner handle to resize shapes. Right-click an annotation for
+*Colours & Font* (border, fill, text colour and font family/size/
+bold/italic). Delete with the Del key as usual.
+
+Annotations are saved in the native `.rbds` format. The older
+`.rbd` format cannot store them — RAPTOR Studio warns before
+dropping them if you save as `.rbd`.

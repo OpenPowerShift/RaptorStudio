@@ -1,0 +1,2280 @@
+{
+ "columns": [
+  "runChange",
+  "failChange",
+  "idleChange",
+  "standbyChange",
+  "pmChange"
+ ],
+ "key": "priorStatus|newStatus|oldActiveStatus|newActiveStatus",
+ "rows": {
+  "AllUp|AllUp|Active|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|AllUp|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|AllUp|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|AllUp|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|AllUp|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|AllUp|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|AllUp|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|AllUp|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|AllUp|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Degraded|Active|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Degraded|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Degraded|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Degraded|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Degraded|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Degraded|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Degraded|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Degraded|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Degraded|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Down|Active|Active": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Down|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Down|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Down|Cut|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Down|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Down|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Down|Linked|Active": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Down|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|Down|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeIdle|Active|Active": [
+   -1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "AllUp|NodeIdle|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeIdle|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeIdle|Cut|Active": [
+   0,
+   -1,
+   1,
+   0,
+   0
+  ],
+  "AllUp|NodeIdle|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeIdle|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeIdle|Linked|Active": [
+   -1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "AllUp|NodeIdle|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeIdle|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodePM|Active|Active": [
+   -1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "AllUp|NodePM|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodePM|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodePM|Cut|Active": [
+   0,
+   -1,
+   0,
+   0,
+   1
+  ],
+  "AllUp|NodePM|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodePM|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodePM|Linked|Active": [
+   -1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "AllUp|NodePM|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodePM|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeStandby|Active|Active": [
+   -1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "AllUp|NodeStandby|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeStandby|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeStandby|Cut|Active": [
+   0,
+   -1,
+   0,
+   1,
+   0
+  ],
+  "AllUp|NodeStandby|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeStandby|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeStandby|Linked|Active": [
+   -1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "AllUp|NodeStandby|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "AllUp|NodeStandby|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|AllUp|Active|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|AllUp|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|AllUp|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|AllUp|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|AllUp|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|AllUp|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|AllUp|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|AllUp|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|AllUp|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Degraded|Active|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Degraded|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Degraded|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Degraded|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Degraded|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Degraded|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Degraded|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Degraded|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Degraded|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Down|Active|Active": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Down|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Down|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Down|Cut|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Down|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Down|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Down|Linked|Active": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Down|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|Down|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeIdle|Active|Active": [
+   -1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "Degraded|NodeIdle|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeIdle|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeIdle|Cut|Active": [
+   0,
+   -1,
+   1,
+   0,
+   0
+  ],
+  "Degraded|NodeIdle|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeIdle|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeIdle|Linked|Active": [
+   -1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "Degraded|NodeIdle|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeIdle|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodePM|Active|Active": [
+   -1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "Degraded|NodePM|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodePM|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodePM|Cut|Active": [
+   0,
+   -1,
+   0,
+   0,
+   1
+  ],
+  "Degraded|NodePM|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodePM|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodePM|Linked|Active": [
+   -1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "Degraded|NodePM|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodePM|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeStandby|Active|Active": [
+   -1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "Degraded|NodeStandby|Active|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeStandby|Active|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeStandby|Cut|Active": [
+   0,
+   -1,
+   0,
+   1,
+   0
+  ],
+  "Degraded|NodeStandby|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeStandby|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeStandby|Linked|Active": [
+   -1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "Degraded|NodeStandby|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Degraded|NodeStandby|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|AllUp|Active|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|AllUp|Active|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|AllUp|Active|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|AllUp|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|AllUp|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|AllUp|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|AllUp|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|AllUp|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Down|AllUp|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|Degraded|Active|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|Degraded|Active|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|Degraded|Active|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|Degraded|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|Degraded|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|Degraded|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|Degraded|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|Degraded|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Down|Degraded|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|Down|Active|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|Down|Active|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|Down|Active|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|Down|Cut|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|Down|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|Down|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|Down|Linked|Active": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Down|Down|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Down|Down|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeIdle|Active|Active": [
+   0,
+   -1,
+   1,
+   0,
+   0
+  ],
+  "Down|NodeIdle|Active|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeIdle|Active|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeIdle|Cut|Active": [
+   0,
+   -1,
+   1,
+   0,
+   0
+  ],
+  "Down|NodeIdle|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeIdle|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeIdle|Linked|Active": [
+   -1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "Down|NodeIdle|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeIdle|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|NodePM|Active|Active": [
+   0,
+   -1,
+   0,
+   0,
+   1
+  ],
+  "Down|NodePM|Active|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|NodePM|Active|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|NodePM|Cut|Active": [
+   0,
+   -1,
+   0,
+   0,
+   1
+  ],
+  "Down|NodePM|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|NodePM|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|NodePM|Linked|Active": [
+   -1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "Down|NodePM|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Down|NodePM|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeStandby|Active|Active": [
+   0,
+   -1,
+   0,
+   1,
+   0
+  ],
+  "Down|NodeStandby|Active|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeStandby|Active|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeStandby|Cut|Active": [
+   0,
+   -1,
+   0,
+   1,
+   0
+  ],
+  "Down|NodeStandby|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeStandby|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeStandby|Linked|Active": [
+   -1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "Down|NodeStandby|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "Down|NodeStandby|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|AllUp|Active|Active": [
+   1,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|AllUp|Active|Cut": [
+   0,
+   1,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|AllUp|Active|Linked": [
+   1,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|AllUp|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|AllUp|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|AllUp|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|AllUp|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|AllUp|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|AllUp|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Degraded|Active|Active": [
+   1,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|Degraded|Active|Cut": [
+   0,
+   1,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|Degraded|Active|Linked": [
+   1,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|Degraded|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Degraded|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Degraded|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Degraded|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Degraded|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Degraded|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Down|Active|Active": [
+   0,
+   1,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|Down|Active|Cut": [
+   0,
+   1,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|Down|Active|Linked": [
+   1,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|Down|Cut|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Down|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Down|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Down|Linked|Active": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Down|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|Down|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodeIdle|Active|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodeIdle|Active|Cut": [
+   0,
+   1,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|NodeIdle|Active|Linked": [
+   1,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|NodeIdle|Cut|Active": [
+   0,
+   -1,
+   1,
+   0,
+   0
+  ],
+  "NodeIdle|NodeIdle|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodeIdle|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodeIdle|Linked|Active": [
+   -1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "NodeIdle|NodeIdle|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodeIdle|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodePM|Active|Active": [
+   0,
+   0,
+   -1,
+   0,
+   1
+  ],
+  "NodeIdle|NodePM|Active|Cut": [
+   0,
+   1,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|NodePM|Active|Linked": [
+   1,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|NodePM|Cut|Active": [
+   0,
+   -1,
+   0,
+   0,
+   1
+  ],
+  "NodeIdle|NodePM|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodePM|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodePM|Linked|Active": [
+   -1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "NodeIdle|NodePM|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodePM|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodeStandby|Active|Active": [
+   0,
+   0,
+   -1,
+   1,
+   0
+  ],
+  "NodeIdle|NodeStandby|Active|Cut": [
+   0,
+   1,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|NodeStandby|Active|Linked": [
+   1,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "NodeIdle|NodeStandby|Cut|Active": [
+   0,
+   -1,
+   0,
+   1,
+   0
+  ],
+  "NodeIdle|NodeStandby|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodeStandby|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodeStandby|Linked|Active": [
+   -1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "NodeIdle|NodeStandby|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeIdle|NodeStandby|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|AllUp|Active|Active": [
+   1,
+   0,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|AllUp|Active|Cut": [
+   0,
+   1,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|AllUp|Active|Linked": [
+   1,
+   0,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|AllUp|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|AllUp|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|AllUp|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|AllUp|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|AllUp|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|AllUp|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Degraded|Active|Active": [
+   1,
+   0,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|Degraded|Active|Cut": [
+   0,
+   1,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|Degraded|Active|Linked": [
+   1,
+   0,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|Degraded|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Degraded|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Degraded|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Degraded|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Degraded|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Degraded|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Down|Active|Active": [
+   0,
+   1,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|Down|Active|Cut": [
+   0,
+   1,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|Down|Active|Linked": [
+   1,
+   0,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|Down|Cut|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Down|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Down|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Down|Linked|Active": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Down|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|Down|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodeIdle|Active|Active": [
+   0,
+   0,
+   1,
+   0,
+   -1
+  ],
+  "NodePM|NodeIdle|Active|Cut": [
+   0,
+   1,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|NodeIdle|Active|Linked": [
+   1,
+   0,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|NodeIdle|Cut|Active": [
+   0,
+   -1,
+   1,
+   0,
+   0
+  ],
+  "NodePM|NodeIdle|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodeIdle|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodeIdle|Linked|Active": [
+   -1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "NodePM|NodeIdle|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodeIdle|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodePM|Active|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodePM|Active|Cut": [
+   0,
+   1,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|NodePM|Active|Linked": [
+   1,
+   0,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|NodePM|Cut|Active": [
+   0,
+   -1,
+   0,
+   0,
+   1
+  ],
+  "NodePM|NodePM|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodePM|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodePM|Linked|Active": [
+   -1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "NodePM|NodePM|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodePM|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodeStandby|Active|Active": [
+   0,
+   0,
+   0,
+   1,
+   -1
+  ],
+  "NodePM|NodeStandby|Active|Cut": [
+   0,
+   1,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|NodeStandby|Active|Linked": [
+   1,
+   0,
+   0,
+   0,
+   -1
+  ],
+  "NodePM|NodeStandby|Cut|Active": [
+   0,
+   -1,
+   0,
+   1,
+   0
+  ],
+  "NodePM|NodeStandby|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodeStandby|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodeStandby|Linked|Active": [
+   -1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "NodePM|NodeStandby|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodePM|NodeStandby|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|AllUp|Active|Active": [
+   1,
+   0,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|AllUp|Active|Cut": [
+   0,
+   1,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|AllUp|Active|Linked": [
+   1,
+   0,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|AllUp|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|AllUp|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|AllUp|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|AllUp|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|AllUp|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|AllUp|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Degraded|Active|Active": [
+   1,
+   0,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|Degraded|Active|Cut": [
+   0,
+   1,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|Degraded|Active|Linked": [
+   1,
+   0,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|Degraded|Cut|Active": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Degraded|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Degraded|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Degraded|Linked|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Degraded|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Degraded|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Down|Active|Active": [
+   0,
+   1,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|Down|Active|Cut": [
+   0,
+   1,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|Down|Active|Linked": [
+   1,
+   0,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|Down|Cut|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Down|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Down|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Down|Linked|Active": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Down|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|Down|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodeIdle|Active|Active": [
+   0,
+   0,
+   1,
+   -1,
+   0
+  ],
+  "NodeStandby|NodeIdle|Active|Cut": [
+   0,
+   1,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|NodeIdle|Active|Linked": [
+   1,
+   0,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|NodeIdle|Cut|Active": [
+   0,
+   -1,
+   1,
+   0,
+   0
+  ],
+  "NodeStandby|NodeIdle|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodeIdle|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodeIdle|Linked|Active": [
+   -1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "NodeStandby|NodeIdle|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodeIdle|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodePM|Active|Active": [
+   0,
+   0,
+   0,
+   -1,
+   1
+  ],
+  "NodeStandby|NodePM|Active|Cut": [
+   0,
+   1,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|NodePM|Active|Linked": [
+   1,
+   0,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|NodePM|Cut|Active": [
+   0,
+   -1,
+   0,
+   0,
+   1
+  ],
+  "NodeStandby|NodePM|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodePM|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodePM|Linked|Active": [
+   -1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "NodeStandby|NodePM|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodePM|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodeStandby|Active|Active": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodeStandby|Active|Cut": [
+   0,
+   1,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|NodeStandby|Active|Linked": [
+   1,
+   0,
+   0,
+   -1,
+   0
+  ],
+  "NodeStandby|NodeStandby|Cut|Active": [
+   0,
+   -1,
+   0,
+   1,
+   0
+  ],
+  "NodeStandby|NodeStandby|Cut|Cut": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodeStandby|Cut|Linked": [
+   1,
+   -1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodeStandby|Linked|Active": [
+   -1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "NodeStandby|NodeStandby|Linked|Cut": [
+   -1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "NodeStandby|NodeStandby|Linked|Linked": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ }
+}

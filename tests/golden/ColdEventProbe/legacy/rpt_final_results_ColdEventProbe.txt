@@ -1,0 +1,79 @@
+Final_Results_Report for input.rbd  Wed Sep 30 16:57:16 2026
+
+
+Results from 10 runs of sim time 730.500000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.860870943     0.964964322     1.000000000     0.049887150     0.015775702     
+MTBDE                    15.338201       >446.862449     >730.500000     N/A             N/A             
+MDT(4-runs)              1.266600        1.992124        2.832086        0.781082        0.390541        
+Reliability              0.000000000     0.600000000     1.000000000     0.516397779     0.163299316     
+Conditional_Reliability  0.000000000     0.600000000     1.000000000     0.516397779     0.163299316     
+System_Failures          0               13.200000       41              17.687409       5.593250        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     13.101380       20.612659       28.096154       4.434736        1.402387        
+MTBMu                    13.101380       20.612659       28.096154       4.434736        1.402387        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      1.000000        1.322356        2.310978        0.497813        0.157422        
+MMTu                     1.000000        1.322356        2.310978        0.497813        0.157422        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            0.000000        49.659748       86.881297       42.783939       13.529469       
+Yellow_Percent           13.118703       46.836684       94.451583       38.323837       12.119061       
+Red_Percent              0.000000        3.503568        13.912906       4.988715        1.577570        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+Attitude              Infinite                     0         1.30         6         2.11 
+BatteriesNaS          Cells                        0         0.00         0         0.00 
+BatteriesNiCd         Cells                        0         0.00         0         0.00 
+BatteriesNiH          Cells                        0         0.00         0         0.00 
+Bus_FR                Electronics                  0         0.00         0         0.00 
+Bus_QR                Electronics                  0         0.00         0         0.00 
+Bus_UR                Electronics                  0         0.00         0         0.00 
+HighGain              Infinite                    21        29.60        36         4.67 
+LowGain               Infinite                     1         4.60        10         3.06 
+SolarP_500W           PhotoVPanels                 0         0.00         0         0.00 
+SolarP_650W           PhotoVPanels                 0         0.00         0         0.00 
+SolarP_900W           PhotoVPanels                 0         0.00         0         0.00 
+Thermal               Custom                       0         0.00         0         0.00 
+
+
+Custom_Sparing
+
+blockName            InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Thermal                       1.00         0.00         1.00         1.00         1.00         1.00         0.00 
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Cells                         3.00         1.00         3.00         3.00         4.00         4.00         0.00 
+PhotoVPanels                  2.00         0.00         2.00         2.00         2.00         2.00         0.00 
+Electronics                   2.00         0.00         2.00         2.00         2.00         2.00         0.00 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes    EndNumRes    NumDelays
+Astronauts                    5.00         2.70         4.90         5.00         5.00         0.00 
+
+

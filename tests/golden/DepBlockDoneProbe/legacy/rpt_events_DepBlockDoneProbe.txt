@@ -1,0 +1,31 @@
+Event_Log 	for 	input.rbd	 	Fri Sep 25 09:53:41 2026
+
+
+0.000000          	System   	Begin_Run_1           	--               	--
+0.000000          	Block    	Casing                	Good             	InitializeStress=1.000000
+0.000000          	Block    	Armature              	Good             	InitializeStress=1.000000
+0.000000          	Block    	Magnets               	Good             	InitializeStress=1.000000
+0.000000          	Block    	Brushes               	Good             	InitializeStress=1.000000
+0.000000          	Block    	PowerSupply           	Good             	InitializeStress=1.000000
+12.000000         	Block    	Brushes               	Failed           	Operating_time=12.000000
+12.000000         	Block    	Brushes               	Done             	No_repair
+12.000000         	Node     	end                   	Bad              	0-1/1_df6
+12.000000         	System   	State_change          	Red              	_d4
+12.000000         	System   	Permanently_Down      	Out_of_spares    	System_change
+20.000000         	Block    	Armature              	Failed           	Operating_time=20.000000
+20.000000         	Block    	Armature              	Sparing          	No_spare_in_stock-Custom
+20.000000         	Block    	Armature              	Done             	No_spares
+20.000000         	System   	Red_change            	Red              	_d2_d4
+30.000000         	Block    	PowerSupply           	Failed           	Operating_time=30.000000
+30.000000         	Block    	PowerSupply           	Repairing        	No_resources_used
+30.000000         	System   	Red_change            	Red              	_d2_d4_r5
+35.000000         	Block    	PowerSupply           	Repaired         	MaintTime=5.000000
+35.000000         	Block    	PowerSupply           	Good             	Stress=1.000000
+35.000000         	System   	Red_change            	Red              	_d2_d4
+40.000000         	Block    	Casing                	Done             	End_sim
+40.000000         	Block    	Armature              	Done             	End_sim
+40.000000         	Block    	Magnets               	Done             	End_sim
+40.000000         	Block    	Brushes               	Done             	End_sim
+40.000000         	Block    	PowerSupply           	Done             	End_sim
+40.000000         	System   	Phase_change          	Mission_failure  	Finished_a_mission
+40.000000         	System   	Simulation_Terminate  	--               	--

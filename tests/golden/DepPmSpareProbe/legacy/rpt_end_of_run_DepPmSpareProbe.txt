@@ -1,0 +1,52 @@
+End_Of_Run Report for input.rbd  Wed Sep 30 05:47:24 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.716666667
+MTBDE                      5.375000
+MDT                        2.125000
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              60.000000
+NumberOfSystemFailures     8
+NumberOfComponentFailures  4
+
+
+
+***LOGISTICS***
+
+MTBM                  4.777778
+MTBMu                 10.750000
+MTBMs                 8.600000
+MMT                   2.125000
+MMTu                  4.000000
+MMTs                  1.000000
+GreenPercent          71.666667
+YellowPercent         0.000000
+RedPercent            28.333333
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.000000       5.375000       8.000000       2.503569
+DT                             0.000000       2.125000       5.000000       1.885092
+TBM                           12.000000      15.000000      16.000000       2.000000
+RT                             4.000000       4.000000       4.000000       0.000000
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Infinite                     5
+Brushes                     0   Infinite                     0
+Casing                      0   Infinite                     0
+Magnets                     0   Infinite                     0
+PowerSupply                 4   Infinite                     4
+
+
+
+

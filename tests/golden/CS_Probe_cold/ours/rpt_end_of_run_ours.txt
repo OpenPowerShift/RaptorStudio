@@ -1,0 +1,581 @@
+End_Of_Run Report for input.rbd  PROBE
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.789970807
+MTBDE                      18.615280
+MDT                        4.949236
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     31
+NumberOfComponentFailures  37
+
+
+
+***LOGISTICS***
+
+MTBM                  15.596586
+MTBMu                 15.596586
+MTBMs                 N/A
+MMT                   1.943955
+MMTu                  1.943955
+MMTs                  N/A
+GreenPercent          4.731159
+YellowPercent         74.265922
+RedPercent            21.002919
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.000001      18.215421      66.604142      16.967448
+DT                             0.500000       4.949236      14.265411       3.153709
+TBM                            0.000000      19.300119      70.604142      16.939756
+RT                             1.000000       1.943955      11.265411       2.774337
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    4   Infinite                     4
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   30   Infinite                    30
+LowGain                     3   Infinite                     3
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.828220986
+MTBDE                      20.167181
+MDT                        4.182819
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     30
+NumberOfComponentFailures  32
+
+
+
+***LOGISTICS***
+
+MTBM                  18.906732
+MTBMu                 18.906732
+MTBMs                 N/A
+MMT                   1.343268
+MMTu                  1.343268
+MMTs                  N/A
+GreenPercent          4.104105
+YellowPercent         78.717994
+RedPercent            17.177901
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.000001      18.778388      56.455728      16.412466
+DT                             0.500000       4.182819      14.984570       2.164829
+TBM                            0.000000      21.401132      60.455728      16.384700
+RT                             1.000000       1.343268      11.984570       1.941816
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    1   Infinite                     1
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   29   Infinite                    29
+LowGain                     2   Infinite                     2
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.798142672
+MTBDE                      20.822972
+MDT                        5.266314
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     28
+NumberOfComponentFailures  34
+
+
+
+***LOGISTICS***
+
+MTBM                  17.148330
+MTBMu                 17.148330
+MTBMs                 N/A
+MMT                   2.042846
+MMTu                  2.042846
+MMTs                  N/A
+GreenPercent          1.195145
+YellowPercent         78.619122
+RedPercent            20.185733
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.040354      20.095547      75.804965      20.759913
+DT                             4.000000       5.266314      14.235338       3.212801
+TBM                            0.000000      20.768591      79.804965      20.220231
+RT                             1.000000       2.042846      11.235338       2.947109
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    4   Infinite                     4
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   28   Infinite                    28
+LowGain                     2   Infinite                     2
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.765119038
+MTBDE                      18.029660
+MDT                        5.534856
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     31
+NumberOfComponentFailures  38
+
+
+
+***LOGISTICS***
+
+MTBM                  14.708407
+MTBMu                 14.708407
+MTBMs                 N/A
+MMT                   2.396856
+MMTu                  2.396856
+MMTs                  N/A
+GreenPercent          3.619835
+YellowPercent         72.892069
+RedPercent            23.488096
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.000001      16.131281      49.373276      12.566107
+DT                             0.500000       5.534856      16.881142       4.156523
+TBM                            0.000000      17.569744      53.373276      13.125768
+RT                             1.000000       2.396856      13.881142       3.679505
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    5   Infinite                     5
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   30   Infinite                    30
+LowGain                     3   Infinite                     3
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.824725040
+MTBDE                      21.516487
+MDT                        4.572799
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     28
+NumberOfComponentFailures  33
+
+
+
+***LOGISTICS***
+
+MTBM                  18.256413
+MTBMu                 18.256413
+MTBMs                 N/A
+MMT                   1.619933
+MMTu                  1.619933
+MMTs                  N/A
+GreenPercent          9.682013
+YellowPercent         72.790491
+RedPercent            17.527496
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.002448      21.516487      70.727103      19.222084
+DT                             0.820447       4.572799      14.075019       2.624819
+TBM                            0.000000      22.111502      70.727103      18.816754
+RT                             1.000000       1.619933      11.075019       2.402670
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    3   Infinite                     2
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   28   Infinite                    27
+LowGain                     2   Infinite                     2
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.773014440
+MTBDE                      15.261812
+MDT                        4.481431
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     37
+NumberOfComponentFailures  41
+
+
+
+***LOGISTICS***
+
+MTBM                  13.772855
+MTBMu                 13.772855
+MTBMs                 N/A
+MMT                   1.739340
+MMTu                  1.739340
+MMTs                  N/A
+GreenPercent          6.780906
+YellowPercent         70.520538
+RedPercent            22.698556
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                     9.99999999E-07      15.257546      45.625719      10.717502
+DT                             0.500000       4.481431      14.260466       3.066487
+TBM                            0.000000      17.715662      49.625719      11.968966
+RT                             1.000000       1.739340      11.260466       2.664275
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    3   Infinite                     3
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   36   Infinite                    36
+LowGain                     2   Infinite                     2
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.861774381
+MTBDE                      27.370704
+MDT                        4.390166
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     23
+NumberOfComponentFailures  25
+
+
+
+***LOGISTICS***
+
+MTBM                  25.181047
+MTBMu                 25.181047
+MTBMs                 N/A
+MMT                   1.358953
+MMTu                  1.358953
+MMTs                  N/A
+GreenPercent          5.276581
+YellowPercent         80.900858
+RedPercent            13.822562
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.032403      27.322970     101.830698      23.737288
+DT                             4.000000       4.390166      12.973815       1.871170
+TBM                            0.000000      29.016085     105.830698      23.906083
+RT                             1.000000       1.358953       9.973815       1.794763
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    1   Infinite                     1
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   23   Infinite                    23
+LowGain                     1   Infinite                     1
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.786078365
+MTBDE                      16.889125
+MDT                        4.596169
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     34
+NumberOfComponentFailures  38
+
+
+
+***LOGISTICS***
+
+MTBM                  15.111322
+MTBMu                 15.111322
+MTBMs                 N/A
+MMT                   1.678151
+MMTu                  1.678151
+MMTs                  N/A
+GreenPercent          2.715651
+YellowPercent         75.892186
+RedPercent            21.392164
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.000001      16.522016      69.864255      15.907494
+DT                             0.500000       4.596169      16.958602       3.191925
+TBM                            0.000000      18.789955      73.864255      15.799301
+RT                             1.000000       1.678151      13.958602       2.915824
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    2   Infinite                     2
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   33   Infinite                    33
+LowGain                     3   Infinite                     3
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.777626244
+MTBDE                      15.779333
+MDT                        4.512334
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     36
+NumberOfComponentFailures  42
+
+
+
+***LOGISTICS***
+
+MTBM                  13.525142
+MTBMu                 13.525142
+MTBMs                 N/A
+MMT                   1.784382
+MMTu                  1.784382
+MMTs                  N/A
+GreenPercent          6.642799
+YellowPercent         71.119825
+RedPercent            22.237376
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                     9.99999999E-07      15.575216      59.852396      15.910696
+DT                             0.500000       4.512334      16.519720       3.384568
+TBM                            0.000000      17.122662      63.852396      16.202280
+RT                             1.000000       1.784382      13.519720       2.878830
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    3   Infinite                     3
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   34   Infinite                    34
+LowGain                     5   Infinite                     5
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.811494026
+MTBDE                      22.799861
+MDT                        5.296293
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              730.500000
+NumberOfSystemFailures     26
+NumberOfComponentFailures  32
+
+
+
+***LOGISTICS***
+
+MTBM                  18.524887
+MTBMu                 18.524887
+MTBMs                 N/A
+MMT                   2.053238
+MMTu                  2.053238
+MMTs                  N/A
+GreenPercent          3.365179
+YellowPercent         77.784224
+RedPercent            18.850597
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.823051      22.295519      85.589239      19.760297
+DT                             4.000000       5.296293      15.507875       3.201585
+TBM                            0.000000      22.293347      89.589239      19.638768
+RT                             1.000000       2.053238      12.507875       2.920702
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Attitude                    4   Infinite                     4
+BatteriesNaS                0   Cells                        0
+BatteriesNiCd               0   Cells                        0
+BatteriesNiH                0   Cells                        0
+Bus_FR                      0   Electronics                  0
+Bus_QR                      0   Electronics                  0
+Bus_UR                      0   Electronics                  0
+HighGain                   26   Infinite                    26
+LowGain                     2   Infinite                     2
+SolarP_500W                 0   PhotoVPanels                 0
+SolarP_650W                 0   PhotoVPanels                 0
+SolarP_900W                 0   PhotoVPanels                 0
+Thermal                     0   Custom                       0
+
+
+

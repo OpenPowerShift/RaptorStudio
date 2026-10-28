@@ -1,0 +1,106 @@
+Final_Results_Report for input.rbd  Thu Oct 01 16:00:57 2026
+
+
+Results from 40 runs of sim time 3000.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Units_Produced           416403.98       425324.21       433675.95       3622.73         572.80          
+Mean_Flow                138.801327      141.774737      144.558651      1.207578        0.190935        
+Mean_Capacity            138.801327      141.774737      144.558651      1.207578        0.190935        
+Availability             0.925342180     0.944927836     0.962800253     0.007934110     0.001254493     
+MTBDE                    39.666870       47.322524       57.181999       3.935227        0.622214        
+MDT                      2.137598        2.735357        3.359152        0.285958        0.045214        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          50              60.275000       71              4.618733        0.730286        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     12.555664       13.540253       14.868916       0.456381        0.072160        
+MTBMu                    19.356649       22.520687       27.736247       1.457595        0.230466        
+MTBMs                    32.050775       34.093196       36.655128       1.016900        0.160786        
+MMT                      7.852267        8.717281        9.628021        0.445150        0.070384        
+MMTu                     11.058177       12.109520       13.361368       0.602219        0.095219        
+MMTs                     3.117116        3.587368        3.893723        0.167462        0.026478        
+Green_Percent            5.148031        29.091344       60.640799       16.504067       2.609522        
+Yellow_Percent           35.511526       65.401440       88.908645       16.247205       2.568909        
+Red_Percent              3.719975        5.507216        7.465782        0.793411        0.125449        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+S1B1                  Motors                       6         7.95        10         0.93 
+S1B2                  Motors                       5         7.78        10         1.27 
+S1B3                  Motors                      17        18.15        19         0.66 
+S2B1                  Infinite                    14        18.00        23         2.41 
+S2B2                  Infinite                     0         1.32         4         1.35 
+S2B3                  Infinite                     7         8.30        11         1.07 
+S2B4                  Infinite                    16        19.95        22         1.24 
+S3B1                  Seals                        7         8.50        11         0.72 
+S3B2                  Seals                       13        13.70        15         0.61 
+S3B3                  Seals                        6        14.78        20         3.35 
+S4B1                  Infinite                     0         0.25         2         0.54 
+S4B2                  Infinite                    10        11.57        15         1.13 
+S4B3                  Infinite                     0         0.00         0         0.00 
+S5B1                  Filters                      2         6.25        12         2.43 
+S5B2                  Filters                      7         7.55         8         0.50 
+S5B3                  Filters                     11        15.25        20         2.60 
+S5B4                  Filters                      8         9.72        11         0.78 
+
+
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Motors                        6.00        45.00         4.97        10.44        17.20        17.13         0.00 
+Seals                         5.00        40.42         1.50         6.19         9.80         8.45         0.00 
+Filters                       6.00        60.00         5.03        15.34        27.25        27.23         0.00 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes    EndNumRes    NumDelays
+Techs                         4.00         0.10         3.71         4.00         3.75         0.58 
+Crane                         2.00         0.00         1.85         2.00         1.88         0.10 
+
+
+
+***CAPACITY***
+
+FlowGenerated                 700
+UnitsProduced           425324.21
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                           532.50       558.23       700.00
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity               0.00       141.77       167.50         1.00           0.00       141.77       167.50         0.86   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                          0.00       141.77       167.50          N/A            N/A          N/A          N/A          N/A   
+J1                           0.00       141.77       167.50         0.12          81.25      1206.44      1250.00         0.97   
+J2                           0.00       141.77       167.50         0.27           0.00       528.23       621.25         0.86   
+J3                           0.00       141.77       167.50         0.13          15.00      1131.04      1200.00         0.94   
+J4                           0.00       141.77       167.50         0.95           0.00       148.86       167.50         0.91   
+J5                           0.00       141.77       167.50         0.11           0.00      1260.29      1325.00         0.95   
+
+
+

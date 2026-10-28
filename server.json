@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.OpenPowerShift/raptor-studio",
+  "title": "Raptor Studio",
+  "description": "Build, validate and simulate reliability block diagrams (RAM analysis) from an AI assistant.",
+  "repository": {
+    "url": "https://github.com/openpowershift/RaptorStudio",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md",
+  "version": "0.8.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "raptor-studio-mcp",
+      "version": "0.8.0",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

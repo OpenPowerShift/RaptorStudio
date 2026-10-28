@@ -1,0 +1,2584 @@
+{
+ "actions": {
+  "_about_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "About",
+   "tooltip": "About RAPTOR Studio \u2014 version, credits and licence"
+  },
+  "_add_block_tool": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Add Block",
+   "tooltip": "Click the canvas to place a new block\n\nUnavailable: open or create a model first"
+  },
+  "_add_event_tool": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Add Event",
+   "tooltip": "Click the canvas to place a new Bernoulli event (P=0.5 \u2014 edit it in the Inspector or Data Tables)\n\nUnavailable: open or create a model first"
+  },
+  "_add_hier_tool": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Add Hierarchy",
+   "tooltip": "Click the canvas to place a new hierarchy (with its In/Out markers)\n\nUnavailable: open or create a model first"
+  },
+  "_add_node_tool": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Add Node",
+   "tooltip": "Click the canvas to place a new Regular node\n\nUnavailable: open or create a model first"
+  },
+  "_align_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": true,
+   "shortcuts": [],
+   "text": "Align",
+   "tooltip": "Align or evenly distribute the selected elements and annotations (select 2+ to align, 3+ to distribute)\n\nUnavailable: open or create a model first"
+  },
+  "_analysis_actions[capacityAnalysis]": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Capacity",
+   "tooltip": "Record flow/capacity samples for the Capacity plot \u2014 writes this model's settings"
+  },
+  "_analysis_actions[costAnalysis]": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Cost",
+   "tooltip": "Accumulate life-cycle cost so the Cost tab populates \u2014 writes this model's settings"
+  },
+  "_analysis_actions[weakAnalysis]": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Weak Link",
+   "tooltip": "Track per-element state times for the Weak Link view \u2014 writes this model's settings"
+  },
+  "_anno_arrow_tool": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Arrow",
+   "tooltip": "Click to place the tail, click again to place the head\n\nUnavailable: open or create a model first"
+  },
+  "_anno_ellipse_tool": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Ellipse",
+   "tooltip": "Drag an ellipse annotation\n\nUnavailable: open or create a model first"
+  },
+  "_anno_order_actions[back]": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+["
+   ],
+   "text": "Send to Back",
+   "tooltip": "Place the selected annotations behind every diagram element (links and hierarchy ovals included) (Ctrl+Shift+[)"
+  },
+  "_anno_order_actions[backward]": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+["
+   ],
+   "text": "Send Backward",
+   "tooltip": "Move the selected annotations one step down the stack (Ctrl+[)"
+  },
+  "_anno_order_actions[forward]": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+]"
+   ],
+   "text": "Bring Forward",
+   "tooltip": "Move the selected annotations one step up the stack (Ctrl+])"
+  },
+  "_anno_order_actions[front]": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+]"
+   ],
+   "text": "Bring to Front",
+   "tooltip": "Place the selected annotations in front of every diagram element (Ctrl+Shift+])"
+  },
+  "_anno_order_back_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+["
+   ],
+   "text": "Send to Back",
+   "tooltip": "Place the selected annotations behind every diagram element (links and hierarchy ovals included) (Ctrl+Shift+[)"
+  },
+  "_anno_order_backward_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+["
+   ],
+   "text": "Send Backward",
+   "tooltip": "Move the selected annotations one step down the stack (Ctrl+[)"
+  },
+  "_anno_order_forward_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+]"
+   ],
+   "text": "Bring Forward",
+   "tooltip": "Move the selected annotations one step up the stack (Ctrl+])"
+  },
+  "_anno_order_front_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+]"
+   ],
+   "text": "Bring to Front",
+   "tooltip": "Place the selected annotations in front of every diagram element (Ctrl+Shift+])"
+  },
+  "_anno_rect_tool": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Rectangle",
+   "tooltip": "Drag a rectangle annotation\n\nUnavailable: open or create a model first"
+  },
+  "_anno_text_tool": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Text",
+   "tooltip": "Click to place a text annotation (double-click to edit)\n\nUnavailable: open or create a model first"
+  },
+  "_auto_layout_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+L"
+   ],
+   "text": "Auto Layout",
+   "tooltip": "Rearrange by graph flow (columns left-to-right). Selections are laid out alone. (Ctrl+L)\n\nUnavailable: open or create a model first"
+  },
+  "_block_defaults_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Block Defaults\u2026",
+   "tooltip": "Set the default failure/repair distribution for NEW blocks\n\nUnavailable: open or create a model first"
+  },
+  "_capacity_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Capacity",
+   "tooltip": "Colour each capacity node by its average utilization (Green < 70% \u00b7 Yellow < 90% \u00b7 Red \u2265 90%). Needs Capacity analysis and at least one node without unrestricted flow."
+  },
+  "_clear_results_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Clear Results",
+   "tooltip": "Empty every results tab and return to the placeholder\n\nUnavailable: there are no results to clear \u2014 run the model first"
+  },
+  "_close_file_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Close",
+   "tooltip": "Close the current model (with save prompt)\n\nUnavailable: open or create a model first"
+  },
+  "_collapse_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Collapse Selection",
+   "tooltip": "Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval\n\nUnavailable: open or create a model first"
+  },
+  "_compare_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Compare\u2026",
+   "tooltip": "Run several models -- this one and others from disk -- with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed.\n\nUnavailable: open or create a model first"
+  },
+  "_connect_tool": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Connect",
+   "tooltip": "Click the source element, then the target\n\nUnavailable: open or create a model first"
+  },
+  "_copy_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Copy",
+   "tooltip": "Copy the selected elements\n\nUnavailable: open or create a model first"
+  },
+  "_copy_view_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Copy View",
+   "tooltip": "Copy the current view to the clipboard as a high-resolution PNG\n\nUnavailable: open or create a model first"
+  },
+  "_cost_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Cost",
+   "tooltip": "Colour each block by its total life-cycle cost, relative to the most expensive block (Green < 1/3 \u00b7 Yellow < 2/3 \u00b7 Red \u2265 2/3); Spread bands it by quartile instead. Needs Cost Analysis."
+  },
+  "_cut_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Cut",
+   "tooltip": "Copy and delete the selected elements\n\nUnavailable: open or create a model first"
+  },
+  "_data_tables_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Data Tables",
+   "tooltip": "Show the Data Tables panel \u2014 every block/node in an editable grid"
+  },
+  "_delete_tool": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Del"
+   ],
+   "text": "Delete Selected",
+   "tooltip": "Delete selected blocks/nodes (Del)\n\nUnavailable: open or create a model first"
+  },
+  "_diff_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Differences\u2026",
+   "tooltip": "What is different between this model and another: its saved file (what you have changed), any model, or a recent one -- parameters and wiring. Nothing is run.\n\nUnavailable: open or create a model first"
+  },
+  "_domains_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Domains\u2026",
+   "tooltip": "Domain of each node \u2014 which elements' failures can propagate to it\n\nUnavailable: open or create a model first"
+  },
+  "_explorer_toggle_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Explorer",
+   "tooltip": "Explorer"
+  },
+  "_export_library_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Export Library",
+   "tooltip": "Save every block of this model as reusable templates\n\nUnavailable: open or create a model first"
+  },
+  "_export_pdf_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Export PDF\u2026",
+   "tooltip": "Save the printable report (diagram + results + weak link) as a PDF file\n\nUnavailable: open or create a model first"
+  },
+  "_export_png_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Save Bitmap",
+   "tooltip": "Save the diagram view as a PNG image\n\nUnavailable: open or create a model first"
+  },
+  "_export_svg_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Export Diagram SVG\u2026",
+   "tooltip": "Save the currently displayed hierarchy level as a scalable vector (.svg) file, for editing or embedding elsewhere at any resolution\n\nUnavailable: open or create a model first"
+  },
+  "_export_tables_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Export Tables\u2026",
+   "tooltip": "Write the model's tables (blocks, nodes, links, ... ) and a run's result tables as CSV, text or one spreadsheet with a tab per table\n\nUnavailable: open or create a model first"
+  },
+  "_extract_hierarchy_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Extract Hierarchy\u2026",
+   "tooltip": "Save the selected hierarchy as a standalone model (its input always available) and open it to run on its own. Shows what crosses the hierarchy's boundary and how each crossing is treated.\n\nUnavailable: open or create a model first"
+  },
+  "_fev_erase_all_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Reset All",
+   "tooltip": "Large eraser: everything operating again, back to phase 1.\n\nUnavailable: open Failure Effects View first"
+  },
+  "_fev_erase_phase_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Clear Failures",
+   "tooltip": "Small eraser: repair every failed or PM block and every failed event, and stay in this phase. A block that is Idle stays Idle.\n\nUnavailable: open Failure Effects View first"
+  },
+  "_fev_fail_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Fail",
+   "tooltip": "Fail a block (or an event) NOW. Select one first, or click Fail then click it. Opens Failure Effects View if it is not open.\n\nUnavailable: open or create a model first"
+  },
+  "_fev_goto_phase_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Go To Phase\u2026",
+   "tooltip": "Failure Effects View: choose a phase from the list and go straight to it.\n\nUnavailable: open Failure Effects View first"
+  },
+  "_fev_log_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": true,
+   "shortcuts": [],
+   "text": "Log",
+   "tooltip": "Interactive Log: write this session's system status summary to a text file\n\nUnavailable: open Failure Effects View first"
+  },
+  "_fev_log_close_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": false,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Close Interactive Log",
+   "tooltip": "Close Interactive Log"
+  },
+  "_fev_log_open_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": false,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Open Interactive Log\u2026",
+   "tooltip": "Open Interactive Log"
+  },
+  "_fev_log_write_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": false,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Write to Log",
+   "tooltip": "Write to Log"
+  },
+  "_fev_phase_next_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Next Phase",
+   "tooltip": "Failure Effects View: go to the next phase (wraps to the first).\n\nUnavailable: open Failure Effects View first"
+  },
+  "_fev_phase_prev_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Prev Phase",
+   "tooltip": "Failure Effects View: go to the previous phase (wraps to the last).\n\nUnavailable: open Failure Effects View first"
+  },
+  "_fev_repair_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Repair",
+   "tooltip": "Put a failed block (or event) back to Running NOW. Select one first, or click Repair then click it.\n\nUnavailable: open or create a model first"
+  },
+  "_fev_status_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Status",
+   "tooltip": "Display Failure Effects: the failed components, the induced failures, the down and degraded nodes and the system status\n\nUnavailable: open Failure Effects View first"
+  },
+  "_fev_view_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Failure Effects",
+   "tooltip": "Failure Effects View: fail and repair blocks by clicking them and see what happens to the system, with nothing simulated. Click again to leave.\n\nUnavailable: open or create a model first"
+  },
+  "_fit_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+0"
+   ],
+   "text": "Fit",
+   "tooltip": "Fit all: fit the whole diagram to the window (Ctrl+0)\n\nUnavailable: open or create a model first"
+  },
+  "_flip_h_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Flip Horizontal",
+   "tooltip": "Mirror the selected items left-to-right about the middle of their span (select 2+). Shapes keep their size; only positions reflect.\n\nUnavailable: open or create a model first"
+  },
+  "_flip_v_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Flip Vertical",
+   "tooltip": "Mirror the selected items top-to-bottom about the middle of their span (select 2+). Shapes keep their size; only positions reflect.\n\nUnavailable: open or create a model first"
+  },
+  "_focus_event_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Focus Event",
+   "tooltip": "Centre the view on the element that changed at each step"
+  },
+  "_formulas_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Formulas",
+   "tooltip": "Reliability formulas quick reference \u2014 every metric the engine reports (availability, MTBDE, MDT, reliability, SEM), the distribution table, and the limits of an RBD model, all on one page"
+  },
+  "_guide_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "User Guide",
+   "tooltip": "Open the User Guide: reliability simulation from scratch, with companion models"
+  },
+  "_hier_home_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Home",
+   "tooltip": "Return to the home level"
+  },
+  "_hier_up_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Up",
+   "tooltip": "Ascend one hierarchy level (or double-click an Out marker)"
+  },
+  "_import_library_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Import Library",
+   "tooltip": "Add a block template from a library file, or update same-named blocks' failure/repair data\n\nUnavailable: open or create a model first"
+  },
+  "_import_rbd_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Import RBD",
+   "tooltip": "Merge an existing model file in as one hierarchy: its Start/End markers become the new level's In/Out\n\nUnavailable: open or create a model first"
+  },
+  "_importance_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Importance",
+   "tooltip": "Colour each block by its importance, using the measure the Importance tab ranks by (Vesely\u2013Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (\u2265 \u2154 of the largest value), Yellow \u2265 \u2153, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Needs Importance measures enabled for the run."
+  },
+  "_inspector_toggle_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Inspector",
+   "tooltip": "Inspector"
+  },
+  "_jump_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Jump",
+   "tooltip": "While stepping: let this run finish and stop at the next run's first change. In a background batch: abandon the current run and start the next one\n\nUnavailable: Jump goes to the next run of a stepped session (the model has no later run, or nothing is being stepped) or skips a run of a background batch"
+  },
+  "_live_sim_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Animate",
+   "tooltip": "Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model."
+  },
+  "_manual_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Reference Manual",
+   "tooltip": "Open the field-by-field reference: every ribbon control, dialog setting and workflow. Tip: F1 jumps straight to the section for the focused dock or dialog"
+  },
+  "_mass_edit_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Mass Edit\u2026",
+   "tooltip": "Apply a failure/repair distribution to all selected elements at once (select 2+ elements)\n\nUnavailable: open or create a model first"
+  },
+  "_mcp_docs_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "AI Assistant",
+   "tooltip": "Set up an AI assistant over MCP (Claude Code, Claude Desktop, OpenCode, ...): opens the documentation"
+  },
+  "_new_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+N"
+   ],
+   "text": "New",
+   "tooltip": "Create a new blank model (Ctrl+N)"
+  },
+  "_open_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+O"
+   ],
+   "text": "Open",
+   "tooltip": "Open an .rbd or .rbds file (Ctrl+O)"
+  },
+  "_paste_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Paste",
+   "tooltip": "Paste previously copied elements with fresh ids\n\nUnavailable: open or create a model first"
+  },
+  "_pause_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Pause",
+   "tooltip": "Pause\n\nUnavailable: no run is in progress \u2014 press Run (with Animate off it runs in the background, where it can be paused)"
+  },
+  "_phases_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Phases\u2026",
+   "tooltip": "Phases \u2014 mission phase durations and per-element Active/Link/Cut assignment\n\nUnavailable: open or create a model first"
+  },
+  "_pool_actions[RESOURCE_DATA]": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Resources\u2026",
+   "tooltip": "Resource Pools \u2014 shared crew/equipment, cost per use\n\nUnavailable: open or create a model first"
+  },
+  "_pool_actions[SPARE_POOL_DATA]": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Spare Pools\u2026",
+   "tooltip": "Spare Pools \u2014 stock levels, arrival cadence, emergency shipping\n\nUnavailable: open or create a model first"
+  },
+  "_pool_actions[TRIGGERS]": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Triggers\u2026",
+   "tooltip": "Triggers \u2014 schedules Preventive Maintenance (PM)\n\nUnavailable: open or create a model first"
+  },
+  "_prefs_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Preferences\u2026",
+   "tooltip": "Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options"
+  },
+  "_print_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+P"
+   ],
+   "text": "Print\u2026",
+   "tooltip": "Print diagrams, simulation results and the Weak Link analysis with a project title block (Ctrl+P)\n\nUnavailable: open or create a model first"
+  },
+  "_quit_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Q"
+   ],
+   "text": "Quit",
+   "tooltip": "Quit RAPTOR Studio (Ctrl+Q)"
+  },
+  "_rates_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Rates\u2026",
+   "tooltip": "Rates library \u2014 named, reusable value expressions (e.g. a failure rate derived from km/yr usage) that Failure/Repair Param fields can link to instead of retyping the same derivation on every block\n\nUnavailable: open or create a model first"
+  },
+  "_redo_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Y",
+    "Alt+Shift+Backspace",
+    "Ctrl+Shift+Z",
+    "Redo"
+   ],
+   "text": "Redo",
+   "tooltip": "Redo an undone edit (Ctrl+Shift+Z / Ctrl+Y)"
+  },
+  "_report_issue_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Report Issue",
+   "tooltip": "Report a bug or request a feature \u2014 opens the GitHub issue tracker with a new, prefilled issue"
+  },
+  "_report_stream_actions[ao_plot]": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": false,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Availability Plot",
+   "tooltip": "Collect the Availability plot data (the rpt_availability_plot file): the Graphs tab's Per Trial / Interval / Multi-run Ao plots. Streamed to a temp file \u2014 never held in RAM."
+  },
+  "_report_stream_actions[capacity_plot]": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": false,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Capacity Plot",
+   "tooltip": "Collect capacity plot data (the rpt_capacity_plot file) for the Graphs tab's Capacity (Flow) plot and the live capacity readouts. Requires Capacity Analysis."
+  },
+  "_report_stream_actions[cost_plot]": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": false,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Cost Plot",
+   "tooltip": "Collect interim cost data (the rpt_interim_cost file). Requires Cost Analysis."
+  },
+  "_report_stream_actions[event_log]": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": false,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Event Log",
+   "tooltip": "Collect each run's event log for the Results \u25b8 Event Log tab. Unchecked: no log collection (faster large batches)."
+  },
+  "_reset_layout_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Reset Layout",
+   "tooltip": "Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too"
+  },
+  "_restart_step_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Restart",
+   "tooltip": "Restart (B-11): discard this stepped run and begin a fresh one \u2014 all state reset to kickoff values\n\nUnavailable: nothing is being stepped \u2014 press Step (Debug tab) first"
+  },
+  "_results_float_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Float Window",
+   "tooltip": "Open the Results panel as its own resizable window"
+  },
+  "_results_show_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+R"
+   ],
+   "text": "Show Results",
+   "tooltip": "Bring the Results panel to the front, full height (Ctrl+Shift+R)"
+  },
+  "_results_toggle_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Results",
+   "tooltip": "Results"
+  },
+  "_run_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "F5"
+   ],
+   "text": "Run",
+   "tooltip": "Run the simulation (F5): at full speed on the cores shown beside it, or animated on one core when Animate is on\n\nUnavailable: open or create a model first"
+  },
+  "_run_settings_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Run Settings\u2026",
+   "tooltip": "Open the Run panel \u2014 the single editor for trials, termination, analyses and recording\n\nUnavailable: the Run panel is already open on the Simulate tab"
+  },
+  "_run_to_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Run to time\u2026",
+   "tooltip": "Advance until the sim time set in the Run panel is reached (or the run ends)\n\nUnavailable: open or create a model first"
+  },
+  "_run_toggle_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Run Panel",
+   "tooltip": "Show the Run panel \u2014 trials, termination, analyses and recording for the next run"
+  },
+  "_save_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+S"
+   ],
+   "text": "Save",
+   "tooltip": "Save (Ctrl+S)\n\nUnavailable: open or create a model first"
+  },
+  "_save_as_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+S"
+   ],
+   "text": "Save As",
+   "tooltip": "Save to a new .rbds or .rbd file (Ctrl+Shift+S)\n\nUnavailable: open or create a model first"
+  },
+  "_select_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Q"
+   ],
+   "text": "Select",
+   "tooltip": "Select tool (Q)"
+  },
+  "_select_all_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+A"
+   ],
+   "text": "Select All",
+   "tooltip": "Select all blocks/nodes/events/hierarchies (Ctrl+A)\n\nUnavailable: open or create a model first"
+  },
+  "_shortcuts_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Keyboard Shortcuts",
+   "tooltip": "Every shortcut key, one page"
+  },
+  "_snap_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Snap to Grid",
+   "tooltip": "Align dragged/placed items to the grid (new work only \u2014 opened files are never reshuffled)\n\nUnavailable: open or create a model first"
+  },
+  "_spares_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Spares",
+   "tooltip": "Colour each block Red if it ever ran out of spares or reached end of life during the run (% of run time and sparing cost on hover), Green otherwise. Needs Weak Link analysis."
+  },
+  "_speed_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": true,
+   "shortcuts": [],
+   "text": "Speed",
+   "tooltip": "How fast an animated run is drawn. Applies only while Animate is on"
+  },
+  "_speed_faster": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Faster",
+   "tooltip": "Animation is off \u2014 the run goes at full speed. Turn Animate on to set an animation speed."
+  },
+  "_speed_reset_1": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "1x",
+   "tooltip": "Animation is off \u2014 the run goes at full speed. Turn Animate on to set an animation speed."
+  },
+  "_speed_reset_max": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Max",
+   "tooltip": "Animation is off \u2014 the run goes at full speed. Turn Animate on to set an animation speed."
+  },
+  "_speed_slower": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Slower",
+   "tooltip": "Animation is off \u2014 the run goes at full speed. Turn Animate on to set an animation speed."
+  },
+  "_spof_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Single-Point Failures",
+   "tooltip": "List every component that alone can fail the system \u2014 series elements; export as a text file\n\nUnavailable: open or create a model first"
+  },
+  "_step_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "F6"
+   ],
+   "text": "Step",
+   "tooltip": "Advance the simulation ONE event (F6) \u2014 watch states change event-by-event\n\nUnavailable: open or create a model first"
+  },
+  "_step_change_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Step to next change",
+   "tooltip": "Step to the next change: run on until an instant in which something changed state has been analysed, then pause (Step itself advances one calendar entry)\n\nUnavailable: open or create a model first"
+  },
+  "_step_finish_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Finish",
+   "tooltip": "Run the stepped simulation to completion and produce reports\n\nUnavailable: nothing is being stepped \u2014 press Step (Debug tab) first"
+  },
+  "_step_menu_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": true,
+   "shortcuts": [],
+   "text": "More Steps",
+   "tooltip": "Other ways to advance: to the next change, several events at once, or run to a target time"
+  },
+  "_step_multi_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Multi (10)\u2026",
+   "tooltip": "Advance the number of events set in the Run panel (stops early at the breakpoint)\n\nUnavailable: open or create a model first"
+  },
+  "_step_next_time_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Shift+F6"
+   ],
+   "text": "Next Time",
+   "tooltip": "Advance to the next DISTINCT simulation time (Shift+F6) \u2014 steps through every event at the current time in one click\n\nUnavailable: open or create a model first"
+  },
+  "_stop_run_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Stop",
+   "tooltip": "Stop\n\nUnavailable: no run is in progress"
+  },
+  "_sweep_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Sweep\u2026",
+   "tooltip": "Run the model once per value of one number -- a failure or repair parameter, a rate, the k of a k-of-n node -- and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed.\n\nUnavailable: open or create a model first"
+  },
+  "_syscfg_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Project Settings",
+   "tooltip": "Project Settings \u2014 simulation-wide configuration for this model\n\nUnavailable: open or create a model first"
+  },
+  "_terminate_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Terminate",
+   "tooltip": "Early Terminate: finalize the stepped run at the CURRENT sim time \u2014 partial results are kept\n\nUnavailable: nothing is being stepped \u2014 press Step (Debug tab) first"
+  },
+  "_theme_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Dark Theme",
+   "tooltip": "Toggle light/dark theme"
+  },
+  "_undo_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Z",
+    "Alt+Backspace",
+    "Undo"
+   ],
+   "text": "Undo",
+   "tooltip": "Undo the last edit (Ctrl+Z)"
+  },
+  "_validate_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "F7"
+   ],
+   "text": "Issues",
+   "tooltip": "No problems stop a run. Click for the list (F7)\n\nUnavailable: open or create a model first"
+  },
+  "_weak_color_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Weak Links",
+   "tooltip": "Colour every block, node, event and hierarchy by its post-simulation availability, dependability or reliability, against the model's G/Y and Y/R thresholds; the value is printed under each element (digits in Preferences \u25b8 Advanced). Enable Weak Link in the Run panel's Analysis section."
+  },
+  "_weak_spread_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Spread",
+   "tooltip": "Band the ACTIVE colouring by this result set's values: the best quarter Green, the worst quarter Red, the middle half Yellow. Applies to Weak Links or Cost; Capacity and Spares use fixed or flag bands. For Weak Links it sets the two thresholds."
+  },
+  "_zoom_hierarchy_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Hierarchy",
+   "tooltip": "Zoom to hierarchy: enter the selected hierarchy oval (like double-clicking it)\n\nUnavailable: open or create a model first"
+  },
+  "_zoom_in_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+="
+   ],
+   "text": "Zoom In",
+   "tooltip": "Zoom into the diagram (Ctrl+= or Ctrl+wheel)"
+  },
+  "_zoom_out_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+-"
+   ],
+   "text": "Zoom Out",
+   "tooltip": "Zoom out of the diagram (Ctrl+- or Ctrl+wheel)"
+  },
+  "_zoom_percent_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Zoom %",
+   "tooltip": "Zoom percent: set an exact zoom percentage\n\nUnavailable: open or create a model first"
+  },
+  "_zoom_selection_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+0"
+   ],
+   "text": "Selection",
+   "tooltip": "Zoom to selection: fit the selected elements in the window (Ctrl+Shift+0)\n\nUnavailable: open or create a model first"
+  }
+ },
+ "enabled": {
+  "after_close": {
+   "_about_action": true,
+   "_add_block_tool": false,
+   "_add_event_tool": false,
+   "_add_hier_tool": false,
+   "_add_node_tool": false,
+   "_align_action": false,
+   "_analysis_actions[capacityAnalysis]": true,
+   "_analysis_actions[costAnalysis]": true,
+   "_analysis_actions[weakAnalysis]": true,
+   "_anno_arrow_tool": false,
+   "_anno_ellipse_tool": false,
+   "_anno_order_actions[back]": false,
+   "_anno_order_actions[backward]": false,
+   "_anno_order_actions[forward]": false,
+   "_anno_order_actions[front]": false,
+   "_anno_order_back_action": false,
+   "_anno_order_backward_action": false,
+   "_anno_order_forward_action": false,
+   "_anno_order_front_action": false,
+   "_anno_rect_tool": false,
+   "_anno_text_tool": false,
+   "_auto_layout_action": false,
+   "_block_defaults_action": false,
+   "_capacity_overlay_action": false,
+   "_clear_results_action": false,
+   "_close_file_action": false,
+   "_collapse_action": false,
+   "_compare_action": false,
+   "_connect_tool": false,
+   "_copy_action": false,
+   "_copy_view_action": false,
+   "_cost_overlay_action": false,
+   "_cut_action": false,
+   "_data_tables_action": true,
+   "_delete_tool": false,
+   "_diff_action": false,
+   "_domains_action": false,
+   "_explorer_toggle_action": true,
+   "_export_library_action": false,
+   "_export_pdf_action": false,
+   "_export_png_action": false,
+   "_export_svg_action": false,
+   "_export_tables_action": false,
+   "_extract_hierarchy_action": false,
+   "_fev_erase_all_action": false,
+   "_fev_erase_phase_action": false,
+   "_fev_fail_action": false,
+   "_fev_goto_phase_action": false,
+   "_fev_log_action": false,
+   "_fev_log_close_action": false,
+   "_fev_log_open_action": true,
+   "_fev_log_write_action": false,
+   "_fev_phase_next_action": false,
+   "_fev_phase_prev_action": false,
+   "_fev_repair_action": false,
+   "_fev_status_action": false,
+   "_fev_view_action": false,
+   "_fit_action": false,
+   "_flip_h_action": false,
+   "_flip_v_action": false,
+   "_focus_event_action": true,
+   "_formulas_action": true,
+   "_guide_action": true,
+   "_hier_home_action": false,
+   "_hier_up_action": false,
+   "_import_library_action": false,
+   "_import_rbd_action": false,
+   "_importance_overlay_action": false,
+   "_inspector_toggle_action": true,
+   "_jump_action": false,
+   "_live_sim_action": true,
+   "_manual_action": true,
+   "_mass_edit_action": false,
+   "_mcp_docs_action": true,
+   "_new_action": true,
+   "_open_action": true,
+   "_paste_action": false,
+   "_pause_action": false,
+   "_phases_action": false,
+   "_pool_actions[RESOURCE_DATA]": false,
+   "_pool_actions[SPARE_POOL_DATA]": false,
+   "_pool_actions[TRIGGERS]": false,
+   "_prefs_action": true,
+   "_print_action": false,
+   "_quit_action": true,
+   "_rates_action": false,
+   "_redo_action": false,
+   "_report_issue_action": true,
+   "_report_stream_actions[ao_plot]": true,
+   "_report_stream_actions[capacity_plot]": true,
+   "_report_stream_actions[cost_plot]": true,
+   "_report_stream_actions[event_log]": true,
+   "_reset_layout_action": true,
+   "_restart_step_action": false,
+   "_results_float_action": false,
+   "_results_show_action": false,
+   "_results_toggle_action": true,
+   "_run_action": false,
+   "_run_settings_action": false,
+   "_run_to_action": false,
+   "_run_toggle_action": true,
+   "_save_action": false,
+   "_save_as_action": false,
+   "_select_action": true,
+   "_select_all_action": false,
+   "_shortcuts_action": true,
+   "_snap_action": false,
+   "_spares_overlay_action": false,
+   "_speed_action": true,
+   "_speed_faster": false,
+   "_speed_reset_1": false,
+   "_speed_reset_max": false,
+   "_speed_slower": false,
+   "_spof_action": false,
+   "_step_action": false,
+   "_step_change_action": false,
+   "_step_finish_action": false,
+   "_step_menu_action": true,
+   "_step_multi_action": false,
+   "_step_next_time_action": false,
+   "_stop_run_action": false,
+   "_sweep_action": false,
+   "_syscfg_action": false,
+   "_terminate_action": false,
+   "_theme_action": true,
+   "_undo_action": false,
+   "_validate_action": false,
+   "_weak_color_action": false,
+   "_weak_spread_action": false,
+   "_zoom_hierarchy_action": false,
+   "_zoom_in_action": true,
+   "_zoom_out_action": true,
+   "_zoom_percent_action": false,
+   "_zoom_selection_action": false
+  },
+  "after_load": {
+   "_about_action": true,
+   "_add_block_tool": true,
+   "_add_event_tool": true,
+   "_add_hier_tool": true,
+   "_add_node_tool": true,
+   "_align_action": false,
+   "_analysis_actions[capacityAnalysis]": true,
+   "_analysis_actions[costAnalysis]": true,
+   "_analysis_actions[weakAnalysis]": true,
+   "_anno_arrow_tool": true,
+   "_anno_ellipse_tool": true,
+   "_anno_order_actions[back]": false,
+   "_anno_order_actions[backward]": false,
+   "_anno_order_actions[forward]": false,
+   "_anno_order_actions[front]": false,
+   "_anno_order_back_action": false,
+   "_anno_order_backward_action": false,
+   "_anno_order_forward_action": false,
+   "_anno_order_front_action": false,
+   "_anno_rect_tool": true,
+   "_anno_text_tool": true,
+   "_auto_layout_action": true,
+   "_block_defaults_action": true,
+   "_capacity_overlay_action": false,
+   "_clear_results_action": false,
+   "_close_file_action": true,
+   "_collapse_action": false,
+   "_compare_action": true,
+   "_connect_tool": true,
+   "_copy_action": true,
+   "_copy_view_action": true,
+   "_cost_overlay_action": false,
+   "_cut_action": true,
+   "_data_tables_action": true,
+   "_delete_tool": false,
+   "_diff_action": true,
+   "_domains_action": true,
+   "_explorer_toggle_action": true,
+   "_export_library_action": true,
+   "_export_pdf_action": true,
+   "_export_png_action": true,
+   "_export_svg_action": true,
+   "_export_tables_action": true,
+   "_extract_hierarchy_action": false,
+   "_fev_erase_all_action": false,
+   "_fev_erase_phase_action": false,
+   "_fev_fail_action": true,
+   "_fev_goto_phase_action": false,
+   "_fev_log_action": false,
+   "_fev_log_close_action": false,
+   "_fev_log_open_action": true,
+   "_fev_log_write_action": false,
+   "_fev_phase_next_action": false,
+   "_fev_phase_prev_action": false,
+   "_fev_repair_action": true,
+   "_fev_status_action": false,
+   "_fev_view_action": true,
+   "_fit_action": true,
+   "_flip_h_action": false,
+   "_flip_v_action": false,
+   "_focus_event_action": true,
+   "_formulas_action": true,
+   "_guide_action": true,
+   "_hier_home_action": false,
+   "_hier_up_action": false,
+   "_import_library_action": true,
+   "_import_rbd_action": true,
+   "_importance_overlay_action": true,
+   "_inspector_toggle_action": true,
+   "_jump_action": false,
+   "_live_sim_action": true,
+   "_manual_action": true,
+   "_mass_edit_action": false,
+   "_mcp_docs_action": true,
+   "_new_action": true,
+   "_open_action": true,
+   "_paste_action": true,
+   "_pause_action": false,
+   "_phases_action": true,
+   "_pool_actions[RESOURCE_DATA]": true,
+   "_pool_actions[SPARE_POOL_DATA]": true,
+   "_pool_actions[TRIGGERS]": true,
+   "_prefs_action": true,
+   "_print_action": true,
+   "_quit_action": true,
+   "_rates_action": true,
+   "_redo_action": false,
+   "_report_issue_action": true,
+   "_report_stream_actions[ao_plot]": true,
+   "_report_stream_actions[capacity_plot]": true,
+   "_report_stream_actions[cost_plot]": true,
+   "_report_stream_actions[event_log]": true,
+   "_reset_layout_action": true,
+   "_restart_step_action": false,
+   "_results_float_action": false,
+   "_results_show_action": false,
+   "_results_toggle_action": true,
+   "_run_action": true,
+   "_run_settings_action": true,
+   "_run_to_action": true,
+   "_run_toggle_action": true,
+   "_save_action": true,
+   "_save_as_action": true,
+   "_select_action": true,
+   "_select_all_action": true,
+   "_shortcuts_action": true,
+   "_snap_action": true,
+   "_spares_overlay_action": false,
+   "_speed_action": true,
+   "_speed_faster": false,
+   "_speed_reset_1": false,
+   "_speed_reset_max": false,
+   "_speed_slower": false,
+   "_spof_action": true,
+   "_step_action": true,
+   "_step_change_action": true,
+   "_step_finish_action": false,
+   "_step_menu_action": true,
+   "_step_multi_action": true,
+   "_step_next_time_action": true,
+   "_stop_run_action": false,
+   "_sweep_action": true,
+   "_syscfg_action": true,
+   "_terminate_action": false,
+   "_theme_action": true,
+   "_undo_action": false,
+   "_validate_action": true,
+   "_weak_color_action": false,
+   "_weak_spread_action": false,
+   "_zoom_hierarchy_action": false,
+   "_zoom_in_action": true,
+   "_zoom_out_action": true,
+   "_zoom_percent_action": true,
+   "_zoom_selection_action": false
+  },
+  "initial": {
+   "_about_action": true,
+   "_add_block_tool": false,
+   "_add_event_tool": false,
+   "_add_hier_tool": false,
+   "_add_node_tool": false,
+   "_align_action": false,
+   "_analysis_actions[capacityAnalysis]": true,
+   "_analysis_actions[costAnalysis]": true,
+   "_analysis_actions[weakAnalysis]": true,
+   "_anno_arrow_tool": false,
+   "_anno_ellipse_tool": false,
+   "_anno_order_actions[back]": false,
+   "_anno_order_actions[backward]": false,
+   "_anno_order_actions[forward]": false,
+   "_anno_order_actions[front]": false,
+   "_anno_order_back_action": false,
+   "_anno_order_backward_action": false,
+   "_anno_order_forward_action": false,
+   "_anno_order_front_action": false,
+   "_anno_rect_tool": false,
+   "_anno_text_tool": false,
+   "_auto_layout_action": false,
+   "_block_defaults_action": false,
+   "_capacity_overlay_action": false,
+   "_clear_results_action": false,
+   "_close_file_action": false,
+   "_collapse_action": false,
+   "_compare_action": false,
+   "_connect_tool": false,
+   "_copy_action": false,
+   "_copy_view_action": false,
+   "_cost_overlay_action": false,
+   "_cut_action": false,
+   "_data_tables_action": true,
+   "_delete_tool": false,
+   "_diff_action": false,
+   "_domains_action": false,
+   "_explorer_toggle_action": true,
+   "_export_library_action": false,
+   "_export_pdf_action": false,
+   "_export_png_action": false,
+   "_export_svg_action": false,
+   "_export_tables_action": false,
+   "_extract_hierarchy_action": false,
+   "_fev_erase_all_action": false,
+   "_fev_erase_phase_action": false,
+   "_fev_fail_action": false,
+   "_fev_goto_phase_action": false,
+   "_fev_log_action": false,
+   "_fev_log_close_action": false,
+   "_fev_log_open_action": true,
+   "_fev_log_write_action": false,
+   "_fev_phase_next_action": false,
+   "_fev_phase_prev_action": false,
+   "_fev_repair_action": false,
+   "_fev_status_action": false,
+   "_fev_view_action": false,
+   "_fit_action": false,
+   "_flip_h_action": false,
+   "_flip_v_action": false,
+   "_focus_event_action": true,
+   "_formulas_action": true,
+   "_guide_action": true,
+   "_hier_home_action": false,
+   "_hier_up_action": false,
+   "_import_library_action": false,
+   "_import_rbd_action": false,
+   "_importance_overlay_action": false,
+   "_inspector_toggle_action": true,
+   "_jump_action": false,
+   "_live_sim_action": true,
+   "_manual_action": true,
+   "_mass_edit_action": false,
+   "_mcp_docs_action": true,
+   "_new_action": true,
+   "_open_action": true,
+   "_paste_action": false,
+   "_pause_action": false,
+   "_phases_action": false,
+   "_pool_actions[RESOURCE_DATA]": false,
+   "_pool_actions[SPARE_POOL_DATA]": false,
+   "_pool_actions[TRIGGERS]": false,
+   "_prefs_action": true,
+   "_print_action": false,
+   "_quit_action": true,
+   "_rates_action": false,
+   "_redo_action": false,
+   "_report_issue_action": true,
+   "_report_stream_actions[ao_plot]": true,
+   "_report_stream_actions[capacity_plot]": true,
+   "_report_stream_actions[cost_plot]": true,
+   "_report_stream_actions[event_log]": true,
+   "_reset_layout_action": true,
+   "_restart_step_action": false,
+   "_results_float_action": false,
+   "_results_show_action": false,
+   "_results_toggle_action": true,
+   "_run_action": false,
+   "_run_settings_action": false,
+   "_run_to_action": false,
+   "_run_toggle_action": true,
+   "_save_action": false,
+   "_save_as_action": false,
+   "_select_action": true,
+   "_select_all_action": false,
+   "_shortcuts_action": true,
+   "_snap_action": false,
+   "_spares_overlay_action": false,
+   "_speed_action": true,
+   "_speed_faster": false,
+   "_speed_reset_1": false,
+   "_speed_reset_max": false,
+   "_speed_slower": false,
+   "_spof_action": false,
+   "_step_action": false,
+   "_step_change_action": false,
+   "_step_finish_action": false,
+   "_step_menu_action": true,
+   "_step_multi_action": false,
+   "_step_next_time_action": false,
+   "_stop_run_action": false,
+   "_sweep_action": false,
+   "_syscfg_action": false,
+   "_terminate_action": false,
+   "_theme_action": true,
+   "_undo_action": false,
+   "_validate_action": false,
+   "_weak_color_action": false,
+   "_weak_spread_action": false,
+   "_zoom_hierarchy_action": false,
+   "_zoom_in_action": true,
+   "_zoom_out_action": true,
+   "_zoom_percent_action": false,
+   "_zoom_selection_action": false
+  }
+ },
+ "ribbon": [
+  {
+   "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Paste"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Cut"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Copy"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Select All"
+      }
+     ],
+     "title": "Clipboard"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Select"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Connect"
+      }
+     ],
+     "title": "Tools"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Add Block"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Add Node"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Add Event"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Add Hierarchy"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Collapse Selection"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Delete Selected"
+      }
+     ],
+     "title": "Build"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Project Settings"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Issues"
+      }
+     ],
+     "title": "Model"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Text"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Rectangle"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Ellipse"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Arrow"
+      }
+     ],
+     "title": "Annotate"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Import RBD"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Extract Hierarchy\u2026"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Up"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Home"
+      },
+      {
+       "children": [
+        "QFrame",
+        "QListView",
+        "QScrollBar",
+        "QScrollBar",
+        "QWidget",
+        "QWidget"
+       ],
+       "class": "QComboBox",
+       "kind": "widget",
+       "large": false
+      }
+     ],
+     "title": "Hierarchy"
+    }
+   ],
+   "title": "Model"
+  },
+  {
+   "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Auto Layout"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Snap to Grid"
+      }
+     ],
+     "title": "Layout"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Bring to Front"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Bring Forward"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Send Backward"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Send to Back"
+      }
+     ],
+     "title": "Order"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Align"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Flip Horizontal"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Flip Vertical"
+      }
+     ],
+     "title": "Align"
+    }
+   ],
+   "title": "Arrange"
+  },
+  {
+   "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Phases\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Rates\u2026"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Spare Pools\u2026"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Resources\u2026"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Triggers\u2026"
+      }
+     ],
+     "title": "Reliability Data"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Block Defaults\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Mass Edit\u2026"
+      }
+     ],
+     "title": "Bulk Edit"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Export Library"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Import Library"
+      }
+     ],
+     "title": "Library"
+    }
+   ],
+   "title": "Data"
+  },
+  {
+   "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Run"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Animate"
+      },
+      {
+       "children": [
+        "QLabel",
+        "QSpinBox"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "children": [
+        "QLabel",
+        "QSpinBox"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Run Settings\u2026"
+      }
+     ],
+     "title": "Run"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Pause"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Stop"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Jump"
+      }
+     ],
+     "title": "Control"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Speed"
+      },
+      {
+       "children": [],
+       "class": "QLabel",
+       "kind": "widget",
+       "large": false
+      }
+     ],
+     "title": "Animation"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Sweep\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Compare\u2026"
+      }
+     ],
+     "title": "Batch"
+    }
+   ],
+   "title": "Simulate"
+  },
+  {
+   "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Step"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Next Time"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Finish"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "More Steps"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Restart"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Terminate"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Focus Event"
+      }
+     ],
+     "title": "Step"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Failure Effects"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Fail"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Repair"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Status"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Clear Failures"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Reset All"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Log"
+      }
+     ],
+     "title": "Failure Effects"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Prev Phase"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Next Phase"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Go To Phase\u2026"
+      }
+     ],
+     "title": "Phase"
+    }
+   ],
+   "title": "Debug"
+  },
+  {
+   "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Show Results"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Float Window"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Clear Results"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Single-Point Failures"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Domains\u2026"
+      }
+     ],
+     "title": "Show"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Weak Links"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Capacity"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Cost"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Spares"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Importance"
+      }
+     ],
+     "title": "Show on Canvas"
+    },
+    {
+     "items": [
+      {
+       "children": [
+        "QComboBox",
+        "QFrame",
+        "QLabel",
+        "QListView",
+        "QScrollBar",
+        "QScrollBar",
+        "QWidget",
+        "QWidget"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "children": [
+        "QDoubleSpinBox",
+        "QLabel"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "children": [
+        "QDoubleSpinBox",
+        "QLabel"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Spread"
+      }
+     ],
+     "title": "Bands"
+    }
+   ],
+   "title": "Results"
+  },
+  {
+   "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Fit"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Selection"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Zoom In"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Zoom Out"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Zoom %"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Hierarchy"
+      }
+     ],
+     "title": "Zoom"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Explorer"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Inspector"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Results"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Run Panel"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Data Tables"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Reset Layout"
+      }
+     ],
+     "title": "Panels"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Dark Theme"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Preferences\u2026"
+      },
+      {
+       "children": [
+        "QComboBox",
+        "QFrame",
+        "QLabel",
+        "QListView",
+        "QScrollBar",
+        "QScrollBar",
+        "QWidget",
+        "QWidget"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "children": [
+        "QComboBox",
+        "QFrame",
+        "QLabel",
+        "QListView",
+        "QScrollBar",
+        "QScrollBar",
+        "QWidget",
+        "QWidget"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      }
+     ],
+     "title": "Appearance"
+    }
+   ],
+   "title": "View"
+  },
+  {
+   "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "User Guide"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Reference Manual"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Formulas"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "AI Assistant"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Keyboard Shortcuts"
+      }
+     ],
+     "title": "Documentation"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "About"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Report Issue"
+      }
+     ],
+     "title": "Support"
+    }
+   ],
+   "title": "Help"
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+Single Point Failure File        rpt_single_point_failures_CutRepairIdleProbe.txt            11 Oct 2026
+
+
+   Phase                  Block                  Criticality 
+
+   D000-075_Orbit         Attitude               1.000000       
+   D000-075_Orbit         Thermal                1.000000       
+   D076-150_Orbit         Attitude               1.000000       
+   D076-150_Orbit         Thermal                1.000000       
+   D151-225_Orbit         Attitude               1.000000       
+   D151-225_Orbit         Thermal                1.000000       

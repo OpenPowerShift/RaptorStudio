@@ -1,0 +1,5002 @@
+End_Of_Run Report for input.rbd  Thu Oct 01 08:12:33 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.853967692
+MTBDE                      85.396769
+MDT                        14.603231
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  57
+
+
+
+***LOGISTICS***
+
+MTBM                  74.909447
+MTBMu                 74.909447
+MTBMs                 N/A
+MMT                   9.091046
+MMTu                  9.091046
+MMTs                  N/A
+GreenPercent          85.396769
+YellowPercent         0.000000
+RedPercent            14.603231
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          10.490376      83.146150     301.516018      67.544773
+DT                             6.908683      14.603231      29.986294       5.376882
+TBM                            0.265288      85.361260     301.516018      69.014770
+RT                             4.907432       9.091046      21.503960       3.258516
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                     8   Infinite                     8
+Casing                      5   Infinite                     5
+Magnets                    14   Infinite                    14
+PowerSupply                14   Infinite                    14
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.875666237
+MTBDE                      109.458280
+MDT                        15.541720
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     40
+NumberOfComponentFailures  49
+
+
+
+***LOGISTICS***
+
+MTBM                  89.353698
+MTBMu                 89.353698
+MTBMs                 N/A
+MMT                   9.047747
+MMTu                  9.047747
+MMTs                  N/A
+GreenPercent          87.566624
+YellowPercent         0.000000
+RedPercent            12.433376
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.877273     107.972910     533.938084     109.297329
+DT                             5.406988      15.541720      30.477825       5.233643
+TBM                            0.815487     100.514525     548.702318     108.228233
+RT                             4.531647       9.047747      14.617699       2.409983
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   13   Infinite                    13
+Brushes                     6   Infinite                     6
+Casing                      5   Infinite                     5
+Magnets                    13   Infinite                    13
+PowerSupply                12   Infinite                    12
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.841322234
+MTBDE                      75.118057
+MDT                        14.167658
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     56
+NumberOfComponentFailures  65
+
+
+
+***LOGISTICS***
+
+MTBM                  64.717095
+MTBMu                 64.717095
+MTBMs                 N/A
+MMT                   8.812495
+MMTu                  8.812495
+MMTs                  N/A
+GreenPercent          84.132223
+YellowPercent         0.000000
+RedPercent            15.867777
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.125084      74.666681     283.196959      65.504701
+DT                             6.942853      14.167658      26.610934       4.866937
+TBM                            1.775331      76.311928     295.464309      66.725483
+RT                             4.285156       8.812495      16.168273       2.840536
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   18   Infinite                    18
+Brushes                     9   Infinite                     9
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.854778456
+MTBDE                      87.222291
+MDT                        14.818525
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  56
+
+
+
+***LOGISTICS***
+
+MTBM                  76.319505
+MTBMu                 76.319505
+MTBMs                 N/A
+MMT                   8.753355
+MMTu                  8.753355
+MMTs                  N/A
+GreenPercent          85.477846
+YellowPercent         0.000000
+RedPercent            14.522154
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.516298      85.589315     259.565145      71.826447
+DT                             6.156662      14.818525      33.016756       5.757831
+TBM                            1.187823      87.578611     276.220073      73.210801
+RT                             3.493862       8.753355      18.694095       3.320970
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                     8   Infinite                     8
+Casing                      7   Infinite                     7
+Magnets                    13   Infinite                    13
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.840546323
+MTBDE                      71.232739
+MDT                        13.513023
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     59
+NumberOfComponentFailures  64
+
+
+
+***LOGISTICS***
+
+MTBM                  65.667681
+MTBMu                 65.667681
+MTBMs                 N/A
+MMT                   8.125310
+MMTu                  8.125310
+MMTs                  N/A
+GreenPercent          84.054632
+YellowPercent         0.000000
+RedPercent            15.945368
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.131198      70.268928     221.420181      53.991026
+DT                             7.508072      13.513023      27.864464       4.324177
+TBM                            2.455048      76.850519     232.546910      56.644621
+RT                             3.346566       8.125310      13.862260       2.735008
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   19   Infinite                    19
+Brushes                    10   Infinite                    10
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.849555096
+MTBDE                      86.689295
+MDT                        15.351521
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  70.796258
+MTBMu                 70.796258
+MTBMs                 N/A
+MMT                   8.212496
+MMTu                  8.212496
+MMTs                  N/A
+GreenPercent          84.955510
+YellowPercent         0.000000
+RedPercent            15.044490
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.452416      86.571186     269.299678      75.726211
+DT                             8.230400      15.351521      29.525344       5.040456
+TBM                            2.302165      83.022327     288.509577      77.774959
+RT                             3.384134       8.212496      14.085178       2.221018
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   14   Infinite                    14
+Brushes                     9   Infinite                     9
+Casing                      6   Infinite                     6
+Magnets                    13   Infinite                    13
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.837141175
+MTBDE                      76.103743
+MDT                        14.805348
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  63
+
+
+
+***LOGISTICS***
+
+MTBM                  66.439776
+MTBMu                 66.439776
+MTBMs                 N/A
+MMT                   8.740040
+MMTu                  8.740040
+MMTs                  N/A
+GreenPercent          83.714118
+YellowPercent         0.000000
+RedPercent            16.285882
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.227447      75.136993     249.662217      62.009699
+DT                             7.500131      14.805348      36.928873       5.694377
+TBM                            0.035550      78.357332     267.823319      64.225130
+RT                             5.067334       8.740040      16.893300       2.457263
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    9   Infinite                     9
+Brushes                    10   Infinite                    10
+Casing                      8   Infinite                     8
+Magnets                    15   Infinite                    15
+PowerSupply                21   Infinite                    21
+
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.841556088
+MTBDE                      84.155609
+MDT                        15.844391
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  58
+
+
+
+***LOGISTICS***
+
+MTBM                  72.547939
+MTBMu                 72.547939
+MTBMs                 N/A
+MMT                   8.645985
+MMTu                  8.645985
+MMTs                  N/A
+GreenPercent          84.155609
+YellowPercent         0.000000
+RedPercent            15.844391
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.892086      82.276890     294.908652      64.222044
+DT                             7.100107      15.844391      36.536072       6.424105
+TBM                            0.703093      84.244932     306.281715      67.154680
+RT                             4.246151       8.645985      17.264355       2.639621
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                    10   Infinite                    10
+Casing                      5   Infinite                     5
+Magnets                    16   Infinite                    16
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.868330391
+MTBDE                      88.605142
+MDT                        13.435674
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  51
+
+
+
+***LOGISTICS***
+
+MTBM                  85.130431
+MTBMu                 85.130431
+MTBMs                 N/A
+MMT                   8.541669
+MMTu                  8.541669
+MMTs                  N/A
+GreenPercent          86.833039
+YellowPercent         0.000000
+RedPercent            13.166961
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.537022      85.449790     324.658410      76.366866
+DT                             6.858428      13.435674      25.501834       4.558553
+TBM                            6.276841      94.778890     337.533786      77.365775
+RT                             3.865505       8.541669      20.114807       3.270224
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                     8   Infinite                     8
+Casing                      5   Infinite                     5
+Magnets                    12   Infinite                    12
+PowerSupply                14   Infinite                    14
+
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.857152654
+MTBDE                      84.034574
+MDT                        14.004642
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  58
+
+
+
+***LOGISTICS***
+
+MTBM                  73.892470
+MTBMu                 73.892470
+MTBMs                 N/A
+MMT                   9.064318
+MMTu                  9.064318
+MMTs                  N/A
+GreenPercent          85.715265
+YellowPercent         0.000000
+RedPercent            14.284735
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.587304      84.034574     317.343161      64.135764
+DT                             6.932206      14.004642      33.336354       5.463288
+TBM                            1.909556      86.083383     326.542274      66.235097
+RT                             4.612700       9.064318      17.926201       2.722854
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                     8   Infinite                     8
+Casing                      6   Infinite                     6
+Magnets                    16   Infinite                    16
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_11*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.855032902
+MTBDE                      87.248255
+MDT                        14.792561
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  79.169713
+MTBMu                 79.169713
+MTBMs                 N/A
+MMT                   9.028346
+MMTu                  9.028346
+MMTs                  N/A
+GreenPercent          85.503290
+YellowPercent         0.000000
+RedPercent            14.496710
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.923673      86.008532     349.259130      70.352362
+DT                             7.298767      14.792561      28.925825       4.634222
+TBM                            1.093380      91.197024     359.814736      71.741670
+RT                             4.646450       9.028346      18.905764       2.874867
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    9   Infinite                     9
+Brushes                     8   Infinite                     8
+Casing                      8   Infinite                     8
+Magnets                    13   Infinite                    13
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_12*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.842170652
+MTBDE                      85.935781
+MDT                        16.105036
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  77.978764
+MTBMu                 77.978764
+MTBMs                 N/A
+MMT                   9.559386
+MMTu                  9.559386
+MMTs                  N/A
+GreenPercent          84.217065
+YellowPercent         0.000000
+RedPercent            15.782935
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.130918      83.859722     270.061929      62.216697
+DT                             7.961992      16.105036      33.997791       5.597821
+TBM                            3.298330      90.079173     284.885881      64.891846
+RT                             4.926508       9.559386      15.623273       2.837919
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    9   Infinite                     9
+Brushes                    10   Infinite                    10
+Casing                      4   Infinite                     4
+Magnets                    15   Infinite                    15
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_13*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.832510522
+MTBDE                      77.084308
+MDT                        15.508285
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  61
+
+
+
+***LOGISTICS***
+
+MTBM                  68.238567
+MTBMu                 68.238567
+MTBMs                 N/A
+MMT                   9.538550
+MMTu                  9.538550
+MMTs                  N/A
+GreenPercent          83.251052
+YellowPercent         0.000000
+RedPercent            16.748948
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.268267      76.139053     269.465724      64.136109
+DT                             7.284433      15.508285      37.710672       5.861668
+TBM                            2.120666      80.801744     271.208213      65.686522
+RT                             4.289618       9.538550      18.552803       3.255488
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                    10   Infinite                    10
+Casing                      7   Infinite                     7
+Magnets                    13   Infinite                    13
+PowerSupply                19   Infinite                    19
+
+
+
+
+***Run_14*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.829195433
+MTBDE                      72.736441
+MDT                        14.982857
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     57
+NumberOfComponentFailures  65
+
+
+
+***LOGISTICS***
+
+MTBM                  63.784264
+MTBMu                 63.784264
+MTBMs                 N/A
+MMT                   9.142517
+MMTu                  9.142517
+MMTs                  N/A
+GreenPercent          82.919543
+YellowPercent         0.000000
+RedPercent            17.080457
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.072336      71.910179     277.659889      67.097406
+DT                             6.563243      14.982857      34.820433       5.755545
+TBM                            0.236472      76.006208     295.340832      68.301744
+RT                             3.606871       9.142517      23.720474       4.227508
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                     9   Infinite                     9
+Casing                      7   Infinite                     7
+Magnets                    15   Infinite                    15
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_15*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.847029299
+MTBDE                      84.702930
+MDT                        15.297070
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  61
+
+
+
+***LOGISTICS***
+
+MTBM                  69.428631
+MTBMu                 69.428631
+MTBMs                 N/A
+MMT                   8.730491
+MMTu                  8.730491
+MMTs                  N/A
+GreenPercent          84.702930
+YellowPercent         0.000000
+RedPercent            15.297070
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.779157      84.423308     219.795186      65.398591
+DT                             6.991224      15.297070      33.436624       6.344470
+TBM                            1.272814      81.530498     230.680175      67.948923
+RT                             4.722775       8.730491      21.597440       2.995570
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   18   Infinite                    18
+Brushes                     6   Infinite                     6
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_16*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.839838030
+MTBDE                      80.753657
+MDT                        15.400189
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     52
+NumberOfComponentFailures  62
+
+
+
+***LOGISTICS***
+
+MTBM                  67.728873
+MTBMu                 67.728873
+MTBMs                 N/A
+MMT                   9.154184
+MMTu                  9.154184
+MMTs                  N/A
+GreenPercent          83.983803
+YellowPercent         0.000000
+RedPercent            16.016197
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.676270      80.135970     268.310788      60.570615
+DT                             5.428551      15.400189      34.280953       5.127924
+TBM                            0.873629      79.824460     282.659649      63.689622
+RT                             3.986668       9.154184      17.440622       3.434742
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                    13   Infinite                    13
+Casing                      6   Infinite                     6
+Magnets                    13   Infinite                    13
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_17*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.831826025
+MTBDE                      74.270181
+MDT                        15.015534
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     56
+NumberOfComponentFailures  66
+
+
+
+***LOGISTICS***
+
+MTBM                  63.017123
+MTBMu                 63.017123
+MTBMs                 N/A
+MMT                   8.693589
+MMTu                  8.693589
+MMTs                  N/A
+GreenPercent          83.182602
+YellowPercent         0.000000
+RedPercent            16.817398
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.924934      73.271626     230.532431      57.137436
+DT                             5.818604      15.015534      34.621402       5.159853
+TBM                            0.432050      74.680052     240.102752      60.266849
+RT                             3.728557       8.693589      15.217350       2.529257
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   19   Infinite                    19
+Brushes                     8   Infinite                     8
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_18*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.847883213
+MTBDE                      84.788321
+MDT                        15.211679
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  57
+
+
+
+***LOGISTICS***
+
+MTBM                  74.375720
+MTBMu                 74.375720
+MTBMs                 N/A
+MMT                   9.319580
+MMTu                  9.319580
+MMTs                  N/A
+GreenPercent          84.788321
+YellowPercent         0.000000
+RedPercent            15.211679
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.925382      81.834187     280.790687      60.075112
+DT                             8.587786      15.211679      38.080843       5.856236
+TBM                            2.095862      84.843295     280.790687      61.872986
+RT                             3.388445       9.319580      17.764678       2.760060
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   13   Infinite                    13
+Brushes                     9   Infinite                     9
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                14   Infinite                    14
+
+
+
+
+***Run_19*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.850209074
+MTBDE                      83.353831
+MDT                        14.685385
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  57
+
+
+
+***LOGISTICS***
+
+MTBM                  74.579743
+MTBMu                 74.579743
+MTBMs                 N/A
+MMT                   9.452750
+MMTu                  9.452750
+MMTs                  N/A
+GreenPercent          85.020907
+YellowPercent         0.000000
+RedPercent            14.979093
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.585316      81.719376     222.560967      67.560281
+DT                             7.427885      14.685385      30.621870       4.616314
+TBM                            3.110057      85.900575     233.685201      68.944654
+RT                             4.101571       9.452750      17.305791       2.639977
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   19   Infinite                    19
+Brushes                     7   Infinite                     7
+Casing                      5   Infinite                     5
+Magnets                    14   Infinite                    14
+PowerSupply                12   Infinite                    12
+
+
+
+
+***Run_20*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.826521300
+MTBDE                      66.654944
+MDT                        13.990218
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     62
+NumberOfComponentFailures  67
+
+
+
+***LOGISTICS***
+
+MTBM                  61.680694
+MTBMu                 61.680694
+MTBMs                 N/A
+MMT                   8.558216
+MMTu                  8.558216
+MMTs                  N/A
+GreenPercent          82.652130
+YellowPercent         0.000000
+RedPercent            17.347870
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.231360      64.812440     305.116533      61.233630
+DT                             6.163931      13.990218      35.452095       5.435711
+TBM                            1.437782      72.770932     317.178869      61.684187
+RT                             3.665434       8.558216      32.481682       4.176280
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   17   Infinite                    17
+Brushes                    10   Infinite                    10
+Casing                      7   Infinite                     7
+Magnets                    13   Infinite                    13
+PowerSupply                20   Infinite                    20
+
+
+
+
+***Run_21*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.853015195
+MTBDE                      78.982888
+MDT                        13.609704
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  71.084600
+MTBMu                 71.084600
+MTBMs                 N/A
+MMT                   8.113485
+MMTu                  8.113485
+MMTs                  N/A
+GreenPercent          85.301519
+YellowPercent         0.000000
+RedPercent            14.698481
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.879109      78.269043     318.602056      71.155574
+DT                             6.512241      13.609704      37.031331       5.219708
+TBM                            1.544778      82.427030     327.022859      72.355236
+RT                             3.526234       8.113485      14.970593       2.393478
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   14   Infinite                    14
+Brushes                     9   Infinite                     9
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_22*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.827519177
+MTBDE                      73.885641
+MDT                        15.400074
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     56
+NumberOfComponentFailures  67
+
+
+
+***LOGISTICS***
+
+MTBM                  61.755162
+MTBMu                 61.755162
+MTBMs                 N/A
+MMT                   9.317394
+MMTu                  9.317394
+MMTs                  N/A
+GreenPercent          82.751918
+YellowPercent         0.000000
+RedPercent            17.248082
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.703244      73.885641     321.777215      62.928491
+DT                             7.023341      15.400074      33.897695       5.761632
+TBM                            1.050336      74.455979     321.777215      64.289537
+RT                             4.858921       9.317394      19.242755       2.974165
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   24   Infinite                    24
+Brushes                     6   Infinite                     6
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_23*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.859566094
+MTBDE                      87.710826
+MDT                        14.329990
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  51
+
+
+
+***LOGISTICS***
+
+MTBM                  84.271186
+MTBMu                 84.271186
+MTBMs                 N/A
+MMT                   9.276280
+MMTu                  9.276280
+MMTs                  N/A
+GreenPercent          85.956609
+YellowPercent         0.000000
+RedPercent            14.043391
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.504940      85.779496     330.291983      65.378120
+DT                             7.235538      14.329990      31.295063       4.698529
+TBM                            0.446582      95.968524     343.386280      67.603513
+RT                             4.212314       9.276280      23.144217       3.500616
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                     8   Infinite                     8
+Casing                      5   Infinite                     5
+Magnets                    12   Infinite                    12
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_24*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.846211922
+MTBDE                      79.831313
+MDT                        14.508309
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  61
+
+
+
+***LOGISTICS***
+
+MTBM                  69.361633
+MTBMu                 69.361633
+MTBMs                 N/A
+MMT                   8.922072
+MMTu                  8.922072
+MMTs                  N/A
+GreenPercent          84.621192
+YellowPercent         0.000000
+RedPercent            15.378808
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.018908      77.297499     261.502363      71.784908
+DT                             6.270377      14.508309      31.567528       5.062295
+TBM                            1.185913      79.562111     277.129188      73.630803
+RT                             4.682290       8.922072      15.557731       2.733100
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   17   Infinite                    17
+Brushes                    10   Infinite                    10
+Casing                      5   Infinite                     5
+Magnets                    13   Infinite                    13
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_25*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.845073040
+MTBDE                      82.850298
+MDT                        15.188918
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  57
+
+
+
+***LOGISTICS***
+
+MTBM                  74.129214
+MTBMu                 74.129214
+MTBMs                 N/A
+MMT                   9.421970
+MMTu                  9.421970
+MMTs                  N/A
+GreenPercent          84.507304
+YellowPercent         0.000000
+RedPercent            15.492696
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.104563      78.740967     241.213243      61.559412
+DT                             6.245189      15.188918      37.843787       6.518875
+TBM                            3.479238      83.809284     252.666132      63.691819
+RT                             4.681930       9.421970      23.615449       3.356619
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   13   Infinite                    13
+Brushes                     9   Infinite                     9
+Casing                      8   Infinite                     8
+Magnets                    13   Infinite                    13
+PowerSupply                14   Infinite                    14
+
+
+
+
+***Run_26*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.823555942
+MTBDE                      70.996202
+MDT                        15.210695
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     58
+NumberOfComponentFailures  69
+
+
+
+***LOGISTICS***
+
+MTBM                  59.677967
+MTBMu                 59.677967
+MTBMs                 N/A
+MMT                   9.194905
+MMTu                  9.194905
+MMTs                  N/A
+GreenPercent          82.355594
+YellowPercent         0.000000
+RedPercent            17.644406
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.921099      70.165301     234.644548      59.608069
+DT                             6.819507      15.210695      34.882309       6.051389
+TBM                            0.239177      71.595468     242.019081      60.267989
+RT                             4.357237       9.194905      21.020314       3.147679
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   18   Infinite                    18
+Brushes                    11   Infinite                    11
+Casing                      5   Infinite                     5
+Magnets                    15   Infinite                    15
+PowerSupply                20   Infinite                    20
+
+
+
+
+***Run_27*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.852832973
+MTBDE                      90.726912
+MDT                        15.656067
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     47
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  77.530270
+MTBMu                 77.530270
+MTBMs                 N/A
+MMT                   9.483811
+MMTu                  9.483811
+MMTs                  N/A
+GreenPercent          85.283297
+YellowPercent         0.000000
+RedPercent            14.716703
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.354345      88.969501     320.006188      75.829644
+DT                             7.625538      15.656067      28.273405       4.779849
+TBM                            0.673385      89.088033     336.920848      78.395990
+RT                             3.382245       9.483811      15.952731       3.145133
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                     9   Infinite                     9
+Casing                      8   Infinite                     8
+Magnets                    13   Infinite                    13
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_28*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.861407273
+MTBDE                      93.631225
+MDT                        15.064427
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     46
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  79.759933
+MTBMu                 79.759933
+MTBMs                 N/A
+MMT                   9.176352
+MMTu                  9.176352
+MMTs                  N/A
+GreenPercent          86.140727
+YellowPercent         0.000000
+RedPercent            13.859273
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.414399      92.907114     297.996263      71.547654
+DT                             7.442310      15.064427      26.364798       4.779902
+TBM                            0.308523      91.612506     305.087441      74.329756
+RT                             4.876982       9.176352      16.497659       2.931788
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                     9   Infinite                     9
+Casing                      6   Infinite                     6
+Magnets                    15   Infinite                    15
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_29*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.843925485
+MTBDE                      76.720499
+MDT                        14.188592
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  61
+
+
+
+***LOGISTICS***
+
+MTBM                  69.174220
+MTBMu                 69.174220
+MTBMs                 N/A
+MMT                   9.045497
+MMTu                  9.045497
+MMTs                  N/A
+GreenPercent          84.392548
+YellowPercent         0.000000
+RedPercent            15.607452
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.578096      76.322674     364.049888      68.180864
+DT                             5.978119      14.188592      23.182040       4.018342
+TBM                            0.692289      81.280673     375.746536      69.210548
+RT                             4.050426       9.045497      17.470240       2.622697
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   15   Infinite                    15
+Brushes                    12   Infinite                    12
+Casing                      5   Infinite                     5
+Magnets                    13   Infinite                    13
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_30*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.830620603
+MTBDE                      74.162554
+MDT                        15.123160
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     56
+NumberOfComponentFailures  65
+
+
+
+***LOGISTICS***
+
+MTBM                  63.893893
+MTBMu                 63.893893
+MTBMs                 N/A
+MMT                   9.217295
+MMTu                  9.217295
+MMTs                  N/A
+GreenPercent          83.062060
+YellowPercent         0.000000
+RedPercent            16.937940
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.452708      71.773444     277.501065      69.417828
+DT                             7.950808      15.123160      25.290955       4.422244
+TBM                            2.439521      74.641972     289.182480      69.419909
+RT                             3.452662       9.217295      16.741963       2.817509
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                    12   Infinite                    12
+Casing                      6   Infinite                     6
+Magnets                    15   Infinite                    15
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_31*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.837884866
+MTBDE                      74.811149
+MDT                        14.474566
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     56
+NumberOfComponentFailures  64
+
+
+
+***LOGISTICS***
+
+MTBM                  65.459755
+MTBMu                 65.459755
+MTBMs                 N/A
+MMT                   8.753251
+MMTu                  8.753251
+MMTs                  N/A
+GreenPercent          83.788487
+YellowPercent         0.000000
+RedPercent            16.211513
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.572710      74.363182     272.527343      65.335794
+DT                             6.314192      14.474566      32.157180       5.560523
+TBM                            0.044039      77.420188     288.986327      67.090748
+RT                             3.506877       8.753251      19.928366       3.263707
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   17   Infinite                    17
+Brushes                    10   Infinite                    10
+Casing                      5   Infinite                     5
+Magnets                    14   Infinite                    14
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_32*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.840003846
+MTBDE                      80.769601
+MDT                        15.384246
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     52
+NumberOfComponentFailures  59
+
+
+
+***LOGISTICS***
+
+MTBM                  71.186767
+MTBMu                 71.186767
+MTBMs                 N/A
+MMT                   9.406555
+MMTu                  9.406555
+MMTs                  N/A
+GreenPercent          84.000385
+YellowPercent         0.000000
+RedPercent            15.999615
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.121342      80.042944     252.516284      70.855475
+DT                             8.440080      15.384246      45.972708       6.229332
+TBM                            1.203529      83.790299     271.540367      73.301112
+RT                             3.988190       9.406555      19.169387       2.969077
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                    10   Infinite                    10
+Casing                      6   Infinite                     6
+Magnets                    15   Infinite                    15
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_33*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.839913549
+MTBDE                      82.344466
+MDT                        15.694750
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  59
+
+
+
+***LOGISTICS***
+
+MTBM                  71.179114
+MTBMu                 71.179114
+MTBMs                 N/A
+MMT                   9.534428
+MMTu                  9.534428
+MMTs                  N/A
+GreenPercent          83.991355
+YellowPercent         0.000000
+RedPercent            16.008645
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.276791      82.307943     385.629658      77.845804
+DT                             6.385956      15.694750      33.877461       6.222373
+TBM                            2.675648      84.492082     401.503391      77.732249
+RT                             4.366793       9.534428      27.807375       3.811292
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                    10   Infinite                    10
+Casing                      6   Infinite                     6
+Magnets                    13   Infinite                    13
+PowerSupply                14   Infinite                    14
+
+
+
+
+***Run_34*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.844299112
+MTBDE                      82.774423
+MDT                        15.264793
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  70.358259
+MTBMu                 70.358259
+MTBMs                 N/A
+MMT                   8.767615
+MMTu                  8.767615
+MMTs                  N/A
+GreenPercent          84.429911
+YellowPercent         0.000000
+RedPercent            15.570089
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.287006      79.394090     289.333578      69.721291
+DT                             7.006157      15.264793      38.701372       6.338116
+TBM                            2.411906      80.164395     303.838427      71.022468
+RT                             4.721109       8.767615      19.357891       2.997819
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   15   Infinite                    15
+Brushes                     9   Infinite                     9
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_35*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.843960123
+MTBDE                      78.144456
+MDT                        14.448137
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  59
+
+
+
+***LOGISTICS***
+
+MTBM                  71.522044
+MTBMu                 71.522044
+MTBMs                 N/A
+MMT                   9.207988
+MMTu                  9.207988
+MMTs                  N/A
+GreenPercent          84.396012
+YellowPercent         0.000000
+RedPercent            15.603988
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.414031      76.033398     246.200861      67.680261
+DT                             5.730047      14.448137      32.486356       5.243737
+TBM                            2.972734      82.510552     259.235610      67.637653
+RT                             3.010960       9.207988      24.470456       3.751442
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                    13   Infinite                    13
+Casing                      5   Infinite                     5
+Magnets                    13   Infinite                    13
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_36*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.824549278
+MTBDE                      72.328884
+MDT                        15.390414
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     57
+NumberOfComponentFailures  63
+
+
+
+***LOGISTICS***
+
+MTBM                  65.440419
+MTBMu                 65.440419
+MTBMs                 N/A
+MMT                   9.372432
+MMTu                  9.372432
+MMTs                  N/A
+GreenPercent          82.454928
+YellowPercent         0.000000
+RedPercent            17.545072
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.228779      70.939546     295.526824      55.741848
+DT                             6.386678      15.390414      40.563681       6.624019
+TBM                            1.903069      77.803266     311.338451      57.580302
+RT                             3.619115       9.372432      20.423711       3.699469
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                    13   Infinite                    13
+Casing                      7   Infinite                     7
+Magnets                    13   Infinite                    13
+PowerSupply                20   Infinite                    20
+
+
+
+
+***Run_37*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.847806915
+MTBDE                      83.118325
+MDT                        14.920891
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  59
+
+
+
+***LOGISTICS***
+
+MTBM                  71.848044
+MTBMu                 71.848044
+MTBMs                 N/A
+MMT                   9.065418
+MMTu                  9.065418
+MMTs                  N/A
+GreenPercent          84.780691
+YellowPercent         0.000000
+RedPercent            15.219309
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.243889      82.866685     303.329561      69.123955
+DT                             6.152285      14.920891      32.337778       5.784833
+TBM                            0.720777      84.254888     320.655570      70.970956
+RT                             4.383545       9.065418      18.295477       3.088641
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    11   Infinite                    11
+Casing                      8   Infinite                     8
+Magnets                    14   Infinite                    14
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_38*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.826097888
+MTBDE                      68.841491
+MDT                        14.491843
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     60
+NumberOfComponentFailures  64
+
+
+
+***LOGISTICS***
+
+MTBM                  64.538898
+MTBMu                 64.538898
+MTBMs                 N/A
+MMT                   8.998471
+MMTu                  8.998471
+MMTs                  N/A
+GreenPercent          82.609789
+YellowPercent         0.000000
+RedPercent            17.390211
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.564037      66.771124     187.450410      54.980069
+DT                             7.900123      14.491843      40.489096       4.939942
+TBM                            4.888483      76.030628     211.007792      57.138373
+RT                             3.846408       8.998471      15.688148       2.553987
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    11   Infinite                    11
+Casing                      8   Infinite                     8
+Magnets                    13   Infinite                    13
+PowerSupply                21   Infinite                    21
+
+
+
+
+***Run_39*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.822411139
+MTBDE                      67.410749
+MDT                        14.556464
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     61
+NumberOfComponentFailures  70
+
+
+
+***LOGISTICS***
+
+MTBM                  58.743653
+MTBMu                 58.743653
+MTBMs                 N/A
+MMT                   8.947769
+MMTu                  8.947769
+MMTs                  N/A
+GreenPercent          82.241114
+YellowPercent         0.000000
+RedPercent            17.758886
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.205916      67.239942     274.026422      58.779241
+DT                             6.305382      14.556464      29.864901       5.420809
+TBM                            0.178600      71.088201     283.409213      60.619316
+RT                             4.174951       8.947769      20.783402       3.280686
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   19   Infinite                    19
+Brushes                    12   Infinite                    12
+Casing                      6   Infinite                     6
+Magnets                    16   Infinite                    16
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_40*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.856711395
+MTBDE                      85.671140
+MDT                        14.328860
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  71.392616
+MTBMu                 71.392616
+MTBMs                 N/A
+MMT                   8.698803
+MMTu                  8.698803
+MMTs                  N/A
+GreenPercent          85.671140
+YellowPercent         0.000000
+RedPercent            14.328860
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.821492      84.773907     256.819919      67.977379
+DT                             6.399517      14.328860      38.225826       6.524312
+TBM                            1.655168      82.415895     268.441352      70.434993
+RT                             2.664625       8.698803      21.633732       3.378345
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   14   Infinite                    14
+Brushes                     9   Infinite                     9
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_41*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.857173069
+MTBDE                      91.188624
+MDT                        15.194354
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     47
+NumberOfComponentFailures  56
+
+
+
+***LOGISTICS***
+
+MTBM                  76.533310
+MTBMu                 76.533310
+MTBMs                 N/A
+MMT                   8.913916
+MMTu                  8.913916
+MMTs                  N/A
+GreenPercent          85.717307
+YellowPercent         0.000000
+RedPercent            14.282693
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.018987      90.038466     328.000500      74.373296
+DT                             8.029404      15.194354      39.004838       6.717530
+TBM                            1.828874      88.072660     336.029903      76.550685
+RT                             3.134205       8.913916      20.648243       3.428033
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                    10   Infinite                    10
+Casing                      4   Infinite                     4
+Magnets                    14   Infinite                    14
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_42*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.847323320
+MTBDE                      79.936162
+MDT                        14.403460
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  61
+
+
+
+***LOGISTICS***
+
+MTBM                  69.452731
+MTBMu                 69.452731
+MTBMs                 N/A
+MMT                   9.123185
+MMTu                  9.123185
+MMTs                  N/A
+GreenPercent          84.732332
+YellowPercent         0.000000
+RedPercent            15.267668
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.240733      79.671922     322.674139      66.559668
+DT                             6.394684      14.403460      27.946409       4.853764
+TBM                            1.140420      81.536409     338.692085      69.155812
+RT                             4.364942       9.123185      22.368403       3.313552
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   19   Infinite                    19
+Brushes                     9   Infinite                     9
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_43*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.842783061
+MTBDE                      78.035469
+MDT                        14.557124
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  70.231922
+MTBMu                 70.231922
+MTBMs                 N/A
+MMT                   8.953527
+MMTu                  8.953527
+MMTs                  N/A
+GreenPercent          84.278306
+YellowPercent         0.000000
+RedPercent            15.721694
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.850298      75.027662     209.783958      57.073131
+DT                             6.992032      14.557124      26.694581       5.201193
+TBM                            0.387941      80.375113     227.610270      59.628266
+RT                             4.135931       8.953527      18.819261       2.994148
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   14   Infinite                    14
+Brushes                     9   Infinite                     9
+Casing                      9   Infinite                     9
+Magnets                    15   Infinite                    15
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_44*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.836235941
+MTBDE                      80.407302
+MDT                        15.746544
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     52
+NumberOfComponentFailures  64
+
+
+
+***LOGISTICS***
+
+MTBM                  65.330933
+MTBMu                 65.330933
+MTBMs                 N/A
+MMT                   9.312169
+MMTu                  9.312169
+MMTs                  N/A
+GreenPercent          83.623594
+YellowPercent         0.000000
+RedPercent            16.376406
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.745543      79.220280     213.563929      59.571118
+DT                             9.134314      15.746544      32.959197       5.967672
+TBM                            2.122248      76.928138     222.958224      62.815692
+RT                             5.024075       9.312169      21.221155       3.225089
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   13   Infinite                    13
+Brushes                    11   Infinite                    11
+Casing                      9   Infinite                     9
+Magnets                    15   Infinite                    15
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_45*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.861130407
+MTBDE                      87.870450
+MDT                        14.170367
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  79.734297
+MTBMu                 79.734297
+MTBMs                 N/A
+MMT                   8.882269
+MMTu                  8.882269
+MMTs                  N/A
+GreenPercent          86.113041
+YellowPercent         0.000000
+RedPercent            13.886959
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.655530      87.454694     438.577585      90.278719
+DT                             6.452247      14.170367      26.493337       4.420041
+TBM                            0.872804      92.053662     460.705156      91.800507
+RT                             4.290569       8.882269      19.002850       3.016881
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                     7   Infinite                     7
+Casing                      6   Infinite                     6
+Magnets                    13   Infinite                    13
+PowerSupply                12   Infinite                    12
+
+
+
+
+***Run_46*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.858993310
+MTBDE                      85.899331
+MDT                        14.100669
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  78.090301
+MTBMu                 78.090301
+MTBMs                 N/A
+MMT                   8.768663
+MMTu                  8.768663
+MMTs                  N/A
+GreenPercent          85.899331
+YellowPercent         0.000000
+RedPercent            14.100669
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.206347      85.411284     402.075218      75.038412
+DT                             6.157354      14.100669      29.930362       4.856507
+TBM                            2.575533      90.187249     416.817260      76.396511
+RT                             3.471496       8.768663      17.992116       3.279533
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   14   Infinite                    14
+Brushes                    10   Infinite                    10
+Casing                      7   Infinite                     7
+Magnets                    13   Infinite                    13
+PowerSupply                11   Infinite                    11
+
+
+
+
+***Run_47*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.834603601
+MTBDE                      75.873055
+MDT                        15.036036
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  59
+
+
+
+***LOGISTICS***
+
+MTBM                  70.729119
+MTBMu                 70.729119
+MTBMs                 N/A
+MMT                   9.562165
+MMTu                  9.562165
+MMTs                  N/A
+GreenPercent          83.460360
+YellowPercent         0.000000
+RedPercent            16.539640
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.900084      75.669686     266.868095      61.110377
+DT                             6.519363      15.036036      27.099409       4.886631
+TBM                            0.066822      84.362730     273.387458      62.147670
+RT                             4.517976       9.562165      17.619285       3.015662
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    9   Infinite                     9
+Brushes                     9   Infinite                     9
+Casing                      8   Infinite                     8
+Magnets                    15   Infinite                    15
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_48*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.857207763
+MTBDE                      95.245307
+MDT                        15.865804
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     45
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  77.927978
+MTBMu                 77.927978
+MTBMs                 N/A
+MMT                   8.871089
+MMTu                  8.871089
+MMTs                  N/A
+GreenPercent          85.720776
+YellowPercent         0.000000
+RedPercent            14.279224
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.516763      94.699310     395.783755      90.610973
+DT                             6.469638      15.865804      42.494746       6.945662
+TBM                            0.455693      90.169572     409.098204      90.903166
+RT                             3.851967       8.871089      14.870221       2.481761
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                     8   Infinite                     8
+Casing                      3   Infinite                     3
+Magnets                    15   Infinite                    15
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_49*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.848749737
+MTBDE                      83.210759
+MDT                        14.828457
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  59
+
+
+
+***LOGISTICS***
+
+MTBM                  71.927944
+MTBMu                 71.927944
+MTBMs                 N/A
+MMT                   8.524067
+MMTu                  8.524067
+MMTs                  N/A
+GreenPercent          84.874974
+YellowPercent         0.000000
+RedPercent            15.125026
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.190613      82.679815     320.719271      75.292262
+DT                             5.748266      14.828457      34.665680       6.296626
+TBM                            1.304255      84.122180     332.573158      74.998242
+RT                             3.377802       8.524067      18.204394       3.469251
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                     9   Infinite                     9
+Casing                      7   Infinite                     7
+Magnets                    13   Infinite                    13
+PowerSupply                14   Infinite                    14
+
+
+
+
+***Run_50*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.834834385
+MTBDE                      75.894035
+MDT                        15.015056
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  63
+
+
+
+***LOGISTICS***
+
+MTBM                  66.256697
+MTBMu                 66.256697
+MTBMs                 N/A
+MMT                   9.044866
+MMTu                  9.044866
+MMTs                  N/A
+GreenPercent          83.483439
+YellowPercent         0.000000
+RedPercent            16.516561
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.530083      74.819987     261.279666      58.075746
+DT                             6.898323      15.015056      35.718641       5.560022
+TBM                            2.906583      78.133952     261.279666      60.630500
+RT                             3.845902       9.044866      17.878657       3.001572
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                    11   Infinite                    11
+Casing                      5   Infinite                     5
+Magnets                    14   Infinite                    14
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_51*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.853057572
+MTBDE                      87.046691
+MDT                        14.994125
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  57
+
+
+
+***LOGISTICS***
+
+MTBM                  74.829612
+MTBMu                 74.829612
+MTBMs                 N/A
+MMT                   8.971415
+MMTu                  8.971415
+MMTs                  N/A
+GreenPercent          85.305757
+YellowPercent         0.000000
+RedPercent            14.694243
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.120797      86.870529     286.358858      65.241819
+DT                             7.097450      14.994125      38.479382       5.665273
+TBM                            0.046026      87.247248     303.084837      69.029598
+RT                             3.973267       8.971415      18.042115       3.205013
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    9   Infinite                     9
+Brushes                    11   Infinite                    11
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_52*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.855753493
+MTBDE                      83.897401
+MDT                        14.141814
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  59
+
+
+
+***LOGISTICS***
+
+MTBM                  72.521482
+MTBMu                 72.521482
+MTBMs                 N/A
+MMT                   8.467827
+MMTu                  8.467827
+MMTs                  N/A
+GreenPercent          85.575349
+YellowPercent         0.000000
+RedPercent            14.424651
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.117555      82.675924     371.502794      71.919874
+DT                             6.502908      14.141814      39.714342       5.903521
+TBM                            0.755431      83.481172     385.386668      73.644520
+RT                             4.283283       8.467827      15.499690       2.513684
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                    10   Infinite                    10
+Casing                      8   Infinite                     8
+Magnets                    14   Infinite                    14
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_53*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.847195787
+MTBDE                      77.017799
+MDT                        13.891292
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  62
+
+
+
+***LOGISTICS***
+
+MTBM                  68.322241
+MTBMu                 68.322241
+MTBMs                 N/A
+MMT                   8.190264
+MMTu                  8.190264
+MMTs                  N/A
+GreenPercent          84.719579
+YellowPercent         0.000000
+RedPercent            15.280421
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.011700      76.087530     298.006275      57.508650
+DT                             7.391946      13.891292      23.204831       4.223318
+TBM                            0.028054      79.674005     311.943269      60.706856
+RT                             4.189612       8.190264      17.961342       2.615507
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   13   Infinite                    13
+Brushes                    10   Infinite                    10
+Casing                      4   Infinite                     4
+Magnets                    14   Infinite                    14
+PowerSupply                21   Infinite                    21
+
+
+
+
+***Run_54*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.850887120
+MTBDE                      80.272370
+MDT                        14.067253
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  61
+
+
+
+***LOGISTICS***
+
+MTBM                  69.744846
+MTBMu                 69.744846
+MTBMs                 N/A
+MMT                   8.270097
+MMTu                  8.270097
+MMTs                  N/A
+GreenPercent          85.088712
+YellowPercent         0.000000
+RedPercent            14.911288
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           8.812930      80.169866     205.111402      51.565827
+DT                             5.731341      14.067253      34.298096       5.671199
+TBM                            2.693388      81.674593     223.294829      58.173014
+RT                             3.889018       8.270097      14.648118       2.755725
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                    12   Infinite                    12
+Casing                      9   Infinite                     9
+Magnets                    15   Infinite                    15
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_55*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.832398035
+MTBDE                      75.672549
+MDT                        15.236542
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  62
+
+
+
+***LOGISTICS***
+
+MTBM                  67.128874
+MTBMu                 67.128874
+MTBMs                 N/A
+MMT                   9.574630
+MMTu                  9.574630
+MMTs                  N/A
+GreenPercent          83.239804
+YellowPercent         0.000000
+RedPercent            16.760196
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.509847      75.649974     215.422734      58.381256
+DT                             7.585408      15.236542      31.517116       5.645069
+TBM                            1.134195      80.332640     230.021317      60.465080
+RT                             3.773382       9.574630      21.481947       3.937800
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   15   Infinite                    15
+Brushes                    10   Infinite                    10
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_56*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.832799390
+MTBDE                      71.793051
+MDT                        14.413846
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     58
+NumberOfComponentFailures  63
+
+
+
+***LOGISTICS***
+
+MTBM                  66.095190
+MTBMu                 66.095190
+MTBMs                 N/A
+MMT                   9.317109
+MMTu                  9.317109
+MMTs                  N/A
+GreenPercent          83.279939
+YellowPercent         0.000000
+RedPercent            16.720061
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.066764      70.429798     273.600894      64.402483
+DT                             6.170390      14.413846      31.199553       5.583898
+TBM                            0.961451      77.765945     286.524021      64.894557
+RT                             3.649449       9.317109      20.942101       3.200120
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    12   Infinite                    12
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                20   Infinite                    20
+
+
+
+
+***Run_57*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.873321356
+MTBDE                      92.906527
+MDT                        13.476451
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     47
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  79.392851
+MTBMu                 79.392851
+MTBMs                 N/A
+MMT                   8.776344
+MMTu                  8.776344
+MMTs                  N/A
+GreenPercent          87.332136
+YellowPercent         0.000000
+RedPercent            12.667864
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.283290      92.906527     316.059837      67.930104
+DT                             7.687079      13.476451      23.923720       4.442734
+TBM                            0.406452      90.763380     327.585968      72.647037
+RT                             3.893468       8.776344      19.190427       3.169605
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    8   Infinite                     8
+Brushes                    12   Infinite                    12
+Casing                      7   Infinite                     7
+Magnets                    15   Infinite                    15
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_58*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.862170379
+MTBDE                      86.217038
+MDT                        13.782962
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  79.830591
+MTBMu                 79.830591
+MTBMs                 N/A
+MMT                   8.255115
+MMTu                  8.255115
+MMTs                  N/A
+GreenPercent          86.217038
+YellowPercent         0.000000
+RedPercent            13.782962
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.064414      86.217038     271.938625      69.920711
+DT                             6.784396      13.782962      27.235133       4.307747
+TBM                            1.941485      92.427229     294.522393      71.729589
+RT                             3.964210       8.255115      16.572841       2.517256
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    7   Infinite                     7
+Brushes                     9   Infinite                     9
+Casing                      7   Infinite                     7
+Magnets                    16   Infinite                    16
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_59*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.826936535
+MTBDE                      64.604417
+MDT                        13.520583
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     64
+NumberOfComponentFailures  69
+
+
+
+***LOGISTICS***
+
+MTBM                  59.922937
+MTBMu                 59.922937
+MTBMs                 N/A
+MMT                   8.313578
+MMTu                  8.313578
+MMTs                  N/A
+GreenPercent          82.693654
+YellowPercent         0.000000
+RedPercent            17.306346
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.040358      64.604417     201.390814      48.062662
+DT                             0.960574      13.520583      26.491916       4.980177
+TBM                            2.501763      72.449847     215.097396      49.832444
+RT                             3.948852       8.313578      17.827476       3.390710
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   20   Infinite                    20
+Brushes                    12   Infinite                    12
+Casing                      5   Infinite                     5
+Magnets                    13   Infinite                    13
+PowerSupply                19   Infinite                    19
+
+
+
+
+***Run_60*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.860429922
+MTBDE                      87.798972
+MDT                        14.241845
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  78.220902
+MTBMu                 78.220902
+MTBMs                 N/A
+MMT                   8.651511
+MMTu                  8.651511
+MMTs                  N/A
+GreenPercent          86.042992
+YellowPercent         0.000000
+RedPercent            13.957008
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.507977      84.790089     261.900596      72.041564
+DT                             6.658410      14.241845      31.452327       4.864229
+TBM                            1.233032      88.049625     277.583656      75.387309
+RT                             3.620916       8.651511      15.543246       2.826525
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                     9   Infinite                     9
+Casing                      6   Infinite                     6
+Magnets                    15   Infinite                    15
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_61*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.835196756
+MTBDE                      78.792147
+MDT                        15.547476
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  59
+
+
+
+***LOGISTICS***
+
+MTBM                  70.779386
+MTBMu                 70.779386
+MTBMs                 N/A
+MMT                   9.712051
+MMTu                  9.712051
+MMTs                  N/A
+GreenPercent          83.519676
+YellowPercent         0.000000
+RedPercent            16.480324
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.584897      78.416487     319.842273      72.424985
+DT                             5.373825      15.547476      32.846263       6.107090
+TBM                            0.449990      84.254910     319.842273      72.616637
+RT                             3.850932       9.712051      17.752043       3.178515
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    8   Infinite                     8
+Brushes                    11   Infinite                    11
+Casing                      6   Infinite                     6
+Magnets                    15   Infinite                    15
+PowerSupply                19   Infinite                    19
+
+
+
+
+***Run_62*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.835611501
+MTBDE                      75.964682
+MDT                        14.944409
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  63
+
+
+
+***LOGISTICS***
+
+MTBM                  66.318373
+MTBMu                 66.318373
+MTBMs                 N/A
+MMT                   8.833634
+MMTu                  8.833634
+MMTs                  N/A
+GreenPercent          83.561150
+YellowPercent         0.000000
+RedPercent            16.438850
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.310238      75.563339     234.833987      58.823517
+DT                             6.736854      14.944409      34.819805       6.239536
+TBM                            2.703218      78.462005     246.538157      60.679680
+RT                             4.399968       8.833634      20.086936       3.490165
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   18   Infinite                    18
+Brushes                    11   Infinite                    11
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                14   Infinite                    14
+
+
+
+
+***Run_63*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.861529903
+MTBDE                      93.644555
+MDT                        15.051097
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     46
+NumberOfComponentFailures  53
+
+
+
+***LOGISTICS***
+
+MTBM                  81.276406
+MTBMu                 81.276406
+MTBMs                 N/A
+MMT                   9.471368
+MMTu                  9.471368
+MMTs                  N/A
+GreenPercent          86.152990
+YellowPercent         0.000000
+RedPercent            13.847010
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.441407      90.977884     397.916772      81.022106
+DT                             7.366258      15.051097      35.197812       6.420001
+TBM                            4.084662      91.740751     408.186768      81.785767
+RT                             4.764411       9.471368      17.003352       3.163752
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    11   Infinite                    11
+Casing                      5   Infinite                     5
+Magnets                    13   Infinite                    13
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_64*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.854063698
+MTBDE                      87.149357
+MDT                        14.891459
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  79.079972
+MTBMu                 79.079972
+MTBMs                 N/A
+MMT                   9.366329
+MMTu                  9.366329
+MMTs                  N/A
+GreenPercent          85.406370
+YellowPercent         0.000000
+RedPercent            14.593630
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.990000      83.611843     305.360339      71.088773
+DT                             8.285151      14.891459      35.908319       5.774450
+TBM                            7.862011      89.103958     324.522183      72.359779
+RT                             4.872198       9.366329      22.752472       3.542287
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                     7   Infinite                     7
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_65*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.831378942
+MTBDE                      76.979532
+MDT                        15.613061
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  61
+
+
+
+***LOGISTICS***
+
+MTBM                  68.145815
+MTBMu                 68.145815
+MTBMs                 N/A
+MMT                   9.233161
+MMTu                  9.233161
+MMTs                  N/A
+GreenPercent          83.137894
+YellowPercent         0.000000
+RedPercent            16.862106
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.935065      76.607080     275.345248      67.364586
+DT                             6.524041      15.613061      35.418644       5.719533
+TBM                            2.470952      81.321176     284.121565      68.184940
+RT                             4.980157       9.233161      17.515475       3.004166
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   18   Infinite                    18
+Brushes                     6   Infinite                     6
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_66*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.855241070
+MTBDE                      79.188988
+MDT                        13.403605
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  71.270089
+MTBMu                 71.270089
+MTBMs                 N/A
+MMT                   8.501113
+MMTu                  8.501113
+MMTs                  N/A
+GreenPercent          85.524107
+YellowPercent         0.000000
+RedPercent            14.475893
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.808888      75.675634     236.039524      59.874049
+DT                             6.141696      13.403605      22.372797       3.817820
+TBM                            0.974448      80.009876     248.784682      62.850130
+RT                             3.973397       8.501113      17.672938       2.739201
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                    11   Infinite                    11
+Casing                      5   Infinite                     5
+Magnets                    13   Infinite                    13
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_67*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.866785189
+MTBDE                      86.678519
+MDT                        13.321481
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  80.257888
+MTBMu                 80.257888
+MTBMs                 N/A
+MMT                   8.132149
+MMTu                  8.132149
+MMTs                  N/A
+GreenPercent          86.678519
+YellowPercent         0.000000
+RedPercent            13.321481
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          10.070837      85.023020     355.775750      68.374189
+DT                             6.491758      13.321481      24.359747       4.230929
+TBM                            0.210531      90.769035     363.445018      69.718738
+RT                             4.060986       8.132149      18.730230       2.799635
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                     8   Infinite                     8
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_68*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.845363447
+MTBDE                      84.536345
+MDT                        15.463655
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  70.446954
+MTBMu                 70.446954
+MTBMs                 N/A
+MMT                   8.691652
+MMTu                  8.691652
+MMTs                  N/A
+GreenPercent          84.536345
+YellowPercent         0.000000
+RedPercent            15.463655
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.080617      84.099252     289.388334      64.712860
+DT                             5.193419      15.463655      35.152967       5.963713
+TBM                            0.821078      82.764282     304.048351      68.611819
+RT                             3.704545       8.691652      16.826993       2.812627
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   14   Infinite                    14
+Brushes                     8   Infinite                     8
+Casing                      8   Infinite                     8
+Magnets                    13   Infinite                    13
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_69*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.813802333
+MTBDE                      64.587487
+MDT                        14.777593
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     63
+NumberOfComponentFailures  70
+
+
+
+***LOGISTICS***
+
+MTBM                  58.128738
+MTBMu                 58.128738
+MTBMs                 N/A
+MMT                   9.002326
+MMTu                  9.002326
+MMTs                  N/A
+GreenPercent          81.380233
+YellowPercent         0.000000
+RedPercent            18.619767
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.549197      63.384251     234.684659      53.708472
+DT                             8.255552      14.777593      33.816539       5.321045
+TBM                            0.619660      70.179503     234.684659      54.310987
+RT                             3.803779       9.002326      23.238101       3.273021
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                    12   Infinite                    12
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                21   Infinite                    21
+
+
+
+
+***Run_70*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.849831368
+MTBDE                      88.524101
+MDT                        15.642566
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     48
+NumberOfComponentFailures  56
+
+
+
+***LOGISTICS***
+
+MTBM                  75.877801
+MTBMu                 75.877801
+MTBMs                 N/A
+MMT                   9.208573
+MMTu                  9.208573
+MMTs                  N/A
+GreenPercent          84.983137
+YellowPercent         0.000000
+RedPercent            15.016863
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.447074      85.046407     256.241907      59.236623
+DT                             7.091879      15.642566      37.519978       6.260394
+TBM                            0.528566      86.088581     269.020293      63.608343
+RT                             4.684876       9.208573      17.205433       2.837974
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    10   Infinite                    10
+Casing                      4   Infinite                     4
+Magnets                    13   Infinite                    13
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_71*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.856353219
+MTBDE                      85.635322
+MDT                        14.364678
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  77.850293
+MTBMu                 77.850293
+MTBMs                 N/A
+MMT                   8.812208
+MMTu                  8.812208
+MMTs                  N/A
+GreenPercent          85.635322
+YellowPercent         0.000000
+RedPercent            14.364678
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.887896      83.994334     277.445890      68.615870
+DT                             7.389996      14.364678      27.724454       4.117380
+TBM                            2.690409      89.225091     289.650608      69.993340
+RT                             4.528784       8.812208      15.892289       2.329320
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                    10   Infinite                    10
+Casing                      4   Infinite                     4
+Magnets                    13   Infinite                    13
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_72*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.839324448
+MTBDE                      72.355556
+MDT                        13.851341
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     58
+NumberOfComponentFailures  61
+
+
+
+***LOGISTICS***
+
+MTBM                  68.797086
+MTBMu                 68.797086
+MTBMs                 N/A
+MMT                   9.256078
+MMTu                  9.256078
+MMTs                  N/A
+GreenPercent          83.932445
+YellowPercent         0.000000
+RedPercent            16.067555
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.070630      72.223008     270.904077      68.164913
+DT                             7.020978      13.851341      31.370129       4.795576
+TBM                            1.179814      81.576120     277.925055      67.873001
+RT                             4.545220       9.256078      17.912872       3.279194
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   17   Infinite                    17
+Brushes                    12   Infinite                    12
+Casing                      7   Infinite                     7
+Magnets                    15   Infinite                    15
+PowerSupply                10   Infinite                    10
+
+
+
+
+***Run_73*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.845647755
+MTBDE                      79.778090
+MDT                        14.561533
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  70.470646
+MTBMu                 70.470646
+MTBMs                 N/A
+MMT                   8.622889
+MMTu                  8.622889
+MMTs                  N/A
+GreenPercent          84.564776
+YellowPercent         0.000000
+RedPercent            15.435224
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.454361      79.707016     287.179731      71.794054
+DT                             5.559201      14.561533      29.505007       5.638652
+TBM                            0.011124      83.051899     301.185798      71.853673
+RT                             3.722593       8.622889      16.060142       2.160181
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    11   Infinite                    11
+Casing                      6   Infinite                     6
+Magnets                    15   Infinite                    15
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_74*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.847886594
+MTBDE                      81.527557
+MDT                        14.626289
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     52
+NumberOfComponentFailures  63
+
+
+
+***LOGISTICS***
+
+MTBM                  67.292587
+MTBMu                 67.292587
+MTBMs                 N/A
+MMT                   8.736433
+MMTu                  8.736433
+MMTs                  N/A
+GreenPercent          84.788659
+YellowPercent         0.000000
+RedPercent            15.211341
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          13.505981      80.013277     314.252732      68.255203
+DT                             6.817551      14.626289      32.852466       5.580334
+TBM                            2.003300      77.975782     321.303540      69.975013
+RT                             4.199437       8.736433      18.843938       3.041740
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                    12   Infinite                    12
+Casing                     10   Infinite                    10
+Magnets                    14   Infinite                    14
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_75*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.855268860
+MTBDE                      85.526886
+MDT                        14.473114
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  79.191561
+MTBMu                 79.191561
+MTBMs                 N/A
+MMT                   8.753875
+MMTu                  8.753875
+MMTs                  N/A
+GreenPercent          85.526886
+YellowPercent         0.000000
+RedPercent            14.473114
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.577997      85.226986     334.164361      76.529102
+DT                             6.397479      14.473114      31.977475       5.131892
+TBM                            2.142747      92.079805     345.294932      76.721174
+RT                             4.576525       8.753875      16.915027       2.702292
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    11   Infinite                    11
+Casing                      4   Infinite                     4
+Magnets                    15   Infinite                    15
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_76*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.838143609
+MTBDE                      72.253759
+MDT                        13.953137
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     58
+NumberOfComponentFailures  65
+
+
+
+***LOGISTICS***
+
+MTBM                  64.472585
+MTBMu                 64.472585
+MTBMs                 N/A
+MMT                   9.078348
+MMTu                  9.078348
+MMTs                  N/A
+GreenPercent          83.814361
+YellowPercent         0.000000
+RedPercent            16.185639
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.393875      70.606451     211.648666      53.059318
+DT                             6.194325      13.953137      35.787029       5.446724
+TBM                            0.660669      75.273767     212.852846      55.525823
+RT                             3.638864       9.078348      16.359722       2.764784
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   15   Infinite                    15
+Brushes                    12   Infinite                    12
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_77*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.846929425
+MTBDE                      81.435522
+MDT                        14.718325
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     52
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  70.577452
+MTBMu                 70.577452
+MTBMs                 N/A
+MMT                   9.000948
+MMTu                  9.000948
+MMTs                  N/A
+GreenPercent          84.692943
+YellowPercent         0.000000
+RedPercent            15.307057
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.963986      79.479600     267.117517      60.970569
+DT                             6.962493      14.718325      26.852850       5.244188
+TBM                            0.186046      81.352077     282.635372      64.173747
+RT                             2.957388       9.000948      21.333168       3.590408
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   15   Infinite                    15
+Brushes                     8   Infinite                     8
+Casing                      3   Infinite                     3
+Magnets                    16   Infinite                    16
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_78*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.840338509
+MTBDE                      73.713904
+MDT                        14.005394
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     57
+NumberOfComponentFailures  63
+
+
+
+***LOGISTICS***
+
+MTBM                  66.693532
+MTBMu                 66.693532
+MTBMs                 N/A
+MMT                   8.864953
+MMTu                  8.864953
+MMTs                  N/A
+GreenPercent          84.033851
+YellowPercent         0.000000
+RedPercent            15.966149
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.469018      73.256533     198.939659      57.627783
+DT                             5.696813      14.005394      28.120481       4.425589
+TBM                            0.007181      78.668363     211.622071      59.493953
+RT                             4.638845       8.864953      15.527509       2.723828
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   15   Infinite                    15
+Brushes                     9   Infinite                     9
+Casing                      8   Infinite                     8
+Magnets                    14   Infinite                    14
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_79*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.826997929
+MTBDE                      75.181630
+MDT                        15.727461
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  62
+
+
+
+***LOGISTICS***
+
+MTBM                  66.693381
+MTBMu                 66.693381
+MTBMs                 N/A
+MMT                   9.757680
+MMTu                  9.757680
+MMTs                  N/A
+GreenPercent          82.699793
+YellowPercent         0.000000
+RedPercent            17.300207
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.972640      73.642472     201.513695      59.671833
+DT                             7.076595      15.727461      51.047251       7.925544
+TBM                            5.023705      79.123056     224.783012      61.447070
+RT                             3.338964       9.757680      39.763867       5.243692
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   14   Infinite                    14
+Brushes                     7   Infinite                     7
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                20   Infinite                    20
+
+
+
+
+***Run_80*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.853537151
+MTBDE                      80.522373
+MDT                        13.817250
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  71.128096
+MTBMu                 71.128096
+MTBMs                 N/A
+MMT                   8.500473
+MMTu                  8.500473
+MMTs                  N/A
+GreenPercent          85.353715
+YellowPercent         0.000000
+RedPercent            14.646285
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.854068      80.408023     243.208312      65.369319
+DT                             6.468254      13.817250      26.715371       4.413275
+TBM                            1.152804      83.015231     254.173375      67.239902
+RT                             2.349467       8.500473      14.853903       2.541191
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    12   Infinite                    12
+Casing                      8   Infinite                     8
+Magnets                    14   Infinite                    14
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_81*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.858233684
+MTBDE                      87.574866
+MDT                        14.465951
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  78.021244
+MTBMu                 78.021244
+MTBMs                 N/A
+MMT                   9.198266
+MMTu                  9.198266
+MMTs                  N/A
+GreenPercent          85.823368
+YellowPercent         0.000000
+RedPercent            14.176632
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.573932      85.883254     309.165162      75.845220
+DT                             7.688022      14.465951      41.914518       5.781428
+TBM                            1.489575      88.858967     322.350360      77.796235
+RT                             3.061716       9.198266      17.691472       3.054838
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    10   Infinite                    10
+Casing                      7   Infinite                     7
+Magnets                    16   Infinite                    16
+PowerSupply                11   Infinite                    11
+
+
+
+
+***Run_82*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.855901081
+MTBDE                      83.911871
+MDT                        14.127345
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  58
+
+
+
+***LOGISTICS***
+
+MTBM                  73.784576
+MTBMu                 73.784576
+MTBMs                 N/A
+MMT                   9.181798
+MMTu                  9.181798
+MMTs                  N/A
+GreenPercent          85.590108
+YellowPercent         0.000000
+RedPercent            14.409892
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.860304      83.447901     341.861263      83.860440
+DT                             5.391570      14.127345      28.988919       5.184468
+TBM                            0.072135      85.550430     366.825282      84.941797
+RT                             4.001268       9.181798      19.306123       3.509838
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    9   Infinite                     9
+Brushes                    10   Infinite                    10
+Casing                      8   Infinite                     8
+Magnets                    15   Infinite                    15
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_83*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.853898879
+MTBDE                      87.132539
+MDT                        14.908278
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  77.627171
+MTBMu                 77.627171
+MTBMs                 N/A
+MMT                   8.612985
+MMTu                  8.612985
+MMTs                  N/A
+GreenPercent          85.389888
+YellowPercent         0.000000
+RedPercent            14.610112
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.063230      84.927797     356.411160      79.308499
+DT                             5.432521      14.908278      27.716256       4.995353
+TBM                            0.554940      88.734842     370.124449      80.408119
+RT                             3.785178       8.612985      19.986537       3.072295
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                     9   Infinite                     9
+Casing                      7   Infinite                     7
+Magnets                    13   Infinite                    13
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_84*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.833355490
+MTBDE                      77.162545
+MDT                        15.430047
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  62
+
+
+
+***LOGISTICS***
+
+MTBM                  67.206088
+MTBMu                 67.206088
+MTBMs                 N/A
+MMT                   9.678371
+MMTu                  9.678371
+MMTs                  N/A
+GreenPercent          83.335549
+YellowPercent         0.000000
+RedPercent            16.664451
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.980231      76.861250     348.277471      62.150496
+DT                             7.850673      15.430047      33.218738       5.137944
+TBM                            0.492796      80.088383     359.590510      64.705954
+RT                             4.108864       9.678371      23.239140       3.581739
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                    11   Infinite                    11
+Casing                      7   Infinite                     7
+Magnets                    15   Infinite                    15
+PowerSupply                19   Infinite                    19
+
+
+
+
+***Run_85*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.848755220
+MTBDE                      84.875522
+MDT                        15.124478
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     50
+NumberOfComponentFailures  52
+
+
+
+***LOGISTICS***
+
+MTBM                  81.611079
+MTBMu                 81.611079
+MTBMs                 N/A
+MMT                   9.347528
+MMTu                  9.347528
+MMTs                  N/A
+GreenPercent          84.875522
+YellowPercent         0.000000
+RedPercent            15.124478
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.258761      83.642520     287.388386      78.465805
+DT                             7.773666      15.124478      25.408570       4.011002
+TBM                            5.203555      94.628387     308.096776      79.122058
+RT                             4.049912       9.347528      19.156871       2.983636
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                     7   Infinite                     7
+Casing                      6   Infinite                     6
+Magnets                    13   Infinite                    13
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_86*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.841315660
+MTBDE                      80.895737
+MDT                        15.258110
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     52
+NumberOfComponentFailures  59
+
+
+
+***LOGISTICS***
+
+MTBM                  71.297937
+MTBMu                 71.297937
+MTBMs                 N/A
+MMT                   9.455740
+MMTu                  9.455740
+MMTs                  N/A
+GreenPercent          84.131566
+YellowPercent         0.000000
+RedPercent            15.868434
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.093302      80.659373     287.080540      70.492841
+DT                             6.005079      15.258110      33.704428       6.769680
+TBM                            3.575377      84.278873     301.305777      71.422791
+RT                             3.944228       9.455740      23.748940       3.727403
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   13   Infinite                    13
+Brushes                    10   Infinite                    10
+Casing                      8   Infinite                     8
+Magnets                    15   Infinite                    15
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_87*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.818763804
+MTBDE                      66.029339
+MDT                        14.615822
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     62
+NumberOfComponentFailures  68
+
+
+
+***LOGISTICS***
+
+MTBM                  60.203221
+MTBMu                 60.203221
+MTBMs                 N/A
+MMT                   9.414813
+MMTu                  9.414813
+MMTs                  N/A
+GreenPercent          81.876380
+YellowPercent         0.000000
+RedPercent            18.123620
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.294553      65.821965     280.519932      64.004033
+DT                             8.387020      14.615822      25.077694       3.645123
+TBM                            0.707262      73.027753     294.041093      64.570926
+RT                             4.192144       9.414813      15.351330       2.679540
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   20   Infinite                    20
+Brushes                    12   Infinite                    12
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_88*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.830921898
+MTBDE                      76.937213
+MDT                        15.655380
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  62
+
+
+
+***LOGISTICS***
+
+MTBM                  67.009830
+MTBMu                 67.009830
+MTBMs                 N/A
+MMT                   9.487730
+MMTu                  9.487730
+MMTs                  N/A
+GreenPercent          83.092190
+YellowPercent         0.000000
+RedPercent            16.907810
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.952310      75.352720     244.163189      55.746585
+DT                             7.377650      15.655380      32.203608       5.276653
+TBM                            0.235109      78.987613     257.958428      58.277246
+RT                             3.749414       9.487730      23.434254       3.192637
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                    11   Infinite                    11
+Casing                      7   Infinite                     7
+Magnets                    16   Infinite                    16
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_89*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.875451691
+MTBDE                      97.272410
+MDT                        13.838701
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     45
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  79.586517
+MTBMu                 79.586517
+MTBMs                 N/A
+MMT                   8.066577
+MMTu                  8.066577
+MMTs                  N/A
+GreenPercent          87.545169
+YellowPercent         0.000000
+RedPercent            12.454831
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.876363      97.125604     298.155488      80.283169
+DT                             6.721595      13.838701      34.312944       5.069567
+TBM                            0.943252      90.473397     298.155488      82.325020
+RT                             3.944488       8.066577      17.131973       2.521270
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                     7   Infinite                     7
+Casing                      9   Infinite                     9
+Magnets                    14   Infinite                    14
+PowerSupply                14   Infinite                    14
+
+
+
+
+***Run_90*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.860715881
+MTBDE                      84.383910
+MDT                        13.655306
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  55
+
+
+
+***LOGISTICS***
+
+MTBM                  78.246898
+MTBMu                 78.246898
+MTBMs                 N/A
+MMT                   8.625595
+MMTu                  8.625595
+MMTs                  N/A
+GreenPercent          86.071588
+YellowPercent         0.000000
+RedPercent            13.928412
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.191924      84.383910     332.771807      82.048266
+DT                             6.624989      13.655306      39.406179       4.928287
+TBM                            0.636248      90.786621     346.422382      82.181918
+RT                             4.247333       8.625595      17.305766       2.816355
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    9   Infinite                     9
+Brushes                    10   Infinite                    10
+Casing                      7   Infinite                     7
+Magnets                    16   Infinite                    16
+PowerSupply                13   Infinite                    13
+
+
+
+
+***Run_91*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.844904530
+MTBDE                      86.214748
+MDT                        15.826068
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  58
+
+
+
+***LOGISTICS***
+
+MTBM                  72.836597
+MTBMu                 72.836597
+MTBMs                 N/A
+MMT                   9.415759
+MMTu                  9.415759
+MMTs                  N/A
+GreenPercent          84.490453
+YellowPercent         0.000000
+RedPercent            15.509547
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.509673      85.858986     269.623004      64.618854
+DT                             6.242591      15.826068      37.504328       6.227768
+TBM                            0.257158      85.745544     283.861859      67.342947
+RT                             4.184689       9.415759      17.191666       3.626004
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                     9   Infinite                     9
+Casing                      5   Infinite                     5
+Magnets                    16   Infinite                    16
+PowerSupply                16   Infinite                    16
+
+
+
+
+***Run_92*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.854105019
+MTBDE                      77.645911
+MDT                        13.263180
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  60
+
+
+
+***LOGISTICS***
+
+MTBM                  71.175418
+MTBMu                 71.175418
+MTBMs                 N/A
+MMT                   8.212714
+MMTu                  8.212714
+MMTs                  N/A
+GreenPercent          85.410502
+YellowPercent         0.000000
+RedPercent            14.589498
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.264663      77.451810     303.588427      64.681181
+DT                             5.083763      13.263180      29.797432       5.323515
+TBM                            0.055004      83.015881     315.863343      66.906690
+RT                             3.334306       8.212714      17.701103       2.892396
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    11   Infinite                    11
+Casing                      8   Infinite                     8
+Magnets                    15   Infinite                    15
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_93*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.814406176
+MTBDE                      67.867181
+MDT                        15.466152
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     60
+NumberOfComponentFailures  67
+
+
+
+***LOGISTICS***
+
+MTBM                  60.776580
+MTBMu                 60.776580
+MTBMs                 N/A
+MMT                   9.161293
+MMTu                  9.161293
+MMTs                  N/A
+GreenPercent          81.440618
+YellowPercent         0.000000
+RedPercent            18.559382
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.736346      66.441691     308.452212      68.459809
+DT                             6.804666      15.466152      43.368037       5.699647
+TBM                            0.152117      73.205249     323.500548      69.343508
+RT                             4.814810       9.161293      16.808892       2.878749
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   15   Infinite                    15
+Brushes                    11   Infinite                    11
+Casing                      9   Infinite                     9
+Magnets                    15   Infinite                    15
+PowerSupply                17   Infinite                    17
+
+
+
+
+***Run_94*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.856994811
+MTBDE                      84.019099
+MDT                        14.020117
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  57
+
+
+
+***LOGISTICS***
+
+MTBM                  75.174983
+MTBMu                 75.174983
+MTBMs                 N/A
+MMT                   8.348983
+MMTu                  8.348983
+MMTs                  N/A
+GreenPercent          85.699481
+YellowPercent         0.000000
+RedPercent            14.300519
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.999037      83.865173     304.694224      63.783384
+DT                             6.321552      14.020117      23.205773       3.766707
+TBM                            1.354682      87.305079     304.694224      66.156997
+RT                             3.109562       8.348983      15.109737       2.780669
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   11   Infinite                    11
+Brushes                    10   Infinite                    10
+Casing                      4   Infinite                     4
+Magnets                    13   Infinite                    13
+PowerSupply                19   Infinite                    19
+
+
+
+
+***Run_95*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.853274892
+MTBDE                      87.068867
+MDT                        14.971950
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  54
+
+
+
+***LOGISTICS***
+
+MTBM                  79.006934
+MTBMu                 79.006934
+MTBMs                 N/A
+MMT                   9.276651
+MMTu                  9.276651
+MMTs                  N/A
+GreenPercent          85.327489
+YellowPercent         0.000000
+RedPercent            14.672511
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.190828      84.984771     322.225915      77.068434
+DT                             7.705761      14.971950      25.227099       4.416404
+TBM                            0.159296      90.435449     345.907120      78.768989
+RT                             4.517678       9.276651      17.738111       3.123223
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   10   Infinite                    10
+Brushes                    10   Infinite                    10
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                14   Infinite                    14
+
+
+
+
+***Run_96*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.874126677
+MTBDE                      99.332577
+MDT                        14.303787
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     44
+NumberOfComponentFailures  45
+
+
+
+***LOGISTICS***
+
+MTBM                  97.125186
+MTBMu                 97.125186
+MTBMs                 N/A
+MMT                   9.677958
+MMTu                  9.677958
+MMTs                  N/A
+GreenPercent          87.412668
+YellowPercent         0.000000
+RedPercent            12.587332
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.478962      99.223675     371.774059      90.684001
+DT                             6.405519      14.303787      25.662392       4.387333
+TBM                           13.491386     110.680464     381.814319      91.171687
+RT                             4.641541       9.677958      21.299191       3.282254
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    4   Infinite                     4
+Brushes                     9   Infinite                     9
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                12   Infinite                    12
+
+
+
+
+***Run_97*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.828221208
+MTBDE                      67.886984
+MDT                        14.080229
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     61
+NumberOfComponentFailures  66
+
+
+
+***LOGISTICS***
+
+MTBM                  62.744031
+MTBMu                 62.744031
+MTBMs                 N/A
+MMT                   9.357293
+MMTu                  9.357293
+MMTs                  N/A
+GreenPercent          82.822121
+YellowPercent         0.000000
+RedPercent            17.177879
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.760129      64.403181     202.492159      50.178451
+DT                             4.722811      14.080229      27.779858       4.830342
+TBM                            0.169420      72.406443     214.202853      51.031547
+RT                             3.705536       9.357293      23.648834       3.544449
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   16   Infinite                    16
+Brushes                    11   Infinite                    11
+Casing                      7   Infinite                     7
+Magnets                    14   Infinite                    14
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_98*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.851304199
+MTBDE                      90.564277
+MDT                        15.818702
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     47
+NumberOfComponentFailures  56
+
+
+
+***LOGISTICS***
+
+MTBM                  76.009304
+MTBMu                 76.009304
+MTBMs                 N/A
+MMT                   9.229704
+MMTu                  9.229704
+MMTs                  N/A
+GreenPercent          85.130420
+YellowPercent         0.000000
+RedPercent            14.869580
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.768514      89.948421     284.269366      70.713265
+DT                             7.749145      15.818702      48.485624       7.048139
+TBM                            1.465745      88.594569     299.140112      74.366884
+RT                             4.508698       9.229704      20.710795       2.948122
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   12   Infinite                    12
+Brushes                     7   Infinite                     7
+Casing                      7   Infinite                     7
+Magnets                    12   Infinite                    12
+PowerSupply                18   Infinite                    18
+
+
+
+
+***Run_99*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.852673762
+MTBDE                      87.007527
+MDT                        15.033290
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  56
+
+
+
+***LOGISTICS***
+
+MTBM                  76.131586
+MTBMu                 76.131586
+MTBMs                 N/A
+MMT                   8.762465
+MMTu                  8.762465
+MMTs                  N/A
+GreenPercent          85.267376
+YellowPercent         0.000000
+RedPercent            14.732624
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.659120      87.004994     269.416595      64.515311
+DT                             6.359187      15.033290      29.288768       5.926597
+TBM                            2.319196      89.112093     285.684686      67.298788
+RT                             3.802859       8.762465      16.380928       3.168103
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                   13   Infinite                    13
+Brushes                     8   Infinite                     8
+Casing                      6   Infinite                     6
+Magnets                    14   Infinite                    14
+PowerSupply                15   Infinite                    15
+
+
+
+
+***Run_100*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.855743287
+MTBDE                      87.320744
+MDT                        14.720073
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  53
+
+
+
+***LOGISTICS***
+
+MTBM                  80.730499
+MTBMu                 80.730499
+MTBMs                 N/A
+MMT                   9.711330
+MMTu                  9.711330
+MMTs                  N/A
+GreenPercent          85.574329
+YellowPercent         0.000000
+RedPercent            14.425671
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.003973      84.864239     336.346038      69.704309
+DT                             8.224761      14.720073      30.488570       4.779987
+TBM                            2.710135      91.858490     352.397927      71.059722
+RT                             3.630160       9.711330      17.877663       3.261217
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    8   Infinite                     8
+Brushes                    11   Infinite                    11
+Casing                      8   Infinite                     8
+Magnets                    13   Infinite                    13
+PowerSupply                13   Infinite                    13
+
+
+
+

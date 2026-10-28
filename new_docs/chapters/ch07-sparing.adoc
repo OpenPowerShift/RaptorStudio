@@ -1,0 +1,167 @@
+[[ch-sparing]]
+== Sparing: The Taco Truck's Propane Shelf
+
+*Time: about 25 minutes.*
+*New ideas: spare parts on the shelf, custom sparing, running out of
+spares for good.*
+
+=== You will learn
+
+* What a *sparing type* is.
+* How a block consumes spares from its own stock.
+* Why "out of spares" is a different kind of death.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-repair>> finished. <<ch-trials>>
+  helps but is not required.
+* The file `models/TacoTruck1.rbds`.
++
+opsmodel:TacoTruck1[]
+
+=== The story
+
+Your taco truck grills with propane. A tank lasts about **200 hours**
+of service, and swapping an empty tank takes **2 hours** — you carry
+spares, so this is no disaster.
+
+But your shelf holds exactly **3 spare tanks**. Nobody delivers to the
+festival grounds. When the fourth tank runs empty, the truck closes
+for the season. Mission: a **1000-hour** season. Will the shelf last?
+
+=== One new idea: the sparing type
+
+Until now every repairable block had an invisible assumption: infinite
+spares. Repairs always found what they needed. RAPTOR Studio makes
+this explicit. Each block has a *sparing* setting:
+
+[cols="3,5",options="header"]
+|===
+|Sparing type |Meaning
+|Infinite |repair never wants for parts
+|Custom |the block owns a fixed pile of spares; each repair takes one
+|Pooled |several blocks share one restocked pool (Spare Pools tab)
+|Resource |repairs share a pooled crew/equipment resource, cost per use (Resources tab)
+|===
+
+NOTE: This chapter only builds *Custom* sparing — one block, one
+private shelf, no restocking — because it is the simplest case to
+reason about first. Pooled and Resource sparing use the Data Tables'
+*Spare Pools* and *Resources* tabs and are covered later.
+
+Open `models/TacoTruck1.rbds` and select **Propane_Tank**. In the Data
+Tables or Inspector you see:
+
+[cols="3,2",options="header"]
+|===
+|Setting |Value
+|Failure dist |Exponential, mean 200 h
+|Repair dist |Fixed, 2 h
+|Sparing type |Custom
+|Stock |3
+|===
+
+The second block, **Grill**, is ordinary: Weibull wear-out, Lognormal
+repair, infinite spares.
+
+image::tacotruck-loaded.png[TacoTruck1 loaded: Propane_Tank and Grill in series]
+
+Mission settings: stop at **1000 hours**, 20 trials.
+
+=== Run it
+
+Press F5. Typical results:
+
+[cols="4,2",options="header"]
+|===
+|Measure |Typical value
+|System failures per run |about 4
+|Availability |about 0.63
+|Reliability |0.00
+|===
+
+Now read the *Event Log* tab for one trial. The story has three acts:
+
+----
+tank fails        -> Repairing   (a spare comes off the shelf)
+tank fails again  -> Repairing   (second spare gone)
+tank fails again  -> Repairing   (last spare gone)
+tank fails again  -> No_spare_in_stock-Custom -> Done "No_spares"
+----
+
+The fourth failure is different from every failure in earlier
+chapters. No repair starts. The block goes *Done* permanently, and so
+does the truck. With mean tank life 200 h, four tanks last about 800 h
+— the truck dies in act four, somewhere near hour 800, and availability
+lands near 800/1000 plus small change.
+
+[TIP]
+====
+"Out of spares" converts a maintenance problem into a *logistics*
+problem. The engine does not care how good your technicians are when
+the shelf is empty. This is why real sparing studies pair the
+simulation with delivery times — the *Spare Pools* tab's arrival and
+emergency-order fields exist for exactly that.
+====
+
+.Limits of this model
+[NOTE]
+====
+This truck's three tanks are a private, fixed shelf — no restocking,
+no lead time, no competition with any other truck for the same
+propane supplier. Real fleets usually share a warehouse, and a bad
+week (a festival season, a supplier strike) can starve every truck at
+once — a shared-cause risk this Custom-sparing model cannot see by
+design. Pooled sparing (several blocks drawing from one restocked
+pool, mentioned above) starts to capture that; a full supply-chain
+study would model the restocking lead time explicitly too.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |A Custom-spare block has Stock = 5. How many repairs can it
+survive before its next failure is fatal?
+|2 |Why did reliability come out 0.00 instead of "small"?
+|3 |Which chapter-5 metric would you watch to argue for a bigger
+shelf?
+|===
+
+.Answers
+[%collapsible]
+====
+. Five repairs — the sixth failure finds an empty shelf.
+. Because with mean tank life 200 h and only 4 tanks (the installed
+   one plus Stock 3), the truck almost surely dies before hour 1000 —
+   no trial survives, so the reliability count is exactly zero.
+. Availability — or downtime per run. The shelf size changes how long
+   the truck runs per season, which is availability's job; reliability
+   stays pinned at 0 either way.
+====
+
+=== Exercise
+
+The supplier offers a bulk deal: Stock 3 → 6. Before simulating,
+estimate the expected season end time by hand (four more failures ×
+mean 200 h). Then set Stock = 6 in the Data Tables and run 100 trials.
+Did availability rise the way you predicted?
+
+.Answer
+[%collapsible]
+====
+Hand estimate says the season should stretch to roughly
+(1 + 6) × 200 ≈ 1300–1400 h, past the mission end, so availability
+should jump toward ~0.95+. At 100 trials you should see about 0.95
+with failures per run around 3–3.5 and few or no
+"No_spares" endings left.
+====
+
+=== What you learned
+
+* Sparing types say where repair parts come from.
+* Custom spares are a countdown: each repair spends one.
+* Exhaustion is permanent — a logistics failure, not a repair failure.
+
+Next chapter: spares that are not parts on a shelf, but whole machines
+waiting switched-off in the dark.

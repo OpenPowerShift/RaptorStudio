@@ -1,0 +1,8 @@
+Begining Procedure RunEFPA......
+
+join  EFPAout=1
+   end  through link 5
+BlockA  EFPAout=1
+   join  through link 2
+BlockB  EFPAout=1
+   join  through link 4

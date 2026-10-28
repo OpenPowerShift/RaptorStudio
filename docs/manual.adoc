@@ -1,0 +1,902 @@
+= RAPTOR Studio Reference Manual
+:toc: left
+:source-highlighter: none
+
+This is the *field and workflow reference* for RAPTOR Studio: what
+every control does, dialog by dialog. It does not teach simulation
+concepts. For the guided tour (dice, diagrams, redundancy, standby, cost,
+weak links, a tuned data centre), read the companion book,
+*Break It Before It Breaks*
+(xref:../new_docs/book.html[User Guide]); the links in this manual point
+into its chapters.
+
+Help layers, cheapest first:
+
+* **Tooltips** — hover any ribbon button or dialog field.
+* **F1** — press it over the Project Settings, Results, Data Tables,
+  Run, Simulate or Inspector surface to jump straight to this manual's
+  matching section.
+* **Status bar** — narration during runs and stepping; preflight
+  warnings before a run.
+* **This manual** — what a control does and how a workflow fits
+  together.
+* **The User Guide** — why the pieces exist and when to reach for them.
+* **xref:formulas.html[Formulas quick reference]** — every metric the
+  engine reports, as an equation, one page.
+
+[[system-settings]]
+== Model tab → Project Settings
+
+Project Settings is the Inspector page (Model ▸ Project Settings, or the
+Project Settings entry in Model Explorer). It is not a modal: the page
+stays open beside the canvas. Run settings are edited in the Run panel;
+the Inspector shows read-only echoes for those fields. Model-wide fields
+(units, flow generated, costs, flags) are edited here.
+
+[cols="3,4,3",options="header"]
+|===
+|Field |Meaning |Notes
+|Time units |Label used in every report ("hours", "miles", "cycles") |A label only; values are never converted
+|Termination type |TimeSim (run a fixed mission), FailSim (stop after N system failures), CycleSim |The User Guide's models all use TimeSim
+|Term condition |The mission length (TimeSim) or failure count (FailSim) |See xref:../new_docs/book.html#ch-first-model[Your First Model]
+|Statistics start time |Discard everything before this time from the statistics |Warm-up / transient removal
+|Number of runs |Read-only echo of trials per simulation |Edit in the Run panel; more runs give tighter SEMs (xref:../new_docs/book.html#ch-trials[Many Trials])
+|Flow generated |Demand offered at the Start node each hour |xref:../new_docs/book.html#ch-capacity[Capacity analysis]
+|System red cost |Cost per hour the system is fully down |xref:../new_docs/book.html#ch-cost[Cost analysis]
+|Cost of lost flow |Price per unit of unmet demand |Billed against capacity shortfall
+|Green/Yellow threshold |Read-only echo; edit in Results ▸ Bands |Default 0.95
+|Yellow/Red threshold |Read-only echo; edit in Results ▸ Bands |Default 0.90
+|Ignore negative-value warning |Suppress the warning when a parameter is set negative |Off by default
+|Ignore start failures |Discard failures in the first instant |Counted nowhere in the results
+|System comment |Free-text note stored with the model |Shows in the .rbd COMMENTS section
+|Weak Link analysis |Collect per-block/per-node state times during runs |xref:../new_docs/book.html#ch-weaklink[Weak Links]; adds the weak-colour view
+|Cost analysis |Sum purchase/repair/downtime/lost-flow money |xref:../new_docs/book.html#ch-cost[Cost]; adds the COST report
+|Capacity analysis |Track flow against demand, not just up/down |xref:../new_docs/book.html#ch-capacity[Capacity]; needs Start + End nodes
+|System streams A…Anc |RNG stream numbers |Same seeds ⇒ same story (xref:../new_docs/book.html#ch-trials[Many Trials])
+|===
+
+[[data-tables]]
+== Data Tables
+
+Open from *View → Panels → Data Tables*. It edits the model as
+spreadsheets, one tab per element type or per section of the `.rbds`
+file. Only some cells are editable; invalid values revert on entry.
+Blocks, Nodes and Events show the hierarchy level currently on the
+canvas; the header says “current level: 8 of 17 blocks…” when the model
+has nested levels. Use Model Explorer to reach the others.
+
+[cols="2,6",options="header"]
+|===
+|Tab |Columns
+
+|Blocks
+|Name, ID, Failure Dist, Failure Param 1–3, # Failure Params, Repair
+Dist, Repair Param 1–3, # Repair Params, PM Frequency, plus read-only
+Failure/Repair Mean and Std Dev computed from the current parameters
+
+|Nodes
+|Name, ID, Type (Regular / Start / End / Hierarchy In-Out), Required
+good (k), Out
+
+|Events
+|Name, ID, Distro, Param, Stream
+
+|Spare Pools
+|PoolName, RSO, Stock, NewSp, ArriveEvery, ESO, EmerTime, SLO, Level,
+Quan, SLOTime — see <<system-settings>>'s sparing fields and xref:../new_docs/book.html#ch-sparing[Sparing]
+
+|Resources
+|PoolName, NumIn, SpareCost, FixedPerUse, PerTimeUnit, Phases
+
+|Triggers
+|TriggerName, IDnum, Repeats, InitUsed, Dist, Param1–3 — schedules
+Preventive Maintenance
+
+|Phases
+|PhaseName, Num, Mission, Dist, Param1–3 — mission-phase durations and
+sequencing
+
+|Sparing
+|Name, ID, Sparing Type, Pool Name, Resource, New Spares, Order
+Interval — one row per block, cross-referencing the two pool tabs
+above
+
+|Preventive Maintenance
+|Name, ID, Frequency, Needs spare, Refresh, Defer (non-mission), Defer
+(unavailable), Failure resets — lists only blocks with PM enabled
+|===
+
+[[block-defaults]]
+== Block Defaults
+
+*Data ▸ Block Defaults* sets what a block you add to the diagram starts with: its
+failure and repair distributions (all three parameters, labelled for the law you
+pick, with the resulting Mean and Std Dev shown) and its sparing type. *Reset
+Defaults* returns to the factory values (Exponential failure, Lognormal repair,
+infinite spares).
+
+**Block template** starts from a block of a library: after *Data ▸ Import Library*
+the list holds *Default* plus every block in that library, and choosing one fills
+the distributions from it. Until a library has been imported the list is greyed,
+with the reason in its tooltip. The defaults are yours, not the model's: they are
+remembered between sessions and never change a block already in a model.
+
+[[mass-edit]]
+== Mass Edit
+
+Select two or more elements, then *Data ▸ Mass Edit*. There is one tab per
+kind of element in the selection, and only the tabs for what you selected
+apply. Each tab has a *Rename* row with three modes:
+
+* **Add as suffix** (the default) — each element keeps its own name and
+  gains your text at the end: `Pump` → `Pump_v2`.
+* **Add as prefix** — the same at the front: `Pump` → `A_Pump`.
+* **Replace name** — every selected element gets *exactly* your text, so
+  use it on a single kind of thing you genuinely want identically named.
+
+Leave the text blank to keep all names. The whole edit is one undo step.
+
+[[input-rules]]
+== Values and links Raptor 7 refuses
+
+RAPTOR Studio applies Raptor 7's own input checks, with Raptor 7's own
+messages, wherever you edit: the Inspector, Data Tables, the dialogs, the
+canvas, the `raptor` command line and the MCP server.
+
+Warnings in the app name the affected element — and, for a link, its
+From and To endpoints — and say which setting to change. Source-code
+references are kept in developer/API output, not shown in the UI.
+
+* **A value its dialogs refuse** is refused when you commit it, and the
+  model is left as it was: a PM stagger at or above the PM frequency, a
+  cost below 0, a name with a space or over 20 characters, a success
+  probability above 1, a growth/decay limit on the wrong side of the
+  failure mean, and the rest of Raptor 7's dialog checks.
+* **A name up to 20 characters fits on its block.** A block widens for
+  a long name, up to twice its usual width, equally either side of its
+  centre, so nothing around it moves and the file is unchanged. A name
+  too wide even for that (twenty W's) is cut short with "…" and shown
+  whole when you point at it.
+* **A link it will not let you draw** is refused when you draw it: a
+  block, event or hierarchy takes one link in and one out, a Start or In
+  marker one link out, an End or Out marker one link in. Paths split and
+  join at a node.
+* **A model it will not run** is refused at Run: every block, event,
+  hierarchy and node must connect from something and to something, the
+  run length and statistics start must be in range, and cycle termination
+  needs phases.
+
+* **A distribution change keeps the mean.** When you change a
+distribution anywhere (the Inspector, the Blocks, Phases and Triggers tabs
+of the Data Tables, the distribution editor used for phase lengths and
+spare pools, Block Defaults and Mass Edit), the new one starts with valid
+parameters that give the **same mean** as the old one, so a Fixed 0.25
+changed to Binomial becomes a valid Binomial with a mean of 0.25 rather
+than a half-filled one.
+* **Rules that tie several fields together let you type one field at a
+time.** Triangular needs Min < Mode < Max and Uniform needs Min ≤ Max, so
+the set is briefly invalid while you change the first field. The value is
+held, with the reason shown, and is applied once the set is valid. A
+dialog that edits a distribution keeps **OK** off while the set is
+invalid and says why under the fields.
+
+A file written by another tool is still opened, as Raptor 7 opens it.
+The Issues list (the *Issues* button on the Model tab, or the badge at the
+right of the status bar) shows anything in it that Raptor 7 would refuse
+to draw or type as a warning, and a problem a model already has never blocks an unrelated
+edit. Choosing a growth/decay type fills in the values Raptor 7 puts back
+when it refuses the current ones (a base of 1, a limit either side of the
+mean), so the type can be changed before the rate.
+
+The distribution lists offer what Raptor 7 offers for each choice, with one
+addition: a failure law can also be Fixed (a block that fails at the same
+time on every run). Raptor 7's failure list leaves Fixed out, but it runs a
+model that uses it. Only a block's failure and repair laws can be Empirical
+(their data points are kept in the file); the repair list also has None. A value a file
+already holds outside a list is kept and shown, marked as not offered by
+Raptor 7 there.
+
+[[results]]
+== Results dock
+
+After a run (or a stepped Finish) the Results dock offers:
+
+* **Overview** — health-bar summary per run: green/yellow/red
+  percentages, availability at a glance.
+* **Final Results** — the Final_Results report: Minimum/Mean/Maximum/
+  St.Dev/SEM for Availability, MTBDE, MDT, Reliability, plus the
+  LOGISTICS, SPARING, COST and CAPACITY sections when enabled.
+* **Event Log** — the per-trial story, one coloured row per event
+  (xref:../new_docs/book.html#ch-redundancy[Redundancy]). Filter by text ("Failed", a block name). During a stepped
+  session this tab fills line by line.
+* **Graphs** — availability/convergence and capacity plots. A plot mode
+  is selectable only when the run collected enough data; otherwise its
+  tooltip/empty state says exactly what to tick under Run panel ▸
+  Recording (xref:../new_docs/book.html#ch-trials[Many Trials]).
+  **Multi-run Ao** auto-fits its Y axis to the observed min/max, so a
+  narrow availability band is readable instead of a flat line at 1.0.
+  The single-run **Capacity (Flow)** plot shows the run's average flow
+  and capacity as horizontal reference lines; **Multi-run Capacity
+  (Flow)** shows min/average/max flow and capacity across every run.
+* **Report Text** — the report text exactly as produced.
+* **Capacity** / **Cost** / **Weak Link** — sub-tabs of Final Results.
+  They are always present after a run; each has an explanatory empty
+  state when its analysis was not enabled.
+
+=== A hierarchy's body and its DSI
+
+A hierarchy oval carries **two** pieces of state, and they answer
+different questions:
+
+* The **body** colour is the hierarchy's own status — what its Out marker
+  is doing: green (no loss of redundancy), yellow (operating, but
+  something inside has failed), red (the subsystem cannot function), plus
+  blue for standby, brown for idle and orange for preventive maintenance.
+* The **two stacked downward triangles in the centre** are Raptor 7's
+  **Descendant Status Indicator** (DSI, manual Ch.16). They show the
+  worst status of the *hierarchies inside this one*, not this
+  hierarchy's own state. Their six colours are the same node states —
+  green, yellow, blue, brown, orange, red — and they are white when the
+  hierarchy's output is Linked and black when it is Cut (Failure Effects
+  View, and a phased model's Link/Cut attributes).
+
+So a **green body with a yellow or red DSI** means the hierarchy itself
+still works, but something deeper is degraded or down. A **red body**
+means this subsystem is down. A yellow body means loss of redundancy
+here, even if the DSI is green. The DSI is only meaningful when there is
+another level below; on a leaf hierarchy it matches the body and
+disappears into it.
+
+The hierarchy's **name sits inside the oval** at rest. While a simulation
+view is using the body (Animate, a stepped run, Failure Effects View, or the
+after-run triangles) the name moves **under the oval**, so the colours and
+triangles never clash with the text; a Weak Link or overlay value, when shown,
+goes under it.
+
+During **Animate** or a stepped run both are live. **After a run** the
+DSI shows the share of time, over every run, that the inside was
+working, partly failed, on standby or down, coloured by the same bands
+as the Weak Link view, and it is re-coloured if you change the
+thresholds. It needs **Weak Link analysis** to be on: after a run
+without it there is no DSI, rather than a misleading one. Point at the
+triangles (or the body) for a plain-words explanation of what they are
+showing.
+
+[NOTE]
+====
+The after-run average DSI is a RAPTOR Studio extension. Raptor 7 turns
+the DSI lime green when a run completes; the body still carries the
+run's final state until the next run.
+====
+
+=== Editing while results are showing
+
+Every tab stays editable. Results, though, describe the model as it was
+when the run finished, so the first edit that could change a simulated
+number (a distribution, a link, a dependency, a new or deleted element)
+asks once:
+
+* **Discard results & edit** — the results are cleared and the edit stands.
+* **Keep results (undo this edit)** — the edit is reverted and nothing
+  changes.
+
+Moving elements, panning, zooming, selecting and changing the run settings
+(trials, run length, analyses) never ask, because they cannot change a
+result. While results are showing, the Inspector says so in a line at its
+top. That line has a **Clear results** button, which discards the results
+and makes the whole model editable without waiting for the question.
+
+Results-tab ribbon extras beyond the dock itself:
+
+* **Show on Canvas** — five colourings of the diagram from the last
+  run (Weak Links, Capacity, Cost, Spares, Importance); one shows at a
+  time, and turning one on clears the others. Each is offered only when
+  the run produced its data. A run does not turn one on by itself.
+** **Weak Links** — paints every block, node, event and hierarchy by
+   its availability, dependability or reliability against the model's
+   Green/Yellow and Yellow/Red thresholds (needs Weak Link analysis on).
+   The metric value is printed under each element, with 3 decimal places
+   by default; change that under *Preferences ▸ Advanced ▸ Weak Link
+   value digits*. Text on a coloured fill switches to black or white to
+   keep readable contrast on both themes. The *Bands* group beside it
+   picks the metric and holds the two thresholds.
+** **Capacity** — each capacity node by its average utilization
+   (Green < 70 %, Yellow < 90 %, Red ≥ 90 %). A node with unrestricted
+   flow has no utilization and stays plain.
+** **Cost** — each block by its total life-cycle cost, relative to the
+   most expensive block (Red at two-thirds of it or more, Yellow at a
+   third or more).
+** **Spares** — a block Red if it ever ran out of spares or reached
+   end of life; the share of run time and the sparing cost are on hover.
+** **Importance** — each block by the importance measure the Importance tab
+   ranks by (Vesely–Fussell, since Birnbaum saturates in a series model), banded
+   against the largest value in this run (Red at two-thirds or more,
+   Yellow at a third or more), with its rank badged on the block and the
+   value printed under it. Red here means *most leverage — fix this
+   first*, not *this is failing*: it is a ranking, not a health reading.
+   Needs Importance measures enabled for the run.
+* **Spread** — bands the **active** colouring by this result set's own
+  values: the best quarter Green, the worst quarter Red, the middle half
+  Yellow (the quartiles). It applies to Weak Links or Cost; Capacity and
+  Spares are fixed/flag bands, so Spread says so and changes nothing.
+  With Weak Links it sets the two thresholds;
+  fixed bands such as 0.95 / 0.90 paint every block of a highly
+  available model Green, which says nothing about which is weakest. The
+  thresholds are ordinary model settings afterwards (shown to six
+  decimals), and changing them never discards the results on screen —
+  they only change the colours. With Cost showing, Spread bands the
+  blocks by cost quartile instead of by thirds of the dearest one, so a
+  single very expensive block no longer leaves all the others Green.
+* **Float Window** — the Results in a window of their own, with the
+  usual title bar: move it to another screen, maximize it, find it in
+  the taskbar. Closing that window puts the Results back in the main
+  window.
+* **Single-Point Failures** — lists every component whose failure
+  alone brings the system down (the series elements), exportable as
+  text.
+* **Domains…** — for each node, which elements' failures can
+  propagate to it.
+
+[[run-panel]]
+[[run]]
+== The Run panel
+
+Every setting that describes a **run** is edited in the **Run** dock,
+tabbed alongside Results and Data Tables at the bottom of the window,
+raised automatically on the Simulate tab (and openable any time from
+*View ▸ Panels ▸ Run Panel*, or the Simulate tab's **Run Settings…**
+button).
+
+The Run panel is the single editor for trials, stop condition,
+statistics start, analyses, recording and cores. The Simulate ribbon's
+Trials and Cores boxes, the Inspector's Project Settings page and
+Preferences are read-only echoes. Green/Yellow and Yellow/Red thresholds
+are edited in *Results ▸ Bands*, not in Project Settings.
+
+If the model has a display unit (say years on an hours-native model),
+the run length and statistics start are shown **in that unit** and
+stored in the model's own. Under *Stop at: system failures* or *phase
+cycles* the run-length figure is a plain count and is never converted —
+the row label changes to say which kind of number it is.
+
+A readiness line at the top says whether the model can run, and **why**
+not when it cannot, rather than presenting a greyed button with no
+explanation. The panel **locks while a run is in progress**: the values
+it holds are the ones the run is actually using, and a 20-minute batch
+must not have its settings changed underneath it.
+
+[cols="2,5",options="header"]
+|===
+|Section |What it sets
+
+|Experiment
+|A starting **Profile** (Quick check / Steady state / Endurance /
+Endgame) that seeds the rest, **Trials**, **Stop at** (time, system
+failures or phase cycles — the run-length label and unit follow the
+choice), and **Statistics from**. The **Cores** box is a read-only
+readout of the machine setting (edit it in the Run panel); it is
+greyed, with the reason, while Animate is on or a run is going.
+
+|Analysis
+|Weak Link, Cost and Capacity. Each is a switch with its purpose
+written beside it.
+
+|Recording
+|Which outputs a run collects. Additive rather than a single "level",
+so "state intervals, but no multi-gigabyte event log" is expressible.
+Each dependent plot is **disabled with a stated reason** until its
+analysis is on, and turning an analysis off clears the plot it fed.
+
+|Stepping
+|Parameters for the interactive debugger: multi-step event count,
+run-to target time, and the breakpoint block.
+|===
+
+A stepped session spans the run count the model is configured for. **Jump** lets the current run finish and stops at the next
+run's first change; **Finish** completes every run that is left and shows
+the results of all of them.
+
+[[cores]]
+== Cores, Animate and repeatable results
+
+**Run** (F5) runs at full speed in the background, splitting the trials
+across the processor cores in the **Cores** box beside it on the Simulate
+tab, and in the Run panel beside Trials (one setting, shown in both). The
+box reads, say, "8 of 8": the cores a run will use, out of the
+cores this computer has. The same count is shown in the status bar, in the
+Run panel's readiness line and in the Sweep and Compare windows before they
+start. The Run panel's Cores field is the editor; *Automatic* uses every
+core.
+
+**Animate** is the other way to run: one core, with each event drawn on the
+diagram as it happens. The Cores box, in both places, greys out while it
+is on, and while any run is going, and says why when you point at it.
+
+The core count is **a setting of this computer, not of the model**. It is
+not saved in the `.rbd` or `.rbds` file, so a model opened on another
+computer runs on that computer's own cores, and a count set higher than a
+computer has is capped at what it has.
+
+**Will I get the same numbers as a colleague?**
+
+[cols="2,5",options="header"]
+|===
+|How the model is run |What you get
+
+|Animate, or Cores set to 1
+|Raptor 7's exact sequence of random numbers, so the same results as
+Raptor 7 and as anyone else running on one core.
+
+|2 or more cores
+|The same results on every computer and at every core count from 2 up:
+the trials are always split into the same 64 slices, each with its own
+random stream, whatever the number of cores doing the work.
+|===
+
+The two rows are **statistically the same answer** but not identical to
+the last digit, because the multi-core run draws its dice from different
+parts of the random streams. The difference is usually within about
+±2×SEM (the standard error the results report); with few trials it can be
+large, as any small sample's is. To
+repeat a result exactly, run it the same way: on one core (Animate, or Cores
+1) to match Raptor 7, or on any number of cores from 2 up to match another
+multi-core run. A computer with a single core always runs the one-core way.
+
+**Stop and Pause** work on a multi-core run between slices: Stop keeps the
+trials already finished, Pause starts no new slice until you resume. **Jump**
+(skip one trial) is unavailable on a multi-core run, because trials are run
+in slices; its tooltip says so.
+
+**Sweep** and **Compare** (Simulate ▸ Batch) always run at full speed on the
+chosen cores, on a copy of the model: the open model is not changed.
+
+[[differences]]
+== Comparing two models
+
+*File ▸ Differences…* says what is different between the open model —
+as it is now, unsaved edits included — and another model:
+
+* *Its saved file*: what you have changed since the last save.
+* *Another model*: any `.rbd` or `.rbds` file, in either combination.
+* *An open or recent model*: the list shows the models open in your other
+  windows first (compared as they are now, unsaved edits included), then
+  the Recent list.
+
+It compares the models themselves, not their results (for results, run
+them side by side with Simulate ▸ Compare, whose *What's different?*
+button opens this window for the selected model). Nothing is run.
+
+Rows are grouped by element: a field that changed shows its value in
+the other model and in this one; an element only in this model reads
+*new here*, one only in the other *only in* that model; renames are
+listed as such, and their links still match. Connections, rates, system
+settings, spare pools, resources, triggers and phases are compared the
+same way. Double-click an element to find it on the canvas, on whatever
+hierarchy level it is.
+
+Elements are matched by name (and by ID when names do not settle it;
+against the saved file, by ID, so a rename is a rename). Positions, and
+the values a model computes from its links and distributions, are left
+out unless *Also show layout and computed values* is ticked. *Export…*
+writes the list as CSV or Markdown.
+
+The same comparison is `raptor diff A B` on the command line and the
+`diff_models` tool for AI assistants.
+
+In Simulate ▸ Compare, the **Add models** button is a menu: choose a file,
+or a model open in another window, which is run as it is now, unsaved
+edits included.
+
+[[several-models]]
+== Several models at once
+
+A second model opens in a **second window**. *Open*, *New* and the
+examples do this whenever the window you are in holds a model worth
+keeping, meaning one with a file or one you have edited. A window with
+nothing in it, or with a new model you have not touched, is reused
+instead. If the file you choose is already open, that window is brought
+forward rather than opening it twice.
+
+Each window is a whole RAPTOR Studio window with its own model, undo
+history and results. To keep the older behaviour, where opening a model
+replaces the one in the window, set *Preferences ▸ Working ▸ Open another
+model in* to *this window*.
+
+The windows know about one another in two places: Compare's *Add models*
+menu and Differences' *An open or recent model* list both offer the models
+open in other windows (see <<differences>>). Crash recovery keeps one
+copy per window; the first window you open after a crash offers all of
+them.
+
+[[ai-assistant]]
+== AI assistant (MCP)
+
+RAPTOR Studio includes a Model Context Protocol (MCP) server, so an AI
+assistant can build, validate, simulate and explain models with the same
+engine as the app and the `raptor` command line. The assistant works on
+its own copies in a **workspace** folder; it never changes a model open in
+this window.
+
+The server is an optional extra:
+
+[source,bash]
+----
+pip install "raptor-studio[mcp]"
+----
+
+*File ▸ AI Assistant* (a top level entry in the File view, repeated on
+the Help tab) opens this page. Step-by-step setup for Claude Code, Claude
+Desktop, OpenCode and any other MCP client, with worked examples, is in
+the User Guide:
+xref:../new_docs/book.html#ch-mcp[RAPTOR from an AI Assistant]. The
+generated reference for every tool, option and transport is
+https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md[the
+MCP server reference].
+
+Over stdio the client starts the server itself:
+
+[source,bash]
+----
+raptor-studio-mcp --workspace ~/raptor-models
+----
+
+To keep one server running for several clients, use Streamable HTTP:
+
+[source,bash]
+----
+raptor-studio-mcp --transport http --port 8765 --token-file ~/.raptor-token
+----
+
+The token (at least 16 characters) is required; the User Guide's MCP chapter
+shows how to make one.
+
+The installer build of RAPTOR Studio does not include the MCP server; use
+the Python package above.
+
+[[files-and-reports]]
+== Recording
+
+Recording is chosen in the Run panel's **Recording** section (above) and
+is stored **with the model**, so two models open side by side each keep
+their own choices. Plot and log collection is **opt-in**: unticked items
+are never collected, so long simulations cost no extra memory, and
+ticked items are **streamed to a temp file** as the run progresses,
+never held in RAM.
+
+The four kinds are:
+
+[cols="2,5",options="header"]
+|===
+|Toggle |Collects
+
+|Event Log
+|Each run's event log for the Results ▸ Event Log tab (on by
+default).
+
+|Availability Plot
+|Per-Trial / Interval / Multi-run Ao data for the Graphs tab (the
+availability plot file).
+
+|Capacity Plot
+|Flow-vs-capacity data for the Graphs tab's Capacity plot and the live
+per-node capacity readouts (capacity plot file). Requires Capacity
+Analysis.
+
+|Cost Plot
+|Interim cost rows (interim cost file). Requires Cost Analysis.
+|===
+
+Use **the Graphs tab’s Export Data… button** to save a plot's rows to a file. If a FailSim/CycleSim run reaches the
+t = 10,000,000 safety bound without meeting its termination condition,
+a warning is shown in the status bar and the Summary notes — the
+numbers then cover only the simulated portion.
+
+[[run-manifest]]
+== What a result set records about itself
+
+The Results ▸ Overview tab opens with one line describing the run
+these numbers came from: trials, stop condition, analyses, what was
+recorded, the model's content hash and a short run id. The full
+manifest is in the line's tooltip.
+
+That is deliberate. Simulation is an experiment, not an animation, and
+a number you cannot trace to the settings that produced it is an
+animation with figures attached. The model hash covers the
+**engineering** content only — distributions, topology, dependencies,
+phases — so changing the trial count for a convergence sweep does not
+retroactively invalidate results already on screen, while changing a
+failure distribution does.
+
+[[stepping]]
+== Debug tab: stepping debugger
+
+The **Debug** tab's **Step** group carries the verbs you press in a
+loop: **Step** (F6), **Next Time** (Shift+F6), **Finish**, **Terminate**
+and **Restart**, plus a **More Steps** menu for the less common ways to
+advance. The *parameters* those need — multi-step count, run-to time,
+breakpoint block — are in the Run panel's **Stepping** section, where
+there is room to label and explain them.
+
+Press **Step** to start an interactive single run: the first press
+performs the kickoff at t = 0, every later press advances one event, the
+diagram re-colours live, and the status bar narrates. **Next Time**
+advances every event at the current sim time in one click. **More
+Steps** holds **Step to next change**, **Multi** (advance N events) and
+**Run to time**. The breakpoint
+stops stepping when the chosen block enters Repairing. **Restart**
+discards the stepped run and begins a fresh one; **Terminate**
+finalizes at the current sim time and keeps partial results; **Finish**
+completes the run and produces full reports.
+
+While **Animate** is on, the status bar carries a live
+**system-status square** (green = fully working, yellow = degraded,
+red = fully down) and cumulative readouts — Ao, MTBDE, MDT, tracked
+average **R** (mission success), and the green/yellow/red time split.
+Turning Animate off runs at full speed on several cores (see
+<<cores>>); the speed dial then greys out, because an
+animation speed only means something when something is being animated.
+
+**Animate is a display setting, not part of the model.** Toggling it
+never marks your file unsaved, adds nothing to the undo stack, and works
+while a stepped run is paused. It is remembered between sessions
+(Preferences ▸ Working ▸ *Animate by default*), exactly like the zoom
+level and the pan position are.
+
+**Failure Effects** opens Failure Effects View: the model is shown
+all-operating (phase 1, for a phased model), with nothing simulated and
+no dice thrown. Click a block to fail it, click it again to put it
+back; an element a dependency has forced to fail, idle or into
+maintenance is drawn hatched, and clicking a hatched block cycles
+through the other outcomes its dependency allows. **Fail** and
+**Repair** do the same for the selected block or event (or arm the next
+click). On a phased model **Prev Phase** and **Next Phase** move through
+the phases (applying each phase's Cut, Linked and stress changes),
+**Clear Failures** repairs everything but stays in the phase, and
+**Reset All** returns to phase 1 with everything operating. **Status**
+opens the system-status summary (failed components, induced failures,
+down and degraded nodes, system colour) and **Log** appends the same
+text to a file, byte for byte what a Failure Effects log contains. They sit on the
+**Debug** tab beside the stepping verbs. Failure Effects View and a run
+are separate modes: Run and Step are unavailable while it is open, and
+editing the model closes it. `raptor fev` does the same from the
+command line. The Weak Link, Capacity and Cost switches are run
+settings, so they live on the **Simulate** tab next to Run. A walkthrough
+is in the User Guide's xref:../new_docs/book.html#ch-debugger[debugger chapter].
+
+[[extract-hierarchy]]
+== Checking part of a model: Extract Hierarchy
+
+Select one hierarchy oval and press **Extract Hierarchy…** on the **Simulate**
+tab. The hierarchy becomes a standalone model: its input node is the start
+and its output node the end, so its input is always available. The dialog
+lists what crosses the hierarchy's boundary and how each kind is treated:
+elements that follow something outside (assumed always up, or following the
+extract's own end), spare and resource pools shared with outside blocks (the
+whole pool, or scaled by the share of users inside), and random streams shared
+with outside elements (kept, or each given its own). Save the extract as an
+`.rbd` or `.rbds`; it can be opened in this window and run like any model, and
+`raptor run --hierarchy NAME` and
+`raptor extract` do the same from the command line, and the MCP `simulate` tool
+takes a `hierarchy` argument.
+
+Its results are
+labelled as an isolated run. No treatment can make an isolated run reproduce the draws the
+hierarchy would have had inside the whole model, so compare averages, not
+individual runs.
+
+[[export-tables]]
+== Exporting tables
+
+*File ▸ Print and Export ▸ Export Tables…* (also a button on the Data Tables and
+Results docks) writes the model's tables, and a run's result tables, to
+files.
+
+Pick the tables in two groups:
+
+* **Inputs** -- the model's own data: System Settings, Blocks (a readable
+  summary, and optionally every column of the file), Nodes, Events,
+  Hierarchies, Links (with the connected elements' names), Spare Pools,
+  Resources, Triggers, Phases and Comments. Only the kinds the model
+  actually has are listed.
+* **Results** -- after a run: each section of the Final Results report
+  (Summary, Logistics, Sparing, Resources, Cost, ...), the per-run
+  figures, and capacity samples. The event log, the End-of-Run report and
+  the interim cost report are long, so they are offered but not ticked.
+  Before any run the group is listed but greyed out, saying why.
+
+Then pick the formats -- any combination:
+
+[cols="1,3",options="header"]
+|===
+| Format | What you get
+
+| Spreadsheet (`.xlsx`)
+| One workbook: a **Run Info** tab (the model, runs, run length, analyses
+  and when it ran), then a **tab per table**. Numbers are real numbers (so
+  they sort and chart) shown to six places for probabilities and two for
+  money and percentages, names stay text, and the header row is frozen
+  with a filter on it. The End-of-Run and interim cost reports are text,
+  so they are saved beside the workbook as `.txt` files.
+
+| CSV
+| One `.csv` file per table (UTF-8, opens correctly in a spreadsheet).
+
+| Text -- one file per table
+| Fixed-width plain text, numbers right-aligned.
+
+| Text -- one combined report
+| Every chosen table in a single text file, with a contents list.
+|===
+
+Files go to a folder called **Tables** beside the model file (change it
+with *Browse…*), named `<model>_<table>.<ext>`, or `<model>_tables.xlsx` /
+`<model>_tables.txt` for the workbook and combined report. Files of the
+same names are replaced -- the dialog counts them before you export. The
+tables reflect the model as it is on screen, including edits you have not
+saved. Your format choices are remembered.
+
+An AI assistant using the MCP server can read and write the same tables
+with `list_tables`, `get_table` and `export_tables`; see the xref:../new_docs/book.html#ch-mcp[MCP chapter]
+of the User Guide.
+
+[[preferences]]
+== Preferences
+
+*View ▸ Appearance ▸ Preferences…* is one scrolling page of sections: *New models*,
+*Working*, *This model*, *Advanced* and *Developer*. The list on the left
+jumps to a section; the **Filter** box above it hides every setting (and
+section) that does not match what you type, across all sections at once, so
+you never have to hunt through them. Settings in *This model* are stored
+with the model file; the rest belong to you and are remembered between
+sessions.
+
+*Working* also holds *Open another model in*: a new window (the
+default) or this window (see <<several-models>>).
+
+The *Display unit* setting accepts either one of the built-in choices or a
+unit name of your own (say `cycles`); durations are then shown in that
+unit and stored in the model's own.
+
+Preferences, Help and the other dialogs do not lock the application:
+the Help window stays usable, and can be closed, while a dialog is open.
+
+[[files]]
+== Files and formats
+
+* `.rbds` — the **native** format (JSON). Save / Save As write it by
+  default; it is the only format that keeps annotations and a few other
+  RAPTOR Studio fields.
+* `.rbd` — the **classic** format (Latin-1 text,
+  sectioned). Opens and round-trips; saving data the classic format cannot hold
+  (annotations, for example) as `.rbd` drops it, with a warning
+  first. Import RBD merges a `.rbd` or `.rbds` file in as one hierarchy.
+* Export Library / Import Library — reuse blocks across models.
+* Open / New / the examples — each opens in a new window when the current
+  one holds a model worth keeping (see <<several-models>>). File ▸ New
+  groups the starting examples into **Basics**, **Advanced**, and
+  **Tutorial Examples**; every tutorial card names the feature it
+  exercises.
+* Print… / Export PDF… — a report: a cover with the title block, the run
+  information and the key figures; a contents page; each hierarchy
+  level's diagram; the model data; the results, grouped as on screen;
+  Weak Link analysis; the graph; and, if ticked, the event log and the
+  raw reports. Wide tables, diagrams and report text get landscape pages;
+  a long chain of blocks is cut into strips that are stacked down the
+  page in reading order (each strip repeats a little of the one before, so
+  no block is split), and a branching diagram is fitted to its page. The
+  Print and Export dialog's *Pages across* gives a level at least that many
+  strips. Print sends the same report to the printer.
+* Export Tables… — the model's tables and a run's results as CSV, text
+  or one spreadsheet (see <<export-tables>>).
+* Export Diagram SVG… — the current hierarchy level as a scalable
+  vector file.
+* Save Bitmap / Copy View — PNG of the diagram, file or clipboard.
+
+[[standards]]
+== IEC 61078 and standards alignment
+
+RAPTOR Studio is an RBD **simulator**, not an analytical IEC 61078
+solver. The standard defines series, parallel and m-out-of-n logic and
+the Boolean/BDD/closed-form methods for evaluating it. This application
+simulates the same structures, which lets it include repair, spares,
+phases, dependencies and limited resources.
+
+There is no standards-specific menu or results page. The one Annex D
+feature is **Run ▸ Analysis ▸ Importance measures**, which estimates
+Birnbaum, RAW, RRW and Vesely-Fussell importance by re-simulation and
+shows them in **Results ▸ Final Results ▸ Importance**. It costs one extra
+batch per block (two with Birnbaum), so it is off unless selected. The
+definitions and equations are on the Formulas page (Help ▸ Formulas) and
+are deliberately not repeated in the tab. The User Guide appendix carries
+the in-app clause comparison, and `docs/IEC61078.md` in the repository
+records the full table. Neither is an application control.
+
+What is supported:
+
+* series, parallel and mixed structures;
+* m-out-of-n voting for identical or different blocks;
+* repaired and non-repaired blocks;
+* one-In/one-Out hierarchies as sub-RBDs;
+* simulation of standby, dependencies, spares, repair resources, PM and
+  phases.
+
+What is not implemented: minimal cut/tie sets, Boolean/BDD evaluation,
+analytical (non-simulated) importance factors, criticality and DIM importance,
+PFD~avg~, Vesely/unconditional failure intensities, repeated/common blocks,
+multi-port transfer gates, non-coherent blocks, PAND/SEQ and CCF
+beta factors.
+
+The numerical regression checks against the standard's worked examples run
+as part of the project's test suite.
+
+[[fidelity]]
+== Fidelity and known limits
+
+RAPTOR Studio's engine is a port of the simulation in Raptor 7, built from
+its source and checked against the real program. This section says how far
+that goes and where it stops.
+
+**What is checked.** More than 200 models were run in Raptor 7 itself and the
+results compared with this engine's: the End of Run and Final Results
+reports, the detailed event log line by line, the random numbers drawn (where
+Raptor 7's draw log was captured), the Single Point Failure file, the Failure Effects View log, the
+points at which Step and Jump stop, the input checks Raptor 7 refuses to
+run, and the start-up trace and developer hover text of its `/d` and `/dev`
+switches. Every comparison made matches, apart from two models whose draw logs
+could not be compared. The models were chosen to exercise every
+feature: standby and cold standby, spares and repair resources, preventive
+maintenance, dependencies, phases, events and hierarchies.
+
+**What is not proven.** When several things become ready at the same
+simulated instant, the original's runtime decides which goes first, and its
+rules are not published. This engine uses rules worked out from the source
+and from captures, and they reproduce every captured model exactly. They are
+fitted rules: they have not been shown to be the original's rules, so a
+model with a tie shape no captured model has could in principle order such
+events differently. This can only change the order of lines in the event log
+that carry the same time, or, in a rare tie, which of two blocks fails or is
+repaired first. It does not change the maths: availability, MTBF and the
+other results stay statistically the same, and any one run's results move
+only if the order of those events changes.
+
+**Where this port differs on purpose.**
+
+* The Fixed failure law is offered, although Raptor 7's list lacks it.
+  Raptor 7 runs files that use it.
+* Collapse Selection reconnects the links around the group; Raptor 7
+  deletes them.
+* A cold-standby partner that depends on another partner of the same node is
+  refused at Run, because Raptor 7 crashes on it. A cycle of dependencies runs,
+  with a warning, as it does in Raptor 7.
+* Failure Effects View does not draw flow numbers for a capacity analysis.
+* The PDF report, the spreadsheet export and the Run Info sheet are new;
+  Raptor 7 has no equivalent. Their numbers are those of the reports.
+
+**One core or several.** Only a one-core run (Animate, or Cores set to 1)
+reproduces Raptor 7's numbers exactly; a run on several cores gives the same
+answer statistically but not to the last digit (see <<cores>>). Compare with
+Raptor 7 on one core.
+
+**If a result looks wrong.** Compare the model with Raptor 7 if you have it,
+and keep the Run Info (the seed, the software version and the model's
+digest are recorded with each result set) so the run can be repeated. The
+project's repository documents every rule it reproduces from Raptor 7,
+and its status, for anyone who wants the detail.
+
+[[ui-reference]]
+== UI Reference
+
+Every ribbon tab, group and control with its tooltip and shortcut.
+
+include::manual-reference.adoc[]
+
+== About
+
+RAPTOR Studio: reliability block diagram modelling and Monte Carlo
+simulation. The ribbon reference above is produced from the application
+itself, so it always matches the controls you see.
+
+++++
+<div class="copyright-footer">Copyright © 2026 OpenPowerShift · RAPTOR Studio.<br>
+Original RAPTOR © ARINC / Booz Allen Hamilton, released as open source under the Booz Allen Public License v1.0 — thanks, BAH! New code in this port: Apache License 2.0.</div>
+++++
