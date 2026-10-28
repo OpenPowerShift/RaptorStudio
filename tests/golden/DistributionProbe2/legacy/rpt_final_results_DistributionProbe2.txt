@@ -1,0 +1,66 @@
+Final_Results_Report for input.rbd  Thu Aug 27 06:30:27 2026
+
+
+Results from 1 run of sim time 300.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.000000003     0.000000003     0.000000003     N/A             N/A             
+MTBDE                    0.000001        0.000001        0.000001        N/A             N/A             
+MDT                      299.999999      299.999999      299.999999      N/A             N/A             
+Reliability              0.000000000     0.000000000     0.000000000     N/A             N/A             
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     N/A             N/A             
+System_Failures          1               1.000000        1               N/A             N/A             
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     6.90131125E-10  6.90131125E-10  6.90131125E-10  N/A             N/A             
+MTBMu                    6.90131125E-10  6.90131125E-10  6.90131125E-10  N/A             N/A             
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      2.007410        2.007410        2.007410        N/A             N/A             
+MMTu                     2.007410        2.007410        2.007410        N/A             N/A             
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            0.000000        0.000000        0.000000        N/A             N/A             
+Yellow_Percent           0.000000        0.000000        0.000000        N/A             N/A             
+Red_Percent              100.000000      100.000000      100.000000      N/A             N/A             
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+Bernoulli             Infinite                   214       214.00       214          N/A 
+Beta                  Infinite                   371       371.00       371          N/A 
+Binomial              Infinite                    31        31.00        31          N/A 
+ChiSq                 Infinite                    33        33.00        33          N/A 
+Erlang                Infinite                    12        12.00        12          N/A 
+ExponCanary           Infinite                    28        28.00        28          N/A 
+ExpPower              Infinite                    48        48.00        48          N/A 
+ExtremeVal            Infinite                    28        28.00        28          N/A 
+Gamma                 Infinite                    21        21.00        21          N/A 
+Laplace               Infinite                    26        26.00        26          N/A 
+LogNormal             Infinite                    16        16.00        16          N/A 
+Normal                Infinite                     2         2.00         2          N/A 
+P5Tiny                Infinite                     0         0.00         0          N/A 
+P6Tiny                Infinite                     1         1.00         1          N/A 
+Pearson5              Infinite                    53        53.00        53          N/A 
+Pearson6              Infinite                   117       117.00       117          N/A 
+Poisson               Infinite                    37        37.00        37          N/A 
+Triangular            Infinite                    49        49.00        49          N/A 
+UniformInt            Infinite                    45        45.00        45          N/A 
+UniformReal           Infinite                   301       301.00       301          N/A 
+WeibTiny              Infinite                     0         0.00         0          N/A 
+WeibullCan            Infinite                    16        16.00        16          N/A 
+
+
+

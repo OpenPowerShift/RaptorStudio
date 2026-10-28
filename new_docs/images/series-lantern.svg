@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="240" viewBox="0 0 720 240" font-family="Helvetica, Arial, sans-serif">
+  <rect width="720" height="240" fill="#fffdf7"/>
+  <text x="360" y="36" text-anchor="middle" font-size="18" font-weight="bold" fill="#2b3a55">Series: one break, whole lantern dies</text>
+  <!-- start -->
+  <circle cx="80" cy="130" r="18" fill="#27ae60"/>
+  <text x="80" y="136" text-anchor="middle" font-size="13" fill="#fff">S</text>
+  <!-- blocks -->
+  <g stroke="#2b3a55" stroke-width="2" fill="#eaf2f8">
+    <rect x="170" y="105" width="120" height="50" rx="6"/>
+    <rect x="380" y="105" width="110" height="50" rx="6"/>
+    <rect x="570" y="105" width="100" height="50" rx="6"/>
+  </g>
+  <text x="230" y="135" text-anchor="middle" font-size="14" fill="#2b3a55">Battery_Pack</text>
+  <text x="435" y="135" text-anchor="middle" font-size="14" fill="#2b3a55">Switch</text>
+  <text x="620" y="135" text-anchor="middle" font-size="14" fill="#2b3a55">LED_Panel</text>
+  <!-- links -->
+  <g stroke="#2b3a55" stroke-width="2">
+    <line x1="98" y1="130" x2="166" y2="130"/><line x1="290" y1="130" x2="376" y2="130"/>
+    <line x1="490" y1="130" x2="566" y2="130"/>
+  </g>
+  <polygon points="166,125 176,130 166,135" fill="#2b3a55"/>
+  <polygon points="376,125 386,130 376,135" fill="#2b3a55"/>
+  <polygon points="566,125 576,130 566,135" fill="#2b3a55"/>
+  <text x="360" y="205" text-anchor="middle" font-size="14" fill="#7b241c">Any single failure = system down. Reliability multiplies.</text>
+</svg>

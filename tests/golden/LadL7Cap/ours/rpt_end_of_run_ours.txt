@@ -1,0 +1,3161 @@
+End_Of_Run Report for input.rbd  PROBE
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.993658829
+MTBDE                      745.244122
+MDT                        4.755878
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  102
+
+
+
+***LOGISTICS***
+
+MTBM                  29.225260
+MTBMu                 29.225260
+MTBMs                 N/A
+MMT                   12.570388
+MMTu                  12.570388
+MMTs                  N/A
+GreenPercent          64.643641
+YellowPercent         34.722242
+RedPercent            0.634117
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         368.322986     633.185241    1179.041388     368.676099
+DT                             0.093360       4.755878      12.072548       5.251312
+TBM                            0.086914      29.119692     153.265892      30.334865
+RT                             0.984556      12.570388      39.689683       6.241224
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       10   Infinite                    10
+S1B2                        9   Infinite                     9
+S1B3                        6   Infinite                     6
+S1B4                        6   Infinite                     6
+S2B1                        8   Infinite                     8
+S2B2                        7   Infinite                     7
+S2B3                        7   Infinite                     7
+S3B1                        6   Infinite                     6
+S3B2                        7   Infinite                     7
+S3B3                        6   Infinite                     6
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                       12   Infinite                    12
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2415754.98
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        94.75          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       805.25          850         1.00              0       805.25          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       805.25          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       805.25          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       805.25          850         0.89              0       902.68          925         0.98   
+J3                             0       805.25          850         0.98              0       822.40          850         0.97   
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.988378824
+MTBDE                      988.378824
+MDT                        11.621176
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  92
+
+
+
+***LOGISTICS***
+
+MTBM                  32.229744
+MTBMu                 32.229744
+MTBMs                 N/A
+MMT                   13.007561
+MMTu                  13.007561
+MMTs                  N/A
+GreenPercent          65.284630
+YellowPercent         33.553253
+RedPercent            1.162118
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         419.286522     895.982382    1752.525401     743.366918
+DT                             8.111794      11.621176      18.261090       5.753453
+TBM                            0.723921      31.449318     156.349031      28.380444
+RT                             0.416002      13.007561      60.424474       7.699853
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       12   Infinite                    12
+S1B2                        7   Infinite                     7
+S1B3                        4   Infinite                     4
+S1B4                        7   Infinite                     7
+S2B1                        7   Infinite                     7
+S2B2                        4   Infinite                     4
+S2B3                        7   Infinite                     7
+S3B1                        4   Infinite                     4
+S3B2                        5   Infinite                     5
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                        9   Infinite                     9
+S4B3                        8   Infinite                     8
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2401020.01
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        99.66          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       800.34          850         1.00              0       800.34          850         0.94   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       800.34          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       800.34          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       800.34          850         0.89              0       897.75          925         0.97   
+J3                             0       800.34          850         0.97              0       823.32          850         0.97   
+
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      3000.000000
+MDT                        N/A
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  83
+
+
+
+***LOGISTICS***
+
+MTBM                  36.144578
+MTBMu                 36.144578
+MTBMs                 N/A
+MMT                   12.645312
+MMTu                  12.645312
+MMTs                  N/A
+GreenPercent          70.938737
+YellowPercent         29.061263
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                            0.451039      35.581974     164.968741      36.722351
+RT                             2.003829      12.645312      39.434372       6.604425
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        5   Infinite                     5
+S1B2                        8   Infinite                     8
+S1B3                        4   Infinite                     4
+S1B4                        4   Infinite                     4
+S2B1                        8   Infinite                     8
+S2B2                        7   Infinite                     7
+S2B3                        6   Infinite                     6
+S3B1                        3   Infinite                     3
+S3B2                        5   Infinite                     5
+S3B3                        5   Infinite                     5
+S3B4                        8   Infinite                     8
+S4B1                        7   Infinite                     7
+S4B2                        6   Infinite                     6
+S4B3                        7   Infinite                     7
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2442622.92
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        85.79          475
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                425       814.21          850         1.00            425       814.21          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                          425       814.21          850          N/A            N/A          N/A          N/A          N/A   
+J1                           425       814.21          850          N/A            N/A          N/A          N/A          N/A   
+J2                           425       814.21          850         0.91            425       898.39          925         0.97   
+J3                           425       814.21          850         0.98            550       833.62          850         0.98   
+
+
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.991857395
+MTBDE                      595.114437
+MDT                        4.885563
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  98
+
+
+
+***LOGISTICS***
+
+MTBM                  30.362981
+MTBMu                 30.362981
+MTBMs                 N/A
+MMT                   12.253506
+MMTu                  12.253506
+MMTs                  N/A
+GreenPercent          65.942323
+YellowPercent         33.243416
+RedPercent            0.814260
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         205.821978     498.226827     864.503871     305.080954
+DT                             0.314604       4.885563       9.828798       4.214193
+TBM                            0.476908      30.517847     124.161011      26.347589
+RT                             0.842080      12.253506      35.234459       6.979007
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        4   Infinite                     4
+S1B2                        8   Infinite                     8
+S1B3                        7   Infinite                     7
+S1B4                       12   Infinite                    12
+S2B1                        9   Infinite                     9
+S2B2                        2   Infinite                     2
+S2B3                        7   Infinite                     7
+S3B1                        5   Infinite                     5
+S3B2                        6   Infinite                     6
+S3B3                        5   Infinite                     5
+S3B4                        8   Infinite                     8
+S4B1                        8   Infinite                     8
+S4B2                        9   Infinite                     9
+S4B3                        8   Infinite                     8
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2413791.59
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        95.40          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       804.60          850         1.00              0       804.60          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       804.60          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       804.60          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       804.60          850         0.90              0       898.00          925         0.97   
+J3                             0       804.60          850         0.97              0       828.88          850         0.98   
+
+
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.987014323
+MTBDE                      592.208594
+MDT                        7.791406
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  94
+
+
+
+***LOGISTICS***
+
+MTBM                  31.500457
+MTBMu                 31.500457
+MTBMs                 N/A
+MMT                   14.151912
+MMTu                  14.151912
+MMTs                  N/A
+GreenPercent          64.171580
+YellowPercent         34.529852
+RedPercent            1.298568
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         109.299440     455.636010     992.822735     436.422091
+DT                             3.966070       7.791406      16.542636       5.274432
+TBM                            0.650180      31.714781     128.283308      29.492511
+RT                             2.208419      14.151912      65.755518       9.891959
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       10   Infinite                    10
+S1B2                        7   Infinite                     7
+S1B3                        6   Infinite                     6
+S1B4                        9   Infinite                     9
+S2B1                        8   Infinite                     8
+S2B2                        8   Infinite                     8
+S2B3                        6   Infinite                     6
+S3B1                        6   Infinite                     6
+S3B2                        4   Infinite                     4
+S3B3                        5   Infinite                     5
+S3B4                        8   Infinite                     8
+S4B1                        7   Infinite                     7
+S4B2                        7   Infinite                     7
+S4B3                        3   Infinite                     3
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2399928.44
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50       100.02          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       799.98          850         1.00              0       799.98          850         0.94   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       799.98          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       799.98          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       799.98          850         0.89              0       897.52          925         0.97   
+J3                             0       799.98          850         0.97              0       821.06          850         0.97   
+
+
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.995873893
+MTBDE                      995.873893
+MDT                        4.126107
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  83
+
+
+
+***LOGISTICS***
+
+MTBM                  35.995442
+MTBMu                 35.995442
+MTBMs                 N/A
+MMT                   12.184223
+MMTu                  12.184223
+MMTs                  N/A
+GreenPercent          72.089017
+YellowPercent         27.498372
+RedPercent            0.412611
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         522.522326     902.604889    1181.446286     340.928918
+DT                             0.606721       4.126107      10.377146       5.427868
+TBM                            0.437238      36.112711     156.598021      32.428197
+RT                             0.273236      12.184223      37.313971       6.890791
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       10   Infinite                    10
+S1B2                        4   Infinite                     4
+S1B3                        6   Infinite                     6
+S1B4                        3   Infinite                     3
+S2B1                        7   Infinite                     7
+S2B2                        5   Infinite                     5
+S2B3                        6   Infinite                     6
+S3B1                        6   Infinite                     6
+S3B2                        7   Infinite                     7
+S3B3                        6   Infinite                     6
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                        6   Infinite                     6
+S4B3                        4   Infinite                     4
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2429228.61
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        90.26          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       809.74          850         1.00              0       809.74          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       809.74          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       809.74          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       809.74          850         0.90              0       901.93          925         0.98   
+J3                             0       809.74          850         0.98              0       825.33          850         0.97   
+
+
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.991331355
+MTBDE                      743.498516
+MDT                        6.501484
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  90
+
+
+
+***LOGISTICS***
+
+MTBM                  33.044378
+MTBMu                 33.044378
+MTBMs                 N/A
+MMT                   13.369779
+MMTu                  13.369779
+MMTs                  N/A
+GreenPercent          65.700738
+YellowPercent         33.432397
+RedPercent            0.866865
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         186.280926     576.902010    1498.516145     617.870838
+DT                             1.262267       6.501484      10.866585       4.033861
+TBM                            0.952389      32.927832     189.007102      31.465222
+RT                             0.471933      13.369779      41.620315       7.440040
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       10   Infinite                    10
+S1B2                        4   Infinite                     4
+S1B3                        5   Infinite                     5
+S1B4                       11   Infinite                    11
+S2B1                        7   Infinite                     7
+S2B2                        6   Infinite                     6
+S2B3                        7   Infinite                     7
+S3B1                        3   Infinite                     3
+S3B2                        4   Infinite                     4
+S3B3                        6   Infinite                     6
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        8   Infinite                     8
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2423232.64
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        92.26          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       807.74          850         1.00              0       807.74          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       807.74          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       807.74          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       807.74          850         0.90            425       900.77          925         0.97   
+J3                             0       807.74          850         0.97              0       830.78          850         0.98   
+
+
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.994309400
+MTBDE                      994.309400
+MDT                        5.690600
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  79
+
+
+
+***LOGISTICS***
+
+MTBM                  37.758585
+MTBMu                 37.758585
+MTBMs                 N/A
+MMT                   11.871503
+MMTu                  11.871503
+MMTs                  N/A
+GreenPercent          72.471418
+YellowPercent         26.959522
+RedPercent            0.569060
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          84.404699     294.978430     402.572350     182.376793
+DT                             1.869647       5.690600       9.114543       3.638728
+TBM                            1.457612      37.934595     205.096183      36.254554
+RT                             0.324252      11.871503      29.468560       6.403233
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        4   Infinite                     4
+S1B2                        5   Infinite                     5
+S1B3                        4   Infinite                     4
+S1B4                        5   Infinite                     5
+S2B1                        7   Infinite                     7
+S2B2                        3   Infinite                     3
+S2B3                        6   Infinite                     6
+S3B1                        4   Infinite                     4
+S3B2                        7   Infinite                     7
+S3B3                        6   Infinite                     6
+S3B4                        8   Infinite                     8
+S4B1                        7   Infinite                     7
+S4B2                        9   Infinite                     9
+S4B3                        4   Infinite                     4
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2444076.97
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        85.31          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       814.69          850         1.00              0       814.69          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       814.69          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       814.69          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       814.69          850         0.90              0       907.79          925         0.98   
+J3                             0       814.69          850         0.98              0       828.10          850         0.97   
+
+
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.989427290
+MTBDE                      593.656374
+MDT                        6.343626
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  94
+
+
+
+***LOGISTICS***
+
+MTBM                  31.577467
+MTBMu                 31.577467
+MTBMs                 N/A
+MMT                   12.613349
+MMTu                  12.613349
+MMTs                  N/A
+GreenPercent          68.413646
+YellowPercent         30.529083
+RedPercent            1.057271
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          30.221488     447.813950     927.834513     342.033495
+DT                             1.878537       6.343626       8.890214       3.208295
+TBM                            0.596613      31.146967     190.763382      36.857328
+RT                             0.213636      12.613349      36.208318       6.393114
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        8   Infinite                     8
+S1B2                        7   Infinite                     7
+S1B3                        3   Infinite                     3
+S1B4                        9   Infinite                     9
+S2B1                        8   Infinite                     8
+S2B2                        4   Infinite                     4
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        8   Infinite                     8
+S3B3                        5   Infinite                     5
+S3B4                       10   Infinite                    10
+S4B1                        7   Infinite                     7
+S4B2                       10   Infinite                    10
+S4B3                        4   Infinite                     4
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2416060.73
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        94.65          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       805.35          850         1.00              0       805.35          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       805.35          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       805.35          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       805.35          850         0.90              0       898.49          925         0.97   
+J3                             0       805.35          850         0.98              0       824.27          850         0.97   
+
+
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.994792343
+MTBDE                      994.792343
+MDT                        5.207657
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  89
+
+
+
+***LOGISTICS***
+
+MTBM                  33.532326
+MTBMu                 33.532326
+MTBMs                 N/A
+MMT                   12.283557
+MMTu                  12.283557
+MMTs                  N/A
+GreenPercent          68.170093
+YellowPercent         31.309142
+RedPercent            0.520766
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         463.024109     980.671941    1598.039043     574.040656
+DT                             3.945404       5.207657       7.453148       1.949650
+TBM                            0.662782      33.383921     183.894502      28.256656
+RT                             1.189281      12.283557      40.418663       7.461711
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       10   Infinite                    10
+S1B2                       10   Infinite                    10
+S1B3                        5   Infinite                     5
+S1B4                        5   Infinite                     5
+S2B1                        7   Infinite                     7
+S2B2                        5   Infinite                     5
+S2B3                        6   Infinite                     6
+S3B1                        3   Infinite                     3
+S3B2                        6   Infinite                     6
+S3B3                        6   Infinite                     6
+S3B4                        9   Infinite                     9
+S4B1                        7   Infinite                     7
+S4B2                        7   Infinite                     7
+S4B3                        3   Infinite                     3
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2440567.45
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        86.48          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       813.52          850         1.00              0       813.52          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       813.52          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       813.52          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       813.52          850         0.90            425       907.40          925         0.98   
+J3                             0       813.52          850         0.98              0       829.43          850         0.98   
+
+
+
+
+
+***Run_11*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.995306871
+MTBDE                      995.306871
+MDT                        4.693129
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  87
+
+
+
+***LOGISTICS***
+
+MTBM                  34.320927
+MTBMu                 34.320927
+MTBMs                 N/A
+MMT                   12.501333
+MMTu                  12.501333
+MMTs                  N/A
+GreenPercent          70.274094
+YellowPercent         29.256593
+RedPercent            0.469313
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         361.842445     687.076752     888.592622     284.334532
+DT                             0.732187       4.693129       8.328851       3.808760
+TBM                            0.075035      34.161205     166.980347      32.085686
+RT                             1.548776      12.501333      43.354634       8.005576
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       11   Infinite                    11
+S1B2                        6   Infinite                     6
+S1B3                        5   Infinite                     5
+S1B4                        7   Infinite                     7
+S2B1                        7   Infinite                     7
+S2B2                        2   Infinite                     2
+S2B3                        7   Infinite                     7
+S3B1                        3   Infinite                     3
+S3B2                        7   Infinite                     7
+S3B3                        5   Infinite                     5
+S3B4                        6   Infinite                     6
+S4B1                        7   Infinite                     7
+S4B2                        8   Infinite                     8
+S4B3                        6   Infinite                     6
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2458080.24
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        80.64          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       819.36          850         1.00              0       819.36          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       819.36          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       819.36          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       819.36          850         0.90            425       909.92          925         0.98   
+J3                             0       819.36          850         0.99              0       831.28          850         0.98   
+
+
+
+
+
+***Run_12*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.995575272
+MTBDE                      1493.362908
+MDT                        6.637092
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  101
+
+
+
+***LOGISTICS***
+
+MTBM                  29.571543
+MTBMu                 29.571543
+MTBMs                 N/A
+MMT                   11.788706
+MMTu                  11.788706
+MMTs                  N/A
+GreenPercent          67.797540
+YellowPercent         31.759987
+RedPercent            0.442473
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          46.949707     560.009324    1073.068941     725.575868
+DT                             4.881544       6.637092       8.392639       2.482719
+TBM                            0.028813      29.278192     149.896761      27.512564
+RT                             0.557718      11.788706      36.566735       6.615134
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       13   Infinite                    13
+S1B2                        8   Infinite                     8
+S1B3                        6   Infinite                     6
+S1B4                        9   Infinite                     9
+S2B1                        6   Infinite                     6
+S2B2                        5   Infinite                     5
+S2B3                        6   Infinite                     6
+S3B1                        3   Infinite                     3
+S3B2                        9   Infinite                     9
+S3B3                        5   Infinite                     5
+S3B4                       10   Infinite                    10
+S4B1                        8   Infinite                     8
+S4B2                        6   Infinite                     6
+S4B3                        7   Infinite                     7
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2442342.35
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        85.89          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       814.11          850         1.00              0       814.11          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       814.11          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       814.11          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       814.11          850         0.90              0       906.39          925         0.98   
+J3                             0       814.11          850         0.98            550       828.38          850         0.97   
+
+
+
+
+
+***Run_13*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.991084238
+MTBDE                      991.084238
+MDT                        8.915762
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  100
+
+
+
+***LOGISTICS***
+
+MTBM                  29.732527
+MTBMu                 29.732527
+MTBMs                 N/A
+MMT                   12.733444
+MMTu                  12.733444
+MMTs                  N/A
+GreenPercent          66.801961
+YellowPercent         32.306463
+RedPercent            0.891576
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         597.019433     938.925230    1134.858360     297.150958
+DT                             3.988203       8.915762      11.510885       4.269412
+TBM                            0.954955      29.225473     156.613822      28.154730
+RT                             0.693814      12.733444      37.256809       7.068083
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       13   Infinite                    13
+S1B2                        8   Infinite                     8
+S1B3                        5   Infinite                     5
+S1B4                        8   Infinite                     8
+S2B1                        7   Infinite                     7
+S2B2                        8   Infinite                     8
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        7   Infinite                     7
+S3B3                        6   Infinite                     6
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        8   Infinite                     8
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2419913.52
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        93.36          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       806.64          850         1.00              0       806.64          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       806.64          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       806.64          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       806.64          850         0.89            425       903.31          925         0.98   
+J3                             0       806.64          850         0.98              0       825.47          850         0.97   
+
+
+
+
+
+***Run_14*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999719779
+MTBDE                      2999.159337
+MDT                        0.840663
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  80
+
+
+
+***LOGISTICS***
+
+MTBM                  37.489492
+MTBMu                 37.489492
+MTBMs                 N/A
+MMT                   12.090661
+MMTu                  12.090661
+MMTs                  N/A
+GreenPercent          72.069141
+YellowPercent         27.902837
+RedPercent            0.028022
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        1015.991068    1015.991068    1015.991068            N/A
+DT                             0.840663       0.840663       0.840663            N/A
+TBM                            0.216026      37.031908     188.711885      34.721330
+RT                             0.426787      12.090661      41.555930       7.050404
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        7   Infinite                     7
+S1B2                        4   Infinite                     4
+S1B3                        6   Infinite                     6
+S1B4                        8   Infinite                     8
+S2B1                        8   Infinite                     8
+S2B2                        3   Infinite                     3
+S2B3                        6   Infinite                     6
+S3B1                        3   Infinite                     3
+S3B2                        6   Infinite                     6
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        7   Infinite                     7
+S4B3                        3   Infinite                     3
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2462513.29
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        79.16          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       820.84          850         1.00              0       820.84          850         0.97   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       820.84          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       820.84          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       820.84          850         0.90              0       907.51          925         0.98   
+J3                             0       820.84          850         0.99            550       833.33          850         0.98   
+
+
+
+
+
+***Run_15*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.975361486
+MTBDE                      365.760557
+MDT                        9.239443
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     8
+NumberOfComponentFailures  96
+
+
+
+***LOGISTICS***
+
+MTBM                  30.480046
+MTBMu                 30.480046
+MTBMs                 N/A
+MMT                   14.181329
+MMTu                  14.181329
+MMTs                  N/A
+GreenPercent          64.358059
+YellowPercent         33.178089
+RedPercent            2.463851
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          12.977701     304.168438     690.614905     262.520571
+DT                             0.466316       9.239443      17.816143       6.134473
+TBM                            0.665165      30.900847     219.961073      34.681957
+RT                             0.989661      14.181329      48.137900       8.549530
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        7   Infinite                     7
+S1B2                        7   Infinite                     7
+S1B3                        4   Infinite                     4
+S1B4                        9   Infinite                     9
+S2B1                        8   Infinite                     8
+S2B2                       12   Infinite                    12
+S2B3                        6   Infinite                     6
+S3B1                        4   Infinite                     4
+S3B2                        8   Infinite                     8
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        7   Infinite                     7
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2373526.69
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50       108.82          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       791.18          850         1.00              0       791.18          850         0.93   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       791.18          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       791.18          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       791.18          850         0.89              0       891.48          925         0.96   
+J3                             0       791.18          850         0.97              0       819.39          850         0.96   
+
+
+
+
+
+***Run_16*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.989328427
+MTBDE                      494.664214
+MDT                        5.335786
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     6
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  32.615223
+MTBMu                 32.615223
+MTBMs                 N/A
+MMT                   12.931283
+MMTu                  12.931283
+MMTs                  N/A
+GreenPercent          69.870943
+YellowPercent         29.061899
+RedPercent            1.067157
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          95.706574     431.071288     824.667936     253.137226
+DT                             1.210486       5.335786      16.554666       6.080047
+TBM                            0.007706      32.952596     213.467435      36.787451
+RT                             1.164471      12.931283      44.508715       7.706255
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        8   Infinite                     8
+S1B2                        8   Infinite                     8
+S1B3                        6   Infinite                     6
+S1B4                        5   Infinite                     5
+S2B1                        7   Infinite                     7
+S2B2                        6   Infinite                     6
+S2B3                        6   Infinite                     6
+S3B1                        4   Infinite                     4
+S3B2                        7   Infinite                     7
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                        9   Infinite                     9
+S4B3                        7   Infinite                     7
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2424287.91
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        91.90          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       808.10          850         1.00              0       808.10          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       808.10          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       808.10          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       808.10          850         0.89            425       907.48          925         0.98   
+J3                             0       808.10          850         0.98              0       822.45          850         0.97   
+
+
+
+
+
+***Run_17*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998930461
+MTBDE                      2996.791382
+MDT                        3.208618
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  32.931773
+MTBMu                 32.931773
+MTBMs                 N/A
+MMT                   13.570231
+MMTu                  13.570231
+MMTs                  N/A
+GreenPercent          65.249222
+YellowPercent         34.643824
+RedPercent            0.106954
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        1266.199334    1266.199334    1266.199334            N/A
+DT                             3.208618       3.208618       3.208618            N/A
+TBM                            0.123715      32.704995     103.966341      26.813481
+RT                             1.311257      13.570231      50.949765       8.851486
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       10   Infinite                    10
+S1B2                        8   Infinite                     8
+S1B3                        5   Infinite                     5
+S1B4                        6   Infinite                     6
+S2B1                        6   Infinite                     6
+S2B2                        5   Infinite                     5
+S2B3                        7   Infinite                     7
+S3B1                        3   Infinite                     3
+S3B2                        8   Infinite                     8
+S3B3                        6   Infinite                     6
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        7   Infinite                     7
+S4B3                        6   Infinite                     6
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2441443.43
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        86.19          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       813.81          850         1.00              0       813.81          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       813.81          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       813.81          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       813.81          850         0.90              0       903.94          925         0.98   
+J3                             0       813.81          850         0.98            550       828.37          850         0.97   
+
+
+
+
+
+***Run_18*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999653011
+MTBDE                      2998.959033
+MDT                        1.040967
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  88
+
+
+
+***LOGISTICS***
+
+MTBM                  34.079080
+MTBMu                 34.079080
+MTBMs                 N/A
+MMT                   11.739436
+MMTu                  11.739436
+MMTs                  N/A
+GreenPercent          69.511104
+YellowPercent         30.454197
+RedPercent            0.034699
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        1117.197019    1117.197019    1117.197019            N/A
+DT                             1.040967       1.040967       1.040967            N/A
+TBM                            0.002720      33.988025     169.504234      31.160187
+RT                             0.395806      11.739436      32.622107       6.400740
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        7   Infinite                     7
+S1B2                        7   Infinite                     7
+S1B3                        7   Infinite                     7
+S1B4                        5   Infinite                     5
+S2B1                        6   Infinite                     6
+S2B2                        6   Infinite                     6
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        6   Infinite                     6
+S3B3                        6   Infinite                     6
+S3B4                        8   Infinite                     8
+S4B1                        7   Infinite                     7
+S4B2                        7   Infinite                     7
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2443771.11
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        85.41          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       814.59          850         1.00              0       814.59          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       814.59          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       814.59          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       814.59          850         0.90              0       904.57          925         0.98   
+J3                             0       814.59          850         0.98            550       829.96          850         0.98   
+
+
+
+
+
+***Run_19*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.994295024
+MTBDE                      745.721268
+MDT                        4.278732
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  90
+
+
+
+***LOGISTICS***
+
+MTBM                  33.143167
+MTBMu                 33.143167
+MTBMs                 N/A
+MMT                   14.086723
+MMTu                  14.086723
+MMTs                  N/A
+GreenPercent          64.621994
+YellowPercent         34.807508
+RedPercent            0.570498
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         187.455966     526.996897     972.123258     327.988260
+DT                             2.058253       4.278732       6.769931       2.147997
+TBM                            0.251012      32.778497     159.123750      31.889840
+RT                             2.335546      14.086723      59.298294       8.485128
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        5   Infinite                     5
+S1B2                        6   Infinite                     6
+S1B3                        6   Infinite                     6
+S1B4                        7   Infinite                     7
+S2B1                        7   Infinite                     7
+S2B2                        4   Infinite                     4
+S2B3                        5   Infinite                     5
+S3B1                        4   Infinite                     4
+S3B2                        6   Infinite                     6
+S3B3                        5   Infinite                     5
+S3B4                        8   Infinite                     8
+S4B1                        7   Infinite                     7
+S4B2                       12   Infinite                    12
+S4B3                        8   Infinite                     8
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2435216.92
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        88.26          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       811.74          850         1.00              0       811.74          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       811.74          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       811.74          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       811.74          850         0.90              0       903.42          925         0.98   
+J3                             0       811.74          850         0.98              0       827.58          850         0.97   
+
+
+
+
+
+***Run_20*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.999938754
+MTBDE                      2999.816263
+MDT                        0.183737
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  95
+
+
+
+***LOGISTICS***
+
+MTBM                  31.577013
+MTBMu                 31.577013
+MTBMs                 N/A
+MMT                   12.567813
+MMTu                  12.567813
+MMTs                  N/A
+GreenPercent          65.967298
+YellowPercent         34.026577
+RedPercent            0.006125
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        2268.886554    2268.886554    2268.886554            N/A
+DT                             0.183737       0.183737       0.183737            N/A
+TBM                            0.028425      31.470465     145.769870      27.182933
+RT                             1.877753      12.567813      42.815970       7.620066
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       12   Infinite                    12
+S1B2                        7   Infinite                     7
+S1B3                        5   Infinite                     5
+S1B4                        9   Infinite                     9
+S2B1                        7   Infinite                     7
+S2B2                        7   Infinite                     7
+S2B3                        6   Infinite                     6
+S3B1                        4   Infinite                     4
+S3B2                        7   Infinite                     7
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                        8   Infinite                     8
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2439870.04
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        86.71          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       813.29          850         1.00              0       813.29          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       813.29          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       813.29          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       813.29          850         0.90              0       903.18          925         0.98   
+J3                             0       813.29          850         0.98            550       830.11          850         0.98   
+
+
+
+
+
+***Run_21*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.993007299
+MTBDE                      744.755474
+MDT                        5.244526
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  96
+
+
+
+***LOGISTICS***
+
+MTBM                  31.031478
+MTBMu                 31.031478
+MTBMs                 N/A
+MMT                   12.266416
+MMTu                  12.266416
+MMTs                  N/A
+GreenPercent          67.962494
+YellowPercent         31.338236
+RedPercent            0.699270
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         138.455810     734.186589    1329.009575     541.531224
+DT                             2.388592       5.244526       6.941363       1.992481
+TBM                            0.164827      31.214116     148.923244      30.439549
+RT                             1.570136      12.266416      39.601061       7.074219
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        8   Infinite                     8
+S1B2                        8   Infinite                     8
+S1B3                        6   Infinite                     6
+S1B4                        5   Infinite                     5
+S2B1                        7   Infinite                     7
+S2B2                        6   Infinite                     6
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        6   Infinite                     6
+S3B3                        5   Infinite                     5
+S3B4                        9   Infinite                     9
+S4B1                        7   Infinite                     7
+S4B2                       12   Infinite                    12
+S4B3                        6   Infinite                     6
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2424408.02
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        91.86          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       808.14          850         1.00              0       808.14          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       808.14          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       808.14          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       808.14          850         0.89            425       906.43          925         0.98   
+J3                             0       808.14          850         0.98              0       822.32          850         0.97   
+
+
+
+
+
+***Run_22*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998126586
+MTBDE                      998.126586
+MDT                        1.873414
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  99
+
+
+
+***LOGISTICS***
+
+MTBM                  30.246260
+MTBMu                 30.246260
+MTBMs                 N/A
+MMT                   13.172481
+MMTu                  13.172481
+MMTs                  N/A
+GreenPercent          62.893125
+YellowPercent         36.919534
+RedPercent            0.187341
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         395.598211     849.459780    1365.951450     488.198985
+DT                             0.575131       1.873414       3.857006       1.744968
+TBM                            0.249336      30.250493     234.349841      30.541383
+RT                             0.598480      13.172481      41.268059       6.966142
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        9   Infinite                     9
+S1B2                        4   Infinite                     4
+S1B3                        5   Infinite                     5
+S1B4                        9   Infinite                     9
+S2B1                        8   Infinite                     8
+S2B2                        7   Infinite                     7
+S2B3                        6   Infinite                     6
+S3B1                        7   Infinite                     7
+S3B2                        8   Infinite                     8
+S3B3                        5   Infinite                     5
+S3B4                        8   Infinite                     8
+S4B1                        7   Infinite                     7
+S4B2                       10   Infinite                    10
+S4B3                        6   Infinite                     6
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2418882.67
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        93.71          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       806.29          850         1.00              0       806.29          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       806.29          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       806.29          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       806.29          850         0.89              0       901.43          925         0.97   
+J3                             0       806.29          850         0.98              0       823.14          850         0.97   
+
+
+
+
+
+***Run_23*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.988399334
+MTBDE                      593.039600
+MDT                        6.960400
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  90
+
+
+
+***LOGISTICS***
+
+MTBM                  32.946644
+MTBMu                 32.946644
+MTBMs                 N/A
+MMT                   13.335492
+MMTu                  13.335492
+MMTs                  N/A
+GreenPercent          66.692328
+YellowPercent         32.147605
+RedPercent            1.160067
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          78.958716     529.779152    1178.065747     406.258799
+DT                             3.249188       6.960400       9.395090       2.948470
+TBM                            1.188639      33.284341     161.154828      32.943720
+RT                             0.563704      13.335492      51.355543       8.019555
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       13   Infinite                    13
+S1B2                        5   Infinite                     5
+S1B3                        4   Infinite                     4
+S1B4                        7   Infinite                     7
+S2B1                        6   Infinite                     6
+S2B2                        5   Infinite                     5
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        9   Infinite                     9
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                        9   Infinite                     9
+S4B3                        3   Infinite                     3
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2409770.69
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        96.74          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       803.26          850         1.00              0       803.26          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       803.26          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       803.26          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       803.26          850         0.89              0       901.94          925         0.98   
+J3                             0       803.26          850         0.98              0       822.14          850         0.97   
+
+
+
+
+
+***Run_24*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.989577438
+MTBDE                      742.183078
+MDT                        7.816922
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  100
+
+
+
+***LOGISTICS***
+
+MTBM                  29.687323
+MTBMu                 29.687323
+MTBMs                 N/A
+MMT                   11.374201
+MMTu                  11.374201
+MMTs                  N/A
+GreenPercent          67.798695
+YellowPercent         31.159049
+RedPercent            1.042256
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         100.560215     668.114414    1135.654849     433.590308
+DT                             5.320210       7.816922      11.145553       2.457589
+TBM                            0.270920      29.397238     112.054396      25.810033
+RT                             0.440732      11.374201      32.874018       6.473599
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       15   Infinite                    15
+S1B2                        7   Infinite                     7
+S1B3                        4   Infinite                     4
+S1B4                        3   Infinite                     3
+S2B1                        6   Infinite                     6
+S2B2                        6   Infinite                     6
+S2B3                        6   Infinite                     6
+S3B1                        7   Infinite                     7
+S3B2                        7   Infinite                     7
+S3B3                        6   Infinite                     6
+S3B4                        8   Infinite                     8
+S4B1                        7   Infinite                     7
+S4B2                       11   Infinite                    11
+S4B3                        7   Infinite                     7
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2428682.61
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        90.44          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       809.56          850         1.00              0       809.56          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       809.56          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       809.56          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       809.56          850         0.89              0       909.51          925         0.98   
+J3                             0       809.56          850         0.98              0       824.91          850         0.97   
+
+
+
+
+
+***Run_25*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.984641735
+MTBDE                      421.989315
+MDT                        6.582113
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     7
+NumberOfComponentFailures  90
+
+
+
+***LOGISTICS***
+
+MTBM                  32.821391
+MTBMu                 32.821391
+MTBMs                 N/A
+MMT                   12.312139
+MMTu                  12.312139
+MMTs                  N/A
+GreenPercent          68.890025
+YellowPercent         29.574149
+RedPercent            1.535826
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          54.112106     401.721020    1015.731191     326.946233
+DT                             0.466149       6.582113      24.697104       8.220838
+TBM                            0.247017      32.354019     260.371203      36.909118
+RT                             0.476810      12.312139      43.076945       7.127334
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        5   Infinite                     5
+S1B2                        8   Infinite                     8
+S1B3                        5   Infinite                     5
+S1B4                        4   Infinite                     4
+S2B1                        7   Infinite                     7
+S2B2                        6   Infinite                     6
+S2B3                        7   Infinite                     7
+S3B1                        5   Infinite                     5
+S3B2                        8   Infinite                     8
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        9   Infinite                     9
+S4B3                        7   Infinite                     7
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2414971.09
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        95.01          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       804.99          850         1.00              0       804.99          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       804.99          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       804.99          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       804.99          850         0.89              0       907.55          925         0.98   
+J3                             0       804.99          850         0.98              0       818.13          850         0.96   
+
+
+
+
+
+***Run_26*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.996053244
+MTBDE                      996.053244
+MDT                        3.946756
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  98
+
+
+
+***LOGISTICS***
+
+MTBM                  30.491426
+MTBMu                 30.491426
+MTBMs                 N/A
+MMT                   12.819594
+MMTu                  12.819594
+MMTs                  N/A
+GreenPercent          64.222207
+YellowPercent         35.383118
+RedPercent            0.394676
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.410508     950.249941    1486.599920     821.573230
+DT                             0.797582       3.946756       7.434319       3.331284
+TBM                            0.372092      29.721533     140.387891      26.438825
+RT                             0.960395      12.819594      32.460404       7.378538
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        7   Infinite                     7
+S1B2                        6   Infinite                     6
+S1B3                        5   Infinite                     5
+S1B4                       11   Infinite                    11
+S2B1                        8   Infinite                     8
+S2B2                        7   Infinite                     7
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        7   Infinite                     7
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                        8   Infinite                     8
+S4B3                       10   Infinite                    10
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2427848.11
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        90.72          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       809.28          850         1.00              0       809.28          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       809.28          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       809.28          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       809.28          850         0.90            425       904.03          925         0.98   
+J3                             0       809.28          850         0.98              0       826.78          850         0.97   
+
+
+
+
+
+***Run_27*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.985922453
+MTBDE                      739.441840
+MDT                        10.558160
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  99
+
+
+
+***LOGISTICS***
+
+MTBM                  29.876438
+MTBMu                 29.876438
+MTBMs                 N/A
+MMT                   11.757161
+MMTu                  11.757161
+MMTs                  N/A
+GreenPercent          67.090124
+YellowPercent         31.502121
+RedPercent            1.407755
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         267.801897     573.621105     921.732281     281.517901
+DT                             5.473560      10.558160      16.411661       4.697796
+TBM                            0.218025      30.066939     199.588597      27.858718
+RT                             2.802367      11.757161      27.728905       5.245520
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        6   Infinite                     6
+S1B2                        7   Infinite                     7
+S1B3                        7   Infinite                     7
+S1B4                        7   Infinite                     7
+S2B1                        6   Infinite                     6
+S2B2                        7   Infinite                     7
+S2B3                        6   Infinite                     6
+S3B1                        4   Infinite                     4
+S3B2                        8   Infinite                     8
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                       10   Infinite                    10
+S4B3                       12   Infinite                    12
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2421820.67
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        92.73          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       807.27          850         1.00              0       807.27          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       807.27          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       807.27          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       807.27          850         0.89            425       908.22          925         0.98   
+J3                             0       807.27          850         0.98              0       822.31          850         0.97   
+
+
+
+
+
+***Run_28*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.987296675
+MTBDE                      493.648337
+MDT                        6.351663
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     6
+NumberOfComponentFailures  87
+
+
+
+***LOGISTICS***
+
+MTBM                  34.044713
+MTBMu                 34.044713
+MTBMs                 N/A
+MMT                   13.744419
+MMTu                  13.744419
+MMTs                  N/A
+GreenPercent          66.553410
+YellowPercent         32.176257
+RedPercent            1.270333
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.601086     440.357222    1074.314300     434.912580
+DT                             0.680936       6.351663      12.630315       4.221994
+TBM                            0.086420      34.353077     164.583578      36.765137
+RT                             0.507926      13.744419      49.111977       8.309785
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        7   Infinite                     7
+S1B2                        7   Infinite                     7
+S1B3                        5   Infinite                     5
+S1B4                        7   Infinite                     7
+S2B1                        7   Infinite                     7
+S2B2                        5   Infinite                     5
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        6   Infinite                     6
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        7   Infinite                     7
+S4B3                        6   Infinite                     6
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2409399.21
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        96.87          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       803.13          850         1.00              0       803.13          850         0.94   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       803.13          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       803.13          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       803.13          850         0.89            425       904.43          925         0.98   
+J3                             0       803.13          850         0.98              0       819.95          850         0.96   
+
+
+
+
+
+***Run_29*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.995702829
+MTBDE                      1493.554243
+MDT                        6.445757
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  32.825368
+MTBMu                 32.825368
+MTBMs                 N/A
+MMT                   12.715853
+MMTu                  12.715853
+MMTs                  N/A
+GreenPercent          68.059987
+YellowPercent         31.510296
+RedPercent            0.429717
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        1241.247924    1449.419159    1657.590394     294.398584
+DT                             4.658538       6.445757       8.232976       2.527509
+TBM                            1.876171      32.364540     246.686883      38.404228
+RT                             0.801825      12.715853      47.659080       7.830742
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        9   Infinite                     9
+S1B2                        6   Infinite                     6
+S1B3                        4   Infinite                     4
+S1B4                        9   Infinite                     9
+S2B1                        8   Infinite                     8
+S2B2                        8   Infinite                     8
+S2B3                        5   Infinite                     5
+S3B1                        4   Infinite                     4
+S3B2                        9   Infinite                     9
+S3B3                        5   Infinite                     5
+S3B4                        6   Infinite                     6
+S4B1                        7   Infinite                     7
+S4B2                        8   Infinite                     8
+S4B3                        3   Infinite                     3
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2434837.87
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        88.39          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       811.61          850         1.00              0       811.61          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       811.61          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       811.61          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       811.61          850         0.90            425       903.02          925         0.98   
+J3                             0       811.61          850         0.98              0       827.80          850         0.97   
+
+
+
+
+
+***Run_30*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.990054837
+MTBDE                      742.541128
+MDT                        7.458872
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  89
+
+
+
+***LOGISTICS***
+
+MTBM                  33.372635
+MTBMu                 33.372635
+MTBMs                 N/A
+MMT                   11.538562
+MMTu                  11.538562
+MMTs                  N/A
+GreenPercent          71.270228
+YellowPercent         27.735256
+RedPercent            0.994516
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          37.414540     590.762850    1188.688193     476.399865
+DT                             5.525571       7.458872       9.615086       2.213182
+TBM                            0.105030      33.505145     161.083049      32.517517
+RT                             3.217800      11.538562      26.228741       5.264080
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        5   Infinite                     5
+S1B2                        5   Infinite                     5
+S1B3                        5   Infinite                     5
+S1B4                       10   Infinite                    10
+S2B1                        6   Infinite                     6
+S2B2                        9   Infinite                     9
+S2B3                        5   Infinite                     5
+S3B1                        4   Infinite                     4
+S3B2                        6   Infinite                     6
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        9   Infinite                     9
+S4B3                        6   Infinite                     6
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2439461.80
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        86.85          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       813.15          850         1.00              0       813.15          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       813.15          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       813.15          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       813.15          850         0.90              0       902.64          925         0.98   
+J3                             0       813.15          850         0.98              0       831.49          850         0.98   
+
+
+
+
+
+***Run_31*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.985682950
+MTBDE                      591.409770
+MDT                        8.590230
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  90
+
+
+
+***LOGISTICS***
+
+MTBM                  32.856098
+MTBMu                 32.856098
+MTBMs                 N/A
+MMT                   11.879796
+MMTu                  11.879796
+MMTs                  N/A
+GreenPercent          70.342473
+YellowPercent         28.225822
+RedPercent            1.431705
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.978888     496.122341     972.155871     346.401511
+DT                             4.525458       8.590230      12.275312       2.800227
+TBM                            0.480264      32.629463     130.511055      30.128424
+RT                             0.527006      11.879796      39.526827       5.998595
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        8   Infinite                     8
+S1B2                        5   Infinite                     5
+S1B3                        4   Infinite                     4
+S1B4                        6   Infinite                     6
+S2B1                        6   Infinite                     6
+S2B2                       10   Infinite                    10
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        8   Infinite                     8
+S3B3                        4   Infinite                     4
+S3B4                        5   Infinite                     5
+S4B1                        7   Infinite                     7
+S4B2                       11   Infinite                    11
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2429933.90
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        90.02          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       809.98          850         1.00              0       809.98          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       809.98          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       809.98          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       809.98          850         0.89            425       906.24          925         0.98   
+J3                             0       809.98          850         0.98              0       823.63          850         0.97   
+
+
+
+
+
+***Run_32*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.988989157
+MTBDE                      494.494579
+MDT                        5.505421
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     6
+NumberOfComponentFailures  107
+
+
+
+***LOGISTICS***
+
+MTBM                  27.728668
+MTBMu                 27.728668
+MTBMs                 N/A
+MMT                   11.561257
+MMTu                  11.561257
+MMTs                  N/A
+GreenPercent          68.069088
+YellowPercent         30.829828
+RedPercent            1.101084
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          36.545211     340.675768     553.015025     217.493441
+DT                             1.913179       5.505421      11.843072       3.743306
+TBM                            0.107235      27.716651     170.096191      31.166340
+RT                             0.651814      11.561257      35.675573       5.547575
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       21   Infinite                    21
+S1B2                        8   Infinite                     8
+S1B3                        5   Infinite                     5
+S1B4                        2   Infinite                     2
+S2B1                        7   Infinite                     7
+S2B2                        5   Infinite                     5
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        8   Infinite                     8
+S3B3                        6   Infinite                     6
+S3B4                       10   Infinite                    10
+S4B1                        8   Infinite                     8
+S4B2                       10   Infinite                    10
+S4B3                        6   Infinite                     6
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2415211.08
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        94.93          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       805.07          850         1.00              0       805.07          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       805.07          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       805.07          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       805.07          850         0.89              0       900.82          925         0.97   
+J3                             0       805.07          850         0.97              0       829.60          850         0.98   
+
+
+
+
+
+***Run_33*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.996159373
+MTBDE                      996.159373
+MDT                        3.840627
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  89
+
+
+
+***LOGISTICS***
+
+MTBM                  33.578406
+MTBMu                 33.578406
+MTBMs                 N/A
+MMT                   12.293175
+MMTu                  12.293175
+MMTs                  N/A
+GreenPercent          69.125662
+YellowPercent         30.490275
+RedPercent            0.384063
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          39.253847     558.434945    1110.528629     536.395230
+DT                             1.712028       3.840627       5.933370       2.110899
+TBM                            0.420652      33.639531     214.401744      36.635627
+RT                             1.257416      12.293175      44.612371       6.650395
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        7   Infinite                     7
+S1B2                        5   Infinite                     5
+S1B3                        3   Infinite                     3
+S1B4                       11   Infinite                    11
+S2B1                        8   Infinite                     8
+S2B2                        4   Infinite                     4
+S2B3                        6   Infinite                     6
+S3B1                        3   Infinite                     3
+S3B2                        9   Infinite                     9
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        6   Infinite                     6
+S4B3                        8   Infinite                     8
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2436811.00
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        87.73          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       812.27          850         1.00              0       812.27          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       812.27          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       812.27          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       812.27          850         0.90            425       901.95          925         0.98   
+J3                             0       812.27          850         0.98              0       830.35          850         0.98   
+
+
+
+
+
+***Run_34*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.989174671
+MTBDE                      494.587335
+MDT                        5.412665
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     6
+NumberOfComponentFailures  94
+
+
+
+***LOGISTICS***
+
+MTBM                  31.569404
+MTBMu                 31.569404
+MTBMs                 N/A
+MMT                   12.689498
+MMTu                  12.689498
+MMTs                  N/A
+GreenPercent          64.874310
+YellowPercent         34.043158
+RedPercent            1.082533
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          62.432992     488.182780    1081.468651     333.743594
+DT                             0.886353       5.412665      13.913248       5.160633
+TBM                            0.771929      31.731487     123.739963      27.199228
+RT                             2.368404      12.689498      38.228679       6.433662
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       11   Infinite                    11
+S1B2                        9   Infinite                     9
+S1B3                        7   Infinite                     7
+S1B4                        6   Infinite                     6
+S2B1                        7   Infinite                     7
+S2B2                        8   Infinite                     8
+S2B3                        6   Infinite                     6
+S3B1                        4   Infinite                     4
+S3B2                        7   Infinite                     7
+S3B3                        5   Infinite                     5
+S3B4                        9   Infinite                     9
+S4B1                        7   Infinite                     7
+S4B2                        3   Infinite                     3
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2393077.38
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50       102.31          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       797.69          850         1.00              0       797.69          850         0.94   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       797.69          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       797.69          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       797.69          850         0.88              0       903.28          925         0.98   
+J3                             0       797.69          850         0.97              0       820.60          850         0.97   
+
+
+
+
+
+***Run_35*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.993154660
+MTBDE                      993.154660
+MDT                        6.845340
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  86
+
+
+
+***LOGISTICS***
+
+MTBM                  34.644930
+MTBMu                 34.644930
+MTBMs                 N/A
+MMT                   12.726671
+MMTu                  12.726671
+MMTs                  N/A
+GreenPercent          69.057384
+YellowPercent         30.258082
+RedPercent            0.684534
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         395.191995     819.130803    1289.589791     449.009966
+DT                             2.331848       6.845340      11.274280       4.471816
+TBM                            0.392334      34.854956     220.081423      38.509497
+RT                             2.331848      12.726671      34.214042       6.624284
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        8   Infinite                     8
+S1B2                        6   Infinite                     6
+S1B3                        7   Infinite                     7
+S1B4                        5   Infinite                     5
+S2B1                        5   Infinite                     5
+S2B2                        2   Infinite                     2
+S2B3                        5   Infinite                     5
+S3B1                        7   Infinite                     7
+S3B2                        7   Infinite                     7
+S3B3                        6   Infinite                     6
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                        6   Infinite                     6
+S4B3                        9   Infinite                     9
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2423623.66
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        92.13          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       807.87          850         1.00              0       807.87          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       807.87          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       807.87          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       807.87          850         0.89            425       908.27          925         0.98   
+J3                             0       807.87          850         0.98              0       820.96          850         0.97   
+
+
+
+
+
+***Run_36*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.997430793
+MTBDE                      997.430793
+MDT                        2.569207
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  88
+
+
+
+***LOGISTICS***
+
+MTBM                  34.003323
+MTBMu                 34.003323
+MTBMs                 N/A
+MMT                   11.906113
+MMTu                  11.906113
+MMTs                  N/A
+GreenPercent          70.512725
+YellowPercent         29.230354
+RedPercent            0.256921
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         402.169224     737.680531    1212.504147     422.748875
+DT                             0.108671       2.569207       4.253352       2.178688
+TBM                            0.352247      34.070395     154.309229      31.374386
+RT                             1.109679      11.906113      35.052683       7.221923
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        9   Infinite                     9
+S1B2                        6   Infinite                     6
+S1B3                        5   Infinite                     5
+S1B4                       12   Infinite                    12
+S2B1                        7   Infinite                     7
+S2B2                        6   Infinite                     6
+S2B3                        7   Infinite                     7
+S3B1                        4   Infinite                     4
+S3B2                        7   Infinite                     7
+S3B3                        5   Infinite                     5
+S3B4                        6   Infinite                     6
+S4B1                        6   Infinite                     6
+S4B2                        3   Infinite                     3
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2444640.40
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        85.12          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       814.88          850         1.00              0       814.88          850         0.96   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       814.88          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       814.88          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       814.88          850         0.90            425       901.26          925         0.97   
+J3                             0       814.88          850         0.98              0       832.73          850         0.98   
+
+
+
+
+
+***Run_37*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.993143457
+MTBDE                      744.857593
+MDT                        5.142407
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  87
+
+
+
+***LOGISTICS***
+
+MTBM                  34.246326
+MTBMu                 34.246326
+MTBMs                 N/A
+MMT                   12.168177
+MMTu                  12.168177
+MMTs                  N/A
+GreenPercent          69.851324
+YellowPercent         29.463022
+RedPercent            0.685654
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          92.192216     683.856895    1313.718161     499.187526
+DT                             0.023768       5.142407      10.463596       5.363082
+TBM                            2.886193      33.179666     130.462671      25.058214
+RT                             1.356083      12.168177      33.266558       6.536922
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        6   Infinite                     6
+S1B2                        7   Infinite                     7
+S1B3                        6   Infinite                     6
+S1B4                        5   Infinite                     5
+S2B1                        8   Infinite                     8
+S2B2                       10   Infinite                    10
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        7   Infinite                     7
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        7   Infinite                     7
+S4B2                        3   Infinite                     3
+S4B3                        5   Infinite                     5
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2425646.04
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        91.45          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       808.55          850         1.00              0       808.55          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       808.55          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       808.55          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       808.55          850         0.90              0       899.83          925         0.97   
+J3                             0       808.55          850         0.98              0       828.97          850         0.98   
+
+
+
+
+
+***Run_38*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.993398539
+MTBDE                      993.398539
+MDT                        6.601461
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  96
+
+
+
+***LOGISTICS***
+
+MTBM                  31.043704
+MTBMu                 31.043704
+MTBMs                 N/A
+MMT                   12.596893
+MMTu                  12.596893
+MMTs                  N/A
+GreenPercent          65.281941
+YellowPercent         34.057912
+RedPercent            0.660146
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         426.545496     885.161469    1212.617387     409.120367
+DT                             4.099574       6.601461       9.774527       2.896400
+TBM                            0.029142      31.212042     158.056801      29.286663
+RT                             0.284286      12.596893      34.759356       7.126491
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        9   Infinite                     9
+S1B2                        8   Infinite                     8
+S1B3                        4   Infinite                     4
+S1B4                        9   Infinite                     9
+S2B1                        8   Infinite                     8
+S2B2                        6   Infinite                     6
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        6   Infinite                     6
+S3B3                        5   Infinite                     5
+S3B4                        5   Infinite                     5
+S4B1                        7   Infinite                     7
+S4B2                       12   Infinite                    12
+S4B3                        6   Infinite                     6
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2415203.81
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        94.93          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       805.07          850         1.00              0       805.07          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       805.07          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       805.07          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       805.07          850         0.89            425       900.14          925         0.97   
+J3                             0       805.07          850         0.97            550       829.63          850         0.98   
+
+
+
+
+
+***Run_39*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.987990362
+MTBDE                      493.995181
+MDT                        6.004819
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     6
+NumberOfComponentFailures  93
+
+
+
+***LOGISTICS***
+
+MTBM                  31.870657
+MTBMu                 31.870657
+MTBMs                 N/A
+MMT                   11.929017
+MMTu                  11.929017
+MMTs                  N/A
+GreenPercent          68.971993
+YellowPercent         29.827044
+RedPercent            1.200964
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          95.947145     473.707132    1531.292777     550.291816
+DT                             0.861958       6.004819      12.551356       4.511895
+TBM                            0.317968      32.078107     113.438134      28.750346
+RT                             0.685672      11.929017      32.926839       6.391549
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        5   Infinite                     5
+S1B2                        8   Infinite                     8
+S1B3                        5   Infinite                     5
+S1B4                        8   Infinite                     8
+S2B1                        9   Infinite                     9
+S2B2                        3   Infinite                     3
+S2B3                        6   Infinite                     6
+S3B1                        5   Infinite                     5
+S3B2                        5   Infinite                     5
+S3B3                        5   Infinite                     5
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                        7   Infinite                     7
+S4B3                       14   Infinite                    14
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2425998.55
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        91.33          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       808.67          850         1.00              0       808.67          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       808.67          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       808.67          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       808.67          850         0.89              0       903.86          925         0.98   
+J3                             0       808.67          850         0.97              0       831.26          850         0.98   
+
+
+
+
+
+***Run_40*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.995008390
+MTBDE                      995.008390
+MDT                        4.991610
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              3000.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  32.802474
+MTBMu                 32.802474
+MTBMs                 N/A
+MMT                   13.134106
+MMTu                  13.134106
+MMTs                  N/A
+GreenPercent          66.972895
+YellowPercent         32.527944
+RedPercent            0.499161
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                         439.651328     947.191500    1465.985401     513.259576
+DT                             0.150762       4.991610      14.183464       7.964146
+TBM                            0.006133      32.762925     134.950834      30.201169
+RT                             0.810742      13.134106      50.941051       7.054117
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       11   Infinite                    11
+S1B2                        4   Infinite                     4
+S1B3                        5   Infinite                     5
+S1B4                        4   Infinite                     4
+S2B1                        6   Infinite                     6
+S2B2                        9   Infinite                     9
+S2B3                        6   Infinite                     6
+S3B1                        4   Infinite                     4
+S3B2                        7   Infinite                     7
+S3B3                        6   Infinite                     6
+S3B4                        7   Infinite                     7
+S4B1                        6   Infinite                     6
+S4B2                        8   Infinite                     8
+S4B3                        8   Infinite                     8
+
+
+***CAPACITY***
+
+FlowGenerated                 900
+UnitsProduced          2426189.28
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                               50        91.27          900
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity                  0       808.73          850         1.00              0       808.73          850         0.95   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+end                            0       808.73          850          N/A            N/A          N/A          N/A          N/A   
+J1                             0       808.73          850          N/A            N/A          N/A          N/A          N/A   
+J2                             0       808.73          850         0.90            425       901.96          925         0.98   
+J3                             0       808.73          850         0.98              0       828.22          850         0.97   
+
+
+
+

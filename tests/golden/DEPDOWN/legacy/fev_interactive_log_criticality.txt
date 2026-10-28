@@ -1,0 +1,59 @@
+
+FAILURES
+
+     Failed Components:  BlockA
+
+     Idle Components:    BlockB
+
+EFFECTS
+
+     Down Nodes:         join
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+     Criticality = 0.800000       
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  BlockA
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     join
+
+CRITICALITY
+
+     System Status = Yellow
+
+     Criticality = 0.0
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  BlockB
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     join
+
+CRITICALITY
+
+     System Status = Yellow
+
+     Criticality = 0.0
+
+*****************************************************************
+

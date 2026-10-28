@@ -1,0 +1,33 @@
+Event_Log 	for 	input.rbd	 	Fri Sep 18 06:55:00 2026
+
+
+0.000000          	System   	Begin_Run_1           	--               	--
+0.000000          	Block    	ResHolder             	Good             	InitializeStress=1.000000
+0.000000          	Block    	PmCustom              	Good             	InitializeStress=1.000000
+10.000000         	Block    	PmCustom              	PM_is_due        	Scheduled_PM
+10.000000         	Block    	PmCustom              	Sparing          	1_Spare(s)_ordered_(stock=0)
+10.000000         	Block    	PmCustom              	PM               	beginning_PM
+10.000000         	Node     	join                  	Degraded         	1-1/2_ur2_dp4
+10.000000         	System   	State_change          	Yellow           	system_change_status
+11.000000         	Block    	PmCustom              	PM_complete      	MaintTime=1.000000
+11.000000         	Block    	PmCustom              	Good             	Stress=1.000000
+11.000000         	Node     	join                  	Good             	2-1/2_ur2_ur4
+11.000000         	System   	State_change          	Green            	system_change_status
+21.000000         	Block    	PmCustom              	PM_is_due        	Scheduled_PM
+21.000000         	Block    	PmCustom              	pmReqDefer       	No_spare_in_stock-Custom
+50.000000         	Block    	PmCustom              	Sparing          	1_Spare(s)_arrived_(stock=0)
+50.000000         	Block    	PmCustom              	Sparing          	Spare_Arrived
+50.000000         	Block    	PmCustom              	Sparing          	1_Spare(s)_ordered_(stock=0)
+50.000000         	Block    	PmCustom              	PM               	beginning_PM
+50.000000         	Node     	join                  	Degraded         	1-1/2_ur2_dp4
+50.000000         	System   	State_change          	Yellow           	system_change_status
+51.000000         	Block    	PmCustom              	PM_complete      	MaintTime=1.000000
+51.000000         	Block    	PmCustom              	Good             	Stress=1.000000
+51.000000         	Node     	join                  	Good             	2-1/2_ur2_ur4
+51.000000         	System   	State_change          	Green            	system_change_status
+61.000000         	Block    	PmCustom              	PM_is_due        	Scheduled_PM
+61.000000         	Block    	PmCustom              	pmReqDefer       	No_spare_in_stock-Custom
+65.000000         	Block    	ResHolder             	Done             	End_sim
+65.000000         	Block    	PmCustom              	Done             	End_sim
+65.000000         	System   	Phase_change          	Mission_success  	Finished_a_mission
+65.000000         	System   	Simulation_Terminate  	--               	--

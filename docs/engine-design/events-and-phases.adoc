@@ -1,0 +1,53 @@
+= Events and phases
+:toc: macro
+
+`raptor/core/engine/events.py`, `phasing.py`, `cascade_phase.py`, `triggers.py` · Raptor 7: `ConductEvent`, `ChangeEventState`, `ChangePhases`, `ControlPhaseChanges`, `ConductPhaseChange`
+
+toc::[]
+
+== Purpose
+
+*Events* are one-shot random outcomes (Success, Failure, Armed) that sit in the diagram like blocks. *Phases* divide a run into stretches with their own duration, mission flag, and per-element settings: a block or node can be Active, Cut (out of the diagram) or Linked (bypassed) in each, with a stress or k value. A phase change re-applies every phased element and can begin or end a *mission*.
+
+== Source anchors
+
+[cols="3,3,4",options="header"]
+|===
+| Source | Port | Notes
+| `ConductEvent`, `ChangeEventState` | `events.conduct_event`, `events.change_event_state` | Return the run/fail deltas; the caller cascades
+| `ControlPhaseChanges` | `phasing.control_phase_changes_process` | The phase clock; also cycle and failure termination and the `StartStats` reset
+| `ConductPhaseChange` | `_Cascade.conduct_phase_change` (`cascade_phase.py`), spawned by `phasing.control_phase_changes_process` as a deferred TELL | The phase clock logs `Begin_phase`, TELLs the body and re-waits at once; the body starts at the tail of the instant. Five zero-time hops per block or event, one per node
+| `ChangePhases` | `apply_block`, `apply_event`, `apply_node` inside `_conduct_phase_change_body` | Improve, stress, degrade groups in the order the system's colour selects
+| `pmSyncTrigger` | the `_release_pm_sync` closure that `SingleRunDriver.kickoff` installs on the cascade as `release_pm_sync` | Released when a phase change ends
+|===
+
+== Structure
+
+[mermaid]
+....
+flowchart TD
+    clock["phase clock wakes"] --> log["log Begin_phase"]
+    log --> conduct["conduct_phase_change<br/>(PhaseChangeInProgress = true)"]
+    conduct --> cls["classify each phased element:<br/>Cut / Link / Active, stress change"]
+    cls --> groups["apply groups: improve, stress, degrade<br/>(reversed when the system is Red)"]
+    groups --> defer["release deferred PMs (NonMission)"]
+    defer --> cold["CheckColds"]
+    cold --> mission["begin a mission if the phase is one"]
+    mission --> done["PhaseChangeInProgress = false,<br/>release pmSyncTrigger"]
+....
+
+While a phase change is in progress a pmMisDefer block whose PM trigger fires waits for it to end, so the PM is judged against the new mission status (`pmSyncTrigger`, `PmMisDeferBoundaryProbe`).
+
+== Port-only devices and deliberate deviations
+
+* The zero-time hops are ported literally (5 per block or event, 1 per node, 5 for the Green/Yellow degrade loop). One extra hop before the deferred-PM release is a heuristic (its comment says so) that keeps a released PM's line after the cold survey's.
+* A phased cold node reconfigures through `ColdChangeGroup`, not inline.
+* Interim Costs flips the order of the phase clock and the trigger draws at t=0 (see the kickoff page).
+
+== Ordering at a boundary
+
+Because the body is a TELL, a block failing at exactly a phase boundary logs `Failed`, then `Begin_phase`, then `RepHold` (`PhaseFailTieProbe`), and a pmMisDefer block whose PM clock expires there hops, sees the change in progress and waits on `pmSyncTrigger` (`PmMisDeferTimerProbe`). Both were traced in real.
+
+== Tests and fixtures
+
+`tests/unit/test_events_engine.py`, `test_phasing.py`; captures `Phasing1`, `Phasing3`, `PhaseBarrierProbe`, `PhaseLinkedStartProbe`, `PmMisDeferBoundaryProbe`, `PmMisDeferTimerProbe`, `PmMisDeferGiveBackProbe`, `PhaseFailTieProbe`, `CutRepairProbe`, `ColdPhasedKStarProbe`.

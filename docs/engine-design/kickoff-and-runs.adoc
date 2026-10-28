@@ -1,0 +1,53 @@
+= Kickoff and runs
+:toc: macro
+
+`raptor/core/engine/runner.py`, `driver.py`, `kickoff.py`, `load.py`, `step_session.py` · Raptor 7: `StartEngine`, `GetStartCond`, `Initialize`
+
+toc::[]
+
+== Purpose
+
+A *batch* is N replications of one model. This component loads and checks the model, builds everything that persists across runs (random streams, per-element statistics), and then, for each run, performs kickoff: reset, initialise every element in source's order, start every process, and only then let the clock move. Order at t=0 decides the draw order of the shared streams, so kickoff is ported statement by statement.
+
+== Source anchors
+
+[cols="3,3,4",options="header"]
+|===
+| Source | Port | Notes
+| `StartEngine` | `runner.run_simulation`, `driver.build_engine_ctx` | Streams are created and seeded afresh every batch (so a "Resimulate" is just another batch)
+| The per-run body of `StartEngine` | `SingleRunDriver.kickoff` (in `kickoff.py`) | Reset, initialise blocks and events, pools, processes, triggers, the System's activities
+| `GetStartCond` | `block_lifecycle.get_start_cond` | The six `SimStart` types; a down-start goes straight to `Repair`
+| `EndSimulation` / `TimeAdvance` | `SingleRunDriver.advance_to_end`, `finalize` | End-of-instant analysis; closing passes write the `End_sim` lines
+| File open and validation | `load.load_model`, `model_checks` | Refusals (`UnrunnableModel`) come from here
+|===
+
+== Structure
+
+[mermaid]
+....
+flowchart TD
+    load["load_model: typed rows -> model,<br/>refuse what real crashes on"] --> ctx["build_engine_ctx: streams, stats, sinks"]
+    ctx --> run{"for each run"}
+    run --> reset["reset run state"]
+    reset --> init["initialise blocks and events<br/>(draws, start conditions, InitializeStress)"]
+    init --> pools["pools and their background processes"]
+    pools --> proc["start one process per block,<br/>ControlPMtriggers, cold-logic kickoff"]
+    proc --> trig["triggers, then the phase clock<br/>(order set by Interim Costs)"]
+    trig --> adv["advance_to_end"]
+    adv --> fin["finalize: closing passes,<br/>report data for the run"]
+    fin --> run
+....
+
+== Interactions
+
+`StepSession` (the GUI's stepping debugger) runs the same `SingleRunDriver`, pausing between calendar entries. A batch with several workers splits the runs into chunks, each with its own disjoint segment of every stream (`rng.jump_ahead`); a chunk that outruns its segment is refused (`StreamBudgetExceeded`).
+
+== Port-only devices and deliberate deviations
+
+* *An output option changes results.* Real Raptor with Interim Costs ticked draws the triggers before the phase durations at t=0; without it, the reverse. The port follows whether a cost sink was requested (`driver.py` docstring). The GUI and MCP always request it; golden tests request it only when a capture has an `rpt_interim_cost*` file.
+* The kickoff barrier: every block's first turn starts with a hop that stands for a wait inside real's single `Run` start (`Wait(group_head=True)`).
+* Sequential runs are draw-for-draw compatible with real; parallel runs are independent but not identical.
+
+== Tests and fixtures
+
+`tests/unit/test_step_session.py`, `test_parallel_runs.py`, `test_run_control.py`, the `SimStart*` probes, and every golden fixture (`test_golden_fidelity.py`).

@@ -1,0 +1,104 @@
+End_Of_Run Report for input.rbd  Fri Aug 28 08:26:46 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.933295679
+MTBDE                      13.788019
+MDT                        0.985455
+Dependability              0.933295679
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              50989.781761
+NumberOfSystemFailures     2301
+NumberOfComponentFailures  983
+
+
+
+***LOGISTICS***
+
+MTBM                  4.175603
+MTBMu                 32.274906
+MTBMs                 4.796105
+MMT                   1.129376
+MMTu                  2.000000
+MMTs                  1.000000
+GreenPercent          87.914050
+YellowPercent         5.415518
+RedPercent            6.670432
+MissionGreenPercent   87.914050
+MissionYellowPercent  5.415518
+MissionRedPercent     6.670432
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.227482      13.786376      14.995143       1.444982
+DT                             0.004857       0.985455       1.974252       0.112711
+TBM                            0.025748      34.553659     233.933367      32.486108
+RT                             2.000000       2.000000       2.000000       0.000000
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                    480   Infinite                   480
+BlockB                    503   Infinite                   503
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.933665656
+MTBDE                      13.809898
+MDT                        0.980728
+Dependability              0.933665656
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              50984.932445
+NumberOfSystemFailures     2298
+NumberOfComponentFailures  1046
+
+
+
+***LOGISTICS***
+
+MTBM                  4.177876
+MTBMu                 30.339527
+MTBMs                 4.845060
+MMT                   1.137704
+MMTu                  2.000000
+MMTs                  1.000000
+GreenPercent          87.648897
+YellowPercent         5.717668
+RedPercent            6.633434
+MissionGreenPercent   87.648897
+MissionYellowPercent  5.717668
+MissionRedPercent     6.633434
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.019932      13.803835      14.999697       1.384932
+DT                             0.000303       0.980728       1.886027       0.126201
+TBM                            0.113973      32.435852     222.134632      32.966585
+RT                             2.000000       2.000000       2.000000       0.000000
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+BlockA                    506   Infinite                   506
+BlockB                    540   Infinite                   540
+
+
+
+

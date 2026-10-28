@@ -1,0 +1,16 @@
+.TH "RAPTOR-CONFIG" 5 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-config \- the settings of the raptor command
+.SH DESCRIPTION
+Settings are looked up in this order, highest first: the command line, the environment, the settings file, the model's own settings, the built\-in default. The settings file is TOML; its tables are [run], [output], [mcp] and [dev], and a key is the long name of the option without the leading dashes.
+.SH EXAMPLE
+.nf
+[run]
+runs = 200
+jobs = 4
+
+[mcp]
+port = 8765
+.fi
+.SH SEE ALSO
+\fBraptor\fR(1), \fBraptor\-run\fR(1)

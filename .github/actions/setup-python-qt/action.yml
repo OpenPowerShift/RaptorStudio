@@ -1,0 +1,40 @@
+name: Python + Qt test environment
+description: >-
+  Install the pinned Python, the Qt runtime libraries PySide6 needs even
+  under the offscreen QPA platform, and the project with its test extras.
+  Every pytest job in this repository needs exactly this; before this
+  action it was copy-pasted into each job, and the copies had already
+  drifted (some omitted libharfbuzz-subset0, which WeasyPrint wants).
+
+inputs:
+  python-version:
+    description: Python version to install.
+    required: false
+    default: "3.13"
+  extras:
+    description: Value for the editable install's extras, e.g. "dev,mcp".
+    required: false
+    default: "dev,mcp"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+
+    - name: Install Qt runtime libraries
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          libegl1 libgl1 libxkbcommon0 libdbus-1-3 \
+          libfontconfig1 libfreetype6 libx11-6 libxext6 libxrender1 \
+          libxi6 libsm6 libice6 libharfbuzz-subset0 \
+          libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+          libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0
+
+    - name: Install dependencies
+      shell: bash
+      run: pip install -e ".[${{ inputs.extras }}]"

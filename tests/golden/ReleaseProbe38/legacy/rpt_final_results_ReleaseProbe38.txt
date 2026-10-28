@@ -1,0 +1,56 @@
+Final_Results_Report for input.rbd  Sat Sep 05 19:27:34 2026
+
+
+Results from 2 runs of sim time 300.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.130000000     0.130000000     0.130000000     0.000000000     0.000000000     
+MTBDE                    1.000000        1.000000        1.000000        0.000000        0.000000        
+MDT                      6.692308        6.692308        6.692308        0.000000        0.000000        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          39              39.000000       39              0.000000        0.000000        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     0.487500        0.487500        0.487500        0.000000        0.000000        
+MTBMu                    0.487500        0.487500        0.487500        0.000000        0.000000        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      2.000000        2.000000        2.000000        0.000000        0.000000        
+MMTu                     2.000000        2.000000        2.000000        0.000000        0.000000        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            0.333333        0.333333        0.333333        0.000000        0.000000        
+Yellow_Percent           12.666667       12.666667       12.666667       0.000000        0.000000        
+Red_Percent              87.000000       87.000000       87.000000       0.000000        0.000000        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+BlockA                Cells                       19        19.00        19         0.00 
+BlockB                Cells                       19        19.00        19         0.00 
+BlockC                Cells                       19        19.00        19         0.00 
+BlockD                Cells                       19        19.00        19         0.00 
+
+
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Cells                         2.00        74.00         0.00 6.666667E-03         2.00         0.00        78.00 
+
+
+

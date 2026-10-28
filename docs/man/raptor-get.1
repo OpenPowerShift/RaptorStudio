@@ -1,0 +1,22 @@
+.TH "RAPTOR-GET" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-get \- Print the current value of each PATH. 'raptor help set\-paths' lists the grammar.
+.SH SYNOPSIS
+\fBraptor get\fR [\-h] [\-f {text,json}] MODEL PATH [PATH ...]
+.SH DESCRIPTION
+Print the current value of each PATH. 'raptor help set\-paths' lists the grammar.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+
+.SH EXAMPLES
+.PP
+Print current values.
+.RS
+.nf
+\fBraptor get pump.rbd system.runs 'block:Pump A.fail_params'\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1), \fBraptor\-set\-paths\fR(7)

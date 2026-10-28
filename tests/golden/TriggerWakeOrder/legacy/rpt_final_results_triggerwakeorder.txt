@@ -1,0 +1,46 @@
+Final_Results_Report for TriggerWakeOrder.rbd  Sat Aug 22 09:22:54 2026
+
+
+Results from 100 runs of sim time 3000.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.932327521     0.933931440     0.935313631     0.000639790     0.000063979     
+MTBDE                    13.452197       13.845286       14.022304       0.124497        0.012450        
+MDT                      0.951390        0.979396        0.994517        0.007947        0.000795        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          200             202.380000      208             1.745297        0.174530        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     5.589853        5.894434        6.230470        0.106018        0.010602        
+MTBMu                    23.533751       31.355048       43.807991       3.394722        0.339472        
+MTBMs                    7.124000        7.275510        7.475833        0.065908        0.006591        
+MMT                      1.142222        1.189634        1.236000        0.016645        0.001665        
+MMTu                     2.000000        2.000000        2.000000        0.000000        0.000000        
+MMTs                     1.000000        1.000000        1.000000        0.000000        0.000000        
+Green_Percent            86.016378       87.748507       89.409620       0.581245        0.058125        
+Yellow_Percent           4.047428        5.644637        7.334168        0.583647        0.058365        
+Red_Percent              6.468637        6.606856        6.767248        0.063979        0.006398        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+BlockA                Infinite                    31        45.93        65         6.13 
+BlockB                Infinite                    27        44.42        63         6.88 
+
+
+

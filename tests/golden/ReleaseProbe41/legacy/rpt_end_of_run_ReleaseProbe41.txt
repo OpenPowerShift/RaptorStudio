@@ -1,0 +1,2727 @@
+End_Of_Run Report for input.rbd  Sat Sep 05 21:42:08 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.441692043
+MTBDE                      33.126903
+MDT                        41.873097
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  6
+
+
+
+***LOGISTICS***
+
+MTBM                  22.084602
+MTBMu                 22.084602
+MTBMs                 N/A
+MMT                   4.675180
+MMTu                  4.675180
+MMTs                  N/A
+GreenPercent          44.169204
+YellowPercent         0.000000
+RedPercent            55.830796
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          25.536652      33.126903      37.890794       5.374294
+DT                             1.980659      41.873097     109.265032      46.587761
+TBM                            8.449447      41.959252      61.763792      18.999331
+RT                             1.230659       4.675180      11.860039       4.136605
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       5
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          4          0         0.12          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        711.50        0.00      854.88        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       2120.12      177.51      116.45      500.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        355.75      126.88        0.00      493.75        0.00        0.00        0.00        0.00 
+
+Totals                          3862.37      304.39      971.34      993.75        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      430.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1566.38       86.00        0.00     1695.38 
+Brushes                    33.00     2914.08      120.00        0.00     3067.08 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      976.38     1500.00        0.00     2588.38 
+
+Block_Totals              246.00     6131.84     1792.00        0.00     8169.84 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8169.84
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          20936.55
+
+________________________________
+Grand_Total             29106.39
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.387995970
+MTBDE                      38.799597
+MDT                        61.200403
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  16.628399
+MTBMu                 16.628399
+MTBMs                 N/A
+MMT                   12.838579
+MMTu                  12.838579
+MMTs                  N/A
+GreenPercent          38.799597
+YellowPercent         0.000000
+RedPercent            61.200403
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          16.754808      30.191663      39.043671      11.830637
+DT                            19.211343      61.200403     137.058825      65.820646
+TBM                            0.055885      34.380523      83.440801      30.523076
+RT                             2.831041      12.838579      24.869656       7.291673
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       1
+Casing                      1   Custom                       1
+Magnets                     1   Custom                       1
+PowerSupply                 4   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          1         1.12          2          1          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          3          0         0.12          1          0          3 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        720.08        0.00      839.85        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       1869.17      442.78      106.61      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        573.73      135.01        0.00       13.80        0.00        0.00        0.00        0.00 
+Magnets                 0         71.08       30.28        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        360.04      236.65        0.00      371.25        0.00        0.00        0.00        0.00 
+
+Totals                          3594.10      844.72      946.47      917.30        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      300.00      750.00 
+
+Totals                   272.00      346.00      840.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1559.94       86.00        0.00     1688.94 
+Brushes                    33.00     2943.57      120.00        0.00     3096.57 
+Casing                     40.00      722.54       70.00        0.00      832.54 
+Magnets                    18.00      108.61       32.00        0.00      158.61 
+PowerSupply               112.00      967.94     1150.00        0.00     2229.94 
+
+Block_Totals              246.00     6302.59     1458.00        0.00     8006.59 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8006.59
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          22950.15
+
+________________________________
+Grand_Total             30956.74
+
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.404297556
+MTBDE                      30.322317
+MDT                        44.677683
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  17.327038
+MTBMu                 17.327038
+MTBMs                 N/A
+MMT                   13.143063
+MMTu                  13.143063
+MMTs                  N/A
+GreenPercent          40.429756
+YellowPercent         0.000000
+RedPercent            59.570244
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          18.365190      30.322317      37.528206       8.523756
+DT                             3.447756      44.677683     127.845748      56.999814
+TBM                           16.946407      41.069620      73.142327      23.633927
+RT                             2.697756      13.143063      28.426527      10.138970
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    1   Custom                       1
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          1          1         1.75          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.12          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        674.82      657.31      666.18       69.30        0.00        0.00        0.00        0.00 
+Brushes                 0       1940.63      408.38      101.73      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        371.30      145.93        0.00      433.81        0.00        0.00        0.00        0.00 
+
+Totals                          3661.75     1211.62      767.91     1028.11        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       43.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      473.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     2067.61      129.00        0.00     2239.61 
+Brushes                    33.00     2975.74      120.00        0.00     3128.74 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      951.05     1500.00        0.00     2563.05 
+
+Block_Totals              246.00     6669.39     1835.00        0.00     8750.39 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8750.39
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          22338.84
+
+________________________________
+Grand_Total             31089.23
+
+
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.224241680
+MTBDE                      33.636252
+MDT                        116.363748
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  9.610358
+MTBMu                 9.610358
+MTBMs                 N/A
+MMT                   26.074467
+MMTu                  26.074467
+MMTs                  N/A
+GreenPercent          22.424168
+YellowPercent         0.000000
+RedPercent            77.575832
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          15.379099      24.366742      33.354385      12.710446
+DT                             5.218723     116.363748     227.508773     157.182802
+TBM                            3.245947      32.143303      66.094922      18.957985
+RT                             2.510266      26.074467     118.098728      41.333211
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    2   Custom                       2
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 4   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          2          0         1.51          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.11          1          0          3 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        488.93     2781.01      292.30      138.60        0.00        0.00        0.00        0.00 
+Brushes                 0       1873.92      388.88      112.36      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        371.07      209.07        0.00      371.25        0.00        0.00        0.00        0.00 
+
+Totals                          3408.92     3378.96      404.67     1034.85        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       86.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      300.00      750.00 
+
+Totals                   272.00      416.00      840.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     3700.84      172.00        0.00     3915.84 
+Brushes                    33.00     2900.16      120.00        0.00     3053.16 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      951.39     1150.00        0.00     2213.39 
+
+Block_Totals              246.00     8227.40     1528.00        0.00    10001.40 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  10001.40
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          29090.94
+
+________________________________
+Grand_Total             39092.33
+
+
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.396770333
+MTBDE                      29.757775
+MDT                        45.242225
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  17.004443
+MTBMu                 17.004443
+MTBMs                 N/A
+MMT                   8.278808
+MMTu                  8.278808
+MMTs                  N/A
+GreenPercent          39.677033
+YellowPercent         0.000000
+RedPercent            60.322967
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          10.956859      29.757775      45.671580      15.449065
+DT                             5.702082      45.242225     127.898849      56.199103
+TBM                            8.310159      40.710737      71.823635      24.609062
+RT                             3.514888       8.278808      22.898849       7.327066
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    1   Custom                       1
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          1          1         1.75          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.13          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        713.88       84.34      772.20       69.30        0.00        0.00        0.00        0.00 
+Brushes                 0       1904.50      409.28      106.14      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        374.93      124.30        0.00      446.37        0.00        0.00        0.00        0.00 
+
+Totals                          3668.31      617.92      878.34     1040.67        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       43.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      473.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1639.73      129.00        0.00     1811.73 
+Brushes                    33.00     2944.92      120.00        0.00     3097.92 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      945.60     1500.00        0.00     2557.60 
+
+Block_Totals              246.00     6205.25     1835.00        0.00     8286.25 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8286.25
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          22621.11
+
+________________________________
+Grand_Total             30907.36
+
+
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.557312162
+MTBDE                      33.438730
+MDT                        26.561270
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  23.884807
+MTBMu                 23.884807
+MTBMs                 N/A
+MMT                   8.087573
+MMTu                  8.087573
+MMTs                  N/A
+GreenPercent          55.731216
+YellowPercent         0.000000
+RedPercent            44.268784
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          26.188102      33.438730      36.355542       4.216586
+DT                             5.519321      26.561270      39.242975      12.570387
+TBM                            3.739252      40.622436      65.431076      25.486794
+RT                             2.992098       8.087573      14.742975       5.063615
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       0
+Casing                      0   Custom                       0
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          0          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          3          0         0.12          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        727.11        0.00      827.55        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       2675.10        0.00      205.16      151.14        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         70.16       43.13        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        363.56      149.65        0.00      449.46        0.00        0.00        0.00        0.00 
+
+Totals                          4435.93      192.78     1032.71      607.85        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      446.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1554.67       86.00        0.00     1683.67 
+Brushes                    33.00     3031.39      120.00        0.00     3184.39 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00      120.54       32.00        0.00      170.54 
+PowerSupply               112.00      962.67     1500.00        0.00     2574.67 
+
+Block_Totals              246.00     6269.27     1808.00        0.00     8323.27 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8323.27
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          16600.79
+
+________________________________
+Grand_Total             24924.06
+
+
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.368184626
+MTBDE                      22.091078
+MDT                        37.908922
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  15.779341
+MTBMu                 15.779341
+MTBMs                 N/A
+MMT                   8.352385
+MMTu                  8.352385
+MMTs                  N/A
+GreenPercent          36.818463
+YellowPercent         0.000000
+RedPercent            63.181537
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           5.651052      22.091078      37.425034      14.263920
+DT                             4.542479      37.908922     127.138078      50.631509
+TBM                           17.136709      40.240656      65.368376      15.784468
+RT                             3.562989       8.352385      20.902400       6.762937
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    1   Custom                       1
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          1         1.90          2          1          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.13          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        682.09       90.57      825.94       69.30        0.00        0.00        0.00        0.00 
+Brushes                 0       1951.06      375.34      104.31      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        364.02      135.13        0.00      462.83        0.00        0.00        0.00        0.00 
+
+Totals                          3672.16      601.04      930.25     1057.13        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       43.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      473.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1667.90      129.00        0.00     1839.90 
+Brushes                    33.00     2955.71      120.00        0.00     3108.71 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      961.97     1500.00        0.00     2573.97 
+
+Block_Totals              246.00     6260.59     1835.00        0.00     8341.59 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8341.59
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          23693.08
+
+________________________________
+Grand_Total             32034.66
+
+
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.410882369
+MTBDE                      30.816178
+MDT                        44.183822
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  17.609244
+MTBMu                 17.609244
+MTBMs                 N/A
+MMT                   7.827836
+MMTu                  7.827836
+MMTs                  N/A
+GreenPercent          41.088237
+YellowPercent         0.000000
+RedPercent            58.911763
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           7.980791      30.816178      44.403784      16.567372
+DT                             3.924129      44.183822     127.402887      56.455123
+TBM                           13.863675      40.585403      76.858526      20.509560
+RT                             3.174129       7.827836      22.402887       7.246933
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    1   Custom                       1
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          1          1         1.75          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.10          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        711.18      150.11      756.92       69.30        0.00        0.00        0.00        0.00 
+Brushes                 0       1972.24      400.85       98.66      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        383.32       98.95        0.00      450.76        0.00        0.00        0.00        0.00 
+
+Totals                          3741.73      649.91      855.59     1045.06        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       43.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      473.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1687.50      129.00        0.00     1859.50 
+Brushes                    33.00     2996.75      120.00        0.00     3149.75 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      933.03     1500.00        0.00     2545.03 
+
+Block_Totals              246.00     6292.28     1835.00        0.00     8373.28 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8373.28
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          22091.91
+
+________________________________
+Grand_Total             30465.19
+
+
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.328067438
+MTBDE                      24.605058
+MDT                        50.394942
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  14.060033
+MTBMu                 14.060033
+MTBMs                 N/A
+MMT                   18.418203
+MMTu                  18.418203
+MMTs                  N/A
+GreenPercent          32.806744
+YellowPercent         0.000000
+RedPercent            67.193256
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           9.885319      24.605058      39.784735      12.217521
+DT                             7.088108      50.394942     128.577910      57.453641
+TBM                            7.766938      41.800313      77.343633      27.772980
+RT                             4.964113      18.418203      50.815943      17.577703
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    1   Custom                       1
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          1          1         1.75          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.13          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        612.74     1172.27      618.09       69.30        0.00        0.00        0.00        0.00 
+Brushes                 0       2039.55      420.82       87.90      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        364.47      188.58        0.00      408.24        0.00        0.00        0.00        0.00 
+
+Totals                          3691.77     1781.67      705.99     1002.54        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       43.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      473.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     2472.40      129.00        0.00     2644.40 
+Brushes                    33.00     3073.28      120.00        0.00     3226.28 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      961.29     1500.00        0.00     2573.29 
+
+Block_Totals              246.00     7181.97     1835.00        0.00     9262.97 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   9262.97
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          25197.47
+
+________________________________
+Grand_Total             34460.44
+
+
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.283396857
+MTBDE                      21.254764
+MDT                        53.745236
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  9
+
+
+
+***LOGISTICS***
+
+MTBM                  9.446562
+MTBMu                 9.446562
+MTBMs                 N/A
+MMT                   9.456605
+MMTu                  9.456605
+MMTs                  N/A
+GreenPercent          28.339686
+YellowPercent         0.000000
+RedPercent            71.660314
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.268729      21.254764      37.402896      18.447433
+DT                             6.744981      53.745236     170.353375      78.025393
+TBM                            3.892294      31.197907      70.463674      25.578052
+RT                             2.499419       9.456605      22.714934       6.550210
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     2   Custom                       1
+Casing                      1   Custom                       1
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          1          0         0.00          0          0          2 
+Casing                      2          0          1         1.65          2          1          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          3          0         0.12          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        731.66        0.00      819.60        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       1749.89      406.15       79.61      640.56        0.00        0.00        0.00        0.00 
+Casing                  0        570.71      153.12        0.00       13.80        0.00        0.00        0.00        0.00 
+Magnets                 0         71.31       27.08        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        365.83      126.08        0.00      467.34        0.00        0.00        0.00        0.00 
+
+Totals                          3489.40      712.43      899.21     1128.95        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       60.00      180.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      476.00     1180.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1551.26       86.00        0.00     1680.26 
+Brushes                    33.00     2876.21      240.00        0.00     3149.21 
+Casing                     40.00      737.63       70.00        0.00      847.63 
+Magnets                    18.00      105.63       32.00        0.00      155.63 
+PowerSupply               112.00      959.26     1500.00        0.00     2571.26 
+
+Block_Totals              246.00     6229.99     1928.00        0.00     8403.99 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8403.99
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          26872.62
+
+________________________________
+Grand_Total             35276.61
+
+
+
+
+
+***Run_11*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.240737373
+MTBDE                      18.055303
+MDT                        56.944697
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  9
+
+
+
+***LOGISTICS***
+
+MTBM                  8.024579
+MTBMu                 8.024579
+MTBMs                 N/A
+MMT                   9.815979
+MMTu                  9.815979
+MMTs                  N/A
+GreenPercent          24.073737
+YellowPercent         0.000000
+RedPercent            75.926263
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.951752      17.090846      24.455962       9.715004
+DT                             6.855496      56.944697     159.170175      69.798228
+TBM                            2.383903      29.695329      66.189820      19.266927
+RT                             4.291343       9.815979      22.257194       6.406370
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    2   Custom                       2
+Brushes                     1   Custom                       1
+Casing                      1   Custom                       1
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       5
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          1          1         1.62          2          1          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          1         1.33          2          1          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          4          0         0.08          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        577.20      655.96      784.59      138.60        0.00        0.00        0.00        0.00 
+Brushes                 0       1722.28      398.37      130.20      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        571.19      150.24        0.00       13.80        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        350.96      138.84        0.00      493.75        0.00        0.00        0.00        0.00 
+
+Totals                          3296.64     1343.41      914.79     1171.15        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       86.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      516.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     2156.35      172.00        0.00     2371.35 
+Brushes                    33.00     2775.86      120.00        0.00     2928.86 
+Casing                     40.00      735.23       70.00        0.00      845.23 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      983.55     1500.00        0.00     2595.55 
+
+Block_Totals              246.00     6725.99     1878.00        0.00     8849.99 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8849.99
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          28472.35
+
+________________________________
+Grand_Total             37322.34
+
+
+
+
+
+***Run_12*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.388773436
+MTBDE                      23.326406
+MDT                        36.673594
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  8
+
+
+
+***LOGISTICS***
+
+MTBM                  14.579004
+MTBMu                 14.579004
+MTBMs                 N/A
+MMT                   7.333616
+MMTu                  7.333616
+MMTs                  N/A
+GreenPercent          38.877344
+YellowPercent         0.000000
+RedPercent            61.122656
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.267249      23.326406      43.592017      16.337098
+DT                             5.506990      36.673594     112.946030      43.734615
+TBM                           20.035515      36.945122      65.410813      14.765429
+RT                             1.514818       7.333616      27.183676       9.785227
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    3   Custom                       2
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 4   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          2          1         1.51          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.12          1          0          3 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        647.64      163.16      780.24      178.55        0.00        0.00        0.00        0.00 
+Brushes                 0       2036.41      240.08      119.56      500.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        377.08      194.06        0.00      371.25        0.00        0.00        0.00        0.00 
+
+Totals                          3736.12      597.30      899.79     1049.80        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       86.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      300.00      750.00 
+
+Totals                   272.00      416.00      840.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1769.58      172.00        0.00     1984.58 
+Brushes                    33.00     2896.05      120.00        0.00     3049.05 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      942.39     1150.00        0.00     2204.39 
+
+Block_Totals              246.00     6283.01     1528.00        0.00     8057.01 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8057.01
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          22921.00
+
+________________________________
+Grand_Total             30978.01
+
+
+
+
+
+***Run_13*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.339830162
+MTBDE                      20.389810
+MDT                        39.610190
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  8
+
+
+
+***LOGISTICS***
+
+MTBM                  12.743631
+MTBMu                 12.743631
+MTBMs                 N/A
+MMT                   8.963362
+MMTu                  8.963362
+MMTs                  N/A
+GreenPercent          33.983016
+YellowPercent         0.000000
+RedPercent            66.016984
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           5.934799      20.389810      42.980471      15.155620
+DT                             2.845678      39.610190     126.226860      49.532780
+TBM                            7.390707      34.131577      71.345741      23.548773
+RT                             2.095678       8.963362      21.226860       7.732982
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    1   Custom                       1
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       5
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          1          1         1.75          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          4          0         0.09          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        624.01      437.66      821.95       69.30        0.00        0.00        0.00        0.00 
+Brushes                 0       1849.84      380.86      116.32      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         71.58       23.21        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        365.16      105.86        0.00      491.25        0.00        0.00        0.00        0.00 
+
+Totals                          3510.58      947.58      938.27     1092.80        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       43.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      489.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1952.92      129.00        0.00     2124.92 
+Brushes                    33.00     2872.01      120.00        0.00     3025.01 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00      102.04       32.00        0.00      152.04 
+PowerSupply               112.00      962.27     1500.00        0.00     2574.27 
+
+Block_Totals              246.00     6489.23     1851.00        0.00     8586.23 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8586.23
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          24756.37
+
+________________________________
+Grand_Total             33342.60
+
+
+
+
+
+***Run_14*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.433654835
+MTBDE                      32.524113
+MDT                        42.475887
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  6
+
+
+
+***LOGISTICS***
+
+MTBM                  21.682742
+MTBMu                 21.682742
+MTBMs                 N/A
+MMT                   6.668698
+MMTu                  6.668698
+MMTs                  N/A
+GreenPercent          43.365483
+YellowPercent         0.000000
+RedPercent            56.634517
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          23.008513      32.524113      45.093341      10.512822
+DT                             8.243849      42.475887      98.689774      39.059843
+TBM                           13.251090      47.149095      68.333254      22.908709
+RT                             5.211015       6.668698       8.322810       1.481601
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       0
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          0          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.08          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        727.88        0.00      826.21        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       2081.54        0.00      142.43      493.45        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        363.94      141.37        0.00      456.78        0.00        0.00        0.00        0.00 
+
+Totals                          3848.36      141.37      968.64      950.23        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      430.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1554.09       86.00        0.00     1683.09 
+Brushes                    33.00     2717.42      120.00        0.00     2870.42 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      962.09     1500.00        0.00     2574.09 
+
+Block_Totals              246.00     5908.60     1792.00        0.00     7946.60 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   7946.60
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          21237.94
+
+________________________________
+Grand_Total             29184.54
+
+
+
+
+
+***Run_15*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.451048364
+MTBDE                      33.828627
+MDT                        41.171373
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  6
+
+
+
+***LOGISTICS***
+
+MTBM                  22.552418
+MTBMu                 22.552418
+MTBMs                 N/A
+MMT                   6.554738
+MMTu                  6.554738
+MMTs                  N/A
+GreenPercent          45.104836
+YellowPercent         0.000000
+RedPercent            54.895164
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          22.451883      33.828627      40.706032       7.965844
+DT                             5.423937      41.171373      98.600059      40.121157
+TBM                           19.142878      49.062533      73.832379      19.327777
+RT                             2.818267       6.554738       9.883521       3.357410
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       0
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          0          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.13          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        775.62        0.00      742.66        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       2165.03        0.00      132.17      493.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        387.81      139.09        0.00      399.37        0.00        0.00        0.00        0.00 
+
+Totals                          4003.47      139.09      874.83      892.37        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      430.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1518.28       86.00        0.00     1647.28 
+Brushes                    33.00     2790.20      120.00        0.00     2943.20 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      926.28     1500.00        0.00     2538.28 
+
+Block_Totals              246.00     5909.77     1792.00        0.00     7947.77 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   7947.77
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          20585.69
+
+________________________________
+Grand_Total             28533.45
+
+
+
+
+
+***Run_16*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.555286398
+MTBDE                      33.317184
+MDT                        26.682816
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  6
+
+
+
+***LOGISTICS***
+
+MTBM                  27.764320
+MTBMu                 27.764320
+MTBMs                 N/A
+MMT                   6.072517
+MMTu                  6.072517
+MMTs                  N/A
+GreenPercent          55.528640
+YellowPercent         0.000000
+RedPercent            44.471360
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          28.912597      33.317184      37.833966       3.973844
+DT                             9.369811      26.682816      33.954582       9.872212
+TBM                            3.809823      44.975874      69.415070      24.602177
+RT                             4.702722       6.072517       8.619811       1.719888
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       0
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       5
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          0          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          4          0         0.12          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        683.55        0.00      903.79        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       2665.37        0.00      198.92      169.77        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        341.77      161.81        0.00      493.75        0.00        0.00        0.00        0.00 
+
+Totals                          4365.70      161.81     1102.71      663.52        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      430.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1587.34       86.00        0.00     1716.34 
+Brushes                    33.00     3034.07      120.00        0.00     3187.07 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      997.34     1500.00        0.00     2609.34 
+
+Block_Totals              246.00     6293.74     1792.00        0.00     8331.74 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8331.74
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          16676.76
+
+________________________________
+Grand_Total             25008.50
+
+
+
+
+
+***Run_17*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.325715334
+MTBDE                      32.571533
+MDT                        67.428467
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  8
+
+
+
+***LOGISTICS***
+
+MTBM                  12.214325
+MTBMu                 12.214325
+MTBMs                 N/A
+MMT                   12.674875
+MMTu                  12.674875
+MMTs                  N/A
+GreenPercent          32.571533
+YellowPercent         0.000000
+RedPercent            67.428467
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          28.235125      32.571533      36.578422       4.181398
+DT                            16.276668      67.428467     147.692420      70.378712
+TBM                            3.216582      35.465416      78.637523      29.274212
+RT                             2.179299      12.674875      30.409805       9.759032
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    1   Custom                       1
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          1          1         1.75          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          3          0         0.13          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        635.60       53.62      918.54       69.30        0.00        0.00        0.00        0.00 
+Brushes                 0       1563.43      536.97      133.75      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         69.66       50.20        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        334.94      218.03        0.00      452.63        0.00        0.00        0.00        0.00 
+
+Totals                          3203.63      858.82     1052.29     1054.18        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       43.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      489.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1677.07      129.00        0.00     1849.07 
+Brushes                    33.00     2759.15      120.00        0.00     2912.15 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00      127.11       32.00        0.00      177.11 
+PowerSupply               112.00     1005.60     1500.00        0.00     2617.60 
+
+Block_Totals              246.00     6168.92     1851.00        0.00     8265.92 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8265.92
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          25285.67
+
+________________________________
+Grand_Total             33551.60
+
+
+
+
+
+***Run_18*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.114228823
+MTBDE                      17.134323
+MDT                        132.865677
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     2
+NumberOfComponentFailures  9
+
+
+
+***LOGISTICS***
+
+MTBM                  3.807627
+MTBMu                 3.807627
+MTBMs                 N/A
+MMT                   17.237262
+MMTu                  17.237262
+MMTs                  N/A
+GreenPercent          11.422882
+YellowPercent         0.000000
+RedPercent            88.577118
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.473698      17.134323      31.794949      20.733255
+DT                            93.554682     132.865677     172.176671      55.594142
+TBM                            0.780171      31.495430      69.727335      26.324207
+RT                             5.499405      17.237262      60.551205      19.708051
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    1   Custom                       1
+Brushes                     2   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          1          1         1.75          2          2          0 
+Brushes                     0          1          0         0.00          0          0          2 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          3          0         0.11          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        565.84     1396.18      632.01       69.30        0.00        0.00        0.00        0.00 
+Brushes                 0       1063.31      356.71       30.36      992.77        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         71.03       30.89        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        355.04      166.45        0.00      453.96        0.00        0.00        0.00        0.00 
+
+Totals                          2655.22     1950.23      662.38     1523.28        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       43.00        0.00 
+Brushes                    0.00       60.00      180.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      519.00     1180.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     2663.34      129.00        0.00     2835.34 
+Brushes                    33.00     2443.15      240.00        0.00     2716.15 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00      109.18       32.00        0.00      159.18 
+PowerSupply               112.00      975.45     1500.00        0.00     2587.45 
+
+Block_Totals              246.00     6791.11     1971.00        0.00     9008.11 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   9008.11
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          33216.42
+
+________________________________
+Grand_Total             42224.53
+
+
+
+
+
+***Run_19*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.374965340
+MTBDE                      28.122400
+MDT                        46.877600
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  16.069943
+MTBMu                 16.069943
+MTBMs                 N/A
+MMT                   9.656543
+MMTu                  9.656543
+MMTs                  N/A
+GreenPercent          37.496534
+YellowPercent         0.000000
+RedPercent            62.503466
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.390927      28.122400      40.816285      18.664246
+DT                             6.949033      46.877600     128.685355      55.576362
+TBM                            8.007063      40.174232      70.235797      21.027212
+RT                             3.727760       9.656543      23.685355       7.424574
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          3          0         0.12          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        736.23        0.00      811.60        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       1799.83      422.65      117.65      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         70.35       40.45        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        368.12      122.56        0.00      465.15        0.00        0.00        0.00        0.00 
+
+Totals                          3574.53      585.66      929.25      997.40        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      446.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1547.83       86.00        0.00     1676.83 
+Brushes                    33.00     2865.13      120.00        0.00     3018.13 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00      118.05       32.00        0.00      168.05 
+PowerSupply               112.00      955.83     1500.00        0.00     2567.83 
+
+Block_Totals              246.00     6086.84     1808.00        0.00     8140.84 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8140.84
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          23438.80
+
+________________________________
+Grand_Total             31579.64
+
+
+
+
+
+***Run_20*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.423099918
+MTBDE                      31.732494
+MDT                        43.267506
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  18.132854
+MTBMu                 18.132854
+MTBMs                 N/A
+MMT                   9.934809
+MMTu                  9.934809
+MMTs                  N/A
+GreenPercent          42.309992
+YellowPercent         0.000000
+RedPercent            57.690008
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          25.890374      31.732494      37.733241       6.245621
+DT                             8.065419      43.267506     125.980821      55.758321
+TBM                            9.830025      41.165331      69.211880      20.292694
+RT                             2.681100       9.934809      20.980821       6.242562
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          3          0         0.13          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        728.47        0.00      825.18        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       2030.88      376.67       94.18      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         71.48       24.68        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        364.24      166.95        0.00      430.46        0.00        0.00        0.00        0.00 
+
+Totals                          3795.06      568.31      919.35      962.71        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      446.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1553.65       86.00        0.00     1682.65 
+Brushes                    33.00     3026.73      120.00        0.00     3179.73 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00      103.41       32.00        0.00      153.41 
+PowerSupply               112.00      961.65     1500.00        0.00     2573.65 
+
+Block_Totals              246.00     6245.44     1808.00        0.00     8299.44 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8299.44
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          21633.75
+
+________________________________
+Grand_Total             29933.19
+
+
+
+
+
+***Run_21*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.420704329
+MTBDE                      42.070433
+MDT                        57.929567
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     3
+NumberOfComponentFailures  5
+
+
+
+***LOGISTICS***
+
+MTBM                  25.242260
+MTBMu                 25.242260
+MTBMs                 N/A
+MMT                   13.549646
+MMTu                  13.549646
+MMTs                  N/A
+GreenPercent          42.070433
+YellowPercent         0.000000
+RedPercent            57.929567
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          32.150801      34.337241      36.634600       2.243956
+DT                            11.921850      57.929567     131.683511      64.522118
+TBM                            1.364514      45.933970      83.188422      31.275130
+RT                             5.683341      13.549646      26.683511       8.198678
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 4   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.11          1          0          3 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        738.74        0.00      807.20        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       2019.38      473.62       84.21      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        369.37      213.32        0.00      371.25        0.00        0.00        0.00        0.00 
+
+Totals                          3802.49      686.94      891.41      896.25        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      300.00      750.00 
+
+Totals                   272.00      330.00      840.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1545.94       86.00        0.00     1674.94 
+Brushes                    33.00     3102.21      120.00        0.00     3255.21 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      953.94     1150.00        0.00     2215.94 
+
+Block_Totals              246.00     6277.10     1442.00        0.00     7965.10 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   7965.10
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          21723.59
+
+________________________________
+Grand_Total             29688.69
+
+
+
+
+
+***Run_22*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.284802056
+MTBDE                      17.088123
+MDT                        42.911877
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  10
+
+
+
+***LOGISTICS***
+
+MTBM                  8.544062
+MTBMu                 8.544062
+MTBMs                 N/A
+MMT                   10.669266
+MMTu                  10.669266
+MMTs                  N/A
+GreenPercent          28.480206
+YellowPercent         0.000000
+RedPercent            71.519794
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.333470      17.088123      35.044852      11.295032
+DT                            10.251455      42.911877     127.672953      48.363145
+TBM                            4.333470      26.725919      71.383631      21.116316
+RT                             3.933703      10.669266      22.672953       5.695158
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    2   Custom                       2
+Brushes                     1   Custom                       1
+Casing                      1   Custom                       1
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       5
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          2          1         1.51          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          1         1.29          2          1          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          4          0         0.10          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        572.59      500.35      840.02      138.60        0.00        0.00        0.00        0.00 
+Brushes                 0       1593.07      405.44      145.52      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        570.97      151.60        0.00       13.80        0.00        0.00        0.00        0.00 
+Magnets                 0         70.52       38.07        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        327.98      198.81        0.00      491.25        0.00        0.00        0.00        0.00 
+
+Totals                          3135.12     1294.27      985.55     1175.90        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       86.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      532.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     2051.56      172.00        0.00     2266.56 
+Brushes                    33.00     2669.03      120.00        0.00     2822.03 
+Casing                     40.00      736.37       70.00        0.00      846.37 
+Magnets                    18.00      115.84       32.00        0.00      165.84 
+PowerSupply               112.00     1018.04     1500.00        0.00     2630.04 
+
+Block_Totals              246.00     6590.83     1894.00        0.00     8730.83 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8730.83
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          26819.92
+
+________________________________
+Grand_Total             35550.76
+
+
+
+
+
+***Run_23*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.351241715
+MTBDE                      26.343129
+MDT                        48.656871
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  15.053216
+MTBMu                 15.053216
+MTBMs                 N/A
+MMT                   8.795925
+MMTu                  8.795925
+MMTs                  N/A
+GreenPercent          35.124172
+YellowPercent         0.000000
+RedPercent            64.875828
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           9.996167      24.884193      34.553138      10.468869
+DT                             7.795867      48.656871     129.180526      54.591378
+TBM                            7.299030      37.970381      68.716994      23.818591
+RT                             3.871594       8.795925      24.180526       7.159835
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    0   Custom                       0
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       5
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          2         2.00          2          2          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          4          0         0.09          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        698.09        0.00      878.34        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0       1685.96      431.07      130.89      525.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         70.52       38.07        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        349.05      143.64        0.00      493.75        0.00        0.00        0.00        0.00 
+
+Totals                          3403.62      612.78     1009.23     1026.00        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00        0.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      446.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1576.43       86.00        0.00     1705.43 
+Brushes                    33.00     2772.92      120.00        0.00     2925.92 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00      115.84       32.00        0.00      165.84 
+PowerSupply               112.00      986.43     1500.00        0.00     2598.43 
+
+Block_Totals              246.00     6051.63     1808.00        0.00     8105.63 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8105.63
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          24328.44
+
+________________________________
+Grand_Total             32434.07
+
+
+
+
+
+***Run_24*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.382836413
+MTBDE                      22.970185
+MDT                        37.029815
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     5
+NumberOfComponentFailures  11
+
+
+
+***LOGISTICS***
+
+MTBM                  10.440993
+MTBMu                 10.440993
+MTBMs                 N/A
+MMT                   9.355866
+MMTu                  9.355866
+MMTs                  N/A
+GreenPercent          38.283641
+YellowPercent         0.000000
+RedPercent            61.716359
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.321237      22.970185      36.910062      15.486621
+DT                            17.409507      37.029815      86.695443      28.612242
+TBM                            3.957410      26.872021      67.042417      21.690015
+RT                             1.715651       9.355866      20.808535       5.767080
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    3   Custom                       3
+Brushes                     1   Custom                       0
+Casing                      1   Custom                       1
+Magnets                     1   Custom                       1
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          2          0         1.39          2          1          0 
+Brushes                     0          0          0         0.00          0          0          1 
+Casing                      2          0          1         1.82          2          1          0 
+Magnets                     1          1          0         0.96          1          1          0 
+PowerSupply                 1          3          0         0.14          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        556.39      586.30      789.37      207.90        0.00        0.00        0.00        0.00 
+Brushes                 0       2446.10        0.00      221.65      181.47        0.00        0.00        0.00        0.00 
+Casing                  0        564.09      192.86        0.00       13.80        0.00        0.00        0.00        0.00 
+Magnets                 0         71.45       25.03        0.00        7.25        0.00        0.00        0.00        0.00 
+PowerSupply             0        369.53      190.88        0.00      393.29        0.00        0.00        0.00        0.00 
+
+Totals                          4007.57      995.06     1011.02      803.71        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00      129.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00       16.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      575.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     2139.96      215.00        0.00     2397.96 
+Brushes                    33.00     2849.22      120.00        0.00     3002.22 
+Casing                     40.00      770.75       70.00        0.00      880.75 
+Magnets                    18.00      103.74       32.00        0.00      153.74 
+PowerSupply               112.00      953.70     1500.00        0.00     2565.70 
+
+Block_Totals              246.00     6817.36     1937.00        0.00     9000.36 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   9000.36
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          23143.63
+
+________________________________
+Grand_Total             32144.00
+
+
+
+
+
+***Run_25*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.405368101
+MTBDE                      30.402608
+MDT                        44.597392
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              300.000000
+NumberOfSystemFailures     4
+NumberOfComponentFailures  7
+
+
+
+***LOGISTICS***
+
+MTBM                  17.372919
+MTBMu                 17.372919
+MTBMs                 N/A
+MMT                   8.356043
+MMTu                  8.356043
+MMTs                  N/A
+GreenPercent          40.536810
+YellowPercent         0.000000
+RedPercent            59.463190
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                          14.440677      30.402608      36.258394      10.651168
+DT                            10.731373      44.597392     109.131399      43.926982
+TBM                           18.253704      40.921824      67.383431      16.423890
+RT                             2.901761       8.356043      11.172996       3.565339
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+Armature                    1   Custom                       1
+Brushes                     1   Custom                       1
+Casing                      0   Custom                       0
+Magnets                     0   Custom                       0
+PowerSupply                 5   Custom                       4
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+Armature                    2          0          1         1.91          2          1          0 
+Brushes                     0          1          0         0.00          0          0          1 
+Casing                      2          0          2         2.00          2          2          0 
+Magnets                     1          0          1         1.00          1          1          0 
+PowerSupply                 1          3          0         0.12          1          0          4 
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0        653.07      258.78      825.53       69.30        0.00        0.00        0.00        0.00 
+Brushes                 0       1945.77      175.23      138.52      500.00        0.00        0.00        0.00        0.00 
+Casing                  0        600.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0         75.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0        363.04      161.41        0.00      438.99        0.00        0.00        0.00        0.00 
+
+Totals                          3636.88      595.42      964.05     1008.29        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                  86.00       43.00        0.00 
+Brushes                    0.00       30.00       90.00 
+Casing                    70.00        0.00        0.00 
+Magnets                   16.00        0.00        0.00 
+PowerSupply              100.00      400.00     1000.00 
+
+Totals                   272.00      473.00     1090.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                   43.00     1806.68      129.00        0.00     1978.68 
+Brushes                    33.00     2759.52      120.00        0.00     2912.52 
+Casing                     40.00      600.00       70.00        0.00      710.00 
+Magnets                    18.00       75.00       16.00        0.00      109.00 
+PowerSupply               112.00      963.44     1500.00        0.00     2575.44 
+
+Block_Totals              246.00     6204.63     1835.00        0.00     8285.63 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                   8285.63
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+SystemDownCost          22298.70
+
+________________________________
+Grand_Total             30584.33
+
+
+
+
+

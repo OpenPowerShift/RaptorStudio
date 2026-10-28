@@ -1,0 +1,71 @@
+[[appendix-iec61078]]
+== Appendix: Reliability block diagrams and IEC 61078
+
+IEC 61078 is the international standard for reliability block diagrams
+(RBDs). It describes the logic of series, parallel and m-out-of-n
+structures, and two families of evaluation:
+
+* **qualitative** — minimal tie sets (success paths) and minimal cut sets
+  (failure paths);
+* **quantitative** — Boolean methods, binary decision diagrams and
+  analytical availability/reliability formulae.
+
+RAPTOR Studio uses the same diagram vocabulary but evaluates a model by
+**Monte Carlo simulation**. That is a deliberate difference: simulation
+handles repair, spares, phases, dependencies and limited resources that
+the standard's simple closed-form formulae do not.
+
+=== What RAPTOR supports
+
+* Series, parallel and mixed structures.
+* m-out-of-n voting, with identical or different blocks.
+* Repaired and non-repaired blocks.
+* Hierarchies as sub-RBDs with one In and one Out marker.
+* Hot/cold standby, dependencies, spares, repair resources, PM and phases
+  by simulation.
+
+=== What RAPTOR does not do
+
+RAPTOR does not calculate minimal cut/tie sets, Boolean/BDD expressions,
+analytical importance factors, PFD~avg~ or the standard's analytical failure
+intensities. (It does _estimate_ the Annex D importance measures by
+re-simulation; see below.) It does not represent repeated/common blocks, multi-port
+transfer gates, non-coherent (inverted) blocks, PAND/SEQ gates or a
+common-cause beta factor.
+
+Those are possible future work, not application features.
+
+=== Reading the numbers
+
+The standard's measures line up with RAPTOR's reports where the engine
+actually computes them:
+
+[cols="2,2,6",options="header"]
+|===
+|RAPTOR result |IEC 61078 |What it means
+
+|Availability |10.3.1 / 10.3.2 |Simulated time-average system availability.
+|Reliability |10.3.3 |Runs with no system failure over the horizon.
+|System failures |10.3.4 (input) |Count of downing events; not a failure intensity.
+|MTBDE, MDT, MTBM |Related dependability terms |Mean times from the event log; not Clause 10 outputs.
+|===
+
+Importance measures (Annex D) can be estimated for a run: switch on
+**Run ▸ Analysis ▸ Importance measures**, then open **Results dock ▸
+Final Results ▸ Importance**. It reports Birnbaum, RAW, RRW and
+Vesely–Fussell importance for each block, with the sampling error of each,
+and ranks the blocks by Vesely–Fussell (Birnbaum cannot separate the blocks
+of a series system).
+It costs one extra batch per block -- two with Birnbaum -- so it is off
+unless you ask for it. Definitions and equations are on the Formulas page
+(Help ▸ Formulas); the tab does not restate them.
+
+This appendix is the in-app clause summary. The full clause-by-clause
+table is `docs/IEC61078.md` in the repository.
+
+''''
+
+The practical rule: use the standard for analytical checks and
+certification paperwork; use this simulator when the system's behaviour
+depends on repair logistics, phases or interactions that the standard
+says need simulation or a Markov/Petri model.

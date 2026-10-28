@@ -1,0 +1,482 @@
+name: Release
+
+# Triggered when a GitHub Release (tag vX.Y.Z) is published. Gates
+# everything on the full test suite, then:
+#   - builds the wheel/sdist once and publishes them to TestPyPI
+#     (trusted publishing -- OIDC, no tokens),
+#   - installs what TestPyPI serves into a clean environment and
+#     smoke-tests it (tools/release_smoke.py),
+#   - WAITS FOR APPROVAL: the `pypi` job runs in the `pypi` environment,
+#     whose required reviewers must approve it in the Actions tab,
+#   - then publishes the same files to PyPI, lists the version in the MCP
+#     Registry (server.json), builds the per-OS installers (PyInstaller
+#     onedir wrapped in Inno Setup / DMG / deb + AppImage), attests and
+#     uploads them to the Release, and finally attaches SHA256SUMS.txt.
+# Rejecting the approval leaves PyPI, the registry and the Release's
+# downloads untouched. See RELEASING.md.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write      # upload artifacts to the release
+  id-token: write      # PyPI trusted publishing
+
+jobs:
+  # ---------------------------------------------------------------- test
+  test:
+    name: test (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    # Sharded like the push workflow's test job (RAPTOR_TEST_SHARD, see
+    # tests/conftest.py), each shard over `-n auto`.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      # Same Python/Qt/extras setup as every push job.
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: "3.13"
+          extras: "dev,mcp"
+      # A release is the one run that must not skip a tier. `addopts`
+      # excludes `fidelity`, `long` and `slow` for everyday speed; `-m`
+      # here replaces that expression and re-enables the two that run
+      # headless. `slow` (the UI sweeps) needs local-only `legacy/rbd/`
+      # models and is exercised by the push workflow, not the release gate.
+      - name: Run test suite
+        env:
+          QT_QPA_PLATFORM: offscreen
+          RAPTOR_TEST_TIMEOUT: "900"
+          RAPTOR_TEST_SHARD: ${{ matrix.shard }}/4
+        run: pytest -q -n auto -m "not slow"
+
+  # --------------------------------------------------------------- build
+  build:
+    name: Build sdist + wheel
+    needs: test
+    runs-on: ubuntu-latest
+    # `attestations: write` because the provenance step uploads an
+    # attestation to the repository. Without it the step fails 403 on the
+    # FIRST release, after the package has already been built.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # Two distributions: the application, and the code-free
+      # `raptor-studio-mcp` companion the MCP Registry lists (see
+      # packaging/raptor-studio-mcp/pyproject.toml). Each needs its own
+      # trusted publisher on PyPI and on TestPyPI.
+      - name: Build sdist + wheel
+        run: |
+          pip install build twine
+          python -m build
+          python -m build packaging/raptor-studio-mcp --outdir dist
+          twine check dist/*
+      - name: Check the version matches the tag
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          ls dist/raptor_studio-"$V"-py3-none-any.whl dist/raptor_studio_mcp-"$V"-py3-none-any.whl \
+            || { echo "built version does not match tag $GITHUB_REF_NAME"; exit 1; }
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: "dist/*"
+      # TestPyPI and PyPI get these exact files, so what was smoke-tested
+      # is what is published.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  # ------------------------------------------------------------ testpypi
+  # One environment per package, on both indexes: PyPI refuses two
+  # *pending* trusted publishers with the same owner/repo/workflow/
+  # environment for different project names, so each package publishes
+  # from its own environment (testpypi / testpypi-mcp, pypi / pypi-mcp).
+  testpypi:
+    name: Publish ${{ matrix.package }} to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - package: raptor_studio
+            environment: testpypi
+          - package: raptor_studio_mcp
+            environment: testpypi-mcp
+    # No reviewers on these: the gate is the `pypi` job below.
+    environment: ${{ matrix.environment }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      # `raptor_studio-*` does not match `raptor_studio_mcp-*`.
+      - name: Select this package's files
+        run: mkdir upload && mv dist/${{ matrix.package }}-* upload/ && ls upload
+      # `skip-existing` so a re-run after a later failure can still go on.
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: upload/
+          skip-existing: true
+
+  testpypi-smoke:
+    name: Smoke-test the TestPyPI upload
+    needs: testpypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Qt runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libxkbcommon0 libdbus-1-3 \
+            libfontconfig1 libfreetype6 libx11-6 libxext6 libxrender1 \
+            libxi6 libsm6 libice6 libharfbuzz-subset0 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: built/
+      # Only our two packages come from TestPyPI (`--no-deps`), and they must
+      # be byte-identical to the build. Dependencies then come from PyPI:
+      # TestPyPI lets anyone upload any name, so resolving PySide6 & co.
+      # there would install whatever a stranger put up.
+      - name: Download the TestPyPI files
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            pip download --no-deps --dest from-testpypi \
+              --index-url https://test.pypi.org/simple/ \
+              "raptor-studio==$V" "raptor-studio-mcp==$V" && break
+            echo "attempt $i: not on TestPyPI yet"; sleep 30
+          done
+          ls from-testpypi/raptor_studio-"$V"-py3-none-any.whl from-testpypi/raptor_studio_mcp-"$V"-py3-none-any.whl
+          for f in from-testpypi/*.whl; do
+            cmp "$f" "built/$(basename "$f")" || { echo "$f differs from the build"; exit 1; }
+          done
+      - name: Install into a clean environment
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --find-links from-testpypi "raptor-studio-mcp==$V"
+      - name: Smoke test
+        run: /tmp/smoke/bin/python tools/release_smoke.py "${GITHUB_REF_NAME#v}"
+
+  # ---------------------------------------------------------------- pypi
+  pypi:
+    name: Publish raptor-studio to PyPI (needs approval)
+    needs: testpypi-smoke
+    runs-on: ubuntu-latest
+    # The `pypi` environment has required reviewers (Settings ->
+    # Environments), so this job waits in the Actions tab until approved.
+    # Everything public after this point hangs off it.
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Select this package's files
+        run: mkdir upload && mv dist/raptor_studio-* upload/ && ls upload
+      # Safe here because these are the build's own files: a re-run after a
+      # partial upload skips what is already there instead of failing.
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
+          skip-existing: true
+
+  pypi-mcp:
+    name: Publish raptor-studio-mcp to PyPI
+    # Runs only after the approved `pypi` job; its own environment has no
+    # reviewers, so one approval releases both packages.
+    needs: pypi
+    runs-on: ubuntu-latest
+    environment: pypi-mcp
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Select this package's files
+        run: mkdir upload && mv dist/raptor_studio_mcp-* upload/ && ls upload
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
+          skip-existing: true
+
+  # ------------------------------------------------------- mcp registry
+  mcp-registry:
+    name: Publish to the MCP Registry
+    needs: pypi-mcp
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write      # GitHub OIDC login to the registry (no secret)
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      # release-please bumps server.json and the companion package with
+      # pyproject.toml; fail loudly if they ever disagree rather than
+      # publish a mismatched listing.
+      - name: Check server.json matches the release
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          jq -e --arg v "$V" '.version == $v and .packages[0].version == $v' server.json \
+            || { echo "server.json version does not match tag $GITHUB_REF_NAME"; exit 1; }
+          grep -q "^version = \"$V\"" packaging/raptor-studio-mcp/pyproject.toml \
+            && grep -q "raptor-studio\[mcp\]==$V\"" packaging/raptor-studio-mcp/pyproject.toml \
+            || { echo "raptor-studio-mcp does not match tag $GITHUB_REF_NAME"; exit 1; }
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      - name: Log in with GitHub OIDC
+        run: ./mcp-publisher login github-oidc
+      # The registry checks the version is on PyPI; a fresh upload can take
+      # a minute to appear, so retry a few times.
+      - name: Publish
+        run: |
+          for i in 1 2 3 4 5; do
+            ./mcp-publisher publish && exit 0
+            echo "attempt $i failed; waiting for PyPI"; sleep 60
+          done
+          exit 1
+
+  # ---------------------------------------------------------- installers
+  installers:
+    name: Installers (${{ matrix.os }})
+    # After the approved PyPI publish, so a rejected release uploads nothing.
+    needs: pypi
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write        # upload the artefacts to the Release
+      id-token: write        # provenance
+      attestations: write    # the attestation itself
+    strategy:
+      fail-fast: false
+      matrix:
+          include:
+            - os: windows-latest
+              platform: windows
+            - os: macos-latest
+              platform: macos-arm64
+            # Intel: macos-13 was retired on 2025-12-04; macos-15-intel is the
+            # last Intel image GitHub hosts. The DMG still targets macOS 13+
+            # (Qt 6.11's minimum deployment target).
+            - os: macos-15-intel
+              platform: macos-x64
+            - os: ubuntu-latest
+              platform: linux
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install system libraries (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libxkbcommon0 libdbus-1-3 \
+            libfontconfig1 libfreetype6 libx11-6 libxext6 libxrender1 \
+            libxi6 libsm6 libice6 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+            libpango-1.0-0 libpangocairo-1.0-0
+
+      - name: Install system libraries (macOS)
+        if: runner.os == 'macOS'
+        run: brew install pango
+
+      - name: Install GTK runtime (Windows)
+        if: runner.os == 'Windows'
+        run: choco install gtk-runtime -y --no-progress
+
+      - name: Install package + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Read version
+        id: ver
+        shell: bash
+        run: |
+          V=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "version: $V"
+
+      - name: Build with PyInstaller
+        run: pyinstaller installer/raptor.spec --noconfirm
+
+      # ---- Windows: Inno Setup installer + portable zip --------------
+      - name: Build Windows installer
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" `
+            /DAppVersion=${{ steps.ver.outputs.version }} installer\windows.iss
+          Compress-Archive -Path dist\raptor-studio\* `
+            -DestinationPath dist\raptor-studio-${{ steps.ver.outputs.version }}-windows-portable.zip
+
+      # ---- macOS: unsigned DMG (arm64 + x64 variants) -----------------
+      - name: Build macOS DMG
+        if: runner.os == 'macOS'
+        run: |
+          hdiutil create -volname "RAPTOR Studio" \
+            -srcfolder "dist/RAPTOR Studio.app" -ov -format UDZO \
+            dist/raptor-studio-${{ steps.ver.outputs.version }}-${{ matrix.platform }}.dmg
+
+      # ---- Linux: .deb + AppImage ------------------------------------
+      - name: Build Linux .deb
+        if: matrix.platform == 'linux'
+        run: |
+          V=${{ steps.ver.outputs.version }}
+          KB=$(du -sk dist/raptor-studio | cut -f1)
+          mkdir -p staging/DEBIAN staging/usr/bin \
+                   staging/usr/lib/raptor-studio \
+                   staging/usr/share/applications \
+                   staging/usr/share/icons/hicolor/256x256/apps
+          cp -a dist/raptor-studio/. staging/usr/lib/raptor-studio/
+          printf '#!/bin/sh\nexec /usr/lib/raptor-studio/raptor-studio "$@"\n' \
+            > staging/usr/bin/raptor-studio
+          chmod +x staging/usr/bin/raptor-studio
+          cp installer/linux/raptor-studio.desktop staging/usr/share/applications/
+          mkdir -p staging/usr/share/doc/raptor-studio
+          cp installer/linux/copyright staging/usr/share/doc/raptor-studio/
+          cp raptor/gui/resources/raptor_icon.png \
+             staging/usr/share/icons/hicolor/256x256/apps/raptor-studio.png
+          sed -e "s/__VERSION__/$V/" -e "s/__INSTALLED_KB__/$KB/" \
+            installer/linux/control > staging/DEBIAN/control
+          dpkg-deb --build --root-owner-group staging \
+            "dist/raptor-studio-$V-linux-amd64.deb"
+
+      - name: Build Linux AppImage
+        if: matrix.platform == 'linux'
+        run: |
+          V=${{ steps.ver.outputs.version }}
+          mkdir -p AppDir/usr
+          cp -a dist/raptor-studio AppDir/usr/lib/raptor-studio
+          mkdir -p AppDir/usr/bin
+          printf '#!/bin/sh\nexec "$(dirname "$0")/../lib/raptor-studio/raptor-studio" "$@"\n' \
+            > AppDir/usr/bin/raptor-studio
+          chmod +x AppDir/usr/bin/raptor-studio
+          cp installer/linux/raptor-studio.desktop \
+             AppDir/raptor-studio.desktop
+          cp raptor/gui/resources/raptor_icon.png AppDir/raptor-studio.png
+          curl -sL -o appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir \
+            "dist/raptor-studio-$V-linux-x86_64.AppImage"
+
+      - name: Collect artifacts
+        id: arts
+        shell: bash
+        run: |
+          V=${{ steps.ver.outputs.version }}
+          case "${{ matrix.platform }}" in
+            windows)      FILES="dist/raptor-studio-$V-windows-setup.exe dist/raptor-studio-$V-windows-portable.zip" ;;
+            macos-arm64)  FILES="dist/raptor-studio-$V-macos-arm64.dmg" ;;
+            macos-x64)    FILES="dist/raptor-studio-$V-macos-x64.dmg" ;;
+            linux)        FILES="dist/raptor-studio-$V-linux-amd64.deb dist/raptor-studio-$V-linux-x86_64.AppImage" ;;
+          esac
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+          ls -lh $FILES
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ steps.arts.outputs.files }}
+
+      - name: Upload to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          for f in ${{ steps.arts.outputs.files }}; do
+            gh release upload "$GITHUB_REF_NAME" "$f" --clobber
+          done
+
+  # --------------------------------------------------------- checksums
+  checksums:
+    name: SHA256SUMS
+    needs: [pypi, pypi-mcp, installers]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "${{ github.repository }}" \
+            --dir artifacts \
+            --pattern '*.exe' --pattern '*.zip' --pattern '*.dmg' \
+            --pattern '*.deb' --pattern '*.AppImage'
+      - name: Generate SHA256SUMS.txt
+        run: |
+          cd artifacts
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Upload checksums to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" \
+               artifacts/SHA256SUMS.txt --clobber \
+               --repo "${{ github.repository }}"
+
+      - name: Append install notes to the release body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NOTES='
+          ---
+
+          ## Install
+
+          | File | Platform |
+          |---|---|
+          | `*-windows-setup.exe` | Windows 10/11 x64 — double-click |
+          | `*-windows-portable.zip` | Windows — unzip, run `raptor-studio.exe` |
+          | `*-macos-arm64.dmg` | macOS 13+ Apple Silicon |
+          | `*-macos-x64.dmg` | macOS 13+ Intel |
+          | `*-linux-amd64.deb` | Debian/Ubuntu x64 — `sudo apt install ./…deb` |
+          | `*-linux-x86_64.AppImage` | Most Linux distros x64 — `chmod +x`, run |
+
+          **macOS (unsigned build):** right-click **RAPTOR Studio.app** → **Open** → **Open**, or `xattr -cr "/Applications/RAPTOR Studio.app"`.
+
+          **Windows (unsigned build):** SmartScreen may warn — **More info** → **Run anyway**.
+
+          Verify downloads with `SHA256SUMS.txt`. PyPI: `pip install raptor-studio`.'
+          gh release view "$GITHUB_REF_NAME" --repo "${{ github.repository }}" \
+            --json body -q .body > body.md
+          printf '%s\n' "$NOTES" >> body.md
+          gh release edit "$GITHUB_REF_NAME" --repo "${{ github.repository }}" \
+            --notes-file body.md

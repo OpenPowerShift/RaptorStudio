@@ -1,0 +1,286 @@
+[[ch-hierarchy]]
+== Hierarchies: The Delivery Van, Tidied Up
+
+*Time: about 25 minutes.*
+*New ideas: hierarchies (boxes inside boxes), the In/Out doors,
+why structure is not behaviour.*
+
+=== You will learn
+
+* What a *hierarchy* is and when a diagram needs one.
+* How flow crosses a hierarchy's boundary.
+* The one rule every modeler must memorize: collapsing changes
+  the picture, never the numbers.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-pm>> finished.
+* The files `models/Van1.rbds` and `models/VanFlat.rbds`.
++
+opsmodel:VanFlat[]
+
+=== The story
+
+A delivery van has an engine problem and a tire problem. Its diagram
+so far would be six blocks on one flat sheet: Fuel_Pump and
+Engine_Core in a row, then four tires voting "at least 3 of 4".
+<<ch-voting>> taught you the vote; this chapter is about *paperwork*.
+
+Real systems do not live on one sheet. A van engineer draws the
+engine on one page, the chassis on another, and the whole van on a
+cover page. RAPTOR Studio has exactly this idea: the *hierarchy*, a
+box that hides a whole sub-diagram inside itself.
+
+=== Two views of the same van
+
+Open `models/Van1.rbds`. The home level is almost empty — two big
+ovals and some nodes:
+
+image::van-loaded.png[Van1 home level: two subsystem ovals]
+
+Each oval is a door into a hidden drawing. Double-click **Engine_sub**
+(or use the Model Explorer tree) to descend:
+
+image::van-engine-inside.png[Inside Engine_sub: pump feeds core]
+
+Inside lives a plain series chain you could have drawn in <<ch-first-model>>.
+Climb back out (double-click the Out marker or the Up button) and
+descend into **Tires_sub** instead:
+
+image::van-tires-inside.png[Inside Tires_sub: four tires feed a vote]
+
+The four tires fan out from the In marker and rejoin at a vote node —
+<<ch-voting>>'s k-of-n, wearing overalls.
+
+[TIP]
+====
+Every hierarchy has two special markers. *In* is the door where flow
+enters; *Out* is where it leaves. Anything between them is invisible
+from outside — the parent diagram only sees one oval.
+====
+
+The oval itself has two readings. Its *body* colour is the hierarchy's
+own status: green when nothing is lost, yellow when it still works but
+something inside has failed, red when the subsystem is down, plus blue
+for standby, brown for idle and orange for preventive maintenance. The
+*two downward triangles in the middle* are Raptor's Descendant Status
+Indicator (DSI): the worst status of the hierarchies inside this one.
+Green body with a yellow or red DSI means this subsystem still works but
+something deeper is degraded or down; a red body means the subsystem
+itself is down. The name sits inside the oval at rest; while a run is
+animated, stepped or shown with its triangles, it moves under the oval, as
+in Raptor, so the triangles keep the middle of the body to themselves.
+
+While you animate or step a run, both are live. After an ordinary run
+(with Weak Link analysis on), the triangles show the share of time, over
+every run, that the inside was working, partly failed, on standby or
+down. Point at the oval and it says which.
+
+=== The experiment that proves the point
+
+Here is the claim worth testing: **the hierarchy changed nothing
+physical**. `VanFlat.rbds` is the same six blocks with no ovals at all.
+
+Run both files at **200 trials**:
+
+[cols="4,2,2",options="header"]
+|===
+|Measure |Van1 (hierarchical) |VanFlat (flat)
+|Availability |about 0.987 |about 0.987
+|MTBDE |about 421 h |about 421 h
+|MDT |about 4.6 h |about 4.6 h
+|===
+
+Identical — digit for digit. The engine does not know an oval from a
+straight line. A hierarchy is pure *organisation*: it exists so a
+human can draw, read, and reuse big diagrams without a wall-sized
+sheet.
+
+So when does a real study need them?
+
+* The diagram has more than a screenful of blocks.
+* Whole subsystems repeat (four wheels, each its own brake-and-tire
+  group — draw once, place four ovals).
+* Different teams own different parts and want their own page.
+
+[NOTE]
+====
+Collapsing and uncollapsing are safe *because* they preserve results.
+That is also why they are dangerous nowhere else: if someone tells you
+a subsystem was "simplified during collapse", ask for both runs'
+numbers. They must match.
+====
+
+.Limits of this model
+[NOTE]
+====
+Van1 and VanFlat matched digit for digit because nothing in this van
+needs anything more than a *block* to die for the system to notice —
+and block deaths do cross a hierarchy boundary cleanly. A *node* going
+Bad (a lost vote, a stalled switchover) is a different story: that
+status change does not propagate out through a hierarchy's Out marker
+the way a block failure does. Keep any vote or switch logic you care
+about, and the parts that react to it, on the same hierarchy level —
+splitting them across a boundary is a real engine limit, not just a
+drawing choice.
+====
+
+=== Checking one part on its own
+
+[NOTE]
+====
+This section is about running one hierarchy on its own. Its results are
+labelled as an isolated run everywhere they appear, and are never
+presented as whole-model results. To see a hierarchy's figures inside the
+whole model, run the whole model and read the weak-link results.
+====
+
+When you are building a big model one part at a time, you often want to
+know how *just the tires* behave before the rest of the van exists. Pick
+the hierarchy (the Model Explorer or the canvas), choose **Extract
+Hierarchy…** on the Model ribbon, and RAPTOR Studio builds a small
+standalone model: the hierarchy's contents become the whole diagram, its
+In door becomes the Start and its Out door the End. You can run it, save
+it. From the command line the same
+thing is:
+
+[source,console]
+----
+raptor extract Van1.rbds --hierarchy Tires_sub -o tires.rbd
+raptor run Van1.rbds --hierarchy Tires_sub
+----
+
+**What the input means.** The extract assumes the hierarchy's input is
+*always available*. Anything upstream of the door is outside and ignored,
+and every result says so.
+
+**What is lost at the boundary.** Some things inside a hierarchy are tied
+to things outside it. RAPTOR Studio scans for three kinds, tells you which
+it found, and lets you pick what to do about each:
+
+[cols="1,2,3",options="header"]
+|===
+|Kind |What it is |Choices (the first is the default)
+
+|Outside dependencies
+|A block inside follows a block, node, event or hierarchy outside, or
+follows the whole system.
+|`up`: the outside master is assumed always up (optimistic: no induced
+idling or failure from outside). `system`: "the system" becomes "this
+hierarchy" (right when the hierarchy is what brings the system down,
+optimistic otherwise). `refuse`: stop and list them.
+
+|Shared pools and resources
+|A spare pool or resource used by blocks inside **and** outside.
+|`full`: the extract gets the whole pool (optimistic: no competition).
+`share`: stock and units are cut to the share of users inside, rounded
+down, at least 1 (an approximation of a fair split, not real contention).
+`set`: you give the numbers. `refuse`.
+
+|Random-number streams
+|Blocks inside draw from a stream that blocks outside also use. This is
+the normal case: most blocks use the shared system stream.
+|`keep`: the stream numbers stay. The isolated run is a valid independent
+estimate, but it cannot repeat the draws the hierarchy saw inside the
+whole model. `separate`: each such block gets its own unused stream.
+|===
+
+[IMPORTANT]
+====
+No choice can make an isolated run reproduce the numbers the hierarchy
+produced inside the whole model. Shared streams are consumed in
+model-wide event order, and that order is gone once the rest is removed;
+the results differ by statistical noise, never by a bias you cannot
+explain. An "always down" choice is deliberately not offered: a block
+that is permanently idle or failed is never what someone checking a part
+of a model wants.
+====
+
+Costs, weak-link and capacity results describe the extract only. A model
+that ends after N system failures (or N phase cycles) now counts the
+hierarchy's failures, not the system's. If the hierarchy is itself
+phased, its own Cut or Linked phases are ignored in the isolated run, and
+you are warned.
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |A hierarchy's Out marker fails like a block. What happens to the
+parent diagram?
+|2 |In VanFlat the tires' vote sits directly in the main flow. Where
+did it go in Van1?
+|3 |You move a repairable block from inside a hierarchy to the top
+level without touching its dice. Which numbers change?
+|===
+
+.Answers
+[%collapsible]
+====
+. Nothing directly — but if flow can no longer pass through the
+   hierarchy (its interior cannot reach the Out marker), the parent
+   loses that path exactly as if an ordinary block had died. The oval
+   is only a window; failures inside are what matter.
+. Nowhere visible from the home level — it lives inside Tires_sub,
+   behind the In/Out doors. The parent shows one oval where the flat
+   model shows four blocks and a node.
+. None. Same dice in the same streams give the same event log;
+   availability, MTBDE, MDT all stay put. Only the picture changes —
+   which is exactly the chapter's point.
+====
+
+=== Exercise
+
+Give the van a spare wheel. Inside `Tires_sub`, add a fifth block
+`Tire_Spare` (Exponential, mean 800 h, Fixed 2 h repair) feeding the
+same vote node, and raise the vote to n = 5 while keeping k = 3.
+Before running: does availability rise or fall? Then run 100 trials
+and compare against the table above.
+
+[NOTE]
+====
+Adding an element *into* a hierarchy is the one placement task with a
+trick to it, so here is the whole sequence. The hierarchy's id is the
+number after the colon in its name in the *Model Explorer* tree
+(`RBDHier(20)`), or read the `Hierarchies` table that
+`describe_model(detail='full')` prints.
+
+. Get inside. Double-click the `Tires_sub` oval, or select the `Tires_sub`
+  node in the *Model Explorer* and expand it.
+. Place the block. *Model → Add Block*, click inside the oval, then
+  right-click the canvas to leave the tool. Rename it `Tire_Spare` and set
+  Exponential mean 800, Fixed repair 2 in the *Inspector* or *Data Tables*.
+. Wire it in. *Model → Connect*, then click `Tire_Spare` and then the
+  `Tires_vote` node. A block may take only one link in and one link out;
+  `Tires_vote` is the node that is allowed many of each.
+. Raise the vote. `Tires_vote` now has five incoming links, so its `n`
+  reads 5 on its own. Set `k` to 3 — the vote needs three working tires,
+  not five.
+. Check. Press *F7*. A new block that never fails because nothing
+  reaches it, or a node whose `n` disagrees with its real links, is
+  reported here rather than at simulation time.
+
+The same three things are what an assistant needs, and they are the
+fiddly part: `add_block(parent=20, ...)` puts the block inside the oval,
+`connect` attaches it to the vote, and `k` is then set explicitly because
+`k` is never inferred.
+====
+
+.Answer
+[%collapsible]
+====
+Availability rises. With five tires and "need 3", the van
+tolerates two flat tires instead of one; expected availability climbs
+from about 0.987 toward roughly 0.99+ at 100 trials. The spare wheel
+is cheap insurance because the vote still forgives two losses.
+====
+
+=== What you learned
+
+* A hierarchy is a named box hiding a sub-diagram behind In/Out doors.
+* Descending and ascending are navigation, never simulation changes.
+* Structure and behaviour are independent: flattening must reproduce
+  every number exactly.
+
+Next chapter: make the pipes matter — capacity, flow limits, and what
+happens when a surviving part simply cannot carry the load alone.

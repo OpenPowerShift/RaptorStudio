@@ -1,0 +1,70 @@
+= Break It Before It Breaks
+:doctype: book
+:toc: left
+:toclevels: 2
+:sectnums:
+:source-highlighter: none
+:imagesdir: images
+:experimental:
+:kbd-role: kbd
+:xrefstyle: full
+
+A hands-on introduction to reliability simulation with RAPTOR Studio,
+the free, open reliability block diagram modeller and simulator.
+
+include::chapters/ch00-welcome.adoc[]
+
+include::chapters/ch01-first-model.adoc[]
+
+include::chapters/ch02-redundancy.adoc[]
+
+include::chapters/ch-dependency.adoc[]
+
+include::chapters/ch03-voting.adoc[]
+
+include::chapters/ch04-distributions.adoc[]
+
+include::chapters/ch05-repair.adoc[]
+
+include::chapters/ch06-many-trials.adoc[]
+
+include::chapters/ch-transients.adoc[]
+
+include::chapters/ch07-sparing.adoc[]
+
+include::chapters/ch08-standby.adoc[]
+
+include::chapters/ch09-preventive.adoc[]
+
+include::chapters/ch10-hierarchy.adoc[]
+
+include::chapters/ch11-capacity.adoc[]
+
+include::chapters/ch12-cost.adoc[]
+
+include::chapters/ch-capstone-line.adoc[]
+
+include::chapters/ch13-weaklink.adoc[]
+
+include::chapters/ch-events.adoc[]
+
+include::chapters/ch-phasing.adoc[]
+
+include::chapters/ch14-capstone.adoc[]
+
+include::chapters/ch15-debugger.adoc[]
+
+include::chapters/ch16-mcp.adoc[]
+
+include::chapters/ch-capstone-flight.adoc[]
+
+include::chapters/appendix-glossary.adoc[]
+
+include::chapters/appendix-iec61078.adoc[]
+
+include::chapters/appendix-developer-options.adoc[]
+
+++++
+<div class="copyright-footer">Copyright © 2026 OpenPowerShift · RAPTOR Studio.<br>
+Original RAPTOR © ARINC / Booz Allen Hamilton, released as open source under the Booz Allen Public License v1.0 — thanks, BAH! New code in this port: Apache License 2.0.</div>
+++++

@@ -1,0 +1,62 @@
+Event_Log 	for 	FailSimOutOfSparesProbe.rbd	 	Wed Sep 23 10:11:29 2026
+
+
+0.000000          	System   	Begin_Run_1           	--               	--
+0.000000          	Block    	unnamed               	Good             	InitializeStress=1.000000
+0.924530          	Block    	unnamed               	Failed           	Operating_time=0.924530
+0.924530          	Block    	unnamed               	Sparing          	No_spare_in_stock-Custom
+0.924530          	Block    	unnamed               	Done             	No_spares
+0.924530          	Node     	end                   	Bad              	0-1/1_df2
+0.924530          	System   	State_change          	Red              	_d3
+0.924530          	System   	Permanently_Down      	Out_of_spares    	System_change
+0.924530          	Block    	unnamed               	Done             	End_sim
+0.924530          	System   	Phase_change          	Mission_failure  	Finished_a_mission
+0.924530          	System   	Simulation_Terminate  	--               	--
+
+0.000000          	System   	Begin_Run_2           	--               	--
+0.000000          	Block    	unnamed               	Good             	InitializeStress=1.000000
+0.178295          	Block    	unnamed               	Failed           	Operating_time=0.178295
+0.178295          	Block    	unnamed               	Sparing          	No_spare_in_stock-Custom
+0.178295          	Block    	unnamed               	Done             	No_spares
+0.178295          	Node     	end                   	Bad              	0-1/1_df2
+0.178295          	System   	State_change          	Red              	_d3
+0.178295          	System   	Permanently_Down      	Out_of_spares    	System_change
+0.178295          	Block    	unnamed               	Done             	End_sim
+0.178295          	System   	Phase_change          	Mission_failure  	Finished_a_mission
+0.178295          	System   	Simulation_Terminate  	--               	--
+
+0.000000          	System   	Begin_Run_3           	--               	--
+0.000000          	Block    	unnamed               	Good             	InitializeStress=1.000000
+0.242751          	Block    	unnamed               	Failed           	Operating_time=0.242751
+0.242751          	Block    	unnamed               	Sparing          	No_spare_in_stock-Custom
+0.242751          	Block    	unnamed               	Done             	No_spares
+0.242751          	Node     	end                   	Bad              	0-1/1_df2
+0.242751          	System   	State_change          	Red              	_d3
+0.242751          	System   	Permanently_Down      	Out_of_spares    	System_change
+0.242751          	Block    	unnamed               	Done             	End_sim
+0.242751          	System   	Phase_change          	Mission_failure  	Finished_a_mission
+0.242751          	System   	Simulation_Terminate  	--               	--
+
+0.000000          	System   	Begin_Run_4           	--               	--
+0.000000          	Block    	unnamed               	Good             	InitializeStress=1.000000
+0.976369          	Block    	unnamed               	Failed           	Operating_time=0.976369
+0.976369          	Block    	unnamed               	Sparing          	No_spare_in_stock-Custom
+0.976369          	Block    	unnamed               	Done             	No_spares
+0.976369          	Node     	end                   	Bad              	0-1/1_df2
+0.976369          	System   	State_change          	Red              	_d3
+0.976369          	System   	Permanently_Down      	Out_of_spares    	System_change
+0.976369          	Block    	unnamed               	Done             	End_sim
+0.976369          	System   	Phase_change          	Mission_failure  	Finished_a_mission
+0.976369          	System   	Simulation_Terminate  	--               	--
+
+0.000000          	System   	Begin_Run_5           	--               	--
+0.000000          	Block    	unnamed               	Good             	InitializeStress=1.000000
+0.246536          	Block    	unnamed               	Failed           	Operating_time=0.246536
+0.246536          	Block    	unnamed               	Sparing          	No_spare_in_stock-Custom
+0.246536          	Block    	unnamed               	Done             	No_spares
+0.246536          	Node     	end                   	Bad              	0-1/1_df2
+0.246536          	System   	State_change          	Red              	_d3
+0.246536          	System   	Permanently_Down      	Out_of_spares    	System_change
+0.246536          	Block    	unnamed               	Done             	End_sim
+0.246536          	System   	Phase_change          	Mission_failure  	Finished_a_mission
+0.246536          	System   	Simulation_Terminate  	--               	--

@@ -1,0 +1,39 @@
+.TH "RAPTOR-SET-PATHS" 7 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-set\-paths \- how to name a model field
+.SH DESCRIPTION
+The \-\-set options of raptor run, raptor sweep and raptor compare, and the arguments of raptor get and raptor set, name a model field with a path of the form kind:selector.field and give a value with =.
+.nf
+PATH GRAMMAR
+
+  kind:selector.field=value
+
+  kinds     block, event, hier, hierarchy, link, node, system, rate
+  selector  an element name (spaces and dots allowed) or a numeric id
+  field     the friendly .rbds name or the .rbd column name; the text after the last dot
+
+EXAMPLES
+  \-\-set 'block:Pump A.fail_dist=weibull' \-\-set 'block:Pump A.fail_params=1.5,500'
+  \-\-set 'block:12.repair_params[0]=36'
+  \-\-set node:N3.k=2
+  \-\-set system.runs=200 \-\-set system.length=8760
+  \-\-set rate:MTBF=1200
+
+system FIELDS
+  capacity, cost, flow, flow_generated, gy, length, num_runs, run_length, runs, start_stats, stats_start, termination, units, weak, weak_link, yr
+
+FIELDS BY KIND (friendly names; the .rbd file's column names and indexed forms such as repair_params[0] also work)
+  block   add_done, amount_exhausted, amt_exhausted, arrive, arrive_every, def_dep_state_idle, dep_fail, dep_idle, dep_nothing, dep_num, dep_pm, dep_pm_thresh, dep_type, dependency_num, dependency_type, done_fixed, done_per_time, emer_ship_cost, emer_shipping, emer_time, emergency, emertime, eso, fail_dist, fail_params, fail_stream, fdist, fparams, fstream, gd_limit, gd_rate, gd_type, growth_decay_limit, growth_decay_rate, growth_decay_type, id, idle, idle_cost, initial, initial_cost, level, name, new_sp, new_spares, newsp, num_res, num_resources, parent, per_spare, per_spare_cost, pm_cost, pm_dist, pm_duration_dist, pm_fail_reset, pm_fixed_cost, pm_freq, pm_hold_cost, pm_mis_defer, pm_params, pm_refresh, pm_req_defer, pm_spare, pm_stagger_time, pm_trig, pm_trigger, pm_triggered, pmfreq, post_dist, post_ldt_dist, post_ldt_params, post_params, pre_dist, pre_ldt_dist, pre_ldt_params, pre_params, quan, quantity, rdist, rep_fixed, rep_fixed_cost, rep_hold, rep_hold_cost, rep_per_time, rep_per_time_cost, repair_dist, repair_params, repair_stream, res1_pm_rep, res1_rep, resource1_name, resource_name, restock_every, rparams, rso, rstream, running, running_cost, sb_stress, sim_start, simstart, slo, slo_time, slotime, sp_type, spare_pool, spare_pool_name, spare_type, sparing_type, standby, standby_cost, standby_stress, stock, uses_phasing, uses_pm, usespm, x, y
+  node    autos, cold, dep_num, dep_type, div_flow, full_flow, id, k, k_star, kstar, n, name, ntype, out, parent, phases, pr, rep_cap, rep_na, type, x, y
+  event   dist, distro, fail_stream, id, init_cost, name, op_cost, parent, phasing, prob, rep_cost, x, y
+  hier    id, in_id, level, name, out_id, parent, phs, x, y
+  link    a_prob, aprob, auto, auto_time, cap_pri, cappri, cold_pri, coldpri, from_type, id, man, man_time, max_flow, maxflow, nom_flow, nomflow, parent, probability, to_type
+  system  capacity, capacity_analysis, cost, cost_analysis, flowGenerated, flow_generated, flowgenerated, graphics, gy_threshold, lost_cost, node_anal_type, num_runs, red_cost, run_length, start_stats, sys_streams, system_streams, term, term_condition, term_type, termination, termination_type, units, weak_analysis, weak_link, yr_threshold
+
+VALUES
+  numbers, a,b,c lists, true/false, distribution names (exponential, weibull, lognormal, ...), or a rate expression such as @MTBF*2
+.fi
+.SH SYSTEM FIELDS
+capacity, cost, flow, flow_generated, gy, length, num_runs, run_length, runs, start_stats, stats_start, termination, units, weak, weak_link, yr
+.SH SEE ALSO
+\fBraptor\fR(1), \fBraptor\-run\fR(1)

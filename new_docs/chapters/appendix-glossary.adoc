@@ -1,0 +1,209 @@
+[[appendix-glossary]]
+== Appendix: Glossary
+
+Words an engineer uses, in plain form.
+
+[cols="3,7",options="header"]
+|===
+|Word |Meaning
+
+|Availability
+|Fraction of time a system works. Answers: "is it selling soda right
+now, on average?"
+
+|Block
+|One part of the model that can fail. Drawn as a box.
+
+|Capacity analysis
+|Simulation that tracks *how much* flow reaches the end, not just
+whether a path exists. Adds lost flow, units produced, and the
+yellow "short but up" state.
+
+|Common-cause failure (CCF)
+|A shared root cause (one power feed, one flood zone, one bad batch)
+that breaks parts a diagram treats as independent. The main way real
+redundancy underperforms its paper reliability number.
+
+|Convergence
+|The settling of simulation answers as trials pile up.
+
+|Cost analysis
+|Simulation that also sums money: per-block purchase and repair
+costs, system red hours, and lost flow, rolled into a Grand_Total.
+
+|Degraded
+|System still works, but with less margin. Yellow on the health bar.
+
+|Dependability
+|Like availability, but scoped to one mission's phases rather than
+the whole run. Only ever reported for a phased model.
+
+|Dependency
+|One element watching another and reacting to it: when the
+depended-upon thing goes down, the dependent one is forced Idle —
+paused, not failed, clock stopped — until it comes back. Elemental
+(one specific block), local (its own downstream node) or system
+(the whole model) are the three flavors.
+
+|Distribution
+|The dice rule for a random quantity — here, a lifetime or a repair
+time. Examples: Exponential (no memory), Weibull (wear-out), Fixed
+(no surprise).
+
+|End node
+|The red dot that stands for the whole system. When flow cannot reach
+it, the system is down.
+
+|Event
+|A single Bernoulli pass/fail decision, made once at the very start
+of the mission — no operating clock, no wear. Drawn as a hexagon.
+
+|Event log
+|The minute-by-minute story of one trial: every failure, repair, and
+status change, in order.
+
+|Hazard function
+|The risk of failing *right now*, given survival so far. Falling
+early in life, flat through Exponential's "useful life," rising during
+wear-out — stack the three and you get the bathtub curve.
+
+|Hierarchy
+|A named box that hides a whole sub-diagram. Double-click to descend;
+the parent diagram sees only one oval.
+
+|Idle
+|A block or event deliberately or dependently paused — its failure
+clock stopped, not counted as a breakdown. Reached via dependency or
+a Cut mission phase.
+
+|In / Out marker
+|The two doors of a hierarchy: where flow enters and where it leaves.
+Everything between them is invisible from the parent level.
+
+|k-of-n vote
+|A junction alive while at least k of its n inputs are alive.
+Series is k = n; parallel redundancy is k = 1.
+
+|Importance measures (Birnbaum, RAW, RRW, Vesely–Fussell)
+|Numbers that say *which block to improve*. Each is estimated by
+re-simulating the model with one block made unable to fail and again with
+it dead. Birnbaum: how far the system moves when the block's own
+availability moves. RAW (risk achievement worth): how much worse things are
+if the block is dead. RRW (risk reduction worth): how much better if it
+never failed. Vesely–Fussell: the block's share of the downtime. Each is
+reported with its sampling error.
+
+|Life-cycle cost
+|One block's whole bill: purchase + operating + sparing + disposal.
+The COST report's per-block bottom line.
+
+|Link
+|An arrow between elements. It carries flow from Start toward End.
+
+|Lost flow
+|Demand the system could not deliver: thirst minus what survived the
+pipes. Availability never sees it; the capacity report does.
+
+|MDT
+|Mean Down Time. Average length of one full stoppage.
+
+|MTBDE
+|Mean Time Between Downs. Average working stretch between stoppages —
+a *system*-level number.
+
+|MTBF
+|Mean Time Between Failures. MTTF + MTTR for one repaired *part* —
+never confuse this component-level number with the system's MTBDE.
+
+|MTTF
+|Mean Time To Failure. One part's own average life.
+
+|MTTR
+|Mean Time To Repair. One part's own average fix time.
+
+|Mission
+|One simulated run, Start to finish. The trip, the season, the year.
+
+|N / N+1
+|Capacity shorthand. N = exactly enough parts (any failure bites);
+N+1 = one spare beyond need, the k-of-n vote with one forgiven
+failure.
+
+|Node
+|A junction that combines branches by a voting rule.
+
+|Weak link
+|The part whose failures cause the most *system* harm — frequency
+times consequence, not frequency alone. Fixing it promotes the
+runner-up.
+
+|2N
+|A complete second copy of a chain, either alone able to carry the
+load. The strongest redundancy badge — and the most expensive.
+
+|Nominal / max flow
+|The two sizes of a link. Nominal is the soft target filled first;
+max is the hard ceiling that only emergency spill touches.
+
+|Phase
+|A repeating mission stage with its own duration. A block can be Cut
+(out of the circuit, clock stopped), Active (normal stress) or Linked
+(in the circuit, no stress) differently in each one; a phase itself
+can be flagged Mission or non-Mission for Dependability's own clock.
+
+|RBD
+|Reliability Block Diagram. The picture itself; also the `.rbds` file
+format.
+
+|Redundancy
+|Extra copies of a part so one failure does not stop the system.
+
+|Reliability
+|Chance the system runs to mission end without any failure. Answers:
+"will it survive the whole weekend?"
+
+|Repair distribution
+|The dice for "how long does the fix take". Repair = None means the
+part never comes back.
+
+|Run / trial
+|One play-through of the mission with fresh dice rolls.
+
+|SEM
+|Standard error of the mean. Roughly your doubt about the answer:
+truth ≈ Mean ± 2 × SEM.
+
+|Series
+|All parts must work; one break kills the chain.
+
+|Seed
+|Starting number for the dice generator. Same seed, same story.
+
+|Validation
+|Checking that the *model* matches reality — the question no amount
+of stepping through a run can answer for you.
+
+|Verification
+|Checking that the *simulation* does what the model says. The
+stepping debugger's job.
+
+|Startup transient
+|The optimistic bias every simulation starts with: every part begins
+"as good as new." Real for short missions, diluted by a long one,
+removed outright by Statistics start time.
+
+|Statistics start time
+|The instant a run's own statistics reset to zero and start counting
+fresh, using the system's current state as the new baseline. The
+tool for discarding a startup transient without discarding the
+mission time that created it.
+
+|Steady state
+|How a system behaves once the startup transient has worn off — its
+long-run, ordinary-day behaviour, as opposed to its brand-new-machine
+behaviour.
+
+|Weibull shape
+|First Weibull parameter. Below 1: infant deaths. Near 1: random.
+Above 1: wear-out.
+|===

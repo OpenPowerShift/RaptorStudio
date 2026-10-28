@@ -1,0 +1,186 @@
+[[ch-events]]
+== Events: The Finale That Fires Once
+
+*Time: about 20 minutes.*
+*New ideas: the event, a one-shot Bernoulli decision, why some
+questions have no "how long" in them at all.*
+
+=== You will learn
+
+* What an *event* is, and how it differs from a block.
+* Why an event's whole story happens at a single instant — the very
+  start of the mission.
+* Which report numbers stop meaning anything once nothing takes time.
+
+=== You need
+
+* <<ch-first-model>> and <<ch-voting>> finished.
+* The file `models/FinaleShow1.rbds`.
++
+opsmodel:FinaleShow1[]
+
+=== The story
+
+You run the fireworks crew for a summer festival. The grand finale is
+one button press: five shells, wired to one control board, all fired
+at once. Each shell either lights or it doesn't — there is no "half a
+second later" to speak of, no wearing out, no warming up. It works or
+it is a dud, decided the instant the button goes down.
+
+The crowd will forgive one dud among five. They will not forgive a
+sad little finale. You need **at least 3 of the 5** shells to fire for
+the show to land. Question: with shells you'd rate at *80% reliable
+each*, how often does the finale actually land?
+
+=== One new idea: the event
+
+Every block in this book fails and lives across *time* — a clock ticks,
+dice get redrawn, days pass. An **event** is different: it is a single
+Bernoulli coin flip, decided once, at the very start of the mission,
+and never touched again. RAPTOR Studio draws it as a **hexagon**, not
+a rectangle, so you can tell the two apart on sight.
+
+image::finale-loaded.png[FinaleShow1: five Shell events feeding a need-3-of-5 vote node]
+
+Notice this model has **zero blocks** — the status bar says so. Five
+events (`Shell_1`…`Shell_5`), each an independent 80% chance of firing,
+feed the same kind of vote node <<ch-voting>> already taught you: need
+3 of the 5 inputs alive for the node — and the mission — to count as a
+success.
+
+[TIP]
+====
+An event's parameter is a plain probability, not a distribution family
+with a mean and a shape. There is nothing to fit, no warranty trap, no
+bathtub curve — just "how often does this exact thing work when asked."
+That simplicity is the whole point of reaching for an event instead of
+a block: use it for a pass/fail *decision*, not a *part*.
+====
+
+=== Run it
+
+Press F5. Watch the event log for one trial:
+
+----
+0.000000   Event   Shell_1   Armed     Initialize
+0.000000   Event   Shell_1   Success   Fired
+0.000000   Event   Shell_2   Armed     Initialize
+0.000000   Event   Shell_2   Success   Fired
+0.000000   Event   Shell_3   Armed     Initialize
+0.000000   Event   Shell_3   Success   Fired
+0.000000   Event   Shell_4   Armed     Initialize
+0.000000   Event   Shell_4   Success   Fired
+0.000000   Event   Shell_5   Armed     Initialize
+0.000000   Event   Shell_5   Failed    Fired
+0.000000   Node    Finale_vote   Degraded   4-3/5_...
+0.000000   System  State_change  Yellow     system_change_status
+0.000000   System  Phase_change  Mission_success   Finished_a_mission
+0.000000   System  Simulation_Terminate   --   --
+----
+
+Every single line lands at `t = 0.000000`. Shell_5 was a dud, but four
+of five still clears the 3-of-5 bar — the health bar shows *Yellow*,
+not *Red*, and the mission still counts as a success. Then the run
+simply ends: `Simulation_Terminate` fires immediately, because once
+every event has resolved, nothing in this model can ever change again.
+There is no rest of the mission to simulate.
+
+[cols="4,2",options="header"]
+|===
+|Measure |Value
+|Reliability (long-run) |about 0.94
+|Availability |1.000 — always
+|MTBDE / MDT |N/A
+|===
+
+Do the math check: five independent 80% shells, need at least three.
+P(≥3 of 5) = C(5,3)·0.8³·0.2² + C(5,4)·0.8⁴·0.2 + 0.8⁵ = 0.2048 +
+0.4096 + 0.32768 = **0.94208** — the simulator's own long-run number,
+to the fourth decimal. A high-trial run (20 000+) lands on 0.9423; a
+quick 20-trial run in the app might not, and that is <<ch-trials>>'s
+lesson again, not a new one.
+
+[NOTE]
+====
+Availability, MTBDE and MDT all either read 1.000 or N/A here, on
+purpose, not as a bug. Those numbers measure *time spent* working
+versus down — and this mission has no duration to spend. A model whose
+every event resolves at the same instant it starts is a model with
+nothing to be *available* over. Reliability — did the mission succeed,
+yes or no — is the only question an events-only model can actually
+answer, which is exactly <<ch-repair>>'s reliability-versus-availability
+lesson wearing a new hat.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |Why does Availability read exactly 1.000 in every run, even the
+runs where the finale is a bust?
+|2 |One shell is a dud, but the health bar shows Yellow, not Red.
+Why doesn't one dud alone sink the mission?
+|3 |Every event's log lines land at the same instant. Name one report
+column that would be meaningless for this model but essential for
+`Vendo1.rbds` back in <<ch-repair>>.
+|===
+
+.Answers
+[%collapsible]
+====
+. Availability measures the fraction of a mission's *duration* spent
+   working. This mission has no duration to spend — every event
+   resolves at t = 0 and the run ends immediately, so there is no
+   "time" for Availability to divide against, and it defaults to
+   1.000 regardless of outcome.
+. The vote only needs 3 of 5. One dud still leaves 4 up, which
+   clears the bar — the node reads Degraded (yellow), not Bad, and
+   the mission still counts as a success.
+. MTBDE (or MDT): both measure *time between* or *time spent*
+   downing events, which only mean something for a model where
+   things happen at different times. `Vendo1.rbds` has 20 000 hours
+   of history to measure; this model has none.
+====
+
+=== Exercise
+
+The town council tightens the bar: they now want **4 of the 5** shells
+to fire, not 3. Before running anything, use the same kind of
+arithmetic as above to predict the new reliability. Then change the
+vote node's *k* from 3 to 4 in the Data Tables and run 2000 trials to
+check yourself. How much did one extra required shell cost you?
+
+.Answer
+[%collapsible]
+====
+n=5, p=0.8, need k=4: P(≥4) = C(5,4)·0.8⁴·0.2 + 0.8⁵ =
+0.4096 + 0.32768 = 0.73728. A 2000-trial run lands close to 0.737 —
+one extra required shell costs about 20 points of reliability
+(0.942 → 0.737), a steep price for one more "must-fire."
+====
+
+.Limits of this model
+[NOTE]
+====
+Every shell is wired to the same control board and fires from the
+same battery, yet this model draws all five as independent coin flips
+— the same independence assumption every earlier chapter has made, now
+applied to a one-shot decision instead of a wearing-out part. A damp
+fuse box or a low battery would drag every shell's odds down together,
+not one at a time; that shared risk needs the same kind of dependency
+modelling <<ch-dependency>> introduced, and this book's events do not
+yet combine with it in a worked example.
+====
+
+=== What you learned
+
+* An event is a single Bernoulli decision, made once at the start of
+  the mission — no operating clock, no distribution family to pick.
+* Events combine with the vote nodes you already know; RAPTOR Studio
+  draws them as hexagons so you can spot them at a glance.
+* Time-based reports (Availability, MTBDE, MDT) go quiet for an
+  events-only model; Reliability is the number that still means
+  something when nothing takes any time at all.
+
+Next chapter: one system, three different mission stages, and the
+report that only exists once you tell the engine about them.

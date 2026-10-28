@@ -1,0 +1,58 @@
+= Node status and cold standby
+:toc: macro
+
+`raptor/core/engine/nodes.py`, `cold_standby.py`, `cascade_cold.py` · Raptor 7: `RBDNodeObj` (`ReconfigureNode`, `ChangeNodeState`, `IdAndSortColds`, `RunColdLogic`, `CheckColds`)
+
+toc::[]
+
+== Purpose
+
+A node joins several incoming paths and says how many must be up (k of n). When a block or event changes state it updates one incoming *link*, and the node re-aggregates its links into a status: AllUp, Degraded, Down, plus Standby, Idle and PM. A node's status then drives the next node downstream, dependents, hierarchy colours, the weak-link time columns and the system's Green/Yellow/Red.
+
+A *cold-standby* node (a switching group, k of n with priorities) works differently. It does not aggregate inline; it queues itself in the `ColdChangeGroup` and `CheckColds` later runs `RunColdLogic`, which decides which candidates run and which wait as Standby, starts switches that take time (auto, manual or none), and logs one status line for the group.
+
+== Source anchors
+
+[cols="3,3,4",options="header"]
+|===
+| Source | Port | Notes
+| `ReconfigureNode` | `nodes.reconfigure_node` (update a link) and `nodes.determine_node_status` (aggregate) | The cold branch is the `mark_cold_changed` callback
+| `ChangeNodeState` | `nodes.change_node_state` | Weak-link times, hierarchy rollups, returns the downstream deltas
+| `IdAndSortColds` | `cold_standby.sort_cold_links` | A swapping selection sort, *not stable*: priorities `[50, 50, 25]` give links `[3, 2, 1]`
+| `RunColdLogic` | `cold_standby.run_cold_logic` | Survey, keep or demote, switch, aggregate
+| `CheckColds` | `_Cascade._flush_cold_changes` (`cascade_cold.py`) | Drains the change group, then `ResendBackFlow`
+| `PrepForSwitch`, `PerformSwitch` | `cold_standby._prep_for_switch`, `cold_standby.perform_switch_process` | An async timer that ends in `"ready"` and re-runs the survey
+|===
+
+== Structure
+
+[mermaid]
+....
+flowchart TD
+    change["block / event / phase change<br/>updates one incoming link"] --> cold{"cold node and<br/>not higherCold?"}
+    cold -->|no| agg["determine_node_status:<br/>k-of-n over the links, log line,<br/>change_node_state, cascade downstream"]
+    cold -->|yes| queue["ColdChangeGroup.add(node)"]
+    queue --> check["CheckColds (flush)"]
+    check --> survey["run_cold_logic: bucket the links<br/>ready / switching / auto / manual / none"]
+    survey --> enough{"ready paths >= kMax?"}
+    enough -->|yes| demote["keep the first k, demote the rest<br/>(Too_many_on), promote a Standby one<br/>(Prior=Standby)"]
+    enough -->|no| sw["start switches (PrepForSwitch, PerformSwitch)<br/>or log Switch_Failed for a 'none' link"]
+    demote --> line["one node line: N/M_up..._s..._dsw..."]
+    sw --> line
+....
+
+`kMax` is k*, but a phased node with k* below k uses k ("cmc 12/21/06"). A candidate may be a block, a node (a `higherCold` freeze and a dependency back-flow), or an event (a no-op arm: `SetStuckOn` has no reader). The candidate order is the sorted link order, which is why the sort's tie behaviour is visible in the log (`ColdPriorityTieProbe`).
+
+== State it owns
+
+Per node: `cold_links` (the sorted order), `higher_cold`, the `path_*_value` counters. Per link: `switch_status` (`ready`, `auto`, `manual`, `none`, `autoInProgress`, `manualInProgress`, `Interrupted`), `switch_time`, and the process handle of a switch in flight.
+
+== Port-only devices and deliberate deviations
+
+* `ColdChangeGroup` is an insertion-ordered dict, because source's is a FIFO queue and a `set` drained in hash order once put lines in the wrong order.
+* A phase change or an event that reaches a cold node must go through the same queue (they do, since 2026-09-30); aggregating inline printed a line real never prints.
+* Switch interrupts are queued, with a re-entrancy guard, because source's `Interrupt` is not synchronous.
+
+== Tests and fixtures
+
+`tests/unit/test_cold_standby.py`, `test_nodes_engine.py`; byte-exact captures `HierarchyExample`, `CS_*`, `ColdPriorityTieProbe`, `ColdEventProbe`, `ColdPhasedKStarProbe`, `ColdHierSourceProbe`. A cold candidate that depends on another candidate of the same node crashes real Raptor and is refused (`model_checks.py`).

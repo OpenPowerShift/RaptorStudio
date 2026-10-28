@@ -1,0 +1,87 @@
+.TH "RAPTOR-FEV" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-fev \- Fail things and read the effects (Failure Effects View).
+.SH SYNOPSIS
+\fBraptor fev\fR [\-h] [\-\-phase N] [\-\-fail SEL] [\-\-repair SEL] [\-\-cycle SEL] [\-\-script FILE] [\-\-log FILE] [\-f {text,json}] [\-\-criticality] MODEL
+.SH DESCRIPTION
+Fail things and read the effects (Failure Effects View).
+Start from the all\-operating state (phase 1 of a phased model), apply the actions, and print the Failure Effects text. Nothing is simulated and no random number is drawn. Actions run in this order: \-\-phase, \-\-fail, \-\-repair, \-\-cycle; use \-\-script for any other order (see the script actions in raptor\-fev(1)).
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-phase\fR \fIN\fR
+go to phase N first (phased models)
+.TP
+\fB\-\-fail\fR \fISEL\fR
+fail a block or event (repeatable)
+.TP
+\fB\-\-repair\fR \fISEL\fR
+repair a failed block or event (repeatable)
+.TP
+\fB\-\-cycle\fR \fISEL\fR
+click an element, as the mouse does: cycles a hatched (induced) block (repeatable)
+.TP
+\fB\-\-script\fR \fIFILE\fR
+read actions from FILE, one per line (\- for stdin); each `write` line records the text at that point
+.TP
+\fB\-\-log\fR \fIFILE\fR
+write the Raptor 7\-format Failure Effects log (CRLF, the file Write To Failure Effects Log appends to)
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+
+.TP
+\fB\-\-criticality\fR
+add the Criticality line (Raptor 7's developer option)
+.SH EXAMPLES
+.PP
+Fail one block and read what it does to the system.
+.RS
+.nf
+\fBraptor fev pump.rbd \-\-fail 'Pump A'\fR
+.fi
+.RE
+.PP
+The same in phase 3, as JSON.
+.RS
+.nf
+\fBraptor fev plane.rbd \-\-phase 3 \-\-fail Hydraulics \-f json\fR
+.fi
+.RE
+.PP
+Replay a click script; every `write` line adds one block to the log, as Write To Failure Effects Log does.
+.RS
+.nf
+\fBraptor fev plane.rbd \-\-script session.fev \-\-log fevlog.txt\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1)
+.SH SCRIPT ACTIONS
+One action per line in a \fB--script\fR file; blank lines and text after \fB#\fR are ignored. The names are the elements' names or numeric ids.
+.TP
+\fBclick\fR
+left\-click a block or event (cycles a hatched block)
+.TP
+\fBfail\fR
+click an operating block, or an event that has not failed
+.TP
+\fBrepair\fR
+click a failed or PM block, or a failed event
+.TP
+\fBphase\fR
+go to phase N
+.TP
+\fBnext\fR
+the forward phase arrow (wraps)
+.TP
+\fBprev\fR
+the back phase arrow (wraps)
+.TP
+\fBerase\fR
+the large eraser: everything operating, phase 1
+.TP
+\fBerase\-phase\fR
+the small eraser: clear failures, keep the phase
+.TP
+\fBwrite\fR
+Write To Failure Effects Log: record the text now

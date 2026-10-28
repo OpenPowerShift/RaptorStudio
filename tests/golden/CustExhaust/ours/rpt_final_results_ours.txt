@@ -1,0 +1,45 @@
+Final_Results_Report for input.rbd  PROBE
+
+
+Results from 20 runs of sim time 1000.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.931934395     0.934010337     0.936009683     0.000872477     0.000195092     
+MTBDE                    13.909469       14.003860       14.181965       0.106177        0.023742        
+MDT                      0.968014        0.989355        1.015905        0.011535        0.002579        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          66              66.700000       67              0.470162        0.105131        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     5.697370        5.936039        6.268647        0.158193        0.035373        
+MTBMu                    24.588649       32.521520       46.701422       5.292475        1.183433        
+MTBMs                    7.075758        7.293343        7.548465        0.128093        0.028643        
+MMT                      1.134228        1.185444        1.231707        0.022544        0.005041        
+MMTu                     2.000000        2.000000        2.000000        0.000000        0.000000        
+MMTs                     1.000000        1.000000        1.000000        0.000000        0.000000        
+Green_Percent            84.965423       86.621888       88.634796       0.812662        0.181717        
+Yellow_Percent           4.768049        6.779146        8.393325        0.829373        0.185453        
+Red_Percent              6.399032        6.598966        6.806561        0.087248        0.019509        
+
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+BlockA                Custom                       8        14.90        23         3.80 
+BlockB                Infinite                     6        14.45        19         2.96 
+
+

@@ -1,0 +1,37 @@
+# The MCP Registry launches a PyPI server as `uvx <package>`, which runs the
+# executable named after the package. `raptor-studio` is the GUI (a windowed
+# script on Windows, with no stdio), so the registry lists this companion
+# instead: it holds no code, pins the matching `raptor-studio[mcp]` and names
+# the `raptor-studio-mcp` command. Built and published by release.yml next to
+# the main package; release-please bumps both version lines below.
+
+[project]
+name = "raptor-studio-mcp"
+version = "0.8.0"  # x-release-please-version
+description = "MCP server for RAPTOR Studio: build, validate and simulate reliability block diagrams from an AI assistant"
+readme = "README.md"
+requires-python = ">=3.12"
+keywords = ["mcp", "reliability", "simulation", "rbd", "monte-carlo"]
+authors = [{ name = "OpenPowerShift" }]
+license = "LicenseRef-BAPL-1.0 AND Apache-2.0"
+license-files = ["LICENSE", "LICENSES/Apache-2.0.txt", "NOTICE.md"]
+urls = { Homepage = "https://github.com/openpowershift/RaptorStudio", Documentation = "https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md", Issues = "https://github.com/openpowershift/RaptorStudio/issues" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "raptor-studio[mcp]==0.8.0",  # x-release-please-version
+]
+
+[project.scripts]
+raptor-studio-mcp = "raptor.mcp.server:main"
+
+[tool.setuptools]
+packages = []
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"

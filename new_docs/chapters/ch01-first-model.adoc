@@ -1,0 +1,311 @@
+[[ch-first-model]]
+== Your First Model: The Camping Lantern
+
+*Time: about 20 minutes.*
+*New ideas: blocks, a series chain, Start and End, the Run button,
+reliability.*
+
+=== You will learn
+
+* What a *block* is and what a *link* is.
+* How a *series* connection behaves.
+* How to run a simulation and read one number: *reliability*.
+
+=== You need
+
+* <<ch-welcome>> finished — you know your way around the window.
+* The file `models/Lantern1.rbds`, or the patience to build it yourself.
++
+opsmodel:Lantern1[]
+
+=== The story
+
+You are going camping for the weekend. Your trip lasts **48 hours**.
+Your lantern has three parts:
+
+* a **battery pack** — it dies of old age, usually near 60 hours of use,
+* a **switch** — cheap part, on average it survives about 200 hours,
+* an **LED panel** — very reliable, typically lives past 100 hours.
+
+If *any* part dies, the lantern is dark. You want to know: *what is the
+chance my lantern is still burning at hour 48?*
+
+=== One new idea: a series chain
+
+When parts are connected so that every part must work, engineers call
+it a **series** connection. Think of old Christmas lights: one dead
+bulb killed the whole string.
+
+image::series-lantern.svg[A series chain of three blocks]
+
+Rules to remember:
+
+* A **block** is one part that can fail.
+* An arrow between blocks is a **link**. It says "power flows here".
+* Every model starts at a green dot (**Start**) and finishes at a red
+  dot (**End**). The End point *is* the whole system.
+* In a series chain, the system works only while *every* block works.
+
+[TIP]
+====
+A good mental model: water flows from Start to End. If any pipe is
+broken, no water reaches End, and the system is down.
+====
+
+=== Open the model
+
+. In RAPTOR Studio, pick *File → Open* (Ctrl+O).
+. Choose `models/Lantern1.rbds`.
++
+opsmodel:Lantern1[]
+. Pick *View → Fit* (Ctrl+0) if the diagram looks small.
+
+image::lantern-loaded.png[Lantern1 loaded: three blocks in a row]
+
+You see three blocks in a row between Start and End. That is the whole
+model.
+
+=== Or build it yourself
+
+The rest of this chapter uses the ready-made file, but it is only three
+blocks, and building one is worth doing once before the models get
+bigger. There are two ways; both end with the same diagram.
+
+[TIP]
+====
+Follow one of these, not both. If you use an assistant with the RAPTOR MCP
+server connected (<<ch-mcp>>), take the *With an assistant* route — it is
+two tool calls and it doubles as your introduction to the MCP tools. The
+GUI route is the one you will use for everything else in the book.
+====
+
+==== With an assistant
+
+Ask for the model by name. A session looks like this (each line is a tool
+call the assistant makes; you do not type them yourself):
+
+[source,text]
+----
+build_model  name="Lantern1" spec={
+  "nodes": [
+    {"name": "start", "type": "start"},
+    {"name": "end",   "type": "end"}
+  ],
+  "blocks": [
+    {"name": "Battery_Pack", "fail_dist": 15, "fail_params": [1.5, 60, 0]},
+    {"name": "Switch",       "fail_dist": 4,  "fail_params": [200, 0]},
+    {"name": "LED_Panel",    "fail_dist": 8,  "fail_params": [100, 10]}
+  ],
+  "links": [
+    {"from": "start", "to": "Battery_Pack"},
+    {"from": "Battery_Pack", "to": "Switch"},
+    {"from": "Switch", "to": "LED_Panel"},
+    {"from": "LED_Panel", "to": "end"}
+  ]
+}
+----
+
+That builds the same diagram as `models/Lantern1.rbds`, so the numbers
+later in this chapter apply to what you just built.
+
+Two things in that spec are worth noticing, because `build_model` will
+refuse to build without them:
+
+* **The Start and End nodes are declared explicitly.** Unlike *File → New*,
+  a spec has no implied Start or End, so `links` that refer to them cannot
+  resolve until they are listed in `nodes`.
+* **`fail_params` is in the distribution's own parameter order**, not a
+  mean and a spread. A Weibull is `(shape, scale, location)`, so
+  `[1.5, 60, 0]` is "shape 1.5, scale 60 h" (the scale is the
+  characteristic life, a little above the mean). Ask
+  `list_distributions` when you are unsure; getting the order wrong is
+  the single easiest way to build a model that runs but says nothing.
+
+`build_model` assigns the ids, wires the links, syncs the element counts
+and tidies the layout in one call.
+
+To place the blocks *one at a time* instead — which is how you add to a
+model that already exists — the order matters:
+
+. Add every block and event first, then add the nodes, then connect.
+  Nodes are what fan-out and fan-in route through, so deciding where they
+  go is a separate decision from placing components.
+. Call `add_block` once per component. Leave `fail_dist` out and the block
+  takes the model's defaults; set `fail_dist` (a code from
+  `list_distributions`) and `fail_params` together, or not at all.
+. Call `add_node` for each node, setting `k` explicitly. A node's `n`
+  counts its *incoming links*, so wire the blocks into it before you
+  expect `n` to mean anything.
+. Call `connect` to wire them up. A block takes at most one link in and
+  one link out — where flow splits or rejoins, route through a Node
+  rather than adding a second link to a block.
+. Call `auto_layout` once at the end. This is the only step that arranges
+  the diagram; `render_diagram` draws the positions as they stand.
+
+Then check your work: `validate_model` reports anything illegal, and
+`render_diagram` shows you the picture.
+
+==== With the GUI
+
+. Pick *File → New* (or the *Blank model* card on the start page). You get
+  a Start, an End and one block, Block_1, wired between them.
+. Select Block_1 and, in the *Inspector*, rename it **Battery_Pack**.
+. Click the link from Battery_Pack to End and press *Del*: the two new
+  blocks go in between.
+. Click *Model → Add Block*, then click two empty spots on the canvas. The
+  tool stays on until you press *Q* (or right-click), so one click on the
+  button places as many blocks as you need. Rename them **Switch** and
+  **LED_Panel**.
+. Click *Model → Connect*, then click the source and then the target:
+  Battery_Pack → Switch, Switch → LED_Panel, LED_Panel → End. Right-click
+  empty canvas to cancel a connection in progress.
+. Give each block its failure rule from the table below, in the
+  *Inspector*'s *Failure* tab: pick the distribution, then fill in its
+  parameters. Take the parameter order from the field labels, not from
+  habit — a Weibull's first parameter is its *shape*, not its mean life.
+  On the *Repair* tab choose **None**: a new block comes with a repair
+  rule, and a lantern part that dies stays dead.
+. In the *Run* panel (bottom), set *Run length* to **48** hours and
+  *Trials* to **10**. A new model runs for 1,000 hours, which no lantern
+  survives.
+. Pick *Arrange → Auto Layout* (Ctrl+L) to arrange the diagram.
+. Check the *Issues* button on the Model tab (F7): a tick means the model
+  can run.
+
+You did not add a node, and you did not need one. A block takes one link
+in and one link out, so a plain chain of blocks wires up directly. You
+reach for a Node the moment flow *splits or rejoins* — the redundancy in
+<<ch-redundancy>> is the first place that happens.
+
+The two ordering rules worth remembering, because they are what makes a
+model work rather than merely look right:
+
+* *Place all your blocks, events and hierarchies first, then connect
+  them using nodes and links.*
+* *If you have two components, only one of which is required, put a node
+  near them.* That node is what says "one of these two will do".
+
+=== Read the data
+
+Open the **Data Tables** panel (*View* ribbon tab, *Panels* group). The *Blocks* tab
+shows each block's failure rule:
+
+[cols="3,2,2,2,2",options="header"]
+|===
+|Block |Failure dist |Param 1 |Param 2 |Repair
+|Battery_Pack |Weibull |1.5 |60 |None
+|Switch |Exponential |200 |— |None
+|LED_Panel |Normal |100 |10 |None
+|===
+
+What does this say?
+
+* *Failure dist* picks the dice the engine rolls for "how long until
+  this part dies". <<ch-distributions>> explains the different dice. For now:
+  Weibull and Exponential are classic lifetime curves; Normal is the
+  familiar bell curve.
+* *Repair* says `None` for all three. When one of these parts dies, it
+  stays dead. There is no repair shop in the woods.
+* The simulation settings (in *Model Explorer → Project Settings*)
+  say: stop at **48 hours**, do **10 trials**.
+
+=== Run it
+
+Press **F5**, or pick *Simulate → Run*. Watch the Results panel.
+
+image::lantern-results.png[After the run: results appear below]
+
+In the Results panel, open the *Final Results* tab and find the summary
+table. Look at the **Reliability** row, *Mean* column.
+
+With these exact files and 10 trials you should see something like:
+
+[cols="4,2",options="header"]
+|===
+|Measure |Typical value
+|Reliability (Mean) |about 0.3 to 0.5
+|System Failures (Mean) |about 0.5 to 0.7 per trial
+|===
+
+=== What just happened
+
+The simulator played your camping trip **10 times**. Each play is one
+*trial*. In each trial:
+
+. Each block rolled its own private dice for its death time.
+. If a block died before hour 48, the flow stopped there, and the
+   lantern counted as failed.
+. At hour 48, the engine wrote down: did the lantern survive?
+
+**Reliability** = (number of trials alive at hour 48) ÷ 10.
+
+Our long-run answer (thousands of trials) is close to **0.38**. So on
+roughly 4 trips out of 10, this lantern dies before the weekend ends.
+Time for a better battery pack!
+
+[NOTE]
+====
+Why is your number maybe not 0.38? Ten trials is a tiny sample. One
+extra lucky trip changes the answer by 0.1. <<ch-trials>> shows exactly
+how many trials you need.
+====
+
+.Limits of this model
+[NOTE]
+====
+The engine rolls one private die per block: the battery's death and
+the switch's death are drawn independently. That is a modelling choice,
+not a fact about lanterns. If the real battery pack sometimes leaks
+and corrodes the switch contacts, the two parts' failures are
+*correlated* — and a model that assumes independence will always be
+too optimistic about how often "both fail together" happens. Series
+logic (any one death kills the system) is still exactly right here;
+it is the *independent dice* assumption underneath it that a real
+study must check.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |In a series chain of 5 blocks, how many blocks may fail and still
+leave the system working?
+|2 |What does one *trial* mean?
+|3 |Where does the engine write the reliability number?
+|===
+
+.Answers
+[%collapsible]
+====
+. Zero. Series means every block must work.
+. One simulated play of the mission — 48 lantern hours with fresh
+   dice rolls.
+. In the Results panel, *Final Results* tab, Reliability row.
+====
+
+=== Exercise
+
+Change the battery pack's Param 1 from `1.5` to `1.1` in the Data
+Tables (keep Param 2 = 60). Run again with more trials: set the run
+count (*Trials* in the *Run* panel) to 100 first.
+
+*Hint:* a smaller shape parameter means failures spread out more, with
+many early deaths. Does reliability go up or down?
+
+.Answer
+[%collapsible]
+====
+Reliability drops. With shape 1.1 the battery produces many
+very early deaths, and the chain has no spare parts. Expect roughly
+0.25–0.30 at 100 trials.
+====
+
+=== What you learned
+
+* A model is blocks plus links plus failure rules.
+* Series means: all blocks must work.
+* Reliability counts trials that reach the mission end alive.
+* Few trials give wobbly answers.
+
+Next chapter: how to make a machine that keeps working even when a part
+dies.

@@ -1,0 +1,622 @@
+{
+ "block:PM distribution:3": {
+  "attrs": {
+   "pm_dist": 3
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "Dist": "3"
+  },
+  "sublabel_changed": false
+ },
+ "block:PM frequency:123.0": {
+  "attrs": {
+   "pm_freq": 123.0
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "PMFreq": "123.000000"
+  },
+  "sublabel_changed": false
+ },
+ "block:PM params:[7.0, 8.0, 9.0]": {
+  "attrs": {
+   "pm_params": [
+    7.0,
+    8.0,
+    9.0
+   ]
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "Param1#3": "7.000000",
+   "Param2#3": "8.000000",
+   "Param3#3": "9.000000"
+  },
+  "sublabel_changed": false
+ },
+ "block:PM stagger:4.5": {
+  "attrs": {
+   "pm_stagger": 4.5
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "PMStaggerTime": "4.500000"
+  },
+  "sublabel_changed": false
+ },
+ "block:always add done cost:True": {
+  "attrs": {
+   "always_add_done_cost": true
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "addDone": "1"
+  },
+  "sublabel_changed": false
+ },
+ "block:block dep default idle:True": {
+  "attrs": {
+   "def_dep_state_idle": true
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {},
+  "sublabel_changed": false
+ },
+ "block:block dependency:[3, 'RBDBlock']": {
+  "attrs": {
+   "dep_type": "RBDBlock",
+   "dependency_num": 3
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "DepNum": "3",
+   "DepType": "RBDBlock"
+  },
+  "sublabel_changed": false
+ },
+ "block:block gd rate limit:[0.1, 5.0]": {
+  "attrs": {
+   "gd_limit": 5.0,
+   "gd_rate": 0.1
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "GDLimit": "5.000000",
+   "GDRate": "0.100000"
+  },
+  "sublabel_changed": false
+ },
+ "block:block gd type:2": {
+  "attrs": {
+   "gd_type": 2
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "GDType": "2"
+  },
+  "sublabel_changed": false
+ },
+ "block:block new spares:[3, 12.0]": {
+  "attrs": {
+   "new_spares": 3,
+   "new_spares_arrival": 12.0
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "ArriveEvery": "12.000000",
+   "NewSp": "3"
+  },
+  "sublabel_changed": false
+ },
+ "block:block pm fail_reset:False": {
+  "attrs": {
+   "pm_fail_reset": false
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "PMFailReset": "0"
+  },
+  "sublabel_changed": false
+ },
+ "block:block pm mis_defer:True": {
+  "attrs": {
+   "pm_mis_defer": true
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "PMMisDefer": "1"
+  },
+  "sublabel_changed": false
+ },
+ "block:block pm refresh:False": {
+  "attrs": {
+   "pm_refresh": false
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "PMRefresh": "0"
+  },
+  "sublabel_changed": false
+ },
+ "block:block pm req_defer:False": {
+  "attrs": {
+   "pm_req_defer": false
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "PMReqDefer": "0"
+  },
+  "sublabel_changed": false
+ },
+ "block:block pm spare_needed:False": {
+  "attrs": {
+   "pm_spare_needed": false
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "PMSpare": "0"
+  },
+  "sublabel_changed": false
+ },
+ "block:block resource counts:[2, 1]": {
+  "attrs": {
+   "repair_resources_needed": 2
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "#Res1Rep": "2"
+  },
+  "sublabel_changed": false
+ },
+ "block:block resource pool:['ResA', 2]": {
+  "attrs": {
+   "resource_type_count": 2,
+   "resource_pool_name": "ResA"
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "NumRes": "2",
+   "Resource1Name": "ResA"
+  },
+  "sublabel_changed": false
+ },
+ "block:block standby stress:1.5": {
+  "attrs": {
+   "sb_stress": 1.5
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "SBStress": "1.500000"
+  },
+  "sublabel_changed": false
+ },
+ "block:block uses pm:True": {
+  "attrs": {
+   "uses_pm": true
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "usesPM": "1"
+  },
+  "sublabel_changed": false
+ },
+ "block:costs:[1.5, 3.0, 4.5, 6.0, 7.5, 9.0, 10.5, 12.0, 13.5, 15.0, 16.5, 18.0, 19.5, 21.0]": {
+  "attrs": {
+   "done_cost": 18.0,
+   "done_fixed_cost": 16.5,
+   "emergency_shipping_cost": 21.0,
+   "idle_cost": 6.0,
+   "initial_cost": 1.5,
+   "operating_cost": 3.0,
+   "pm_cost": 13.5,
+   "pm_fixed_cost": 12.0,
+   "pm_hold_cost": 15.0,
+   "rep_fixed_cost": 7.5,
+   "rep_hold_cost": 10.5,
+   "repairing_cost": 9.0,
+   "spare_cost": 19.5,
+   "standby_cost": 4.5
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "Running": "3.000000",
+   "doneFixed": "16.500000",
+   "donePerTime": "18.000000",
+   "emerShipping": "21.000000",
+   "idle": "6.000000",
+   "initial": "1.500000",
+   "perSpare": "19.500000",
+   "pmCost": "13.500000",
+   "pmFixedCost": "12.000000",
+   "pmHoldCost": "15.000000",
+   "repFixed": "7.500000",
+   "repHold": "10.500000",
+   "repPerTime": "9.000000",
+   "standby": "4.500000"
+  },
+  "sublabel_changed": false
+ },
+ "block:dependency fields:[10.0, 20.0, 30.0, 40.0, 50.0]": {
+  "attrs": {
+   "dep_fail_percent": 40.0,
+   "dep_idle_percent": 20.0,
+   "dep_nothing_percent": 10.0,
+   "dep_pm_percent": 30.0
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "DepFail": "40.000000",
+   "DepIdle": "20.000000",
+   "DepNothing": "10.000000",
+   "DepPM": "30.000000",
+   "DepPMThresh": "50.000000"
+  },
+  "sublabel_changed": false
+ },
+ "block:failure params:[1.5, 2.5, 0.5]": {
+  "attrs": {
+   "fail_values": [
+    1.5,
+    2.5,
+    0.5
+   ]
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "FParam1": "1.500000",
+   "FParam2": "2.500000",
+   "FParam3": "0.500000"
+  },
+  "sublabel_changed": true
+ },
+ "block:initial stock:7": {
+  "attrs": {
+   "init_stock": 7
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "Stock": "7"
+  },
+  "sublabel_changed": false
+ },
+ "block:pm trigger:[False, 'TrigA']": {
+  "attrs": {
+   "pm_trig": "",
+   "pm_triggered": false
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "pmTrig": "",
+   "pmTriggered": "0"
+  },
+  "sublabel_changed": false
+ },
+ "block:pm trigger:[True, 'TrigA']": {
+  "attrs": {
+   "pm_trig": "TrigA",
+   "pm_triggered": true
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "pmTrig": "TrigA",
+   "pmTriggered": "1"
+  },
+  "sublabel_changed": false
+ },
+ "block:pool name:''": {
+  "attrs": {
+   "pool_name": ""
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "SparePoolName": "unnamed"
+  },
+  "sublabel_changed": false
+ },
+ "block:pool name:'PoolX'": {
+  "attrs": {
+   "pool_name": "PoolX"
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "SparePoolName": "PoolX"
+  },
+  "sublabel_changed": false
+ },
+ "block:post LDT dist:5": {
+  "attrs": {
+   "post_dist": 5
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "Post-LDTDist": "5"
+  },
+  "sublabel_changed": false
+ },
+ "block:post LDT params:[4.0, 5.0, 6.0]": {
+  "attrs": {
+   "post_params": [
+    4.0,
+    5.0,
+    6.0
+   ]
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "Param1#2": "4.000000",
+   "Param2#2": "5.000000",
+   "Param3#2": "6.000000"
+  },
+  "sublabel_changed": false
+ },
+ "block:pre LDT dist:4": {
+  "attrs": {
+   "pre_dist": 4
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "Pre-LDTDist": "4"
+  },
+  "sublabel_changed": false
+ },
+ "block:pre LDT params:[1.0, 2.0, 3.0]": {
+  "attrs": {
+   "pre_params": [
+    1.0,
+    2.0,
+    3.0
+   ]
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "Param1#1": "1.000000",
+   "Param2#1": "2.000000",
+   "Param3#1": "3.000000"
+  },
+  "sublabel_changed": false
+ },
+ "block:repair params:[3.5, 4.5, 0.25]": {
+  "attrs": {
+   "repair_values": [
+    3.5,
+    4.5,
+    0.25
+   ]
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "RParam1": "3.500000",
+   "RParam2": "4.500000",
+   "RParam3": "0.250000"
+  },
+  "sublabel_changed": true
+ },
+ "block:sparing type:'NONE'": {
+  "attrs": {
+   "sparing_type": "SparingType.NONE"
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "SpType": "None"
+  },
+  "sublabel_changed": false
+ },
+ "block:stream edit:['F', 211]": {
+  "attrs": {
+   "fail_stream": 211
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "FStream": "211"
+  },
+  "sublabel_changed": false
+ },
+ "block:stream edit:['FR', 210]": {
+  "attrs": {
+   "fail_stream": 210,
+   "repair_stream": 210
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "FStream": "210",
+   "RStream": "210"
+  },
+  "sublabel_changed": false
+ },
+ "block:stream edit:['R', 212]": {
+  "attrs": {
+   "repair_stream": 212
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "RStream": "212"
+  },
+  "sublabel_changed": false
+ },
+ "event:event costs:[1.0, 2.0, 3.0]": {
+  "attrs": {
+   "operating_cost": 2.0,
+   "repairing_cost": 3.0
+  },
+  "edited_sets": [],
+  "row": {
+   "OpCost": "2.000000",
+   "RepCost": "3.000000"
+  },
+  "sublabel_changed": false
+ },
+ "event:event dist:2": {
+  "attrs": {
+   "fail_distro": 2
+  },
+  "edited_sets": [],
+  "row": {
+   "Distro": "2"
+  },
+  "sublabel_changed": false
+ },
+ "event:event param:0.25": {
+  "attrs": {
+   "fail_mean": 0.25
+  },
+  "edited_sets": [],
+  "row": {
+   "failVal": "0.250000"
+  },
+  "sublabel_changed": false
+ },
+ "event:event stream:208": {
+  "attrs": {
+   "fail_stream": 208
+  },
+  "edited_sets": [],
+  "row": {
+   "failStream": "208"
+  },
+  "sublabel_changed": false
+ },
+ "node:node any path:False": {
+  "attrs": {
+   "any_path": false
+  },
+  "edited_sets": [],
+  "has_dep_badge": false,
+  "row": {
+   "divFlow": "0"
+  },
+  "sublabel_changed": false
+ },
+ "node:node check autos first:True": {
+  "attrs": {
+   "check_autos_first": true
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "Autos": "1"
+  },
+  "sublabel_changed": false
+ },
+ "node:node cold standby:True": {
+  "attrs": {
+   "cold_standby": true
+  },
+  "edited_sets": [
+   "_edited_standby"
+  ],
+  "has_dep_badge": true,
+  "row": {
+   "Cold": "1"
+  },
+  "sublabel_changed": false
+ },
+ "node:node dependency:[2, 'RBDBlock']": {
+  "attrs": {
+   "dep_type": "RBDBlock",
+   "dependency_num": 2
+  },
+  "edited_sets": [
+   "_edited_node_deps"
+  ],
+  "has_dep_badge": true,
+  "row": {
+   "depNum": "2",
+   "depType": "RBDBlock"
+  },
+  "sublabel_changed": false
+ },
+ "node:node full flow:True": {
+  "attrs": {},
+  "edited_sets": [
+   "_edited_flow_flags"
+  ],
+  "has_dep_badge": false,
+  "row": {},
+  "sublabel_changed": false
+ },
+ "node:node k star:3": {
+  "attrs": {
+   "k_star": 3
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "k*": "3"
+  },
+  "sublabel_changed": false
+ },
+ "node:node k:2": {
+  "attrs": {
+   "good_paths": 2
+  },
+  "edited_sets": [
+   "_edited_good_paths"
+  ],
+  "has_dep_badge": false,
+  "row": {
+   "k": "2"
+  },
+  "sublabel_changed": false
+ },
+ "node:node priority return:True": {
+  "attrs": {
+   "priority_return": true
+  },
+  "edited_sets": [],
+  "has_dep_badge": true,
+  "row": {
+   "PR": "1"
+  },
+  "sublabel_changed": false
+ },
+ "node:node report anal:True": {
+  "attrs": {
+   "report_node_anal": true
+  },
+  "edited_sets": [
+   "_edited_report_anal"
+  ],
+  "has_dep_badge": true,
+  "row": {
+   "repNA": "1"
+  },
+  "sublabel_changed": false
+ }
+}

@@ -1,0 +1,18 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: RAPTOR Studio
+Upstream-Contact: OpenPowerShift <info@openpowershift.com>
+Source: https://github.com/openpowershift/RaptorStudio
+Comment: The bundled third-party components (Qt/PySide6, WeasyPrint and its
+ dependencies, MathJax, Python) and their licences are listed in
+ /usr/lib/raptor-studio/_internal/THIRD_PARTY_NOTICES.md; their licence
+ texts are in /usr/lib/raptor-studio/_internal/licenses/.
+
+Files: *
+Copyright: 2026 OpenPowerShift
+ ARINC and Booz Allen Hamilton (the original RAPTOR, from which portions derive)
+License: LicenseRef-BAPL-1.0 and Apache-2.0
+ Portions derived from RAPTOR are under the Booz Allen Public License v1.0;
+ new code is under the Apache License 2.0. The full texts are in
+ /usr/lib/raptor-studio/_internal/LICENSE and
+ /usr/lib/raptor-studio/_internal/LICENSES/Apache-2.0.txt; attribution in
+ /usr/lib/raptor-studio/_internal/NOTICE.md.

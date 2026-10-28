@@ -1,0 +1,99 @@
+Final_Results_Report for input.rbd  Wed Sep 30 05:27:13 2026
+
+
+Results from 1 run of sim time 40.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Total_Cost               817.00          817.00          817.00          N/A             N/A             
+Availability             0.775000000     0.775000000     0.775000000     N/A             N/A             
+MTBDE                    10.333333       10.333333       10.333333       N/A             N/A             
+MDT                      3.000000        3.000000        3.000000        N/A             N/A             
+Reliability              0.000000000     0.000000000     0.000000000     N/A             N/A             
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     N/A             N/A             
+System_Failures          3               3.000000        3               N/A             N/A             
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     2.583333        2.583333        2.583333        N/A             N/A             
+MTBMu                    2.583333        2.583333        2.583333        N/A             N/A             
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      3.000000        3.000000        3.000000        N/A             N/A             
+MMTu                     3.000000        3.000000        3.000000        N/A             N/A             
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            77.500000       77.500000       77.500000       N/A             N/A             
+Yellow_Percent           0.000000        0.000000        0.000000        N/A             N/A             
+Red_Percent              22.500000       22.500000       22.500000       N/A             N/A             
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+Armature              Infinite                     3         3.00         3          N/A 
+Brushes               Infinite                     3         3.00         3          N/A 
+Casing                Infinite                     3         3.00         3          N/A 
+Magnets               Infinite                     3         3.00         3          N/A 
+PowerSupply           Infinite                     0         0.00         0          N/A 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier        Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Armature                0          31.00       12.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Brushes                 0          31.00       12.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Casing                  0          31.00       12.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Magnets                 0          31.00       12.00        0.00        0.00        0.00        0.00        0.00        0.00 
+PowerSupply             0          40.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                            164.00       48.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Armature                    0.00      150.00        0.00 
+Brushes                     0.00      150.00        0.00 
+Casing                      0.00      150.00        0.00 
+Magnets                     0.00      150.00        0.00 
+PowerSupply                 0.00        0.00        0.00 
+
+Totals                      0.00      600.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Armature                    1.00       43.00      150.00        0.00      194.00 
+Brushes                     1.00       43.00      150.00        0.00      194.00 
+Casing                      1.00       43.00      150.00        0.00      194.00 
+Magnets                     1.00       43.00      150.00        0.00      194.00 
+PowerSupply                 1.00       40.00        0.00        0.00       41.00 
+
+Block_Totals                5.00      212.00      600.00        0.00      817.00 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                    817.00
+Events                      0.00
+SparePools                  0.00
+Resources                   0.00
+
+________________________________
+Grand_Total               817.00
+
+
+

@@ -1,0 +1,4981 @@
+End_Of_Run Report for input.rbd  PROBE
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.972762928
+MTBDE                      81.063577
+MDT                        2.269756
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     60
+NumberOfComponentFailures  89
+
+
+
+***LOGISTICS***
+
+MTBM                  18.148562
+MTBMu                 54.649603
+MTBMs                 27.172149
+MMT                   7.511841
+MMTu                  15.726814
+MMTs                  3.427302
+GreenPercent          67.673024
+YellowPercent         29.603269
+RedPercent            2.723707
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.464327      79.944600     151.000000      53.010593
+DT                             0.500000       2.269756       8.997941       1.176570
+TBM                            0.000000      55.807329     216.725906      50.509685
+RT                             1.816382      15.726814      79.269218       9.776185
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        7   Motors                       7
+S1B3                        0   Motors                       0
+S2B1                        9   Infinite                     9
+S2B2                       10   Infinite                    29
+S2B3                        8   Infinite                     8
+S2B4                        3   Infinite                     3
+S3B1                        7   Seals                       24
+S3B2                        7   Seals                        7
+S3B3                        4   Seals                        4
+S3B4                        2   Seals                        2
+S4B1                        3   Infinite                     3
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        6   Filters                      6
+S5B3                        7   Filters                      7
+S6B1                        2   Infinite                     2
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        41.79         80         80          0 
+Seals                            6         60          4        15.11         29         29          0 
+Filters                          8        100          8        46.19         88         88          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.70            5            5          0 
+Crane                            2            0         1.87            2            2          4 
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.971818107
+MTBDE                      74.755239
+MDT                        2.167838
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     65
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  17.930223
+MTBMu                 53.396599
+MTBMs                 26.994947
+MMT                   6.840542
+MMTu                  13.495822
+MMTs                  3.475928
+GreenPercent          44.273976
+YellowPercent         52.907834
+RedPercent            2.818189
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.777325      74.049121     155.891063      52.268072
+DT                             0.494199       2.167838       7.986984       0.940070
+TBM                            0.000000      54.485163     271.295859      52.561907
+RT                             2.890349      13.495822      33.058421       6.446224
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        4   Motors                      23
+S1B2                        7   Motors                       7
+S1B3                        1   Motors                       1
+S2B1                        9   Infinite                     9
+S2B2                        5   Infinite                    24
+S2B3                        5   Infinite                     5
+S2B4                        6   Infinite                     6
+S3B1                        5   Seals                       24
+S3B2                       12   Seals                       12
+S3B3                        7   Seals                        7
+S3B4                        2   Seals                        2
+S4B1                        3   Infinite                     4
+S4B2                        3   Infinite                     3
+S4B3                        1   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        4   Filters                      4
+S5B3                        7   Filters                      7
+S6B1                        3   Infinite                     3
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        41.63         77         77          0 
+Seals                            6         60          5        12.79         22         21          0 
+Filters                          8        100          8        47.45         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.75            5            5          0 
+Crane                            2            0         1.86            2            2          2 
+
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.971603571
+MTBDE                      77.111395
+MDT                        2.253685
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     63
+NumberOfComponentFailures  87
+
+
+
+***LOGISTICS***
+
+MTBM                  18.471551
+MTBMu                 55.839286
+MTBMs                 27.602374
+MMT                   6.736425
+MMTu                  13.777023
+MMTs                  3.256130
+GreenPercent          71.150748
+YellowPercent         26.009609
+RedPercent            2.839643
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.368970      75.891796     173.980545      53.499884
+DT                             0.500000       2.253685       7.260786       0.899462
+TBM                            0.000000      56.758022     270.315111      57.320225
+RT                             3.443308      13.777023      46.159287       7.662315
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        3   Motors                       3
+S1B3                        0   Motors                       0
+S2B1                        9   Infinite                     9
+S2B2                        6   Infinite                    25
+S2B3                        5   Infinite                     5
+S2B4                        5   Infinite                     5
+S3B1                        2   Seals                       20
+S3B2                        7   Seals                        7
+S3B3                        8   Seals                        8
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     6
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                       10   Infinite                    10
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        43.05         84         84          0 
+Seals                            6         60          6        15.83         29         29          0 
+Filters                          8        100          8        46.49         89         89          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.75            5            5          0 
+Crane                            2            0         1.87            2            2          0 
+
+
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.965013714
+MTBDE                      77.823687
+MDT                        2.821475
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     62
+NumberOfComponentFailures  97
+
+
+
+***LOGISTICS***
+
+MTBM                  17.482133
+MTBMu                 49.742975
+MTBMs                 26.955690
+MMT                   7.000281
+MMTu                  13.791284
+MMTs                  3.320241
+GreenPercent          68.617352
+YellowPercent         27.884019
+RedPercent            3.498629
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.052361      76.029072     158.235906      51.703551
+DT                             0.500000       2.821475      13.395801       2.257498
+TBM                            0.000000      50.864237     210.690313      48.975182
+RT                             1.195771      13.791284      44.620949       7.439520
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                       11   Motors                      11
+S1B3                        1   Motors                       1
+S2B1                        7   Infinite                     7
+S2B2                        8   Infinite                    27
+S2B3                        8   Infinite                     8
+S2B4                        4   Infinite                     4
+S3B1                        6   Seals                       26
+S3B2                        8   Seals                        8
+S3B3                       11   Seals                       11
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     4
+S4B2                        5   Infinite                     5
+S4B3                        1   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        3   Infinite                     3
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        40.04         76         76          0 
+Seals                            6         60          5        10.94         19         19          0 
+Filters                          8        100          8        48.90         91         91          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.69            5            5          0 
+Crane                            2            0         1.87            2            2          0 
+
+
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.966017660
+MTBDE                      74.309051
+MDT                        2.614026
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     65
+NumberOfComponentFailures  89
+
+
+
+***LOGISTICS***
+
+MTBM                  18.022718
+MTBMu                 54.270655
+MTBMs                 26.983734
+MMT                   7.039038
+MMTu                  14.115540
+MMTs                  3.520553
+GreenPercent          69.418634
+YellowPercent         27.183132
+RedPercent            3.398234
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.965166      73.188621     151.000000      53.830481
+DT                             0.451755       2.614026      10.403995       1.703350
+TBM                            0.000000      53.691138     239.936889      52.709735
+RT                             1.575286      14.115540      51.288225       8.435017
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        8   Motors                       8
+S1B3                        1   Motors                       1
+S2B1                        9   Infinite                     9
+S2B2                       11   Infinite                    30
+S2B3                        4   Infinite                     4
+S2B4                        6   Infinite                     6
+S3B1                        5   Seals                       24
+S3B2                        6   Seals                        6
+S3B3                        6   Seals                        6
+S3B4                        1   Seals                        1
+S4B1                        6   Infinite                     6
+S4B2                        3   Infinite                     3
+S4B3                        0   Infinite                    19
+S5B1                        4   Filters                      4
+S5B2                        6   Filters                      6
+S5B3                        7   Filters                      7
+S6B1                        3   Infinite                     3
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.64         78         78          0 
+Seals                            6         60          6        16.59         29         29          0 
+Filters                          8        100          8        48.35         91         91          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.69            5            5          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.971217343
+MTBDE                      80.934779
+MDT                        2.398555
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     60
+NumberOfComponentFailures  92
+
+
+
+***LOGISTICS***
+
+MTBM                  17.985506
+MTBMu                 52.783551
+MTBMs                 27.281386
+MMT                   7.073008
+MMTu                  14.003047
+MMTs                  3.491190
+GreenPercent          69.065658
+YellowPercent         28.056076
+RedPercent            2.878266
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.323496      79.502550     154.080734      53.204267
+DT                             0.500000       2.398555       8.370789       1.096070
+TBM                            0.000000      52.596563     255.989263      58.889894
+RT                             2.274956      14.003047      58.266308       8.264557
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       15   Motors                      15
+S1B3                        2   Motors                       2
+S2B1                        8   Infinite                     8
+S2B2                        6   Infinite                    25
+S2B3                        6   Infinite                     6
+S2B4                        5   Infinite                     5
+S3B1                        4   Seals                       21
+S3B2                        8   Seals                        8
+S3B3                        8   Seals                        8
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     4
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        5   Filters                      5
+S5B2                        4   Filters                      4
+S5B3                        7   Filters                      7
+S6B1                        2   Infinite                     2
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        36.95         70         70          0 
+Seals                            6         60          5        15.47         27         27          0 
+Filters                          8        100          8        48.34         92         92          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.73            5            5          0 
+Crane                            2            0         1.87            2            2          2 
+
+
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.967043464
+MTBDE                      72.167423
+MDT                        2.459443
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     67
+NumberOfComponentFailures  99
+
+
+
+***LOGISTICS***
+
+MTBM                  17.518903
+MTBMu                 48.840579
+MTBMs                 27.317612
+MMT                   7.264309
+MMTu                  14.230055
+MMTs                  3.407568
+GreenPercent          68.917805
+YellowPercent         27.786542
+RedPercent            3.295654
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.124526      71.018169     154.318530      47.648269
+DT                             0.273138       2.459443       8.494203       1.193984
+TBM                            0.000000      50.461531     248.202255      51.646309
+RT                             2.029921      14.230055      64.313741       8.183528
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                        8   Motors                       8
+S1B3                        1   Motors                       1
+S2B1                        3   Infinite                     3
+S2B2                       11   Infinite                    30
+S2B3                        5   Infinite                     5
+S2B4                        8   Infinite                     8
+S3B1                        6   Seals                       24
+S3B2                       12   Seals                       12
+S3B3                        9   Seals                        9
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     4
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        6   Filters                      6
+S5B3                        6   Filters                      6
+S6B1                        5   Infinite                     5
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        40.83         79         79          0 
+Seals                            6         60          5        13.43         21         19          0 
+Filters                          8        100          8        46.75         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.75            5            5          0 
+Crane                            2            0         1.84            2            1          0 
+
+
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.966434547
+MTBDE                      75.502699
+MDT                        2.622301
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     64
+NumberOfComponentFailures  95
+
+
+
+***LOGISTICS***
+
+MTBM                  17.635667
+MTBMu                 50.864976
+MTBMs                 26.995378
+MMT                   7.250270
+MMTu                  14.727610
+MMTs                  3.323622
+GreenPercent          70.069958
+YellowPercent         26.573497
+RedPercent            3.356545
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.004087      75.023266     164.415232      55.049499
+DT                             0.193997       2.622301      13.968113       2.244822
+TBM                            0.000000      52.523702     300.266417      60.137632
+RT                             1.269574      14.727610      56.484909       9.094026
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        3   Motors                      22
+S1B2                        7   Motors                       7
+S1B3                        0   Motors                       0
+S2B1                       10   Infinite                    10
+S2B2                        4   Infinite                    23
+S2B3                        9   Infinite                     9
+S2B4                        7   Infinite                     7
+S3B1                        3   Seals                       22
+S3B2                        8   Seals                        8
+S3B3                        6   Seals                        6
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     6
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        7   Filters                      7
+S5B3                        7   Filters                      7
+S6B1                        6   Infinite                     6
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.03         79         79          0 
+Seals                            6         60          5        15.67         28         28          0 
+Filters                          8        100          8        46.14         88         88          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.70            5            3          0 
+Crane                            2            0         1.86            2            2          1 
+
+
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.974558910
+MTBDE                      82.589738
+MDT                        2.156025
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     59
+NumberOfComponentFailures  77
+
+
+
+***LOGISTICS***
+
+MTBM                  18.960290
+MTBMu                 63.283046
+MTBMs                 27.071081
+MMT                   6.546069
+MMTu                  13.969855
+MMTs                  3.370339
+GreenPercent          71.735693
+YellowPercent         25.720198
+RedPercent            2.544109
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.424035      82.070201     151.000000      57.533579
+DT                             0.500000       2.156025       5.060458       0.634015
+TBM                            0.000000      64.511004     453.174735      67.517722
+RT                             3.442732      13.969855      44.764699       7.057837
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       11   Motors                      11
+S1B3                        2   Motors                       2
+S2B1                        5   Infinite                     5
+S2B2                        3   Infinite                    22
+S2B3                        3   Infinite                     3
+S2B4                        6   Infinite                     6
+S3B1                        4   Seals                       22
+S3B2                        7   Seals                        7
+S3B3                        4   Seals                        4
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        1   Infinite                     1
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        39.85         74         74          0 
+Seals                            6         60          6        18.08         31         31          0 
+Filters                          8        100          8        48.41         91         91          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.78            5            5          0 
+Crane                            2            0         1.89            2            2          2 
+
+
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.935682984
+MTBDE                      64.087876
+MDT                        4.405275
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     73
+NumberOfComponentFailures  97
+
+
+
+***LOGISTICS***
+
+MTBM                  16.889585
+MTBMu                 48.231082
+MTBMs                 25.991194
+MMT                   6.728610
+MMTu                  12.783696
+MMTs                  3.465592
+GreenPercent          4.667131
+YellowPercent         88.901167
+RedPercent            6.431702
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.858253      63.103139     151.000000      49.315729
+DT                             0.500000       4.405275      23.216405       4.762475
+TBM                            0.000000      50.774374     248.739597      53.774486
+RT                             2.718127      12.783696      38.332708       6.345326
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                       15   Motors                      15
+S1B3                        0   Motors                       0
+S2B1                       10   Infinite                    10
+S2B2                        5   Infinite                    24
+S2B3                        6   Infinite                     6
+S2B4                        8   Infinite                     8
+S3B1                        6   Seals                       26
+S3B2                        7   Seals                        7
+S3B3                        6   Seals                        6
+S3B4                        2   Seals                        2
+S4B1                        7   Infinite                     8
+S4B2                        0   Infinite                     0
+S4B3                        2   Infinite                    20
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        5   Infinite                     5
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        39.62         73         73          0 
+Seals                            6         60          6        15.23         26         25          0 
+Filters                          8        100          8        47.65         91         91          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.72            5            5          0 
+Crane                            2            0         1.87            2            2          6 
+
+
+
+
+
+***Run_11*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.966150413
+MTBDE                      77.915356
+MDT                        2.729805
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     62
+NumberOfComponentFailures  100
+
+
+
+***LOGISTICS***
+
+MTBM                  17.314524
+MTBMu                 48.307521
+MTBMs                 26.987442
+MMT                   6.887855
+MMTu                  13.383799
+MMTs                  3.258836
+GreenPercent          68.093144
+YellowPercent         28.521897
+RedPercent            3.384959
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.197439      76.811180     159.427134      52.154878
+DT                             0.500000       2.729805      15.625234       2.512775
+TBM                            0.000000      49.295411     193.427973      44.660043
+RT                             1.644095      13.383799      63.355436       7.844689
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       13   Motors                      13
+S1B3                        2   Motors                       2
+S2B1                        7   Infinite                     7
+S2B2                        7   Infinite                    26
+S2B3                        5   Infinite                     5
+S2B4                        8   Infinite                     8
+S3B1                        6   Seals                       25
+S3B2                       10   Seals                       10
+S3B3                        6   Seals                        6
+S3B4                        1   Seals                        1
+S4B1                        6   Infinite                     6
+S4B2                        3   Infinite                     3
+S4B3                        2   Infinite                    20
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        4   Infinite                     4
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        38.86         72         72          0 
+Seals                            6         60          5        14.76         24         24          0 
+Filters                          8        100          8        48.20         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.72            5            5          0 
+Crane                            2            0         1.88            2            2          6 
+
+
+
+
+
+***Run_12*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.968901646
+MTBDE                      74.530896
+MDT                        2.392181
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     65
+NumberOfComponentFailures  101
+
+
+
+***LOGISTICS***
+
+MTBM                  17.426289
+MTBMu                 47.965428
+MTBMs                 27.370103
+MMT                   7.113046
+MMTu                  13.831260
+MMTs                  3.279488
+GreenPercent          68.548087
+YellowPercent         28.342078
+RedPercent            3.109835
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.208089      74.286747     198.137917      56.845590
+DT                             0.489676       2.392181       7.611966       0.980627
+TBM                            0.000000      48.926605     168.567101      42.489136
+RT                             1.234744      13.831260      37.743964       6.582337
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                       13   Motors                      13
+S1B3                        2   Motors                       2
+S2B1                        9   Infinite                     9
+S2B2                       10   Infinite                    29
+S2B3                        6   Infinite                     6
+S2B4                        3   Infinite                     3
+S3B1                        4   Seals                       22
+S3B2                       10   Seals                       10
+S3B3                        6   Seals                        6
+S3B4                        2   Seals                        2
+S4B1                        7   Infinite                     7
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        5   Infinite                     5
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        37.89         73         73          0 
+Seals                            6         60          5        14.01         26         26          0 
+Filters                          8        100          7        46.86         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.72            5            5          0 
+Crane                            2            0         1.87            2            2          2 
+
+
+
+
+
+***Run_13*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.973401766
+MTBDE                      78.500142
+MDT                        2.145019
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     62
+NumberOfComponentFailures  93
+
+
+
+***LOGISTICS***
+
+MTBM                  17.893415
+MTBMu                 52.333428
+MTBMs                 27.189993
+MMT                   6.985567
+MMTu                  13.963201
+MMTs                  3.360316
+GreenPercent          70.125431
+YellowPercent         27.214746
+RedPercent            2.659823
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.620541      77.645309     151.000000      57.281423
+DT                             0.500000       2.145019       4.121988       0.619632
+TBM                            0.000000      52.947839     250.461796      49.884531
+RT                             0.434619      13.963201      38.741777       6.837604
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        9   Motors                       9
+S1B3                        4   Motors                       4
+S2B1                        8   Infinite                     8
+S2B2                       10   Infinite                    29
+S2B3                        3   Infinite                     3
+S2B4                        1   Infinite                     1
+S3B1                        4   Seals                       22
+S3B2                       12   Seals                       12
+S3B3                       10   Seals                       10
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     6
+S4B2                        3   Infinite                     3
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        4   Filters                      4
+S5B3                        6   Filters                      6
+S6B1                        2   Infinite                     2
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        39.73         74         74          0 
+Seals                            6         60          4        12.49         20         20          0 
+Filters                          8        100          8        48.37         92         92          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.77            5            5          0 
+Crane                            2            0         1.86            2            2          0 
+
+
+
+
+
+***Run_14*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.959880735
+MTBDE                      74.990682
+MDT                        3.134318
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     64
+NumberOfComponentFailures  95
+
+
+
+***LOGISTICS***
+
+MTBM                  17.516072
+MTBMu                 50.520039
+MTBMs                 26.812311
+MMT                   7.365495
+MMTu                  14.843319
+MMTs                  3.396818
+GreenPercent          62.523819
+YellowPercent         33.464254
+RedPercent            4.011926
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.731053      72.728359     151.000000      48.912434
+DT                             0.343813       3.134318      22.180459       3.941330
+TBM                            0.000000      51.694878     234.675367      53.103078
+RT                             3.361324      14.843319      47.709437       7.707892
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        9   Motors                       9
+S1B3                        0   Motors                       0
+S2B1                       10   Infinite                    10
+S2B2                        5   Infinite                    24
+S2B3                        6   Infinite                     6
+S2B4                        4   Infinite                     4
+S3B1                        6   Seals                       25
+S3B2                       14   Seals                       14
+S3B3                        5   Seals                        5
+S3B4                        2   Seals                        2
+S4B1                        6   Infinite                     6
+S4B2                        4   Infinite                     4
+S4B3                        1   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        3   Infinite                     3
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.40         78         78          0 
+Seals                            6         60          4        12.19         20         20          0 
+Filters                          8        100          8        47.98         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.72            5            5          0 
+Crane                            2            0         1.85            2            2          2 
+
+
+
+
+
+***Run_15*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.966391777
+MTBDE                      74.337829
+MDT                        2.585248
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     65
+NumberOfComponentFailures  93
+
+
+
+***LOGISTICS***
+
+MTBM                  17.764555
+MTBMu                 51.956547
+MTBMs                 26.994184
+MMT                   7.072844
+MMTu                  13.811261
+MMTs                  3.571879
+GreenPercent          67.579178
+YellowPercent         29.060000
+RedPercent            3.360822
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.116841      73.537624     175.756503      57.473058
+DT                             0.500000       2.585248      16.071719       2.015393
+TBM                            0.000000      52.830154     188.973270      45.813492
+RT                             0.880005      13.811261      56.107310       8.544442
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       10   Motors                      10
+S1B3                        0   Motors                       0
+S2B1                       10   Infinite                    10
+S2B2                       11   Infinite                    30
+S2B3                        5   Infinite                     5
+S2B4                        9   Infinite                     9
+S3B1                        5   Seals                       22
+S3B2                        8   Seals                        8
+S3B3                        5   Seals                        5
+S3B4                        1   Seals                        1
+S4B1                        4   Infinite                     4
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        2   Infinite                     2
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.46         77         77          0 
+Seals                            6         60          5        17.64         30         30          0 
+Filters                          8        100          8        47.84         91         91          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.69            5            5          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_16*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.970149786
+MTBDE                      83.633602
+MDT                        2.573294
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     58
+NumberOfComponentFailures  87
+
+
+
+***LOGISTICS***
+
+MTBM                  18.235898
+MTBMu                 55.755735
+MTBMs                 27.099156
+MMT                   6.265276
+MMTu                  12.123117
+MMTs                  3.418169
+GreenPercent          72.610449
+YellowPercent         24.404530
+RedPercent            2.985021
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.408311      82.297452     151.000000      52.698824
+DT                             0.500000       2.573294      19.017075       2.404916
+TBM                            0.000000      55.931900     357.437576      61.856600
+RT                             1.194535      12.123117      39.203938       6.333528
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        3   Motors                      22
+S1B2                       12   Motors                      12
+S1B3                        1   Motors                       1
+S2B1                        5   Infinite                     5
+S2B2                        6   Infinite                    25
+S2B3                        5   Infinite                     5
+S2B4                        4   Infinite                     4
+S3B1                        5   Seals                       23
+S3B2                        9   Seals                        9
+S3B3                        7   Seals                        7
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     4
+S4B2                        4   Infinite                     4
+S4B3                        1   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        4   Filters                      4
+S5B3                        5   Filters                      5
+S6B1                        2   Infinite                     2
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        38.62         73         73          0 
+Seals                            6         60          6        14.67         25         25          0 
+Filters                          8        100          8        48.41         93         93          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.77            5            5          0 
+Crane                            2            0         1.87            2            2          0 
+
+
+
+
+
+***Run_17*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.971364649
+MTBDE                      79.620053
+MDT                        2.347160
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     61
+NumberOfComponentFailures  96
+
+
+
+***LOGISTICS***
+
+MTBM                  17.661175
+MTBMu                 50.591909
+MTBMs                 27.133091
+MMT                   6.756271
+MMTu                  12.940714
+MMTs                  3.439476
+GreenPercent          68.677642
+YellowPercent         28.458823
+RedPercent            2.863535
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.221820      78.565254     158.778353      55.062487
+DT                             0.259569       2.347160       9.942451       1.331479
+TBM                            0.000000      51.649457     214.222353      46.440769
+RT                             1.631220      12.940714      28.583561       5.437093
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       12   Motors                      12
+S1B3                        0   Motors                       0
+S2B1                        7   Infinite                     7
+S2B2                       10   Infinite                    29
+S2B3                        3   Infinite                     3
+S2B4                       11   Infinite                    11
+S3B1                        7   Seals                       24
+S3B2                       10   Seals                       10
+S3B3                        7   Seals                        7
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     4
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        5   Filters                      5
+S5B2                        4   Filters                      4
+S5B3                        6   Filters                      6
+S6B1                        2   Infinite                     2
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.00         75         75          0 
+Seals                            6         60          5        13.48         23         23          0 
+Filters                          8        100          8        48.61         93         93          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.72            5            5          0 
+Crane                            2            0         1.88            2            2          2 
+
+
+
+
+
+***Run_18*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.968250293
+MTBDE                      69.160735
+MDT                        2.267836
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     70
+NumberOfComponentFailures  106
+
+
+
+***LOGISTICS***
+
+MTBM                  17.106896
+MTBMu                 45.672184
+MTBMs                 27.351703
+MMT                   7.609045
+MMTu                  14.435482
+MMTs                  3.520896
+GreenPercent          65.869816
+YellowPercent         30.955213
+RedPercent            3.174971
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.372507      68.414366     155.161158      48.986891
+DT                             0.040971       2.267836      11.472089       1.544350
+TBM                            0.000000      46.658058     200.492546      44.149383
+RT                             3.388192      14.435482      64.603368       7.848447
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                        7   Motors                       7
+S1B3                        5   Motors                       5
+S2B1                       10   Infinite                    10
+S2B2                        6   Infinite                    25
+S2B3                        9   Infinite                     9
+S2B4                        9   Infinite                     9
+S3B1                        6   Seals                       23
+S3B2                       13   Seals                       13
+S3B3                        8   Seals                        8
+S3B4                        1   Seals                        1
+S4B1                        4   Infinite                     4
+S4B2                        5   Infinite                     5
+S4B3                        0   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        3   Infinite                     3
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        39.81         76         76          0 
+Seals                            6         60          4        11.87         21         21          0 
+Filters                          8        100          8        47.08         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.67            5            5          0 
+Crane                            2            0         1.85            2            2          1 
+
+
+
+
+
+***Run_19*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.974972249
+MTBDE                      95.585515
+MDT                        2.453701
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     51
+NumberOfComponentFailures  93
+
+
+
+***LOGISTICS***
+
+MTBM                  17.856635
+MTBMu                 52.417863
+MTBMs                 27.082562
+MMT                   6.515341
+MMTu                  12.762990
+MMTs                  3.287388
+GreenPercent          71.000623
+YellowPercent         26.496602
+RedPercent            2.502775
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           7.743083      94.350535     154.966746      51.443758
+DT                             0.500000       2.453701      12.469744       1.674526
+TBM                            0.000000      52.776177     170.031149      45.604190
+RT                             1.553850      12.762990      39.059394       6.816425
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       11   Motors                      11
+S1B3                        0   Motors                       0
+S2B1                        7   Infinite                     7
+S2B2                        8   Infinite                    27
+S2B3                        7   Infinite                     7
+S2B4                        9   Infinite                     9
+S3B1                        4   Seals                       23
+S3B2                        9   Seals                        9
+S3B3                        5   Seals                        5
+S3B4                        2   Seals                        2
+S4B1                        1   Infinite                     1
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        5   Filters                      5
+S5B3                        8   Filters                      8
+S6B1                        4   Infinite                     4
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        40.09         76         76          0 
+Seals                            6         60          6        15.93         27         27          0 
+Filters                          8        100          8        46.43         88         88          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.76            5            5          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_20*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.975683764
+MTBDE                      92.045638
+MDT                        2.293985
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  100
+
+
+
+***LOGISTICS***
+
+MTBM                  17.548269
+MTBMu                 48.784188
+MTBMs                 27.406847
+MMT                   7.151993
+MMTu                  13.626932
+MMTs                  3.514387
+GreenPercent          67.961692
+YellowPercent         29.606685
+RedPercent            2.431624
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.393938      91.343478     151.000000      53.723524
+DT                             0.500000       2.293985      12.271078       1.528869
+TBM                            0.000000      49.144870     182.145968      45.799299
+RT                             1.897395      13.626932      42.646997       7.872798
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        3   Motors                      22
+S1B2                       14   Motors                      14
+S1B3                        1   Motors                       1
+S2B1                       10   Infinite                    10
+S2B2                       10   Infinite                    29
+S2B3                        6   Infinite                     6
+S2B4                        1   Infinite                     1
+S3B1                        7   Seals                       23
+S3B2                       12   Seals                       12
+S3B3                        9   Seals                        9
+S3B4                        1   Seals                        1
+S4B1                        2   Infinite                     2
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        4   Filters                      4
+S5B3                        7   Filters                      7
+S6B1                        1   Infinite                     1
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        37.98         71         71          0 
+Seals                            6         60          4        13.48         21         21          0 
+Filters                          8        100          8        47.64         89         89          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.72            5            5          0 
+Crane                            2            0         1.85            2            2          0 
+
+
+
+
+
+***Run_21*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.966399444
+MTBDE                      74.338419
+MDT                        2.584658
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     65
+NumberOfComponentFailures  98
+
+
+
+***LOGISTICS***
+
+MTBM                  17.764696
+MTBMu                 49.306094
+MTBMs                 27.770099
+MMT                   7.361860
+MMTu                  14.383166
+MMTs                  3.407331
+GreenPercent          61.215923
+YellowPercent         35.424022
+RedPercent            3.360056
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.510843      73.513755     169.554105      53.455440
+DT                             0.136323       2.584658      17.996969       2.274336
+TBM                            0.000000      50.171472     175.748121      45.590078
+RT                             1.273030      14.383166      43.518805       8.357890
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       12   Motors                      12
+S1B3                        1   Motors                       1
+S2B1                        8   Infinite                     8
+S2B2                       10   Infinite                    29
+S2B3                        5   Infinite                     5
+S2B4                        8   Infinite                     8
+S3B1                        5   Seals                       22
+S3B2                        9   Seals                        9
+S3B3                        4   Seals                        4
+S3B4                        1   Seals                        1
+S4B1                        2   Infinite                     2
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        3   Filters                      3
+S5B3                        7   Filters                      7
+S6B1                       10   Infinite                    10
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        39.72         74         74          0 
+Seals                            6         60          4        15.18         30         30          0 
+Filters                          8        100          7        47.51         92         92          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.71            5            5          0 
+Crane                            2            0         1.86            2            2          0 
+
+
+
+
+
+***Run_22*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.973100589
+MTBDE                      79.762343
+MDT                        2.204870
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     61
+NumberOfComponentFailures  87
+
+
+
+***LOGISTICS***
+
+MTBM                  18.291364
+MTBMu                 55.925321
+MTBMs                 27.181581
+MMT                   6.921681
+MMTu                  14.010320
+MMTs                  3.476365
+GreenPercent          69.989901
+YellowPercent         27.320158
+RedPercent            2.689941
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.759979      79.249134     156.082456      55.959405
+DT                             0.500000       2.204870       6.559043       0.984087
+TBM                            0.000000      57.042546     288.270060      52.745268
+RT                             0.736850      14.010320      34.802353       6.644618
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        8   Motors                       8
+S1B3                        0   Motors                       0
+S2B1                        6   Infinite                     6
+S2B2                        6   Infinite                    25
+S2B3                        5   Infinite                     5
+S2B4                        5   Infinite                     5
+S3B1                        5   Seals                       24
+S3B2                        8   Seals                        8
+S3B3                       10   Seals                       10
+S3B4                        2   Seals                        2
+S4B1                        3   Infinite                     3
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        5   Infinite                     5
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        40.52         79         79          0 
+Seals                            6         60          4        13.18         22         22          0 
+Filters                          8        100          8        47.67         91         91          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.77            5            5          0 
+Crane                            2            0         1.86            2            2          2 
+
+
+
+
+
+***Run_23*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.967193262
+MTBDE                      72.178602
+MDT                        2.448264
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     67
+NumberOfComponentFailures  105
+
+
+
+***LOGISTICS***
+
+MTBM                  17.333213
+MTBMu                 46.056822
+MTBMs                 27.792910
+MMT                   7.234275
+MMTu                  13.472103
+MMTs                  3.470068
+GreenPercent          60.228170
+YellowPercent         36.491157
+RedPercent            3.280674
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.092491      71.407059     156.091402      47.590324
+DT                             0.500000       2.448264      16.934839       2.077442
+TBM                            0.000000      47.515947     242.262160      44.626795
+RT                             1.763451      13.472103      51.654717       8.137806
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        3   Motors                      22
+S1B2                       14   Motors                      14
+S1B3                        4   Motors                       4
+S2B1                        7   Infinite                     7
+S2B2                        4   Infinite                    23
+S2B3                        7   Infinite                     7
+S2B4                        8   Infinite                     8
+S3B1                        8   Seals                       25
+S3B2                        7   Seals                        7
+S3B3                        8   Seals                        8
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        5   Filters                      5
+S5B2                        6   Filters                      6
+S5B3                        7   Filters                      7
+S6B1                        6   Infinite                     6
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        36.33         68         68          0 
+Seals                            6         60          6        14.44         24         24          0 
+Filters                          8        100          8        48.15         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.73            5            5          0 
+Crane                            2            0         1.85            2            2          0 
+
+
+
+
+
+***Run_24*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.980318117
+MTBDE                      100.032461
+MDT                        2.008355
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     49
+NumberOfComponentFailures  84
+
+
+
+***LOGISTICS***
+
+MTBM                  18.780041
+MTBMu                 58.352269
+MTBMs                 27.692602
+MMT                   6.775623
+MMTu                  13.846853
+MMTs                  3.459736
+GreenPercent          70.391617
+YellowPercent         27.640195
+RedPercent            1.968188
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.846868      99.986368     156.541802      54.447030
+DT                             0.153132       2.008355       5.859637       0.793126
+TBM                            0.000000      59.449720     247.879441      57.916880
+RT                             1.778760      13.846853      42.649919       8.980232
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        8   Motors                       8
+S1B3                        1   Motors                       1
+S2B1                        8   Infinite                     8
+S2B2                        6   Infinite                    25
+S2B3                        4   Infinite                     4
+S2B4                        7   Infinite                     7
+S3B1                        2   Seals                       20
+S3B2                        9   Seals                        9
+S3B3                        5   Seals                        5
+S3B4                        1   Seals                        1
+S4B1                        2   Infinite                     2
+S4B2                        3   Infinite                     3
+S4B3                        1   Infinite                    19
+S5B1                        9   Filters                      9
+S5B2                        6   Filters                      6
+S5B3                        7   Filters                      7
+S6B1                        2   Infinite                     2
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.15         78         78          0 
+Seals                            6         60          5        17.83         31         31          0 
+Filters                          8        100          8        45.93         86         86          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.77            5            5          0 
+Crane                            2            0         1.89            2            0          0 
+
+
+
+
+
+***Run_25*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.961648921
+MTBDE                      85.861511
+MDT                        3.424203
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     56
+NumberOfComponentFailures  101
+
+
+
+***LOGISTICS***
+
+MTBM                  17.421176
+MTBMu                 47.606382
+MTBMs                 27.475683
+MMT                   6.831881
+MMTu                  12.517490
+MMTs                  3.550473
+GreenPercent          41.174578
+YellowPercent         54.990314
+RedPercent            3.835108
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.387239      85.169814     151.043346      52.108234
+DT                             0.500000       3.424203      21.466109       3.904823
+TBM                            0.000000      49.223688     299.546817      53.662126
+RT                             3.043346      12.517490      29.898706       5.676217
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        3   Motors                      22
+S1B2                       11   Motors                      11
+S1B3                        3   Motors                       3
+S2B1                        8   Infinite                     8
+S2B2                       13   Infinite                    32
+S2B3                        5   Infinite                     5
+S2B4                        3   Infinite                     3
+S3B1                        5   Seals                       24
+S3B2                        7   Seals                        7
+S3B3                        6   Seals                        6
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        2   Infinite                    20
+S5B1                        8   Filters                      8
+S5B2                        4   Filters                      4
+S5B3                        6   Filters                      6
+S6B1                        6   Infinite                     6
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        40.15         72         72          0 
+Seals                            6         60          6        16.82         27         27          0 
+Filters                          8        100          8        47.21         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.72            5            5          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_26*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.971326279
+MTBDE                      79.616908
+MDT                        2.350305
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     61
+NumberOfComponentFailures  87
+
+
+
+***LOGISTICS***
+
+MTBM                  18.054392
+MTBMu                 55.823349
+MTBMs                 26.684788
+MMT                   6.746385
+MMTu                  14.184726
+MMTs                  3.231564
+GreenPercent          71.321136
+YellowPercent         25.811492
+RedPercent            2.867372
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.487631      77.403793     151.000000      53.052825
+DT                             0.500000       2.350305      11.688672       1.463167
+TBM                            0.000000      57.456607     286.248040      50.507132
+RT                             1.190162      14.184726      51.151423       9.079863
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       11   Motors                      11
+S1B3                        0   Motors                       0
+S2B1                       11   Infinite                    11
+S2B2                        6   Infinite                    25
+S2B3                        4   Infinite                     4
+S2B4                        4   Infinite                     4
+S3B1                        7   Seals                       26
+S3B2                        8   Seals                        8
+S3B3                        6   Seals                        6
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     5
+S4B2                        5   Infinite                     5
+S4B3                        0   Infinite                    19
+S5B1                        5   Filters                      5
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        0   Infinite                     0
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        39.65         76         76          0 
+Seals                            6         60          5        13.31         24         24          0 
+Filters                          8        100          8        48.52         92         92          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.76            5            4          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_27*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.972123766
+MTBDE                      77.152680
+MDT                        2.212400
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     63
+NumberOfComponentFailures  94
+
+
+
+***LOGISTICS***
+
+MTBM                  17.869922
+MTBMu                 51.708711
+MTBMs                 27.306847
+MMT                   6.720578
+MMTu                  13.011074
+MMTs                  3.398631
+GreenPercent          70.749086
+YellowPercent         26.463291
+RedPercent            2.787623
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.899565      77.056083     180.194444      48.454920
+DT                             0.209468       2.212400       4.718930       0.778534
+TBM                            0.000000      52.962602     321.739459      55.003858
+RT                             0.699749      13.011074      35.845259       7.240432
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       13   Motors                      13
+S1B3                        1   Motors                       1
+S2B1                       10   Infinite                    10
+S2B2                        3   Infinite                    22
+S2B3                        6   Infinite                     6
+S2B4                        5   Infinite                     5
+S3B1                        4   Seals                       21
+S3B2                        6   Seals                        6
+S3B3                       10   Seals                       10
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        4   Infinite                     4
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        38.54         73         73          0 
+Seals                            6         60          4        16.48         27         27          0 
+Filters                          8        100          8        46.79         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.78            5            5          0 
+Crane                            2            0         1.86            2            2          0 
+
+
+
+
+
+***Run_28*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.942095408
+MTBDE                      74.769477
+MDT                        4.595603
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     63
+NumberOfComponentFailures  104
+
+
+
+***LOGISTICS***
+
+MTBM                  16.703819
+MTBMu                 45.293048
+MTBMs                 26.463354
+MMT                   6.906486
+MMTu                  12.882221
+MMTs                  3.415046
+GreenPercent          18.302583
+YellowPercent         75.906958
+RedPercent            5.790459
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.170011      74.384026     151.000000      50.886710
+DT                             0.500000       4.595603      22.765234       5.073257
+TBM                            0.000000      47.824198     227.773510      49.932411
+RT                             2.683878      12.882221      37.883888       5.740948
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       16   Motors                      16
+S1B3                        1   Motors                       1
+S2B1                        7   Infinite                     7
+S2B2                       12   Infinite                    31
+S2B3                        3   Infinite                     3
+S2B4                        7   Infinite                     7
+S3B1                        8   Seals                       28
+S3B2                        8   Seals                        8
+S3B3                        7   Seals                        7
+S3B4                        1   Seals                        1
+S4B1                        5   Infinite                     5
+S4B2                        1   Infinite                     1
+S4B3                        2   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        6   Filters                      6
+S5B3                        6   Filters                      6
+S6B1                        3   Infinite                     3
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        37.29         70         70          0 
+Seals                            6         60          4        13.75         22         22          0 
+Filters                          8        100          7        46.27         88         88          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.72            5            5          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_29*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.975523312
+MTBDE                      93.800318
+MDT                        2.353528
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     52
+NumberOfComponentFailures  80
+
+
+
+***LOGISTICS***
+
+MTBM                  18.760064
+MTBMu                 60.970207
+MTBMs                 27.097870
+MMT                   6.163869
+MMTu                  12.471369
+MMTs                  3.360536
+GreenPercent          73.512083
+YellowPercent         24.040249
+RedPercent            2.447669
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           4.284182      90.914604     167.376680      50.930391
+DT                             1.390645       2.353528       7.500731       1.099659
+TBM                            0.000000      61.300402     263.760657      55.748283
+RT                             2.488825      12.471369      33.892680       6.112287
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       10   Motors                      10
+S1B3                        0   Motors                       0
+S2B1                        1   Infinite                     1
+S2B2                        5   Infinite                    24
+S2B3                        7   Infinite                     7
+S2B4                        8   Infinite                     8
+S3B1                        2   Seals                       21
+S3B2                        9   Seals                        9
+S3B3                        5   Seals                        5
+S3B4                        1   Seals                        1
+S4B1                        4   Infinite                     4
+S4B2                        4   Infinite                     4
+S4B3                        1   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        3   Infinite                     3
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        42.10         77         77          0 
+Seals                            6         60          6        15.75         30         30          0 
+Filters                          8        100          8        48.10         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.79            5            5          0 
+Crane                            2            0         1.89            2            2          0 
+
+
+
+
+
+***Run_30*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.973608032
+MTBDE                      85.404213
+MDT                        2.315085
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     57
+NumberOfComponentFailures  107
+
+
+
+***LOGISTICS***
+
+MTBM                  17.080843
+MTBMu                 45.495702
+MTBMs                 27.348540
+MMT                   7.124518
+MMTu                  13.444711
+MMTs                  3.325301
+GreenPercent          68.403328
+YellowPercent         28.957475
+RedPercent            2.639197
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.647273      84.661893     164.674905      53.992935
+DT                             0.500000       2.315085       8.506441       1.234711
+TBM                            0.000000      45.958697     243.443641      48.758159
+RT                             3.094805      13.444711      33.238639       6.156894
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       12   Motors                      12
+S1B3                        3   Motors                       3
+S2B1                        8   Infinite                     8
+S2B2                       10   Infinite                    29
+S2B3                        6   Infinite                     6
+S2B4                        6   Infinite                     6
+S3B1                        7   Seals                       25
+S3B2                       10   Seals                       10
+S3B3                        8   Seals                        8
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        1   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        1   Infinite                     1
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        38.01         72         72          0 
+Seals                            6         60          5        11.91         21         21          0 
+Filters                          8        100          7        47.32         88         88          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.70            5            5          0 
+Crane                            2            0         1.86            2            2          0 
+
+
+
+
+
+***Run_31*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.970191864
+MTBDE                      75.796239
+MDT                        2.328761
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     64
+NumberOfComponentFailures  105
+
+
+
+***LOGISTICS***
+
+MTBM                  17.512489
+MTBMu                 46.199613
+MTBMs                 28.203252
+MMT                   7.651310
+MMTu                  14.738361
+MMTs                  3.366116
+GreenPercent          67.151839
+YellowPercent         29.867347
+RedPercent            2.980814
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.162113      74.442010     167.143026      53.202114
+DT                             0.500000       2.328761      11.269695       1.432251
+TBM                            0.000000      47.437061     156.664535      44.115891
+RT                             3.402005      14.738361      39.608436       6.857875
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        9   Motors                       9
+S1B3                        1   Motors                       1
+S2B1                        9   Infinite                     9
+S2B2                        8   Infinite                    27
+S2B3                        7   Infinite                     7
+S2B4                        7   Infinite                     7
+S3B1                        5   Seals                       23
+S3B2                        6   Seals                        6
+S3B3                        8   Seals                        8
+S3B4                        2   Seals                        2
+S4B1                        6   Infinite                     6
+S4B2                        4   Infinite                     4
+S4B3                        2   Infinite                    20
+S5B1                        9   Filters                      9
+S5B2                        4   Filters                      4
+S5B3                        7   Filters                      7
+S6B1                        9   Infinite                     9
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.33         77         77          0 
+Seals                            6         60          5        15.62         27         27          0 
+Filters                          8        100          8        46.31         88         88          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.69            5            3          0 
+Crane                            2            0         1.85            2            2          0 
+
+
+
+
+
+***Run_32*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.963402475
+MTBDE                      80.283540
+MDT                        3.049794
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     60
+NumberOfComponentFailures  88
+
+
+
+***LOGISTICS***
+
+MTBM                  17.907109
+MTBMu                 54.738777
+MTBMs                 26.613328
+MMT                   6.625614
+MMTu                  13.497519
+MMTs                  3.284578
+GreenPercent          71.747979
+YellowPercent         24.592269
+RedPercent            3.659752
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.887739      80.103294     173.115106      50.470928
+DT                             0.888528       3.049794      14.996357       2.709063
+TBM                            0.000000      56.429426     267.299684      55.336069
+RT                             0.562512      13.497519      36.587893       6.215105
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                       12   Motors                      12
+S1B3                        0   Motors                       0
+S2B1                        9   Infinite                     9
+S2B2                        6   Infinite                    25
+S2B3                        6   Infinite                     6
+S2B4                        4   Infinite                     4
+S3B1                        3   Seals                       22
+S3B2                        9   Seals                        9
+S3B3                        6   Seals                        6
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     4
+S4B2                        3   Infinite                     3
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        6   Filters                      6
+S5B3                        7   Filters                      7
+S6B1                        4   Infinite                     4
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        39.94         76         76          0 
+Seals                            6         60          6        17.21         27         27          0 
+Filters                          8        100          8        47.51         89         89          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.75            5            5          4 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_33*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.970654494
+MTBDE                      83.677112
+MDT                        2.529785
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     58
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  17.975083
+MTBMu                 53.332664
+MTBMs                 27.113254
+MMT                   6.487921
+MMTu                  12.508602
+MMTs                  3.427128
+GreenPercent          70.864568
+YellowPercent         26.200881
+RedPercent            2.934551
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.285073      83.203426     158.450197      56.093707
+DT                             0.042268       2.529785      15.965550       2.182260
+TBM                            0.000000      54.508269     311.061427      51.160584
+RT                             1.554882      12.508602      32.658427       5.767874
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                       13   Motors                      13
+S1B3                        1   Motors                       1
+S2B1                        6   Infinite                     6
+S2B2                        7   Infinite                    26
+S2B3                        5   Infinite                     5
+S2B4                        5   Infinite                     5
+S3B1                        4   Seals                       23
+S3B2                       10   Seals                       10
+S3B3                        7   Seals                        7
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        1   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        2   Infinite                     2
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        38.17         74         74          0 
+Seals                            6         60          6        14.76         24         24          0 
+Filters                          8        100          8        48.69         91         91          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.74            5            5          0 
+Crane                            2            0         1.88            2            2          2 
+
+
+
+
+
+***Run_34*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.965754445
+MTBDE                      87.795859
+MDT                        3.113232
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  17.884342
+MTBMu                 53.063431
+MTBMs                 26.976381
+MMT                   6.740213
+MMTu                  13.434472
+MMTs                  3.336986
+GreenPercent          70.530785
+YellowPercent         26.044659
+RedPercent            3.424555
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.034020      86.755927     239.272395      57.233351
+DT                             2.000000       3.113232      24.479314       3.905639
+TBM                            0.000000      53.777329     310.556264      56.123029
+RT                             1.704890      13.434472      37.941491       6.762295
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       11   Motors                      11
+S1B3                        0   Motors                       0
+S2B1                        5   Infinite                     5
+S2B2                        8   Infinite                    27
+S2B3                        5   Infinite                     5
+S2B4                        5   Infinite                     5
+S3B1                        4   Seals                       23
+S3B2                        8   Seals                        8
+S3B3                        7   Seals                        7
+S3B4                        2   Seals                        2
+S4B1                        3   Infinite                     4
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        7   Filters                      7
+S5B3                        6   Filters                      6
+S6B1                        8   Infinite                     8
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        40.43         76         76          0 
+Seals                            6         60          4        13.74         26         26          0 
+Filters                          8        100          8        47.36         89         89          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.77            5            5          0 
+Crane                            2            0         1.86            2            2          0 
+
+
+
+
+
+***Run_35*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.974061159
+MTBDE                      76.098528
+MDT                        2.026472
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     64
+NumberOfComponentFailures  102
+
+
+
+***LOGISTICS***
+
+MTBM                  17.456293
+MTBMu                 47.748096
+MTBMs                 27.515852
+MMT                   7.016474
+MMTu                  13.430419
+MMTs                  3.392776
+GreenPercent          68.728840
+YellowPercent         28.677276
+RedPercent            2.593884
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.326902      76.098528     246.773560      57.938960
+DT                             0.045283       2.026472       4.891147       0.832382
+TBM                            0.000000      49.011597     243.995377      47.787427
+RT                             0.241465      13.430419      42.707001       7.141506
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       10   Motors                      10
+S1B3                        3   Motors                       3
+S2B1                        9   Infinite                     9
+S2B2                        5   Infinite                    24
+S2B3                        7   Infinite                     7
+S2B4                        8   Infinite                     8
+S3B1                        5   Seals                       24
+S3B2                        9   Seals                        9
+S3B3                        6   Seals                        6
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     4
+S4B2                        3   Infinite                     3
+S4B3                        0   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        6   Filters                      6
+S5B3                        7   Filters                      7
+S6B1                        8   Infinite                     8
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        39.95         74         74          0 
+Seals                            6         60          5        14.69         25         25          0 
+Filters                          8        100          8        46.02         87         87          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.72            5            3          0 
+Crane                            2            0         1.87            2            1          1 
+
+
+
+
+
+***Run_36*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.974797190
+MTBDE                      84.034241
+MDT                        2.172656
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     58
+NumberOfComponentFailures  87
+
+
+
+***LOGISTICS***
+
+MTBM                  18.462068
+MTBMu                 56.022827
+MTBMs                 27.536644
+MMT                   6.177414
+MMTu                  12.064817
+MMTs                  3.316868
+GreenPercent          72.592602
+YellowPercent         24.887117
+RedPercent            2.520281
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           7.458754      81.462929     173.814521      54.156242
+DT                             0.118315       2.172656      10.568355       1.251254
+TBM                            0.000000      57.355391     209.841611      48.064784
+RT                             1.057827      12.064817      39.687950       6.948346
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        0   Motors                      19
+S1B2                       10   Motors                      10
+S1B3                        0   Motors                       0
+S2B1                        7   Infinite                     7
+S2B2                        6   Infinite                    25
+S2B3                        7   Infinite                     7
+S2B4                        6   Infinite                     6
+S3B1                        3   Seals                       20
+S3B2                        9   Seals                        9
+S3B3                        5   Seals                        5
+S3B4                        1   Seals                        1
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        5   Infinite                     5
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        42.18         79         79          0 
+Seals                            6         60          6        17.79         31         31          0 
+Filters                          8        100          8        47.28         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.78            5            3          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_37*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.975060934
+MTBDE                      90.283420
+MDT                        2.309173
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  94
+
+
+
+***LOGISTICS***
+
+MTBM                  17.990054
+MTBMu                 51.864943
+MTBMs                 27.544094
+MMT                   7.234747
+MMTu                  14.639064
+MMTs                  3.302511
+GreenPercent          69.001831
+YellowPercent         28.504262
+RedPercent            2.493907
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.646737      88.489345     151.000000      54.443013
+DT                             0.500000       2.309173       8.652724       1.292522
+TBM                            0.000000      51.893874     334.669257      60.885246
+RT                             3.702736      14.639064      65.340832       8.558258
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       11   Motors                      11
+S1B3                        2   Motors                       2
+S2B1                        7   Infinite                     7
+S2B2                        8   Infinite                    27
+S2B3                        8   Infinite                     8
+S2B4                        6   Infinite                     6
+S3B1                        7   Seals                       24
+S3B2                       10   Seals                       10
+S3B3                        7   Seals                        7
+S3B4                        2   Seals                        2
+S4B1                        3   Infinite                     3
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        4   Filters                      4
+S5B2                        5   Filters                      5
+S5B3                        5   Filters                      5
+S6B1                        3   Infinite                     3
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        38.82         74         74          0 
+Seals                            6         60          5        13.69         23         23          0 
+Filters                          8        100          8        49.38         94         94          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.73            5            5          0 
+Crane                            2            0         1.85            2            2          1 
+
+
+
+
+
+***Run_38*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.974560444
+MTBDE                      88.596404
+MDT                        2.312687
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  86
+
+
+
+***LOGISTICS***
+
+MTBM                  18.387933
+MTBMu                 56.660491
+MTBMs                 27.222359
+MMT                   6.683306
+MMTu                  13.330858
+MMTs                  3.489511
+GreenPercent          70.452777
+YellowPercent         27.003268
+RedPercent            2.543956
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.495242      86.206865     151.000000      54.659152
+DT                             0.500000       2.312687       7.600603       0.941064
+TBM                            0.000000      57.944728     268.939512      54.037240
+RT                             0.760379      13.330858      37.550225       6.733886
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       10   Motors                      10
+S1B3                        0   Motors                       0
+S2B1                        9   Infinite                     9
+S2B2                        6   Infinite                    25
+S2B3                        6   Infinite                     6
+S2B4                        4   Infinite                     4
+S3B1                        4   Seals                       22
+S3B2                       11   Seals                       11
+S3B3                        3   Seals                        3
+S3B4                        2   Seals                        2
+S4B1                        2   Infinite                     2
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        4   Infinite                     4
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        40.02         77         77          0 
+Seals                            6         60          6        15.22         28         28          0 
+Filters                          8        100          8        47.15         89         89          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.74            5            5          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_39*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.971392098
+MTBDE                      91.640764
+MDT                        2.698859
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  80
+
+
+
+***LOGISTICS***
+
+MTBM                  18.680617
+MTBMu                 60.712006
+MTBMs                 26.983114
+MMT                   6.165964
+MMTu                  12.567458
+MMTs                  3.320855
+GreenPercent          72.474476
+YellowPercent         24.664734
+RedPercent            2.860790
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.028701      89.326826     163.361269      59.105907
+DT                             0.500000       2.698859      14.675388       2.373961
+TBM                            0.000000      61.022797     290.326253      59.408200
+RT                             2.884274      12.567458      27.313079       4.952739
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                       12   Motors                      12
+S1B3                        2   Motors                       2
+S2B1                        3   Infinite                     3
+S2B2                        4   Infinite                    23
+S2B3                        4   Infinite                     4
+S2B4                        8   Infinite                     8
+S3B1                        2   Seals                       21
+S3B2                        8   Seals                        8
+S3B3                       10   Seals                       10
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     4
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        4   Filters                      4
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        0   Infinite                     0
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        40.33         74         74          0 
+Seals                            6         60          5        14.92         25         25          0 
+Filters                          8        100          8        48.41         92         92          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.79            5            5          0 
+Crane                            2            0         1.88            2            1          2 
+
+
+
+
+
+***Run_40*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.975052974
+MTBDE                      91.986130
+MDT                        2.353493
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  90
+
+
+
+***LOGISTICS***
+
+MTBM                  18.123661
+MTBMu                 54.169610
+MTBMs                 27.236117
+MMT                   6.541838
+MMTu                  13.149118
+MMTs                  3.256654
+GreenPercent          70.866010
+YellowPercent         26.639287
+RedPercent            2.494703
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.409232      89.554601     155.218350      56.038243
+DT                             0.500000       2.353493      13.036953       1.711707
+TBM                            0.000000      55.484080     234.304873      52.151028
+RT                             1.314854      13.149118      36.660028       6.950157
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                        9   Motors                       9
+S1B3                        2   Motors                       2
+S2B1                       11   Infinite                    11
+S2B2                        4   Infinite                    23
+S2B3                        5   Infinite                     5
+S2B4                        8   Infinite                     8
+S3B1                        5   Seals                       24
+S3B2                       10   Seals                       10
+S3B3                        5   Seals                        5
+S3B4                        1   Seals                        1
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        4   Filters                      4
+S5B3                        6   Filters                      6
+S6B1                        2   Infinite                     2
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        39.98         77         77          0 
+Seals                            6         60          3        13.85         26         26          0 
+Filters                          8        100          7        46.70         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.74            5            4          0 
+Crane                            2            0         1.88            2            1          0 
+
+
+
+
+
+***Run_41*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.971728411
+MTBDE                      88.338946
+MDT                        2.570144
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     55
+NumberOfComponentFailures  81
+
+
+
+***LOGISTICS***
+
+MTBM                  18.615487
+MTBMu                 59.983235
+MTBMs                 26.992456
+MMT                   6.462558
+MMTu                  13.395683
+MMTs                  3.342651
+GreenPercent          71.921703
+YellowPercent         25.251138
+RedPercent            2.827159
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.191012      87.877212     164.063861      57.158103
+DT                             0.500000       2.570144      12.393513       1.994905
+TBM                            0.000000      61.291242     489.614198      73.004675
+RT                             0.515291      13.395683      37.416649       6.009056
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                        9   Motors                       9
+S1B3                        0   Motors                       0
+S2B1                        5   Infinite                     5
+S2B2                        4   Infinite                    23
+S2B3                        5   Infinite                     5
+S2B4                        5   Infinite                     5
+S3B1                        6   Seals                       24
+S3B2                       10   Seals                       10
+S3B3                        7   Seals                        7
+S3B4                        1   Seals                        1
+S4B1                        6   Infinite                     6
+S4B2                        3   Infinite                     3
+S4B3                        0   Infinite                    19
+S5B1                        5   Filters                      5
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        2   Infinite                     2
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        42.58         79         79          0 
+Seals                            6         60          6        13.88         24         24          0 
+Filters                          8        100          8        49.04         91         91          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.78            5            5          0 
+Crane                            2            0         1.87            2            2          0 
+
+
+
+
+
+***Run_42*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.973013732
+MTBDE                      101.355597
+MDT                        2.811070
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     48
+NumberOfComponentFailures  97
+
+
+
+***LOGISTICS***
+
+MTBM                  17.563425
+MTBMu                 50.155347
+MTBMs                 27.028159
+MMT                   6.820901
+MMTu                  13.332842
+MMTs                  3.311689
+GreenPercent          69.507293
+YellowPercent         27.794080
+RedPercent            2.698627
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.187000      99.453876     303.000000      58.330464
+DT                             0.500000       2.811070      25.027380       3.594192
+TBM                            0.000000      51.011843     259.925107      54.758192
+RT                             2.338907      13.332842      33.664413       5.962259
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                        8   Motors                       8
+S1B3                        2   Motors                       2
+S2B1                        4   Infinite                     4
+S2B2                        9   Infinite                    28
+S2B3                        6   Infinite                     6
+S2B4                       10   Infinite                    10
+S3B1                        6   Seals                       25
+S3B2                       12   Seals                       12
+S3B3                        7   Seals                        7
+S3B4                        1   Seals                        1
+S4B1                        3   Infinite                     3
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        4   Filters                      4
+S5B3                        7   Filters                      7
+S6B1                        3   Infinite                     3
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        40.18         78         78          0 
+Seals                            6         60          6        14.89         22         21          0 
+Filters                          8        100          8        47.12         89         89          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.75            5            5          0 
+Crane                            2            0         1.86            2            2          0 
+
+
+
+
+
+***Run_43*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.976595032
+MTBDE                      92.131607
+MDT                        2.208016
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     53
+NumberOfComponentFailures  86
+
+
+
+***LOGISTICS***
+
+MTBM                  18.496118
+MTBMu                 56.778781
+MTBMs                 27.432445
+MMT                   6.078979
+MMTu                  11.837161
+MMTs                  3.296937
+GreenPercent          72.200888
+YellowPercent         25.458616
+RedPercent            2.340497
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.751950      90.142497     166.286323      55.736792
+DT                             0.500000       2.208016       7.144426       0.931278
+TBM                            0.000000      57.585351     394.225351      61.728418
+RT                             0.556392      11.837161      42.650261       6.525259
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        7   Motors                       7
+S1B3                        1   Motors                       1
+S2B1                        3   Infinite                     3
+S2B2                        8   Infinite                    27
+S2B3                        3   Infinite                     3
+S2B4                        5   Infinite                     5
+S3B1                        7   Seals                       25
+S3B2                       10   Seals                       10
+S3B3                        8   Seals                        8
+S3B4                        1   Seals                        1
+S4B1                        3   Infinite                     3
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        3   Infinite                     3
+S6B2                        3   Infinite                     3
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.31         79         79          0 
+Seals                            6         60          4        12.72         22         22          0 
+Filters                          8        100          8        47.92         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            2         4.81            5            5          0 
+Crane                            2            0         1.87            2            2          0 
+
+
+
+
+
+***Run_44*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.969762887
+MTBDE                      78.206684
+MDT                        2.438477
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     62
+NumberOfComponentFailures  90
+
+
+
+***LOGISTICS***
+
+MTBM                  17.958572
+MTBMu                 53.875716
+MTBMs                 26.937858
+MMT                   6.825029
+MMTu                  13.476102
+MMTs                  3.499493
+GreenPercent          67.647856
+YellowPercent         29.328432
+RedPercent            3.023711
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.257422      77.935043     165.090572      51.067777
+DT                             0.500000       2.438477      16.537913       1.962655
+TBM                            0.000000      54.379042     335.447183      52.043264
+RT                             0.205701      13.476102      39.240118       6.664585
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                        7   Motors                       7
+S1B3                        0   Motors                       0
+S2B1                        7   Infinite                     7
+S2B2                        1   Infinite                    20
+S2B3                        5   Infinite                     5
+S2B4                        9   Infinite                     9
+S3B1                        6   Seals                       25
+S3B2                        7   Seals                        7
+S3B3                        9   Seals                        9
+S3B4                        2   Seals                        2
+S4B1                        6   Infinite                     6
+S4B2                        4   Infinite                     4
+S4B3                        1   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        4   Infinite                     4
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        42.92         81         81          0 
+Seals                            6         60          4        13.76         23         23          0 
+Filters                          8        100          8        47.00         89         89          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.77            5            5          0 
+Crane                            2            0         1.86            2            2          0 
+
+
+
+
+
+***Run_45*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.970025927
+MTBDE                      80.835494
+MDT                        2.497839
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     60
+NumberOfComponentFailures  97
+
+
+
+***LOGISTICS***
+
+MTBM                  17.636835
+MTBMu                 50.001336
+MTBMs                 27.247919
+MMT                   7.016744
+MMTu                  14.036902
+MMTs                  3.270031
+GreenPercent          68.936689
+YellowPercent         28.065904
+RedPercent            2.997407
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.218535      80.559741     164.551190      54.914141
+DT                             0.500000       2.497839      12.134323       1.822801
+TBM                            0.000000      51.534352     190.788422      45.390589
+RT                             3.051609      14.036902      37.166202       7.009049
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       11   Motors                      11
+S1B3                        2   Motors                       2
+S2B1                        6   Infinite                     6
+S2B2                        3   Infinite                    22
+S2B3                       10   Infinite                    10
+S2B4                        5   Infinite                     5
+S3B1                        3   Seals                       22
+S3B2                        9   Seals                        9
+S3B3                       11   Seals                       11
+S3B4                        1   Seals                        1
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        4   Filters                      4
+S5B3                        7   Filters                      7
+S6B1                        4   Infinite                     4
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        38.73         74         74          0 
+Seals                            6         60          4        14.22         23         23          0 
+Filters                          8        100          8        47.61         89         89          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.75            5            5          0 
+Crane                            2            0         1.85            2            0          5 
+
+
+
+
+
+***Run_46*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.978598145
+MTBDE                      94.095975
+MDT                        2.057871
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     52
+NumberOfComponentFailures  78
+
+
+
+***LOGISTICS***
+
+MTBM                  18.965080
+MTBMu                 62.730650
+MTBMs                 27.183282
+MMT                   6.439334
+MMTu                  13.145760
+MMTs                  3.533216
+GreenPercent          72.292652
+YellowPercent         25.567162
+RedPercent            2.140186
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.540000      92.355606     152.240401      51.794557
+DT                             0.500000       2.057871       3.000000       0.484605
+TBM                            0.000000      63.813494     344.719656      69.212013
+RT                             4.099277      13.145760      51.210839       7.533600
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                       11   Motors                      11
+S1B3                        1   Motors                       1
+S2B1                        9   Infinite                     9
+S2B2                        6   Infinite                    25
+S2B3                        3   Infinite                     3
+S2B4                        5   Infinite                     5
+S3B1                        4   Seals                       22
+S3B2                        6   Seals                        6
+S3B3                        5   Seals                        5
+S3B4                        2   Seals                        2
+S4B1                        1   Infinite                     2
+S4B2                        5   Infinite                     5
+S4B3                        0   Infinite                    19
+S5B1                        5   Filters                      5
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        3   Infinite                     3
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        39.32         76         76          0 
+Seals                            6         60          5        17.52         31         31          0 
+Filters                          8        100          8        48.31         92         92          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.77            5            5          0 
+Crane                            2            0         1.89            2            2          0 
+
+
+
+
+
+***Run_47*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.964922308
+MTBDE                      70.950170
+MDT                        2.579242
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     68
+NumberOfComponentFailures  117
+
+
+
+***LOGISTICS***
+
+MTBM                  16.028610
+MTBMu                 41.235996
+MTBMs                 26.220715
+MMT                   7.341383
+MMTu                  13.762103
+MMTs                  3.258642
+GreenPercent          65.894158
+YellowPercent         30.598072
+RedPercent            3.507769
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.657975      70.029131     151.000000      50.808343
+DT                             0.263890       2.579242      18.462440       2.377709
+TBM                            0.000000      42.423726     248.180621      44.008341
+RT                             2.822351      13.762103      42.692786       6.666250
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       12   Motors                      12
+S1B3                        2   Motors                       2
+S2B1                       10   Infinite                    10
+S2B2                       15   Infinite                    34
+S2B3                        4   Infinite                     4
+S2B4                        9   Infinite                     9
+S3B1                        6   Seals                       25
+S3B2                        9   Seals                        9
+S3B3                       11   Seals                       11
+S3B4                        2   Seals                        2
+S4B1                        6   Infinite                     8
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        9   Filters                      9
+S5B2                        6   Filters                      6
+S5B3                        7   Filters                      7
+S6B1                        1   Infinite                     1
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        40.05         73         73          0 
+Seals                            6         60          5        12.61         20         19          0 
+Filters                          8        100          7        44.98         86         86          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.68            5            5          0 
+Crane                            2            0         1.85            2            2          2 
+
+
+
+
+
+***Run_48*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.963113748
+MTBDE                      84.483662
+MDT                        3.235636
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     57
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  17.704297
+MTBMu                 52.918338
+MTBMs                 26.605352
+MMT                   6.921146
+MMTu                  14.058460
+MMTs                  3.332773
+GreenPercent          47.762586
+YellowPercent         48.548789
+RedPercent            3.688625
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.417653      82.414742     191.016256      55.332468
+DT                             0.500000       3.235636      26.773854       4.260779
+TBM                            0.000000      54.382698     259.233837      54.092732
+RT                             0.701938      14.058460      56.071429       7.647219
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                        8   Motors                       8
+S1B3                        0   Motors                       0
+S2B1                        8   Infinite                     8
+S2B2                        9   Infinite                    28
+S2B3                        7   Infinite                     7
+S2B4                        7   Infinite                     7
+S3B1                        6   Seals                       25
+S3B2                        6   Seals                        6
+S3B3                        7   Seals                        7
+S3B4                        3   Seals                        3
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        6   Filters                      6
+S5B3                        6   Filters                      6
+S6B1                        1   Infinite                     1
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.32         80         80          0 
+Seals                            6         60          6        15.93         25         25          0 
+Filters                          8        100          8        48.28         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.73            5            5          0 
+Crane                            2            0         1.86            2            2          0 
+
+
+
+
+
+***Run_49*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.972492799
+MTBDE                      82.414644
+MDT                        2.331119
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     59
+NumberOfComponentFailures  95
+
+
+
+***LOGISTICS***
+
+MTBM                  17.681687
+MTBMu                 51.183832
+MTBMs                 27.013689
+MMT                   6.996203
+MMTu                  13.589974
+MMTs                  3.552789
+GreenPercent          68.514554
+YellowPercent         28.734726
+RedPercent            2.750720
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.701777      81.561448     156.205101      58.488473
+DT                             0.363220       2.331119      14.511042       1.894623
+TBM                            0.000000      52.496731     250.269205      52.946648
+RT                             2.719676      13.589974      48.290131       7.636534
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       12   Motors                      12
+S1B3                        1   Motors                       1
+S2B1                        6   Infinite                     6
+S2B2                       12   Infinite                    31
+S2B3                        3   Infinite                     3
+S2B4                        6   Infinite                     6
+S3B1                        5   Seals                       23
+S3B2                       10   Seals                       10
+S3B3                        8   Seals                        8
+S3B4                        1   Seals                        1
+S4B1                        3   Infinite                     3
+S4B2                        3   Infinite                     3
+S4B3                        0   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        6   Filters                      6
+S5B3                        7   Filters                      7
+S6B1                        1   Infinite                     1
+S6B2                        2   Infinite                     2
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        39.41         74         74          0 
+Seals                            6         60          4        12.92         24         24          0 
+Filters                          8        100          8        47.02         88         88          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.75            5            5          0 
+Crane                            2            0         1.86            2            2          0 
+
+
+
+
+
+***Run_50*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.973597325
+MTBDE                      78.515913
+MDT                        2.129248
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     62
+NumberOfComponentFailures  85
+
+
+
+***LOGISTICS***
+
+MTBM                  18.580102
+MTBMu                 57.270431
+MTBMs                 27.502749
+MMT                   6.784838
+MMTu                  13.742469
+MMTs                  3.443603
+GreenPercent          70.008593
+YellowPercent         27.351140
+RedPercent            2.640268
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.563397      77.424585     182.516479      53.422221
+DT                             0.264320       2.129248       6.677326       0.842667
+TBM                            0.000000      58.312155     315.987161      66.588855
+RT                             2.224746      13.742469      43.073812       7.944996
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        3   Motors                      22
+S1B2                       11   Motors                      11
+S1B3                        0   Motors                       0
+S2B1                        7   Infinite                     7
+S2B2                        6   Infinite                    25
+S2B3                        4   Infinite                     4
+S2B4                        5   Infinite                     5
+S3B1                        4   Seals                       22
+S3B2                        7   Seals                        7
+S3B3                        4   Seals                        4
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        1   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        4   Infinite                     4
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        39.32         75         75          0 
+Seals                            6         60          6        17.72         31         31          0 
+Filters                          8        100          8        47.01         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.76            5            5          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_51*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.958946676
+MTBDE                      76.106879
+MDT                        3.258200
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     63
+NumberOfComponentFailures  93
+
+
+
+***LOGISTICS***
+
+MTBM                  17.692743
+MTBMu                 51.556273
+MTBMs                 26.936704
+MMT                   7.090748
+MMTu                  14.250374
+MMTs                  3.350044
+GreenPercent          16.975504
+YellowPercent         78.919164
+RedPercent            4.105332
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.317321      75.812282     196.874810      57.913338
+DT                             0.500000       3.258200      20.994047       3.056564
+TBM                            0.000000      53.559112     269.601498      52.345926
+RT                             1.758806      14.250374      40.745626       7.489441
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        8   Motors                       8
+S1B3                        1   Motors                       1
+S2B1                        6   Infinite                     6
+S2B2                        6   Infinite                    25
+S2B3                        6   Infinite                     6
+S2B4                        6   Infinite                     6
+S3B1                        4   Seals                       23
+S3B2                       12   Seals                       12
+S3B3                        9   Seals                        9
+S3B4                        2   Seals                        2
+S4B1                        2   Infinite                     2
+S4B2                        1   Infinite                     1
+S4B3                        3   Infinite                    20
+S5B1                        9   Filters                      9
+S5B2                        6   Filters                      6
+S5B3                        6   Filters                      6
+S6B1                        3   Infinite                     3
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        41.20         78         78          0 
+Seals                            6         60          6        11.88         20         20          0 
+Filters                          8        100          8        45.95         87         87          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.76            5            5          0 
+Crane                            2            0         1.85            2            2          2 
+
+
+
+
+
+***Run_52*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.968847834
+MTBDE                      68.228721
+MDT                        2.193814
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     71
+NumberOfComponentFailures  92
+
+
+
+***LOGISTICS***
+
+MTBM                  17.679705
+MTBMu                 52.654774
+MTBMs                 26.616699
+MMT                   7.026373
+MMTu                  14.173025
+MMTs                  3.492315
+GreenPercent          68.678577
+YellowPercent         28.206206
+RedPercent            3.115217
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.309993      68.061835     172.783418      54.907987
+DT                             0.473404       2.193814       8.121127       0.993513
+TBM                            0.000000      54.192833     200.068590      53.284666
+RT                             2.908266      14.173025      37.167833       6.826765
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        3   Motors                      22
+S1B2                       11   Motors                      11
+S1B3                        1   Motors                       1
+S2B1                        5   Infinite                     5
+S2B2                        6   Infinite                    25
+S2B3                        3   Infinite                     3
+S2B4                        4   Infinite                     4
+S3B1                        7   Seals                       26
+S3B2                       11   Seals                       11
+S3B3                        8   Seals                        8
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     6
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        7   Filters                      7
+S6B1                        3   Infinite                     3
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        38.45         74         74          0 
+Seals                            6         60          3        12.32         19         19          0 
+Filters                          8        100          7        47.74         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.76            5            5          0 
+Crane                            2            0         1.84            2            1          2 
+
+
+
+
+
+***Run_53*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.957056704
+MTBDE                      88.616361
+MDT                        3.976231
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     54
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  17.723272
+MTBMu                 52.585533
+MTBMs                 26.733427
+MMT                   6.458530
+MMTu                  12.294300
+MMTs                  3.491742
+GreenPercent          31.277478
+YellowPercent         64.428192
+RedPercent            4.294330
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.070153      88.027870     157.413709      53.778234
+DT                             0.500000       3.976231      20.019445       4.738550
+TBM                            0.000000      54.465697     343.415479      60.838887
+RT                             0.729172      12.294300      23.630269       5.128620
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                        7   Motors                       7
+S1B3                        1   Motors                       1
+S2B1                        6   Infinite                     6
+S2B2                        6   Infinite                    25
+S2B3                        6   Infinite                     6
+S2B4                        9   Infinite                     9
+S3B1                        5   Seals                       24
+S3B2                        7   Seals                        7
+S3B3                        8   Seals                        8
+S3B4                        2   Seals                        2
+S4B1                        4   Infinite                     4
+S4B2                        5   Infinite                     5
+S4B3                        0   Infinite                    19
+S5B1                        5   Filters                      5
+S5B2                        6   Filters                      6
+S5B3                        7   Filters                      7
+S6B1                        5   Infinite                     5
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        43.27         80         80          0 
+Seals                            6         60          5        16.03         25         25          0 
+Filters                          8        100          8        47.96         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.74            5            5          1 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_54*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.973717913
+MTBDE                      82.518467
+MDT                        2.227296
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     59
+NumberOfComponentFailures  84
+
+
+
+***LOGISTICS***
+
+MTBM                  18.797643
+MTBMu                 57.959400
+MTBMs                 27.820512
+MMT                   6.751346
+MMTu                  13.793845
+MMTs                  3.370946
+GreenPercent          71.099389
+YellowPercent         26.272402
+RedPercent            2.628209
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.169977      81.716598     168.578692      57.306703
+DT                             0.830023       2.227296       4.750714       0.596394
+TBM                            0.000000      58.325149     203.636608      51.966710
+RT                             1.194501      13.793845      51.160240       7.577402
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       10   Motors                      10
+S1B3                        2   Motors                       2
+S2B1                        8   Infinite                     8
+S2B2                        7   Infinite                    26
+S2B3                        3   Infinite                     3
+S2B4                        4   Infinite                     4
+S3B1                        3   Seals                       19
+S3B2                        6   Seals                        6
+S3B3                        6   Seals                        6
+S3B4                        1   Seals                        1
+S4B1                        4   Infinite                     4
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        6   Filters                      6
+S5B3                        6   Filters                      6
+S6B1                        5   Infinite                     5
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        39.95         75         75          0 
+Seals                            6         60          6        18.59         34         34          0 
+Filters                          8        100          8        47.05         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.77            5            5          0 
+Crane                            2            0         1.89            2            2          0 
+
+
+
+
+
+***Run_55*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.970503779
+MTBDE                      79.549490
+MDT                        2.417723
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     61
+NumberOfComponentFailures  91
+
+
+
+***LOGISTICS***
+
+MTBM                  17.972292
+MTBMu                 53.324383
+MTBMs                 27.109044
+MMT                   6.715811
+MMTu                  13.589009
+MMTs                  3.221616
+GreenPercent          70.907969
+YellowPercent         26.142409
+RedPercent            2.949622
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.024134      79.192884     151.000000      57.745202
+DT                             0.500000       2.417723      13.755326       1.809441
+TBM                            0.000000      54.666234     240.437512      57.261330
+RT                             1.578023      13.589009      33.090451       6.278811
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        1   Motors                      20
+S1B2                        2   Motors                       2
+S1B3                        2   Motors                       2
+S2B1                       10   Infinite                    10
+S2B2                        8   Infinite                    27
+S2B3                        5   Infinite                     5
+S2B4                        9   Infinite                     9
+S3B1                        4   Seals                       23
+S3B2                        8   Seals                        8
+S3B3                        7   Seals                        7
+S3B4                        1   Seals                        1
+S4B1                        6   Infinite                     6
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        6   Filters                      6
+S5B3                        6   Filters                      6
+S6B1                        3   Infinite                     3
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        43.72         84         84          0 
+Seals                            6         60          3        17.23         27         27          0 
+Filters                          8        100          7        45.93         88         88          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.73            5            5          0 
+Crane                            2            0         1.88            2            2          0 
+
+
+
+
+
+***Run_56*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.948667400
+MTBDE                      81.781672
+MDT                        4.425224
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     58
+NumberOfComponentFailures  110
+
+
+
+***LOGISTICS***
+
+MTBM                  16.469920
+MTBMu                 43.121245
+MTBMs                 26.647961
+MMT                   7.329025
+MMTu                  13.225955
+MMTs                  3.717984
+GreenPercent          28.050886
+YellowPercent         66.815854
+RedPercent            5.133260
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.173982      81.781672     162.845601      51.182125
+DT                             0.500000       4.425224      24.745047       5.910123
+TBM                            0.000000      45.311165     241.588270      41.437831
+RT                             2.699546      13.225955      27.960771       5.903136
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        0   Motors                      19
+S1B2                       14   Motors                      14
+S1B3                        2   Motors                       2
+S2B1                        8   Infinite                     8
+S2B2                       11   Infinite                    30
+S2B3                        8   Infinite                     8
+S2B4                        8   Infinite                     8
+S3B1                        5   Seals                       24
+S3B2                        7   Seals                        7
+S3B3                        8   Seals                        8
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     6
+S4B2                        5   Infinite                     5
+S4B3                        4   Infinite                    20
+S5B1                        7   Filters                      7
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        4   Infinite                     4
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          7        38.27         73         73          0 
+Seals                            6         60          5        15.44         27         25          0 
+Filters                          8        100          7        47.41         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.67            5            4          1 
+Crane                            2            0         1.87            2            2          2 
+
+
+
+
+
+***Run_57*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.971759248
+MTBDE                      80.979937
+MDT                        2.353396
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     60
+NumberOfComponentFailures  105
+
+
+
+***LOGISTICS***
+
+MTBM                  17.108437
+MTBMu                 46.274250
+MTBMs                 27.144113
+MMT                   7.319306
+MMTu                  14.049328
+MMTs                  3.371529
+GreenPercent          65.627842
+YellowPercent         31.548083
+RedPercent            2.824075
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.960672      79.176458     153.571048      51.292267
+DT                             0.039328       2.353396       9.137440       1.283300
+TBM                            0.000000      46.826004     162.368335      37.204612
+RT                             1.009421      14.049328      45.176884       7.531225
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                       15   Motors                      15
+S1B3                        1   Motors                       1
+S2B1                        9   Infinite                     9
+S2B2                        8   Infinite                    27
+S2B3                        6   Infinite                     6
+S2B4                        6   Infinite                     6
+S3B1                        7   Seals                       27
+S3B2                       11   Seals                       11
+S3B3                        8   Seals                        8
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        5   Filters                      5
+S5B2                        4   Filters                      4
+S5B3                        7   Filters                      7
+S6B1                        4   Infinite                     4
+S6B2                        1   Infinite                     1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        38.33         71         71          0 
+Seals                            6         60          5        11.28         18         18          0 
+Filters                          8        100          8        49.36         92         92          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.72            5            5          0 
+Crane                            2            0         1.85            2            2          6 
+
+
+
+
+
+***Run_58*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.970827500
+MTBDE                      86.681027
+MDT                        2.604687
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     56
+NumberOfComponentFailures  89
+
+
+
+***LOGISTICS***
+
+MTBM                  18.045121
+MTBMu                 54.540871
+MTBMs                 26.967431
+MMT                   6.703245
+MMTu                  13.324904
+MMTs                  3.429202
+GreenPercent          67.289503
+YellowPercent         29.793247
+RedPercent            2.917250
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.934256      86.410235     151.000000      53.032298
+DT                             0.500000       2.604687      21.659847       2.941805
+TBM                            0.000000      55.766021     287.590428      59.391145
+RT                             1.358365      13.324904      38.749701       6.744515
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        9   Motors                       9
+S1B3                        3   Motors                       3
+S2B1                        3   Infinite                     3
+S2B2                        8   Infinite                    27
+S2B3                        3   Infinite                     3
+S2B4                        6   Infinite                     6
+S3B1                        7   Seals                       25
+S3B2                       11   Seals                       11
+S3B3                        4   Seals                        4
+S3B4                        2   Seals                        2
+S4B1                        6   Infinite                     7
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        7   Filters                      7
+S5B2                        6   Filters                      6
+S5B3                        6   Filters                      6
+S6B1                        2   Infinite                     2
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        39.67         75         75          0 
+Seals                            6         60          6        15.49         24         24          0 
+Filters                          8        100          8        48.03         89         89          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.77            5            5          0 
+Crane                            2            0         1.88            2            2          1 
+
+
+
+
+
+***Run_59*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.968575592
+MTBDE                      83.497896
+MDT                        2.709001
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     58
+NumberOfComponentFailures  94
+
+
+
+***LOGISTICS***
+
+MTBM                  17.870398
+MTBMu                 51.519978
+MTBMs                 27.360892
+MMT                   6.996492
+MMTu                  13.980165
+MMTs                  3.287649
+GreenPercent          69.434681
+YellowPercent         27.422878
+RedPercent            3.142441
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.609055      83.497612     152.879041      54.650372
+DT                             0.500000       2.709001      12.758660       2.227243
+TBM                            0.000000      52.068258     253.283762      50.846957
+RT                             0.258080      13.980165      46.762176       7.191370
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        2   Motors                      21
+S1B2                        9   Motors                       9
+S1B3                        1   Motors                       1
+S2B1                        8   Infinite                     8
+S2B2                        5   Infinite                    24
+S2B3                        6   Infinite                     6
+S2B4                       12   Infinite                    12
+S3B1                        7   Seals                       25
+S3B2                       10   Seals                       10
+S3B3                        5   Seals                        5
+S3B4                        1   Seals                        1
+S4B1                        3   Infinite                     3
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        6   Filters                      6
+S5B2                        5   Filters                      5
+S5B3                        6   Filters                      6
+S6B1                        4   Infinite                     4
+S6B2                        0   Infinite                     0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        40.81         77         77          0 
+Seals                            6         60          6        14.91         25         25          0 
+Filters                          8        100          8        48.65         91         91          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            0         4.73            5            5          2 
+Crane                            2            0         1.87            2            1          0 
+
+
+
+
+
+***Run_60*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.967037380
+MTBDE                      77.986885
+MDT                        2.658276
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              5000.000000
+NumberOfSystemFailures     62
+NumberOfComponentFailures  111
+
+
+
+***LOGISTICS***
+
+MTBM                  16.847341
+MTBMu                 43.560242
+MTBMs                 27.472653
+MMT                   7.477737
+MMTu                  14.005274
+MMTs                  3.398026
+GreenPercent          30.722407
+YellowPercent         65.981331
+RedPercent            3.296262
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.934392      77.539430     164.947941      49.178105
+DT                             0.500000       2.658276      14.593026       2.067267
+TBM                            0.000000      44.948725     284.172372      51.564080
+RT                             1.976964      14.005274      40.003629       7.037507
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                        5   Motors                      24
+S1B2                       11   Motors                      11
+S1B3                        1   Motors                       1
+S2B1                        7   Infinite                     7
+S2B2                        7   Infinite                    26
+S2B3                        8   Infinite                     8
+S2B4                        9   Infinite                     9
+S3B1                        7   Seals                       26
+S3B2                        8   Seals                        8
+S3B3                        9   Seals                        9
+S3B4                        2   Seals                        2
+S4B1                        5   Infinite                     5
+S4B2                        4   Infinite                     4
+S4B3                        0   Infinite                    19
+S5B1                        8   Filters                      8
+S5B2                        5   Filters                      5
+S5B3                        5   Filters                      5
+S6B1                        7   Infinite                     7
+S6B2                        3   Infinite                     3
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Motors                           8        100          8        38.82         72         72          0 
+Seals                            6         60          3        10.90         21         21          0 
+Filters                          8        100          8        47.01         90         90          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Techs                            5            1         4.72            5            3          0 
+Crane                            2            0         1.83            2            2          2 
+
+
+
+

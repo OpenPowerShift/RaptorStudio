@@ -1,0 +1,158 @@
+[[ch-standby]]
+== Cold Standby: The Bakery's Second Oven
+
+*Time: about 25 minutes.*
+*New ideas: cold standby, switch priority, the cost of waking up.*
+
+=== You will learn
+
+* What *cold standby* means and how it differs from parallel running.
+* How the engine picks which unit runs and which sleeps.
+* Why a switch takes time, and what that costs you.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-sparing>> finished.
+* The file `models/Bakery1.rbds`.
++
+opsmodel:Bakery1[]
+
+=== The story
+
+A bakery cannot sell bread without one working oven. Running *two*
+ovens side by side would work — that is <<ch-redundancy>>. But two
+full ovens burning all day is expensive, and both wear out twice as
+collectively fast.
+
+Instead: **one oven bakes, one oven waits in the cold**. The standby
+oven does not age while it waits. When the main oven fails, the baker
+switches over. Waking a cold oven takes about half an hour — you
+cannot bake during that gap.
+
+Mission: one **720-hour** month. How often is the bakery dark?
+
+=== One new idea: the cold node
+
+<<ch-redundancy>>'s OR node kept *both* pumps running. A **cold standby node**
+keeps exactly one input running and holds the rest asleep:
+
+image::bakery-loaded.png[Bakery1: two ovens feeding a cold-swap node]
+
+Open `models/Bakery1.rbds`. The pieces:
+
+[cols="3,6",options="header"]
+|===
+|Piece |Setting
+|Main_Oven |Exponential failures, mean 300 h; Lognormal repair ≈ 6 h
+|Standby_Oven |same dice as Main_Oven
+|Ovens_cold_swap (node) |need 1 of 2, **Cold** on, one active slot
+|Link priorities |Main_Oven priority 25, Standby_Oven priority 50 — lower number wins the active slot
+|Switch time |automatic switch after 0.5 h
+|Power |series block behind the ovens, as always
+|===
+
+[TIP]
+====
+Read "cold" literally: a sleeping machine collects no operating hours,
+so its failure clock stands still. That is the whole economic argument
+for standby over hot redundancy.
+====
+
+=== Run it and read the story
+
+Press F5. Then open the *Event Log* for trial 1. It opens like this:
+
+----
+0.000000   Block  Standby_Oven   Standby   Too_many_on
+180.974    Block  Main_Oven      Failed    Operating_time=180.974304
+180.974    Node   Ovens_cold_swap  Bad     0/2 ...
+181.474    Block  Standby_Oven   Good      Prior=Standby
+185.791    Block  Main_Oven      Repaired
+----
+
+Four beats, worth naming:
+
+. **Kickoff (hour 0).** Both ovens start running; the node notices
+   only one may, and puts Standby_Oven to sleep (`Too_many_on`).
+. **Failure.** Main_Oven dies at hour 181. The node has zero live
+   inputs — the bakery goes red.
+. **The wake-up gap.** Half an hour later the standby wakes. Note its
+   log line says `Prior=Standby`: it slept, so it aged zero hours.
+. **Repair race.** The main oven gets fixed ~5 h later and returns.
+   Now the node has two candidates again — it keeps the running one
+   and sends the repaired oven to the shelf.
+
+Typical numbers at 20 trials: availability about **0.997**, about 3
+stoppage events per month.
+
+[NOTE]
+====
+Compare with a hot-redundant pair of the same ovens (<<ch-redundancy>> style):
+no wake-up gap ever, but both ovens burn hours from minute zero. Cold
+standby trades a short dark gap at every switchover for a much longer
+total service life. Which wins depends on how much a dark half hour
+costs your bakery.
+====
+
+.Limits of this model
+[NOTE]
+====
+The two ovens fail independently, and the switch itself never fails —
+this chapter's Cold node always succeeds at waking the standby unit
+within its 0.5 h. Real kitchens have shared risks a cold-standby
+diagram does not draw: a grease fire or a breaker trip can take out
+both ovens at once, and the transfer switch itself is a physical part
+that can jam. RAPTOR Studio can model an imperfect switch — a chance
+the transfer itself fails, not covered in this book — to relax the
+second assumption; shared physical
+risk to both units needs dependency modelling to relax the first.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |While Standby_Oven sleeps, what happens to its failure clock?
+|2 |Why did the system flash red between the failure (hour 181.0) and
+the wake-up (hour 181.5)?
+|3 |If both ovens had priority 25, which would run first?
+|===
+
+.Answers
+[%collapsible]
+====
+. Nothing — a sleeping unit collects no operating hours, so its
+   failure clock is frozen until it wakes.
+. The node had zero live inputs during the switch: the standby could
+   not take over instantly. Those 0.5 hours are real dark time for
+   the bakery, visible as a red blip in the timeline.
+. Tie on priority number; the engine keeps whichever input reached it
+   first in link order — here Main_Oven, since its link was defined
+   first. Ties are legal but sloppy; always give distinct priorities.
+====
+
+=== Exercise
+
+Baker's nightmare: make the switch *manual* instead of automatic. In
+each oven→node link set AProb from `1` to `0.9`, AutoTime to `0`,
+ManTime to `3`. Now 10% of switches need the owner to drive in:
+3 extra dark hours each time. Run 50 trials before and after, and
+compare availability.
+
+.Answer
+[%collapsible]
+====
+Availability drops noticeably — typically from ~0.997 to
+~0.98–0.985 at 50 trials. Each switchover now risks a 3-hour manual
+drive-in, and with several failures per month those extra hours pile
+up fast.
+====
+
+=== What you learned
+
+* A cold node keeps k = 1 units running and parks the rest.
+* Link priority numbers decide who runs; ties break by order.
+* Sleeping units do not age; waking them costs a visible gap.
+
+Next chapter: stop waiting for things to break. Service them on a
+schedule.

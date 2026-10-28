@@ -1,0 +1,170 @@
+Final_Results_Report for input.rbd  Sat Oct 10 09:40:29 2026
+
+
+Results from 30 runs of sim time 2000.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Total_Cost               14828.77        15255.19        15700.18        266.61          48.68           
+Availability             0.997766508     0.999875075     1.000000000     0.000484706     0.000088495     
+MTBDE                    1995.533017     >1999.750151    >2000.000000    N/A             N/A             
+MDT(2-runs)              3.028496        3.747740        4.466983        1.017164        0.719243        
+Dependability            0.997513700     0.999860676     1.000000000     0.000540338     0.000098652     
+Reliability              0.500000000     0.966666667     1.000000000     0.126854066     0.023160278     
+Conditional_Reliability  0.500000000     0.966666667     1.000000000     0.126854066     0.023160278     
+System_Failures          0               0.066667        1               0.253708        0.046321        
+Cycles_Completed         1               1.800000        2               4.79271651E-08  8.75026315E-09  
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     200.000000      230.527795      250.000000      18.965380       3.462589        
+MTBMu                    666.666667      >1477.652853    >2000.000000    N/A             N/A             
+MTBMs                    250.000000      274.567482      333.333333      23.572578       4.303744        
+MMT                      3.539513        5.369960        7.339768        0.990264        0.180797        
+MMTu(25-runs)            6.086321        11.656201       26.777355       4.114854        0.822971        
+MMTs                     3.175683        4.247850        6.234559        0.775506        0.141587        
+Green_Percent            96.385387       97.654484       98.584195       0.536349        0.097924        
+Yellow_Percent           1.415805        2.333024        3.614613        0.538833        0.098377        
+Red_Percent              0.000000        0.012492        0.223349        0.048471        0.008849        
+Mission_Green_Percent    95.946256       97.816316       98.634265       0.651797        0.119001        
+Mission_Yellow_Percent   1.365735        2.169751        4.053744        0.660564        0.120602        
+Mission_Red_Percent      0.000000        0.013932        0.248630        0.054034        0.009865        
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+S9B1                  Seals                        0         0.80         2         0.66 
+S9B2                  Seals                        0         0.37         1         0.49 
+S9B3                  Seals                        0         0.23         1         0.43 
+
+
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Seals                         6.00        24.00         6.00        16.02        28.60        28.60         0.00 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes    EndNumRes    NumDelays
+Crane                         2.00         0.93         1.98         2.00         2.00         0.00 
+
+
+***COST***
+
+Operating
+
+Block                 InHier        Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0        5565.66      192.27        0.00        0.00       32.28        0.00        0.00        0.00 
+S9B2                    0        7362.76       92.16        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0        1258.60        8.32        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                          14187.02      292.75        0.00        0.00       32.28        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                      0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5790.21         N/A        0.00     5793.40 
+S9B2                        0.00     7454.92         N/A        0.00     7454.92 
+S9B3                        0.00     1266.91         N/A        0.00     1266.91 
+
+Block_Totals                3.19    14512.05        0.00        0.00    14515.24 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      262.00      424.44      702.44 
+
+Resource_Totals            16.00      262.00      424.44      702.44 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14515.24
+Events                      0.00
+SparePools                 30.00
+Resources                 702.44
+SystemDownCost              7.51
+
+________________________________
+Grand_Total             15255.19
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_ANALYSIS
+
+Availability_Data
+Node                   AoMin         AoMean        AoMax         AoStdDev      AoSEM
+J9                     0.997766508   0.999875075   1.000000000   0.000484706   0.000088495
+
+Dependability_Data
+Node                   DoMin         DoMean        DoMax         DoStdDev      DoSEM
+J9                     1.000000000   1.000000000   1.000000000   0.000000000   0.000000000
+
+Reliability_Data
+Node                   RMin          RMean         RMax          RStdDev       RSEM
+J9                     0.500000000   0.966666667   1.000000000   0.126854066   0.023160278
+
+State_Data
+Node                      %Green     %Yellow        %Red       %Blue      %Brown     %Orange
+J9                     97.654484    2.333024    0.000000    0.000000    0.000000    0.012492
+
+
+BLOCK_ANALYSIS
+
+Availability_Data
+Block                  AoMin         AoMean        AoMax         AoStdDev      AoSEM
+S9B1                   0.970640930   0.979870376   0.987001497   0.004029339   0.000735653
+S9B2                   0.991269697   0.997664345   1.000000000   0.003277879   0.000598456
+S9B3                   0.986611323   0.998885191   1.000000000   0.002760778   0.000504047
+
+Dependability_Data
+Block                  DoMin         DoMean        DoMax         DoStdDev      DoSEM
+S9B1                   0.984171902   0.995427507   1.000000000   0.004118469   0.000751926
+S9B2                   0.991269697   0.997664345   1.000000000   0.003277879   0.000598456
+S9B3                   0.986611323   0.998885191   1.000000000   0.002760778   0.000504047
+
+Reliability_Data
+Block                  RMin          RMean         RMax          RStdDev       RSEM
+S9B1                   0.000000000   0.000000000   0.000000000   0.000000000   0.000000000
+S9B2                   0.500000000   0.850000000   1.000000000   0.233045800   0.042548147
+S9B3                   0.500000000   0.900000000   1.000000000   0.203419051   0.037139068
+
+State_Data
+Block                   %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                   97.987038    0.000000    0.000000    0.450713    0.000000    1.562249    0.000000    0.000000
+S9B2                   99.766435    0.000000    0.000000    0.233565    0.000000    0.000000    0.000000    0.000000
+S9B3                   99.888519    0.000000    0.000000    0.111481    0.000000    0.000000    0.000000    0.000000
+

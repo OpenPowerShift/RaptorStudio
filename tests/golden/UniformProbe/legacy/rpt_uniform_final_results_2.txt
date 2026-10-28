@@ -1,0 +1,45 @@
+Final_Results_Report for UniformProbe.rbd  Fri Aug 14 23:16:31 2026
+
+
+Results from 500 runs of sim time 100.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.430753883     0.499730333     0.556925967     0.020153510     0.000901292     
+MTBDE                    0.419820        0.499986        0.600680        0.028745        0.001285        
+MDT                      0.416045        0.500536        0.584549        0.028827        0.001289        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          88              100.116000      112             4.112465        0.183915        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     0.419820        0.499986        0.600680        0.028745        0.001285        
+MTBMu                    0.419820        0.499986        0.600680        0.028745        0.001285        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      0.416045        0.501421        0.586819        0.029032        0.001298        
+MMTu                     0.416045        0.501421        0.586819        0.029032        0.001298        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            43.075388       49.973033       55.692597       2.015351        0.090129        
+Yellow_Percent           0.000000        0.000000        0.000000        0.000000        0.000000        
+Red_Percent              44.307403       50.026967       56.924612       2.015351        0.090129        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+unnamed               Infinite                    88       100.12       112         4.11 
+
+
+

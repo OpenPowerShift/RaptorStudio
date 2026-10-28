@@ -1,0 +1,26 @@
+Raptor day month year = 10 Oct 2026
+devVersion= 7.0.11 Student
+Kings and Serfs File for input.rbd
+
+nd end
+   bl Attitude
+   nd Power
+      bl Nuclear_Reactor
+      ev Inspection
+      bl SolarP_500W
+      bl BatteriesNiCd
+      bl Bus_UR
+      bl SolarP_650W
+      bl BatteriesNiH
+      bl Bus_QR
+      bl SolarP_900W
+      bl BatteriesNaS
+      bl Bus_FR
+      ev Ground_Control
+      nd n38
+         bl Tether-A
+         bl Tether-B
+   bl Thermal
+   nd Comm
+      bl LowGain
+      bl HighGain

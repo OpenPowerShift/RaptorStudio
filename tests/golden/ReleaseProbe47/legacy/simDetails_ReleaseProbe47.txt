@@ -1,0 +1,10 @@
+Begining Procedure RunEFPA......
+
+join  EFPAout=1
+   end  through link 5
+Lo  EFPAout=1
+   join  through link 2
+Hi  EFPAout=1
+   join  through link 4
+12.000000  Lo  0.184654
+12.000000  Hi  0.162068

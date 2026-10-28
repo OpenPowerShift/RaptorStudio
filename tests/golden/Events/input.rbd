@@ -1,0 +1,80 @@
+Version7_7.0.09 Student        Events.rbd        Thu Jun 28 08:07:50 2007
+Phases=       0
+Blocks=       0
+Events=       5
+Nodes=       10
+Links=       18
+SpPools=      0
+ResPools=     0
+Triggers=     0
+Hiers=        0
+HierDepths=   0
+/
+/___________________________________SYSTEM_DATA______________________________________________________________________________
+imageString   TerminationType         TermCondition   StartStats      NumRuns  graphTimeSlice        graphYmin       graphYmax         zoomVal   units    graphicsUse     SysStreamsArray                                    xOrigin       yOrigin  ShowNegErrMsg  IgnoreStartFail flowGenerated systemRedCost     sysLostCost weakAnalysis costAnalysis capacityAnalysis nodeAnalType   GYthreshold  YRthreshold   NotUsed 
+Circuit_Card  FailSim                 1.000000        0.000000     1000.000000 10000000.000000        0.000000        1.000000       24.000000   units     GraphicsOff      7   8   9  10  70  71  72  73  74  75 101       0.000000      80.000000            0            0             1          0.000000        1.000000     0            0            0             Availability      0.950000     0.900000     1
+EndOfSystemData
+/____________________________________HIERARCHY_DATA______________________________________________________________________________
+hierarchyName             ID        xPos          yPos  Parent     In     Out isCNd    zoom    xCenter    yCenter    in   out level Phs   xOrigin       yOrigin          myDepth    extraInt1  extraInt2  extraReal1     extraReal2
+EndOfHierarchyData
+/____________________________________BLOCK_DATA______________________________________________________________________________
+blockName                 ID        xPos             yPos    ParentId    In     Out  Phasing  SimStart     AmtExhausted FDist #FParam  FStream         FParam1           FParam2           FParam3   RDist #RParam  RStream         RParam1           RParam2           RParam3   SBStress      GDType       GDRate             GDLimit           SparePoolName        SpType    RSO  Stock    NewSp     ArriveEvery    ESO       EmerTime     SLO  Level   Quan         SLOTime Pre-LDTDist         Param1            Param2            Param3 Post-LDTDist         Param1            Param2            Param3 NumRes  #Res1Rep    #Res1pmRep   Resource1Name     usesPM    PMSpare  PMRefresh  PMMisDefer  PMFailReset  PMReqDefer   PMStaggerTime           PMFreq pmTriggered    pmTrig             Dist              Param1            Param2            Param3   DepNum     DepNothing    DepIdle      DepPM    DepFail  DepPMThresh  defDepStateIdle   DepType       initial         Running           standby          idle     repHold         repPerTime      repFixed   donePerTime     doneFixed  pmHoldCost      pmCost   pmFixedCost     perSpare   emerShipping   addDone 
+unnamed                    0    0.000000        0.000000        0        0      0      0        3             0.000000     4       2      203       100.000000          0.000000          0.000000     7       2      203         10.000000          2.000000          0.000000      0.000        0         1.000000           1.000000           unnamed              Infinite   0     100      1        720.000000     0       24.000000      0     0       1        24.000000   19              0.000000          0.000000          0.000000    19              0.000000          0.000000          0.000000  0        1            1         None                  0         1         1         0           1             1            0.000000       100.000000    0           none                19             1.000000          0.000000          0.000000      0             0.00     100.00       0.00       0.00      75.00         0            None             1.00            1.00              1.00          1.00        1.00               1.00          1.00          1.00          1.00        1.00        1.00          1.00         1.00           1.00      0
+EndOfBlockData
+/_____________________________________EVENT_DATA______________________________________________________________________________
+eventName                 ID        xPos            yPos    ParentId   In     Out  Phasing  Distro    failStream     failVal         InitCost           OpCost          RepCost     
+P=0.91                     1    6.250000       92.500000       0        1      1       0    17        203           0.910000         1.000000         1.000000         1.000000     
+P=0.87                     2    6.250000       90.000000       0        1      1       0    17        203           0.870000         1.000000         1.000000         1.000000     
+P=0.65                     3   18.750000       92.500000       0        1      1       0    17        203           0.650000         1.000000         1.000000         1.000000     
+P=0.72                     4   18.750000       90.000000       0        1      1       0    17        203           0.720000         1.000000         1.000000         1.000000     
+P=0.53                     5   12.500000       91.250000       0        1      1       0    17        203           0.530000         1.000000         1.000000         1.000000     
+EndOfEventData
+/_____________________________________NODE_DATA______________________________________________________________________________
+Name                     ID          xPos          yPos    parent Type   k     n   Out   Cold   PR  Autos  k*  Phases depNum  depType    divFlow fullflow repCap  repNA 
+start                     6      1.250000     91.250000       0    1     0     0    1     0     1     1    0     0      0     None         1       1        0      0
+end                       7     23.750000     91.250000       0    3    -1     1    0     0     1     1    1     0      0     None         1       1        0      0
+n1                        8      3.750000     91.250000       0    2    -1     1    2     0     1     1    1     0      0     None         1       1        0      1
+n2                        9      8.750000     92.500000       0    2    -1     1    2     0     1     1    1     0      0     None         1       1        0      1
+n3                       10      8.750000     90.000000       0    2    -1     1    2     0     1     1    1     0      0     None         1       1        0      1
+n4                       11     16.250000     92.500000       0    2     1     2    1     0     1     1    1     0      0     None         1       1        0      1
+n5                       12     16.250000     90.000000       0    2     1     2    1     0     1     1    1     0      0     None         1       1        0      1
+n6                       13     21.250000     91.250000       0    2     1     2    1     0     1     1    1     0      0     None         1       1        0      1
+n7                       14     10.000000     91.250000       0    2     1     2    1     0     1     1    1     0      0     None         1       1        0      1
+n8                       15     15.000000     91.250000       0    2    -1     1    2     0     1     1    1     0      0     None         1       1        0      1
+EndOfNodeData
+/_______________________COMMENTS____________________________________________________________________________________________
+Type      ID  Name                 Comment  
+/
+/_____________________________________LINK_DATA______________________________________________________________________________
+   ID  FromType  FromID  ToType  ToID   pID ColdPri      AProb        AutoTime           ManTime  CapPri    nomFlow    MaxFlow 
+    1   Node          6  Node       8    0    50      1.000000        0.000000          1.000000   50         -1         -1
+    2   Node          8  Event      1    0    50      1.000000        0.000000          1.000000   50         -1         -1
+    3   Event         1  Node       9    0    50      1.000000        0.000000          1.000000   50         -1         -1
+    4   Node          9  Node      11    0    50      1.000000        0.000000          1.000000   50         -1         -1
+    5   Node         11  Event      3    0    50      1.000000        0.000000          1.000000   50         -1         -1
+    6   Event         3  Node      13    0    50      1.000000        0.000000          1.000000   50         -1         -1
+    7   Node         13  Node       7    0    50      1.000000        0.000000          1.000000   50         -1         -1
+    8   Node          8  Event      2    0    50      1.000000        0.000000          1.000000   50         -1         -1
+    9   Event         2  Node      10    0    50      1.000000        0.000000          1.000000   50         -1         -1
+   10   Node         10  Node      12    0    50      1.000000        0.000000          1.000000   50         -1         -1
+   11   Node         12  Event      4    0    50      1.000000        0.000000          1.000000   50         -1         -1
+   12   Event         4  Node      13    0    50      1.000000        0.000000          1.000000   50         -1         -1
+   13   Node          9  Node      14    0    50      1.000000        0.000000          1.000000   50         -1         -1
+   14   Node         14  Event      5    0    50      1.000000        0.000000          1.000000   50         -1         -1
+   15   Event         5  Node      15    0    50      1.000000        0.000000          1.000000   50         -1         -1
+   16   Node         15  Node      11    0    50      1.000000        0.000000          1.000000   50         -1         -1
+   17   Node         15  Node      12    0    50      1.000000        0.000000          1.000000   50         -1         -1
+   18   Node         10  Node      14    0    50      1.000000        0.000000          1.000000   50         -1         -1
+EndOfLinkData
+/_______________________________SPARE_POOL_DATA______________________________________________________________________________
+PoolName           RSO Stock NewSp    ArriveEvery  ESO       EmerTime SLO Level Quan      SLOTime         SpCost   emerShipCost
+EndOfSparePoolData
+/_________________________________RESOURCE_DATA______________________________________________________________________________
+PoolName                 NumIn    SpareCost   FixedPerUse   PerTimeUnit  Phases
+EndOfResourceData
+/______________________________PHASES________________________________________________________________________
+PhaseName             Num  Mission  Dist           Param1           Param2           Param3
+EndOfPhasesData
+/______________________________TRIGGERS________________________________________________________________________
+TriggerName         IDnum  Repeats     InitUsed   Dist           Param1           Param2           Param3     
+EndOfTriggerData

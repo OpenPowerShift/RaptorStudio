@@ -1,0 +1,1522 @@
+[[ch-mcp]]
+== RAPTOR from an AI Assistant
+
+*Time: about 20 minutes. You need: RAPTOR Studio, and an MCP-capable AI
+assistant (Claude Code, Claude Desktop, OpenCode, or any other MCP
+client).*
+
+RAPTOR Studio can act as an *MCP server* (Model Context Protocol), letting
+an AI assistant build, simulate, analyse, and compare reliability models
+on your behalf. You describe what you want in plain language; the
+assistant drives the engine and brings back numbers, tables, and a block
+diagram.
+
+This chapter covers installation, configuration for popular clients, the
+full tool catalogue, and worked examples.
+
+The server exposes *64 tools* (including the `ping` health check), a set of
+resources, and three prompts. A standalone reference to every tool,
+option and transport is in `docs/MCP.md` in the repository.
+
+=== Prerequisites
+
+* *Python 3.12+* installed and on your PATH.
+* *RAPTOR Studio* installed (`pip install "raptor-studio[mcp]"`) or
+  running from a development checkout.
+* An AI client that speaks MCP (Claude Code, Claude Desktop, OpenCode, or
+  any client listed at https://modelcontextprotocol.io/clients).
+
+Optional:
+
+* *Qt's system libraries* — PySide6 is installed with the package, but
+  `render_diagram` (block diagram images) also needs the Qt runtime
+  libraries the operating system provides. On a headless server without
+  them the server still works; you just will not get images, and every
+  number still arrives as Markdown and JSON.
+* *uv* — recommended for running from a development checkout without
+  installing.
+
+=== Installing the MCP server
+
+==== From PyPI
+
+[source,bash]
+----
+pip install "raptor-studio[mcp]"
+----
+
+The `[mcp]` extra installs the MCP SDK (`mcp>=2.2,<3`) and pydantic, and
+the `raptor-studio-mcp` console command. Verify it works:
+
+[source,bash]
+----
+raptor-studio-mcp --help
+----
+
+==== From a development checkout
+
+[source,bash]
+----
+cd /path/to/RaptorStudio
+pip install -e ".[mcp]"
+----
+
+Or, without installing (using `uv`):
+
+[source,bash]
+----
+uv run python -m raptor.mcp --help
+----
+
+There are three equivalent entry points, all leading to the same server:
+
+[source,bash]
+----
+raptor-studio-mcp --workspace ~/raptor-models
+python -m raptor.mcp --workspace ~/raptor-models
+raptor-studio --mcp --workspace ~/raptor-models
+----
+
+=== Configuring your AI client
+
+By default the MCP server communicates over *stdio*: your AI client
+launches the server as a child process and speaks JSON-RPC to it.
+Configuration means telling the client the command and arguments. The
+server can also serve MCP over HTTP; see <<mcp-http>>.
+
+.From the app
+[NOTE]
+====
+*File ▸ AI Assistant* in RAPTOR Studio opens the Reference Manual's
+xref:../docs/manual.html#ai-assistant[AI assistant section], with links
+to this chapter and the generated MCP reference. The installer build does
+not include the server; install the `[mcp]` extra shown above.
+====
+
+==== Claude Code
+
+Claude Code is Anthropic's terminal-based coding agent. Register the
+server with:
+
+[source,bash]
+----
+claude mcp add raptor-studio -- raptor-studio-mcp --workspace ~/raptor-models
+----
+
+Or, from a development checkout without installing:
+
+[source,bash]
+----
+claude mcp add raptor-studio -- uv run python -m raptor.mcp --workspace ~/raptor-models
+----
+
+Verify the server is registered:
+
+[source,bash]
+----
+claude mcp list
+----
+
+You should see `raptor-studio` in the list. Start a new Claude Code session and
+ask it about RAPTOR — it will discover the available tools automatically.
+
+To remove the server:
+
+[source,bash]
+----
+claude mcp remove raptor-studio
+----
+
+==== Claude Desktop
+
+Claude Desktop is Anthropic's GUI application. Edit the configuration file
+directly:
+
+* *macOS:* `~/Library/Application Support/Claude/claude_desktop_config.json`
+* *Windows:* `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add the `raptor` server:
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "raptor-studio": {
+      "command": "raptor-studio-mcp",
+      "args": ["--workspace", "/home/you/raptor-models"]
+    }
+  }
+}
+----
+
+If `raptor-studio-mcp` is not on your PATH (for example, in a virtual
+environment), use the full path:
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "raptor-studio": {
+      "command": "/path/to/venv/bin/raptor-studio-mcp",
+      "args": ["--workspace", "/home/you/raptor-models"]
+    }
+  }
+}
+----
+
+From a development checkout with `uv`:
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "raptor-studio": {
+      "command": "uv",
+      "args": [
+        "run", "--directory", "/path/to/RaptorStudio",
+        "python", "-m", "raptor.mcp",
+        "--workspace", "/home/you/raptor-models"
+      ]
+    }
+  }
+}
+----
+
+Restart Claude Desktop after editing the config. The *raptor* server will
+appear under the MCP icon.
+
+==== OpenCode
+
+OpenCode supports MCP servers via its configuration. Add the server under
+`mcp.servers` in your `opencode.json`:
+
+[source,json]
+----
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "raptor-studio": {
+        "type": "local",
+        "command": [
+          "raptor-studio-mcp",
+          "--workspace", "/home/you/raptor-models"
+        ]
+      }
+    }
+  }
+}
+----
+
+Or, from a development checkout:
+
+[source,json]
+----
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "raptor-studio": {
+        "type": "local",
+        "command": [
+          "uv", "run", "--directory", "/path/to/RaptorStudio",
+          "python", "-m", "raptor.mcp",
+          "--workspace", "/home/you/raptor-models"
+        ]
+      }
+    }
+  }
+}
+----
+
+Or let OpenCode write the entry for you:
+
+[source,bash]
+----
+opencode mcp add raptor-studio -- raptor-studio-mcp --workspace ~/raptor-models
+opencode mcp list
+----
+
+OpenCode reloads its configuration when the file is saved; there is no
+need to restart the session.
+
+==== Other MCP clients
+
+Any client that speaks MCP over stdio (or HTTP) will work. The generic recipe is:
+
+[source,bash]
+----
+raptor-studio-mcp --workspace /path/to/workspace
+----
+
+For clients that need a JSON config, the minimal form is:
+
+[source,json]
+----
+{
+  "command": "raptor-studio-mcp",
+  "args": ["--workspace", "/path/to/workspace"]
+}
+----
+
+*Development / Inspector.* To test the server interactively (needs Node.js):
+
+[source,bash]
+----
+npx @modelcontextprotocol/inspector raptor-studio-mcp --workspace ~/raptor-models
+----
+
+This opens the MCP Inspector, where you can call every tool by hand and
+inspect its inputs and outputs.
+
+=== Command-line options
+
+[cols="1,1,3",options="header"]
+|===
+| Flag | Default | Description
+
+| `--workspace PATH`
+| `~/.local/share/raptor-studio/mcp`
+| Directory where models, runs, and renders are stored.
+
+| `--transport {stdio,http}`
+| `stdio`
+| Transport protocol. `http` serves MCP Streamable HTTP; see <<mcp-http>>.
+
+| `--read-only`
+| off
+| Refuse every tool that would create, edit or delete a model, or export a
+  file. Opening models, analysing them and running simulations stay
+  allowed (they never change your source files), so `--read-only` is the
+  right mode for exploring the examples safely.
+
+| `--no-render`
+| off
+| Do not expose `render_diagram`. Use on machines without Qt/PySide6, or
+  when you do not want image output. Everything else still works.
+
+| `--allow-write PATH`
+| (none)
+| Extra directory `save_model_as` may write to, outside the workspace. Can
+  be repeated.
+
+| `--allow-read PATH`
+| (none)
+| Extra directory `open_model` may read model files from. The workspace and
+  bundled examples are always readable; without this, arbitrary host paths
+  are refused. Can be repeated.
+
+| `--retain-days N`
+| 30
+| Days to keep run and render artefacts before automatic cleanup. Models
+  are kept indefinitely.
+
+| `--max-runs N`
+| 5000
+| Hard cap on `num_runs` per `simulate`, `sweep_parameter`, and
+  `compare_models` call.
+
+| `--log-level LEVEL`
+| `INFO`
+| Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
+|===
+
+Nothing outside the workspace is ever written unless `--allow-write`
+permits it; `open_model` only reads the workspace, bundled examples and
+`--allow-read` directories. Over stdio the server listens on no network
+port.
+
+[[mcp-http]]
+==== Serving over HTTP
+
+Use HTTP when several clients share one server, or the server runs in a
+container:
+
+A token is required. Make one and keep it private:
+
+[source,bash]
+----
+head -c 32 /dev/urandom | base64 > ~/.raptor-token
+chmod 600 ~/.raptor-token
+raptor-studio-mcp --transport http --port 8765 --token-file ~/.raptor-token
+----
+
+The endpoint is `http://127.0.0.1:8765/mcp` by default. The server is
+careful about what it exposes:
+
+* It refuses to start without a bearer token (`--token-file FILE` or
+  `--token-env VAR`, at least 16 characters). `--allow-unauthenticated` waives
+  this on loopback for a single-user machine, because any local process can
+  then reach the workspace; it never applies to another `--host`.
+* It binds to the loopback address unless you give `--host`.
+* Every request must carry `Authorization: Bearer <token>`; others get 401.
+  A client address that sends ten wrong tokens in a minute is locked out for a
+  minute (429).
+* All clients of one server share one workspace: run one server (and token)
+  per person or project.
+* Browser cross-origin calls are blocked unless you list the origin with
+  `--allow-origin`, and the Host header is checked against DNS rebinding.
+* `--tls-cert` and `--tls-key` together serve HTTPS. A non-loopback bind
+  refuses plaintext HTTP unless you explicitly pass
+  `--allow-insecure-http`; without TLS the bearer token and model data
+  would cross the network in clear text.
+* Request bodies are capped (8 MiB) and at most two long-running jobs
+  (simulate, sweep, compare, `start_run`) run at once. At most four
+  `start_run` jobs may be queued or running; a fifth is refused with
+  `limit_exceeded`.
+* `--port 0` picks a free port and prints the URL as the first line of
+  output, which is handy in scripts.
+
+[cols="1,1,3",options="header"]
+|===
+| Flag | Default | Description
+
+| `--host HOST` | `127.0.0.1` | Bind address.
+| `-p`, `--port PORT` | `8765` | TCP port.
+| `--path PATH` | `/mcp` | Endpoint path.
+| `--token-file FILE`, `--token-env VAR` | none | Bearer token source (required).
+| `--allow-origin ORIGIN` | none | Allowed browser origin; repeatable.
+| `--tls-cert FILE`, `--tls-key FILE` | none | Serve HTTPS.
+| `--allow-unauthenticated` | off | Serve loopback with no token (single-user machines only).
+| `--allow-insecure-http` | off | Permit plaintext HTTP on a non-loopback bind (not recommended).
+|===
+
+=== Verifying the server works
+
+. *Check the tool list.* Ask your assistant "What RAPTOR tools do you
+  have?" or, in the MCP Inspector, click *Tools*. You should see the tools
+  listed below: 64 including `render_diagram` and `ping`, or 63 when
+  `--no-render` hides the diagram tool.
+
+. *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
+  tool manually. It should return `"pong"`.
+
+. *List distributions.* Ask "What distributions does RAPTOR support?" or
+  call `list_distributions`. You should get all 22 supported distributions
+  with parameter names and valid ranges.
+
+If the server does not appear, see <<mcp-troubleshooting>>.
+
+[[mcp-tools]]
+=== Available tools
+
+==== Workspace and lifecycle
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `list_models`
+| List open models (and bundled examples) with their `model_id`,
+  block/node counts, and source.
+
+| `open_model`
+| Copy a `.rbds`/`.rbd` file into the workspace and return a handle. Also
+  accepts an example name like `MotorDemo`. The original file is never
+  mutated.
+
+| `create_model`
+| Create a new model from a template: `blank`, `series`, `parallel`, or
+  `k_of_n`.
+
+| `save_model_as`
+| Save a model to a path inside the workspace (or an `--allow-write`
+  directory). `.rbds` by default; `.rbd` export validates first and
+  refuses on error.
+
+| `close_model`
+| Close one or more models (a single id or a list), optionally deleting
+  their files irreversibly.
+
+| `delete_file`
+| Delete a file previously exported with `save_model_as` (inside the
+  workspace or an `--allow-write` directory).
+
+| `workspace_info`
+| Return the workspace root, allowed write directories, retention and
+  limits. Relative `save_model_as` paths resolve against the root.
+|===
+
+==== Building and editing
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `build_model`
+| Create a whole model in one call from a friendly `.rbds` JSON spec
+  (`blocks`, `nodes`, `events`, `hierarchies`, `links`, `system`, `experiment`, `rates`,
+  `spare_pools`, `resources`, `triggers`, `phases`, `annotations`). Ids are
+  assigned, links wired, counts synced, auxiliary sections and annotations
+  placed, and the result validated. Check `validation.runnable` — a
+  structurally successful build can still carry engine-gate errors.
+  `.rbds` is the preferred format; only export `.rbd` when explicitly
+  asked.
+
+| `describe_model`
+| Read back the model: counts and topology (`summary`), or every element
+  including links (from/to + `nom_flow`/`max_flow`), node `type`/`k`/`n`/
+  `full_flow`/`div_flow`, and system settings (`full`).
+
+| `get_element`
+| Read one block, node, event, hierarchy or link back in full, using the
+  same friendly names `update_element` accepts. A block returns its
+  upstream/downstream neighbours, `failure` and `repair` (distribution
+  name, named parameters, mean and standard deviation), any delay before
+  or after repair, `sparing`, `maintenance` and `dependency`. `detail=full`
+  adds costs, growth/decay and standby stress.
+
+| `diff_models`
+| Say what is different between two open models: elements added, removed,
+  renamed or changed (distributions are described in words), connections
+  added or removed, hierarchy moves, k-of-n changes, and system settings,
+  rates, spare pools, resources, triggers and phases. It compares the
+  models themselves and runs nothing; `compare_models` compares their
+  *results*. Layout and file-reader bookkeeping are left out unless
+  `ignore` is `[]`. `detail=summary` caps the field changes at 50
+  (`truncated` says whether there are more); `detail=full` returns all of them.
+
+| `add_elements`
+| Add many blocks, nodes or events with one save. Each item is a `kind`
+  (`block`, `node` or `event`) plus the same fields its single add tool
+  takes. Items are created in list order, so a later item's `after` can
+  wire it to an earlier one. The batch is atomic: a refused item restores
+  the model.
+
+| `add_block`
+| Add a block. `parent` is the id of the hierarchy to put it *inside*
+  (0, the default, is the top level) — read the ids from the
+  `Hierarchies` table `describe_model(detail='full')` prints. `after`
+  wires the new block downstream of an existing element, so you can lay a
+  chain in one call instead of `add_block` + `connect`.
+  `fail_dist`/`repair_dist` are codes from `list_distributions` (a
+  `Binomial` is code 3 and takes `(trials, probability)`, not a mean) and
+  must be given with their `*_params`. Leave them out and the block takes
+  the model's own block defaults, or your workspace's
+  `configure_block_defaults` if you set one.
+  A new block inherits *nothing* from other blocks — not another
+  component's distributions, and not its hierarchy. Duplicate names and
+  unknown distribution codes are refused outright; recoverable problems
+  (a `parent` naming no hierarchy) come back in `warnings`.
+
+| `add_node`
+| Add a `start`/`regular`/`end`/`in`/`out` node, with `k` for k-of-n. A
+  node's `n` comes from its incoming links, so wire the voting blocks
+  *into* the node and set `k` explicitly; `-1` is the "never set" sentinel
+  and behaves as 1-of-N (not "all paths").
+
+| `add_event`
+| Add an event with a probability.
+
+| `add_hierarchy`
+| Create an empty hierarchy — a sub-model boundary — *with its In and Out
+  markers already correct*. Doing that by hand through `build_model` means
+  declaring `in_id`/`out_id`, two marker nodes whose own `parent` is the
+  hierarchy's id (not the enclosing level), and their link counts; get any
+  of it wrong and the engine crashes on load with an unhelpful `KeyError`.
+  The hierarchy starts empty: add contents with
+  `add_block(parent=<hier_id>)`, then `connect` the In marker to the first
+  element and the last element to the Out marker.
+
+| `collapse_selection`
+| Wrap elements you *already have* into a new hierarchy in one call — the
+  API counterpart of the GUI's *Collapse Selection*. Internal links travel
+  down a level untouched; each boundary link is split so the outside half
+  keeps its id and an inside half is added off the In/Out marker. Start,
+  End and In/Out nodes are refused. This is the fastest way to produce
+  the "three ovals" figures of <<ch-hierarchy>>.
+
+| `connect`
+| Link two elements (by name or `["Block", id]`).
+
+| `connect_many`
+| Create many links with one save. Endpoints use the same forms as
+  `connect`; the batch is atomic and the model is written once. Returns
+  the new link ids with their from/to endpoints.
+
+| `update_element`
+| Update any friendly `.rbds` field on a `Block`/`Node`/`Event`/`Link`
+  (links carry capacity: `nom_flow`, `max_flow`, `cap_pri`), including
+  sparing, PM, dependency, costs, and indexed forms like
+  `repair_params[0]`. Returns a compact `{changed, warnings, element}`;
+  `full=true` returns the whole row.
+
+| `update_elements`
+| Update many elements with one save, using the same `selector`/`patch`
+  semantics as `update_element`. On a large model this turns one write
+  per element into one write for the batch. Atomic: any refused item
+  restores the model and writes nothing.
+
+| `delete_element`
+| Delete an element; with `reconnect=true`, rewire adjacent links.
+
+| `delete_elements`
+| Delete many elements with one save. `reconnect` behaves as for
+  `delete_element`; a refused selector restores the model. Returns the
+  deleted selectors and the number of links removed.
+
+| `delete_link`
+| Delete one link by id, leaving both elements (and their other links)
+  in place.
+
+| `move_element`
+| Move a block, node, event or hierarchy to another hierarchy level
+  (`parent=0` for the top level). A hierarchy cannot be moved into
+  itself or a descendant.
+
+| `undo_last_edit`
+| Step one edit back (multi-step: call again to go further back).
+
+| `redo_last_edit`
+| Step one edit forward again after `undo_last_edit`.
+|===
+
+==== Model features
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `configure_sparing`
+| Set a block's sparing mode (`infinite`, `custom`, `pool`) with stock,
+  restock interval, emergency time, and SLO.
+
+| `configure_maintenance`
+| Configure preventive maintenance: interval, duration distribution,
+  trigger, and deferral flags.
+
+| `configure_phases`
+| Define mission phases and per-element per-phase states (always built
+  through the builder, never hand-written). `mode=replace` (default)
+  rewrites the list, `mode=add` appends a phase, `mode=remove` deletes
+  the phases named in `remove`; `unassign` clears an element's phasing
+  and phase cells.
+
+| `manage_spare_pools`
+| Create, list, edit or delete the spare pools `configure_sparing(mode="pool")`
+  draws from: stock, restock interval, emergency shipping time, SLO and
+  costs. The pool's stock is what governs a pooled block.
+
+| `manage_resources`
+| Create, list, edit or delete resource pools (shared crew/equipment) with
+  `num_in` and cost fields — the names a block's `resource_name` points at.
+
+| `manage_triggers`
+| Create, list, edit or delete triggers used by triggered preventive
+  maintenance.
+
+| `configure_system`
+| System-level settings: run length, number of runs, termination type,
+  units, weak-link/cost/capacity analysis, GY/YR thresholds, random
+  streams, and `display_unit`.
+
+| `manage_rates`
+| Maintain the model's named Rates library: list, add, update, or delete
+  reusable expressions with a human-readable basis.
+
+| `configure_block_defaults`
+| Set the distributions `add_block` uses when you don't name any — the
+  MCP equivalent of the GUI's *Block Defaults* button. `list` shows the
+  current settings, `set` stores the fields you supply, `clear` forgets
+  them. Set your house values once instead of restating four numbers on
+  every `add_block`. Precedence at placement time: your `add_block`
+  arguments, then these defaults, then the model's own block template row.
+|===
+
+==== Annotations
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `add_annotation`
+| Add a drawing annotation — `text`, `rect`, `ellipse` or `arrow`. Place it
+  by name with `adjacent_to` (a block/node/event/hierarchy) plus `side`
+  (`right`/`left`/`above`/`below`) and `gap` — no coordinates, and it stays
+  put when the diagram is re-laid-out — or explicitly with `x`/`y`. An
+  arrow connects two elements with `from_`/`to`. Styling (colours, border,
+  font, `line_style`) goes in `style`. Annotations exist only in `.rbds`;
+  `.rbd` export drops them.
+
+| `list_annotations`
+| List a model's annotations, optionally filtered by hierarchy `parent`,
+  with geometry and any `anchor` (target/side/gap, or from/to).
+
+| `update_annotation`
+| Patch one annotation's text/style/geometry, or re-anchor it (supply
+  `adjacent_to` or `from_`/`to`; `side`/`gap` alone keeps the existing
+  anchor).
+
+| `delete_annotation`
+| Delete one annotation by id.
+|===
+
+==== Analysis
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `validate_model`
+| Structural and parameter pre-flight. Returns errors, warnings, and a
+  runnable flag.
+
+| `describe_metrics`
+| List the result metrics and their units (availability, reliability,
+  dependability, MTBDE/MDT, MTBM variants, MMT variants, failures and
+  G/Y/R percentages). With `run_id`, also return that run's sample count,
+  min/mean/max, standard deviation and standard error. For the
+  definitions, call `read_doc('formulas')`; this tool does not repeat
+  them.
+
+| `estimate_runtime`
+| Predict wall-clock time from a real pilot at the real horizon. Returns a
+  point estimate, a range, per-run ms, and advice.
+
+| `simulate`
+| Run a Monte Carlo simulation. Validates the model first and refuses on
+  structural errors. Returns structured metrics (availability,
+  reliability, MTBDE, MDT, MTBM/MMT variants, G/Y/R percent, system and
+  component failures) plus a Markdown table. Estimates first and refuses
+  over-budget runs unless `confirm_long_run=true`. If a run is cut short,
+  `truncated` is true and `runs` is below `requested_runs`. `seed` (optional)
+  re-rolls the batch reproducibly; unset keeps the engine's fixed seeds.
+  `importance` (`improvement`, `risk` or `both`) also estimates the
+  IEC 61078 Annex D importance measures by re-simulation: one extra batch
+  per block, two for `both`. Read them with `get_report(section="importance")`.
+
+| `start_run`
+| Start a simulation in the background and return a `job_id` immediately.
+  Takes the same arguments as `simulate` (minus hierarchy isolation and
+  importance), validates the model and checks the batch size before the
+  job starts, then runs on a daemon thread. Use it when a batch outlives
+  one tool call; the completed run is an ordinary workspace run.
+
+| `run_status`
+| Progress of a `start_run` job: `state` (`queued`, `running`, `done`,
+  `cancelled`, `failed`), completed/requested runs, percent, elapsed
+  time, and — once available — the `run_id` and metric summary. Jobs are
+  in-process only; after a server restart the run remains, the job id
+  does not.
+
+| `cancel_run`
+| Ask a background job to stop between replications, keeping the
+  completed ones as a truncated run. Poll `run_status` until `state` is
+  `cancelled`.
+
+| `get_report`
+| Paginated sections of a stored report: `final_results`, `end_of_run`,
+  `events`, `capacity`, `cost`, `weak_link`, `importance` (when the run asked
+  for it), or `availability_plot`.
+  `run_number` selects one replication where the section is per-run.
+
+| `single_point_failures`
+| Elements whose failure alone takes the system down.
+
+| `failure_effects`
+| Failure Effects View on the model (nothing is
+  simulated): fail/repair blocks or events, optionally in a chosen phase, and
+  get the system status and the Failure Effects text (failed, induced, idle
+  and PM components, down and degraded nodes).
+
+| `extract_hierarchy`
+| Build a standalone model from one
+  hierarchy (its input always available), or list what crosses its boundary
+  with `report_only`. `simulate` also takes `hierarchy` to run one on its own;
+  the result carries an `isolation` record.
+
+| `compare_models`
+| Compare 2–5 models (run afresh) or completed runs (cached), side by
+  side, with deltas and the best entry per metric.
+|===
+
+==== What-if
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `sweep_parameter`
+| Vary one parameter across up to 12 values and measure the impact. Works
+  on copies — the original model is untouched. Each row carries the
+  `run_id` and `runs` that produced it; `all_rows_identical` is true (with
+  a `warnings` note) when the metric never changed, which cannot be told
+  apart from "the value was never applied". Concurrent sweeps are
+  serialised.
+|===
+
+==== Diagram
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `render_diagram`
+| Render the block diagram as a PNG image (the *only* tool that returns an
+  image). Renders the model's stored coordinates (layout is a separate,
+  explicit step). `level` is a **hierarchy id** (0 = whole model), not a
+  depth index; `zoom_to` frames a legible close-up on named/id'd elements
+  (with `margin` padding) and the result reports `effective_label_px` /
+  `legible`; `highlight` outlines elements (for example the single
+  points of failure); `include_annotations` draws the overlays. Light/dark
+  theme and a pixel cap.
+
+| `auto_layout`
+| Re-arrange the diagram onto the shared layered grid and save the
+  positions. This is the *only* layout step: `build_model` runs it by
+  default, and `render_diagram` never re-lays-out. Use it after building a
+  model by hand.
+|===
+
+==== Results and time series
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `get_run_results`
+| One completed run as a single assessable bundle: metric means and
+  per-replication figures, the capacity summary, and the weakest elements
+  (`weak_link`). `top` caps the weak-link list. Use `get_table` or
+  `export_tables` when you need a whole table or a workbook.
+
+| `get_timeseries`
+| Time-series data (`availability`, `capacity`, or `cost`) from a
+  completed run, decimated for the client to plot. `runs` is `mean`
+  (default, with a min/max envelope), `all`, or a run number.
+|===
+
+==== Tables
+
+The same tables the desktop app's *Export Tables* dialog offers: the
+model's **Inputs** (system settings, blocks, nodes, events, hierarchies,
+links, spare pools, resources, triggers, phases) and, given a `run_id`, a
+run's **Results** (every section of the Final Results report, the per-run
+figures, capacity samples, and the long ones -- event log, end-of-run
+report, interim cost). A table is named by a key such as `inputs.blocks`
+or `results.summary`.
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `list_tables`
+| The tables that exist for a model (and a run, if `run_id` is given),
+  with row counts. Result tables show as unavailable, with the reason,
+  until a run is supplied. The long tables are not ticked by default.
+
+| `get_table`
+| One table's headers and a page of its rows (at most 200 per call;
+  `offset` / `next_offset` to page).
+
+| `export_tables`
+| Writes tables to the workspace: `xlsx` (one workbook, a tab per table,
+  real numbers -- the default), `csv` (one file per table), `txt` (one
+  fixed-width file per table) and `txt_report` (one combined report), in
+  any combination. Files go to `Tables/<model>` in the workspace unless a
+  workspace-relative `folder` is given.
+|===
+
+==== Reference
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `list_distributions`
+| Every distribution: code, name, parameter names in order, valid ranges,
+  and an example mean/stdev.
+
+| `search_docs`
+| Search the tutorial book for passages matching a query. Multi-word
+  queries match passages containing all the terms.
+
+| `read_doc`
+| Read a documentation source as paginated text: `rbds` (the format guide),
+  `mcp-guide` (this chapter), or a chapter such as `ch11-capacity`.
+
+| `ping`
+| Health check. Returns `"pong"`.
+|===
+
+==== Resources
+
+Read-only URIs a client can browse or read:
+
+[cols="1,2",options="header"]
+|===
+| Resource URI | What it returns
+
+| `raptor://examples`
+| JSON list of bundled example models.
+
+| `raptor://models`
+| JSON index of the open models.
+
+| `raptor://runs`
+| JSON index of the completed runs kept in the workspace, newest first.
+
+| `raptor://examples/{name}`
+| A bundled example as `.rbds` text.
+
+| `raptor://models/{model_id}`
+| The live model as `.rbds` text.
+
+| `raptor://runs/{run_id}/{section}`
+| A full report section for a completed run.
+
+| `raptor://docs/{chapter}`
+| A chapter of this book. `raptor://docs/mcp-guide` returns this chapter.
+
+| `raptor://renders/{name}`
+| A rendered diagram PNG.
+|===
+
+==== Prompts
+
+Conversation starters that appear in your client's prompt menu:
+
+[cols="1,1,3",options="header"]
+|===
+| Prompt | Arguments | What it does
+
+| `new_availability_study`
+| `system_description`, `mission_hours`
+| Build → validate → estimate → simulate → render → report.
+
+| `explain_model`
+| `model_id`
+| Walk the topology in plain English and flag single points of failure.
+
+| `improve_availability`
+| `model_id`, `target`
+| Run, find the weak link, sweep or edit copies, and compare.
+|===
+
+[[mcp-examples]]
+=== Worked examples
+
+The assistant discovers the tools automatically — you do not need to name
+them. These examples show what a conversation looks like.
+
+==== Explore the distribution reference
+
+[quote, You]
+____
+What distributions does RAPTOR support for failure modelling?
+____
+
+The assistant calls `list_distributions` and summarises the results:
+
+[quote, Assistant]
+____
+RAPTOR supports 22 distributions. For failures, the most common are:
+
+* *Exponential* (code 4): 2 params — mean, location. Mean must be > 0.
+* *Weibull* (code 15): 3 params — shape, scale, location. Shape > 0,
+  scale > 0.
+* *Lognormal* (code 7): 2 params — mean, stdev. Both must be > 0.
+
+For repairs, *Lognormal* is the standard choice (mean and standard
+deviation of repair time in hours).
+____
+
+This prevents the common mistake of getting parameter order wrong.
+
+==== Build a pump station from a description
+
+[quote, You]
+____
+Build a pump station: three pumps of which two must run, exponential
+failures with a 1000-hour mean, 8-hour lognormal repairs, mission 8760
+hours, 500 runs.
+____
+
+The assistant calls `build_model` with a friendly `.rbds` spec:
+
+[source,json]
+----
+{
+  "blocks": [
+    {"name": "PumpA", "fail_dist": 4, "fail_params": [1000, 0],
+     "repair_dist": 7, "repair_params": [8, 2]},
+    {"name": "PumpB", "fail_dist": 4, "fail_params": [1000, 0],
+     "repair_dist": 7, "repair_params": [8, 2]},
+    {"name": "Standby", "fail_dist": 4, "fail_params": [1000, 0],
+     "repair_dist": 7, "repair_params": [8, 2]}
+  ],
+  "nodes": [{"name": "Start", "type": "start"},
+            {"name": "rail", "type": "regular", "k": 1},
+            {"name": "join", "type": "regular", "k": 2},
+            {"name": "End", "type": "end"}],
+  "links": [
+    {"from_type": "Node", "from": "Start", "to_type": "Node", "to": "rail"},
+    {"from_type": "Node", "from": "rail", "to_type": "Block", "to": "PumpA"},
+    {"from_type": "Node", "from": "rail", "to_type": "Block", "to": "PumpB"},
+    {"from_type": "Node", "from": "rail", "to_type": "Block", "to": "Standby"},
+    {"from_type": "Block", "from": "PumpA", "to_type": "Node", "to": "join"},
+    {"from_type": "Block", "from": "PumpB", "to_type": "Node", "to": "join"},
+    {"from_type": "Block", "from": "Standby", "to_type": "Node", "to": "join"},
+    {"from_type": "Node", "from": "join", "to_type": "Node", "to": "End"}
+  ],
+  "system": {"term_condition": 8760, "num_runs": 500}
+}
+----
+
+`build_model` assigns ids, wires links, syncs counts, and validates. It
+returns a `model_id` and a `validation` block. The assistant can also
+build piece by piece with `add_block`, `add_node`, and `connect`.
+
+Every block must be wired through the split/merge nodes: a block is a
+two-terminal element (one input, one output), so a block left unconnected
+or fanned directly in/out is a structural error — the engine cannot build
+the RBD graph and `validate_model` reports it. This is the model's
+topology/wiring rule for connecting multiple blocks: to converge two or
+more paths (parallel branches reconverging) or diverge one block's output
+to several downstream elements, `connect` each block to an intermediate
+regular `Node` instead of block-to-block or block-to-many -- never two
+blocks feeding the same block, node, or End directly. See "Node" in the
+`.rbds` format guide (`read_doc("rbds")`) for the exact `k`/`n` fields.
+
+==== Validate, estimate, then run
+
+[quote, You]
+____
+Validate it, then tell me how long 500 runs will take before you run them.
+____
+
+The assistant calls `validate_model`, then `estimate_runtime`:
+
+[quote, Assistant]
+____
+The model is runnable (0 errors). Estimated *6.2 seconds* for 500 runs
+(range 4.3–8.2 s), based on a 10-replication pilot at 12.4 ms per
+replication. This is an estimate, not a promise; enabling event-log
+collection would add I/O.
+____
+
+Only then does it call `simulate`, which returns structured metrics plus a
+Markdown table:
+
+[cols="1,1,1,1,1,1",options="header"]
+|===
+| Metric | Min | Mean | Max | St.Dev | SEM
+
+| Availability | 0.9978 | 0.9998 | 1.0000 | 0.0003 | 0.00002
+| MTBDE (hours) | 2913.6 | 8434.5 | 8760.0 | 1170.5 | 52.3
+| MDT (hours) | 0.1 | 4.0 | 10.4 | 2.3 | 0.18
+|===
+
+==== Show the block diagram
+
+[quote, You]
+____
+Show me the diagram.
+____
+
+The assistant calls `render_diagram`. An image appears, rendered from the
+model's *content* area at 4× supersampling and downscaled so text stays
+legible. This is the one and only image tool — results are always Markdown
+and JSON.
+
+==== Which single failure takes the system down?
+
+[quote, You]
+____
+Which single component failure takes the whole station down?
+____
+
+The assistant calls `single_point_failures` and lists the results. It can
+then call `render_diagram` with `highlight` set to those elements to
+outline them on the picture.
+
+==== What-if analysis with sweep
+
+[quote, You]
+____
+What if repairs take 24 hours instead of 8? Sweep 4, 8, 12, 16, 20, and
+24 hours.
+____
+
+The assistant calls `sweep_parameter` on copies of the model:
+
+[cols="1,1",options="header"]
+|===
+| repair_params[0] (PumpA) | Availability
+
+| 4  | 0.99985
+| 8  | 0.99981
+| 12 | 0.99974
+| 16 | 0.99968
+| 20 | 0.99961
+| 24 | 0.99958
+|===
+
+Best result: *4 hours*. Only PumpA's repair time is swept here, so the whole
+effect is small: two pumps are still enough. The original model is never
+modified.
+
+==== Compare models and add spares
+
+[quote, You]
+____
+Add a spare pool with 2 spares on a copy, and compare it with the
+original.
+____
+
+The assistant copies the model, calls `configure_sparing` on the copy
+(`mode="custom"`, `stock=2`), runs both, and calls `compare_models` for a
+side-by-side table with deltas and which entry is best per metric.
+
+==== What changed between two versions?
+
+[quote, You]
+____
+What is different between `pump_v1.rbds` and `pump_v2.rbds`?
+____
+
+The assistant opens both files with `open_model`, then calls `diff_models`
+with the two model ids. Nothing is simulated; the answer is a list such as
+
+[cols="2,2,3,3",options="header"]
+|===
+| Element | Field | pump_v1 | pump_v2
+
+| Block Pump A | Failure distribution | Exponential (mean 2920) | Weibull (shape 1.3, scale 823)
+| Block Pump C | (added) | | present
+|===
+
+together with the connections that were added or removed and a one-line
+verdict such as "1 element added, 2 links added" (or "same wiring"). To
+check what you have changed since you last saved, open the file a second
+time and diff the two copies with `match="id"`. `compare_models` answers a
+different question: how the *results* of two models differ.
+
+==== Keep the derivation with rates
+
+[quote, You]
+____
+Define the pump failure rate as 0.00015 failures per km at 20,000 km a
+year, and use it for both pumps.
+____
+
+The assistant calls `manage_rates` to define `PumpRate`:
+
+[source,text]
+----
+0.00015 * 20000 / 8760  # 0.00015 fail/km, 20000 km/yr
+----
+
+then `update_element` with `fail_params: ["@PumpRate", 0, 0]` (or
+`"@PumpRate * 1.4"`). The model stores the resolved float *and* records
+the derivation in its `formulas`, so reopening the model shows the basis,
+not just a number. This is a port-only feature that an assistant is
+unusually well placed to use, because it knows the derivation.
+
+==== Save a model for the desktop app
+
+[quote, You]
+____
+Save it where I can open it in the app.
+____
+
+The assistant calls `save_model_as`, which writes `.rbds` by default. Open
+that file in RAPTOR Studio — it loads, renders, and runs. Asking for
+`format="rbd"` exports the older `.rbd` format, which validates first and
+refuses on any structural error.
+
+==== Availability over time
+
+[quote, You]
+____
+Show me availability over time for the last run.
+____
+
+The assistant calls `get_timeseries` with `series="availability"` and
+`runs="mean"`. It returns decimated `{t, values}` data plus a min/max
+envelope, and the client draws the chart (an artifact, a chart, or a CSV
+you open in a spreadsheet). The server sends no picture of a results pane.
+
+==== Dependencies: a backup that waits for the thing it backs up
+
+A block can be made *dependent* on another element. When what it follows
+goes down, the block reacts instead of carrying on with its own dice.
+`get_element` shows it, for example the Armature in MotorDemo:
+
+[source,json]
+----
+"dependency": {
+  "dependent": true,
+  "follows": {"kind": "block", "id": 5, "name": "PowerSupply"},
+  "effects_percent": {"nothing": 0, "idle": 100, "pm": 0, "failure": 0},
+  "meaning": "When block PowerSupply goes down, this block is: 100% forced Idle (paused: its failure clock stops and resumes when the target is back)."
+}
+----
+
+*What it follows* (`dep_type` and `dep_num`):
+
+* a specific block, node, event or hierarchy: `dep_type` is `RBDBlock`,
+  `RBDNode`, `RBDEvent` or `RBDHier`, and `dep_num` is that element's id.
+  For a hierarchy, `dep_num` must be the hierarchy's *Out* node id, not the
+  hierarchy id;
+* its own node ("local"): `dep_num = -1`;
+* the whole system: `dep_num = -2`.
+
+*What happens when it goes down* is a percentage split that adds up to 100:
+`dep_nothing` (no effect), `dep_idle` (forced Idle: paused, failure clock
+stopped, resumes when the target is back), `dep_pm` (sent for preventive
+maintenance) and `dep_fail` (induced to fail). All Idle is the usual case.
+
+Set a dependency with `update_element`, for example
+`{"dep_type": "RBDBlock", "dep_num": 5, "dep_nothing": 0, "dep_idle": 100,
+"dep_pm": 0, "dep_fail": 0}`, and check it with `get_element`. Clear it with
+`{"dep_type": "None", "dep_num": 0}`.
+
+*Watch for false redundancy.* A "backup" that depends on the unit it backs
+up sits idle exactly when it is needed, so the diagram shows two parallel
+boxes but the system behaves like one. The blue badge on a block in
+`render_diagram` marks a dependency (`D` for an element, `L` for local, `S`
+for system). The tutorial chapter "Dependency: The Backup That Wasn't"
+(`read_doc dependency`) works through the numbers.
+
+==== Capacity analysis: demand, caps, boundaries
+
+Capacity answers "how much flow still gets through?", which is not the
+same question as availability — a system can be fully available and still
+deliver reduced flow while elements are degraded.
+
+To model it:
+
+. **Set the demand.** `configure_system(capacity=true,
+  flow_generated=<n>)`, or `system.capacity_analysis: true` and
+  `system.flow_generated: <n>` in a `build_model` spec.
+. **Cap the links.** `update_element(model_id, "Link:N",
+  {nom_flow: <nominal>, max_flow: <maximum>})`. The friendly link fields
+  are `nom_flow`, `max_flow`, `cap_pri`, `cold_pri`, `a_prob`, `auto_time`
+  and `man_time`.
+. **Mark the boundary node(s).** A cap only binds on links entering a node
+  whose *unrestricted flow* is off. Set `full_flow: false` (and usually
+  `div_flow: false`) on the split/merge nodes where the limit should
+  apply. Without a boundary node every cap is ignored and the report shows
+  no lost flow.
+
+Capacity checklist:
+
+* demand (`flow_generated`) is greater than zero;
+* the caps are on the links that actually carry the flow;
+* at least one boundary node (`full_flow: false`) exists;
+* when a group is forced down, `AveLostFlow` becomes non-zero.
+
+`validate_model` warns when capacity is enabled but the demand is zero, no
+boundary node exists, or link caps are set with no boundary. `get_report`
+section `capacity` and `get_timeseries(series="capacity")` return the
+per-step flow/capacity trajectory (Markdown table and decimated series
+respectively).
+
+Node `k`-of-`n`: `n` is the number of incoming paths and `k` is how many
+must be good for the node to pass flow; `full_flow: false` makes the node
+a capacity boundary. Whole-unit renewal (replace the entire system when it
+goes down) is not modelled natively — model it as no-repair plus an
+external renewal, or a system-level repair pattern.
+
+=== How results are presented
+
+This is the one deliberate aesthetic decision in the MCP design:
+
+* *A diagram is a picture.* Topology genuinely needs pixels, so
+  `render_diagram` returns a PNG.
+* *Results are data.* Every number leaves the server as
+  `structuredContent` (full-precision JSON the assistant can reason about)
+  *and* as a Markdown body (tables with units in the headers, which you
+  can copy, paste, diff, and re-plot). You will never get a screenshot of
+  a results window.
+
+Markdown rules you can rely on:
+
+* Real tables with units in the header (`MTBDE (hours)`), honouring the
+  model's `display_unit` when one is set.
+* 4 significant figures for probabilities, 2 decimals for times and
+  costs; full precision stays in the JSON.
+* The report's *meaning* is preserved: a `>` marker means the true
+  value is at least the printed threshold, `N/A` means not computed, and
+  sample counts (`MDT(18-runs)`) become footnotes.
+* Element-level tables are sorted worst-first.
+* No tool returns more than about 200 lines or 8 KB inline. Larger reports
+  are written to the workspace and fetched on demand with `get_report`
+  (`offset`/`limit`) or read via a resource link.
+
+=== Errors, progress and tool hints
+
+*Structured errors.* A failed tool returns `isError: true`, a plain-English
+message for the assistant to read, and
+`structuredContent.error = {code, message, hint, retryable}`. The `code` is
+stable and safe to branch on:
+
+[cols="1,3"]
+|===
+| `invalid_argument` | The input is wrong; fix it and retry.
+| `not_found` | A model, run, element, example or file does not exist.
+| `permission_denied` | Blocked by `--read-only` or by workspace confinement.
+| `precondition_failed` | The input is valid but the model or state is not ready.
+| `limit_exceeded` | A server cap (runs, open models, disk) was hit.
+| `cancelled` / `timeout` | The client cancelled, or the time budget ran out.
+| `unavailable` | An optional capability (for example rendering) is missing.
+| `internal` | A server bug. The message is deliberately generic; see the server log.
+|===
+
+*Progress and cancellation.* `simulate`, `sweep_parameter` and
+`compare_models` send an MCP progress notification about once a second
+(so clients do not time out on long runs) and stop between replications if
+the client cancels the request. With `workers > 1` progress is coarser.
+
+*Tool hints.* Every tool carries MCP annotations (`readOnlyHint`,
+`destructiveHint`, `idempotentHint`, a title). Read-only tools such as
+`describe_model` and `get_report` can be auto-approved by a client;
+`delete_element`, `close_model`, `save_model_as` and `undo_last_edit` are
+flagged destructive.
+
+*Caveats.* `simulate` returns `caveats` (and puts them first in the
+Markdown) whenever validation found something that can make the numbers
+misleading, for example capacity analysis switched on with no boundary node.
+
+*Resources.* Besides the per-item URIs, `raptor://models` and
+`raptor://runs` list what is currently open and what has been run. Large
+run sections are truncated at 200,000 characters; page them with
+`get_report` instead.
+
+=== Tips and best practices
+
+*Let the assistant estimate before long runs.* If a simulation might take
+more than a few seconds, ask "how long will this take?" before "run it".
+The server runs a real pilot at the real horizon and gives an honest
+estimate with a range.
+
+*Always validate first.* `validate_model` catches structural errors and
+out-of-range parameters before the engine rejects them at runtime. Make it
+a habit: validate → estimate → simulate.
+
+*Ask for comparisons, not just single runs.* The real power of the MCP
+interface is what-if analysis: "compare this with and without a spare
+pool", "sweep repair time from 4 to 24 hours", "which component failure
+matters most?".
+
+*Keep derivations.* When you know where a number comes from, tell the
+assistant; it can define a named rate and keep the derivation as its
+description in the model.
+
+*Use `--read-only` for exploration.* If you only want to look at example
+models, start the server with `--read-only` so nothing can be modified.
+
+*Say units explicitly.* The engine is hours-native. The assistant will
+echo units in every result, and `configure_system` can set a
+`display_unit` (for example years) without changing stored values.
+
+[[mcp-troubleshooting]]
+=== Troubleshooting
+
+==== `raptor-studio-mcp: command not found`
+
+The server is not on your PATH. Use the full path to the executable, or
+add it:
+
+[source,bash]
+----
+which raptor-studio-mcp
+# Or use python -m
+python -m raptor.mcp --help
+----
+
+==== `No module named mcp`
+
+Install the MCP dependencies:
+
+[source,bash]
+----
+pip install "raptor-studio[mcp]"
+----
+
+==== `No module named raptor` (development checkout)
+
+Make sure the package is installed in editable mode:
+
+[source,bash]
+----
+pip install -e ".[mcp]"
+----
+
+Or use `uv run` to pick up the checkout automatically.
+
+==== Server starts but tools do not appear in the client
+
+. Restart the client after adding the server configuration.
+. Check the server starts cleanly: `raptor-studio-mcp --help` should print
+  the available flags.
+. Check the client's MCP logs (Claude Code: `claude mcp list`; Claude
+  Desktop: the developer console).
+
+==== `render_diagram` is missing from the tool list
+
+It is not exposed when `--no-render` is set or when Qt cannot start
+(for example on a headless server without Qt's system libraries). Every other tool still works.
+
+==== Path resolves outside the workspace
+
+`save_model_as` may only write inside the workspace. Pass
+`--allow-write /some/dir` to permit another directory, or save inside the
+workspace and copy the file out yourself.
+
+==== Models from the GUI do not show up in the workspace
+
+The MCP server uses its own workspace directory (by default
+`~/.local/share/raptor-studio/mcp`). Open a GUI model by path instead:
+
+[source,text]
+----
+Open the model at /path/to/my/gui/model.rbds
+----
+
+The server copies the file into the workspace, so the original is never
+mutated.
+
+==== Simulation is refused as too long
+
+The server estimates first and refuses a run predicted to exceed
+`timeout_s` (default 120 s). Use fewer runs, a shorter `run_length`, or
+pass `confirm_long_run=true`. `--max-runs` (default 5000) is a hard cap.
+
+==== The runtime estimate seems off
+
+The estimate comes from a real pilot and is deliberately a *range*, not a
+promise. Per-run cost can be non-uniform for models with growth/decay or
+phases, `collect_events` adds I/O, and `workers > 1` changes timing (and
+is not bit-identical to a sequential batch). Ask again on a quiet machine
+for a cleaner pilot.
+
+=== Frequently asked questions
+
+*Does this replace the RAPTOR Studio GUI?*
+No. The MCP server is a second front door to the same engine. Both share
+the same core simulation code. Use whichever is convenient — or both on
+the same model.
+
+*Can I open a model in the GUI that I built with the assistant?*
+Yes. Save it with `save_model_as` (or let the assistant autosave). The
+file is standard `.rbds` and opens in RAPTOR Studio directly.
+
+*Can I use the MCP server and the GUI at the same time on the same model?*
+Not on the same file simultaneously. The MCP server works on its own
+workspace copies. Export from the server, then open the export in the GUI,
+or vice versa.
+
+*What is `.rbds` vs `.rbd`?*
+`.rbds` is the modern JSON format. It stores everything `.rbd` does
+(losslessly) plus rates, formulas, display units, annotations,
+and the frozen canvas transform. It is the default format for the MCP
+server. `.rbd` is the older fixed-column text format, supported for
+backward compatibility; exporting it validates first and refuses on error.
+
+*Does the assistant hallucinate parameters?*
+The server validates every model before running it. If the assistant sets
+a Weibull shape negative, or gives the wrong number of parameters,
+`validate_model` catches it with a specific message, and
+`list_distributions` gives the correct parameter names and ranges.
+
+*Can I run simulations without Qt installed?*
+Yes. Start the server with `--no-render` (or on a machine where Qt cannot start).
+Every analysis tool works; only the diagram image is unavailable.
+
+*How do I update the server?*
+Reinstall: `pip install --upgrade raptor-studio`. Or, from a checkout:
+`git pull && pip install -e ".[mcp]"`. Restart your AI client session.
+
+*Is my data sent anywhere?*
+The MCP server runs locally. Over stdio it is a child process of your AI
+client and uses no network; over HTTP it listens only on the loopback
+address unless you choose otherwise (and then it demands a token). Your
+model data stays on your machine. The AI client's own data policies apply
+to the conversation, but the RAPTOR server itself makes no external
+connections.
+
+=== Workspace layout
+
+[source,text]
+----
+<workspace>/
+  models/<model_id>/model.rbds       # the live model, autosaved
+  models/<model_id>/model.rbds.N.bak # up to 20 version backups
+  models/<model_id>/meta.json        # name, created, source
+  runs/<run_id>/final_results.txt
+  runs/<run_id>/end_of_run.txt
+  runs/<run_id>/events.txt           # only with collect_events=true
+  runs/<run_id>/capacity.txt
+  runs/<run_id>/cost.txt
+  runs/<run_id>/availability_plot.txt
+  runs/<run_id>/summary.json         # the structured numbers
+  renders/<hash>.png
+----
+
+Handles (`model_id`, `run_id`) are opaque tokens that map to these
+directories, so they survive a client restart. Run and render artefacts
+are swept after `--retain-days` (default 30); models are kept.
+
+=== Configuration reference
+
+==== Claude Code (full)
+
+[source,bash]
+----
+claude mcp add raptor-studio \
+  -- raptor-studio-mcp --workspace ~/raptor-models
+
+claude mcp add raptor-studio \
+  -- uv run python -m raptor.mcp --workspace ~/raptor-models
+
+claude mcp list
+claude mcp remove raptor-studio
+----
+
+==== Claude Desktop (full config)
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "raptor-studio": {
+      "command": "raptor-studio-mcp",
+      "args": ["--workspace", "/home/you/raptor-models"]
+    }
+  }
+}
+----
+
+==== OpenCode (full config)
+
+[source,json]
+----
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "raptor-studio": {
+        "type": "local",
+        "command": ["raptor-studio-mcp", "--workspace", "/home/you/raptor-models"]
+      }
+    }
+  }
+}
+----
+
+This is the OpenCode 2 layout. On OpenCode 1 put the `raptor-studio` entry
+directly under `mcp`; see the
+https://opencode.ai/docs/mcp-servers/[OpenCode MCP documentation]. Give
+the workspace as an absolute path, since `~` is not expanded here.
+
+==== Development Inspector
+
+[source,bash]
+----
+npx @modelcontextprotocol/inspector raptor-studio-mcp --workspace ~/raptor-models
+----
+
+Opens the MCP Inspector (it needs Node.js), where you can browse tools,
+call them, and inspect raw JSON-RPC messages.

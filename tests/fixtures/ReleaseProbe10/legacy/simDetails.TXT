@@ -1,0 +1,22 @@
+Begining Procedure RunEFPA......
+
+j1  EFPAout=1
+   end  through link 5
+BlockS  EFPAout=1
+   j1  through link 4
+BlockN  EFPAout=1
+   j1  through link 4
+BlockD  EFPAout=1
+   j1  through link 4
+0.000000  BlockS  603247.679362
+0.000000  BlockN  1661685.616133
+5.000000  BlockN  1.204082
+8.000000  BlockN  1472151.338466
+0.000000  BlockS  333217.671133
+0.000000  BlockN  2448859.910701
+5.000000  BlockN  2.509604
+8.000000  BlockN  4277588.042841
+0.000000  BlockS  688189.946987
+0.000000  BlockN  2167940.873827
+5.000000  BlockN  0.889234
+8.000000  BlockN  756126.542723

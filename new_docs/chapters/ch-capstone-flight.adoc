@@ -1,0 +1,341 @@
+[[ch-capstone-flight]]
+== Capstone: The Flight, Phase by Phase (An Open-Ended Brief)
+
+*Time: about 60–90 minutes.*
+*New idea: none. Every mechanism below is one you already own — twin
+engines and a shared limit (<<ch-capacity>>), a cold-start backup
+(<<ch-standby>>), one system quietly wired to another
+(<<ch-dependency>>), a one-shot go/no-go check (<<ch-events>>), a
+mission with stages (<<ch-phasing>>), a bill (<<ch-cost>>). What is
+new is doing it yourself, from a written brief, with nobody telling
+you which tool to reach for.*
+
+=== You will learn
+
+* How to read a plain-English systems description and recognize which
+  chapter's mechanism each sentence is quietly asking for.
+* How to defend a modelling choice when two subsystems you built
+  separately turn out to interact in a way the brief never spelled out.
+* Why "the redundancy is on the canvas" and "the redundancy works" are
+  different claims — and why simulation, not inspection, is how you
+  tell them apart.
+
+=== You need
+
+* Every chapter so far. This capstone leans hardest on
+  <<ch-standby>>, <<ch-dependency>>, <<ch-events>>, <<ch-phasing>>,
+  <<ch-capacity>>, and <<ch-cost>>, in no particular order — the brief
+  below does not tell you which one applies where.
+* A blank model. Start `File → New` and build from the brief. (A
+  reference solution exists — `models/Flight1.rbds` — but it is
+  deliberately not linked here. Build first; the link is in
+  <<flight-worked-answer>>, below, once you have numbers of your own
+  to compare it against.)
+
+=== The brief
+
+You are the reliability engineer for a short regional hop, gate to
+gate. Two hours, four phases: **Taxi** (12 minutes), **Climb** (18
+minutes), **Cruise** (78 minutes), **Approach** (12 minutes). Build
+the mission as one continuous run — this is a single flight, not a
+shift that repeats.
+
+Before pushback, dispatch runs a weather and load check. It clears the
+flight to depart 98% of the time; the other 2% the flight is scrubbed
+at the gate before anything else happens.
+
+Propulsion is two engines, feeding a common thrust requirement. The
+flight plan calls for 150 units of combined thrust; each engine is
+rated for 75 nominal but can be pushed to 100 in an emergency. Both
+engines wear out — Weibull, shape 2.0, characteristic life 8 operating
+hours — and work hardest in **Climb** (call it ×1.8 the baseline wear
+rate), easiest in **Cruise** (×0.6), with **Taxi** and **Approach** in
+between (×1.0 and ×1.4). A dead engine cannot be restarted in flight.
+
+Hydraulic System 1 is driven off Engine 1's accessory gearbox —
+Exponential, mean 50 hours, and a crew can reset it to a backup
+circuit in about 3 minutes when it acts up.
+
+Electrical power comes from an engine-driven Main Generator
+(Weibull, shape 2.0, characteristic life 10 hours, no in-flight
+repair) backed by an Auxiliary Power Unit that sits cold and
+unstressed until it is needed, then spins up in about 72 seconds
+(Exponential once running, mean 15 hours, no in-flight repair
+either). The Avionics Suite downstream of the bus fails on its own
+schedule too — Exponential, mean 40 hours, about a 72-second
+circuit-breaker reset when it trips.
+
+Cost analysis is on: $50 000 for every hour the aircraft is fully
+grounded, $2 000 for every unit of thrust the engines fall short of
+the 150-unit plan, for every hour the shortfall lasts.
+
+=== Your task
+
+Build it. Some starting questions, not a checklist to tick in order:
+
+* Which of <<ch-voting>>'s vote and <<ch-capacity>>'s manifold does
+  "two engines, a combined thrust requirement, emergency headroom"
+  actually describe? They are not the same mechanism, and they do not
+  produce the same story when one engine dies.
+* The dispatch check happens once, at the gate, with no operating
+  clock. What kind of element in this engine matches that description,
+  and how is it different from a block?
+* Which failures in the brief can a crew address in the air, and which
+  cannot? The brief tells you this for every system — assigning a
+  repair distribution (or none) to each block *is* the decision, even
+  if you make it without noticing you made it.
+* Read the hydraulic paragraph again. Is anything in this model
+  described as depending on anything else?
+* Set the mission to 2000 trials before you trust a single number —
+  <<ch-trials>>'s own rule, and this chapter's headline metric is a
+  coin-flip one.
+
+[TIP]
+====
+This is a go/no-go mission, not a system that cycles up and down for
+a shift. Which of this book's metrics — Availability or Reliability —
+answers "did the flight complete," and which Project Settings field
+sets that as the headline?
+====
+
+=== Before you run it
+
+Write down two numbers before you press F5 for real:
+
+. Your guess at Reliability, as a percentage, for 2000 trials.
+. A prediction: does losing Engine 1 alone cost the flight the same
+  as losing Engine 2 alone, or a different amount? Say why, in one
+  sentence, before you have data.
+
+Keep both. You will want them in a few minutes.
+
+=== Check your build
+
+A few low-spoiler sanity numbers, not the full answer:
+
+* Weather scrubs should land near 2% of your 2000 runs. If you see
+  roughly 98% instead, you have the Bernoulli success/failure
+  convention backwards — <<ch-events>>'s FinaleShow1 note applies
+  here too: the draw equal to the failure value is the one that stops
+  the block, and it is easy to wire that upside down.
+* With both engines healthy, most of your mission time should read
+  Green. If you see heavy Yellow time even with nothing failed, check
+  your thrust numbers against the brief's 150-unit demand — a mistyped
+  capacity value shows up as a permanent, not occasional, shortfall.
+* If Reliability comes back at 0.00 or 1.00 across all 2000 trials,
+  something upstream is wired wrong (usually the dispatch event, or a
+  link direction) — not a single block in this brief is that certain
+  or that safe on its own.
+
+Get real numbers before reading on.
+
+[[flight-worked-answer]]
+=== One worked answer
+
+There is no single correct file for an open brief like this one — two
+careful readers can make different, equally defensible choices about
+the questions in "Your task" and land on different numbers. What
+follows is *one* valid build, not *the* answer key. Use it to check
+whether your numbers are in the same neighborhood, and more
+importantly, whether the *shape* of your result — which failures cost
+the flight and which merely cost money — matches what the brief
+actually described.
+
+opsmodel:Flight1[]
+
+image::flight1-loaded.png[Flight1 loaded: dispatch event, twin engines into a thrust manifold, hydraulic pump, generator cold-standby pair, avionics]
+
+Fourteen elements: one dispatch event, two engines feeding a
+capacity-limited thrust manifold, a dependent hydraulic pump, a
+cold-standby generator pair, and an avionics block, strung through
+four fixed-length phases.
+
+Run 2000 trials:
+
+image::flight1-results.png[Flight1 Overview tab: 96.1% availability, 82.2% reliability, 2.9% degraded, 3.9% down]
+
+[cols="3,2",options="header"]
+|===
+|Measure |This build
+|Reliability |about 82%
+|Availability |about 96.1%
+|Degraded (Yellow) time |about 2.9%
+|Fully down (Red) time |about 3.9%
+|Weather scrubs |about 1.9% of flights
+|===
+
+Now the question this chapter was actually built to ask. Split the
+2000 runs by which engine failed:
+
+[cols="3,2,2",options="header"]
+|===
+|Which engine failed |Share of all flights |Still completed the mission
+|Engine 1 alone |about 4.6% |0% — every single one
+|Engine 2 alone |about 4.5% |about 88%
+|Both |about 0.3% |0%
+|Neither |about 90.5% |about 86%
+|===
+
+Check your "before you run it" prediction now. If you guessed "the
+same amount either way," the capacity manifold's own logic agrees with
+you — 100 units from one healthy engine against a 150-unit plan is the
+same 50-unit shortfall no matter which engine survives. The actual
+numbers disagree, completely. Read one Engine-1-alone run's event log
+to see why:
+
+----
+0.500000   Block   Engine_1        Failed    Operating_time=0.565413
+0.565413   Block   Engine_1        Done      No_repair
+0.565413   Block   Hydraulic_Pump  Idle      Dependence
+0.565413   Node    Thrust_Manifold Degraded  1-1/2_df5_ur6
+0.565413   System  State_change    Red       _d1
+----
+
+The manifold does exactly what it was built to do — `Degraded`, not
+`Bad`, because one engine is still delivering. But `Hydraulic_Pump`
+goes `Idle` on the same event, tagged `Dependence`, and *that* is what
+drags the whole system to `Red`. The brief's own sentence — "Hydraulic
+System 1 is driven off Engine 1's accessory gearbox" — was the
+dependency the whole time. It does not appear as a warning label. It
+reads exactly like the rest of the systems description, and it costs
+the flight in series, with no capacity margin or vote left to forgive
+it, the moment Engine 1 specifically is the one that dies.
+
+If your own file shows this same asymmetry, you caught the gearbox
+sentence and modelled it. If your two engines behave symmetrically,
+you built a real, coherent aircraft — just not quite this one, and
+that is a legitimate outcome for an open brief. Go check which is
+true of your file before reading further: is Engine 1 special in your
+model, the way the brief's prose says it should be?
+
+.Limits of this model
+[NOTE]
+====
+Two things worth stating plainly rather than discovering by surprise.
+First, Reliability here is zero-tolerance, exactly like every earlier
+reliability chapter: the Main-Generator-fails-APU-recovers case still
+counts as a failed mission even though the bus is back up in 72
+seconds and the flight finishes the leg without another incident — a
+transient Red excursion is still a Red excursion. Second, the
+dependency mechanic only supports the all-or-nothing case this book
+has shown since <<ch-dependency>> (100% Idle) — a real hydraulic
+crossfeed would likely degrade Hydraulic System 1 partially, not idle
+it completely, so this brief's numbers are as pessimistic on that
+point as the engine can currently express. And as with every earlier
+capstone: every failure here is drawn independently, the dollar
+figures are teaching numbers chosen to make the arithmetic legible,
+not real aircraft economics, and no fault-tree detail from an actual
+airworthiness process is anywhere in this twelve-element model.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |The brief leaves some numbers undetermined — you had to just pick
+a value with nothing in the prose to anchor it. Name two such choices
+in your own file, and say which direction the headline Reliability
+would move if you had picked differently.
+|2 |Why does this model need two separate dollar rates (`redcost` and
+`lostcost`) instead of one? What real cost does each represent for
+this specific flight?
+|3 |Suppose the brief's author made an error, and Hydraulic System 1
+is actually crossfed from *both* engines, independent of which one
+fails. Which numbers in the worked-answer table would you expect to
+change, and in which direction?
+|4 |Name the field that keeps the APU at zero stress while it waits
+unused, and what would happen to this model's realism if that field
+were 1.0 instead.
+|===
+
+.Answers
+[%collapsible]
+====
+This chapter has no single answer key — two honest builds can
+legitimately disagree. What follows discusses the reference build's
+own choices, not a scorecard for yours.
+
+. Two real examples from the reference build: the engines'
+   characteristic life (8 operating hours) and the generator's
+   bus-transfer delay (72 seconds) both came from nowhere in the
+   brief's prose — they were picked to make the mechanism visible at
+   2000 trials, the same "compress the numbers" move every earlier
+   capstone has made openly. A shorter characteristic life pushes
+   Reliability down; a shorter transfer delay nudges it up (fewer
+   Red ticks long enough to matter, though this metric is
+   zero-tolerance regardless of duration — see the Limits box).
+   Your own file almost certainly has at least one number in the same
+   position: something the brief left to your judgement.
+. `redcost` prices the hours the *whole aircraft* is grounded — a
+   fixed, lump consequence, modelled as an hourly rate the way every
+   earlier capstone has done. `lostcost` prices something continuous
+   and partial: thrust actually missing from the 150-unit plan,
+   which can happen *without* the aircraft being fully down at all
+   (one engine out, still flying, still short). One flight can rack
+   up either cost alone, or both at once — they are not
+   interchangeable, and collapsing them into one rate would erase
+   the very distinction <<ch-capacity>> exists to teach.
+. Reliability should rise, and the Engine-1/Engine-2 asymmetry in the
+   worked-answer table should vanish: with the dependency gone,
+   losing either engine alone becomes an ordinary capacity shortfall
+   — Yellow, a `lostcost` bill, and (usually) a completed flight,
+   for both engines symmetrically. The reference build's ~82% is a
+   pessimistic number *because* of the gearbox sentence; remove it
+   and the true redundancy the manifold was built to provide finally
+   shows up in the numbers.
+. `SbStress` (0.0 in the reference build, and a new block's
+   default). At 1.0, the APU would age at full rate while sitting
+   parked and unused — a *hot* standby, not the cold one the brief
+   actually described ("sits cold and unstressed until it is
+   needed"). The model would quietly become less realistic: an APU
+   that has been wearing out the whole flight even though it never
+   ran would fail more often than a real cold-stowed unit ever would.
+====
+
+=== Exercise
+
+The airline wants one more nine of reliability, without adding any new
+redundancy — no third engine, no second APU. You have three honest,
+single-number levers already on the table: the engines' characteristic
+life, the hydraulic pump's dependency, and the generator's bus-transfer
+delay. Pick one, write one sentence defending why you picked it over
+the other two, change only that number, and run 2000 trials. Did you
+clear 90%? If not, name what is still costing you reliability that a
+single-number change on your chosen lever could never reach.
+
+.Answer
+[%collapsible]
+====
+Of the three levers, the dependency is the one that costs
+nothing physically to fix (rewiring a hydraulic crossfeed line is a
+paperwork and routing change, not a heavier engine or a faster
+switch) and it is also the single biggest lever on the table — the
+worked answer's own numbers show Engine-1 losses going from 0%
+survival to something close to Engine-2's ~88% the moment the
+dependency is removed, which alone is worth several points of
+Reliability. Characteristic life and switch delay both move the
+number too, but neither erases an entire failure mode the way
+finding and cutting one bad dependency does — the same lesson
+<<ch-dependency>> taught with two blocks, now worth defending with
+fourteen.
+====
+
+=== What you learned
+
+* A brief, not a click-path, is what reliability work actually looks
+  like — <<ch-phasing>> through <<ch-cost>>'s techniques do not
+  announce themselves; a plain sentence in a systems description is
+  the only signal you get.
+* Two subsystems that look independent on the canvas can be wired
+  together by one sentence in a systems description, and that single
+  sentence can silently cancel out redundancy you built somewhere else
+  entirely — <<ch-dependency>>'s own lesson, this time costing you a
+  weak-link investigation to notice instead of being handed to you on
+  page one.
+* "Defend the answer" means checking that your numbers are the ones
+  *your own* modelling choices predict — not that they match this
+  chapter's table. Two careful engineers can read the same brief and
+  ship two different, equally honest aircraft.
+
+That is the whole toolbox, spent on one last machine with nobody
+holding your hand. Go point it at something that matters to you.

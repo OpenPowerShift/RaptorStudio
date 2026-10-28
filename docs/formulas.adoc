@@ -1,0 +1,467 @@
+= Reliability Formulas: Quick Reference
+:toc: left
+:source-highlighter: none
+:sectnums:
+:stem: asciimath
+
+One page, every metric the engine reports, as an equation. For the
+plain-English version of each idea, with a story attached, read the
+book (xref:../new_docs/book.html[User Guide]); for what
+each dialog field does, read the
+xref:manual.html[Reference Manual]. This page is the thing to keep
+open while you read a report and want to know exactly what a number
+means.
+
+Notation: *Green* = fully functioning, *Yellow* = degraded but still
+delivering, *Red* = down. These are the colours of the health bar; Blue
+(cold standby) and Brown/Orange (idle, PM) count as neither uptime nor
+downtime unless a formula below says otherwise. Formulas are typeset
+from AsciiMath, so they display without a network connection.
+
+[[formulas]]
+== System-level metrics
+
+[cols="2,5,3",options="header"]
+|===
+|Metric |Formula |Reads as
+
+|Operational availability (stem:[A_o])
+|stem:[A_o = ("Green" + "Yellow") / ("Green" + "Yellow" + "Red")]
+|Fraction of time the system delivers *something*. What the
+Final Results "Availability" row reports.
+
+|Mean Time Between Downing Events (MTBDE)
+|stem:["MTBDE" = "Uptime" / ("number of downing events")]
+|Average stretch of working time between one stoppage and the next.
+Uptime here is Green + Yellow.
+
+|Mean Down Time (MDT)
+|stem:["MDT" = "Downtime" / ("number of downing events")]
+|Average length of one stoppage. Downtime here is Red time only.
+
+|Dependability (stem:[D_o])
+|stem:[D_o = "Mission uptime" / "Mission total time"]
+|Like stem:[A_o], but scoped to one mission's phases rather than the whole
+run — only ever printed for a *phased* model. Mission uptime
+excludes standby/PM/dependency time that stem:[A_o]'s Green+Yellow would
+still count.
+
+|Reliability (stem:[R])
+|stem:[R = ("missions completed with no system failure") / ("missions attempted")]
+|Fraction of trials that never went Red before mission end. What
+xref:../new_docs/book.html#ch-first-model[the lantern chapter] calls
+"reliability".
+
+|Standard error of the mean (SEM)
+|stem:["SEM" ~~ "StDev" / sqrt(n)], and for a proportion stem:[p]: stem:["SEM" ~~ sqrt((p(1-p))/n)]
+|Mean stem:[+-] 2 stem:[xx] SEM is roughly a 95% interval — a normal
+approximation. It weakens near p = 0 or p = 1, exactly where a
+99.9%-availability target lives; see <<rare-events>>.
+|===
+
+[NOTE]
+====
+stem:[A_o], stem:[D_o] and Reliability answer three different questions. stem:[A_o] asks
+"what fraction of time does it work?" — a long-run average. stem:[D_o] asks
+the same question but only within one mission's phases. Reliability
+asks "did it survive the *whole* mission, start to finish, without
+ever failing?" — a pass/fail count, not an average. A system can have
+high stem:[A_o] (it comes back up fast after every failure) and low
+Reliability (it still failed at some point in nearly every mission).
+====
+
+== Component-level metrics
+
+These describe one block, not the whole system. The book's glossary
+uses MTBDE/MDT for the *system*; the same shape of arithmetic applies
+one level down, with different names in wider reliability practice:
+
+[cols="2,5,3",options="header"]
+|===
+|Metric |Formula |Notes
+
+|Mean Time To Failure (MTTF)
+|stem:["MTTF" = E["failure time"]]
+|Mean of the block's own Failure Dist — see <<dist-means>>. Used for
+non-repairable parts (Repair Dist = None).
+
+|Mean Time Between Failures (MTBF)
+|stem:["MTBF" = "MTTF" + "MTTR"], for a repaired, as-good-as-new part
+|Only equals MTTF when repair time is zero. Confusing MTBF (one part)
+with MTBDE (the whole system) is the single most common mix-up in
+reliability conversation — they answer different questions at
+different levels, and the system number is *never* just the smallest
+component MTBF.
+
+|Mean Time To Repair (MTTR)
+|stem:["MTTR" = E["repair time"]]
+|Mean of the block's own Repair Dist.
+
+|Failure rate (λ)
+|stem:[lambda(t) = f(t) / (R(t))], the hazard function
+|Only constant (stem:[lambda = 1 // "MTBF"]) for the Exponential distribution — see
+<<hazard>>. For every other distribution, λ changes with age, and
+quoting one number is a simplification.
+|===
+
+[[importance]]
+== Importance measures
+
+Availability says how good the system is. An importance measure says *which
+block* to spend money on. IEC 61078 Annex D defines them as derivatives of the
+system function; RAPTOR Studio has no analytical function to differentiate, so
+it estimates the same quantities by **re-simulation**: it runs the model once
+with one block made unable to fail, and once with that block dead, and compares
+the results with the ordinary batch.
+
+Write stem:[A] for the chosen measure's mean across runs (availability by
+default; reliability and dependability are selectable), stem:[A_0] for the
+ordinary run and stem:[u = 1 - A] for the corresponding unavailability.
+
+[cols="2,4,4",options="header"]
+|===
+|Measure |Formula |Answers
+
+|Birnbaum (stem:[I_B])
+|stem:[I_B(i) = A_i^"perfect" - A_i^"failed"]
+|If this block's own availability moved, how far would the system move?
+The largest value is the block the system is most sensitive to.
+
+|Risk Achievement Worth (RAW)
+|stem:["RAW"(i) = u_i^"failed" / u_0]
+|How much worse is the system with this block dead, relative to now?
+RAW of 1 means no effect; 10 means ten times the downtime.
+
+|Risk Reduction Worth (RRW)
+|stem:["RRW"(i) = u_0 / u_i^"perfect"]
+|How much better could the system be if this block never failed?
+RRW of 1 means nothing to gain; 2 means half the downtime.
+
+|Vesely–Fussell (stem:[I_"VF"])
+|stem:[I_"VF"(i) = (A_i^"perfect" - A_0) / u_0]
+|The share of the current downtime that this block is responsible for.
+|===
+
+"Perfect" means the block's failure law cannot fire inside the run; "failed"
+means it fails at the first instant and is never repaired. Neither is a
+property you can set on the model: they are variants the analysis builds, and
+the model file is untouched.
+
+[NOTE]
+====
+These are **Monte Carlo estimates**, not the standard's analytical factors.
+Each one rests on two or three independent batches, so it carries their
+combined sampling error — the Importance tab reports that as the standard error
+of the difference, and a ranking that is finer than that error is noise. With
+1,000 runs per batch the difference is meaningful to roughly a few thousandths
+of availability.
+
+RAW, RRW and Vesely–Fussell are undefined when the ordinary batch never failed:
+with stem:[u_0 = 0] there is no downtime to share out or reduce. The tab shows
+an em dash rather than 0 or infinity.
+====
+
+Importance is ranked **per block**. A hierarchy is not yet an element of this
+analysis: to judge a subsystem, read the blocks inside it, or run the hierarchy
+on its own (`raptor extract`) and take its importance there.
+
+**Which one ranks the list.** Vesely–Fussell, by default — *not* Birnbaum.
+In a series system, making any one block unable to fail takes the system to
+about 1 and making it dead takes the system to about 0, so Birnbaum comes out
+near 1 for every block and ranks nothing. Vesely–Fussell divides that same
+movement by the downtime actually observed, so it separates them, and RRW
+agrees with it. The Importance tab and the report rank by the first available
+of Vesely–Fussell, RRW, Birnbaum, RAW and say which they used; Birnbaum stays
+in the table as a column.
+
+**When the ranking means nothing.** If the ordinary run was almost never down,
+every ratio is a ratio of noise: RAW divides by a number near zero, and RRW can
+come back below 1, which reads as "fixing this block would make things worse".
+The tab and the report say so explicitly when the baseline was above 99.9%
+available. Raise the trials or lengthen the run.
+
+The analysis is opt-in because it costs batches, not seconds: **one extra batch
+per block**, or **two** when Birnbaum is included (it needs both variants),
+each the size of the batch you asked for. A 17-block model at 1,000 trials runs
+35,000 replications. Use the Cores setting; a single batch is a small share of
+that total. The extra batches record no event logs and no plots.
+
+[[hazard]]
+== The hazard function and the bathtub curve
+
+The **hazard function** stem:[h(t)] is the instantaneous risk of failure
+*right now*, given the part has survived to age stem:[t]. It is not the same
+as the failure probability density — it is the density divided by the
+survival probability so far:
+
+[stem]
+++++
+h(t) = f(t) / (R(t))   quad "where"   R(t) = 1 - F(t)
+++++
+
+Three shapes, one curve, three life stages:
+
+[cols="2,3,4",options="header"]
+|===
+|Stage |Hazard shape |Distribution family that matches
+
+|Infant mortality
+|Decreasing — early failures thin out
+|Weibull, shape stem:[beta < 1]
+
+|Useful life
+|Flat — memoryless, age-independent risk
+|Exponential (a Weibull with stem:[beta = 1] is the same curve)
+
+|Wear-out
+|Increasing — risk grows with age
+|Weibull, shape stem:[beta > 1]; Normal/Lognormal for a clustered wear-out age
+|===
+
+Stack the three and you get the classic **bathtub curve**: high, falling
+risk in infancy; a long flat floor; rising risk at the end of life.
+Burn-in testing exists to walk a part past the infant-mortality knee
+before it ships. Preventive maintenance (see xref:../new_docs/book.html#ch-pm[the preventive maintenance chapter]) exists to replace a
+wear-out part *before* the rising edge, by resetting its clock to zero
+on a schedule shorter than where the curve turns up.
+
+[[dist-means]]
+== Distribution reference
+
+Mean and the shape knob, for every distribution the engine implements.
+Match the family to the physics, not to whichever one is already
+selected:
+
+[cols="2,3,3,4",options="header"]
+|===
+|Distribution |Parameters |Mean |When to use
+
+|Fixed
+|life
+|stem:["life"]
+|No uncertainty at all — a scheduled event, not a real failure mode.
+
+|Exponential
+|mean
+|stem:["mean"]
+|Memoryless: constant hazard. Right for random external shocks
+(power cuts, cosmic-ray bit flips), wrong for anything that wears.
+
+|Weibull
+|shape (stem:[beta]), scale (stem:[eta])
+|stem:[eta Gamma(1 + 1/beta)]
+|The general-purpose wear-out family. stem:[beta < 1] infant, stem:[beta = 1] exponential,
+stem:[beta > 1] wear-out; stem:[beta] between 1.5 and 3 covers most mechanical wear.
+
+|Normal
+|mean, std dev
+|stem:["mean"]
+|A clustered failure age with symmetric spread — springs, batteries,
+anything that dies "around" a known age.
+
+|Lognormal
+|mean, std dev
+|stem:["mean"]
+|Skewed-right lifetimes; common for fatigue and crack-growth failure
+data, and for repair-time distributions (most repairs are quick, a
+few take much longer).
+
+|Gamma / Erlang
+|shape, scale
+|stem:["shape" xx "scale"]
+|Sum of several exponential stages (k-out-of-k sub-failures); Erlang
+is Gamma restricted to an integer shape.
+
+|Beta
+|shape stem:[a], shape stem:[b]
+|stem:[a / (a + b)]
+|Bounded on [0,1] — fits a probability or a fraction, not a time.
+
+|Chi-Square
+|degrees of freedom
+|stem:["df"]
+|Rare as a failure model directly; mostly a building block for other
+statistical work.
+
+|Binomial
+|—
+|stem:[n p]
+|Counting successes in a fixed number of independent trials.
+
+|Poisson
+|mean (events)
+|stem:["mean"]
+|Count of independent events in a fixed window — demand arrivals,
+shock counts.
+
+|Uniform (Integer / Real)
+|min, max
+|stem:[("min" + "max") / 2]
+|Total ignorance between two bounds. A last resort, not a first
+choice — real components rarely fail this way.
+
+|Pearson5 / Pearson6
+|shape, scale
+|—
+|Inverse-gamma-family curves used in some older reliability data
+fits.
+
+|Triangular
+|min, mode, max
+|stem:[("min" + "mode" + "max") / 3]
+|A quick expert-judgement curve when you have a best guess and two
+bounds but no real data yet.
+
+|Empirical
+|your own data points
+|sample mean
+|Uses field or test data directly as the dice — no distributional
+assumption at all. The right choice whenever you have real records
+and don't want to guess a family (see <<data-honesty>>).
+
+|Bernoulli
+|probability of success
+|stem:[p]
+|One-shot success/failure; used by Events (see xref:../new_docs/book.html#ch-events[the events chapter]), not blocks.
+
+|Extreme Value / Laplace / Exponential Power
+|—
+|—
+|Specialised tail-behaviour families, kept so that older model files
+still load.
+|===
+
+[[rare-events]]
+== How many trials does a rare event need?
+
+A design that must hit 99.99% availability is really asking the
+simulator to estimate a probability near stem:[10^(-4)]. The normal-approximation
+SEM formula above still applies, but the number of trials needed grows
+fast as the target tightens:
+
+[cols="2,2,2",options="header"]
+|===
+|Target unavailability |Trials for SEM ≈ 10% of the target |Trials for SEM ≈ 30% of the target
+
+|1% (two nines)
+|~10 000
+|~1 100
+
+|0.1% (three nines)
+|~100 000
+|~11 000
+
+|0.01% (four nines)
+|~1 000 000
+|~110 000
+|===
+
+Rule of thumb: stem:[n ~~ (p(1-p)) / ("SEM")^2], so for the same *relative*
+precision, *halving* the target unavailability roughly *doubles* the trials
+needed to pin it down. This is a property of Monte Carlo
+estimation, not a limitation of this simulator — closed-form or
+variance-reduction methods (common random numbers, see
+xref:../new_docs/book.html#ch-trials[the chapter on trials]; antithetic
+variates) buy back some of this cost but never repeal the square-root
+law.
+
+[[data-honesty]]
+== Where the numbers come from — and their honesty limits
+
+* **Small samples lie about the shape, not just the mean.** Ten field
+  failures can fit an Exponential and a Weibull(shape 1.3) about
+  equally well, and the two imply very different early-life risk.
+* **Censoring.** Parts still running at the end of a data-collection
+  window are *right-censored* — they didn't fail, they just outlasted
+  observation. Dropping them from a mean-life calculation biases the
+  estimate downward (survivors get discounted the same as failures).
+* **False precision.** A model built on two-significant-figure field
+  data cannot honestly report a four-decimal availability. Round the
+  final answer to the precision the *inputs* support, not the
+  precision the software prints.
+* **The Empirical distribution is not a free pass.** It removes
+  distributional-family guesswork, but it can never produce a value
+  outside the range of the data you gave it — it has no opinion about
+  the tail beyond your last observed point.
+
+[[iec61078]]
+== IEC 61078 analytical forms and this simulator
+
+IEC 61078 collects the closed-form results that apply when blocks are
+independent and have a constant probability of being up. For a series
+structure, every block must work:
+
+[stem]
+++++
+A_s = prod_(i=1)^n A_i
+++++
+
+For a parallel structure, the system is down only when every block is
+down:
+
+[stem]
+++++
+U_s = prod_(i=1)^n U_i , quad A_s = 1 - U_s
+++++
+
+For an m-out-of-n structure with identical blocks of availability
+stem:[A], the system is up when at least stem:[m] blocks are up:
+
+[stem]
+++++
+A_s = sum_(r=m)^n binom(n,r) A^r (1-A)^(n-r)
+++++
+
+These are steady-state availability forms. The corresponding reliability
+forms use stem:[R_i(t)] instead of stem:[A_i].
+
+RAPTOR Studio does not evaluate these formulae directly. It simulates
+the same logical structures, so the results converge to them when the
+model matches the assumptions (independent blocks, constant rates,
+enough trials, no truncation).
+
+The simulator does **not** implement the standard's minimal cut/tie
+sets, Boolean truth tables, Karnaugh maps, BDDs, analytical importance
+factors, criticality and DIM importance, PFD~avg~, Vesely conditional failure intensity, or unconditional failure
+intensity. It also does not represent repeated/common blocks,
+multi-port transfer gates, non-coherent blocks, PAND/SEQ gates or a
+common-cause beta factor. The User Guide appendix states the scope.
+
+The simulator can estimate the Annex D *importance* measures by
+re-simulation -- see <<importance>> and the **Importance** results tab -- it
+does not compute their analytical derivatives, and it reports an explicit
+sampling error with them.
+
+For the core summary metrics RAPTOR reports, the equations in the sections
+above are the authority. Those measures and their cross-run statistics appear
+in the run's Final Results (Summary and Logistics), which is also where
+Raptor 7 prints them; this page is not duplicated into the application.
+
+== What a reliability block diagram cannot tell you
+
+* **Independence is assumed unless you model otherwise.** Two
+  redundant pumps look safe in an RBD; if they share one power feed,
+  one flood zone, or one bad batch of bearings, their failures are
+  *correlated* and the RBD's plain math overstates the system's real
+  reliability. Model shared causes explicitly (dependency, see
+  xref:../new_docs/book.html#ch-dependency[the dependency chapter]) or treat a redundancy number as optimistic.
+* **Success-path logic only.** An RBD says how the system *works*. It
+  cannot express "fails if A works and B fails" (non-coherent logic).
+  A fault tree is the right tool when failure logic doesn't reduce to
+  a success path.
+* **The model runs ≠ the model is right.** Verification (does the
+  simulation do what the model says?) and validation (does the model
+  match reality?) are different questions. The stepping debugger
+  (see xref:../new_docs/book.html#ch-debugger[the debugger chapter]) is a verification tool — it shows you
+  the model doing exactly what you told it to, which is not the same
+  as telling it the right thing.
+* **The simulator certifies nothing.** Industry tier ratings and
+  compliance standards depend on construction, commissioning,
+  operations and audit — detail no block diagram carries. Use the
+  model to *rank* design choices, then spend real engineering on the
+  one that wins.
+
+++++
+<div class="copyright-footer">Copyright © 2026 OpenPowerShift · RAPTOR Studio.<br>
+Original RAPTOR © ARINC / Booz Allen Hamilton, released as open source under the Booz Allen Public License v1.0 — thanks, BAH! New code in this port: Apache License 2.0.</div>
+++++

@@ -1,0 +1,737 @@
+{
+ "add_annotation": {
+  "params": [
+   "adjacent_to",
+   "from_",
+   "gap",
+   "h",
+   "kind",
+   "model_id",
+   "parent",
+   "side",
+   "style",
+   "text",
+   "to",
+   "w",
+   "x",
+   "x1",
+   "x2",
+   "y",
+   "y1",
+   "y2"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "add_block": {
+  "params": [
+   "after",
+   "fail_dist",
+   "fail_params",
+   "model_id",
+   "name",
+   "parent",
+   "repair_dist",
+   "repair_params"
+  ],
+  "required": [
+   "model_id",
+   "name"
+  ]
+ },
+ "add_elements": {
+  "params": [
+   "elements",
+   "model_id"
+  ],
+  "required": [
+   "elements",
+   "model_id"
+  ]
+ },
+ "add_event": {
+  "params": [
+   "model_id",
+   "name",
+   "prob"
+  ],
+  "required": [
+   "model_id",
+   "name"
+  ]
+ },
+ "add_hierarchy": {
+  "params": [
+   "model_id",
+   "name",
+   "parent"
+  ],
+  "required": [
+   "model_id",
+   "name"
+  ]
+ },
+ "add_node": {
+  "params": [
+   "k",
+   "model_id",
+   "name",
+   "parent",
+   "type"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "auto_layout": {
+  "params": [
+   "hierarchy",
+   "model_id",
+   "selectors"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "build_model": {
+  "params": [
+   "auto_layout",
+   "model_id",
+   "name",
+   "spec",
+   "validate_model"
+  ],
+  "required": [
+   "name",
+   "spec"
+  ]
+ },
+ "cancel_run": {
+  "params": [
+   "job_id"
+  ],
+  "required": [
+   "job_id"
+  ]
+ },
+ "close_model": {
+  "params": [
+   "delete",
+   "model_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "collapse_selection": {
+  "params": [
+   "model_id",
+   "name",
+   "parent",
+   "selectors"
+  ],
+  "required": [
+   "model_id",
+   "selectors"
+  ]
+ },
+ "compare_models": {
+  "params": [
+   "metrics",
+   "models",
+   "num_runs"
+  ],
+  "required": [
+   "models"
+  ]
+ },
+ "configure_block_defaults": {
+  "params": [
+   "action",
+   "fail_dist",
+   "fail_params",
+   "repair_dist",
+   "repair_params"
+  ],
+  "required": []
+ },
+ "configure_maintenance": {
+  "params": [
+   "defer_flags",
+   "model_id",
+   "pm_duration_dist",
+   "pm_freq",
+   "pm_params",
+   "selector",
+   "trigger_name"
+  ],
+  "required": [
+   "model_id",
+   "selector"
+  ]
+ },
+ "configure_phases": {
+  "params": [
+   "assignments",
+   "mode",
+   "model_id",
+   "phases",
+   "remove",
+   "unassign"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "configure_sparing": {
+  "params": [
+   "emergency",
+   "level",
+   "mode",
+   "model_id",
+   "quantity",
+   "restock_every",
+   "selector",
+   "slo",
+   "slo_time",
+   "spare_pool",
+   "stock"
+  ],
+  "required": [
+   "model_id",
+   "selector"
+  ]
+ },
+ "configure_system": {
+  "params": [
+   "capacity",
+   "cost",
+   "display_unit",
+   "flow_generated",
+   "gy_threshold",
+   "model_id",
+   "num_runs",
+   "run_length",
+   "start_stats",
+   "system_streams",
+   "termination",
+   "units",
+   "weak_link",
+   "yr_threshold"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "connect": {
+  "params": [
+   "from_element",
+   "model_id",
+   "replace",
+   "to_element"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "connect_many": {
+  "params": [
+   "links",
+   "model_id"
+  ],
+  "required": [
+   "links",
+   "model_id"
+  ]
+ },
+ "create_model": {
+  "params": [
+   "k",
+   "n",
+   "name",
+   "template"
+  ],
+  "required": [
+   "name"
+  ]
+ },
+ "delete_annotation": {
+  "params": [
+   "annotation_id",
+   "model_id"
+  ],
+  "required": [
+   "annotation_id",
+   "model_id"
+  ]
+ },
+ "delete_element": {
+  "params": [
+   "model_id",
+   "reconnect",
+   "selector"
+  ],
+  "required": [
+   "model_id",
+   "selector"
+  ]
+ },
+ "delete_elements": {
+  "params": [
+   "model_id",
+   "reconnect",
+   "selectors"
+  ],
+  "required": [
+   "model_id",
+   "selectors"
+  ]
+ },
+ "delete_file": {
+  "params": [
+   "path"
+  ],
+  "required": [
+   "path"
+  ]
+ },
+ "delete_link": {
+  "params": [
+   "link_id",
+   "model_id"
+  ],
+  "required": [
+   "link_id",
+   "model_id"
+  ]
+ },
+ "describe_metrics": {
+  "params": [
+   "model_id",
+   "run_id"
+  ],
+  "required": []
+ },
+ "describe_model": {
+  "params": [
+   "detail",
+   "level",
+   "model_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "diff_models": {
+  "params": [
+   "detail",
+   "ignore",
+   "match",
+   "model_a",
+   "model_b"
+  ],
+  "required": [
+   "model_a",
+   "model_b"
+  ]
+ },
+ "estimate_runtime": {
+  "params": [
+   "importance",
+   "model_id",
+   "num_runs",
+   "run_length",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "export_tables": {
+  "params": [
+   "folder",
+   "formats",
+   "model_id",
+   "run_id",
+   "tables"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "extract_hierarchy": {
+  "params": [
+   "hierarchy",
+   "model_id",
+   "name",
+   "report_only",
+   "treatments"
+  ],
+  "required": [
+   "hierarchy",
+   "model_id"
+  ]
+ },
+ "failure_effects": {
+  "params": [
+   "fail",
+   "model_id",
+   "phase",
+   "repair"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "get_element": {
+  "params": [
+   "detail",
+   "model_id",
+   "selector"
+  ],
+  "required": [
+   "model_id",
+   "selector"
+  ]
+ },
+ "get_report": {
+  "params": [
+   "format",
+   "limit",
+   "offset",
+   "run_id",
+   "run_number",
+   "section"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
+ "get_run_results": {
+  "params": [
+   "run_id",
+   "top"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
+ "get_table": {
+  "params": [
+   "limit",
+   "model_id",
+   "offset",
+   "run_id",
+   "table"
+  ],
+  "required": [
+   "model_id",
+   "table"
+  ]
+ },
+ "get_timeseries": {
+  "params": [
+   "points",
+   "run_id",
+   "runs",
+   "series"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
+ "list_annotations": {
+  "params": [
+   "model_id",
+   "parent"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "list_distributions": {
+  "params": [],
+  "required": []
+ },
+ "list_models": {
+  "params": [
+   "include_examples",
+   "limit",
+   "offset"
+  ],
+  "required": []
+ },
+ "list_tables": {
+  "params": [
+   "model_id",
+   "run_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "manage_rates": {
+  "params": [
+   "action",
+   "description",
+   "expr",
+   "model_id",
+   "name"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "manage_resources": {
+  "params": [
+   "action",
+   "fixed_per_use",
+   "model_id",
+   "name",
+   "num_in",
+   "per_time_unit",
+   "phases",
+   "spare_cost"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "manage_spare_pools": {
+  "params": [
+   "action",
+   "arrive_every",
+   "emer_ship_cost",
+   "emer_time",
+   "eso",
+   "level",
+   "model_id",
+   "name",
+   "new_spares",
+   "quantity",
+   "rso",
+   "slo",
+   "slo_time",
+   "spare_cost",
+   "stock"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "manage_triggers": {
+  "params": [
+   "action",
+   "dist",
+   "init_used",
+   "model_id",
+   "name",
+   "params",
+   "repeats"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "move_element": {
+  "params": [
+   "model_id",
+   "parent",
+   "selector"
+  ],
+  "required": [
+   "model_id",
+   "parent",
+   "selector"
+  ]
+ },
+ "open_model": {
+  "params": [
+   "path"
+  ],
+  "required": [
+   "path"
+  ]
+ },
+ "ping": {
+  "params": [],
+  "required": []
+ },
+ "read_doc": {
+  "params": [
+   "limit",
+   "name",
+   "offset"
+  ],
+  "required": [
+   "name"
+  ]
+ },
+ "redo_last_edit": {
+  "params": [
+   "model_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "render_diagram": {
+  "params": [
+   "highlight",
+   "include_annotations",
+   "level",
+   "margin",
+   "max_px",
+   "model_id",
+   "theme",
+   "zoom_to"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "run_status": {
+  "params": [
+   "job_id"
+  ],
+  "required": [
+   "job_id"
+  ]
+ },
+ "save_model_as": {
+  "params": [
+   "format",
+   "model_id",
+   "path"
+  ],
+  "required": [
+   "model_id",
+   "path"
+  ]
+ },
+ "search_docs": {
+  "params": [
+   "limit",
+   "query"
+  ],
+  "required": [
+   "query"
+  ]
+ },
+ "simulate": {
+  "params": [
+   "collect_events",
+   "confirm_long_run",
+   "date",
+   "hierarchy",
+   "importance",
+   "model_id",
+   "num_runs",
+   "run_length",
+   "seed",
+   "timeout_s",
+   "treatments",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "single_point_failures": {
+  "params": [
+   "limit",
+   "model_id",
+   "offset",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "start_run": {
+  "params": [
+   "collect_events",
+   "model_id",
+   "num_runs",
+   "run_length",
+   "seed",
+   "timeout_s",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "sweep_parameter": {
+  "params": [
+   "field",
+   "metrics",
+   "model_id",
+   "num_runs",
+   "selector",
+   "values"
+  ],
+  "required": [
+   "field",
+   "model_id",
+   "selector",
+   "values"
+  ]
+ },
+ "undo_last_edit": {
+  "params": [
+   "model_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "update_annotation": {
+  "params": [
+   "annotation_id",
+   "model_id",
+   "patch"
+  ],
+  "required": [
+   "annotation_id",
+   "model_id",
+   "patch"
+  ]
+ },
+ "update_element": {
+  "params": [
+   "full",
+   "model_id",
+   "patch",
+   "selector"
+  ],
+  "required": [
+   "model_id",
+   "patch",
+   "selector"
+  ]
+ },
+ "update_elements": {
+  "params": [
+   "model_id",
+   "updates"
+  ],
+  "required": [
+   "model_id",
+   "updates"
+  ]
+ },
+ "validate_model": {
+  "params": [
+   "model_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "workspace_info": {
+  "params": [],
+  "required": []
+ }
+}

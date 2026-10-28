@@ -1,0 +1,39 @@
+Begining Procedure RunEFPA......
+
+Casing  EFPAout=1
+   end  through link 6
+Armature  EFPAout=1
+   end  through link 6
+Magnets  EFPAout=1
+   end  through link 6
+Brushes  EFPAout=1
+   end  through link 6
+PowerSupply  EFPAout=1
+   end  through link 6
+0.000000  Casing  1.#INF00
+0.000000  Magnets  10.023872
+13.023872  Magnets  10.451541
+26.475413  Magnets  10.117511
+39.592924  Magnets  10.671181
+53.264105  Magnets  9.922980
+66.187085  Magnets  10.151381
+79.338466  Magnets  10.421774
+92.760240  Magnets  10.519556
+0.000000  Casing  1.#INF00
+0.000000  Magnets  9.863841
+12.863841  Magnets  10.055227
+25.919068  Magnets  9.872998
+38.792067  Magnets  10.293749
+52.085816  Magnets  9.701046
+64.786862  Magnets  10.223912
+78.010774  Magnets  10.117649
+91.128423  Magnets  9.846293
+0.000000  Casing  1.#INF00
+0.000000  Magnets  9.481378
+12.481378  Magnets  10.155157
+25.636535  Magnets  10.602406
+39.238941  Magnets  9.904250
+52.143191  Magnets  10.669958
+65.813149  Magnets  9.995272
+78.808421  Magnets  9.769193
+91.577613  Magnets  9.804821

@@ -1,0 +1,86 @@
+= Failure Effects View (FEV)
+:toc: macro
+
+`raptor/core/engine/fev.py`, `fmeca.py` · Raptor 7: `StartFEVmode`, `RefreshAllFEV`, `RefreshPhase`, `FEVPhaseChange`, `CreateFMECAarray`, `WriteFMECAtoFile`, the FEV click handler and every `FEVmode` branch
+
+toc::[]
+
+== Purpose
+
+FEV is a mode of the original in which the model is held in a state you change by hand: everything operating in phase 1, no scheduler, no random numbers, no statistics. A click fails or restores one element, the model reconfigures through the same cascade a run uses, and the system colour and a text summary say what happened. The port keeps that as its own object, `FevSession`, not as an extension of the stepped run (an earlier "FEV lite" forced transitions on a paused stochastic run and took random dependency outcomes; it was deleted).
+
+== Source anchors
+
+[cols="3,3,4",options="header"]
+|===
+| Source | Port | Notes
+| `StartFEVmode`, `RefreshAllFEV` | `FevSession._start_state` | Both reach the same state. Phase 1 start conditions in `_phase_1_start_conditions`
+| `FEVPhaseChange` | `FevSession._fev_phase_change` | Improve, stress and degrade groups in the Green/Yellow or the Red order; node changes share `_Cascade.phase_apply_node` with a run's phase change
+| `RefreshPhase` | `FevSession.refresh_phase` | The small eraser: clears hatching, repairs Repairing and PM blocks, restores failed events, keeps the phase
+| The click handler | `FevSession.click_block`, `click_event`, `_cycle_hatched` | A hatched block cycles its alternative outcomes in a fixed order
+| `BackFlowDependencies` FEV branch | `FevDependencyHooks` (`dependency.py`) implemented by `fev._FevDown` | Deterministic worst case, no draw
+| `CreateFMECAarray`, `WriteFMECAtoFile` | `fmeca.build_fmeca`, `fmeca_lists`, `format_fmeca_file_block` | Checked byte for byte against three real sessions
+|===
+
+== Structure
+
+[mermaid]
+....
+flowchart TD
+    start["FevSession(rbd)"] --> state["start state:<br/>everything Running, phase 1,<br/>Cut / Linked from phaseType[1]"]
+    state --> analyze["CheckColds; AnalyzeSystem"]
+    click["click a block or event"] --> unhatch["clear hatching (not on a hatched block)"]
+    unhatch --> change["ChangeBlockState / ChangeEventState"]
+    change --> cascade["nodes, links, hierarchies, system colour<br/>(the run's cascade, no scheduler)"]
+    cascade --> dep{"dependents?"}
+    dep -->|yes| worst["worst case: fail, else PM, else idle;<br/>mark hatched"]
+    worst --> cascade
+    dep -->|no| analyze
+    phase["phase arrow"] --> order{"system Red?"}
+    order -->|"Green / Yellow"| gy["improve, node improve, stress, degrade, node degrade"]
+    order -->|Red| rd["degrade, node degrade, stress, improve, node improve"]
+    gy --> analyze
+    rd --> analyze
+....
+
+== Interactions
+
+The cascade is the run's own (`_Cascade`), subclassed as `_FevCascade` with four overrides: the system-status check is a no-op (FEV calls `AnalyzeSystem` itself after each action), a dependency dispatch is only the state change (no block process is waiting to be woken), a cold-standby switch only records its reason, and a draw for a dependency action raises. The scheduler is `_NullScheduler`: anything that would schedule, wake or wait raises `EngineInvariantError`, so a divergence from "there is no process to wake" fails loudly.
+
+== `FEVmode` in the source: every branch and what the port does
+
+[cols="2,3,3",options="header"]
+|===
+| Where in Raptor 7 | What real does in FEV | Port
+| `ChangeStatus` (hierarchy colours) | skips colour-time accumulation in `ChangeStatus` | not applicable: no statistics are kept
+| the capacity flag set by `AnalyzeSystem` | forces `CapAnalysisRequired` | display only (the flow numbers on nodes); not ported, see below
+| the node flow calculation | recomputes the flow unconditionally, skips per-node flow statistics | display only; not ported
+| `BackFlowDependencies` | deterministic dependency outcome, `FevDepMode` hatching, criticality factor | ported (`_FevDown`)
+| `ChangeNodeState` | skips the termination counters | not applicable: no termination
+| `SetSwitchTime` | skips `SetSwitchTime` for a cold-standby link | ported (`NoSwitchTime`); a switch is immediate
+| `ChangeBlockState` | recolours a running or stressed-standby block by its stress | display only (the GUI draws stress shades from `run_state.phase_stress`)
+| `ConductEvent` | `ConductEvent` does not draw: Success stays Success, anything else Failure | ported (`_apply_event_phase`)
+| run set-up | cost and weak analysis forced off | not applicable: the session never turns them on
+|===
+
+Capacity: real FEV draws the flow on the diagram (`Flow=1850` under the start node) because it recomputes `DistributeFlow` on every action. Nothing in the Failure Effects text depends on it, so the session runs without a capacity state. If the GUI should show those numbers, the capacity pass has to be given to `FevSession`; that is an open item, not a fidelity gap in the text.
+
+== State it owns
+
+`FevSession`: the model and its engine context, the cascade, the hatched blocks in the order they were marked (`fev_dep_group`, an ordered queue in the original, and the order decides the order of the induced-failures list), the criticality factor, and the phase number. `snapshot()` returns every piece of state a click can change; the round-trip tests compare it.
+
+== Port-only devices and deliberate deviations
+
+* `FevSession` builds its own engine context with `build_engine_ctx` and replaces each block's transition function, because the run's `BlockProcess` and event loop do not exist here.
+* A click on a hatched block performs the original's *two* `ChangeBlockState` calls (through Running) as two separate transitions; collapsing them would skip a node reconfigure and a back-flow.
+* The array in the original holds 200 lines; a model that would write more is refused rather than truncated (the original's behaviour past 200 is undefined).
+
+== Invariants
+
+* No random number is drawn and no process is scheduled, over every golden model (`test_fev_invariants.py`).
+* A click followed by "Reset All" returns exactly to the starting snapshot; so does a walk through every phase.
+* The text of three real sessions is reproduced byte for byte (`test_fev_spacestation.py`, `test_fev_phasing.py`), also through the command line (`test_cli.py`) and the window's Interactive Log (`test_gui_fev.py`).
+
+== Tests and fixtures
+
+Captures: `FevSpaceStation` (dependencies on the system and idle), `FevHierarchyExample` (cold standby, node degrade, hatched cycling), `FevPhasing3` (phase arrows, both erasers, Cut/Linked start state). `test_fev_interaction.py` checks the hatched cycle against the source's table for every set of non-zero dependency percentages, the standby-stress boundary, and the eraser asymmetry.

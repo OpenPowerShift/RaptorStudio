@@ -1,0 +1,16 @@
+Begining Procedure RunEFPA......
+
+join  EFPAout=1
+   end  through link 6
+BlockA  EFPAout=1
+   join  through link 3
+BlockB  EFPAout=1
+   join  through link 3
+BlockC  EFPAout=1
+   join  through link 5
+0.000000  BlockB  792225.529889
+5.000000  BlockB  842292.019207
+0.000000  BlockB  416902.749807
+5.000000  BlockB  661497.624789
+0.000000  BlockB  3144207.888744
+5.000000  BlockB  831393.179516

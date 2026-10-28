@@ -1,0 +1,51 @@
+Final_Results_Report for input.rbd  PROBE
+
+
+Results from 5 runs of sim time 8760.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Units_Produced           525600000.00    525600000.00    525600000.00    0.00            0.00            
+Mean_Flow                60000.000000    60000.000000    60000.000000    0.000000        0.000000        
+Mean_Capacity            9.99999999E+08  9.99999999E+08  9.99999999E+08  0.000000        0.000000        
+Availability             1.000000000     1.000000000     1.000000000     0.000000000     0.000000000     
+MTBDE                    N/A             N/A             N/A             N/A             N/A             
+MDT                      N/A             N/A             N/A             N/A             N/A             
+Reliability              1.000000000     1.000000000     1.000000000     0.000000000     0.000000000     
+Conditional_Reliability  1.000000000     1.000000000     1.000000000     0.000000000     0.000000000     
+System_Failures          0               0.000000        0               0.000000        0.000000        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     219.000000      236.270507      257.647059      15.339404       6.859990        
+MTBMu                    219.000000      236.270507      257.647059      15.339404       6.859990        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      5.540570        5.813043        6.085249        0.233921        0.104612        
+MMTu                     5.540570        5.813043        6.085249        0.233921        0.104612        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            93.292537       94.543334       95.415817       0.899002        0.402046        
+Yellow_Percent           4.584183        5.456666        6.707463        0.899002        0.402046        
+Red_Percent              0.000000        0.000000        0.000000        0.000000        0.000000        
+
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+ArcticAir_10000       Custom                       7         7.80         9         0.84 
+CB2000_25000          Custom                       9        10.80        15         2.49 
+CMD_5000              Custom                       4         5.60         7         1.34 
+CMD_5000              Custom                       3         5.00         6         1.22 
+XR-15_15000           Custom                       5         8.00        10         1.87 
+
+

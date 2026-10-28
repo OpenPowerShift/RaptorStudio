@@ -1,0 +1,359 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Nightly, off the hour to avoid the top-of-hour rush.
+    - cron: "37 4 * * *"
+  workflow_dispatch:
+
+# A newer push (or PR update) supersedes the run in flight -- the long jobs
+# are 25-40 minutes and nobody wants the result for a commit that is already
+# stale. The nightly is never cancelled by a push: it has its own group.
+concurrency:
+  group: tests-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
+jobs:
+  changed:
+    # The nightly only has something to say if main moved since the last
+    # one; otherwise it would burn ~1h of runner time re-proving a green
+    # tree. Every other trigger always runs. (A pip dependency release alone
+    # does not wake a nightly -- run workflow_dispatch for that.)
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: gate
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ] \
+             || [ -n "$(git log --since='25 hours ago' --format=%h -1)" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No commits in the last 25 hours; skipping the nightly."
+          fi
+
+  test:
+    name: test (${{ matrix.shard }}/4)
+    needs: [changed, typecheck, ui-sweeps, mcp-e2e, docs-html]
+    if: needs.changed.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    # Four runners, each with a quarter of the tests (`RAPTOR_TEST_SHARD`, see
+    # tests/conftest.py) spread over its cores with `-n auto`, as the UI sweeps
+    # are split by file.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: "3.13"
+          extras: "dev,mcp"
+
+      # `-x` (--exitfirst) is the fail-fast switch, and it is here because each
+      # shard runs ~1,700 tests. Without it a failure late in
+      # the run burns every remaining minute of the job to report information
+      # nobody can act on until the next push anyway.
+      #
+      # The tradeoff is real and worth stating rather than discovering: `-x`
+      # reports ONE failure per push, so a change that breaks three
+      # independent things takes three round trips instead of one. That is
+      # the right trade for a default branch build and the wrong one for a
+      # bisect, so `-x` is scoped to this job and NOT put in `addopts` --
+      # a developer running `pytest` locally still sees every failure, which
+      # is what you want when you are the one fixing them.
+      #
+      # `-p no:cacheprovider` for the same reason the sweep shards use it:
+      # this job's only artefact is the exit code, so a cache directory in
+      # the workspace is pure noise.
+      - name: Run test suite (shard ${{ matrix.shard }}/4)
+        env:
+          QT_QPA_PLATFORM: offscreen
+          RAPTOR_TEST_SHARD: ${{ matrix.shard }}/4
+        run: pytest -q -x -n auto -p no:cacheprovider
+
+  fidelity:
+    name: fidelity (${{ matrix.shard }}/3)
+    needs: [changed, typecheck, ui-sweeps, mcp-e2e, docs-html]
+    if: needs.changed.outputs.run == 'true'
+    # Three shards by test id, each over `-n auto` (see the `test` job).
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    # The eight whole-output comparison suites, and the only tests that compare
+    # a complete run against a file real Raptor wrote.
+    #
+    # Why this is a separate job rather than part of `test`: measured on this
+    # tree, those 8 files hold 1,030 of the 5,499 default-selected tests and
+    # cost 14m52s of a 19m11s run at `-n 6` -- about 78% of the test job's wall
+    # clock, with individual tests at 45-90 s. `slow` could not carry this: it
+    # already means the six UI sweeps.
+    #
+    # **Why it still runs on every push to main.** Removing them from the
+    # default run is a speed change, not a demotion. `tests/behaviour/` now
+    # pins all 263 corpus transitions and 0 of 43 engine modules sit below
+    # their recorded floor without these, but it asserts *transitions*; nothing
+    # else compares whole reports against real Raptor. So main is still gated
+    # on them, and the nightly run adds the flakiness-catching that a
+    # push-only gate cannot give (these tests are wall-clock sensitive).
+    #
+    # What a pull request gives up is the fidelity signal *before* merge. That
+    # is the tradeoff, and it is deliberate: a 19-minute default job trains
+    # people to batch pushes and ignore red.
+    #
+    # `-m fidelity` REPLACES the ini `addopts` expression (a command-line
+    # `-m` overrides it), which is how this selects the marked suites.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: "3.13"
+          extras: "dev,mcp"
+
+      - name: Fidelity tier
+        env:
+          # The suites compare simulated output against recorded baselines and
+          # include real multi-thousand-run sweeps, so the default 300 s
+          # watchdog is not the right budget here.
+          RAPTOR_TEST_TIMEOUT: "900"
+          RAPTOR_TEST_SHARD: ${{ matrix.shard }}/3
+        run: pytest -q -x -n auto -p no:cacheprovider -m fidelity
+
+  long-checks:
+    needs: changed
+    if: needs.changed.outputs.run == 'true'
+    # Analytical/statistical cross-checks and documentation number gates:
+    # Monte Carlo against IEC 61078's worked examples, and every number the
+    # book quotes re-derived from its tutorial model. Together ~5 minutes,
+    # which is too much to pay on every edit but valuable on every push --
+    # so it runs as its own parallel job instead of inside `test`.
+    #
+    # The marker is `long`, deliberately separate from `fidelity` (whole
+    # output compared against real Raptor) and from `slow` (offscreen UI
+    # sweeps): three different reasons to be expensive, three different
+    # jobs. They are excluded by `addopts`, and passing `-m` here replaces
+    # that expression, as the comment in tests/conftest.py explains.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: "3.13"
+          extras: "dev,mcp"
+
+      - name: Long checks
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest -q -x -p no:cacheprovider -m long
+
+  ui-sweeps:
+    needs: changed
+    if: needs.changed.outputs.run == 'true'
+    # The UI smoke sweeps were 285 assertions of Simulate-tab and
+    # end-to-end behaviour that CI NEVER RAN: `pyproject.toml` sets
+    # `addopts = '-m "not slow and not fidelity and not long"'`, the sweeps are marked `slow`, and
+    # `tests/conftest.py` collect_ignores `integration/sweeps/*`. Any
+    # change to the ribbon could break all of them with a green build.
+    #
+    # They are sharded across a matrix rather than run serially: the six
+    # scripts are independent subprocess drivers, so a 2x3 matrix keeps
+    # wall-clock close to the serial time while every assertion runs on
+    # every push. `-k` selects by the sweep's own name so a failure
+    # points at one file.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Sweeps 1-5 only. ui_sweep6 walks `legacy/rbd/`, which is
+        # local-only and git-ignored (see legacy/README.md), so several
+        # of its chapter models are simply absent on a fresh CI
+        # checkout and it reports 30+ "load" failures that say nothing
+        # about the code. The wrapper already skips it when the
+        # directory is missing; here the directory exists but is
+        # incomplete, so it is excluded explicitly. Run it locally
+        # against a populated legacy/rbd/.
+        sweep: [1, 2, 3, 4, 5]
+        # 3.12 is the supported floor (pyproject requires-python, mypy and ruff
+        # target it), so the sweeps run on it as well as on the newest we test.
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: ${{ matrix.python }}
+          extras: "dev,mcp"
+
+      - name: Run UI sweep ${{ matrix.sweep }}
+        env:
+          QT_QPA_PLATFORM: offscreen
+          # `-p no:cacheprovider` keeps the shard's temp state out of
+          # the workspace. The wrapper parametres on the sweep FILE
+          # name (`ids=lambda p: p.name`), so the shard selector matches
+          # `ui_sweepN.py` -- not a bare "sweepN", which also matches the
+          # runner and would run every sweep in every shard.
+          # No `-o addopts=` here on purpose: `-m slow` on the command
+          # line already REPLACES the ini `-m "not slow and not fidelity and not long"` from
+          # pyproject.toml, which is what re-enables these tests. The
+          # `PYTEST_ADDOPTS: ""` that used to sit here implied it
+          # suppressed the ini value; it does not -- that env var is a
+          # separate, *additive* source and empty means nothing.
+          # tests/conftest.py:256 documents the replacement rule.
+        run: >
+          pytest tests/integration/test_ui_sweeps.py -q
+          -m slow -p no:cacheprovider
+          -k "ui_sweep${{ matrix.sweep }}.py"
+
+  mcp-e2e:
+    needs: changed
+    if: needs.changed.outputs.run == 'true'
+    # The MCP server's end-to-end acceptance tests -- and the only
+    # systematic check that the mcp front door agrees with the engine and
+    # the api layer (TestEquivalenceTests::test_mcp_matches_engine).
+    #
+    # Every test in the file is marked `slow`, so the plain `pytest -q`
+    # jobs deselected all 22 and nothing selected them (verified:
+    # "no tests collected (22 deselected)"). The `mcp` extra was already
+    # being installed for them, so the cost was being paid for a file
+    # that never ran.
+    #
+    # Qt runtime libraries ARE needed here, contrary to the original note.
+    # That note reasoned that `server.py:210` degrades gracefully when PySide6
+    # is absent -- true, but beside the point: `pytest` imports
+    # `tests/conftest.py` before collecting anything, and conftest.py:12 does
+    # `from PySide6.QtWidgets import ...` unconditionally. So the job died at
+    # conftest import with `ImportError: libEGL.so.1`, before a single test
+    # ran.
+    # ~2.5 min locally.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: ${{ matrix.python }}
+          extras: "dev,mcp"
+
+      - name: MCP end-to-end (engine <-> mcp equivalence)
+        run: >
+          pytest tests/integration/test_mcp_end_to_end.py -q
+          -m slow -p no:cacheprovider
+
+  docs-html:
+    needs: changed
+    if: needs.changed.outputs.run == 'true'
+    # The committed help HTML (book, manual, formulas) ships in the wheel and
+    # the installers, so it must be what the AsciiDoc sources build.
+    # tests/unit/test_docs_html_current.py checks that, but skips without
+    # `asciidoctor`, which no other job installs -- so a stale book.html once
+    # reached main with every job green. Pinned to the version the committed
+    # HTML is rendered with (render_docs.sh); bump both together.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install asciidoctor
+        run: gem install asciidoctor -v 2.0.26 --no-document
+
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: "3.13"
+          extras: "dev,mcp"
+
+      - name: Committed HTML is current
+        run: pytest -q -p no:cacheprovider tests/unit/test_docs_html_current.py
+
+  typecheck:
+    needs: changed
+    if: needs.changed.outputs.run == 'true'
+    # mypy: everything outside raptor/gui must be clean; raptor/gui may not
+    # add errors beyond tools/mypy_gui_baseline.json (see
+    # tools/mypy_gate.py). ruff: the rule set in pyproject.toml.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: "3.13"
+          extras: "dev,mcp"
+
+      - name: ruff
+        run: python -m ruff check .
+
+      - name: mypy gate
+        run: python tools/mypy_gate.py
+
+      # Fails if a wait-site x reason or status-change
+      # cell listed in docs/engine-design/state-coverage.adoc is no longer
+      # reached by any snapshot model.
+      - name: state coverage
+        run: python tools/state_coverage.py --check -j 4
+
+      # The generated design pages (module map,
+      # state machine, method-to-source map) must match the code.
+      - name: generated design pages
+        run: python tools/gen_engine_docs.py --check
+
+  engine-coverage:
+    needs: [changed, typecheck, ui-sweeps, mcp-e2e, docs-html]
+    # Nightly (or on demand) only: ~50 min, and it re-runs the engine tier
+    # that `test` already ran. The floors are still enforced, a day late.
+    if: >-
+      needs.changed.outputs.run == 'true'
+      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    # Branch coverage of the engine tier. Fails if any engine module drops
+    # below tools/coverage_floors.json; the HTML report (with
+    # per-test contexts: "which test covers this line?") is uploaded.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Every job runs 3.13, the version the coverage floors were recorded
+      # on (branch arcs can differ between versions).
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: "3.13"
+          extras: "dev,mcp"
+
+      - name: Engine coverage
+        run: python tools/engine_coverage.py run --check-floors --html coverage-html --worst 40
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-coverage-html
+          path: coverage-html
+
+      # The per-test watchdog (tests/conftest.py) writes the hung test's
+      # stack here before it exits the worker.
+      - name: Upload watchdog dump
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-coverage-hang-dump
+          path: /tmp/pytest_hang*.dump
+          if-no-files-found: ignore

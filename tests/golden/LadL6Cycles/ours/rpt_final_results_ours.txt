@@ -1,0 +1,63 @@
+Final_Results_Report for input.rbd  PROBE
+
+
+Results from 60 runs of 15 cycles:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.611731711     0.627241922     0.649183285     0.008133072     0.001049975     
+MTBDE                    67.328113       78.223744       91.971057       5.414033        0.698949        
+MDT                      41.241773       46.429851       51.940263       2.354512        0.303966        
+Dependability            0.611731711     0.627241922     0.649183285     0.008133072     0.001049975     
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          110             126.750000      144             7.725426        0.997348        
+Ending_Sim_Time          15480.241676    15743.053131    16032.840067    111.801287      14.433484       
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     16.744816       17.922346       19.336945       0.507936        0.065574        
+MTBMu                    16.744816       17.922346       19.336945       0.507936        0.065574        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      12.245721       12.854251       13.562483       0.315789        0.040768        
+MMTu                     12.245721       12.854251       13.562483       0.315789        0.040768        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            41.821337       44.056503       46.584187       0.978854        0.126370        
+Yellow_Percent           16.986075       18.667690       21.621513       0.889681        0.114857        
+Red_Percent              35.081672       37.275808       38.826829       0.813307        0.104998        
+Mission_Green_Percent    41.821337       44.056503       46.584187       0.978854        0.126370        
+Mission_Yellow_Percent   16.986075       18.667690       21.621513       0.889681        0.114857        
+Mission_Red_Percent      35.081672       37.275808       38.826829       0.813307        0.104998        
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+S1B1                  Infinite                    33        36.42        38         1.36 
+S1B2                  Infinite                    24        33.68        41         3.55 
+S1B3                  Infinite                    14        23.32        31         3.44 
+S2B1                  Infinite                    50        57.18        67         3.73 
+S2B2                  Infinite                    34        44.00        51         3.19 
+S2B3                  Infinite                     9        17.75        27         3.99 
+S2B4                  Infinite                    32        39.65        54         5.40 
+S3B1                  Infinite                    22        33.32        45         4.46 
+S3B2                  Infinite                    33        51.33        61         5.99 
+S3B3                  Infinite                    14        25.83        34         4.14 
+S4B1                  Infinite                    10        13.45        17         1.50 
+S4B2                  Infinite                    28        32.65        39         2.52 
+S4B3                  Infinite                    31        34.30        37         1.38 
+S5B1                  Infinite                    52        55.08        58         1.49 
+S5B2                  Infinite                    27        34.62        43         3.84 
+S5B3                  Infinite                    11        18.70        25         3.12 
+
+

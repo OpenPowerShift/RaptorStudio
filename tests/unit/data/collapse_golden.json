@@ -1,0 +1,4550 @@
+{
+ "ComplexModel:all_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 1,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "ComplexModel:all_blocks:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "1",
+       "In": "1",
+       "Out": "1",
+       "Parent": "10",
+       "Phs": "0",
+       "extraInt1": "10",
+       "extraInt2": "10",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_2",
+       "in": "3",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "4",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "10.000000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "91.250000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "3",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "0.000000",
+       "yPos": "92.500000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "4",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "20.000000",
+       "yPos": "92.500000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       5,
+       "10"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "11",
+        "FromType": "Node",
+        "ID": "8",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       7
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "11",
+        "FromType": "Node",
+        "ID": "8",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Node",
+        "ID": "10",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Block",
+        "ID": "9",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "12",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       8
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Hier",
+        "ID": "9",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "12",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Block",
+        "ID": "11",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 1,
+  "hier_rows_now": 1,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "ComplexModel:blocks_and_nodes:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 1,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "ComplexModel:first_block:home": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "5",
+       "In": "1",
+       "Out": "1",
+       "Parent": "0",
+       "Phs": "0",
+       "extraInt1": "10",
+       "extraInt2": "10",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_2",
+       "in": "7",
+       "isCNd": "1",
+       "level": "1",
+       "myDepth": "0",
+       "out": "8",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "10.000000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "91.250000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "7",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "5",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "0.000000",
+       "yPos": "92.500000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "8",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "5",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "20.000000",
+       "yPos": "92.500000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       3,
+       "0"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "7",
+        "FromType": "Node",
+        "ID": "10",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "5"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Hier",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "11",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "8",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "5"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 5,
+  "hier_rows_now": 1,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "ComplexModel:first_block:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "1",
+       "In": "1",
+       "Out": "1",
+       "Parent": "10",
+       "Phs": "0",
+       "extraInt1": "10",
+       "extraInt2": "10",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_2",
+       "in": "3",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "4",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "10.000000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "91.250000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "3",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "0.000000",
+       "yPos": "92.500000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "4",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "20.000000",
+       "yPos": "92.500000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       5,
+       "10"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "11",
+        "FromType": "Node",
+        "ID": "8",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       7
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "11",
+        "FromType": "Node",
+        "ID": "8",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Node",
+        "ID": "10",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Block",
+        "ID": "9",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "12",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       8
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Hier",
+        "ID": "9",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "12",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Block",
+        "ID": "11",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 1,
+  "hier_rows_now": 1,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "ComplexModel:two_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 1,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "ComplexModel:two_blocks:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "1",
+       "In": "1",
+       "Out": "1",
+       "Parent": "10",
+       "Phs": "0",
+       "extraInt1": "10",
+       "extraInt2": "10",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_2",
+       "in": "3",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "4",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "10.000000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "91.250000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "3",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "0.000000",
+       "yPos": "92.500000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "4",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "20.000000",
+       "yPos": "92.500000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       5,
+       "10"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "11",
+        "FromType": "Node",
+        "ID": "8",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       7
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "11",
+        "FromType": "Node",
+        "ID": "8",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Node",
+        "ID": "10",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Block",
+        "ID": "9",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "12",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       8
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Hier",
+        "ID": "9",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "12",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "10"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Block",
+        "ID": "11",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 1,
+  "hier_rows_now": 1,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "EventDepProbe:all_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 0,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "EventDepProbe:blocks_and_nodes:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 0,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "EventDepProbe:events:home": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "6",
+       "In": "1",
+       "Out": "1",
+       "Parent": "0",
+       "Phs": "0",
+       "hierarchyName": "Hierarchy_1",
+       "in": "7",
+       "isCNd": "1",
+       "level": "1",
+       "myDepth": "0",
+       "out": "8",
+       "xCenter": "0.000000",
+       "xOrigin": "0",
+       "xPos": "-0.023668",
+       "yCenter": "0.000000",
+       "yOrigin": "0",
+       "yPos": "0.000000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "7",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "6",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "-10.023668",
+       "yPos": "1.250000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "8",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "6",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "9.976332",
+       "yPos": "1.250000"
+      }
+     ],
+     [
+      [
+       "EVENT_DATA",
+       1,
+       "0"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Event",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "7",
+        "FromType": "Node",
+        "ID": "7",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Event",
+        "nomFlow": "-2",
+        "pID": "6"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Event",
+        "ID": "6",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       5
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "6",
+        "FromType": "Hier",
+        "ID": "6",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Event",
+        "ID": "8",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "8",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "6"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 6,
+  "hier_rows_now": 0,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "EventDepProbe:first_block:home": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "6",
+       "In": "1",
+       "Out": "1",
+       "Parent": "0",
+       "Phs": "0",
+       "hierarchyName": "Hierarchy_1",
+       "in": "7",
+       "isCNd": "1",
+       "level": "1",
+       "myDepth": "0",
+       "out": "8",
+       "xCenter": "0.000000",
+       "xOrigin": "0",
+       "xPos": "10.000000",
+       "yCenter": "0.000000",
+       "yOrigin": "0",
+       "yPos": "91.250000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "7",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "6",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "0.000000",
+       "yPos": "92.500000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "8",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "6",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "20.000000",
+       "yPos": "92.500000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       3,
+       "0"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "6",
+        "FromType": "Hier",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "7",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "8",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "6"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Event",
+        "ID": "6",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       5
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Event",
+        "ID": "6",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "7",
+        "FromType": "Node",
+        "ID": "8",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "6"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 6,
+  "hier_rows_now": 0,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "EventDepProbe:two_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 0,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "HierarchyExample:all_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 3,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "HierarchyExample:all_blocks:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "4",
+       "In": "1",
+       "Out": "1",
+       "Parent": "23",
+       "Phs": "0",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "5",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "6",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "6.250000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "93.750000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "5",
+       "Name": "in",
+       "Out": "1",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "-3.750000",
+       "yPos": "95.000000"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "6",
+       "Name": "out",
+       "Out": "0",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "16.250000",
+       "yPos": "95.000000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       1,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       2,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       3,
+       "23"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "1",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "23"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "1",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "23"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "16",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "20",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "23"
+       },
+       15
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Hier",
+        "ID": "16",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "20",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "31",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       24
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Node",
+        "ID": "32",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 4,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "HierarchyExample:blocks_and_nodes:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 3,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "HierarchyExample:blocks_and_nodes:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "4",
+       "In": "1",
+       "Out": "1",
+       "Parent": "23",
+       "Phs": "0",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "5",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "6",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "7.481729",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "93.740549",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "5",
+       "Name": "in",
+       "Out": "1",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "-2.518271",
+       "yPos": "94.990549"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "6",
+       "Name": "out",
+       "Out": "0",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "17.481729",
+       "yPos": "94.990549"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       1,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       2,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       3,
+       "23"
+      ],
+      [
+       "NODE_DATA",
+       20,
+       "23"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "1",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "23"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "1",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "23"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "16",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "20",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "23"
+       },
+       15
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "16",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "20",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       24
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Node",
+        "ID": "31",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "20",
+        "FromType": "Node",
+        "ID": "26",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "25",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       25
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Hier",
+        "ID": "26",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "25",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "20",
+        "FromType": "Node",
+        "ID": "32",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 4,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "HierarchyExample:first_block:home": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "1",
+       "In": "1",
+       "Out": "1",
+       "Parent": "0",
+       "Phs": "0",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "2",
+       "isCNd": "1",
+       "level": "1",
+       "myDepth": "0",
+       "out": "3",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "18.750000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "91.250000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "2",
+       "Name": "in",
+       "Out": "1",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "8.750000",
+       "yPos": "92.500000"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "3",
+       "Name": "out",
+       "Out": "0",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "28.750000",
+       "yPos": "92.500000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       4,
+       "0"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Block",
+        "ID": "5",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "17",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       4
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Hier",
+        "ID": "5",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "17",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Block",
+        "ID": "31",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "19",
+        "FromType": "Node",
+        "ID": "13",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       12
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "19",
+        "FromType": "Node",
+        "ID": "13",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Node",
+        "ID": "32",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 1,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "HierarchyExample:first_block:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "4",
+       "In": "1",
+       "Out": "1",
+       "Parent": "23",
+       "Phs": "0",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "5",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "6",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "3.750000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "93.750000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "5",
+       "Name": "in",
+       "Out": "1",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "-6.250000",
+       "yPos": "95.000000"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "6",
+       "Name": "out",
+       "Out": "0",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "13.750000",
+       "yPos": "95.000000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       1,
+       "23"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "1",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "23"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Hier",
+        "ID": "1",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "31",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "-1",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       24
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Node",
+        "ID": "32",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 4,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "HierarchyExample:two_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 3,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "HierarchyExample:two_blocks:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "4",
+       "In": "1",
+       "Out": "1",
+       "Parent": "23",
+       "Phs": "0",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "5",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "6",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "5.000000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "93.750000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "5",
+       "Name": "in",
+       "Out": "1",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "-5.000000",
+       "yPos": "95.000000"
+      },
+      {
+       "Autos": "1",
+       "Cold": "0",
+       "ID": "6",
+       "Name": "out",
+       "Out": "0",
+       "PR": "1",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "15.000000",
+       "yPos": "95.000000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       1,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       2,
+       "23"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "1",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "23"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "1",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "23"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Hier",
+        "ID": "2",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-1",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "31",
+        "ManTime": "1.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "-1",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       24
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Node",
+        "ID": "32",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 4,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "Phasing3:all_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 3,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "Phasing3:all_blocks:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "4",
+       "In": "1",
+       "Out": "1",
+       "Parent": "23",
+       "Phs": "1",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "5",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "6",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "6.250000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "93.750000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "5",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "-3.750000",
+       "yPos": "95.000000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "6",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "16.250000",
+       "yPos": "95.000000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       1,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       2,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       3,
+       "23"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Node",
+        "ID": "41",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "3",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       2
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "3",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "4",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "20",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "23"
+       },
+       3
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Hier",
+        "ID": "4",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "20",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "42",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "4"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 4,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "Phasing3:blocks_and_nodes:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 3,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "Phasing3:blocks_and_nodes:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "4",
+       "In": "1",
+       "Out": "1",
+       "Parent": "23",
+       "Phs": "1",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "5",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "6",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "7.485840",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "93.742676",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "5",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "-2.514160",
+       "yPos": "94.992676"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "6",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "17.485840",
+       "yPos": "94.992676"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       1,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       2,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       3,
+       "23"
+      ],
+      [
+       "NODE_DATA",
+       20,
+       "23"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Node",
+        "ID": "41",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "3",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       2
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "3",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "4",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "20",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "23"
+       },
+       3
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "4",
+        "ManTime": "0.000000",
+        "MaxFlow": "500",
+        "ToID": "20",
+        "ToType": "Node",
+        "nomFlow": "500",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "20",
+        "FromType": "Node",
+        "ID": "5",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "25",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       4
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Hier",
+        "ID": "5",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "25",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "20",
+        "FromType": "Node",
+        "ID": "42",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 4,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "Phasing3:events:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 3,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "Phasing3:first_block:home": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "1",
+       "In": "1",
+       "Out": "1",
+       "Parent": "0",
+       "Phs": "1",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "2",
+       "isCNd": "1",
+       "level": "1",
+       "myDepth": "0",
+       "out": "3",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "18.750000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "91.250000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "2",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "8.750000",
+       "yPos": "92.500000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "3",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "1",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "28.750000",
+       "yPos": "92.500000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       4,
+       "0"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "19",
+        "FromType": "Node",
+        "ID": "24",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       23
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "19",
+        "FromType": "Node",
+        "ID": "24",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Node",
+        "ID": "41",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Block",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "17",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       24
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Hier",
+        "ID": "25",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "17",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Block",
+        "ID": "42",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "1"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 1,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "Phasing3:first_block:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "4",
+       "In": "1",
+       "Out": "1",
+       "Parent": "23",
+       "Phs": "1",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "5",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "6",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "3.750000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "93.750000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "5",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "-6.250000",
+       "yPos": "95.000000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "6",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "13.750000",
+       "yPos": "95.000000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       1,
+       "23"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Node",
+        "ID": "41",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Hier",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "42",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 4,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "Phasing3:two_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 3,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "Phasing3:two_blocks:level": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "4",
+       "In": "1",
+       "Out": "1",
+       "Parent": "23",
+       "Phs": "1",
+       "extraInt1": "23",
+       "extraInt2": "23",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
+       "hierarchyName": "Hierarchy_4",
+       "in": "5",
+       "isCNd": "1",
+       "level": "2",
+       "myDepth": "0",
+       "out": "6",
+       "xCenter": "0.000000",
+       "xOrigin": "0.000000",
+       "xPos": "5.000000",
+       "yCenter": "0.000000",
+       "yOrigin": "80.000000",
+       "yPos": "93.750000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "5",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "-5.000000",
+       "yPos": "95.000000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "6",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "4",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "15.000000",
+       "yPos": "95.000000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       1,
+       "23"
+      ],
+      [
+       "BLOCK_DATA",
+       2,
+       "23"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "24",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "4",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "5",
+        "FromType": "Node",
+        "ID": "41",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "1",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "2",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "3",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       2
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "4",
+        "FromType": "Hier",
+        "ID": "3",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "23"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "2",
+        "FromType": "Block",
+        "ID": "42",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "4"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 4,
+  "hier_rows_now": 3,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "TwoBlockRedundancy:all_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 0,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "TwoBlockRedundancy:blocks_and_nodes:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 0,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "TwoBlockRedundancy:first_block:home": {
+  "cmd": [
+   [
+    [
+     [
+      {
+       "ID": "6",
+       "In": "1",
+       "Out": "1",
+       "Parent": "0",
+       "Phs": "0",
+       "hierarchyName": "Hierarchy_1",
+       "in": "7",
+       "isCNd": "1",
+       "level": "1",
+       "myDepth": "0",
+       "out": "8",
+       "xCenter": "0.000000",
+       "xOrigin": "0",
+       "xPos": "10.000000",
+       "yCenter": "0.000000",
+       "yOrigin": "0",
+       "yPos": "91.250000",
+       "zoom": "14.00"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "7",
+       "Name": "in",
+       "Out": "1",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "4",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "1",
+       "k*": "0",
+       "n": "0",
+       "parent": "6",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "0.000000",
+       "yPos": "92.500000"
+      },
+      {
+       "Autos": "0",
+       "Cold": "0",
+       "ID": "8",
+       "Name": "out",
+       "Out": "0",
+       "PR": "0",
+       "Phases": "0",
+       "Type": "5",
+       "depNum": "0",
+       "depType": "None",
+       "divFlow": "1",
+       "fullflow": "1",
+       "k": "-1",
+       "k*": "0",
+       "n": "1",
+       "parent": "6",
+       "repCap": "0",
+       "repNA": "0",
+       "xPos": "20.000000",
+       "yPos": "92.500000"
+      }
+     ],
+     [
+      [
+       "BLOCK_DATA",
+       3,
+       "0"
+      ]
+     ],
+     [
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       0
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "1",
+        "FromType": "Node",
+        "ID": "1",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "6",
+        "ToType": "Hier",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "7",
+        "FromType": "Node",
+        "ID": "6",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "3",
+        "ToType": "Block",
+        "nomFlow": "-2",
+        "pID": "6"
+       },
+       -1
+      ],
+      [
+       "del",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "6",
+        "FromType": "Hier",
+        "ID": "2",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "5",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "0"
+       },
+       -1
+      ],
+      [
+       "add",
+       {
+        "AProb": "1.000000",
+        "AutoTime": "0.000000",
+        "CapPri": "50",
+        "ColdPri": "50",
+        "FromID": "3",
+        "FromType": "Block",
+        "ID": "7",
+        "ManTime": "0.000000",
+        "MaxFlow": "-1",
+        "ToID": "8",
+        "ToType": "Node",
+        "nomFlow": "-2",
+        "pID": "6"
+       },
+       -1
+      ]
+     ]
+    ],
+    {
+     "moved_annotations": []
+    }
+   ]
+  ],
+  "hid": 6,
+  "hier_rows_now": 0,
+  "refused": false,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ },
+ "TwoBlockRedundancy:two_blocks:home": {
+  "cmd": [],
+  "hid": null,
+  "hier_rows_now": 0,
+  "refused": true,
+  "sections": [
+   "SYSTEM_DATA",
+   "HIERARCHY_DATA",
+   "BLOCK_DATA",
+   "EVENT_DATA",
+   "NODE_DATA",
+   "COMMENTS",
+   "LINK_DATA",
+   "SPARE_POOL_DATA",
+   "RESOURCE_DATA",
+   "PHASES",
+   "TRIGGERS"
+  ]
+ }
+}

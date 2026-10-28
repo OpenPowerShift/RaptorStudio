@@ -1,0 +1,72 @@
+[[appendix-developer-options]]
+== Appendix: Developer options
+
+RAPTOR Studio has a handful of diagnostic features that add a file, a line or a column to the
+output. Each is an ordinary option, *off by default*, under *Preferences > Developer*. On the command line, set them
+with `--dev-features LIST` (or the `RAPTOR_DEV_FEATURES` environment variable), for example
+`--dev-features random_draw_count,event_log_filter=block+phase`; `all` turns on every option
+that only adds a line or column to an existing output.
+
+WARNING: Options that add a column, a line or a file change what the run writes. Leave them off
+when you compare output across runs or with another tool. None of them changes the simulation's results.
+
+[cols="2,5",options="header"]
+|===
+|Option |What it does
+
+|`event_log_filter`
+|Write only the chosen categories (`block`, `node`, `system`, `phase`) to the detailed event
+log. With nothing chosen everything is written. The `Begin_Run_n` row is a `system` row, so it
+disappears unless `system` is chosen.
+
+|`event_log_component`
+|Also write every row for the named component, whatever the filter says. The name is cut at its
+first space.
+
+|`domain_tree`
+|Write `DomainTree.TXT`: the tree of everything feeding the End node. Written to a `reports`
+folder beside the model in the GUI; `--report domain-tree` on the command line.
+
+|`core_file`
+|Write `CoreFile.TXT` ("Kings and Serfs"): the same walk, indented only under nodes with more
+than one connection in. `--report core-file`.
+
+|`defer_trigger`
+|The name of a trigger that blocks whose comment is `maintDefer` wait for after a failure: the block
+logs `Failed-deferring`, sits in RepHold ("deferred maintenance") and is repaired only once the trigger
+next fires. With the name `phaseTrigger` the blocks are also freed when a phase change ends a mission, and
+are not held at all while the system is in a non-mission phase. `file` uses the trigger saved in the
+model (its system comment `The defer trigger is <name>`), else the first trigger; empty is off.
+
+|`random_draw_count`
+|Add `Random draws: N` to the Final Results report. Forces a single-process batch.
+
+|`show_criticality`
+|Show criticality in the Failure Effects View status bar, the Failure Effects text and the
+single point failure file.
+
+|`inspector_ids`
+|Hovering an element shows its id, parent, type and the model's object counts in the status bar.
+
+|`diagnostics_log`
+|Write a timestamped start-up and simulation trace. `--report diagnostics`.
+
+|`sim_details`
+|Write every random draw to `simDetails.TXT`. The GUI appends to the file beside
+the model across runs. `--report sim-details`.
+
+|`mission_file`
+|Write a mission file: a row per block that goes down (block id, time, `0` while the system is
+Green or Yellow, `1` otherwise), `-1 -1 -1` at each run's end and `-2 -2 -2` at the end. The GUI
+asks where to save it. `--report mission-file`.
+
+|`cumulative_by_trial`
+|Every N runs, append a row of the statistics so far (Ao, Do, R, RCond, MTBDE, MDT, MTBM, MMT, each
+with standard deviation and error of the mean) to a cumulative file. 0 is off. The GUI asks where to
+save it; `--report cumulative-by-trial` on the command line.
+
+|`cumulative_by_time`
+|Every T time units of each run, take a snapshot of that run's availability, MTBDE, MDT, MTBM and MMT and,
+after the last run, write one row per mesh point with their cross-run statistics and the reliability
+(fraction of runs with no system failure by then). Time-terminated runs only. `--report cumulative-by-time`.
+|===

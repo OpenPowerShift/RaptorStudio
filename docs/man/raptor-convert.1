@@ -1,0 +1,17 @@
+.TH "RAPTOR-CONVERT" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-convert \- Write IN as OUT in the format OUT's extension names (or \-\-to). Refuses a lossy conversion unless \-\-allow\-lossy.
+.SH SYNOPSIS
+\fBraptor convert\fR [\-h] [\-\-to {rbd,rbds}] [\-\-allow\-lossy] IN OUT
+.SH DESCRIPTION
+Write IN as OUT in the format OUT's extension names (or \-\-to). Refuses a lossy conversion unless \-\-allow\-lossy.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-to\fR \fI{rbd|rbds}\fR
+
+.TP
+\fB\-\-allow\-lossy\fR
+\&.rbds\-only content (annotations, experiment settings, rate definitions) is dropped in .rbd
+.SH SEE ALSO
+\fBraptor\fR(1)

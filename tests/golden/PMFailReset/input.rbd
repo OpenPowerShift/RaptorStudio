@@ -1,0 +1,52 @@
+Version7_7.0.11 Student        PMFailReset.rbd        Sat Aug 23 20:00:00 2026
+Phases=       0
+Blocks=       1
+Events=       0
+Nodes=       2
+Links=       2
+SpPools=       0
+ResPools=       0
+Triggers=       0
+Hiers=       0
+HierDepths=       0
+/
+/___SYSTEM_DATA___
+imageString TerminationType TermCondition StartStats NumRuns graphTimeSlice graphYmin graphYmax zoomVal units graphicsUse SysStreamsArray xOrigin yOrigin ShowNegErrMsg IgnoreStartFail flowGenerated systemRedCost sysLostCost weakAnalysis costAnalysis capacityAnalysis nodeAnalType GYthreshold YRthreshold NotUsed
+Equalizer TimeSim 60.000000 0.000000 1.000000 10000000.000000 0.000000 1.000000 24.000000 hours GraphicsOff 7 8 9 10 70 71 72 73 74 75 101 0.000000 80.000000 0 0 1 0.000000 0.000000 0 0 0 Availability 0.950000 0.900000 1
+EndOfSystemData
+/___HIERARCHY_DATA___
+hierarchyName ID xPos yPos Parent In Out isCNd zoom xCenter yCenter in out level Phs xOrigin yOrigin myDepth extraInt1 extraInt2 extraReal1 extraReal2
+EndOfHierarchyData
+/___BLOCK_DATA___
+blockName ID xPos yPos ParentId In Out Phasing SimStart AmtExhausted FDist #FParam FStream FParam1 FParam2 FParam3 RDist #RParam RStream RParam1 RParam2 RParam3 SBStress GDType GDRate GDLimit SparePoolName SpType RSO Stock NewSp ArriveEvery ESO EmerTime SLO Level Quan SLOTime Pre-LDTDist Param1 Param2 Param3 Post-LDTDist Param1 Param2 Param3 NumRes #Res1Rep #Res1pmRep Resource1Name usesPM PMSpare PMRefresh PMMisDefer PMFailReset PMReqDefer PMStaggerTime PMFreq pmTriggered pmTrig Dist Param1 Param2 Param3 DepNum DepNothing DepIdle DepPM DepFail DepPMThresh defDepStateIdle DepType initial Running standby idle repHold repPerTime repFixed donePerTime doneFixed pmHoldCost pmCost pmFixedCost perSpare emerShipping addDone
+PMTest 3 10.000000 91.250000 0 1 1 0 3 0.000000 19 2 1 6.000000 0.000000 0.000000 19 2 2 2.000000 0.000000 0.000000 0.000 0 0.000000 0.500000 unnamed Infinite 0 100 1 720.000000 0 24.000000 0 0 1 24.000000 19 0.000000 0.000000 0.000000 19 0.000000 0.000000 0.000000 0 0 0 None 1 0 1 0 0 0 0.000000 10.000000 0 none 19 1.000000 0.000000 0.000000 0 0.00 100.00 0.00 0.00 75.00 0 None 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 0
+unnamed 0 0.000000 0.000000 0 0 0 0 3 0.000000 4 2 203 100.000000 0.000000 0.000000 7 2 203 10.000000 2.000000 0.000000 0.000 0 1.000000 1.000000 unnamed Infinite 0 100 1 720.000000 0 24.000000 0 0 1 24.000000 19 0.000000 0.000000 0.000000 19 0.000000 0.000000 0.000000 0 1 1 None 0 1 1 0 1 1 0.000000 100.000000 0 none 19 1.000000 0.000000 0.000000 0 0.00 100.00 0.00 0.00 75.00 0 None 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 0
+EndOfBlockData
+/___EVENT_DATA___
+eventName ID xPos yPos ParentId In Out Phasing Distro failStream failVal InitCost OpCost RepCost
+EndOfEventData
+/___NODE_DATA___
+Name ID xPos yPos parent Type k n Out Cold PR Autos k* Phases depNum depType divFlow fullflow repCap repNA
+start 1 1.250000 91.250000 0 1 0 0 1 0 0 0 0 0 0 None 1 1 0 0
+end 2 27.500000 91.250000 0 3 -1 1 0 0 0 0 0 0 0 None 1 1 0 0
+EndOfNodeData
+/___COMMENTS___
+Type ID Name Comment
+/
+/___LINK_DATA___
+ID FromType FromID ToType ToID pID ColdPri AProb AutoTime ManTime CapPri nomFlow MaxFlow
+1 Node 1 Block 3 0 50 1.000000 0.000000 0.000000 50 -2 -1
+2 Block 3 Node 2 0 50 1.000000 0.000000 0.000000 50 -2 -1
+EndOfLinkData
+/___SPARE_POOL_DATA___
+PoolName RSO Stock NewSp ArriveEvery ESO EmerTime SLO Level Quan SLOTime SpCost emerShipCost
+EndOfSparePoolData
+/___RESOURCE_DATA___
+PoolName NumIn SpareCost FixedPerUse PerTimeUnit Phases
+EndOfResourceData
+/___PHASES___
+PhaseName Num Mission Dist Param1 Param2 Param3
+EndOfPhasesData
+/___TRIGGERS___
+TriggerName IDnum Repeats InitUsed Dist Param1 Param2 Param3
+EndOfTriggerData

@@ -1,0 +1,3902 @@
+End_Of_Run Report for input.rbd  Thu Oct 01 13:55:13 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.634265209
+MTBDE                      80.538345
+MDT                        46.440629
+Dependability              0.634265209
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15745.392769
+NumberOfSystemFailures     124
+NumberOfComponentFailures  536
+
+
+
+***LOGISTICS***
+
+MTBM                  18.632005
+MTBMu                 18.632005
+MTBMs                 N/A
+MMT                   12.680451
+MMTu                  12.680451
+MMTs                  N/A
+GreenPercent          44.595623
+YellowPercent         18.830898
+RedPercent            36.573479
+MissionGreenPercent   44.595623
+MissionYellowPercent  18.830898
+MissionRedPercent     36.573479
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.294306      80.538345     369.451093      73.617254
+DT                             0.972548      46.440629     328.669852      94.685473
+TBM                            0.056283      29.374888     210.329108      29.122388
+RT                             0.181502      12.680451      60.993857       7.899260
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       35   Infinite                    35
+S1B3                       26   Infinite                    26
+S2B1                       55   Infinite                    55
+S2B2                       44   Infinite                    44
+S2B3                       14   Infinite                    14
+S2B4                       35   Infinite                    35
+S3B1                       41   Infinite                    41
+S3B2                       36   Infinite                    36
+S3B3                       27   Infinite                    27
+S4B1                       14   Infinite                    14
+S4B2                       29   Infinite                    29
+S4B3                       35   Infinite                    35
+S5B1                       58   Infinite                    58
+S5B2                       31   Infinite                    31
+S5B3                       18   Infinite                    18
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.642017385
+MTBDE                      86.579740
+MDT                        48.276016
+Dependability              0.642017385
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15778.123470
+NumberOfSystemFailures     117
+NumberOfComponentFailures  564
+
+
+
+***LOGISTICS***
+
+MTBM                  17.960691
+MTBMu                 17.960691
+MTBMs                 N/A
+MMT                   13.175556
+MMTu                  13.175556
+MMTs                  N/A
+GreenPercent          43.665116
+YellowPercent         20.536623
+RedPercent            35.798262
+MissionGreenPercent   43.665116
+MissionYellowPercent  20.536623
+MissionRedPercent     35.798262
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.100256      86.579740     277.795299      69.322767
+DT                             0.020970      48.276016     322.705331      96.700942
+TBM                            0.007334      27.925547     142.338594      26.026393
+RT                             0.020970      13.175556      56.540348       7.856952
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       35   Infinite                    35
+S1B2                       37   Infinite                    37
+S1B3                       22   Infinite                    22
+S2B1                       60   Infinite                    60
+S2B2                       46   Infinite                    46
+S2B3                       22   Infinite                    22
+S2B4                       35   Infinite                    35
+S3B1                       33   Infinite                    33
+S3B2                       47   Infinite                    47
+S3B3                       29   Infinite                    29
+S4B1                       13   Infinite                    13
+S4B2                       29   Infinite                    29
+S4B3                       34   Infinite                    34
+S5B1                       58   Infinite                    58
+S5B2                       41   Infinite                    41
+S5B3                       23   Infinite                    23
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.612843212
+MTBDE                      78.541516
+MDT                        49.617717
+Dependability              0.612843212
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15891.744969
+NumberOfSystemFailures     124
+NumberOfComponentFailures  561
+
+
+
+***LOGISTICS***
+
+MTBM                  17.360335
+MTBMu                 17.360335
+MTBMs                 N/A
+MMT                   13.000400
+MMTu                  13.000400
+MMTs                  N/A
+GreenPercent          44.282808
+YellowPercent         17.001513
+RedPercent            38.715679
+MissionGreenPercent   44.282808
+MissionYellowPercent  17.001513
+MissionRedPercent     38.715679
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.250676      78.541516     326.897167      77.304144
+DT                             1.609789      49.617717     333.929999      96.585395
+TBM                            0.001950      28.303144     140.887432      27.096319
+RT                             0.103227      13.000400      57.550419       8.074257
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       32   Infinite                    32
+S1B3                       16   Infinite                    16
+S2B1                       56   Infinite                    56
+S2B2                       49   Infinite                    49
+S2B3                       23   Infinite                    23
+S2B4                       37   Infinite                    37
+S3B1                       38   Infinite                    38
+S3B2                       61   Infinite                    61
+S3B3                       26   Infinite                    26
+S4B1                       12   Infinite                    12
+S4B2                       38   Infinite                    38
+S4B3                       31   Infinite                    31
+S5B1                       55   Infinite                    55
+S5B2                       27   Infinite                    27
+S5B3                       22   Infinite                    22
+
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.636383541
+MTBDE                      85.767320
+MDT                        49.005681
+Dependability              0.636383541
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15768.441137
+NumberOfSystemFailures     117
+NumberOfComponentFailures  565
+
+
+
+***LOGISTICS***
+
+MTBM                  17.760666
+MTBMu                 17.760666
+MTBMs                 N/A
+MMT                   12.447196
+MMTu                  12.447196
+MMTs                  N/A
+GreenPercent          44.631156
+YellowPercent         19.007198
+RedPercent            36.361646
+MissionGreenPercent   44.631156
+MissionYellowPercent  19.007198
+MissionRedPercent     36.361646
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.111407      85.767320     345.345434      74.662158
+DT                             0.024445      49.005681     346.426659      97.846133
+TBM                            0.062238      27.841902     224.565654      27.139660
+RT                             0.791550      12.447196      72.876127       7.628568
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       37   Infinite                    37
+S1B3                       27   Infinite                    27
+S2B1                       59   Infinite                    59
+S2B2                       42   Infinite                    42
+S2B3                       19   Infinite                    19
+S2B4                       41   Infinite                    41
+S3B1                       33   Infinite                    33
+S3B2                       53   Infinite                    53
+S3B3                       25   Infinite                    25
+S4B1                       12   Infinite                    12
+S4B2                       33   Infinite                    33
+S4B3                       34   Infinite                    34
+S5B1                       54   Infinite                    54
+S5B2                       41   Infinite                    41
+S5B3                       17   Infinite                    17
+
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.625448937
+MTBDE                      77.302481
+MDT                        46.292711
+Dependability              0.625448937
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15820.184591
+NumberOfSystemFailures     128
+NumberOfComponentFailures  552
+
+
+
+***LOGISTICS***
+
+MTBM                  17.925213
+MTBMu                 17.925213
+MTBMs                 N/A
+MMT                   12.871428
+MMTu                  12.871428
+MMTs                  N/A
+GreenPercent          43.596800
+YellowPercent         18.948093
+RedPercent            37.455106
+MissionGreenPercent   43.596800
+MissionYellowPercent  18.948093
+MissionRedPercent     37.455106
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.171268      77.302481     384.804730      67.447952
+DT                             0.753350      46.292711     330.727034      94.862287
+TBM                            0.004693      28.596626     188.044781      26.685560
+RT                             0.070634      12.871428      55.930897       7.444930
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       33   Infinite                    33
+S1B3                       21   Infinite                    21
+S2B1                       59   Infinite                    59
+S2B2                       46   Infinite                    46
+S2B3                       25   Infinite                    25
+S2B4                       36   Infinite                    36
+S3B1                       37   Infinite                    37
+S3B2                       47   Infinite                    47
+S3B3                       26   Infinite                    26
+S4B1                       14   Infinite                    14
+S4B2                       33   Infinite                    33
+S4B3                       35   Infinite                    35
+S5B1                       56   Infinite                    56
+S5B2                       30   Infinite                    30
+S5B3                       16   Infinite                    16
+
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.623236652
+MTBDE                      72.337340
+MDT                        43.729871
+Dependability              0.623236652
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15669.073474
+NumberOfSystemFailures     135
+NumberOfComponentFailures  554
+
+
+
+***LOGISTICS***
+
+MTBM                  17.627330
+MTBMu                 17.627330
+MTBMs                 N/A
+MMT                   12.465355
+MMTu                  12.465355
+MMTs                  N/A
+GreenPercent          43.401639
+YellowPercent         18.922026
+RedPercent            37.676335
+MissionGreenPercent   43.401639
+MissionYellowPercent  18.922026
+MissionRedPercent     37.676335
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.128275      72.337340     356.678305      69.819433
+DT                             0.644771      43.729871     352.138962      93.764039
+TBM                            0.104160      28.217951     147.349155      25.519788
+RT                             0.644771      12.465355      76.520264       7.587557
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       36   Infinite                    36
+S1B3                       23   Infinite                    23
+S2B1                       55   Infinite                    55
+S2B2                       44   Infinite                    44
+S2B3                       21   Infinite                    21
+S2B4                       37   Infinite                    37
+S3B1                       31   Infinite                    31
+S3B2                       54   Infinite                    54
+S3B3                       23   Infinite                    23
+S4B1                       11   Infinite                    11
+S4B2                       33   Infinite                    33
+S4B3                       35   Infinite                    35
+S5B1                       55   Infinite                    55
+S5B2                       37   Infinite                    37
+S5B3                       22   Infinite                    22
+
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.645099837
+MTBDE                      91.971057
+MDT                        50.597662
+Dependability              0.645099837
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15825.127776
+NumberOfSystemFailures     111
+NumberOfComponentFailures  553
+
+
+
+***LOGISTICS***
+
+MTBM                  18.460737
+MTBMu                 18.460737
+MTBMs                 N/A
+MMT                   12.510336
+MMTu                  12.510336
+MMTs                  N/A
+GreenPercent          46.230145
+YellowPercent         18.279839
+RedPercent            35.490016
+MissionGreenPercent   46.230145
+MissionYellowPercent  18.279839
+MissionRedPercent     35.490016
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.250371      91.971057     374.935612      79.197869
+DT                             0.419092      50.597662     325.383507     100.262514
+TBM                            0.123637      28.523607     173.640425      26.473551
+RT                             0.316357      12.510336      49.219779       7.845192
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       34   Infinite                    34
+S1B2                       34   Infinite                    34
+S1B3                       27   Infinite                    27
+S2B1                       54   Infinite                    54
+S2B2                       49   Infinite                    49
+S2B3                       17   Infinite                    17
+S2B4                       39   Infinite                    39
+S3B1                       36   Infinite                    36
+S3B2                       49   Infinite                    49
+S3B3                       22   Infinite                    22
+S4B1                       12   Infinite                    12
+S4B2                       31   Infinite                    31
+S4B3                       34   Infinite                    34
+S5B1                       56   Infinite                    56
+S5B2                       36   Infinite                    36
+S5B3                       23   Infinite                    23
+
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.621402221
+MTBDE                      74.200088
+MDT                        45.207416
+Dependability              0.621402221
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15642.382905
+NumberOfSystemFailures     131
+NumberOfComponentFailures  562
+
+
+
+***LOGISTICS***
+
+MTBM                  17.295750
+MTBMu                 17.295750
+MTBMs                 N/A
+MMT                   13.361732
+MMTu                  13.361732
+MMTs                  N/A
+GreenPercent          42.416169
+YellowPercent         19.724054
+RedPercent            37.859778
+MissionGreenPercent   42.416169
+MissionYellowPercent  19.724054
+MissionRedPercent     37.859778
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.038775      74.200088     431.064790      81.390164
+DT                             0.683959      45.207416     339.115946      92.148279
+TBM                            0.003790      27.820768     153.309561      25.302591
+RT                             0.220091      13.361732      49.781036       7.606822
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       31   Infinite                    31
+S1B3                       22   Infinite                    22
+S2B1                       57   Infinite                    57
+S2B2                       40   Infinite                    40
+S2B3                       25   Infinite                    25
+S2B4                       41   Infinite                    41
+S3B1                       30   Infinite                    30
+S3B2                       60   Infinite                    60
+S3B3                       27   Infinite                    27
+S4B1                       13   Infinite                    13
+S4B2                       33   Infinite                    33
+S4B3                       35   Infinite                    35
+S5B1                       53   Infinite                    53
+S5B2                       33   Infinite                    33
+S5B3                       25   Infinite                    25
+
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.623926968
+MTBDE                      68.422493
+MDT                        41.241773
+Dependability              0.623926968
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15791.654358
+NumberOfSystemFailures     144
+NumberOfComponentFailures  557
+
+
+
+***LOGISTICS***
+
+MTBM                  17.689119
+MTBMu                 17.689119
+MTBMs                 N/A
+MMT                   12.573553
+MMTu                  12.573553
+MMTs                  N/A
+GreenPercent          44.058091
+YellowPercent         18.334606
+RedPercent            37.607303
+MissionGreenPercent   44.058091
+MissionYellowPercent  18.334606
+MissionRedPercent     37.607303
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.096036      68.422493     327.538908      62.874117
+DT                             0.114792      41.241773     321.886200      88.294293
+TBM                            0.047620      28.161433     119.906594      26.027054
+RT                             0.344515      12.573553      43.747590       7.266740
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       34   Infinite                    34
+S1B2                       28   Infinite                    28
+S1B3                       19   Infinite                    19
+S2B1                       66   Infinite                    66
+S2B2                       49   Infinite                    49
+S2B3                       14   Infinite                    14
+S2B4                       37   Infinite                    37
+S3B1                       38   Infinite                    38
+S3B2                       52   Infinite                    52
+S3B3                       26   Infinite                    26
+S4B1                       13   Infinite                    13
+S4B2                       34   Infinite                    34
+S4B3                       33   Infinite                    33
+S5B1                       58   Infinite                    58
+S5B2                       37   Infinite                    37
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.635494298
+MTBDE                      83.130938
+MDT                        47.682097
+Dependability              0.635494298
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15697.564249
+NumberOfSystemFailures     120
+NumberOfComponentFailures  561
+
+
+
+***LOGISTICS***
+
+MTBM                  17.782019
+MTBMu                 17.782019
+MTBMs                 N/A
+MMT                   12.386584
+MMTu                  12.386584
+MMTs                  N/A
+GreenPercent          43.854333
+YellowPercent         19.695097
+RedPercent            36.450570
+MissionGreenPercent   43.854333
+MissionYellowPercent  19.695097
+MissionRedPercent     36.450570
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.140793      83.130938     389.203521      72.526688
+DT                             0.292106      47.682097     323.269294      95.741583
+TBM                            0.004989      27.935812     163.451688      25.993108
+RT                             0.704938      12.386584      80.165795       7.438138
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       33   Infinite                    33
+S1B2                       39   Infinite                    39
+S1B3                       19   Infinite                    19
+S2B1                       59   Infinite                    59
+S2B2                       44   Infinite                    44
+S2B3                       15   Infinite                    15
+S2B4                       39   Infinite                    39
+S3B1                       35   Infinite                    35
+S3B2                       56   Infinite                    56
+S3B3                       27   Infinite                    27
+S4B1                       16   Infinite                    16
+S4B2                       32   Infinite                    32
+S4B3                       35   Infinite                    35
+S5B1                       55   Infinite                    55
+S5B2                       36   Infinite                    36
+S5B3                       21   Infinite                    21
+
+
+
+
+***Run_11*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.628502681
+MTBDE                      79.382844
+MDT                        46.921858
+Dependability              0.628502681
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15788.087742
+NumberOfSystemFailures     125
+NumberOfComponentFailures  567
+
+
+
+***LOGISTICS***
+
+MTBM                  17.500627
+MTBMu                 17.500627
+MTBMs                 N/A
+MMT                   12.742737
+MMTu                  12.742737
+MMTs                  N/A
+GreenPercent          43.972722
+YellowPercent         18.877546
+RedPercent            37.149732
+MissionGreenPercent   43.972722
+MissionYellowPercent  18.877546
+MissionRedPercent     37.149732
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.115976      79.382844     303.393390      72.100780
+DT                             0.137939      46.921858     314.530211      93.205148
+TBM                            0.012813      27.842137     148.594697      26.297957
+RT                             0.580902      12.742737      50.701599       7.712424
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       33   Infinite                    33
+S1B3                       22   Infinite                    22
+S2B1                       50   Infinite                    50
+S2B2                       45   Infinite                    45
+S2B3                       21   Infinite                    21
+S2B4                       48   Infinite                    48
+S3B1                       39   Infinite                    39
+S3B2                       51   Infinite                    51
+S3B3                       29   Infinite                    29
+S4B1                       15   Infinite                    15
+S4B2                       35   Infinite                    35
+S4B3                       34   Infinite                    34
+S5B1                       57   Infinite                    57
+S5B2                       31   Infinite                    31
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_12*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.631388108
+MTBDE                      86.318626
+MDT                        50.393841
+Dependability              0.631388108
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15721.933800
+NumberOfSystemFailures     115
+NumberOfComponentFailures  568
+
+
+
+***LOGISTICS***
+
+MTBM                  17.476482
+MTBMu                 17.476482
+MTBMs                 N/A
+MMT                   13.562483
+MMTu                  13.562483
+MMTs                  N/A
+GreenPercent          42.295909
+YellowPercent         20.842902
+RedPercent            36.861189
+MissionGreenPercent   42.295909
+MissionYellowPercent  20.842902
+MissionRedPercent     36.861189
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.042644      86.318626     449.592921      75.473883
+DT                             0.343581      50.393841     338.643543      99.454887
+TBM                            0.148034      27.577025     211.941130      27.060493
+RT                             0.812364      13.562483      59.011952       8.107283
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       33   Infinite                    33
+S1B3                       25   Infinite                    25
+S2B1                       50   Infinite                    50
+S2B2                       42   Infinite                    42
+S2B3                       27   Infinite                    27
+S2B4                       34   Infinite                    34
+S3B1                       40   Infinite                    40
+S3B2                       58   Infinite                    58
+S3B3                       28   Infinite                    28
+S4B1                       16   Infinite                    16
+S4B2                       33   Infinite                    33
+S4B3                       35   Infinite                    35
+S5B1                       54   Infinite                    54
+S5B2                       39   Infinite                    39
+S5B3                       18   Infinite                    18
+
+
+
+
+***Run_13*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.624285324
+MTBDE                      72.236740
+MDT                        43.474358
+Dependability              0.624285324
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15736.709297
+NumberOfSystemFailures     136
+NumberOfComponentFailures  559
+
+
+
+***LOGISTICS***
+
+MTBM                  17.574592
+MTBMu                 17.574592
+MTBMs                 N/A
+MMT                   12.296103
+MMTu                  12.296103
+MMTs                  N/A
+GreenPercent          44.394922
+YellowPercent         18.033611
+RedPercent            37.571468
+MissionGreenPercent   44.394922
+MissionYellowPercent  18.033611
+MissionRedPercent     37.571468
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.242240      72.236740     338.182860      67.789565
+DT                             0.397289      43.474358     332.416105      90.964407
+TBM                            0.028179      28.134443     143.045918      25.602228
+RT                             0.160577      12.296103      47.094199       7.288844
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       35   Infinite                    35
+S1B3                       27   Infinite                    27
+S2B1                       60   Infinite                    60
+S2B2                       46   Infinite                    46
+S2B3                       20   Infinite                    20
+S2B4                       37   Infinite                    37
+S3B1                       38   Infinite                    38
+S3B2                       57   Infinite                    57
+S3B3                       25   Infinite                    25
+S4B1                       13   Infinite                    13
+S4B2                       32   Infinite                    32
+S4B3                       34   Infinite                    34
+S5B1                       55   Infinite                    55
+S5B2                       32   Infinite                    32
+S5B3                       11   Infinite                    11
+
+
+
+
+***Run_14*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.634706388
+MTBDE                      78.823493
+MDT                        45.365415
+Dependability              0.634706388
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15771.991349
+NumberOfSystemFailures     127
+NumberOfComponentFailures  542
+
+
+
+***LOGISTICS***
+
+MTBM                  18.469712
+MTBMu                 18.469712
+MTBMs                 N/A
+MMT                   12.864180
+MMTu                  12.864180
+MMTs                  N/A
+GreenPercent          44.640337
+YellowPercent         18.830302
+RedPercent            36.529361
+MissionGreenPercent   44.640337
+MissionYellowPercent  18.830302
+MissionRedPercent     36.529361
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.442882      78.823493     323.712205      75.517558
+DT                             0.433887      45.365415     334.792991      93.408612
+TBM                            0.002116      29.085327     193.208438      27.586144
+RT                             1.160368      12.864180      49.892310       7.473260
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       31   Infinite                    31
+S1B3                       22   Infinite                    22
+S2B1                       54   Infinite                    54
+S2B2                       43   Infinite                    43
+S2B3                       15   Infinite                    15
+S2B4                       49   Infinite                    49
+S3B1                       30   Infinite                    30
+S3B2                       50   Infinite                    50
+S3B3                       21   Infinite                    21
+S4B1                       15   Infinite                    15
+S4B2                       37   Infinite                    37
+S4B3                       32   Infinite                    32
+S5B1                       55   Infinite                    55
+S5B2                       34   Infinite                    34
+S5B3                       18   Infinite                    18
+
+
+
+
+***Run_15*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.628530553
+MTBDE                      83.924870
+MDT                        49.600652
+Dependability              0.628530553
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15756.011559
+NumberOfSystemFailures     118
+NumberOfComponentFailures  537
+
+
+
+***LOGISTICS***
+
+MTBM                  18.441592
+MTBMu                 18.441592
+MTBMs                 N/A
+MMT                   12.752200
+MMTu                  12.752200
+MMTs                  N/A
+GreenPercent          44.508128
+YellowPercent         18.344927
+RedPercent            37.146945
+MissionGreenPercent   44.508128
+MissionYellowPercent  18.344927
+MissionRedPercent     37.146945
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.838331      83.924870     384.162786      82.108974
+DT                             0.571587      49.600652     324.958684      98.491770
+TBM                            0.157303      29.284838     169.320203      27.027850
+RT                             0.673409      12.752200      46.074579       7.408631
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       29   Infinite                    29
+S1B3                       20   Infinite                    20
+S2B1                       51   Infinite                    51
+S2B2                       41   Infinite                    41
+S2B3                       15   Infinite                    15
+S2B4                       40   Infinite                    40
+S3B1                       30   Infinite                    30
+S3B2                       50   Infinite                    50
+S3B3                       29   Infinite                    29
+S4B1                       15   Infinite                    15
+S4B2                       30   Infinite                    30
+S4B3                       35   Infinite                    35
+S5B1                       54   Infinite                    54
+S5B2                       37   Infinite                    37
+S5B3                       23   Infinite                    23
+
+
+
+
+***Run_16*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.624429231
+MTBDE                      76.484254
+MDT                        46.002411
+Dependability              0.624429231
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15678.293030
+NumberOfSystemFailures     128
+NumberOfComponentFailures  533
+
+
+
+***LOGISTICS***
+
+MTBM                  18.367701
+MTBMu                 18.367701
+MTBMs                 N/A
+MMT                   12.949052
+MMTu                  12.949052
+MMTs                  N/A
+GreenPercent          44.577320
+YellowPercent         17.865603
+RedPercent            37.557077
+MissionGreenPercent   44.577320
+MissionYellowPercent  17.865603
+MissionRedPercent     37.557077
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.224450      76.484254     395.439433      77.976713
+DT                             1.160524      46.002411     335.821010      94.579570
+TBM                            0.129262      29.357370     166.904434      29.124771
+RT                             0.621075      12.949052      53.359637       8.117149
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       34   Infinite                    34
+S1B2                       34   Infinite                    34
+S1B3                       28   Infinite                    28
+S2B1                       56   Infinite                    56
+S2B2                       42   Infinite                    42
+S2B3                       15   Infinite                    15
+S2B4                       33   Infinite                    33
+S3B1                       31   Infinite                    31
+S3B2                       52   Infinite                    52
+S3B3                       27   Infinite                    27
+S4B1                       13   Infinite                    13
+S4B2                       31   Infinite                    31
+S4B3                       35   Infinite                    35
+S5B1                       56   Infinite                    56
+S5B2                       27   Infinite                    27
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_17*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.622816755
+MTBDE                      81.567867
+MDT                        49.398210
+Dependability              0.622816755
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15846.895231
+NumberOfSystemFailures     121
+NumberOfComponentFailures  554
+
+
+
+***LOGISTICS***
+
+MTBM                  17.815364
+MTBMu                 17.815364
+MTBMs                 N/A
+MMT                   12.648153
+MMTu                  12.648153
+MMTs                  N/A
+GreenPercent          43.957798
+YellowPercent         18.323877
+RedPercent            37.718325
+MissionGreenPercent   43.957798
+MissionYellowPercent  18.323877
+MissionRedPercent     37.718325
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.260214      81.567867     378.930172      72.221620
+DT                             0.606284      49.398210     327.888181      98.493923
+TBM                            0.033585      28.512188     180.297851      27.620478
+RT                             0.606284      12.648153      45.297591       7.568203
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       33   Infinite                    33
+S1B3                       26   Infinite                    26
+S2B1                       59   Infinite                    59
+S2B2                       41   Infinite                    41
+S2B3                       14   Infinite                    14
+S2B4                       37   Infinite                    37
+S3B1                       33   Infinite                    33
+S3B2                       54   Infinite                    54
+S3B3                       21   Infinite                    21
+S4B1                       13   Infinite                    13
+S4B2                       29   Infinite                    29
+S4B3                       37   Infinite                    37
+S5B1                       55   Infinite                    55
+S5B2                       43   Infinite                    43
+S5B3                       21   Infinite                    21
+
+
+
+
+***Run_18*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.635664376
+MTBDE                      82.505716
+MDT                        47.288746
+Dependability              0.635664376
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15834.924413
+NumberOfSystemFailures     122
+NumberOfComponentFailures  533
+
+
+
+***LOGISTICS***
+
+MTBM                  18.884986
+MTBMu                 18.884986
+MTBMs                 N/A
+MMT                   12.958477
+MMTu                  12.958477
+MMTs                  N/A
+GreenPercent          45.223451
+YellowPercent         18.342986
+RedPercent            36.433562
+MissionGreenPercent   45.223451
+MissionYellowPercent  18.342986
+MissionRedPercent     36.433562
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.206115      82.505716     366.192832      80.925863
+DT                             1.647183      47.288746     329.366050      96.389310
+TBM                            0.022415      29.707293     166.733184      28.016147
+RT                             0.068167      12.958477      55.966888       7.478551
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       37   Infinite                    37
+S1B3                       24   Infinite                    24
+S2B1                       52   Infinite                    52
+S2B2                       42   Infinite                    42
+S2B3                       19   Infinite                    19
+S2B4                       35   Infinite                    35
+S3B1                       34   Infinite                    34
+S3B2                       54   Infinite                    54
+S3B3                       21   Infinite                    21
+S4B1                       11   Infinite                    11
+S4B2                       31   Infinite                    31
+S4B3                       35   Infinite                    35
+S5B1                       55   Infinite                    55
+S5B2                       33   Infinite                    33
+S5B3                       14   Infinite                    14
+
+
+
+
+***Run_19*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.615913566
+MTBDE                      68.978571
+MDT                        43.015343
+Dependability              0.615913566
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15791.142007
+NumberOfSystemFailures     141
+NumberOfComponentFailures  565
+
+
+
+***LOGISTICS***
+
+MTBM                  17.214121
+MTBMu                 17.214121
+MTBMs                 N/A
+MMT                   12.917879
+MMTu                  12.917879
+MMTs                  N/A
+GreenPercent          43.606138
+YellowPercent         17.985219
+RedPercent            38.408643
+MissionGreenPercent   43.606138
+MissionYellowPercent  17.985219
+MissionRedPercent     38.408643
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.020779      68.978571     300.258997      62.598579
+DT                             0.931852      43.015343     338.526920      89.753714
+TBM                            0.042435      27.916318     151.723770      25.481281
+RT                             0.710386      12.917879      52.608001       7.584213
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       36   Infinite                    36
+S1B3                       20   Infinite                    20
+S2B1                       59   Infinite                    59
+S2B2                       51   Infinite                    51
+S2B3                       14   Infinite                    14
+S2B4                       53   Infinite                    53
+S3B1                       30   Infinite                    30
+S3B2                       41   Infinite                    41
+S3B3                       29   Infinite                    29
+S4B1                       12   Infinite                    12
+S4B2                       33   Infinite                    33
+S4B3                       35   Infinite                    35
+S5B1                       57   Infinite                    57
+S5B2                       37   Infinite                    37
+S5B3                       21   Infinite                    21
+
+
+
+
+***Run_20*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.632253533
+MTBDE                      77.962455
+MDT                        45.346393
+Dependability              0.632253533
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15906.841435
+NumberOfSystemFailures     129
+NumberOfComponentFailures  563
+
+
+
+***LOGISTICS***
+
+MTBM                  17.863511
+MTBMu                 17.863511
+MTBMs                 N/A
+MMT                   12.566961
+MMTu                  12.566961
+MMTs                  N/A
+GreenPercent          44.945714
+YellowPercent         18.279640
+RedPercent            36.774647
+MissionGreenPercent   44.945714
+MissionYellowPercent  18.279640
+MissionRedPercent     36.774647
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.816993      77.962455     294.115137      66.856944
+DT                             0.414904      45.346393     326.442347      93.758241
+TBM                            0.055143      28.224276     166.247285      25.460242
+RT                             0.433753      12.566961      48.710420       7.323299
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       34   Infinite                    34
+S1B3                       27   Infinite                    27
+S2B1                       60   Infinite                    60
+S2B2                       48   Infinite                    48
+S2B3                       18   Infinite                    18
+S2B4                       32   Infinite                    32
+S3B1                       36   Infinite                    36
+S3B2                       56   Infinite                    56
+S3B3                       30   Infinite                    30
+S4B1                       13   Infinite                    13
+S4B2                       33   Infinite                    33
+S4B3                       34   Infinite                    34
+S5B1                       52   Infinite                    52
+S5B2                       30   Infinite                    30
+S5B3                       23   Infinite                    23
+
+
+
+
+***Run_21*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.618805099
+MTBDE                      71.304865
+MDT                        43.925060
+Dependability              0.618805099
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15786.499734
+NumberOfSystemFailures     137
+NumberOfComponentFailures  545
+
+
+
+***LOGISTICS***
+
+MTBM                  17.924342
+MTBMu                 17.924342
+MTBMs                 N/A
+MMT                   12.420131
+MMTu                  12.420131
+MMTs                  N/A
+GreenPercent          44.850153
+YellowPercent         17.030357
+RedPercent            38.119490
+MissionGreenPercent   44.850153
+MissionYellowPercent  17.030357
+MissionRedPercent     38.119490
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.457391      71.304865     399.557883      74.022929
+DT                             0.114875      43.925060     325.551808      89.671567
+TBM                            0.015692      28.869726     178.358056      26.704815
+RT                             0.325107      12.420131      53.013335       7.583932
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       29   Infinite                    29
+S1B3                       21   Infinite                    21
+S2B1                       62   Infinite                    62
+S2B2                       46   Infinite                    46
+S2B3                       10   Infinite                    10
+S2B4                       36   Infinite                    36
+S3B1                       41   Infinite                    41
+S3B2                       50   Infinite                    50
+S3B3                       26   Infinite                    26
+S4B1                       15   Infinite                    15
+S4B2                       32   Infinite                    32
+S4B3                       33   Infinite                    33
+S5B1                       54   Infinite                    54
+S5B2                       35   Infinite                    35
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_22*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.619744449
+MTBDE                      81.988060
+MDT                        50.305275
+Dependability              0.619744449
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15610.613603
+NumberOfSystemFailures     118
+NumberOfComponentFailures  511
+
+
+
+***LOGISTICS***
+
+MTBM                  18.932664
+MTBMu                 18.932664
+MTBMs                 N/A
+MMT                   13.110829
+MMTu                  13.110829
+MMTs                  N/A
+GreenPercent          44.134841
+YellowPercent         17.839604
+RedPercent            38.025555
+MissionGreenPercent   44.134841
+MissionYellowPercent  17.839604
+MissionRedPercent     38.025555
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.576832      81.988060     358.397837      74.483776
+DT                             0.774723      50.305275     327.343919      97.081016
+TBM                            0.045736      30.402319     211.262374      29.776239
+RT                             0.388155      13.110829      61.690994       8.620874
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       29   Infinite                    29
+S1B3                       31   Infinite                    31
+S2B1                       59   Infinite                    59
+S2B2                       34   Infinite                    34
+S2B3                        9   Infinite                     9
+S2B4                       41   Infinite                    41
+S3B1                       25   Infinite                    25
+S3B2                       43   Infinite                    43
+S3B3                       18   Infinite                    18
+S4B1                       10   Infinite                    10
+S4B2                       32   Infinite                    32
+S4B3                       35   Infinite                    35
+S5B1                       55   Infinite                    55
+S5B2                       38   Infinite                    38
+S5B3                       14   Infinite                    14
+
+
+
+
+***Run_23*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.634428499
+MTBDE                      78.529608
+MDT                        45.250468
+Dependability              0.634428499
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15843.849722
+NumberOfSystemFailures     128
+NumberOfComponentFailures  567
+
+
+
+***LOGISTICS***
+
+MTBM                  17.728024
+MTBMu                 17.728024
+MTBMs                 N/A
+MMT                   13.398306
+MMTu                  13.398306
+MMTs                  N/A
+GreenPercent          41.821337
+YellowPercent         21.621513
+RedPercent            36.557150
+MissionGreenPercent   41.821337
+MissionYellowPercent  21.621513
+MissionRedPercent     36.557150
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.279790      78.529608     406.871102      77.367477
+DT                             0.280797      45.250468     340.494345      93.926779
+TBM                            0.033395      27.814007     157.797227      26.437342
+RT                             0.297505      13.398306      69.222130       8.931588
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       37   Infinite                    37
+S1B3                       21   Infinite                    21
+S2B1                       59   Infinite                    59
+S2B2                       44   Infinite                    44
+S2B3                       13   Infinite                    13
+S2B4                       38   Infinite                    38
+S3B1                       36   Infinite                    36
+S3B2                       61   Infinite                    61
+S3B3                       29   Infinite                    29
+S4B1                       14   Infinite                    14
+S4B2                       31   Infinite                    31
+S4B3                       31   Infinite                    31
+S5B1                       53   Infinite                    53
+S5B2                       42   Infinite                    42
+S5B3                       21   Infinite                    21
+
+
+
+
+***Run_24*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.619669436
+MTBDE                      74.987372
+MDT                        46.024522
+Dependability              0.619669436
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15610.534281
+NumberOfSystemFailures     129
+NumberOfComponentFailures  557
+
+
+
+***LOGISTICS***
+
+MTBM                  17.366914
+MTBMu                 17.366914
+MTBMs                 N/A
+MMT                   13.009062
+MMTu                  13.009062
+MMTs                  N/A
+GreenPercent          43.429758
+YellowPercent         18.537185
+RedPercent            38.033056
+MissionGreenPercent   43.429758
+MissionYellowPercent  18.537185
+MissionRedPercent     38.033056
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.240669      74.987372     321.373178      69.303094
+DT                             2.217279      46.024522     316.496825      92.036025
+TBM                            0.037543      27.991546     155.845775      26.156909
+RT                             0.628954      13.009062      55.113284       7.854793
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       35   Infinite                    35
+S1B2                       34   Infinite                    34
+S1B3                       23   Infinite                    23
+S2B1                       56   Infinite                    56
+S2B2                       43   Infinite                    43
+S2B3                       22   Infinite                    22
+S2B4                       45   Infinite                    45
+S3B1                       27   Infinite                    27
+S3B2                       58   Infinite                    58
+S3B3                       22   Infinite                    22
+S4B1                       14   Infinite                    14
+S4B2                       31   Infinite                    31
+S4B3                       33   Infinite                    33
+S5B1                       56   Infinite                    56
+S5B2                       36   Infinite                    36
+S5B3                       22   Infinite                    22
+
+
+
+
+***Run_25*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.615433489
+MTBDE                      78.357860
+MDT                        48.963551
+Dependability              0.615433489
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15660.533557
+NumberOfSystemFailures     123
+NumberOfComponentFailures  558
+
+
+
+***LOGISTICS***
+
+MTBM                  17.272432
+MTBMu                 17.272432
+MTBMs                 N/A
+MMT                   13.323744
+MMTu                  13.323744
+MMTs                  N/A
+GreenPercent          41.907174
+YellowPercent         19.636175
+RedPercent            38.456651
+MissionGreenPercent   41.907174
+MissionYellowPercent  19.636175
+MissionRedPercent     38.456651
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.054088      78.357860     303.828866      72.634927
+DT                             0.365436      48.963551     328.934622      94.868731
+TBM                            0.014087      28.054101     141.397331      26.344566
+RT                             0.365436      13.323744      58.382711       8.180859
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       34   Infinite                    34
+S1B3                       24   Infinite                    24
+S2B1                       60   Infinite                    60
+S2B2                       43   Infinite                    43
+S2B3                       23   Infinite                    23
+S2B4                       44   Infinite                    44
+S3B1                       27   Infinite                    27
+S3B2                       48   Infinite                    48
+S3B3                       28   Infinite                    28
+S4B1                       16   Infinite                    16
+S4B2                       33   Infinite                    33
+S4B3                       33   Infinite                    33
+S5B1                       53   Infinite                    53
+S5B2                       41   Infinite                    41
+S5B3                       14   Infinite                    14
+
+
+
+
+***Run_26*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.632426731
+MTBDE                      79.068267
+MDT                        45.955334
+Dependability              0.632426731
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15627.950112
+NumberOfSystemFailures     125
+NumberOfComponentFailures  559
+
+
+
+***LOGISTICS***
+
+MTBM                  17.680740
+MTBMu                 17.680740
+MTBMs                 N/A
+MMT                   12.585164
+MMTu                  12.585164
+MMTs                  N/A
+GreenPercent          43.811793
+YellowPercent         19.430880
+RedPercent            36.757327
+MissionGreenPercent   43.811793
+MissionYellowPercent  19.430880
+MissionRedPercent     36.757327
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.137018      79.068267     392.267761      77.914215
+DT                             0.259608      45.955334     311.971760      92.723927
+TBM                            0.010949      27.943285     185.441073      27.429136
+RT                             0.502003      12.585164      55.252599       7.766449
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       35   Infinite                    35
+S1B2                       35   Infinite                    35
+S1B3                       28   Infinite                    28
+S2B1                       52   Infinite                    52
+S2B2                       43   Infinite                    43
+S2B3                       16   Infinite                    16
+S2B4                       41   Infinite                    41
+S3B1                       35   Infinite                    35
+S3B2                       51   Infinite                    51
+S3B3                       24   Infinite                    24
+S4B1                       15   Infinite                    15
+S4B2                       36   Infinite                    36
+S4B3                       32   Infinite                    32
+S5B1                       56   Infinite                    56
+S5B2                       42   Infinite                    42
+S5B3                       18   Infinite                    18
+
+
+
+
+***Run_27*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.637470299
+MTBDE                      84.304569
+MDT                        47.944053
+Dependability              0.637470299
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15869.834635
+NumberOfSystemFailures     120
+NumberOfComponentFailures  548
+
+
+
+***LOGISTICS***
+
+MTBM                  18.460854
+MTBMu                 18.460854
+MTBMs                 N/A
+MMT                   12.557822
+MMTu                  12.557822
+MMTs                  N/A
+GreenPercent          44.963409
+YellowPercent         18.783621
+RedPercent            36.252970
+MissionGreenPercent   44.963409
+MissionYellowPercent  18.783621
+MissionRedPercent     36.252970
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.314355      84.304569     373.415052      75.396229
+DT                             0.411239      47.944053     338.610050      98.884054
+TBM                            0.289206      28.951943     164.645500      26.638816
+RT                             0.135060      12.557822      45.600403       7.630384
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       30   Infinite                    30
+S1B3                       27   Infinite                    27
+S2B1                       51   Infinite                    51
+S2B2                       48   Infinite                    48
+S2B3                       14   Infinite                    14
+S2B4                       32   Infinite                    32
+S3B1                       34   Infinite                    34
+S3B2                       57   Infinite                    57
+S3B3                       20   Infinite                    20
+S4B1                       17   Infinite                    17
+S4B2                       31   Infinite                    31
+S4B3                       35   Infinite                    35
+S5B1                       55   Infinite                    55
+S5B2                       40   Infinite                    40
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_28*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.628485662
+MTBDE                      75.438379
+MDT                        44.593602
+Dependability              0.628485662
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15484.125501
+NumberOfSystemFailures     129
+NumberOfComponentFailures  557
+
+
+
+***LOGISTICS***
+
+MTBM                  17.471366
+MTBMu                 17.471366
+MTBMs                 N/A
+MMT                   12.986881
+MMTu                  12.986881
+MMTs                  N/A
+GreenPercent          43.920640
+YellowPercent         18.927926
+RedPercent            37.151434
+MissionGreenPercent   43.920640
+MissionYellowPercent  18.927926
+MissionRedPercent     37.151434
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.881017      75.438379     305.099667      65.654526
+DT                             0.804030      44.593602     311.947798      90.557773
+TBM                            0.042191      27.712903     176.935213      25.697347
+RT                             0.821839      12.986881      61.028362       8.033004
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       34   Infinite                    34
+S1B2                       30   Infinite                    30
+S1B3                       19   Infinite                    19
+S2B1                       61   Infinite                    61
+S2B2                       49   Infinite                    49
+S2B3                       18   Infinite                    18
+S2B4                       42   Infinite                    42
+S3B1                       30   Infinite                    30
+S3B2                       52   Infinite                    52
+S3B3                       28   Infinite                    28
+S4B1                       14   Infinite                    14
+S4B2                       35   Infinite                    35
+S4B3                       34   Infinite                    34
+S5B1                       58   Infinite                    58
+S5B2                       33   Infinite                    33
+S5B3                       20   Infinite                    20
+
+
+
+
+***Run_29*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.649183285
+MTBDE                      86.849556
+MDT                        46.933242
+Dependability              0.649183285
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15518.804602
+NumberOfSystemFailures     116
+NumberOfComponentFailures  521
+
+
+
+***LOGISTICS***
+
+MTBM                  19.336945
+MTBMu                 19.336945
+MTBMs                 N/A
+MMT                   12.969709
+MMTu                  12.969709
+MMTs                  N/A
+GreenPercent          45.826773
+YellowPercent         19.091556
+RedPercent            35.081672
+MissionGreenPercent   45.826773
+MissionYellowPercent  19.091556
+MissionRedPercent     35.081672
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.337980      86.849556     284.857238      73.349455
+DT                             0.373928      46.933242     319.152405      93.585092
+TBM                            0.013678      29.777006     156.154233      27.348057
+RT                             0.243858      12.969709      47.772983       7.572509
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       34   Infinite                    34
+S1B2                       34   Infinite                    34
+S1B3                       24   Infinite                    24
+S2B1                       60   Infinite                    60
+S2B2                       43   Infinite                    43
+S2B3                       16   Infinite                    16
+S2B4                       32   Infinite                    32
+S3B1                       34   Infinite                    34
+S3B2                       46   Infinite                    46
+S3B3                       22   Infinite                    22
+S4B1                       12   Infinite                    12
+S4B2                       29   Infinite                    29
+S4B3                       34   Infinite                    34
+S5B1                       54   Infinite                    54
+S5B2                       34   Infinite                    34
+S5B3                       13   Infinite                    13
+
+
+
+
+***Run_30*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.629329118
+MTBDE                      76.782171
+MDT                        45.224215
+Dependability              0.629329118
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15860.830147
+NumberOfSystemFailures     130
+NumberOfComponentFailures  559
+
+
+
+***LOGISTICS***
+
+MTBM                  17.856319
+MTBMu                 17.856319
+MTBMs                 N/A
+MMT                   12.521088
+MMTu                  12.521088
+MMTs                  N/A
+GreenPercent          45.065864
+YellowPercent         17.867048
+RedPercent            37.067088
+MissionGreenPercent   45.065864
+MissionYellowPercent  17.867048
+MissionRedPercent     37.067088
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.260695      76.782171     299.852724      69.901001
+DT                             0.144875      45.224215     334.902450      94.336650
+TBM                            0.101971      28.349074     166.555998      28.245535
+RT                             0.144875      12.521088      55.479367       7.728401
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       29   Infinite                    29
+S1B3                       23   Infinite                    23
+S2B1                       60   Infinite                    60
+S2B2                       41   Infinite                    41
+S2B3                       15   Infinite                    15
+S2B4                       42   Infinite                    42
+S3B1                       31   Infinite                    31
+S3B2                       57   Infinite                    57
+S3B3                       28   Infinite                    28
+S4B1                       14   Infinite                    14
+S4B2                       32   Infinite                    32
+S4B3                       34   Infinite                    34
+S5B1                       58   Infinite                    58
+S5B2                       36   Infinite                    36
+S5B3                       21   Infinite                    21
+
+
+
+
+***Run_31*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.611731711
+MTBDE                      76.446318
+MDT                        48.520749
+Dependability              0.611731711
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15870.817515
+NumberOfSystemFailures     127
+NumberOfComponentFailures  541
+
+
+
+***LOGISTICS***
+
+MTBM                  17.945808
+MTBMu                 17.945808
+MTBMs                 N/A
+MMT                   13.533349
+MMTu                  13.533349
+MMTs                  N/A
+GreenPercent          42.589353
+YellowPercent         18.583818
+RedPercent            38.826829
+MissionGreenPercent   42.589353
+MissionYellowPercent  18.583818
+MissionRedPercent     38.826829
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.991392      76.446318     328.910902      74.012740
+DT                             0.305182      48.520749     361.843916      97.369055
+TBM                            0.033181      29.295131     175.954751      27.377604
+RT                             0.775196      13.533349      61.488454       7.894621
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       35   Infinite                    35
+S1B3                       21   Infinite                    21
+S2B1                       55   Infinite                    55
+S2B2                       37   Infinite                    37
+S2B3                       20   Infinite                    20
+S2B4                       39   Infinite                    39
+S3B1                       39   Infinite                    39
+S3B2                       46   Infinite                    46
+S3B3                       28   Infinite                    28
+S4B1                       11   Infinite                    11
+S4B2                       34   Infinite                    34
+S4B3                       34   Infinite                    34
+S5B1                       56   Infinite                    56
+S5B2                       29   Infinite                    29
+S5B3                       20   Infinite                    20
+
+
+
+
+***Run_32*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.624061148
+MTBDE                      73.541600
+MDT                        44.301980
+Dependability              0.624061148
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15908.883383
+NumberOfSystemFailures     135
+NumberOfComponentFailures  550
+
+
+
+***LOGISTICS***
+
+MTBM                  18.051120
+MTBMu                 18.051120
+MTBMs                 N/A
+MMT                   12.594569
+MMTu                  12.594569
+MMTs                  N/A
+GreenPercent          43.688596
+YellowPercent         18.717519
+RedPercent            37.593885
+MissionGreenPercent   43.688596
+MissionYellowPercent  18.717519
+MissionRedPercent     37.593885
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.186223      73.541600     378.534966      68.096307
+DT                             0.407504      44.301980     334.268874      93.536739
+TBM                            0.020051      28.887321     161.746856      28.143137
+RT                             0.749725      12.594569      57.073635       7.529614
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       31   Infinite                    31
+S1B3                       23   Infinite                    23
+S2B1                       56   Infinite                    56
+S2B2                       45   Infinite                    45
+S2B3                       19   Infinite                    19
+S2B4                       48   Infinite                    48
+S3B1                       33   Infinite                    33
+S3B2                       46   Infinite                    46
+S3B3                       26   Infinite                    26
+S4B1                       14   Infinite                    14
+S4B2                       32   Infinite                    32
+S4B3                       34   Infinite                    34
+S5B1                       55   Infinite                    55
+S5B2                       35   Infinite                    35
+S5B3                       16   Infinite                    16
+
+
+
+
+***Run_33*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.637026976
+MTBDE                      91.156494
+MDT                        51.940263
+Dependability              0.637026976
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15740.643216
+NumberOfSystemFailures     110
+NumberOfComponentFailures  538
+
+
+
+***LOGISTICS***
+
+MTBM                  18.637945
+MTBMu                 18.637945
+MTBMs                 N/A
+MMT                   13.023097
+MMTu                  13.023097
+MMTs                  N/A
+GreenPercent          44.118472
+YellowPercent         19.584226
+RedPercent            36.297302
+MissionGreenPercent   44.118472
+MissionYellowPercent  19.584226
+MissionRedPercent     36.297302
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.320209      91.156494     327.950623      76.989011
+DT                             0.014568      51.940263     339.289580     101.698206
+TBM                            0.128112      29.227750     129.413716      25.390995
+RT                             0.598272      13.023097      47.333801       7.597366
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       39   Infinite                    39
+S1B3                       17   Infinite                    17
+S2B1                       58   Infinite                    58
+S2B2                       46   Infinite                    46
+S2B3                       17   Infinite                    17
+S2B4                       32   Infinite                    32
+S3B1                       30   Infinite                    30
+S3B2                       49   Infinite                    49
+S3B3                       26   Infinite                    26
+S4B1                       12   Infinite                    12
+S4B2                       34   Infinite                    34
+S4B3                       34   Infinite                    34
+S5B1                       55   Infinite                    55
+S5B2                       34   Infinite                    34
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_34*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.627395124
+MTBDE                      78.437955
+MDT                        46.583665
+Dependability              0.627395124
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15752.724110
+NumberOfSystemFailures     126
+NumberOfComponentFailures  553
+
+
+
+***LOGISTICS***
+
+MTBM                  17.871939
+MTBMu                 17.871939
+MTBMs                 N/A
+MMT                   12.982474
+MMTu                  12.982474
+MMTs                  N/A
+GreenPercent          44.075269
+YellowPercent         18.664243
+RedPercent            37.260488
+MissionGreenPercent   44.075269
+MissionYellowPercent  18.664243
+MissionRedPercent     37.260488
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.249045      78.437955     382.029449      69.786858
+DT                             0.583540      46.583665     339.790198      94.650464
+TBM                            0.074301      28.405854     159.897587      25.309973
+RT                             0.379351      12.982474      65.908171       8.301445
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       34   Infinite                    34
+S1B3                       23   Infinite                    23
+S2B1                       61   Infinite                    61
+S2B2                       47   Infinite                    47
+S2B3                       17   Infinite                    17
+S2B4                       39   Infinite                    39
+S3B1                       32   Infinite                    32
+S3B2                       55   Infinite                    55
+S3B3                       28   Infinite                    28
+S4B1                       14   Infinite                    14
+S4B2                       29   Infinite                    29
+S4B3                       34   Infinite                    34
+S5B1                       55   Infinite                    55
+S5B2                       33   Infinite                    33
+S5B3                       15   Infinite                    15
+
+
+
+
+***Run_35*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.624013306
+MTBDE                      75.721862
+MDT                        45.624689
+Dependability              0.624013306
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15775.051637
+NumberOfSystemFailures     130
+NumberOfComponentFailures  530
+
+
+
+***LOGISTICS***
+
+MTBM                  18.573287
+MTBMu                 18.573287
+MTBMs                 N/A
+MMT                   12.995533
+MMTu                  12.995533
+MMTs                  N/A
+GreenPercent          44.892761
+YellowPercent         17.508570
+RedPercent            37.598669
+MissionGreenPercent   44.892761
+MissionYellowPercent  17.508570
+MissionRedPercent     37.598669
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.018857      75.721862     513.749164      81.489974
+DT                             0.134533      45.624689     330.710591      93.114596
+TBM                            0.032708      29.739084     183.542866      28.026674
+RT                             0.134533      12.995533      46.981660       7.403522
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       35   Infinite                    35
+S1B3                       22   Infinite                    22
+S2B1                       53   Infinite                    53
+S2B2                       44   Infinite                    44
+S2B3                       18   Infinite                    18
+S2B4                       42   Infinite                    42
+S3B1                       35   Infinite                    35
+S3B2                       33   Infinite                    33
+S3B3                       23   Infinite                    23
+S4B1                       12   Infinite                    12
+S4B2                       30   Infinite                    30
+S4B3                       35   Infinite                    35
+S5B1                       54   Infinite                    54
+S5B2                       34   Infinite                    34
+S5B3                       22   Infinite                    22
+
+
+
+
+***Run_36*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.623111558
+MTBDE                      68.865587
+MDT                        41.653286
+Dependability              0.623111558
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15804.198873
+NumberOfSystemFailures     143
+NumberOfComponentFailures  566
+
+
+
+***LOGISTICS***
+
+MTBM                  17.398903
+MTBMu                 17.398903
+MTBMs                 N/A
+MMT                   12.646700
+MMTu                  12.646700
+MMTs                  N/A
+GreenPercent          43.978718
+YellowPercent         18.332438
+RedPercent            37.688844
+MissionGreenPercent   43.978718
+MissionYellowPercent  18.332438
+MissionRedPercent     37.688844
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.130102      68.865587     328.726191      69.343428
+DT                             0.711691      41.653286     319.672491      89.007028
+TBM                            0.010576      27.915461     158.992058      25.429445
+RT                             0.711691      12.646700      48.805867       7.275216
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       31   Infinite                    31
+S1B3                       21   Infinite                    21
+S2B1                       60   Infinite                    60
+S2B2                       46   Infinite                    46
+S2B3                       18   Infinite                    18
+S2B4                       54   Infinite                    54
+S3B1                       38   Infinite                    38
+S3B2                       47   Infinite                    47
+S3B3                       30   Infinite                    30
+S4B1                       13   Infinite                    13
+S4B2                       37   Infinite                    37
+S4B3                       33   Infinite                    33
+S5B1                       52   Infinite                    52
+S5B2                       31   Infinite                    31
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_37*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.627033811
+MTBDE                      73.203296
+MDT                        43.542077
+Dependability              0.627033811
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15760.625280
+NumberOfSystemFailures     135
+NumberOfComponentFailures  550
+
+
+
+***LOGISTICS***
+
+MTBM                  17.968082
+MTBMu                 17.968082
+MTBMs                 N/A
+MMT                   12.912410
+MMTu                  12.912410
+MMTs                  N/A
+GreenPercent          44.650496
+YellowPercent         18.052885
+RedPercent            37.296619
+MissionGreenPercent   44.650496
+MissionYellowPercent  18.052885
+MissionRedPercent     37.296619
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.971431      73.203296     373.443933      73.471918
+DT                             0.397144      43.542077     333.192820      92.004789
+TBM                            0.061441      28.559789     171.979453      29.670105
+RT                             0.767406      12.912410      51.610003       7.398598
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       41   Infinite                    41
+S1B3                       21   Infinite                    21
+S2B1                       60   Infinite                    60
+S2B2                       44   Infinite                    44
+S2B3                       22   Infinite                    22
+S2B4                       45   Infinite                    45
+S3B1                       25   Infinite                    25
+S3B2                       54   Infinite                    54
+S3B3                       18   Infinite                    18
+S4B1                       15   Infinite                    15
+S4B2                       29   Infinite                    29
+S4B3                       35   Infinite                    35
+S5B1                       53   Infinite                    53
+S5B2                       31   Infinite                    31
+S5B3                       21   Infinite                    21
+
+
+
+
+***Run_38*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.626744091
+MTBDE                      74.677994
+MDT                        44.474296
+Dependability              0.626744091
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15608.950039
+NumberOfSystemFailures     131
+NumberOfComponentFailures  554
+
+
+
+***LOGISTICS***
+
+MTBM                  17.658515
+MTBMu                 17.658515
+MTBMs                 N/A
+MMT                   12.784275
+MMTu                  12.784275
+MMTs                  N/A
+GreenPercent          43.731410
+YellowPercent         18.942999
+RedPercent            37.325591
+MissionGreenPercent   43.731410
+MissionYellowPercent  18.942999
+MissionRedPercent     37.325591
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.151218      74.677994     392.122686      71.800174
+DT                             1.123774      44.474296     313.446100      89.666656
+TBM                            0.000448      28.170349     145.032648      26.085750
+RT                             0.370278      12.784275      64.092233       8.010287
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       35   Infinite                    35
+S1B2                       36   Infinite                    36
+S1B3                       14   Infinite                    14
+S2B1                       61   Infinite                    61
+S2B2                       49   Infinite                    49
+S2B3                       22   Infinite                    22
+S2B4                       36   Infinite                    36
+S3B1                       33   Infinite                    33
+S3B2                       54   Infinite                    54
+S3B3                       28   Infinite                    28
+S4B1                       12   Infinite                    12
+S4B2                       33   Infinite                    33
+S4B3                       34   Infinite                    34
+S5B1                       55   Infinite                    55
+S5B2                       36   Infinite                    36
+S5B3                       16   Infinite                    16
+
+
+
+
+***Run_39*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.627258342
+MTBDE                      81.573203
+MDT                        48.474016
+Dependability              0.627258342
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15735.713468
+NumberOfSystemFailures     121
+NumberOfComponentFailures  550
+
+
+
+***LOGISTICS***
+
+MTBM                  17.946105
+MTBMu                 17.946105
+MTBMs                 N/A
+MMT                   12.981535
+MMTu                  12.981535
+MMTs                  N/A
+GreenPercent          43.221410
+YellowPercent         19.504424
+RedPercent            37.274166
+MissionGreenPercent   43.221410
+MissionYellowPercent  19.504424
+MissionRedPercent     37.274166
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.858478      81.573203     395.706905      82.997011
+DT                             1.458383      48.474016     347.844303      97.577811
+TBM                            0.144282      28.571706     135.583837      25.385517
+RT                             0.799098      12.981535      51.121337       7.887045
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       36   Infinite                    36
+S1B3                       22   Infinite                    22
+S2B1                       58   Infinite                    58
+S2B2                       46   Infinite                    46
+S2B3                       18   Infinite                    18
+S2B4                       36   Infinite                    36
+S3B1                       29   Infinite                    29
+S3B2                       50   Infinite                    50
+S3B3                       28   Infinite                    28
+S4B1                       13   Infinite                    13
+S4B2                       33   Infinite                    33
+S4B3                       35   Infinite                    35
+S5B1                       57   Infinite                    57
+S5B2                       37   Infinite                    37
+S5B3                       15   Infinite                    15
+
+
+
+
+***Run_40*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.628810287
+MTBDE                      85.554375
+MDT                        50.503156
+Dependability              0.628810287
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15646.616124
+NumberOfSystemFailures     115
+NumberOfComponentFailures  538
+
+
+
+***LOGISTICS***
+
+MTBM                  18.287645
+MTBMu                 18.287645
+MTBMs                 N/A
+MMT                   13.027288
+MMTu                  13.027288
+MMTs                  N/A
+GreenPercent          43.582727
+YellowPercent         19.298302
+RedPercent            37.118971
+MissionGreenPercent   43.582727
+MissionYellowPercent  19.298302
+MissionRedPercent     37.118971
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.210497      85.554375     406.118956      86.682061
+DT                             0.593427      50.503156     331.077967      97.381289
+TBM                            0.062269      28.998762     175.067752      26.997487
+RT                             0.593427      13.027288      44.824117       7.522411
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       24   Infinite                    24
+S1B3                       28   Infinite                    28
+S2B1                       57   Infinite                    57
+S2B2                       38   Infinite                    38
+S2B3                       19   Infinite                    19
+S2B4                       41   Infinite                    41
+S3B1                       32   Infinite                    32
+S3B2                       43   Infinite                    43
+S3B3                       34   Infinite                    34
+S4B1                       13   Infinite                    13
+S4B2                       32   Infinite                    32
+S4B3                       33   Infinite                    33
+S5B1                       55   Infinite                    55
+S5B2                       32   Infinite                    32
+S5B3                       21   Infinite                    21
+
+
+
+
+***Run_41*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.627549416
+MTBDE                      77.866344
+MDT                        46.213676
+Dependability              0.627549416
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15634.082472
+NumberOfSystemFailures     126
+NumberOfComponentFailures  559
+
+
+
+***LOGISTICS***
+
+MTBM                  17.551269
+MTBMu                 17.551269
+MTBMs                 N/A
+MMT                   12.272204
+MMTu                  12.272204
+MMTs                  N/A
+GreenPercent          44.337017
+YellowPercent         18.417924
+RedPercent            37.245058
+MissionGreenPercent   44.337017
+MissionYellowPercent  18.417924
+MissionRedPercent     37.245058
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.088519      77.866344     363.832091      75.687773
+DT                             1.015057      46.213676     322.477405      94.370531
+TBM                            0.011434      27.917218     185.633523      25.281567
+RT                             0.056494      12.272204      45.847591       7.149011
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       35   Infinite                    35
+S1B2                       30   Infinite                    30
+S1B3                       20   Infinite                    20
+S2B1                       61   Infinite                    61
+S2B2                       44   Infinite                    44
+S2B3                       17   Infinite                    17
+S2B4                       33   Infinite                    33
+S3B1                       45   Infinite                    45
+S3B2                       59   Infinite                    59
+S3B3                       32   Infinite                    32
+S4B1                       11   Infinite                    11
+S4B2                       36   Infinite                    36
+S4B3                       34   Infinite                    34
+S5B1                       55   Infinite                    55
+S5B2                       29   Infinite                    29
+S5B3                       18   Infinite                    18
+
+
+
+
+***Run_42*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.614972374
+MTBDE                      72.003251
+MDT                        45.080466
+Dependability              0.614972374
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15572.134353
+NumberOfSystemFailures     133
+NumberOfComponentFailures  553
+
+
+
+***LOGISTICS***
+
+MTBM                  17.317238
+MTBMu                 17.317238
+MTBMs                 N/A
+MMT                   12.812487
+MMTu                  12.812487
+MMTs                  N/A
+GreenPercent          43.368078
+YellowPercent         18.129159
+RedPercent            38.502763
+MissionGreenPercent   43.368078
+MissionYellowPercent  18.129159
+MissionRedPercent     38.502763
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.340370      72.003251     311.150804      69.382594
+DT                             0.206612      45.080466     318.879770      90.969990
+TBM                            0.144917      28.091970     181.020306      27.084293
+RT                             0.206612      12.812487      51.500947       7.786332
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       30   Infinite                    30
+S1B3                       30   Infinite                    30
+S2B1                       52   Infinite                    52
+S2B2                       46   Infinite                    46
+S2B3                       14   Infinite                    14
+S2B4                       39   Infinite                    39
+S3B1                       38   Infinite                    38
+S3B2                       57   Infinite                    57
+S3B3                       25   Infinite                    25
+S4B1                       16   Infinite                    16
+S4B2                       34   Infinite                    34
+S4B3                       33   Infinite                    33
+S5B1                       53   Infinite                    53
+S5B2                       35   Infinite                    35
+S5B3                       14   Infinite                    14
+
+
+
+
+***Run_43*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.637585408
+MTBDE                      81.412128
+MDT                        46.276064
+Dependability              0.637585408
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15705.647612
+NumberOfSystemFailures     123
+NumberOfComponentFailures  543
+
+
+
+***LOGISTICS***
+
+MTBM                  18.441421
+MTBMu                 18.441421
+MTBMs                 N/A
+MMT                   12.892017
+MMTu                  12.892017
+MMTs                  N/A
+GreenPercent          45.211673
+YellowPercent         18.546868
+RedPercent            36.241459
+MissionGreenPercent   45.211673
+MissionYellowPercent  18.546868
+MissionRedPercent     36.241459
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.822376      81.412128     477.184912      81.437637
+DT                             0.199561      46.276064     326.677495      95.622013
+TBM                            0.075047      28.881849     166.664813      28.173892
+RT                             0.199561      12.892017      48.450942       7.483399
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       35   Infinite                    35
+S1B2                       32   Infinite                    32
+S1B3                       25   Infinite                    25
+S2B1                       59   Infinite                    59
+S2B2                       41   Infinite                    41
+S2B3                       13   Infinite                    13
+S2B4                       36   Infinite                    36
+S3B1                       34   Infinite                    34
+S3B2                       46   Infinite                    46
+S3B3                       27   Infinite                    27
+S4B1                       12   Infinite                    12
+S4B2                       33   Infinite                    33
+S4B3                       37   Infinite                    37
+S5B1                       56   Infinite                    56
+S5B2                       34   Infinite                    34
+S5B3                       23   Infinite                    23
+
+
+
+
+***Run_44*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.636086212
+MTBDE                      85.100810
+MDT                        48.687360
+Dependability              0.636086212
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15653.215813
+NumberOfSystemFailures     117
+NumberOfComponentFailures  550
+
+
+
+***LOGISTICS***
+
+MTBM                  18.103263
+MTBMu                 18.103263
+MTBMs                 N/A
+MMT                   12.771855
+MMTu                  12.771855
+MMTs                  N/A
+GreenPercent          45.242275
+YellowPercent         18.366347
+RedPercent            36.391379
+MissionGreenPercent   45.242275
+MissionYellowPercent  18.366347
+MissionRedPercent     36.391379
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.193165      85.100810     346.728161      72.258150
+DT                             1.899703      48.687360     321.820036      96.892495
+TBM                            0.033854      28.450630     197.072530      28.679524
+RT                             0.252616      12.771855      46.251792       7.204951
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       35   Infinite                    35
+S1B3                       23   Infinite                    23
+S2B1                       61   Infinite                    61
+S2B2                       42   Infinite                    42
+S2B3                       26   Infinite                    26
+S2B4                       34   Infinite                    34
+S3B1                       32   Infinite                    32
+S3B2                       57   Infinite                    57
+S3B3                       24   Infinite                    24
+S4B1                       14   Infinite                    14
+S4B2                       28   Infinite                    28
+S4B3                       33   Infinite                    33
+S5B1                       56   Infinite                    56
+S5B2                       30   Infinite                    30
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_45*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.637208326
+MTBDE                      79.626389
+MDT                        45.334924
+Dependability              0.637208326
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15745.125448
+NumberOfSystemFailures     126
+NumberOfComponentFailures  538
+
+
+
+***LOGISTICS***
+
+MTBM                  18.648560
+MTBMu                 18.648560
+MTBMs                 N/A
+MMT                   12.245721
+MMTu                  12.245721
+MMTs                  N/A
+GreenPercent          46.584187
+YellowPercent         17.136645
+RedPercent            36.279167
+MissionGreenPercent   46.584187
+MissionYellowPercent  17.136645
+MissionRedPercent     36.279167
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.800085      79.626389     371.433432      71.768571
+DT                             1.449509      45.334924     318.928399      94.005494
+TBM                            0.065229      29.158597     185.175853      26.425184
+RT                             0.544504      12.245721      56.231237       7.825982
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       30   Infinite                    30
+S1B3                       24   Infinite                    24
+S2B1                       52   Infinite                    52
+S2B2                       43   Infinite                    43
+S2B3                       13   Infinite                    13
+S2B4                       33   Infinite                    33
+S3B1                       31   Infinite                    31
+S3B2                       57   Infinite                    57
+S3B3                       22   Infinite                    22
+S4B1                       15   Infinite                    15
+S4B2                       32   Infinite                    32
+S4B3                       34   Infinite                    34
+S5B1                       55   Infinite                    55
+S5B2                       39   Infinite                    39
+S5B3                       22   Infinite                    22
+
+
+
+
+***Run_46*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.616433906
+MTBDE                      76.024509
+MDT                        47.305030
+Dependability              0.616433906
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              16032.840067
+NumberOfSystemFailures     130
+NumberOfComponentFailures  583
+
+
+
+***LOGISTICS***
+
+MTBM                  16.952292
+MTBMu                 16.952292
+MTBMs                 N/A
+MMT                   13.039135
+MMTu                  13.039135
+MMTs                  N/A
+GreenPercent          43.261408
+YellowPercent         18.381983
+RedPercent            38.356609
+MissionGreenPercent   43.261408
+MissionYellowPercent  18.381983
+MissionRedPercent     38.356609
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.573811      76.024509     421.573334      71.782994
+DT                             1.087833      47.305030     344.845974      96.327010
+TBM                            0.021019      27.416078     163.586330      26.947858
+RT                             0.210951      13.039135      60.432475       7.889522
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       35   Infinite                    35
+S1B3                       27   Infinite                    27
+S2B1                       60   Infinite                    60
+S2B2                       44   Infinite                    44
+S2B3                       19   Infinite                    19
+S2B4                       43   Infinite                    43
+S3B1                       39   Infinite                    39
+S3B2                       51   Infinite                    51
+S3B3                       33   Infinite                    33
+S4B1                       14   Infinite                    14
+S4B2                       32   Infinite                    32
+S4B3                       37   Infinite                    37
+S5B1                       54   Infinite                    54
+S5B2                       35   Infinite                    35
+S5B3                       22   Infinite                    22
+
+
+
+
+***Run_47*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.631998439
+MTBDE                      82.214190
+MDT                        47.871875
+Dependability              0.631998439
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15480.241676
+NumberOfSystemFailures     119
+NumberOfComponentFailures  538
+
+
+
+***LOGISTICS***
+
+MTBM                  18.184923
+MTBMu                 18.184923
+MTBMs                 N/A
+MMT                   12.910619
+MMTu                  12.910619
+MMTs                  N/A
+GreenPercent          44.240266
+YellowPercent         18.959578
+RedPercent            36.800156
+MissionGreenPercent   44.240266
+MissionYellowPercent  18.959578
+MissionRedPercent     36.800156
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.563173      82.214190     434.423058      81.418766
+DT                             1.077766      47.871875     315.892156      94.895504
+TBM                            0.044878      28.737160     174.582662      28.812588
+RT                             0.560315      12.910619      80.078213       7.986753
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       40   Infinite                    40
+S1B3                       21   Infinite                    21
+S2B1                       52   Infinite                    52
+S2B2                       42   Infinite                    42
+S2B3                       16   Infinite                    16
+S2B4                       37   Infinite                    37
+S3B1                       28   Infinite                    28
+S3B2                       56   Infinite                    56
+S3B3                       22   Infinite                    22
+S4B1                       13   Infinite                    13
+S4B2                       29   Infinite                    29
+S4B3                       37   Infinite                    37
+S5B1                       53   Infinite                    53
+S5B2                       38   Infinite                    38
+S5B3                       17   Infinite                    17
+
+
+
+
+***Run_48*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.630423352
+MTBDE                      75.016120
+MDT                        43.977124
+Dependability              0.630423352
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15707.108216
+NumberOfSystemFailures     132
+NumberOfComponentFailures  561
+
+
+
+***LOGISTICS***
+
+MTBM                  17.650852
+MTBMu                 17.650852
+MTBMs                 N/A
+MMT                   12.961655
+MMTu                  12.961655
+MMTs                  N/A
+GreenPercent          43.982328
+YellowPercent         19.060007
+RedPercent            36.957665
+MissionGreenPercent   43.982328
+MissionYellowPercent  19.060007
+MissionRedPercent     36.957665
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           3.174679      75.016120     304.240968      64.635818
+DT                             0.097934      43.977124     319.845727      90.544835
+TBM                            0.032872      27.983745     170.508547      26.757507
+RT                             0.097934      12.961655      50.278693       7.885271
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       31   Infinite                    31
+S1B3                       20   Infinite                    20
+S2B1                       67   Infinite                    67
+S2B2                       45   Infinite                    45
+S2B3                       17   Infinite                    17
+S2B4                       41   Infinite                    41
+S3B1                       41   Infinite                    41
+S3B2                       49   Infinite                    49
+S3B3                       15   Infinite                    15
+S4B1                       14   Infinite                    14
+S4B2                       36   Infinite                    36
+S4B3                       36   Infinite                    36
+S5B1                       55   Infinite                    55
+S5B2                       34   Infinite                    34
+S5B3                       24   Infinite                    24
+
+
+
+
+***Run_49*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.625425702
+MTBDE                      78.685054
+MDT                        47.125340
+Dependability              0.625425702
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15726.299162
+NumberOfSystemFailures     125
+NumberOfComponentFailures  561
+
+
+
+***LOGISTICS***
+
+MTBM                  17.532320
+MTBMu                 17.532320
+MTBMs                 N/A
+MMT                   12.836383
+MMTu                  12.836383
+MMTs                  N/A
+GreenPercent          44.376847
+YellowPercent         18.165723
+RedPercent            37.457430
+MissionGreenPercent   44.376847
+MissionYellowPercent  18.165723
+MissionRedPercent     37.457430
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.172353      78.685054     339.359216      64.799253
+DT                             0.452834      47.125340     321.605314      94.345731
+TBM                            0.060231      28.027898     184.791982      27.359058
+RT                             0.184483      12.836383      51.284105       7.564251
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       35   Infinite                    35
+S1B2                       30   Infinite                    30
+S1B3                       29   Infinite                    29
+S2B1                       58   Infinite                    58
+S2B2                       39   Infinite                    39
+S2B3                       16   Infinite                    16
+S2B4                       45   Infinite                    45
+S3B1                       31   Infinite                    31
+S3B2                       58   Infinite                    58
+S3B3                       25   Infinite                    25
+S4B1                       15   Infinite                    15
+S4B2                       34   Infinite                    34
+S4B3                       34   Infinite                    34
+S5B1                       57   Infinite                    57
+S5B2                       37   Infinite                    37
+S5B3                       18   Infinite                    18
+
+
+
+
+***Run_50*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.627694859
+MTBDE                      73.202167
+MDT                        43.418459
+Dependability              0.627694859
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15743.784540
+NumberOfSystemFailures     135
+NumberOfComponentFailures  536
+
+
+
+***LOGISTICS***
+
+MTBM                  18.437113
+MTBMu                 18.437113
+MTBMs                 N/A
+MMT                   13.378711
+MMTu                  13.378711
+MMTs                  N/A
+GreenPercent          43.901316
+YellowPercent         18.868170
+RedPercent            37.230514
+MissionGreenPercent   43.901316
+MissionYellowPercent  18.868170
+MissionRedPercent     37.230514
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.543699      73.202167     296.868269      65.450248
+DT                             0.047199      43.418459     331.224149      90.950320
+TBM                            0.019669      29.273637     142.553916      26.240278
+RT                             0.380556      13.378711      57.177343       7.842439
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       39   Infinite                    39
+S1B3                       25   Infinite                    25
+S2B1                       54   Infinite                    54
+S2B2                       41   Infinite                    41
+S2B3                       14   Infinite                    14
+S2B4                       41   Infinite                    41
+S3B1                       30   Infinite                    30
+S3B2                       43   Infinite                    43
+S3B3                       30   Infinite                    30
+S4B1                       12   Infinite                    12
+S4B2                       39   Infinite                    39
+S4B3                       32   Infinite                    32
+S5B1                       55   Infinite                    55
+S5B2                       28   Infinite                    28
+S5B3                       15   Infinite                    15
+
+
+
+
+***Run_51*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.626235159
+MTBDE                      77.575055
+MDT                        46.300224
+Dependability              0.626235159
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15856.035601
+NumberOfSystemFailures     128
+NumberOfComponentFailures  547
+
+
+
+***LOGISTICS***
+
+MTBM                  18.152846
+MTBMu                 18.152846
+MTBMs                 N/A
+MMT                   13.421870
+MMTu                  13.421870
+MMTs                  N/A
+GreenPercent          42.810416
+YellowPercent         19.813100
+RedPercent            37.376484
+MissionGreenPercent   42.810416
+MissionYellowPercent  19.813100
+MissionRedPercent     37.376484
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           2.493947      77.575055     351.125643      74.651793
+DT                             0.494380      46.300224     323.815622      95.303116
+TBM                            0.084516      28.918492     167.381176      27.224803
+RT                             0.494380      13.421870      51.468526       7.560860
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       35   Infinite                    35
+S1B3                       23   Infinite                    23
+S2B1                       55   Infinite                    55
+S2B2                       43   Infinite                    43
+S2B3                       17   Infinite                    17
+S2B4                       40   Infinite                    40
+S3B1                       29   Infinite                    29
+S3B2                       55   Infinite                    55
+S3B3                       31   Infinite                    31
+S4B1                       15   Infinite                    15
+S4B2                       32   Infinite                    32
+S4B3                       33   Infinite                    33
+S5B1                       56   Infinite                    56
+S5B2                       29   Infinite                    29
+S5B3                       17   Infinite                    17
+
+
+
+
+***Run_52*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.623855606
+MTBDE                      76.567164
+MDT                        46.165025
+Dependability              0.623855606
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15832.452420
+NumberOfSystemFailures     129
+NumberOfComponentFailures  539
+
+
+
+***LOGISTICS***
+
+MTBM                  18.324980
+MTBMu                 18.324980
+MTBMs                 N/A
+MMT                   13.209310
+MMTu                  13.209310
+MMTs                  N/A
+GreenPercent          43.892032
+YellowPercent         18.493528
+RedPercent            37.614439
+MissionGreenPercent   43.892032
+MissionYellowPercent  18.493528
+MissionRedPercent     37.614439
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.132987      76.567164     523.104269      83.605744
+DT                             0.454999      46.165025     333.532002      94.235085
+TBM                            0.032014      29.285649     162.630220      27.200283
+RT                             0.146990      13.209310      55.455692       8.076479
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       31   Infinite                    31
+S1B3                       20   Infinite                    20
+S2B1                       55   Infinite                    55
+S2B2                       46   Infinite                    46
+S2B3                       21   Infinite                    21
+S2B4                       33   Infinite                    33
+S3B1                       33   Infinite                    33
+S3B2                       44   Infinite                    44
+S3B3                       29   Infinite                    29
+S4B1                       15   Infinite                    15
+S4B2                       31   Infinite                    31
+S4B3                       35   Infinite                    35
+S5B1                       55   Infinite                    55
+S5B2                       34   Infinite                    34
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_53*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.628747747
+MTBDE                      73.765973
+MDT                        43.556074
+Dependability              0.628747747
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15603.832212
+NumberOfSystemFailures     133
+NumberOfComponentFailures  542
+
+
+
+***LOGISTICS***
+
+MTBM                  18.101244
+MTBMu                 18.101244
+MTBMs                 N/A
+MMT                   12.486006
+MMTu                  12.486006
+MMTs                  N/A
+GreenPercent          45.888700
+YellowPercent         16.986075
+RedPercent            37.125225
+MissionGreenPercent   45.888700
+MissionYellowPercent  16.986075
+MissionRedPercent     37.125225
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.114287      73.765973     294.162129      68.047468
+DT                             0.573095      43.556074     315.168239      90.224699
+TBM                            0.022745      28.780018     137.803048      27.225646
+RT                             0.416493      12.486006      45.807625       7.088249
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       37   Infinite                    37
+S1B2                       31   Infinite                    31
+S1B3                       25   Infinite                    25
+S2B1                       56   Infinite                    56
+S2B2                       43   Infinite                    43
+S2B3                       21   Infinite                    21
+S2B4                       40   Infinite                    40
+S3B1                       22   Infinite                    22
+S3B2                       60   Infinite                    60
+S3B3                       22   Infinite                    22
+S4B1                       12   Infinite                    12
+S4B2                       35   Infinite                    35
+S4B3                       34   Infinite                    34
+S5B1                       54   Infinite                    54
+S5B2                       35   Infinite                    35
+S5B3                       15   Infinite                    15
+
+
+
+
+***Run_54*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.615203119
+MTBDE                      71.691670
+MDT                        44.841663
+Dependability              0.615203119
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15615.466565
+NumberOfSystemFailures     134
+NumberOfComponentFailures  544
+
+
+
+***LOGISTICS***
+
+MTBM                  17.659345
+MTBMu                 17.659345
+MTBMs                 N/A
+MMT                   12.717349
+MMTu                  12.717349
+MMTs                  N/A
+GreenPercent          44.144979
+YellowPercent         17.375333
+RedPercent            38.479688
+MissionGreenPercent   44.144979
+MissionYellowPercent  17.375333
+MissionRedPercent     38.479688
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.233459      71.691670     332.013924      67.670683
+DT                             0.169695      44.841663     328.467384      92.591815
+TBM                            0.022615      28.692939     158.022437      27.660508
+RT                             0.113026      12.717349      46.831426       7.368164
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       41   Infinite                    41
+S1B3                       23   Infinite                    23
+S2B1                       55   Infinite                    55
+S2B2                       44   Infinite                    44
+S2B3                       21   Infinite                    21
+S2B4                       45   Infinite                    45
+S3B1                       33   Infinite                    33
+S3B2                       45   Infinite                    45
+S3B3                       14   Infinite                    14
+S4B1                       14   Infinite                    14
+S4B2                       34   Infinite                    34
+S4B3                       34   Infinite                    34
+S5B1                       55   Infinite                    55
+S5B2                       35   Infinite                    35
+S5B3                       15   Infinite                    15
+
+
+
+
+***Run_55*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.613076302
+MTBDE                      72.234861
+MDT                        45.588745
+Dependability              0.613076302
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15670.539564
+NumberOfSystemFailures     133
+NumberOfComponentFailures  553
+
+
+
+***LOGISTICS***
+
+MTBM                  17.372941
+MTBMu                 17.372941
+MTBMs                 N/A
+MMT                   12.688235
+MMTu                  12.688235
+MMTs                  N/A
+GreenPercent          43.824633
+YellowPercent         17.482997
+RedPercent            38.692370
+MissionGreenPercent   43.824633
+MissionYellowPercent  17.482997
+MissionRedPercent     38.692370
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.043741      72.234861     394.178324      67.992321
+DT                             0.778080      45.588745     328.861659      93.205979
+TBM                            0.010382      28.250624     148.928828      26.917982
+RT                             0.276244      12.688235      48.491901       7.493339
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       37   Infinite                    37
+S1B3                       21   Infinite                    21
+S2B1                       63   Infinite                    63
+S2B2                       50   Infinite                    50
+S2B3                        9   Infinite                     9
+S2B4                       44   Infinite                    44
+S3B1                       33   Infinite                    33
+S3B2                       46   Infinite                    46
+S3B3                       27   Infinite                    27
+S4B1                       12   Infinite                    12
+S4B2                       30   Infinite                    30
+S4B3                       36   Infinite                    36
+S5B1                       57   Infinite                    57
+S5B2                       36   Infinite                    36
+S5B3                       16   Infinite                    16
+
+
+
+
+***Run_56*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.630727938
+MTBDE                      80.346606
+MDT                        47.040499
+Dependability              0.630727938
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15668.613909
+NumberOfSystemFailures     123
+NumberOfComponentFailures  548
+
+
+
+***LOGISTICS***
+
+MTBM                  18.034001
+MTBMu                 18.034001
+MTBMs                 N/A
+MMT                   12.717819
+MMTu                  12.717819
+MMTs                  N/A
+GreenPercent          43.368230
+YellowPercent         19.704563
+RedPercent            36.927206
+MissionGreenPercent   43.368230
+MissionYellowPercent  19.704563
+MissionRedPercent     36.927206
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.243991      80.346606     308.386669      71.993612
+DT                             0.571779      47.040499     350.891291      96.698699
+TBM                            0.104951      28.525107     162.619044      26.944804
+RT                             0.342750      12.717819      52.735702       7.854815
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       28   Infinite                    28
+S1B3                       25   Infinite                    25
+S2B1                       54   Infinite                    54
+S2B2                       44   Infinite                    44
+S2B3                       17   Infinite                    17
+S2B4                       35   Infinite                    35
+S3B1                       37   Infinite                    37
+S3B2                       49   Infinite                    49
+S3B3                       34   Infinite                    34
+S4B1                       14   Infinite                    14
+S4B2                       34   Infinite                    34
+S4B3                       36   Infinite                    36
+S5B1                       54   Infinite                    54
+S5B2                       32   Infinite                    32
+S5B3                       19   Infinite                    19
+
+
+
+
+***Run_57*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.628297891
+MTBDE                      80.192545
+MDT                        47.442047
+Dependability              0.628297891
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15954.324066
+NumberOfSystemFailures     125
+NumberOfComponentFailures  555
+
+
+
+***LOGISTICS***
+
+MTBM                  18.061384
+MTBMu                 18.061384
+MTBMs                 N/A
+MMT                   13.110694
+MMTu                  13.110694
+MMTs                  N/A
+GreenPercent          44.099831
+YellowPercent         18.729958
+RedPercent            37.170211
+MissionGreenPercent   44.099831
+MissionYellowPercent  18.729958
+MissionRedPercent     37.170211
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.258256      80.192545     361.301127      71.368607
+DT                             0.377138      47.442047     336.638455      96.169110
+TBM                            0.007430      28.705241     162.923125      26.391497
+RT                             0.181320      13.110694      67.816656       7.822484
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       36   Infinite                    36
+S1B2                       36   Infinite                    36
+S1B3                       25   Infinite                    25
+S2B1                       54   Infinite                    54
+S2B2                       45   Infinite                    45
+S2B3                       14   Infinite                    14
+S2B4                       48   Infinite                    48
+S3B1                       31   Infinite                    31
+S3B2                       48   Infinite                    48
+S3B3                       26   Infinite                    26
+S4B1                       12   Infinite                    12
+S4B2                       37   Infinite                    37
+S4B3                       36   Infinite                    36
+S5B1                       55   Infinite                    55
+S5B2                       34   Infinite                    34
+S5B3                       18   Infinite                    18
+
+
+
+
+***Run_58*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.613851291
+MTBDE                      67.328113
+MDT                        42.353359
+Dependability              0.613851291
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15794.131875
+NumberOfSystemFailures     144
+NumberOfComponentFailures  579
+
+
+
+***LOGISTICS***
+
+MTBM                  16.744816
+MTBMu                 16.744816
+MTBMs                 N/A
+MMT                   12.789220
+MMTu                  12.789220
+MMTs                  N/A
+GreenPercent          42.146196
+YellowPercent         19.238933
+RedPercent            38.614871
+MissionGreenPercent   42.146196
+MissionYellowPercent  19.238933
+MissionRedPercent     38.614871
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.204081      67.328113     374.072282      65.255003
+DT                             0.958436      42.353359     359.962046      90.381447
+TBM                            0.034321      27.277835     141.694934      27.065907
+RT                             0.300699      12.789220      40.267335       7.604428
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       38   Infinite                    38
+S1B3                       28   Infinite                    28
+S2B1                       58   Infinite                    58
+S2B2                       43   Infinite                    43
+S2B3                       23   Infinite                    23
+S2B4                       52   Infinite                    52
+S3B1                       33   Infinite                    33
+S3B2                       57   Infinite                    57
+S3B3                       25   Infinite                    25
+S4B1                       14   Infinite                    14
+S4B2                       32   Infinite                    32
+S4B3                       33   Infinite                    33
+S5B1                       53   Infinite                    53
+S5B2                       37   Infinite                    37
+S5B3                       15   Infinite                    15
+
+
+
+
+***Run_59*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.627708014
+MTBDE                      81.955755
+MDT                        48.607744
+Dependability              0.627708014
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15798.183343
+NumberOfSystemFailures     121
+NumberOfComponentFailures  549
+
+
+
+***LOGISTICS***
+
+MTBM                  18.063108
+MTBMu                 18.063108
+MTBMs                 N/A
+MMT                   12.645214
+MMTu                  12.645214
+MMTs                  N/A
+GreenPercent          44.631896
+YellowPercent         18.138906
+RedPercent            37.229199
+MissionGreenPercent   44.631896
+MissionYellowPercent  18.138906
+MissionRedPercent     37.229199
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           1.768187      81.955755     419.831900      72.129311
+DT                             0.309004      48.607744     331.182622      96.039356
+TBM                            0.230976      28.743819     148.950163      24.810415
+RT                             0.309004      12.645214      86.128469       7.852210
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       34   Infinite                    34
+S1B2                       36   Infinite                    36
+S1B3                       27   Infinite                    27
+S2B1                       58   Infinite                    58
+S2B2                       43   Infinite                    43
+S2B3                       18   Infinite                    18
+S2B4                       37   Infinite                    37
+S3B1                       31   Infinite                    31
+S3B2                       53   Infinite                    53
+S3B3                       28   Infinite                    28
+S4B1                       13   Infinite                    13
+S4B2                       30   Infinite                    30
+S4B3                       35   Infinite                    35
+S5B1                       56   Infinite                    56
+S5B2                       30   Infinite                    30
+S5B3                       20   Infinite                    20
+
+
+
+
+***Run_60*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.620663075
+MTBDE                      76.849774
+MDT                        46.969053
+Dependability              0.620663075
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              15848.809844
+NumberOfSystemFailures     128
+NumberOfComponentFailures  561
+
+
+
+***LOGISTICS***
+
+MTBM                  17.534351
+MTBMu                 17.534351
+MTBMs                 N/A
+MMT                   13.253800
+MMTu                  13.253800
+MMTs                  N/A
+GreenPercent          42.962570
+YellowPercent         19.103737
+RedPercent            37.933692
+MissionGreenPercent   42.962570
+MissionYellowPercent  19.103737
+MissionRedPercent     37.933692
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.432541      76.849774     431.581108      78.923295
+DT                             0.642108      46.969053     338.434599      95.229618
+TBM                            0.017981      28.185298     212.503448      27.187008
+RT                             0.243771      13.253800      45.031623       7.776143
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S1B1                       38   Infinite                    38
+S1B2                       36   Infinite                    36
+S1B3                       22   Infinite                    22
+S2B1                       57   Infinite                    57
+S2B2                       42   Infinite                    42
+S2B3                       20   Infinite                    20
+S2B4                       43   Infinite                    43
+S3B1                       29   Infinite                    29
+S3B2                       52   Infinite                    52
+S3B3                       27   Infinite                    27
+S4B1                       14   Infinite                    14
+S4B2                       37   Infinite                    37
+S4B3                       37   Infinite                    37
+S5B1                       54   Infinite                    54
+S5B2                       35   Infinite                    35
+S5B3                       18   Infinite                    18
+
+
+
+

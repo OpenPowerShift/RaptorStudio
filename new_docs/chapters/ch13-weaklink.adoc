@@ -1,0 +1,241 @@
+[[ch-weaklink]]
+== Weak Links: Blame the Right Part
+
+*Time: about 30 minutes.*
+*New ideas: weak-link analysis, frequency vs. importance, fixing the
+weak link and meeting the next one.*
+
+=== You will learn
+
+* Why the part that fails most is often *not* the part that hurts most.
+* How to find the true weak link: who is to blame when the system
+  actually stops?
+* What happens after you fix it (hint: a new weak link volunteers).
+
+=== You need
+
+* <<ch-first-model>> through <<ch-hierarchy>> finished.
+* The file `models/VanFlat.rbds` and its event log habit from <<ch-redundancy>>.
++
+opsmodel:VanFlat[]
+
+=== The story
+
+The van's mechanic wants attention paid to the tires — "they fail
+constantly!" The dispatcher disagrees: "When did a tire ever stop a
+delivery?" Both are holding real data. Only simulation can settle
+*whose* data matters.
+
+=== Busy is not the same as harmful
+
+The van has two kinds of parts. The four tires fail often — but the
+3-of-4 vote from <<ch-voting>> forgives any single flat, so the van
+limps on, marked *yellow*. The fuel pump and the engine core sit in
+the series chain: when either dies, the delivery dies with it.
+
+So we expect two different league tables:
+
+* a *frequency* table — who fails most (the tires, comfortably);
+* an *importance* table — who causes stoppages (spoiler: not the tires).
+
+The weak link is the top of the *importance* table. Money spent
+anywhere else buys almost nothing.
+
+=== Open the model
+
+Load `models/VanFlat.rbds`. In **Model → Project Settings**, tick
+**Weak Link analysis** and Apply. That one checkbox tells the engine
+to keep a per-part timesheet: hours running, hours under repair, per
+trial.
+
+=== Run it
+
+Run **200 trials** of the 2000-hour mission and open one trial's
+report. Each part's timesheet, averaged over the trials:
+
+[cols="3,2,2",options="header"]
+|===
+|Part |Hours running |Hours in repair
+|Fuel_Pump |about 1 984 |about 15.7
+|Engine_Core |about 1 990 |about 10.5
+|each Tire (×4) |about 1 995 |about 4.9
+|===
+
+The tires *combined* rack up more repair time than either series part
+— the mechanic's data is honest. Now the importance table: read 200
+event logs (<<ch-redundancy>>'s skill) and ask, at every moment the system
+went down (red), *which part was down?*
+
+[cols="3,2",options="header"]
+|===
+|Blamed for a stoppage (red) |Share
+|Fuel_Pump |about 68%
+|Engine_Core |about 31%
+|any Tire |about 1%
+|===
+
+And the same count for yellow (degraded but drivable) moments: the
+tires own essentially all of them — about 1 900 flat-tire events
+across the trials, and the van kept driving through nearly every one.
+
+That is the whole trick of weak-link thinking in one table. The tires
+are the busiest parts in the van and almost the *least* important.
+The fuel pump fails a third as often and causes two-thirds of the
+stoppages.
+
+[TIP]
+====
+A part's importance is set by two dials: how often it fails, and
+what its failure *costs the system*. Series parts have maximal cost —
+any failure is a stoppage. Redundant parts have small cost — their
+failures are absorbed. When you budget improvements, multiply
+frequency by cost, and look at the product, not the frequency.
+====
+
+=== Let the colours do the reading
+
+**Results ▸ Show on Canvas ▸ Weak Links** paints each block by its availability
+against two thresholds, Green ≥ 0.95 and Red < 0.90 unless you change
+them. In a well-designed system every block can sit above 0.95, so
+everything comes out Green. Press **Spread** beside it: it
+moves them to the quartiles of the result set's averages, so the worst quarter
+of the blocks turns Red and the best quarter Green. It ranks the blocks
+against each other, not against an absolute target, so read it as
+"where to look first".
+
+=== Fix the weak link, meet the next one
+
+The fuel pump is guilty. Upgrade it: change `Fuel_Pump`'s failure
+mean from 500 to 1500 hours (F Param 1 in the Data Tables), run 200
+trials again, and compare:
+
+[cols="4,2,2",options="header"]
+|===
+|Measure |Before |After
+|Stoppages per trial |about 5.7 |about 3.4
+|MTBDE |about 420 h |about 755 h
+|Availability |about 0.987 |about 0.992
+|===
+
+Real improvement — MTBDE up four-fifths. But look again at the
+importance table: the fuel pump's share collapsed, and *Engine_Core*
+inherited the crown (now roughly half of all stoppages). Systems do
+not run out of weak links; they promote new ones. Tuning is a loop:
+measure, fix the leader, re-measure — exactly the loop the final
+chapter's data centre will put to work.
+
+.Limits of this model
+[NOTE]
+====
+The importance table's whole logic — "redundant parts divide their
+cost, series parts multiply it" — assumes each part's failure is a
+private event. If a pothole blows two tires at once, or a single bad
+fuel batch stresses the pump and the engine core together, the real
+importance ranking shifts in ways this per-part timesheet cannot see:
+shared causes make redundant-looking parts behave more like series
+parts. Weak-link analysis tells you where to spend money *given* the
+independence assumption; it is silent about whether that assumption
+holds.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |The tires accumulate more total repair hours than the fuel pump.
+Why do they cause almost no stoppages?
+|2 |You replace the 3-of-4 tire vote with 2-of-4 (two flats tolerated).
+What happens to the tires' share of the importance table?
+|3 |The fuel pump upgrade improved MTBDE by 80%, not the 200% its
+failure-rate improvement suggests. Where did the missing
+improvement go?
+|===
+
+.Answers
+[%collapsible]
+====
+. The 3-of-4 vote absorbs any single flat: a tire failure degrades
+   the system (yellow) but almost never stops it. Repair *hours* and
+   stoppage *blame* are different tables — the vote is what decouples
+   them.
+. The tires' share of *yellow* time shrinks further, but it was
+   already near zero on the importance table. Stoppage blame stays
+   with the series pair — redundancy upgrades protect the part, not
+   the weak link.
+. The stoppages the pump no longer causes were only part of the
+   total; the engine core's stoppages remain untouched. Improvement
+   is bounded by the *sum* of all causes, so removing one cause of
+   68% cannot yield 200% — and the engine's share grows as the
+   pump's shrinks.
+====
+
+=== Exercise
+
+Without running anything: the engine core now causes about half of
+stoppages. Predict the MTBDE if Engine_Core's Weibull mean doubles
+(shape stays 2, mean 1000 → 2000; F Param 2 in the Data Tables).
+Then run 200 trials and check yourself. Did the *next* weak link
+already appear?
+
+.Answer
+[%collapsible]
+====
+Red events fall from about 3.4 to about 2.1 per trial and
+MTBDE roughly doubles, to about 1 170 h (availability ≈ 0.995). The
+prediction "engine stoppages halve" is close — slightly optimistic,
+since doubling a wear-out part's mean pushes many failures past the
+mission's end. And yes, a weak link always volunteers: with both
+upgrades in place the fuel pump is the top cause again (about 65% of
+what little remains).
+====
+
+=== Which part would you fix first?
+
+Weak links rank parts by how much time they cost. There is a second
+question, and it is the one budgets are actually spent on: *if I could
+make one part better, which one buys the most?*
+
+Switch on **Run ▸ Analysis ▸ Importance measures** (leave it on
+**Both**) and run the same 200 trials. That costs twelve more batches,
+one per block per variant, so it takes a few minutes — set **Cores**
+above 1 first. Open **Results ▸ Final Results ▸ Importance**:
+
+[cols="4,3,3",options="header"]
+|===
+|Block |Share of the downtime |RRW
+
+|Fuel_Pump |about 56% |about 2.3
+|Engine_Core |about 37% |about 1.6
+|each tire |about 0% |about 1
+|===
+
+Two parts hold 94% of the van's downtime between them. That matches the
+weak-link chapter's story, and it is the same answer reached a different
+way: weak links read the *state timesheet*, importance reads *what
+happens to the system when this block is taken out of the picture*.
+
+The tires are the interesting row. Their share is a hair below zero,
+which looks like nonsense until you know what the number is made of:
+each measurement is two extra batches of simulated futures, and those
+draw their own random numbers, so a part that does not gate the system
+lands either side of zero on noise. **At or below zero means "no
+measurable effect", not "fixing this makes it worse".** That is why the
+column has a standard error beside it, and why the page ranks by share
+of downtime rather than by Birnbaum — in a series van Birnbaum reads
+about 0.99 for *every* part, which tells you nothing about which to
+fix.
+
+Change **Measured on** to *Reliability* and the ranking can move: a part
+can be cheap in downtime and expensive in failed missions. Which of the
+two you want is a question about your van, not about the arithmetic.
+
+=== What you learned
+
+* Weak-link analysis separates *busy* parts from *important* parts.
+* Importance = failure frequency × what the failure does to the
+  system; series position multiplies, redundancy divides.
+* Fixing a weak link promotes the runner-up — improvement is a loop,
+  not a destination.
+
+Next chapter: a part that doesn't wear out at all — it just works or
+it doesn't, decided once, in an instant.

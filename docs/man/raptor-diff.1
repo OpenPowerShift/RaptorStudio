@@ -1,0 +1,61 @@
+.TH "RAPTOR-DIFF" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-diff \- Compare two model files (.rbd or .rbds, in any combination) and list the differences: elements added, removed, renamed or changed, connections, hierarchy moves, system settings, rates, spare pools and the rest. Nothing is run; this compares the models, not their results (see raptor compare). Elements are matched by name, then by id.
+.SH SYNOPSIS
+\fBraptor diff\fR [\-h] [\-f {text,json,md,csv}] [\-\-ignore CATS] [\-\-all] [\-\-match {auto,name,id}] [\-\-only GROUPS] [\-\-exit\-code] A B
+.SH DESCRIPTION
+Compare two model files (.rbd or .rbds, in any combination) and list the differences: elements added, removed, renamed or changed, connections, hierarchy moves, system settings, rates, spare pools and the rest. Nothing is run; this compares the models, not their results (see raptor compare). Elements are matched by name, then by id.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json|md|csv}\fR
+
+.TP
+\fB\-\-ignore\fR \fICATS\fR
+comma\-separated categories to leave out (default layout,derived; categories: layout, derived, identity, failure, repair, streams, sparing, maintenance, logistics, dependency, cost, phasing, capacity, structure, system, project, other)
+.TP
+\fB\-\-all\fR
+ignore nothing (same as \-\-ignore '')
+.TP
+\fB\-\-match\fR \fI{auto|name|id}\fR
+how elements are paired: name then id (auto), name only, or id only (default auto)
+.TP
+\fB\-\-only\fR \fIGROUPS\fR
+print only these comma\-separated groups: elements, links, structure, system, rates, spare_pools, resources, triggers, phases, project
+.TP
+\fB\-\-exit\-code\fR
+exit 1 when the models differ and 0 when they do not (like git diff \-\-exit\-code)
+.SH EXAMPLES
+.PP
+List what changed between two versions of a model (layout and computed columns are left out).
+.RS
+.nf
+\fBraptor diff pump_v1.rbds pump_v2.rbds\fR
+.fi
+.RE
+.PP
+Compare an .rbd with an .rbds, ignoring nothing, as Markdown.
+.RS
+.nf
+\fBraptor diff old.rbd new.rbds \-\-all \-f md\fR
+.fi
+.RE
+.PP
+JSON for elements and connections only; exit status 1 when they differ.
+.RS
+.nf
+\fBraptor diff a.rbds b.rbds \-\-only elements,links \-\-exit\-code \-f json\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1)
+.SH EXIT STATUS
+.TP
+\fB0\fR
+success (with \-\-exit\-code: the models do not differ)
+.TP
+\fB1\fR
+with \-\-exit\-code: the models differ (as git diff \-\-exit\-code); otherwise a runtime error
+.TP
+\fB2\fR
+usage error, or a model file that cannot be read

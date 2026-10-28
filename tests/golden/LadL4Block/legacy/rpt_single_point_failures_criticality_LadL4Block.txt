@@ -1,0 +1,8 @@
+Single Point Failure File        spfcrit_LadL4Block.txt            10 Oct 2026
+
+
+Block                  Criticality 
+   S1B1                   0.750000       
+   S2B4                   0.750000       
+   S3B3                   0.750000       
+   S5B3                   0.675000       

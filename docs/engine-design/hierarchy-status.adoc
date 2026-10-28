@@ -1,0 +1,64 @@
+= Hierarchy status
+:toc: macro
+
+`raptor/core/engine/nodes.py`, `cascade_status.py` · Raptor 7: `RBDHierObj.ChangeStatus`, `ChangeDSIStatus`, `AnalyzeSystem`
+
+toc::[]
+
+== Purpose
+
+A hierarchy groups elements behind an In node and an Out node. To the outside it behaves like a block; inside it is a small diagram. The engine gives each hierarchy a status (its colour on the canvas, its weak-link time columns) and a count of failed elements inside it, which nested hierarchies roll up.
+
+== Source anchors
+
+[cols="3,3,4",options="header"]
+|===
+| Source | Port | Notes
+| `RBDHierObj.ChangeStatus` | `nodes._hier_change_status` | Driven by the Out node's status change
+| `ChangeDSIStatus` (descendant status indicator) | `nodes._change_dsi_status` | Worst-first recompute: Down, PM, Idle, Degraded, Standby, AllUp
+| `IncNumFailed` / `DecNumFailed` | `_Cascade._apply_hier_fail_delta` | A failed element adds one to its parent hierarchy and up the chain
+| `AnalyzeSystem`'s hierarchy loop | `_check_system_status` in `cascade_status.py` | A hierarchy with failed elements whose Out node reads AllUp is made Degraded, and back to AllUp when none is failed
+|===
+
+== Structure
+
+[mermaid]
+....
+flowchart LR
+    e["element inside fails"] --> n["hier.num_currently_failed += 1<br/>(and its parents')"]
+    n --> a["AnalyzeSystem, once per instant"]
+    a -->|"failed > 0 and Out node AllUp"| d["Out node -> Degraded"]
+    a -->|"failed = 0 and Out node Degraded"| u["Out node -> AllUp"]
+    d --> w["hierarchy weak-link time: Yellow"]
+....
+
+The reconciliation writes no event-log line (`ChangeNodeState` only). Its only visible effect is the hierarchy's %Yellow with weak-link analysis on, which `HierDegradeWeakProbe` showed (real 46 % Yellow, the port previously 0).
+
+== Canvas representation
+
+|===
+| Part | State | Painter | Colour
+| Body (the oval) | `hier.status` (the Out node) | `_HierItem.set_live_fill` from `update_live_states` | `_NODE_STATE_COLOURS`: AllUp LimeGreen, Degraded Yellow, Standby Blue, Idle Sienna, PM Orange, Down Red
+| DSI (two stacked down triangles, centre) | `hier.dsi_state` (worst internal hierarchy) | `_HierItem.set_dsi` / `_dsi_triangles` | same six states; white Linked, black Cut
+| Name | the hierarchy row's `hierarchyName` | `_HierItem._layout_label` | under the oval (Raptor's Hierarchy label); the Weak Link value goes under the name
+|===
+
+Source anchors: Raptor 7's `ChangeStatus` colours `Hier` and `ChangeDSIStatus`
+colours `HierMid`; the symbol's geometry is two triangles. `ChangeNodeState` drives both from a type-5 Out node; `AnalyzeSystem` degrades an Out node when anything inside failed.
+Raptor 7 manual Ch.16 pp.16-15..16-18 and Appendix D-13 define the body/DSI meaning.
+
+`raptor/gui/ui/diagram_live.py` builds `{hierarchy id: boundary link ids}` once per model
+(`_hier_boundary_links`) and limits the boundary loop to the ovals on screen. The earlier version
+rescanned all `LINK_DATA` rows once per hierarchy per frame (217 x 5,184 on the BESS model, ~0.54 s
+per frame); do not reintroduce that.
+
+== Port-only devices and deliberate deviations
+
+* A hierarchy is not a separate process; its In and Out nodes are ordinary nodes with `type_node` 4 and 5, and its status is derived from the Out node.
+* A hierarchy's weak-link times are its Out node's, accumulated in `change_node_state`.
+* The after-run DSI shows the Weak Link time-share average over every run (a port extension); Raptor 7 forces the DSI LimeGreen when `runCompleted`.
+* The live node label shows FLOW only (`RBDNodeObj.ShowFlow`), on the Start marker as `Flow=<n>` and on capacity type-2 nodes in the source's own 1-9999 / 10K / 1.2M / 3G format.
+
+== Tests and fixtures
+
+`tests/unit/test_hier_dsi.py`, `test_hier_dsi_status.py`, `test_hierarchy.py`; captures `HierarchyExample`, `Hierarchy1`..`7`, `HierDegradeProbe`, `HierDegradeWeakProbe`, `NestedHierarchyCost`.

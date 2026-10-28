@@ -1,0 +1,68 @@
+Final_Results_Report for input.rbd  Thu Oct 01 09:49:26 2026
+
+
+Results from 60 runs of sim time 5000.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.978884228     0.993794037     1.000000000     0.004142440     0.000534787     
+MTBDE                    407.868428      >1512.326248    >5000.000000    N/A             N/A             
+MDT(58-runs)             0.638718        6.200542        10.489917       2.217567        0.291181        
+Reliability              0.000000000     0.033333333     1.000000000     0.181020335     0.023369625     
+Conditional_Reliability  0.000000000     0.033333333     1.000000000     0.181020335     0.023369625     
+System_Failures          0               4.750000        12              2.460708        0.317676        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     35.106268       39.929159       44.592534       2.372773        0.306324        
+MTBMu                    35.106268       40.040014       44.592534       2.367282        0.305615        
+MTBMs                    2461.370507     >4845.423528    >5000.000000    N/A             N/A             
+MMT                      11.125706       12.397629       13.532892       0.630529        0.081401        
+MMTu                     11.193989       12.423803       13.590373       0.645904        0.083386        
+MMTs(18-runs)            2.340187        3.463042        5.830538        0.943104        0.222292        
+Green_Percent            69.867069       73.668445       77.120645       1.750570        0.225998        
+Yellow_Percent           21.958047       25.710958       29.583143       1.773196        0.228919        
+Red_Percent              0.000000        0.620596        2.111577        0.414244        0.053479        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+S1B1                  Infinite                     3         4.25         6         0.65 
+S1B2                  Infinite                     5         5.67         7         0.51 
+S1B3                  Infinite                     3         8.88        16         2.83 
+S1B4                  Infinite                     5         7.70        13         1.66 
+S2B1                  Infinite                     3         4.12         5         0.49 
+S2B2                  Infinite                     1         5.30        11         2.27 
+S2B3                  Infinite                     4         5.05         6         0.62 
+S2B4                  Infinite                     2         4.60         7         1.15 
+S3B1                  Infinite                     3         6.32         9         1.23 
+S3B2                  Infinite                     4         5.35         7         0.73 
+S3B3                  Infinite                     2         4.07         6         0.82 
+S3B4                  Infinite                     4         5.53         7         0.77 
+S4B1                  Infinite                     3         4.98         8         1.13 
+S4B2                  Infinite                     3         6.17         9         1.33 
+S4B3                  Infinite                     3         4.65         6         0.63 
+S4B4                  Infinite                     3         4.65         7         0.82 
+S5B1                  Infinite                     0         4.28        11         2.29 
+S5B2                  Infinite                     1         4.15         9         1.35 
+S5B3                  Infinite                     0         6.88        13         2.77 
+S5B4                  Infinite                     2         4.80         7         1.10 
+S6B1                  Infinite                     2         3.03         4         0.37 
+S6B2                  Infinite                     5         6.27         7         0.55 
+S6B3                  Infinite                     1         4.50         7         1.38 
+S6B4                  Infinite                     2         3.67         6         0.77 
+
+
+

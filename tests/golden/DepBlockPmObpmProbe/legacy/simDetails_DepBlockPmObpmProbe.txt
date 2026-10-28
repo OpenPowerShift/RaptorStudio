@@ -1,0 +1,12 @@
+Begining Procedure RunEFPA......
+
+Casing  EFPAout=1
+   end  through link 6
+Armature  EFPAout=1
+   end  through link 6
+Magnets  EFPAout=1
+   end  through link 6
+Brushes  EFPAout=1
+   end  through link 6
+PowerSupply  EFPAout=1
+   end  through link 6

@@ -1,0 +1,67 @@
+Begining Procedure RunEFPA......
+
+n1  EFPAout=1
+   end  through link 6
+n2  EFPAout=1
+   end  through link 6
+Comm  EFPAout=1
+   end  through link 6
+Power  EFPAout=1
+   end  through link 6
+500path  EFPAout=1
+   out  through link 26
+650path  EFPAout=1
+   out  through link 28
+900path  EFPAout=1
+   out  through link 30
+out-500path  EFPAout=1
+   Power  through link 22
+out-650path  EFPAout=1
+   Power  through link 23
+out-900path  EFPAout=1
+   Power  through link 24
+SolarP_500W  EFPAout=1
+   500path  through link 16
+BatteriesNiCd  EFPAout=1
+   500path  through link 16
+Bus_UR  EFPAout=1
+   500path  through link 16
+Thermal  EFPAout=1
+   n2  through link 5
+Attitude  EFPAout=1
+   n1  through link 4
+LowGain  EFPAout=1
+   Comm  through link 8
+HighGain  EFPAout=1
+   Comm  through link 15
+SolarP_650W  EFPAout=1
+   650path  through link 17
+SolarP_900W  EFPAout=1
+   900path  through link 18
+Bus_QR  EFPAout=1
+   650path  through link 17
+BatteriesNiH  EFPAout=1
+   650path  through link 17
+Bus_FR  EFPAout=1
+   900path  through link 18
+BatteriesNaS  EFPAout=1
+   900path  through link 18
+0.000000  SolarP_500W  1180.688196
+0.000000  BatteriesNiCd  3293.632260
+0.000000  Bus_UR  1197.031017
+0.000000  Thermal  9652.150064
+0.000000  Attitude  7474.064410
+0.000000  SolarP_650W  1024.437867
+0.000000  SolarP_900W  739.106058
+0.000000  Bus_QR  1304.382371
+0.000000  BatteriesNiH  240.635996
+0.000000  Bus_FR  101.274461
+0.000000  BatteriesNaS  473.998505
+0.000000  link 8  0.025303
+0.000000  500W-PowerString  287.774699
+0.000000  650W-PowerString  287.405580
+0.000000  900W-PowerString  287.852897
+1.000000  Attitude  0.779210
+2.005020  link 8  0.822104
+4.010020  link 8  0.310979
+6.000000  Attitude  0.603136

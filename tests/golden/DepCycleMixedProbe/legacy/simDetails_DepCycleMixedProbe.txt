@@ -1,0 +1,89 @@
+Begining Procedure RunEFPA......
+
+Casing  EFPAout=1
+   end  through link 6
+Armature  EFPAout=1
+   end  through link 6
+Magnets  EFPAout=1
+   end  through link 6
+Brushes  EFPAout=1
+   end  through link 6
+PowerSupply  EFPAout=1
+   end  through link 6
+10.000000  Brushes  0.547032
+25.000000  Brushes  0.189819
+30.000000  Armature  0.547693
+43.000000  Brushes  0.229431
+58.000000  Armature  0.716614
+73.000000  Brushes  0.086392
+88.000000  Armature  0.285132
+10.000000  Brushes  0.013876
+25.000000  Armature  0.502485
+40.000000  Brushes  0.114413
+55.000000  Armature  0.641070
+70.000000  Brushes  0.469481
+85.000000  Brushes  0.232878
+90.000000  Armature  0.721133
+100.000000  Brushes  0.990557
+10.000000  Brushes  0.058400
+25.000000  Armature  0.777866
+40.000000  Brushes  0.564680
+55.000000  Brushes  0.259693
+60.000000  Armature  0.194424
+70.000000  Brushes  0.833513
+85.000000  Brushes  0.336391
+100.000000  Brushes  0.002777
+10.000000  Brushes  0.642731
+25.000000  Brushes  0.103077
+30.000000  Armature  0.900961
+40.000000  Brushes  0.628188
+55.000000  Brushes  0.539911
+68.000000  Armature  0.898753
+83.000000  Brushes  0.244566
+98.000000  Armature  0.018988
+10.000000  Brushes  0.160650
+25.000000  Armature  0.983778
+40.000000  Brushes  0.255998
+55.000000  Armature  0.969885
+70.000000  Brushes  0.537795
+85.000000  Brushes  0.683194
+95.000000  Armature  0.044380
+100.000000  Brushes  0.813590
+10.000000  Brushes  0.745275
+25.000000  Brushes  0.851257
+40.000000  Brushes  0.336521
+55.000000  Brushes  0.093360
+60.000000  Armature  0.179020
+70.000000  Brushes  0.740849
+85.000000  Brushes  0.232871
+100.000000  Brushes  0.236388
+10.000000  Brushes  0.067578
+25.000000  Armature  0.589354
+40.000000  Brushes  0.062976
+55.000000  Armature  0.246064
+70.000000  Brushes  0.374758
+85.000000  Brushes  0.430696
+95.000000  Armature  0.560653
+10.000000  Brushes  0.051810
+25.000000  Armature  0.147833
+40.000000  Brushes  0.521315
+55.000000  Brushes  0.249773
+60.000000  Armature  0.874552
+70.000000  Brushes  0.950057
+85.000000  Brushes  0.788200
+100.000000  Brushes  0.862548
+10.000000  Brushes  0.644517
+25.000000  Brushes  0.496920
+35.000000  Armature  0.503830
+43.000000  Brushes  0.448578
+58.000000  Brushes  0.861362
+73.000000  Brushes  0.306906
+88.000000  Brushes  0.236295
+93.000000  Armature  0.677224
+10.000000  Brushes  0.730841
+25.000000  Brushes  0.521180
+40.000000  Brushes  0.832988
+55.000000  Brushes  0.676978
+70.000000  Brushes  0.973447
+85.000000  Brushes  0.285380
+100.000000  Brushes  0.294698

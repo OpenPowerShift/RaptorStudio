@@ -1,0 +1,221 @@
+Final_Results_Report for input.rbd  Wed Sep 30 17:02:20 2026
+
+
+Results from 2 runs of sim time 100.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Total_Cost               21463949.26     27418171.93     33372394.60     8420542.46      5954222.67      
+Units_Produced           60508.14        90104.07        119700.00       41854.96        29595.93        
+Mean_Flow                605.081440      901.040720      1197.000000     418.549628      295.959280      
+Mean_Capacity            605.081440      901.040720      1197.000000     418.549628      295.959280      
+Availability             0.316260238     0.468130119     0.620000000     0.214776445     0.151869881     
+MTBDE                    31.000000       31.313012       31.626024       0.442666        0.313012        
+MDT                      19.000000       43.686988       68.373976       34.912673       24.686988       
+Dependability            0.316260238     0.468130119     0.620000000     0.214776445     0.151869881     
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          1               1.500000        2               0.707107        0.500000        
+Cycles_Completed         3               3.333333        3               0.000000        0.000000        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     6.325205        8.329269        10.333333       2.834175        2.004064        
+MTBMu                    6.325205        8.329269        10.333333       2.834175        2.004064        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      19.808090       19.828358       19.848625       0.028662        0.020267        
+MMTu                     19.808090       19.828358       19.848625       0.028662        0.020267        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            5.000000        7.500000        10.000000       3.535534        2.500000        
+Yellow_Percent           26.626024       39.313012       52.000000       17.942111       12.686988       
+Red_Percent              38.000000       53.186988       68.373976       21.477645       15.186988       
+Mission_Green_Percent    5.000000        7.500000        10.000000       3.535534        2.500000        
+Mission_Yellow_Percent   26.626024       39.313012       52.000000       17.942111       12.686988       
+Mission_Red_Percent      38.000000       53.186988       68.373976       21.477645       15.186988       
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+Attitude              Infinite                     0         0.00         0         0.00 
+BatteriesNaS          Cells                        0         0.00         0         0.00 
+BatteriesNiCd         Cells                        0         0.00         0         0.00 
+BatteriesNiH          Cells                        0         0.00         0         0.00 
+Bus_FR                Electronics                  0         0.00         0         0.00 
+Bus_QR                Electronics                  0         0.00         0         0.00 
+Bus_UR                Electronics                  1         1.00         1         0.00 
+HighGain              Infinite                     0         0.00         0         0.00 
+LowGain               Infinite                     0         0.00         0         0.00 
+Nuclear_Reactor       Infinite                     0         0.00         0         0.00 
+SolarP_500W           PhotoVPanels                 2         2.00         2         0.00 
+SolarP_650W           PhotoVPanels                 0         0.00         0         0.00 
+SolarP_900W           PhotoVPanels                 0         0.00         0         0.00 
+Tether-A              Infinite                     0         0.00         0         0.00 
+Tether-B              Infinite                     0         0.00         0         0.00 
+Thermal               Custom                       1         1.00         1         0.00 
+
+
+Custom_Sparing
+
+blockName            InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Thermal                       1.00         0.00         0.00         0.31         1.00         0.00         0.50 
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares    NewSpares     MinStock     AveStock     MaxStock     EndStock    NumDelays
+Cells                         3.00         0.00         3.00         3.00         3.00         3.00         0.00 
+Electronics                   4.00         0.00         3.00         3.37         4.00         3.00         0.00 
+PhotoVPanels                  2.00         0.00         0.00         0.43         2.00         0.00         1.00 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes    EndNumRes    NumDelays
+Astronauts                    5.00         0.00         1.95         5.00         5.00         1.50 
+
+
+
+***CAPACITY***
+
+FlowGenerated                2350
+UnitsProduced            90104.07
+
+FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow
+                             0.00      1448.96      2350.00
+
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+SystemCapacity               0.00       901.04      2350.00         1.00           0.00       901.04      2350.00         0.38   
+
+NodeCapacity
+                          MinFlow      AveFlow      MaxFlow    UsageRate    MinCapacity  AveCapacity  MaxCapacity  CapableRate
+500path                      0.00        50.00       500.00         1.00           0.00        50.00       500.00         0.10   
+650path                      0.00       304.28       650.00         0.47         650.00       650.00       650.00         1.00   
+900path                      0.00       421.32       900.00         0.47         900.00       900.00       900.00         1.00   
+end                          0.00       901.04      2350.00          N/A            N/A          N/A          N/A          N/A   
+n1                           0.00       901.04      2350.00          N/A            N/A          N/A          N/A          N/A   
+Power                        0.00       901.04      2350.00         0.48        1700.00      1885.00      2350.00         0.80   
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier        Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+Attitude                0       15000.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+BatteriesNaS           29       30000.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+BatteriesNiCd          23        5625.00        0.00    12750.00        0.00        0.00        0.00        0.00        0.00 
+BatteriesNiH           26       35000.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Bus_FR                 29       13500.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Bus_QR                 26       12500.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Bus_UR                 23        2175.00    33035.37     1554.86      206.89        0.00        0.00        0.00        0.00 
+HighGain                0           0.00        0.00      159.56        0.00        0.00        0.00      187.25        0.00 
+LowGain                 0         702.20        0.00      159.56        0.00        0.00        0.00        0.00        0.00 
+Nuclear_Reactor         0         100.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+SolarP_500W            23        3375.00    35075.00     1109.33     6015.25        0.00        0.00        0.00        0.00 
+SolarP_650W            26       22500.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+SolarP_900W            29       20000.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Tether-A                0         100.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Tether-B                0         100.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+Thermal                 0         702.20    11208.00        0.00     5807.72        0.00        0.00        0.00        0.00 
+
+Totals                         161379.39    79318.37    15733.32    12029.86        0.00        0.00      187.25        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+Attitude                    0.00        0.00        0.00 
+HighGain                    0.00        0.00        0.00 
+LowGain                     0.00        0.00        0.00 
+Nuclear_Reactor             0.00        0.00        0.00 
+Tether-A                    0.00        0.00        0.00 
+Tether-B                    0.00        0.00        0.00 
+Thermal                  5185.00     2592.50  6344822.00 
+
+Totals                   5185.00     2592.50  6344822.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+Attitude                 6500.00    15000.00        0.00        0.00    21500.00 
+BatteriesNaS             9000.00    30000.00         N/A    12000.00    51000.00 
+BatteriesNiCd            4000.00    18375.00         N/A    10500.00    32875.00 
+BatteriesNiH             8000.00    35000.00         N/A        0.00    43000.00 
+Bus_FR                  11000.00    13500.00         N/A        0.00    24500.00 
+Bus_QR                  12000.00    12500.00         N/A        0.00    24500.00 
+Bus_UR                  10000.00    36972.12         N/A        0.00    46972.12 
+HighGain                 1500.00      346.81        0.00        0.00     1846.81 
+LowGain                   300.00      861.76        0.00        0.00     1161.76 
+Nuclear_Reactor             1.00      100.00        0.00        0.00      101.00 
+SolarP_500W              3125.00    45574.58         N/A        0.00    48699.58 
+SolarP_650W              3125.00    22500.00         N/A        0.00    25625.00 
+SolarP_900W              3125.00    20000.00         N/A        0.00    23125.00 
+Tether-A                    1.00      100.00        0.00        0.00      101.00 
+Tether-B                    1.00      100.00        0.00        0.00      101.00 
+Thermal                 85000.00    17717.92  6352599.50        0.00  6455317.42 
+
+Block_Totals           156678.00   268648.19  6352599.50    22500.00  6800425.69 
+
+________________________________________________________________________________
+
+Event                 InHier    Initial     Success     Failure       Total
+Ground_Control          0          0.00      150.00        0.00      150.00 
+Inspection              0          0.00     1950.00      250.00     2200.00 
+
+Event_Totals                       0.00     2100.00      250.00     2350.00 
+
+________________________________________________________________________________
+
+
+Hierarchy            HierNum    Purchase   Operating     Sparing    Disposal      Events       Total
+500path                23       17125.00   100921.71        0.00    10500.00        0.00   128546.71 
+650path                26       23125.00    70000.00        0.00        0.00        0.00    93125.00 
+900path                29       23125.00    63500.00        0.00    12000.00        0.00    98625.00 
+
+
+____________________________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Cells                    9225.00        0.00        0.00     9225.00
+Electronics             35140.00        0.00        0.00    35140.00
+PhotoVPanels             6250.00     3125.00    50000.00    59375.00
+
+SparePool_Totals        50615.00     3125.00    50000.00   103740.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Astronauts           18750000.00     1131.00   114212.68 18865343.68 
+
+Resource_Totals      18750000.00     1131.00   114212.68 18865343.68 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                6800425.69
+Events                   2350.00
+SparePools             103740.00
+Resources            18865343.68
+SystemDownCost         707386.94
+SystemLostFlowCost     938925.61
+
+________________________________
+Grand_Total          27418171.93
+
+
+

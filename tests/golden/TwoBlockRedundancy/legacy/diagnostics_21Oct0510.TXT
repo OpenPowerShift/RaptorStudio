@@ -1,0 +1,19 @@
+System today String =  Wed Oct 21 05:10:25 2026
+Raptor day month year = 21 Oct 2026
+devVersion 7.0.11 Student
+installPath = c:\program files (x86)\raptor7student\
+fileToOpen = Z:\home\user\raptor_play\tests\golden\TwoBlockRedundancy\input.rbd 
+Screen Width is: 1920
+Screen Height is: 1080
+Resolution assumed to be 1280 X 1024
+Raptor main window initialized......
+Displayed bitmap = IntroStudent.bmp
+Prefs70.cfg opened and read
+SG2 file opened and read
+Paths.cfg opened and read
+
+Opened file Z:\home\user\raptor_play\tests\golden\TwoBlockRedundancy\input.rbd
+Start Pre-Sim AnalysisWed Oct 21 05:11:56 2026
+End Pre-Sim AnalysisWed Oct 21 05:11:56 2026  -No Errors Detected
+StartSimulation  Wed Oct 21 05:12:04 2026
+EndSimulation  Wed Oct 21 05:12:13 2026

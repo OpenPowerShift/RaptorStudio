@@ -1,0 +1,63 @@
+Final_Results_Report for input.rbd  Thu Oct 01 10:24:57 2026
+
+
+Results from 60 runs of sim time 5000.000000:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             0.976843803     0.985171947     0.990858700     0.003252498     0.000419896     
+MTBDE                    75.564854       97.139776       120.609336      9.839788        1.270311        
+MDT                      1.032771        1.443591        2.412104        0.267525        0.034537        
+Reliability              0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+Conditional_Reliability  0.000000000     0.000000000     0.000000000     0.000000000     0.000000000     
+System_Failures          41              51.216667       65              5.139055        0.663449        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     34.834862       42.386157       48.571505       2.766264        0.357123        
+MTBMu                    34.834862       42.386157       48.571505       2.766264        0.357123        
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      10.402326       11.788262       12.821856       0.512047        0.066105        
+MMTu                     10.402326       11.788262       12.821856       0.512047        0.066105        
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            1.677095        54.776955       79.121274       26.344779       3.401096        
+Yellow_Percent           19.507525       43.740239       96.530695       26.309899       3.396593        
+Red_Percent              0.914130        1.482805        2.315620        0.325250        0.041990        
+                                                                                                         
+
+
+
+
+***SPARING***
+
+Spares_Utilization
+
+blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev
+S1B1                  Infinite                     4         7.33        12         1.56 
+S1B2                  Infinite                     0         0.43         3         0.65 
+S1B3                  Infinite                     0         0.12         1         0.32 
+S2B1                  Infinite                     5        11.48        20         2.78 
+S2B2                  Infinite                     5         8.25        11         1.37 
+S2B3                  Infinite                     4         7.32        13         1.87 
+S2B4                  Infinite                     6        10.27        16         2.42 
+S3B1                  Infinite                     9        11.82        15         1.49 
+S3B2                  Infinite                     0         0.00         0         0.00 
+S3B3                  Infinite                     0         0.63         3         0.69 
+S3B4                  Infinite                     7        10.18        17         2.02 
+S4B1                  Infinite                     0         0.22         2         0.49 
+S4B2                  Infinite                     3         9.05        16         2.52 
+S4B3                  Infinite                     0         9.83        17         2.77 
+S5B1                  Infinite                     3         7.18        10         1.37 
+S5B2                  Infinite                     2         8.10        12         1.96 
+S5B3                  Infinite                     2         6.13        11         2.21 
+S6B1                  Infinite                     0         0.25         1         0.44 
+S6B2                  Infinite                     3         8.10        14         1.87 
+
+
+

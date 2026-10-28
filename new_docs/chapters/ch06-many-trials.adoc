@@ -1,0 +1,202 @@
+[[ch-trials]]
+== How Many Trials? Trusting Your Numbers
+
+*Time: about 20 minutes.*
+*New ideas: seeds and repeatability, convergence, the standard error
+(SEM).*
+
+=== You will learn
+
+* Why running the same model twice can give different numbers — and
+  when it cannot.
+* How to watch an estimate settle down as trials pile up.
+* How to use SEM to decide when to stop.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-repair>> finished.
+* `models/Lantern1.rbds` again.
++
+opsmodel:Lantern1[]
+
+=== The story
+
+In <<ch-first-model>>, your ten camping trips gave a reliability somewhere near
+0.4 — maybe 0.3, maybe 0.5. A colleague runs the same model and gets
+a *different* number. Someone asks the awkward question:
+
+> *Which answer is true?*
+
+The honest answer: neither, exactly. Each is a measurement of the same
+underlying truth, made with noisy dice. This chapter turns "trust me"
+into arithmetic.
+
+=== One new idea: seeds make dice repeatable
+
+The engine's randomness is not truly random. Every block's dice come
+from a **seeded generator**: the same seed produces the same sequence,
+always. That gives you two superpowers:
+
+. **Repeatability.** Run the same model with the same settings twice,
+   digit for digit identical results. Engineers debug with this.
+. **Independence between trials.** Each trial keeps drawing from the
+   stream, so trial 2 differs from trial 1 — like re-dealing a deck.
+
+There is a third superpower worth knowing about even before you need
+it: **fair comparisons.** If you want to know whether a design change
+actually helped, run the old and the new model on the *same* seeds.
+Sharing seeds is called *common random numbers* — both models see the
+same run of "luck", so the difference between their results is the
+change you made, not noise. Comparing two designs on independent seeds
+buries a real effect under sampling noise that a shared seed removes
+for free.
+
+=== Watching the wobble shrink
+
+Run `Lantern1.rbds` with these run counts: 10, then 50, then 200, then
+1000 (set *Trials* in the **Run** panel each time — the dock at the
+bottom of the window, next to Results). Note Reliability (Mean) after
+each run:
+
+[cols="4,4",options="header"]
+|===
+|Trials |What you see
+|10 |jumps around: 0.2 … 0.6 depending on the day
+|50 |still moves, but less
+|200 |usually within ±0.05 of the truth
+|1000 |pinned near 0.38
+|===
+
+image::runs_converge.svg[The estimate wobbles early, then settles]
+
+The purple line is the running answer as trials accumulate; the red
+dashed line is the long-run truth (about 0.38). Early estimates are
+wild because one trip is 10% of the whole sample at ten trials. At a
+thousand trials, one trip barely moves the needle.
+
+This pattern has a name: **convergence**. Simulation does not remove
+uncertainty — it shrinks it in a predictable way.
+
+=== One more idea: let the report tell you when to stop
+
+Open *Final Results* after any run and find the summary table. The
+last column of the statistics block is **SEM** — standard error of the
+mean. Read it as the size of your remaining doubt:
+
+> *Answer ≈ Mean, plus or minus about 2 × SEM.*
+
+For a proportion like reliability, SEM ≈ √(p(1−p)/n), where n is the
+number of trials. Two consequences worth memorizing:
+
+* 4× more trials → 2× smaller error. Precision costs square law rent:
+  the last decimal place is always the most expensive.
+* Decide your tolerance first. "I need reliability within ±0.02" sets
+  n for you; do not guess it.
+
+[TIP]
+====
+A good habit: run small, look at SEM, multiply trials until 2 × SEM
+is inside your tolerance. For engineering decisions, ±0.03 on
+reliability is often plenty — your failure data itself was never that
+clean.
+====
+
+=== One more warning: "±2×SEM" gets worse near the edges
+
+The Mean ± 2×SEM interval is a *normal approximation* — it assumes the
+estimate's own uncertainty looks like a bell curve. That is a fine
+assumption when the answer is somewhere in the comfortable middle, say
+0.3 to 0.7. It quietly breaks down near 0 or 1 — exactly where a
+"99.98% availability" target lives. Chasing a rare event (a four-nines
+target is really asking the simulator to pin down a probability near
+10⁻⁴) needs *dramatically* more trials than chasing an ordinary one:
+halving the target unavailability roughly doubles the trials needed
+for the same relative precision. The
+xref:../docs/formulas.html#rare-events[Formulas quick reference] has
+the trial counts by target; the data centre in the book's capstone runs
+straight into this problem.
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |You double your trials from 400 to 1600. What happens to the SEM?
+|2 |Same model, same file, run twice: why are the outputs identical?
+|3 |Your result is 0.75 with SEM 0.01. State your confidence interval.
+|===
+
+.Answers
+[%collapsible]
+====
+. It halves. SEM shrinks with the square root of trials: 4× trials,
+   2× error.
+. The dice are seeded generators: the same seed replays the same
+   sequence, so the run is exactly repeatable.
+. 0.75 ± 0.02, that is, roughly 0.73 to 0.77.
+====
+
+=== Using every core
+
+More trials cost time, and a modern computer has several processor
+cores. *Run* uses them: with *Animate* off it runs at full speed in the
+background, splitting the trials across the cores shown in the *Cores*
+box beside it on the Simulate tab ("8 of 8": automatic uses them all).
+The same count is in the status bar
+and in the Run panel's ready line.
+
+image::simulate-cores.png[The Simulate tab: Run, Animate, Trials and the Cores box reading 8 of 8]
+
+*Animate* is the other way to run: one core, every event drawn on the
+diagram as it happens. Its numbers are the exact sequence Raptor 7
+produces. A full-speed run gives each slice of trials its own fresh
+dice, so its numbers differ slightly from the one-core run, but they
+are statistically the same answer, and the same on any machine
+whatever the *Cores* setting. To repeat a result exactly, run it the
+same way again.
+
+=== Asking "what if?": Sweep and Compare
+
+Two buttons in Simulate ▸ Batch run the model many times at full speed,
+on a copy (the open model is never changed):
+
+* *Sweep* changes one number over a range — a block's MTBF, a rate,
+  how many paths a k-of-n node needs — runs the model at each value and
+  plots the result with its ±2×SEM band. Sweep a rate to move every
+  block that uses it at once.
+* *Compare* runs this model beside other model files with the same
+  number of trials, and puts the results side by side with the best
+  value in each row in bold.
+
+Both show the trials and cores they will use before you press *Run*,
+and both export a CSV.
+
+image::sweep-dialog.png[Sweeping Pump_A's mean time to failure from 200 to 600 hours: availability rises, with its ±2×SEM band]
+
+=== Exercise
+
+Take `Espresso1.rbds`. Your boss needs season-survival probability to
+±0.02. Start at 25 trials and grow the count until 2 × SEM ≤ 0.02.
+Record how many trials it took. Compare with a classmate: did you both
+land near the same count?
+
+.Answer
+[%collapsible]
+====
+Expect a few hundred trials — typically 300–600. Different
+people stop at slightly different counts; both answers sit inside
+±0.02 of the same truth (about 0.37).
+====
+
+=== What you learned
+
+* Seeded generators give exact repeatability plus fresh dice per trial.
+* Estimates converge; error shrinks with the square root of trials.
+* SEM converts "looks stable" into "known to ±this much".
+* Run uses every core; Animate is the one-core run you watch;
+  Sweep and Compare ask "what if?" at full speed.
+
+You now have the core toolkit: structure (<<ch-first-model>>–<<ch-voting>>),
+failure physics (<<ch-distributions>>), repair economics
+(<<ch-repair>>), and statistical honesty (this chapter). The next
+chapters put that toolkit to work on logistics, standby, maintenance,
+and whole systems.

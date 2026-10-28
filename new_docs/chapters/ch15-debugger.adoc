@@ -1,0 +1,211 @@
+[[ch-debugger]]
+== The Stepping Debugger: Watch the Machine Think
+
+*Time: about 30 minutes.*
+*New ideas: the stepped run, breakpoints, Run To, forcing failures
+on a paused simulation.*
+
+=== You will learn
+
+* How to run a simulation one event at a time and what each event
+  does to the picture.
+* How breakpoints and Run To tame a long mission.
+* How to sabotage a healthy model mid-flight — and watch the cascade.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-standby>> finished (the bakery returns for a cameo).
+* The file `models/Bakery1.rbds`.
++
+opsmodel:Bakery1[]
+
+=== The story
+
+Everything so far ran in the dark: you pressed Run, and minutes of
+simulated life rushed past as a finished report. But sometimes you
+want to *watch*. Why did the system go red at 181 hours? What exactly
+happened in the half-second the transfer switch was thinking?
+
+RAPTOR Studio has a debugger, the same way program editors do. You
+step. The machine advances one event. The diagram re-colours. The
+status bar narrates. You are watching the simulation think.
+
+=== Step into the bakery
+
+Open `models/Bakery1.rbds` and switch the ribbon to the **Debug**
+tab. Ignore **Run** on the Simulate tab — that is the old batch world.
+Press **Step** (F6) instead:
+
+image::step-ribbon.png[The Debug ribbon mid-session: Main_Oven down, standby carrying]
+
+The first press does something subtle and important: it *starts* the
+run — every block initialised, the standby oven parked in its blue
+Standby slot — but the clock still reads 0.000000. Nothing has
+*happened* yet. Three event-log lines, no time elapsed.
+
+image::step-start.png[After the first Step press: kickoff at t = 0, both ovens green, nothing has happened yet]
+
+Press **Step** again. And again. Each press advances exactly *one
+event*: a block's state change, a node's recalculation, a system
+colour change. Watch three things move together:
+
+* the **diagram** — blocks re-colour live: green running, red
+  repairing, blue standby;
+* the **event log** in the Results dock — one new coloured row per
+  press, the same rows <<ch-redundancy>> taught you to read;
+* the **status bar** — plain words about the event you just witnessed,
+  e.g. `Node end → Bad  (t = 180.974304)`.
+
+Step about thirty times and you reach the moment <<ch-standby>> made
+famous: `Main_Oven Failed` at t = 180.974304. The oven's box turns
+red, the swap node goes Bad, the **end** dot goes red, the system
+line logs `State_change Red`:
+
+image::step-fail.png[Main_Oven Failed at t = 180.974304: red block, blue standby ready, end node down]
+
+Half an hour of model time later, the
+next step wakes `Standby_Oven` — its box shifts from blue standby to
+green running, the end dot returns to life, and the system, still
+yellow until the main oven is repaired, limps on. You have now
+*witnessed* the wake-up gap that <<ch-standby>> only reported as a number.
+
+[NOTE]
+====
+The replay is honest. The stepped session uses the same seeded dice
+streams as a one-core batch run (Animate, or Cores set to 1), so this
+bakery fails its main oven at exactly t = 180.974304 — the same instant
+as run 1 of a 20-run batch run that way. Nothing
+is staged; you are watching run 1 from the inside.
+====
+
+=== Taming the long stretches
+
+Thirty presses to the first failure is fine. Three thousand would
+not be. Open the **More Steps** menu on the Debug ribbon for the bigger
+levers:
+
+* **Multi** — advance a whole batch of events at once. How many is set
+  in the **Run** panel's *Stepping* section (10 by default). The
+  diagram jumps to the end state.
+* **Run to time** — advance until the clock reaches a target time, also
+  set in the Run panel. "Run to 720" is the whole mission in one press.
+* **Breakpoint** — pick a block in the Run panel's *Breakpoint on*
+  field (say, `Power`) and stepping stops dead the instant that block
+  enters Repairing. This is the classic debugger breakpoint, aimed at
+  hardware.
+
+A comfortable rhythm: Run to time just before the interesting era, then
+single-step through the drama.
+
+=== Sabotage: Failure Effects View
+
+The **Debug** ribbon tab also has a **Failure Effects** group. It is a
+separate mode, not part of a stepped run: press **Failure Effects** and
+the diagram shows the bakery all-operating with no dice involved. Click
+`Power` and it turns red -- a blackout at a time of your choosing, with
+the cascade and the end dot following at once. This is the simulator's
+version of pulling a breaker to see what the building does. Click it
+again to put it back; **Status** says in words what is failed, what that
+induced, and which nodes are down or degraded.
+
+A stepped run in progress is discarded when you open the view (it asks
+first), and Run and Step are greyed out until you leave it.
+
+To end a stepped run, press **Finish**. The session completes the run — remaining
+events, closing bookkeeping — and then every later run the model is set
+to make, and presents the full reports, exactly like a batch run:
+summary, event log, the works. A stepped session covers all the model's runs: **Jump** lets the current run go by without stopping and pauses at
+the next run's first change, with the dice carried on from where the run before left them.
+The session is single-use; the next Step starts a fresh one with fresh dice.
+
+.Limits of this model — verification is not validation
+[NOTE]
+====
+Everything in this chapter proves one thing: the simulation does
+exactly what you told it to do. That is called **verification** — and
+it is genuinely valuable; every earlier chapter's numbers are only
+trustworthy because the engine underneath them behaves as documented.
+But it answers a different question from **validation**: does the
+*model itself* match the real bakery? Stepping through a perfectly
+executed run of the wrong assumptions just shows you the wrong
+assumptions in slow motion. Use the debugger to confirm the model does
+what you built it to do; use field data, and a healthy skepticism
+about every "Limits of this model" box in this book, to confirm you
+built the right model in the first place.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |What does the *first* Step press do that no other press does?
+|2 |You step to t = 180.97, finish the session, and start stepping
+again from the same model. Does Main_Oven fail at the same instant?
+Why or why not?
+|3 |Why does a breakpoint on `Standby_Oven` fire so rarely compared
+with one on `Main_Oven`?
+|===
+
+.Answers
+[%collapsible]
+====
+. It builds the session: every block initialised, the standby parked,
+   the clock still at 0.000000 — the kickoff without a single tick of
+   model time.
+. Yes — the dice streams are seeded, so the fresh session replays
+   run 1 exactly: Main_Oven fails at t = 180.974304 again. (Change
+   the model's seed and the story changes; change nothing and it
+   never does.)
+. The breakpoint fires when the chosen block *enters Repairing*.
+   Main_Oven fails often (it is the active oven, wearing out on every
+   loaf); Standby_Oven only "fails" in the debugger's sense if it
+   breaks while it is the one carrying the load — a rare event,
+   because it spends its life parked in standby.
+====
+
+=== Exercise
+
+Load `models/DC1.rbds`, set a breakpoint on `Utility_A`, and press
+Multi with 50 events per press until the breakpoint fires. Then
+single-step through the transfer: count the event-log lines between
+`Utility_A Failed` and `Generator` waking. That count — each line a
+state change somewhere in the facility — is what a batch run
+summarises in one red stretch. Note the moment `Power_sub` goes Bad
+and the moment the system goes Red: same instant, one cascade.
+
+.Answer
+[%collapsible]
+====
+Your exact count depends on where in the year the breakpoint caught the
+outage, so there is no single number to check against — the *shape* is
+the point. Expect a short burst of lines all stamped with the same
+instant: `Utility_A` failing, the ATS node losing its live input,
+`Power_sub` going Bad, the system turning Red — and then, one transfer
+delay later, `Generator` waking and the whole chain unwinding back to
+Green. Everything except the generator's wake-up shares one timestamp,
+which is what "same instant, one cascade" means: the engine did not
+advance the clock at all while the consequences propagated. A batch run
+prints none of this. It prints one downtime stretch as long as the
+transfer delay, and the several state changes you just stepped through
+are exactly what got summarised away.
+====
+
+=== What you learned
+
+* The debugger runs one real event per press, re-colouring the
+  diagram and narrating in the status bar — the event log, live.
+* Multi, Run To, and breakpoints let you jump to the interesting
+  part of a mission instead of stepping through years of quiet.
+* Fail and Repair force transitions on a paused model —
+  cause-and-effect experiments with the dice removed.
+* Finish turns the stepped session into ordinary reports; sessions are
+  single-use, and the replay matches the batch run for run. Jump moves
+  on to the next run.
+
+That is the whole toolbox: dice, diagrams, redundancy, standby,
+maintenance, hierarchy, dependency, events, phasing, capacity, money,
+weak links, a facility tuned to a standard, a line that paid for its
+own spares — and now a window into the machine itself.
+
+One capstone is left, and it is the hardest of the three: this time,
+nobody hands you the model.

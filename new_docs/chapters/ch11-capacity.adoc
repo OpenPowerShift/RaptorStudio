@@ -1,0 +1,192 @@
+[[ch-capacity]]
+== Capacity: The Thirsty Town
+
+*Time: about 30 minutes.*
+*New ideas: flow and demand, nominal vs. maximum pipe size,
+lost flow, why availability can look perfect while the system
+is quietly failing.*
+
+=== You will learn
+
+* How capacity analysis differs from the up/down world of earlier
+  chapters.
+* What *nominal* and *maximum* flow mean on a link, and how the
+  engine fills them.
+* The number availability cannot see: *lost flow*.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-hierarchy>> finished.
+* The file `models/Water1.rbds`.
++
+opsmodel:Water1[]
+
+=== The story
+
+A small town drinks 180 megalitres of water per hour, pumped through
+three pipes from the wells to the manifold. Heat wave: the demand is
+*more than any two pipes can carry*. The pipes themselves almost
+never break — but pipes have sizes, and sizes are numbers, and
+numbers can be compared with thirst.
+
+This is a new kind of question. Until now a part was alive or dead.
+Now we ask: *how much gets through?*
+
+=== Two numbers per pipe
+
+Open the model. Three pumps fan out from **start**, meet at the
+**Manifold**, and flow on to **end**:
+
+image::water-loaded.png[Water1: three pipes into the manifold]
+
+Each pipe (the link from its pump into the Manifold) carries two
+numbers:
+
+* **Nominal flow** — what the pipe is *meant* to carry in normal
+  service. The town's pipes are rated 30, 30, and 50.
+* **Max flow** — the hard ceiling in an emergency. Here 50, 60,
+  and 80. All three ceilings together: 190 — barely more than the
+  town's 180.
+
+The engine fills every pipe to its *nominal* first. If demand is
+still unmet, the leftover is *spilled* into the pipes' headroom, best
+pipe first, until the ceilings are reached or the thirst is quenched.
+Whatever thirst remains is **lost flow** — and lost flow is money
+(<<ch-cost>> will bill for it).
+
+[NOTE]
+====
+Capacity lives on *links*, not on blocks. A pump that is down simply
+makes its pipe unusable; the pipe's size is a property of the
+connection. In the `.rbds` file you can see the three numbers on each
+link's row (`CapPri`, `nomFlow`, `MaxFlow`); a fresh link drawn in
+the GUI starts as "share everything evenly".
+====
+
+=== Open the model
+
+Load `models/Water1.rbds`. In **Model → Project Settings** notice
+two settings that were never there before:
+
+* **Flow generated: 180** — the demand, offered at the start every hour.
+* **Capacity analysis: checked** — tells the engine to track flow,
+  not just up/down.
+
+=== Run it
+
+Run **200 trials** of the 8760-hour mission (one year). The summary
+still opens with the old friends:
+
+[cols="4,2",options="header"]
+|===
+|Measure |Result
+|Availability |about 0.9999
+|Reliability |about 0.94
+|Units produced |about 1 514 000
+|Mean flow |about 173 of 180
+|===
+
+Availability looks *perfect* — and that is exactly the trap. The
+system is "up" whenever any path from start to end exists; with three
+pumps, that is nearly always. Meanwhile the town lost about 63 000
+megalitres over the year — roughly one day in twenty, drained away
+into *yellow* time that availability cannot see.
+
+The new **Capacity** section of the end-of-run report tells the real
+story. The system's maximum deliverable flow is 190 when all pumps
+run. Watch what one failure costs, straight from the run-1 log:
+
+[cols="3,2,2",options="header"]
+|===
+|Event |Flow now |Lost per hour
+|All pumps up |180 |0
+|Pump_A down |140 |40
+|Pump_B down |130 |50
+|Pump_C down |110 |70
+|===
+
+The *biggest* pipe causes the *biggest* thirst when it dies. Sizing
+redundancy by "any two cover it" hides this: 140, 130, 110 all sound
+fine until you remember the town wants 180 every single hour.
+
+[TIP]
+====
+The health bar now earns its keep: **yellow** means "delivering, but
+short". Over the year the model sits in yellow about 13% of the time
+and in red essentially never (about 0.007% — all three pumps down at
+once). If your study only counts red, it misses the entire drought.
+====
+
+.Limits of this model
+[NOTE]
+====
+Flow in this model is instantaneous and has no memory: the moment
+Pump_A dies, the town immediately gets less water, and the moment it
+is fixed, full flow is immediately restored. Real water systems have a
+reservoir that buffers a short outage, and pumps that take minutes to
+ramp back to full pressure rather than switching on like a light. A
+town with real storage would lose noticeably less than this model's
+63 000 megalitres; a model built to size that storage would need to
+add it explicitly — capacity analysis here answers "what got through
+the pipes this instant," not "what's in the tank."
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |The year's availability is 0.9999. Why is this number nearly
+useless for the water company?
+|2 |Demand is 180 and the three ceilings sum to 190. Why does the
+model still lose water in a year when nothing fails twice?
+|3 |Nominal flow is 30 on Pump_A's pipe and its ceiling is 50. When
+does the extra 20 get used?
+|===
+
+.Answers
+[%collapsible]
+====
+. Because the town is almost never *down* — a path from wells to
+   manifold exists even with a pump out, so the red-light measure
+   stays at 0.9999 while the water company is quietly shorted by
+   about 4%. Availability counts stoppages; capacity analysis counts
+   thirst.
+. The 190 total is the sum of the *ceilings*, but demand is offered
+   continuously: whenever one pump is down (about 13% of the year
+   collectively), the survivors' ceilings of 130–140 sit far below
+   the 180 wanted. Each single outage spills 40–70 units per hour,
+   and those hours add up to the ~63 000 lost over the year.
+. During the spill phase. Every pipe is first filled to its nominal
+   (30); only after all nominals are satisfied does the leftover
+   demand flow into Pump_A's headroom up to its ceiling of 50.
+====
+
+=== Exercise
+
+The council upsizes Pump_C's pipe: nominal 60, max 100 (edit the
+`nomFlow`/`MaxFlow` columns of that link in `Water1.rbds`, or ask for
+the updated file). Before running: predict the new lost-per-hour when
+each single pump is down. Then run and check. Which pump's failure
+hurts most now — and is the answer still the biggest pipe?
+
+.Answer
+[%collapsible]
+====
+With Pump_C's pipe at nominal 60 / max 100, the ceilings
+are 50 + 60 + 100 = 210. One pump down: Pump_A out → 60 + 100 = 160
+(lose 20); Pump_B out → 50 + 100 = 150 (lose 30); Pump_C out →
+50 + 60 = 110 (lose 70). The biggest pipe still hurts most — upsizing
+a dominant pipe does nothing for the case when *it* fails.
+====
+
+=== What you learned
+
+* Capacity analysis tracks *how much* flows, not just whether the
+  path exists.
+* Links carry nominal (soft target) and max (hard ceiling) flow;
+  nominal fills first, leftovers spill to the ceiling.
+* Lost flow is the drought availability cannot see — a system can
+  score 0.9999 and still short the town by four percent.
+
+Next chapter: put a price tag on every failure, every repair, and
+every lost megalitre.

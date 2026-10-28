@@ -1,0 +1,35 @@
+Raptor day month year = 10 Oct 2026
+devVersion= 7.0.11 Student
+Domain Tree for input.rbd
+
+nd end
+   nd n1
+      bl Attitude
+   nd Power
+      bl Nuclear_Reactor
+      ev Inspection
+      hr 500path
+         nd 500path
+            bl SolarP_500W
+            bl BatteriesNiCd
+            bl Bus_UR
+      hr 650path
+         nd 650path
+            bl SolarP_650W
+            bl BatteriesNiH
+            bl Bus_QR
+      hr 900path
+         nd 900path
+            bl SolarP_900W
+            bl BatteriesNaS
+            bl Bus_FR
+      nd n37
+         ev Ground_Control
+      nd n38
+         bl Tether-A
+         bl Tether-B
+   nd n2
+      bl Thermal
+   nd Comm
+      bl LowGain
+      bl HighGain

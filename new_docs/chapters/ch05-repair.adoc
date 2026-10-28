@@ -1,0 +1,195 @@
+[[ch-repair]]
+== Repair: The Vending Machine That Keeps Getting Up
+
+*Time: about 25 minutes.*
+*New ideas: repair distributions, availability versus reliability,
+MTBDE, MDT.*
+
+=== You will learn
+
+* How to give a block a repair rule.
+* Why *availability*, not reliability, is the right measure when things
+  get fixed.
+* What MTBDE and MDT tell you about your maintenance game.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-distributions>> finished.
+* The file `models/Vendo1.rbds`.
++
+opsmodel:Vendo1[]
+
+=== The story
+
+A soda vending machine stands on a school corridor. It has two parts
+that matter:
+
+* the **Compressor** — fails about every 400 hours, but the repair
+  technician fixes it in about 4 hours,
+* the **Keypad** — fails about every 600 hours, and the replacement
+  part ships slowly: a fixed 12 hours of waiting.
+
+The machine serves for a full school year: **8760 hours**. It *will*
+break many times — that is fine. The question is not "will it fail?"
+but *"how much of the year is it actually selling soda?"*
+
+=== One new idea: the repair rule
+
+Until now, every block had Repair = None: die once, stay dead. Real
+machines get repaired. Give a block a **repair distribution** and the
+engine sends it to a repair queue when it fails:
+
+. Block fails. The event log writes `Failed`, then `Repairing`.
+. The engine rolls the repair dice for the fix duration.
+. The block returns to service and starts a fresh failure clock.
+
+Open `models/Vendo1.rbds` and its **Data Tables** panel (<<ch-first-model>>'s
+spreadsheet-like view of every block, one row each):
+
+image::vendo-data-tables.png[Data Tables dock: Vendo1's blocks, fail and repair distributions in one grid]
+
+The same numbers, read off that grid:
+
+[cols="3,2,2,2,2,2",options="header"]
+|===
+|Block |Fail dist |F P1 |Repair |R P1 |R P2
+|Compressor |Exponential |400 |Lognormal |4 |1.5
+|Keypad |Exponential |600 |Fixed |12 |—
+|===
+
+Mission: stop at **8760 hours**, 20 trials.
+
+=== Run it and meet the numbers
+
+Press F5. The Results *Overview* tab now shows the repair-era metrics
+(image from a 20-trial run):
+
+image::vendo-results.png[Vendo1 results: availability, MTBDE, MDT]
+
+[cols="3,5",options="header"]
+|===
+|Metric |Meaning
+|Availability |fraction of the year the machine sells soda (here about 0.97)
+|MTBDE |Mean Time Between Downs — about 237 hours between full stoppages
+|MDT |Mean Down Time — about 7 hours per stoppage
+|System Failures |about 35 stoppages per year
+|===
+
+Sanity check: 35 stoppages × 7 hours ≈ 245 down hours ≈ 2.8% of the
+year. Availability ≈ 97.2%. The numbers agree with each other — a habit
+worth copying.
+
+=== Reliability vs availability: the exam question
+
+Scroll to the *Final Results* tab. **Reliability is 0.00.** Correct!
+The chance of surviving a whole year without a single stoppage is
+essentially zero.
+
+This is the most common beginner mistake in reliability work:
+
+[cols="2,4,4",options="header"]
+|===
+| |Reliability |Availability
+|Question |"Did it run non-stop to the end?" |"What fraction of time did it work?"
+|Right when |failure is one-shot (spacecraft, fire alarm) |repair exists (cars, servers, vending machines)
+|Our vending machine |0.00 |0.97
+|===
+
+A machine with reliability 0.00 and availability 0.97 is a *good*
+machine. A fire alarm with those numbers is a criminal offense. Pick
+the measure that matches the mission.
+
+[TIP]
+====
+Two levers raise availability: fail *less often* (better parts,
+redundancy — <<ch-redundancy>>, <<ch-voting>>) or stay down *less long* (faster repairs,
+spares on the shelf). MDT tells you which lever is yours to pull. Here
+the 12-hour keypad wait is the biggest single contributor.
+====
+
+=== One more idea: five letters that get mixed up constantly
+
+MTBDE and MDT are *system*-level numbers — this report's own words for
+"how the whole vending machine behaves". Reliability conversation also
+uses three *component*-level letters, and confusing the two levels is
+the most common mix-up in the field:
+
+[cols="2,5",options="header"]
+|===
+|Term |Meaning
+
+|MTTF
+|Mean Time To Failure — one part's own average life (the Compressor's
+Exponential mean, 400 h, *is* its MTTF)
+
+|MTTR
+|Mean Time To Repair — one part's own average fix time (the Keypad's
+Fixed 12 h *is* its MTTR)
+
+|MTBF
+|Mean Time Between Failures — MTTF + MTTR for one repaired part, so
+it only equals MTTF when repair is instant
+|===
+
+The system's MTBDE is *not* the smallest component's MTBF, and it is
+not their sum either — it depends on the whole diagram (series parts
+each contribute a chance to bring the system down; redundant parts
+mostly don't). Reach for the exact formulas in the
+xref:../docs/formulas.html[Formulas quick reference] rather than
+guessing from a part's datasheet number.
+
+.Limits of this model
+[NOTE]
+====
+This model assumes a repair technician (or a replacement keypad) is
+available the instant a part fails — there is no queue, no waiting for
+a busy crew, no competition with other machines in the corridor for
+the same spare part. <<ch-sparing>> starts to relax that assumption by
+giving a part its own private stock of spares; a shared repair crew or
+a shared spares warehouse across many machines needs the Resource
+pooling this book only mentions in passing.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |Availability is 0.97 for a 8760-hour year. Roughly how many hours
+was the machine down?
+|2 |Why is reliability the wrong headline number here?
+|3 |Which repair in this model is deterministic, and how do you know
+from the table?
+|===
+
+.Answers
+[%collapsible]
+====
+. About 260 hours (3% of 8760).
+. Because the machine is repaired and will surely fail sometime in a
+   year; the useful question is what fraction of time it works.
+. The Keypad: its repair is *Fixed*, one number, 12 hours, no spread.
+====
+
+=== Exercise
+
+Buy a spare keypad so repairs take 2 hours instead of 12: change the
+Keypad's Repair Param 1 from `12` to `2`. Predict the new availability
+*before* running. Run 100 trials. Was the spare shelf worth it?
+
+.Answer
+[%collapsible]
+====
+Availability rises to roughly 0.985–0.99. The keypad's share
+of downtime shrinks by a factor of 6, so MDT drops from about 7 hours
+to about 4 and the machine sells soda nearly all year.
+====
+
+=== What you learned
+
+* A repair distribution turns a one-death story into a break–fix loop.
+* Availability measures time-working fraction; reliability measures
+  no-break-at-all odds.
+* MTBDE and MDT split the problem into "fails too often" versus
+  "stays down too long".
+
+Next chapter: how many trials make a number you can trust.

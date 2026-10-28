@@ -1,0 +1,49 @@
+= Dependency back-flow
+:toc: macro
+
+`raptor/core/engine/dependency.py`, `cascade_dependency.py` · Raptor 7: `BackFlowDependencies`, `ResendBackFlow`, `DetermineNewState`'s "Maintenance Completed"
+
+toc::[]
+
+== Purpose
+
+A block, node, event or hierarchy can be *followed* by blocks. When what they follow goes down (fails or enters PM), each follower reacts according to its percentages: go Idle (pause its failure clock), do nothing, go to PM, or fail. When the followed thing comes back up, followers resume. A follower can follow the whole system, its own node, or a named element.
+
+== Source anchors
+
+[cols="3,3,4",options="header"]
+|===
+| Source | Port | Notes
+| `BackFlowDependencies` | `dependency.back_flow_dependencies`, `back_flow_dependencies_from_node` | Decides *which* blocks change and in what order; the transition itself is a callback
+| `ResendBackFlow` | `dependency.resend_back_flow` | Re-issues the Down dispatch after a cold survey
+| "Maintenance Completed" | `dependency.repair_completion_status` | A second, independent mechanism: on the dependent's own repair completion, ask whether the target is up
+| The percentage draw | `dependency.draw_dependency_action` | One draw from the system stream per dispatch
+|===
+
+== Structure
+
+[mermaid]
+....
+flowchart TD
+    down["target goes Down / AllUp / NodeStandby"] --> who["followers of the target"]
+    who --> each{"follower state"}
+    each -->|"Running or Standby"| pct["draw: idle / nothing / PM / induced failure"]
+    each -->|"Idle, Down, Done ..."| skip["no reaction"]
+    pct -->|idle| idle["transition to Idle, wake the block"]
+    pct -->|PM| pm["OBPM wake: block decides against its threshold"]
+    pct -->|fail| fail["Induced_Failure wake"]
+    up["target repaired"] --> back["AllUp: Idle followers resume"]
+    done["a dependent finishes its own repair"] --> rcs["repair_completion_status:<br/>Running if the target is up, Idle if down"]
+....
+
+A dispatch reacts only while the follower is Running or Standby, so a Down cannot chase itself round a loop; and a repair completion treats an Idle target as up. That is why a dependency cycle resolves instead of deadlocking (`DepCycle*Probe`, `DepSelfProbe`, all real-captured). Cycles earn a validation warning, not a refusal.
+
+== Port-only devices and deliberate deviations
+
+* A dependent block runs the ordinary `BlockProcess` (since 2026-09-30). A dependency is only a source of `Dependence_*` wakes; the old simpler generator had ordering, spare-cost and phase-stress differences from real.
+* The block-to-block and node-to-block dispatches share one function; only the trigger and the target's status differ.
+* `repair_completion_status` returns `(status, needs_recheck)`: the node special case (`GetDownNum`) must apply Running first and look again after that transition's cascade.
+
+== Tests and fixtures
+
+`tests/unit/test_dependency.py`, `test_dep_pm_events.py`; captures `BlockDependency`, `Ch07Dependent`, `DepBlockPmObpmProbe`, the `Dep*Probe` set and the five cycle probes.

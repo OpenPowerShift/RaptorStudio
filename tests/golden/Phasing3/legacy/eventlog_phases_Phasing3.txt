@@ -1,0 +1,28 @@
+Event_Log 	for 	input.rbd	 	Sat Oct 10 11:49:54 2026
+
+
+4.940641          	System   	Phase_change          	Phase_change     	Begin_phase_D076-150_Orbit
+9.888448          	System   	Phase_change          	Phase_change     	Begin_phase_D151-225_Orbit
+14.730927         	System   	Phase_change          	Phase_change     	Begin_phase_D226-300_Orbit
+19.700207         	System   	Phase_change          	Phase_change     	Begin_phase_D301-360_Orbit
+19.700207         	System   	Phase_change          	Mission_success  	Finished_a_mission
+23.050659         	System   	Phase_change          	Phase_change     	Begin_phase_D000-075_Orbit
+23.050659         	System   	Phase_change          	Mission          	Began_a_mission
+27.992052         	System   	Phase_change          	Phase_change     	Begin_phase_D076-150_Orbit
+33.095366         	System   	Phase_change          	Phase_change     	Begin_phase_D151-225_Orbit
+38.140145         	System   	Phase_change          	Phase_change     	Begin_phase_D226-300_Orbit
+43.141487         	System   	Phase_change          	Phase_change     	Begin_phase_D301-360_Orbit
+43.141487         	System   	Phase_change          	Mission_success  	Finished_a_mission
+
+5.001797          	System   	Phase_change          	Phase_change     	Begin_phase_D076-150_Orbit
+10.169171         	System   	Phase_change          	Phase_change     	Begin_phase_D151-225_Orbit
+15.191247         	System   	Phase_change          	Phase_change     	Begin_phase_D226-300_Orbit
+20.228776         	System   	Phase_change          	Phase_change     	Begin_phase_D301-360_Orbit
+20.228776         	System   	Phase_change          	Mission_success  	Finished_a_mission
+24.195634         	System   	Phase_change          	Phase_change     	Begin_phase_D000-075_Orbit
+24.195634         	System   	Phase_change          	Mission          	Began_a_mission
+29.236526         	System   	Phase_change          	Phase_change     	Begin_phase_D076-150_Orbit
+34.159421         	System   	Phase_change          	Phase_change     	Begin_phase_D151-225_Orbit
+39.191702         	System   	Phase_change          	Phase_change     	Begin_phase_D226-300_Orbit
+44.159302         	System   	Phase_change          	Phase_change     	Begin_phase_D301-360_Orbit
+44.159302         	System   	Phase_change          	Mission_success  	Finished_a_mission

@@ -1,0 +1,39 @@
+Final_Results_Report for Events.rbd  Fri Aug 14 22:34:34 2026
+
+
+Results from 1000 runs to 1 failure:
+
+***SUMMARY***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+Availability             1.000000000     1.000000000     1.000000000     0.000000000     0.000000000     
+MTBDE                    N/A             N/A             N/A             N/A             N/A             
+MDT                      N/A             N/A             N/A             N/A             N/A             
+Reliability              0.000000000     0.866000000     1.000000000     0.340822769     0.010777762     
+Conditional_Reliability  0.000000000     0.866000000     1.000000000     0.340822769     0.010777762     
+Ending_Sim_Time          0.000000        0.000000        0.000000        0.000000        0.000000        
+
+
+
+
+
+***LOGISTICS***
+
+                         Minimum         Mean            Maximum         St.Dev          SEM
+MTBM                     N/A             N/A             N/A             N/A             N/A             
+MTBMu                    N/A             N/A             N/A             N/A             N/A             
+MTBMs                    N/A             N/A             N/A             N/A             N/A             
+MMT                      N/A             N/A             N/A             N/A             N/A             
+MMTu                     N/A             N/A             N/A             N/A             N/A             
+MMTs                     N/A             N/A             N/A             N/A             N/A             
+Green_Percent            N/A             N/A             N/A             N/A             N/A             
+Yellow_Percent           N/A             N/A             N/A             N/A             N/A             
+Red_Percent              N/A             N/A             N/A             N/A             N/A             
+                                                                                                         
+
+
+
+
+
+
+

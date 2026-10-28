@@ -1,0 +1,19 @@
+{
+  "raptor/gui/dev_inspector.py": 1,
+  "raptor/gui/resources/icons.py": 2,
+  "raptor/gui/ui/backstage.py": 15,
+  "raptor/gui/ui/batch_dialogs.py": 1,
+  "raptor/gui/ui/block_labels.py": 2,
+  "raptor/gui/ui/data_tables.py": 8,
+  "raptor/gui/ui/diagram.py": 5,
+  "raptor/gui/ui/diagram_items.py": 8,
+  "raptor/gui/ui/diagram_live.py": 3,
+  "raptor/gui/ui/diff_dialog.py": 3,
+  "raptor/gui/ui/filedialogs.py": 1,
+  "raptor/gui/ui/inspector.py": 2,
+  "raptor/gui/ui/main_window.py": 18,
+  "raptor/gui/ui/param_entry.py": 2,
+  "raptor/gui/ui/results.py": 9,
+  "raptor/gui/ui/ribbon_builders.py": 1,
+  "raptor/gui/ui/run_experiment_mixin.py": 7
+}

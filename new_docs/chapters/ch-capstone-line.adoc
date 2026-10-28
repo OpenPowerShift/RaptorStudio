@@ -1,0 +1,256 @@
+[[ch-capstone-line]]
+== Capstone: The Line That Paid for Its Spares
+
+*Time: about 40 minutes.*
+*New ideas: finding your own weak links on a pure series chain, the
+RSO switch that turns "has spares" into "has a spares plan," and
+reading a cost comparison instead of an availability comparison.*
+
+=== You will learn
+
+* Why a pure series chain collapses ch13's *frequency* table and
+  *importance* table into one — and how to use that shortcut.
+* What "Routine Spare Ordering" actually does, and why <<ch-sparing>>'s
+  Taco Truck never got to show you the other half of it.
+* How to ask "did this investment pay for itself," using a real
+  Grand_Total, not just an Availability number.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-cost>> finished — this chapter
+  leans on series links, Weibull wear-out (<<ch-distributions>>),
+  Custom sparing (<<ch-sparing>>), preventive maintenance (<<ch-pm>>),
+  and cost analysis (<<ch-cost>>).
+* The files `models/ProdLine0.rbds` (as commissioned) and
+  `models/ProdLine1.rbds` (after the ops review).
++
+opsmodel:ProdLine1[]
+
+=== The story
+
+A bottling line: rinse, fill, cap, inspect the cap, label, date-code,
+form the carton, pack the case, seal it, inspect it, palletize, wrap,
+ship. Fourteen stations, bolted together in one straight chain.
+<<ch-first-model>>'s oldest rule, scaled up fourteen times: one broken
+link and the whole line stops.
+
+image::prodline-loaded.png[ProdLine1 loaded: fourteen stations in a straight series chain]
+
+The plant manager has a budget question, not an engineering one: the
+line carries a modest spares shelf and a maintenance contract that
+together cost real money every year. Is any of it worth what it
+costs?
+
+=== Find your own weak link
+
+Open `models/ProdLine0.rbds` — the line exactly as it was commissioned,
+no changes yet. This time nobody hands you a blame table the way
+<<ch-weaklink>> will. Work it out yourself, and notice *why* it is
+easier here than it will be there: this line is pure series, with no
+vote to forgive anything. On a system like that, "how often does a
+part fail" and "how much does its failure hurt" are the *same
+number* — every failure, anywhere, stops the whole line. <<ch-weaklink>>
+needs two separate tables because VanFlat's tires fail constantly but
+mean almost nothing; this line has no tires. One table is enough.
+
+Run 200 trials, open **Data Tables → Sparing**, and read
+`Spares_Utilization`'s `AveUsed` column — for a block still on
+Infinite sparing, it is simply a per-run failure count. Three stations
+stand well clear of the rest:
+
+[cols="3,2",options="header"]
+|===
+|Station |Failures per run
+|Capper |about 9.1
+|Filler |about 7.6
+|Case_Packer |about 7.0
+|===
+
+Every other station sits under 3. All three leaders share the same
+signature — a Weibull curve with shape well above 1, <<ch-distributions>>'s
+wear-out shape. That is not a coincidence you need statistics to see;
+it is the whole reason `ProdLine1` only ever touches these three
+stations.
+
+=== One new idea: RSO turns "has spares" into "has a plan"
+
+<<ch-sparing>>'s Taco Truck kept three propane tanks on a shelf that
+nobody ever restocked — when the fourth failure came, the truck closed
+for the season. That chapter's whole point was showing you what
+happens *without* a resupply plan. Open `ProdLine0.rbds` and select
+**Filler**: it is Custom-spared, stock 3, exactly like Propane_Tank,
+right down to the field that made the truck's ending permanent —
+`RSO=0`, no routine spare ordering. Capper carries the same setup,
+stock 2.
+
+Now open `ProdLine1.rbds` and select the same block:
+
+[cols="3,2,2",options="header"]
+|===
+|Setting |ProdLine0 |ProdLine1
+|Sparing type |Custom |Custom
+|Stock |3 |3
+|Routine Spare Ordering (RSO) |off |*on*
+|Resupply interval |— |every 720 h (30 days)
+|Emergency Spare Ordering (ESO) |off |*on*
+|Emergency lead time |— |48 h
+|===
+
+`RSO=1` turns the shelf into a standing purchase order: a fresh tank
+arrives every 30 days whether or not one was used, and if the shelf
+ever actually runs dry anyway, an emergency shipment lands in 48
+hours instead of never arriving at all. Case_Packer gets the third
+piece of the review: scheduled PM every 600 hours
+(<<ch-pm>>'s pattern exactly), refreshing it before its Weibull clock
+ever gets the chance to wear it out.
+
+No other station changes between the two files.
+
+=== Run both
+
+Run **200 trials** of the 8 760-hour year on each file:
+
+[cols="4,2,2",options="header"]
+|===
+|Measure |ProdLine0 |ProdLine1
+|Availability |about 93.5% |about *96.5%*
+|MDT |about 11.4 h |about 5.3 h
+|System failures per run |about 50 |about 59
+|===
+
+image::prodline1-results.png[ProdLine1 Overview tab: 96.5% availability, MDT 5.3 hours]
+
+Read that middle row carefully before the cost table: failures per
+run went *up* after the fix, not down. A line that is actually running
+is a line that can fail again; a line stuck dead on its fourth Capper
+failure, like ProdLine0 spends real time being, cannot rack up a fifth.
+Count alone would tell you the wrong story — MDT is the number that
+says each of those failures now costs less than half as much time.
+
+Now the number the plant manager actually asked about. Both files
+carry a System red cost of $8 000 per down-hour
+(<<ch-cost>>'s field, same one DC1/DC2 used):
+
+[cols="4,2,2",options="header"]
+|===
+|Cost_Summary line |ProdLine0 |ProdLine1
+|Blocks (spares + PM) |about $35 000 |about $52 000
+|SystemDownCost |about $4 561 000 |about $2 487 000
+|*Grand_Total* |about *$4 596 000* |about *$2 540 000*
+|===
+
+The review spent about $17 000 a year more on parts and maintenance.
+That $17 000 bought back about $2.07 million a year in avoided
+downtime. <<ch-cost>>'s lesson from the little bakery repeats here at
+industrial scale: the line item you can see on an invoice (spares,
+service contracts) is never the number that decides whether a fix was
+worth it — the downtime bill is, and on a fourteen-station chain, it
+dwarfs everything else once even a couple of stations are left
+unmanaged.
+
+[TIP]
+====
+Notice what did *not* change: eleven of fourteen stations, every
+failure and repair distribution, the mission length, the $8 000
+red-cost rate. One field (`RSO`) and one PM schedule, applied only
+where the weak-link read said to apply them, is the entire difference
+between these two Grand_Total figures.
+====
+
+.Limits of this model
+[NOTE]
+====
+Every station's Weibull clock is drawn independently — a real bottling
+line often buys identical seals, motors, or bearings for several
+stations from the same supplier and the same production batch, so a
+bad batch can age several "independent" parts together
+(<<ch-capstone>>'s common-cause caveat applies here too). The $8 000
+down-hour rate and the specific spare and PM costs are teaching
+numbers chosen to make the arithmetic land cleanly, not a real
+bottling plant's invoice — trust the *ratio* this chapter demonstrates,
+not the digits. And Case_Packer's 600-hour PM interval was picked
+once, not tuned; <<ch-pm>>'s own playbook (try a few intervals, watch
+what moves) was never run against it here.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |Why does "how often it fails" equal "how much it hurts" on this
+line, when <<ch-weaklink>>'s van needed two separate tables to tell
+them apart?
+|2 |ProdLine1 has *more* system failures per run than ProdLine0, yet
+costs less and is more available. Explain why a rising failure count
+is not automatically bad news here.
+|3 |Filler and Capper share the same resupply policy but different
+stock sizes and different per-event costs. If Capper's spare price
+rose five-fold, would you still expect ProdLine1 to beat ProdLine0 on
+Grand_Total? What would you check first?
+|4 |Name one experiment from <<ch-pm>>'s own playbook you would run
+before trusting Case_Packer's 600-hour interval.
+|===
+
+.Answers
+[%collapsible]
+====
+. Nothing here forgives a failure — no vote, no standby, no hierarchy
+   layer absorbs anything. Every station sits on the one series chain,
+   so a station's failure count *is* its stoppage count; VanFlat needed
+   two tables only because its vote let the tires fail constantly
+   without ever being blamed.
+. A dead line cannot fail again — ProdLine0 spends long stretches
+   stuck down between Capper's fourth failure and its eventual repair,
+   during which the clock simply is not running for any station. Fix
+   the shelf and the line spends far more of the year actually
+   operating, which is exactly the condition under which a station
+   *can* fail again. More failures at a lower cost each beats fewer
+   failures that each cost far more.
+. Not necessarily — check Capper's per-event spare cost against its
+   own AveUsed first. At roughly nine replacements a year, a five-fold
+   price rise adds real money to the Blocks line; whether it still
+   beats the $2 million-plus SystemDownCost gap depends on how far
+   that one number moves, not on whether the sparing policy itself is
+   still sound.
+. Run the interval at a couple of neighboring values (300 h, 900 h,
+   say) and compare Grand_Total, the same before/after comparison
+   <<ch-pm>> ran on CarCare0/CarCare1 — a single untested number is a
+   guess wearing a schedule's clothing.
+====
+
+=== Exercise
+
+Pick one of the eleven untouched stations. Read its `AveUsed` from
+`Spares_Utilization` and decide honestly whether it belongs anywhere
+near the top of the table you built above. If it does not, predict —
+before touching the model — that giving it a Custom shelf and an RSO
+resupply plan will cost money and buy almost nothing back. Then do it
+anyway: pick a stock size, turn `RSO` on, run 200 trials, and check
+Grand_Total. Were you right?
+
+.Answer
+[%collapsible]
+====
+Answers vary by which station you pick, but any station
+outside the top three should show `AveUsed` under 3 per run — spend
+money there and Grand_Total should barely move, since its Blocks cost
+rises while SystemDownCost, already small for that station's share,
+has almost nothing left to give back.
+====
+
+=== What you learned
+
+* On a pure series chain, the frequency table and the importance table
+  are the same table — `Spares_Utilization`'s `AveUsed` column finds
+  your weak links without any extra machinery.
+* `RSO` is the field that decides whether "has spares" means anything:
+  off, a shelf is a countdown to a permanent stop; on, it is a plan.
+* A cost comparison is the honest way to ask whether a fix was worth
+  it. An investment that barely moves Availability can still be
+  crushing the downtime bill that mattered all along — and one that
+  moves nothing at all is money spent on a station that was never the
+  problem.
+
+<<ch-weaklink>> next turns what you just did by hand — squint at
+`AveUsed`, guess, check the cost — into a repeatable two-table method,
+on a system where frequency and importance genuinely disagree.

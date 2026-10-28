@@ -1,0 +1,4382 @@
+End_Of_Run Report for input.rbd  Sat Oct 10 09:40:29 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 285.714286
+MMT                   4.452608
+MMTu                  8.410488
+MMTs                  3.887196
+GreenPercent          98.218957
+YellowPercent         1.781043
+RedPercent            0.000000
+MissionGreenPercent   98.128835
+MissionYellowPercent  1.871165
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1356.445964    1356.445964    1356.445964            N/A
+RT                             8.410488       8.410488       8.410488            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.18         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5578.84      179.76        0.00        0.00       29.19        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14218.84      179.76        0.00        0.00       29.19        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5787.79         N/A        0.00     5790.98 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14427.79        0.00        0.00    14430.98 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      320.59      576.59 
+
+Resource_Totals            16.00      240.00      320.59      576.59 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14430.98
+Events                      0.00
+SparePools                 30.00
+Resources                 576.59
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15037.57
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  98.218957   1.781043   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.982189569  0.995736754  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.218957    0.000000    0.000000    0.420524    0.000000    1.360519    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  3
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 666.666667
+MTBMs                 333.333333
+MMT                   5.936984
+MMTu                  8.542264
+MMTs                  4.634345
+GreenPercent          97.328357
+YellowPercent         2.671643
+RedPercent            0.000000
+MissionGreenPercent   97.210023
+MissionYellowPercent  2.789977
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                          114.862299     655.638031     948.635401     468.870967
+RT                             6.766985       8.542264       9.555357       1.542547
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        2   Seals                        2
+S9B2                        1   Seals                        1
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.86         27         27          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5555.39      343.63        0.00        0.00       27.80        0.00        0.00        0.00 
+S9B2                    0       7344.74      192.36        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14160.13      535.99        0.00        0.00       27.80        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5926.82         N/A        0.00     5930.01 
+S9B2                        0.00     7537.10         N/A        0.00     7537.10 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14723.92        0.00        0.00    14727.11 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      480.90      766.90 
+
+Resource_Totals            16.00      270.00      480.90      766.90 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14727.11
+Events                      0.00
+SparePools                 30.00
+Resources                 766.90
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15524.00
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.328357   2.671643   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.978061248  0.991850987  0.000000000
+S9B2                    0.995222322  0.995222322  0.500000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.806125    0.000000    0.000000    0.803572    0.000000    1.390303    0.000000    0.000000
+S9B2                     99.522232    0.000000    0.000000    0.477768    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 2000.000000
+MTBMs                 250.000000
+MMT                   6.439837
+MMTu                  26.777355
+MMTs                  3.897648
+GreenPercent          97.102073
+YellowPercent         2.897927
+RedPercent            0.000000
+MissionGreenPercent   98.278222
+MissionYellowPercent  1.721778
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1131.131927    1131.131927    1131.131927            N/A
+RT                            26.777355      26.777355      26.777355            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        0   Seals                        0
+S9B3                        1   Seals                        1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.07         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5591.45        0.00        0.00        0.00       33.41        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1243.13       99.38        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14214.58       99.38        0.00        0.00       33.41        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5624.86         N/A        0.00     5628.05 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1342.51         N/A        0.00     1342.51 
+
+Block_Totals                3.19    14347.36        0.00        0.00    14350.55 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      521.63      807.63 
+
+Resource_Totals            16.00      270.00      521.63      807.63 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14350.55
+Events                      0.00
+SparePools                 30.00
+Resources                 807.63
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15188.18
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.102073   2.897927   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.984409409  1.000000000  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    0.986611323  0.986611323  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.440941    0.000000    0.000000    0.000000    0.000000    1.559059    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                     98.661132    0.000000    0.000000    1.338868    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  200.000000
+MTBMu                 1000.000000
+MTBMs                 250.000000
+MMT                   4.738686
+MMTu                  10.694928
+MMTs                  3.249626
+GreenPercent          97.630657
+YellowPercent         2.369343
+RedPercent            0.000000
+MissionGreenPercent   97.600462
+MissionYellowPercent  2.399538
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                           84.368457     881.870279    1679.372101    1127.837893
+RT                             8.179089      10.694928      13.210766       3.557934
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        1   Seals                        1
+S9B3                        1   Seals                        1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.22         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5606.17        0.00        0.00        0.00       30.20        0.00        0.00        0.00 
+S9B2                    0       7331.25      260.05        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1254.85       30.56        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14192.27      290.62        0.00        0.00       30.20        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5636.37         N/A        0.00     5639.56 
+S9B2                        0.00     7591.31         N/A        0.00     7591.31 
+S9B3                        0.00     1285.41         N/A        0.00     1285.41 
+
+Block_Totals                3.19    14513.08        0.00        0.00    14516.27 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      300.00      426.48      742.48 
+
+Resource_Totals            16.00      300.00      426.48      742.48 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14516.27
+Events                      0.00
+SparePools                 30.00
+Resources                 742.48
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15288.75
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.630657   2.369343   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.987001497  1.000000000  0.000000000
+S9B2                    0.993394617  0.993394617  0.500000000
+S9B3                    0.995910456  0.995910456  0.500000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.700150    0.000000    0.000000    0.000000    0.000000    1.299850    0.000000    0.000000
+S9B2                     99.339462    0.000000    0.000000    0.660538    0.000000    0.000000    0.000000    0.000000
+S9B3                     99.591046    0.000000    0.000000    0.408954    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 1000.000000
+MTBMs                 285.714286
+MMT                   5.660357
+MMTu                  12.483003
+MMTs                  3.711029
+GreenPercent          97.452839
+YellowPercent         2.547161
+RedPercent            0.000000
+MissionGreenPercent   98.151131
+MissionYellowPercent  1.848869
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                          479.390388     771.123541    1062.856694     412.572981
+RT                            11.068369      12.483003      13.897637       2.000595
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        1   Seals                        1
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.80         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5574.79      236.11        0.00        0.00       28.43        0.00        0.00        0.00 
+S9B2                    0       7328.72      272.77        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14163.51      508.88        0.00        0.00       28.43        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5839.33         N/A        0.00     5842.52 
+S9B2                        0.00     7601.49         N/A        0.00     7601.49 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14700.82        0.00        0.00    14704.01 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      458.49      744.49 
+
+Resource_Totals            16.00      270.00      458.49      744.49 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14704.01
+Events                      0.00
+SparePools                 30.00
+Resources                 744.49
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15478.50
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.452839   2.547161   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.981477213  0.994392988  0.000000000
+S9B2                    0.993051181  0.993051181  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.147721    0.000000    0.000000    0.553418    0.000000    1.298860    0.000000    0.000000
+S9B2                     99.305118    0.000000    0.000000    0.694882    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_6*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 285.714286
+MMT                   4.879255
+MMTu                  13.691772
+MMTs                  3.620325
+GreenPercent          98.048298
+YellowPercent         1.951702
+RedPercent            0.000000
+MissionGreenPercent   98.576599
+MissionYellowPercent  1.423401
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1159.553738    1159.553738    1159.553738            N/A
+RT                            13.691772      13.691772      13.691772            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.08         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5569.14      291.73        0.00        0.00       28.03        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14209.14      291.73        0.00        0.00       28.03        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5888.90         N/A        0.00     5892.09 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14528.90        0.00        0.00    14532.09 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      351.31      607.31 
+
+Resource_Totals            16.00      240.00      351.31      607.31 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14532.09
+Events                      0.00
+SparePools                 30.00
+Resources                 607.31
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15169.40
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  98.048298   1.951702   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.980482978  0.993066256  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.048298    0.000000    0.000000    0.684589    0.000000    1.267114    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_7*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 285.714286
+MMT                   4.129509
+MMTu                  8.701205
+MMTs                  3.476410
+GreenPercent          98.348196
+YellowPercent         1.651804
+RedPercent            0.000000
+MissionGreenPercent   98.634265
+MissionYellowPercent  1.365735
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1105.346330    1105.346330    1105.346330            N/A
+RT                             8.701205       8.701205       8.701205            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.05         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5586.18      185.93        0.00        0.00       27.41        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14226.18      185.93        0.00        0.00       27.41        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5799.51         N/A        0.00     5802.70 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14439.51        0.00        0.00    14442.70 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      297.32      553.32 
+
+Resource_Totals            16.00      240.00      297.32      553.32 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14442.70
+Events                      0.00
+SparePools                 30.00
+Resources                 553.32
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15026.03
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  98.348196   1.651804   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.983481964  0.995595810  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.348196    0.000000    0.000000    0.435060    0.000000    1.216743    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_8*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 1000.000000
+MTBMs                 285.714286
+MMT                   5.899778
+MMTu                  11.634436
+MMTs                  4.261304
+GreenPercent          97.345100
+YellowPercent         2.654900
+RedPercent            0.000000
+MissionGreenPercent   97.750955
+MissionYellowPercent  2.249045
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                          781.875109     950.306742    1118.738375     238.198300
+RT                            10.444190      11.634436      12.824683       1.683263
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        2   Seals                        2
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.01         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5529.20      496.22        0.00        0.00       30.81        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14169.20      496.22        0.00        0.00       30.81        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     6056.24         N/A        0.00     6059.43 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14696.24        0.00        0.00    14699.43 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      477.88      763.88 
+
+Resource_Totals            16.00      270.00      477.88      763.88 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14699.43
+Events                      0.00
+SparePools                 30.00
+Resources                 763.88
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15493.31
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.345100   2.654900   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.973451000  0.988189414  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.345100    0.000000    0.000000    1.163444    0.000000    1.491456    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_9*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 1000.000000
+MTBMs                 333.333333
+MMT                   7.339768
+MMTu                  15.610484
+MMTs                  4.582862
+GreenPercent          97.064093
+YellowPercent         2.935907
+RedPercent            0.000000
+MissionGreenPercent   97.726205
+MissionYellowPercent  2.273795
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                          714.744832     924.362273    1133.979715     296.443829
+RT                            13.187756      15.610484      18.033212       3.426255
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        2   Seals                        2
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.99         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5513.24      664.80        0.00        0.00       27.61        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14153.24      664.80        0.00        0.00       27.61        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     6205.65         N/A        0.00     6208.84 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14845.65        0.00        0.00    14848.84 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      528.46      784.46 
+
+Resource_Totals            16.00      240.00      528.46      784.46 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14848.84
+Events                      0.00
+SparePools                 30.00
+Resources                 784.46
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15663.31
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.064093   2.935907   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.970640930  0.984171902  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.064093    0.000000    0.000000    1.561048    0.000000    1.374859    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_10*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 2000.000000
+MTBMs                 250.000000
+MMT                   4.500785
+MMTu                  13.128383
+MMTs                  3.422335
+GreenPercent          97.974647
+YellowPercent         2.025353
+RedPercent            0.000000
+MissionGreenPercent   97.960122
+MissionYellowPercent  2.039878
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1481.900546    1481.900546    1481.900546            N/A
+RT                            13.128383      13.128383      13.128383            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        1   Seals                        1
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.24         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5602.24        0.00        0.00        0.00       31.05        0.00        0.00        0.00 
+S9B2                    0       7331.56      258.53        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14193.80      258.53        0.00        0.00       31.05        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5633.30         N/A        0.00     5636.49 
+S9B2                        0.00     7590.08         N/A        0.00     7590.08 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14483.38        0.00        0.00    14486.57 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      364.56      650.56 
+
+Resource_Totals            16.00      270.00      364.56      650.56 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14486.57
+Events                      0.00
+SparePools                 30.00
+Resources                 650.56
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15167.14
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.974647   2.025353   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.986310661  1.000000000  0.000000000
+S9B2                    0.993435808  0.993435808  0.500000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.631066    0.000000    0.000000    0.000000    0.000000    1.368934    0.000000    0.000000
+S9B2                     99.343581    0.000000    0.000000    0.656419    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_11*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  200.000000
+MTBMu                 1000.000000
+MTBMs                 250.000000
+MMT                   4.822322
+MMTu                  7.581722
+MMTs                  4.132472
+GreenPercent          97.588839
+YellowPercent         2.411161
+RedPercent            0.000000
+MissionGreenPercent   97.792771
+MissionYellowPercent  2.207229
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                          343.766010     643.473359     943.180707     423.850196
+RT                             6.528042       7.581722       8.635403       1.490130
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        1   Seals                        1
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.62         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5561.59      184.53        0.00        0.00       34.58        0.00        0.00        0.00 
+S9B2                    0       7355.91      136.29        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14177.50      320.82        0.00        0.00       34.58        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5780.69         N/A        0.00     5783.88 
+S9B2                        0.00     7492.20         N/A        0.00     7492.20 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14532.89        0.00        0.00    14536.08 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      300.00      434.01      750.01 
+
+Resource_Totals            16.00      300.00      434.01      750.01 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14536.08
+Events                      0.00
+SparePools                 30.00
+Resources                 750.01
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15316.09
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.588839   2.411161   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.979152412  0.995609728  0.000000000
+S9B2                    0.996735979  0.996735979  0.500000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.915241    0.000000    0.000000    0.431770    0.000000    1.652989    0.000000    0.000000
+S9B2                     99.673598    0.000000    0.000000    0.326402    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_12*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 1000.000000
+MTBMs                 285.714286
+MMT                   4.708731
+MMTu                  6.588034
+MMTs                  4.171787
+GreenPercent          97.881071
+YellowPercent         2.118929
+RedPercent            0.000000
+MissionGreenPercent   98.173786
+MissionYellowPercent  1.826214
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                          227.738730     497.231610     766.724490     381.120486
+RT                             2.685680       6.588034      10.490389       5.518762
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        1   Seals                        1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.38         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5567.27      223.86        0.00        0.00       30.43        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1258.31       10.24        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14205.58      234.09        0.00        0.00       30.43        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5821.55         N/A        0.00     5824.74 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1268.55         N/A        0.00     1268.55 
+
+Block_Totals                3.19    14470.10        0.00        0.00    14473.29 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      381.41      667.41 
+
+Resource_Totals            16.00      270.00      381.41      667.41 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14473.29
+Events                      0.00
+SparePools                 30.00
+Resources                 667.41
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15170.70
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.881071   2.118929   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.980153551  0.994677084  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    0.998657160  0.998657160  0.500000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.015355    0.000000    0.000000    0.524519    0.000000    1.460125    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                     99.865716    0.000000    0.000000    0.134284    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_13*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  0
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 250.000000
+MMT                   5.979314
+MMTu                  N/A
+MMTs                  5.979314
+GreenPercent          97.608275
+YellowPercent         2.391725
+RedPercent            0.000000
+MissionGreenPercent   97.811919
+MissionYellowPercent  2.188081
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+No Component Failures!
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.50         30         30          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5544.15        0.00        0.00        0.00       43.74        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14184.15        0.00        0.00        0.00       43.74        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5587.89         N/A        0.00     5591.08 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14227.89        0.00        0.00    14231.08 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      430.51      686.51 
+
+Resource_Totals            16.00      240.00      430.51      686.51 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14231.08
+Events                      0.00
+SparePools                 30.00
+Resources                 686.51
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             14947.59
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.608275   2.391725   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.976082746  1.000000000  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.608275    0.000000    0.000000    0.000000    0.000000    2.391725    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_14*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  0
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 250.000000
+MMT                   4.997023
+MMTu                  N/A
+MMTs                  4.997023
+GreenPercent          98.001191
+YellowPercent         1.998809
+RedPercent            0.000000
+MissionGreenPercent   98.090559
+MissionYellowPercent  1.909441
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+No Component Failures!
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.50         30         30          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5566.47        0.00        0.00        0.00       38.87        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14206.47        0.00        0.00        0.00       38.87        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5605.33         N/A        0.00     5608.52 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14245.33        0.00        0.00    14248.52 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      359.79      615.79 
+
+Resource_Totals            16.00      240.00      359.79      615.79 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14248.52
+Events                      0.00
+SparePools                 30.00
+Resources                 615.79
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             14894.31
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  98.001191   1.998809   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.980011910  1.000000000  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.001191    0.000000    0.000000    0.000000    0.000000    1.998809    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_15*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 1000.000000
+MTBMs                 285.714286
+MMT                   5.169775
+MMTu                  11.116472
+MMTs                  3.470718
+GreenPercent          97.673601
+YellowPercent         2.326399
+RedPercent            0.000000
+MissionGreenPercent   97.569042
+MissionYellowPercent  2.430958
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                          496.432985     637.837821     779.242658     199.976638
+RT                            10.540404      11.116472      11.692540       0.814684
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        2   Seals                        2
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.39         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5547.86      474.26        0.00        0.00       27.38        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14187.86      474.26        0.00        0.00       27.38        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     6049.50         N/A        0.00     6052.69 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14689.50        0.00        0.00    14692.69 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      418.75      704.75 
+
+Resource_Totals            16.00      270.00      418.75      704.75 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14692.69
+Events                      0.00
+SparePools                 30.00
+Resources                 704.75
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15427.44
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.673601   2.326399   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.976736014  0.988746830  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.673601    0.000000    0.000000    1.111647    0.000000    1.214751    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_16*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  0
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 250.000000
+MMT                   3.788738
+MMTu                  N/A
+MMTs                  3.788738
+GreenPercent          98.484505
+YellowPercent         1.515495
+RedPercent            0.000000
+MissionGreenPercent   98.310598
+MissionYellowPercent  1.689402
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+No Component Failures!
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.50         30         30          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5593.92        0.00        0.00        0.00       32.87        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14233.92        0.00        0.00        0.00       32.87        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5626.79         N/A        0.00     5629.98 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14266.79        0.00        0.00    14269.98 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      272.79      528.79 
+
+Resource_Totals            16.00      240.00      272.79      528.79 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14269.98
+Events                      0.00
+SparePools                 30.00
+Resources                 528.79
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             14828.77
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  98.484505   1.515495   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.984845046  1.000000000  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.484505    0.000000    0.000000    0.000000    0.000000    1.515495    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_17*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 285.714286
+MMT                   5.924773
+MMTu                  13.458462
+MMTs                  4.848532
+GreenPercent          97.630091
+YellowPercent         2.369909
+RedPercent            0.000000
+MissionGreenPercent   98.053878
+MissionYellowPercent  1.946122
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1042.624607    1042.624607    1042.624607            N/A
+RT                            13.458462      13.458462      13.458462            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.02         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5545.39      286.78        0.00        0.00       33.36        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14185.39      286.78        0.00        0.00       33.36        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5865.53         N/A        0.00     5868.72 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14505.53        0.00        0.00    14508.72 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      426.58      682.58 
+
+Resource_Totals            16.00      240.00      426.58      682.58 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14508.72
+Events                      0.00
+SparePools                 30.00
+Resources                 682.58
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15221.30
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.630091   2.369909   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.976300907  0.993154603  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.630091    0.000000    0.000000    0.672923    0.000000    1.696986    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_18*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  200.000000
+MTBMu                 1000.000000
+MTBMs                 250.000000
+MMT                   7.229227
+MMTu                  11.207899
+MMTs                  6.234559
+GreenPercent          96.385387
+YellowPercent         3.614613
+RedPercent            0.000000
+MissionGreenPercent   95.946256
+MissionYellowPercent  4.053744
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                           33.599787     955.730149    1877.860512    1304.089264
+RT                             5.141222      11.207899      17.274576       8.579577
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        1   Seals                        1
+S9B3                        1   Seals                        1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.39         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.96            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5538.35        0.00        0.00        0.00       45.00        0.00        0.00        0.00 
+S9B2                    0       7316.26      335.32        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1256.76       19.32        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14111.37      354.64        0.00        0.00       45.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5583.35         N/A        0.00     5586.54 
+S9B2                        0.00     7651.57         N/A        0.00     7651.57 
+S9B3                        0.00     1276.08         N/A        0.00     1276.08 
+
+Block_Totals                3.19    14511.01        0.00        0.00    14514.20 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      300.00      650.63      966.63 
+
+Resource_Totals            16.00      300.00      650.63      966.63 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14514.20
+Events                      0.00
+SparePools                 30.00
+Resources                 966.63
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15510.83
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  96.385387   3.614613   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.975061766  1.000000000  0.000000000
+S9B2                    0.991362712  0.991362712  0.500000000
+S9B3                    0.997429389  0.997429389  0.500000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.506177    0.000000    0.000000    0.000000    0.000000    2.493823    0.000000    0.000000
+S9B2                     99.136271    0.000000    0.000000    0.863729    0.000000    0.000000    0.000000    0.000000
+S9B3                     99.742939    0.000000    0.000000    0.257061    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_19*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 2000.000000
+MTBMs                 250.000000
+MMT                   5.918311
+MMTu                  13.075570
+MMTs                  5.023653
+GreenPercent          97.336760
+YellowPercent         2.663240
+RedPercent            0.000000
+MissionGreenPercent   97.751684
+MissionYellowPercent  2.248316
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1018.633769    1018.633769    1018.633769            N/A
+RT                            13.075570      13.075570      13.075570            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        1   Seals                        1
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.01         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5565.86        0.00        0.00        0.00       39.00        0.00        0.00        0.00 
+S9B2                    0       7331.75      257.55        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14157.61      257.55        0.00        0.00       39.00        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5604.86         N/A        0.00     5608.05 
+S9B2                        0.00     7589.30         N/A        0.00     7589.30 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14454.16        0.00        0.00    14457.35 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      479.38      765.38 
+
+Resource_Totals            16.00      270.00      479.38      765.38 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14457.35
+Events                      0.00
+SparePools                 30.00
+Resources                 765.38
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15252.73
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.336760   2.663240   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.979905388  1.000000000  0.000000000
+S9B2                    0.993462215  0.993462215  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.990539    0.000000    0.000000    0.000000    0.000000    2.009461    0.000000    0.000000
+S9B2                     99.346221    0.000000    0.000000    0.653779    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_20*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.997766508
+MTBDE                      1995.533017
+MDT                        4.466983
+Dependability              0.997513700
+Reliability                0.500000000
+ConditionalReliability     0.500000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  221.725891
+MTBMu                 997.766508
+MTBMs                 285.076145
+MMT                   5.887530
+MMTu                  12.712290
+MMTs                  3.937599
+GreenPercent          97.573961
+YellowPercent         2.202690
+RedPercent            0.223349
+MissionGreenPercent   97.996216
+MissionYellowPercent  1.755154
+MissionRedPercent     0.248630
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        1394.588207    1394.588207    1394.588207            N/A
+DT                             4.466983       4.466983       4.466983            N/A
+TBM                          257.384868     693.900922    1130.416975     617.326923
+RT                            11.253347      12.712290      14.171232       2.063256
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        1   Seals                        1
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.76         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            0         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5561.47      301.89        0.00        0.00       29.41        0.00        0.00        0.00 
+S9B2                    0       7338.48      223.80        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14159.95      525.69        0.00        0.00       29.41        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5892.77         N/A        0.00     5895.96 
+S9B2                        0.00     7562.28         N/A        0.00     7562.28 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14715.05        0.00        0.00    14718.24 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      476.89      762.89 
+
+Resource_Totals            16.00      270.00      476.89      762.89 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14718.24
+Events                      0.00
+SparePools                 30.00
+Resources                 762.89
+SystemDownCost            134.23
+
+________________________________
+Grand_Total             15645.36
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      0.997766508  1.000000000  0.500000000  97.573961   2.202690   0.000000   0.223349   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.979132789  0.992815368  0.000000000
+S9B2                    0.994373326  0.994373326  0.500000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.913279    0.000000    0.000000    0.708562    0.000000    1.378159    0.000000    0.000000
+S9B2                     99.437333    0.000000    0.000000    0.562667    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_21*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 285.714286
+MMT                   5.802341
+MMTu                  9.609166
+MMTs                  5.258509
+GreenPercent          97.679064
+YellowPercent         2.320936
+RedPercent            0.000000
+MissionGreenPercent   97.819563
+MissionYellowPercent  2.180437
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1424.356557    1424.356557    1424.356557            N/A
+RT                             9.609166       9.609166       9.609166            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.21         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5548.17      205.17        0.00        0.00       35.14        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14188.17      205.17        0.00        0.00       35.14        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5788.49         N/A        0.00     5791.68 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14428.49        0.00        0.00    14431.68 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      417.77      673.77 
+
+Resource_Totals            16.00      240.00      417.77      673.77 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14431.68
+Events                      0.00
+SparePools                 30.00
+Resources                 673.77
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15135.45
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.679064   2.320936   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.976790636  0.995105332  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.679064    0.000000    0.000000    0.480458    0.000000    1.840478    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_22*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 285.714286
+MMT                   3.539513
+MMTu                  6.086321
+MMTs                  3.175683
+GreenPercent          98.584195
+YellowPercent         1.415805
+RedPercent            0.000000
+MissionGreenPercent   98.541898
+MissionYellowPercent  1.458102
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1556.192702    1556.192702    1556.192702            N/A
+RT                             6.086321       6.086321       6.086321            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.28         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.99            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5599.58      130.49        0.00        0.00       26.10        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14239.58      130.49        0.00        0.00       26.10        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5756.17         N/A        0.00     5759.36 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14396.17        0.00        0.00    14399.36 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      254.84      510.84 
+
+Resource_Totals            16.00      240.00      254.84      510.84 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14399.36
+Events                      0.00
+SparePools                 30.00
+Resources                 510.84
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             14940.21
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  98.584195   1.415805   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.985841950  0.996922635  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.584195    0.000000    0.000000    0.304316    0.000000    1.111489    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_23*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  3
+
+
+
+***LOGISTICS***
+
+MTBM                  200.000000
+MTBMu                 666.666667
+MTBMs                 285.714286
+MMT                   5.481061
+MMTu                  9.223076
+MMTs                  3.877341
+GreenPercent          97.259469
+YellowPercent         2.740531
+RedPercent            0.000000
+MissionGreenPercent   96.922553
+MissionYellowPercent  3.077447
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                           70.590188     602.337134    1602.603182     866.832490
+RT                             4.213283       9.223076      14.221226       5.003982
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        1   Seals                        1
+S9B3                        1   Seals                        1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.04         27         27          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5562.53      302.95        0.00        0.00       29.15        0.00        0.00        0.00 
+S9B2                    0       7345.92      186.42        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1257.35       15.89        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14165.80      505.26        0.00        0.00       29.15        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5894.63         N/A        0.00     5897.82 
+S9B2                        0.00     7532.34         N/A        0.00     7532.34 
+S9B3                        0.00     1273.23         N/A        0.00     1273.23 
+
+Block_Totals                3.19    14700.20        0.00        0.00    14703.39 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      300.00      493.30      809.30 
+
+Resource_Totals            16.00      300.00      493.30      809.30 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14703.39
+Events                      0.00
+SparePools                 30.00
+Resources                 809.30
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15542.69
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.259469   2.740531   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.979318695  0.992791564  0.000000000
+S9B2                    0.995382640  0.995382640  0.500000000
+S9B3                    0.997893359  0.997893359  0.500000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.931869    0.000000    0.000000    0.711061    0.000000    1.357069    0.000000    0.000000
+S9B2                     99.538264    0.000000    0.000000    0.461736    0.000000    0.000000    0.000000    0.000000
+S9B3                     99.789336    0.000000    0.000000    0.210664    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_24*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  200.000000
+MTBMu                 1000.000000
+MTBMs                 250.000000
+MMT                   6.955134
+MMTu                  13.320544
+MMTs                  5.363781
+GreenPercent          96.522433
+YellowPercent         3.477567
+RedPercent            0.000000
+MissionGreenPercent   96.098607
+MissionYellowPercent  3.901393
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                          293.158715     600.747787     908.336859     434.996637
+RT                            11.120809      13.320544      15.520279       3.110895
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        1   Seals                        1
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.55         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5526.55      237.22        0.00        0.00       40.68        0.00        0.00        0.00 
+S9B2                    0       7322.73      302.83        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14109.28      540.05        0.00        0.00       40.68        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5804.46         N/A        0.00     5807.65 
+S9B2                        0.00     7625.56         N/A        0.00     7625.56 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14690.01        0.00        0.00    14693.20 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      300.00      625.96      941.96 
+
+Resource_Totals            16.00      300.00      625.96      941.96 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14693.20
+Events                      0.00
+SparePools                 30.00
+Resources                 941.96
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15665.17
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  96.522433   3.477567   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.972984472  0.994317681  0.000000000
+S9B2                    0.992239860  0.992239860  0.500000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.298447    0.000000    0.000000    0.556040    0.000000    2.145512    0.000000    0.000000
+S9B2                     99.223986    0.000000    0.000000    0.776014    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_25*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  0
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 250.000000
+MMT                   4.420601
+MMTu                  N/A
+MMTs                  4.420601
+GreenPercent          98.231759
+YellowPercent         1.768241
+RedPercent            0.000000
+MissionGreenPercent   98.272394
+MissionYellowPercent  1.727606
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+No Component Failures!
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.50         30         30          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5579.56        0.00        0.00        0.00       36.01        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14219.56        0.00        0.00        0.00       36.01        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5615.57         N/A        0.00     5618.76 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14255.57        0.00        0.00    14258.76 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      318.28      574.28 
+
+Resource_Totals            16.00      240.00      318.28      574.28 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14258.76
+Events                      0.00
+SparePools                 30.00
+Resources                 574.28
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             14863.04
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  98.231759   1.768241   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.982317595  1.000000000  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.231759    0.000000    0.000000    0.000000    0.000000    1.768241    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_26*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 1000.000000
+MTBMs                 285.714286
+MMT                   5.484889
+MMTu                  9.257871
+MMTs                  4.406895
+GreenPercent          97.531800
+YellowPercent         2.468200
+RedPercent            0.000000
+MissionGreenPercent   97.747495
+MissionYellowPercent  2.252505
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                          382.743098     723.400955    1064.058811     481.762961
+RT                             8.805024       9.257871       9.710718       0.640423
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        1   Seals                        1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.76         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5567.38      188.13        0.00        0.00       31.45        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1253.88       36.23        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14201.27      224.36        0.00        0.00       31.45        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5786.96         N/A        0.00     5790.15 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1290.11         N/A        0.00     1290.11 
+
+Block_Totals                3.19    14457.07        0.00        0.00    14460.26 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      444.28      730.28 
+
+Resource_Totals            16.00      270.00      444.28      730.28 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14460.26
+Events                      0.00
+SparePools                 30.00
+Resources                 730.28
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15220.54
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.531800   2.468200   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.980173357  0.995528519  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    0.995144641  0.995144641  0.500000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.017336    0.000000    0.000000    0.440251    0.000000    1.542413    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                     99.514464    0.000000    0.000000    0.485536    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_27*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  0
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 250.000000
+MMT                   4.008530
+MMTu                  N/A
+MMTs                  4.008530
+GreenPercent          98.396588
+YellowPercent         1.603412
+RedPercent            0.000000
+MissionGreenPercent   98.566425
+MissionYellowPercent  1.433575
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+No Component Failures!
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        0   Seals                        0
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.50         30         30          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5588.93        0.00        0.00        0.00       33.96        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14228.93        0.00        0.00        0.00       33.96        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5622.89         N/A        0.00     5626.08 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14262.89        0.00        0.00    14266.08 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      288.61      544.61 
+
+Resource_Totals            16.00      240.00      288.61      544.61 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14266.08
+Events                      0.00
+SparePools                 30.00
+Resources                 544.61
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             14840.69
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  98.396588   1.603412   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.983965881  1.000000000  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.396588    0.000000    0.000000    0.000000    0.000000    1.603412    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_28*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  222.222222
+MTBMu                 1000.000000
+MTBMs                 285.714286
+MMT                   6.738547
+MMTu                  16.575960
+MMTs                  3.927858
+GreenPercent          96.967654
+YellowPercent         3.032346
+RedPercent            0.000000
+MissionGreenPercent   96.904916
+MissionYellowPercent  3.095084
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                           36.839334     423.604727     810.370119     546.968864
+RT                            15.691312      16.575960      17.460607       1.251080
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        1   Seals                        1
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.33         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.97            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5557.35      334.12        0.00        0.00       29.37        0.00        0.00        0.00 
+S9B2                    0       7315.57      338.76        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14132.92      672.88        0.00        0.00       29.37        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5920.83         N/A        0.00     5924.02 
+S9B2                        0.00     7654.33         N/A        0.00     7654.33 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14835.16        0.00        0.00    14838.35 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      545.82      831.82 
+
+Resource_Totals            16.00      270.00      545.82      831.82 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14838.35
+Events                      0.00
+SparePools                 30.00
+Resources                 831.82
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15700.18
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  96.967654   3.032346   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.978406841  0.992044982  0.000000000
+S9B2                    0.991269697  0.991269697  0.500000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.840684    0.000000    0.000000    0.784566    0.000000    1.374750    0.000000    0.000000
+S9B2                     99.126970    0.000000    0.000000    0.873030    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_29*********************************************************************
+
+
+***SUMMARY***
+
+Availability               0.998485752
+MTBDE                      1996.971504
+MDT                        3.028496
+Dependability              0.998306590
+Reliability                0.500000000
+ConditionalReliability     0.500000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     1
+NumberOfComponentFailures  2
+
+
+
+***LOGISTICS***
+
+MTBM                  221.885723
+MTBMu                 998.485752
+MTBMs                 285.281643
+MMT                   5.216508
+MMTu                  11.736305
+MMTs                  3.353709
+GreenPercent          97.803996
+YellowPercent         2.044579
+RedPercent            0.151425
+MissionGreenPercent   98.287373
+MissionYellowPercent  1.543286
+MissionRedPercent     0.169341
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                        1652.549700    1652.549700    1652.549700            N/A
+DT                             3.028496       3.028496       3.028496            N/A
+TBM                          523.884955     825.753770    1127.622585     426.906972
+RT                            10.181181      11.736305      13.291429       2.199277
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        1   Seals                        1
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        15.89         28         28          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            0         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5575.58      283.24        0.00        0.00       26.88        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1253.59       37.97        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14209.17      321.21        0.00        0.00       26.88        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5885.69         N/A        0.00     5888.88 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1291.56         N/A        0.00     1291.56 
+
+Block_Totals                3.19    14557.25        0.00        0.00    14560.44 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      270.00      422.54      708.54 
+
+Resource_Totals            16.00      270.00      422.54      708.54 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14560.44
+Events                      0.00
+SparePools                 30.00
+Resources                 708.54
+SystemDownCost             91.01
+
+________________________________
+Grand_Total             15389.98
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      0.998485752  1.000000000  0.500000000  97.803996   2.044579   0.000000   0.151425   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.981616305  0.993275352  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    0.994909410  0.994909410  0.500000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     98.161630    0.000000    0.000000    0.664571    0.000000    1.173798    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                     99.490941    0.000000    0.000000    0.509059    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+
+***Run_30*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      2000.000000
+MDT                        N/A
+Dependability              1.000000000
+Reliability                1.000000000
+ConditionalReliability     1.000000000
+EndingSimTime              2000.000000
+NumberOfSystemFailures     0
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  250.000000
+MTBMu                 2000.000000
+MTBMs                 285.714286
+MMT                   5.048365
+MMTu                  10.181026
+MMTs                  4.315128
+GreenPercent          97.980654
+YellowPercent         2.019346
+RedPercent            0.000000
+MissionGreenPercent   97.814738
+MissionYellowPercent  2.185262
+MissionRedPercent     0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+No System Failures!
+No System Repairs!
+TBM                         1007.153730    1007.153730    1007.153730            N/A
+RT                            10.181026      10.181026      10.181026            N/A
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+S9B1                        1   Seals                        1
+S9B2                        0   Seals                        0
+S9B3                        0   Seals                        0
+
+
+SparePool_Sparing_Information
+
+poolName             InitNumSpares  NewSpares   MinStock     AveStock   MaxStock   EndStock  NumDelays
+Seals                            6         24          6        16.00         29         29          0 
+
+
+
+***RESOURCES***
+
+Resource_Information
+
+resourceName            InitNumRes    MinNumRes    AveNumRes    MaxNumRes EndingNumRes    NumDelays
+Crane                            2            1         1.98            2            2          0 
+
+
+
+***COST***
+
+Operating
+
+Block                 InHier       Good      Repair        Idle     RepHold          PM      PMHold     Standby        Done
+S9B1                    0       5565.30      217.30        0.00        0.00       31.05        0.00        0.00        0.00 
+S9B2                    0       7380.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+S9B3                    0       1260.00        0.00        0.00        0.00        0.00        0.00        0.00        0.00 
+
+Totals                         14205.30      217.30        0.00        0.00       31.05        0.00        0.00        0.00 
+
+Sparing
+
+Block                 InitSpares   NewSpares    EmerShip
+
+Totals                     0.00        0.00        0.00 
+
+Life_cycle_cost
+
+Block                   Purchase   Operating     Sparing    Disposal       Total
+S9B1                        3.19     5813.65         N/A        0.00     5816.84 
+S9B2                        0.00     7380.00         N/A        0.00     7380.00 
+S9B3                        0.00     1260.00         N/A        0.00     1260.00 
+
+Block_Totals                3.19    14453.65        0.00        0.00    14456.84 
+
+________________________________________________________________________________
+
+SparePools               Initial   NewSpares    EmerShip       Total
+Seals                       6.00       24.00        0.00       30.00 
+
+SparePool_Totals            6.00       24.00        0.00       30.00 
+
+________________________________________________________________________________
+
+Resources                Initial  PerUseCost PerTimeCost       Total
+Crane                      16.00      240.00      363.48      619.48 
+
+Resource_Totals            16.00      240.00      363.48      619.48 
+
+________________________________________________________________________________
+
+Cost_Summary
+
+Blocks                  14456.84
+Events                      0.00
+SparePools                 30.00
+Resources                 619.48
+SystemDownCost              0.00
+
+________________________________
+Grand_Total             15106.32
+
+
+
+***WEAK_LINK_ANALYSIS***
+
+NODE_RESULTS
+
+Node                             Ao           Do            R     %Green    %Yellow       %Red    %Orange      %Blue     %Brown
+J9                      1.000000000  1.000000000  1.000000000  97.980654   2.019346   0.000000   0.000000   0.000000   0.000000
+
+
+
+BLOCK_RESULTS
+
+Block                            Ao           Do            R
+S9B1                    0.979806540  0.994831426  0.000000000
+S9B2                    1.000000000  1.000000000  1.000000000
+S9B3                    1.000000000  1.000000000  1.000000000
+
+Block                     %Running    %Standby       %Idle  %Repairing    %RepHold         %PM     %PMHold       %Done
+S9B1                     97.980654    0.000000    0.000000    0.509051    0.000000    1.510295    0.000000    0.000000
+S9B2                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+S9B3                    100.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
+
+
+
+
+

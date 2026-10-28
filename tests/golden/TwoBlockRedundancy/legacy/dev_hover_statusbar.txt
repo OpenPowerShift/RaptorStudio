@@ -1,0 +1,5 @@
+Raptor 7 Student launched with /d /dev on TwoBlockRedundancy/input.rbd, mouse over each element (status bar, 2026-10-21):
+block 3 : parentID = 0 | Id = 3 | con out = 1 | b-2 n-3 h-0 T-5
+node 1  : parentID = 0 | Id = 1 | typeNode = 1 | con out = 2 | b-2 n-3 h-0 T-5
+node 2  : parentID = 0 | Id = 2 | typeNode = 3 | con out = 0 | b-2 n-3 h-0 T-5
+(Raptor leaves the previous hover's panels in place: a node hovered after a block also shows that block's "con out" in an earlier panel.)

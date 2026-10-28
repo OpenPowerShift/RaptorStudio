@@ -1,0 +1,160 @@
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  BatteriesNiCd
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     Power_Needed
+
+CRITICALITY
+
+     System Status = Yellow
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  BatteriesNiCd, Bus_DET-FR
+
+     Idle Components:    Attitude, SolarP_500W, Bus_PPT-UR, Thermal
+                         Communications, Bus_DET-QR, BatteriesNiH, SolarP_650W
+                         BatteriesNaS, SolarP_900W
+
+EFFECTS
+
+     Down Nodes:         Power_Needed, n2
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  BatteriesNiCd, Bus_DET-FR
+
+     Idle Components:    Attitude, SolarP_500W, Bus_PPT-UR, Thermal
+                         Communications, Bus_DET-QR, BatteriesNiH, SolarP_650W
+                         BatteriesNaS, SolarP_900W
+
+EFFECTS
+
+     Down Nodes:         Power_Needed, n2
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  Bus_DET-FR
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     Power_Needed
+
+CRITICALITY
+
+     System Status = Yellow
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  None
+
+EFFECTS
+
+     Down Nodes:         None
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Green
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  Thermal
+
+     Idle Components:    Attitude, SolarP_500W, BatteriesNiCd, Bus_PPT-UR
+                         Communications, Bus_DET-QR, BatteriesNiH, SolarP_650W
+                         Bus_DET-FR, BatteriesNaS, SolarP_900W
+
+EFFECTS
+
+     Down Nodes:         Power_Needed, n2
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+
+
+FAILURES
+
+     Failed Components:  Thermal
+
+     Idle Components:    Attitude, SolarP_500W, BatteriesNiCd, Bus_PPT-UR
+                         Communications, Bus_DET-QR, BatteriesNiH, SolarP_650W
+                         Bus_DET-FR, BatteriesNaS, SolarP_900W
+
+EFFECTS
+
+     Down Nodes:         Power_Needed, n2
+
+     Degraded Nodes:     None
+
+CRITICALITY
+
+     System Status = Red
+
+
+*****************************************************************
+

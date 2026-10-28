@@ -1,0 +1,257 @@
+End_Of_Run Report for input.rbd  Wed Sep 23 12:32:29 2026
+
+***Run_1*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      0.924530
+MDT                        N/A
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              0.924530
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  0.924530
+MTBMu                 0.924530
+MTBMs                 N/A
+MMT                   N/A
+MMTu                  N/A
+MMTs                  N/A
+GreenPercent          100.000000
+YellowPercent         0.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.924530       0.924530       0.924530            N/A
+DT                             0.000000       0.000000       0.000000            N/A
+TBM                            0.924530       0.924530       0.924530            N/A
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+unnamed                     1   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+unnamed                     0          0          0         0.00          0          0          0 
+
+
+
+***Run_2*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      0.178295
+MDT                        N/A
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              0.178295
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  0.178295
+MTBMu                 0.178295
+MTBMs                 N/A
+MMT                   N/A
+MMTu                  N/A
+MMTs                  N/A
+GreenPercent          100.000000
+YellowPercent         0.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.178295       0.178295       0.178295            N/A
+DT                             0.000000       0.000000       0.000000            N/A
+TBM                            0.178295       0.178295       0.178295            N/A
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+unnamed                     1   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+unnamed                     0          0          0         0.00          0          0          0 
+
+
+
+***Run_3*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      0.242751
+MDT                        N/A
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              0.242751
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  0.242751
+MTBMu                 0.242751
+MTBMs                 N/A
+MMT                   N/A
+MMTu                  N/A
+MMTs                  N/A
+GreenPercent          100.000000
+YellowPercent         0.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.242751       0.242751       0.242751            N/A
+DT                             0.000000       0.000000       0.000000            N/A
+TBM                            0.242751       0.242751       0.242751            N/A
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+unnamed                     1   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+unnamed                     0          0          0         0.00          0          0          0 
+
+
+
+***Run_4*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      0.976369
+MDT                        N/A
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              0.976369
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  0.976369
+MTBMu                 0.976369
+MTBMs                 N/A
+MMT                   N/A
+MMTu                  N/A
+MMTs                  N/A
+GreenPercent          100.000000
+YellowPercent         0.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.976369       0.976369       0.976369            N/A
+DT                             0.000000       0.000000       0.000000            N/A
+TBM                            0.976369       0.976369       0.976369            N/A
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+unnamed                     1   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+unnamed                     0          0          0         0.00          0          0          0 
+
+
+
+***Run_5*********************************************************************
+
+
+***SUMMARY***
+
+Availability               1.000000000
+MTBDE                      0.246536
+MDT                        N/A
+Reliability                0.000000000
+ConditionalReliability     0.000000000
+EndingSimTime              0.246536
+NumberOfSystemFailures     1
+NumberOfComponentFailures  1
+
+
+
+***LOGISTICS***
+
+MTBM                  0.246536
+MTBMu                 0.246536
+MTBMs                 N/A
+MMT                   N/A
+MMTu                  N/A
+MMTs                  N/A
+GreenPercent          100.000000
+YellowPercent         0.000000
+RedPercent            0.000000
+
+                                Minimum           Mean        Maximum         St.Dev
+TBDE                           0.246536       0.246536       0.246536            N/A
+DT                             0.000000       0.000000       0.000000            N/A
+TBM                            0.246536       0.246536       0.246536            N/A
+No Component Repairs!
+
+
+
+***SPARING***
+
+Spare_Utilization
+
+blockName             Failures   SpareSource           Consumed
+unnamed                     1   Custom                       0
+
+
+Custom_Sparing_Information
+
+blockName            InitNumSpares  NewSpares   MinStock   AveStock   MaxStock   EndStock  NumDelays
+unnamed                     0          0          0         0.00          0          0          0 
+
+
+

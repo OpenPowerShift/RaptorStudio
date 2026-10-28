@@ -1,0 +1,243 @@
+[[ch-phasing]]
+== Phasing: The Wash That Doesn't Run All Shift
+
+*Time: about 30 minutes.*
+*New ideas: mission phases, a part switched out on a schedule, and the
+one metric that only exists for a phased model.*
+
+=== You will learn
+
+* What a *phase* is, and how a model cycles through several of them.
+* How to take a block out of the circuit on a schedule, not by failing
+  it.
+* Why *Dependability* exists as its own number, separate from
+  Availability.
+
+=== You need
+
+* <<ch-first-model>> and <<ch-repair>> finished.
+* The file `models/CarWash1.rbds`.
++
+opsmodel:CarWash1[]
+
+=== The story
+
+Your automatic car wash runs one car at a time through three stations:
+**Soap**, **Rinse**, **Dry**. Each station takes a couple of minutes,
+then the next car rolls in and the cycle starts again — all shift long.
+The dryer's blower has one job, and it is not needed during Soap: running
+it into a car covered in suds just blows foam everywhere. So the
+control system switches the blower **out of the circuit** for Soap,
+and back in for Rinse and Dry.
+
+Here is the billing question that matters to the owner: is a blower
+that is "down" for Soap actually *broken*? And if a customer complains
+the wash felt unreliable today, should the owner care about the whole
+shift, or just the two stations they actually paid to have work?
+
+=== One new idea: the phase
+
+Every model so far ran under one constant set of rules for its whole
+mission. A **phase** lets the model cycle through several *stages*,
+each with its own duration and its own rules for how individual parts
+behave — then wrap back to the first stage and repeat, for as long as
+the mission runs.
+
+Open `models/CarWash1.rbds`. Two blocks in series, same shape as
+<<ch-first-model>>'s lantern — except one of them looks different:
+
+image::carwash-loaded.png[CarWash1: Track_Motor and a hatched, phased Blower block]
+
+The diagonal hatching on **Blower** is RAPTOR Studio's marker for a
+*phased* block. Select it and scroll its **General** tab to the
+*Phasing* group: a "Phased" checkbox, and one dropdown-plus-value pair
+per phase, named after the phase itself:
+
+[cols="2,2,2",options="header"]
+|===
+|Phase |Duration (Normal, minutes) |Blower's rule
+|Soap |mean 2.0, sd 0.1 |**Cut** — out of the circuit entirely
+|Rinse |mean 2.0, sd 0.1 |**Active** — normal stress, normal risk
+|Dry |mean 3.0, sd 0.15 |**Active** — normal stress, normal risk
+|===
+
+`Track_Motor`, which drives the car through all three stations, carries
+no phase settings at all — it just runs, the whole shift, exactly like
+every block in earlier chapters. Phasing is opt-in, block by block.
+
+[TIP]
+====
+"Cut" is not the same as "Failed." A Cut block's own failure clock does
+not run and it never logs a breakdown — it is deliberately parked, the
+scheduled equivalent of a mechanic unplugging a machine on purpose. A
+Failed block, by contrast, is *supposed* to be running and isn't.
+RAPTOR Studio treats both the same way for one purpose only: the path
+through either one is unavailable right now.
+====
+
+=== Run it
+
+Press F5. The very first lines of the log show the mission starting
+already Red — Soap is phase 1, so Blower starts Cut:
+
+----
+0.000000    Block   Track_Motor   Good   InitializeStress=1.000000
+0.000000    Block   Blower        Cut    Initialize
+0.000000    Node    end           Bad    0-1/1_df3
+0.000000    System  State_change  Red    _c2
+1.940641    System  Phase_change  Phase_change   Begin_phase_Rinse
+1.940641    Block   Blower        Good   Phase_ChangeStress=0.000000
+1.940641    Node    end           Good   1-1/1_ur3
+1.940641    System  State_change  Green  system_change_status
+1.940641    System  Phase_change  Mission        Began_a_mission
+----
+
+At `t = 1.94` — Soap's own draw from Normal(2.0, 0.1) — the wash
+enters Rinse, Blower rejoins as Good, and the system turns Green
+again. Watch a later cycle catch a *real* breakdown instead of a
+scheduled one:
+
+----
+361.948607   Block   Track_Motor   Failed       Operating_time=361.948607
+361.948607   Block   Track_Motor   Repairing    No_resources_used
+361.948607   Node    end           Bad          0-1/1_df3
+361.948607   System  State_change  Red          _d1
+365.733435   System  Phase_change  Mission_failure   Finished_a_mission
+----
+
+Same red health bar either way — but the *comment* differs. A
+scheduled Cut never produces a `Mission_failure` line; an actual
+breakdown during a mission phase does.
+
+[cols="3,2",options="header"]
+|===
+|Measure |Value (long-run)
+|Availability |about 0.70
+|Dependability |about 0.98
+|MTBDE / MDT |about 4.8 min / about 2.1 min
+|===
+
+Availability counts *every* red minute — scheduled Soap pauses
+included — so it lands near 70%, dominated by the roughly 2 of every
+7 minutes the blower spends deliberately parked. Dependability tells a
+different story: about 0.98.
+
+=== One more idea: Dependability
+
+Look back at each phase's own `Mission` flag: Soap is `Mission=0`;
+Rinse and Dry are `Mission=1`. The engine keeps a *second* clock that
+only accumulates during `Mission=1` time, and **Dependability** is
+Green-plus-Yellow time on *that* clock, divided by *that* clock's own
+total — Soap's downtime never enters the calculation at all, in either
+the numerator or the denominator.
+
+[NOTE]
+====
+This is the first chapter where **Dependability** actually appears —
+the report row has been sitting there since <<ch-repair>>, unexplained,
+because it only ever prints for a phased model. Now you know why it
+exists: Availability answers "what fraction of the *whole shift* did
+the wash work," which is the wrong question when part of every cycle
+is deliberately, harmlessly offline. Dependability answers "what
+fraction of the *time we actually promised* did it work" — and for
+this wash, that number is 0.98, not 0.70.
+====
+
+=== Changing the phase list
+
+The **Phases…** button on the Data ribbon opens the phase list on the left
+and, on the right, one grid per kind of element (blocks, nodes, events,
+hierarchies) with a column for every phase. Four buttons change the list:
+
+* **Insert before selected** puts a new phase in front of the selected one,
+  and every later phase moves one place along. **Add at end** puts it last.
+* **Delete** removes the selected phase, and every later one moves up.
+* **Clear all** removes every phase. Elements keep their "phased" tick; it
+  means nothing until phases exist again.
+
+Each element's cells move with the phases, so nothing you set is lost. A new
+phase starts every phased element with a default cell: a block is *Active* at stress 1, an event is *Prior*, a node
+requires its own number of good paths (or is *Linked* if that number is 0),
+and a hierarchy is *Active*. The whole dialog is one undo step per button.
+
+[NOTE]
+====
+A hierarchy has no phase columns of its own. Its Active, Linked and Cut
+cells are stored on its Out marker (the node they are read from), so editing the hierarchy tab edits that node.
+====
+
+=== Check yourself
+
+[cols="1,4"]
+|===
+|1 |Why does Availability land near 70% when the blower is only ever
+Cut for about 2 of every 7 minutes?
+|2 |A scheduled Cut and a real Track_Motor breakdown both turn the
+health bar red. Name the one log comment that tells them apart.
+|3 |If Soap were marked `Mission=1` instead of `Mission=0`, what would
+happen to the gap between Availability and Dependability?
+|===
+
+.Answers
+[%collapsible]
+====
+. Availability counts every red minute, and a Soap-phase Cut turns
+   the system red for its entire ~2-minute duration, every single
+   cycle — about 2 of every 7 minutes (Soap+Rinse+Dry), which is
+   already close to 30% before a single real breakdown is counted.
+. `Mission_failure` (a real breakdown during a Mission=1 phase) versus
+   no such line at all for a scheduled Cut — the health bar goes red
+   either way, but only a genuine failure is tagged as one.
+. The gap would close to zero: with Soap counted as mission time too,
+   the same red minutes would land in both the Availability and the
+   Dependability calculation, and the two numbers would read
+   identically.
+====
+
+=== Exercise
+
+Before running anything: predict what happens if you flip Soap's own
+`Mission` flag from 0 to 1 in the Phases tab, leaving everything else
+untouched. Then make the change and run 1000 trials. Did Dependability
+move — and if so, to what?
+
+.Answer
+[%collapsible]
+====
+Flipping Soap to `Mission=1` makes Dependability collapse to
+match Availability exactly (both about 0.697 at 1000 trials) — with no
+non-mission time left to exclude, the two metrics have nothing left to
+disagree about.
+====
+
+.Limits of this model
+[NOTE]
+====
+This chapter's own numbers hold up well — Availability and
+Dependability are both stable across thousands of trials. But building
+it surfaced a real, reproducible surprise: this book's usual headline
+number, **Reliability**, comes out nonsensical here (a reported spread
+that swings outside the 0–1 range a fraction is supposed to live in).
+The cause traces to how the engine counts "missions completed" — every
+Rinse-Dry pair in this model is its own small mission, dozens of them
+per run, and that per-run counter was never exercised by a model with
+more than one mission before. It is a genuine, newly-found gap, not a
+mistake in this chapter's own numbers — and a good reminder that even
+a well-tested engine can meet a combination nobody tried yet. Trust
+Availability and Dependability here; don't trust Reliability until
+someone fixes the counter.
+====
+
+=== What you learned
+
+* A phase is a repeating mission stage with its own duration; a block
+  can be Cut, Active, or Linked differently in each one.
+* Cut is a schedule, not a failure — no breakdown line, no wear, just
+  "not needed right now."
+* Dependability exists for exactly this situation: a number that
+  ignores the downtime you scheduled on purpose, so it can tell you
+  about the downtime you didn't.
+
+Next chapter: put every tool in this book to work on one serious
+system — a data centre engineered to a standard, then tuned until it
+meets its number.

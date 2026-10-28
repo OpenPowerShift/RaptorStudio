@@ -1,0 +1,50 @@
+Event_Log 	for 	input.rbd	 	Sat Sep 05 20:05:47 2026
+
+
+0.000000          	System   	Begin_Run_1           	--               	--
+0.000000          	Block    	BlockA                	Good             	InitializeStress=1.000000
+0.000000          	Block    	BlockB                	Good             	InitializeStress=1.000000
+0.000000          	Block    	BlockC                	Good             	InitializeStress=1.000000
+500.000000        	Block    	BlockA                	Failed           	Operating_time=500.000000
+500.000000        	Block    	BlockB                	Failed           	Operating_time=500.000000
+500.000000        	Block    	BlockC                	Failed           	Operating_time=500.000000
+500.000000        	Block    	BlockA                	Repairing        	No_resources_used
+500.000000        	Node     	end                   	Degraded         	2-1/3_df2_ur4_ur6
+500.000000        	Block    	BlockB                	RepHold          	Waiting_for_Spare
+500.000000        	Node     	end                   	Degraded         	1-1/3_df2_df4_ur6
+500.000000        	Block    	BlockC                	RepHold          	Waiting_for_Spare
+500.000000        	Node     	end                   	Bad              	0-1/3_df2_df4_df6
+500.000000        	System   	State_change          	Red              	_d3_d1_d2
+502.000000        	Block    	BlockA                	Repaired         	MaintTime=2.000000
+502.000000        	Block    	BlockA                	Good             	Stress=1.000000
+502.000000        	Node     	end                   	Degraded         	1-1/3_ur2_df4_df6
+502.000000        	System   	State_change          	Yellow           	_d1_d2
+700.000000        	Block    	BlockA                	Done             	End_sim
+700.000000        	Block    	BlockB                	Done             	End_sim
+700.000000        	Block    	BlockC                	Done             	End_sim
+700.000000        	System   	Phase_change          	Mission_failure  	Finished_a_mission
+700.000000        	System   	Simulation_Terminate  	--               	--
+
+0.000000          	System   	Begin_Run_2           	--               	--
+0.000000          	Block    	BlockA                	Good             	InitializeStress=1.000000
+0.000000          	Block    	BlockB                	Good             	InitializeStress=1.000000
+0.000000          	Block    	BlockC                	Good             	InitializeStress=1.000000
+500.000000        	Block    	BlockA                	Failed           	Operating_time=500.000000
+500.000000        	Block    	BlockB                	Failed           	Operating_time=500.000000
+500.000000        	Block    	BlockC                	Failed           	Operating_time=500.000000
+500.000000        	Block    	BlockA                	Repairing        	No_resources_used
+500.000000        	Node     	end                   	Degraded         	2-1/3_df2_ur4_ur6
+500.000000        	Block    	BlockB                	RepHold          	Waiting_for_Spare
+500.000000        	Node     	end                   	Degraded         	1-1/3_df2_df4_ur6
+500.000000        	Block    	BlockC                	RepHold          	Waiting_for_Spare
+500.000000        	Node     	end                   	Bad              	0-1/3_df2_df4_df6
+500.000000        	System   	State_change          	Red              	_d3_d1_d2
+502.000000        	Block    	BlockA                	Repaired         	MaintTime=2.000000
+502.000000        	Block    	BlockA                	Good             	Stress=1.000000
+502.000000        	Node     	end                   	Degraded         	1-1/3_ur2_df4_df6
+502.000000        	System   	State_change          	Yellow           	_d1_d2
+700.000000        	Block    	BlockA                	Done             	End_sim
+700.000000        	Block    	BlockB                	Done             	End_sim
+700.000000        	Block    	BlockC                	Done             	End_sim
+700.000000        	System   	Phase_change          	Mission_failure  	Finished_a_mission
+700.000000        	System   	Simulation_Terminate  	--               	--
