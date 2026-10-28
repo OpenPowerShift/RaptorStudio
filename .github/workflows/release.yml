@@ -14,9 +14,23 @@ name: Release
 #     uploads them to the Release, and finally attaches SHA256SUMS.txt.
 # Rejecting the approval leaves PyPI, the registry and the Release's
 # downloads untouched. See RELEASING.md.
+#
+# Run by hand (workflow_dispatch) with an existing tag, it rebuilds only the
+# installers and SHA256SUMS for that Release: the app code comes from the
+# tag, the packaging (installer/, THIRD_PARTY_NOTICES.md) and these steps
+# from the branch it is run on. Nothing goes to PyPI or the registry.
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build installers for, e.g. v0.8.0"
+        required: true
+
+env:
+  # The Release this run belongs to: the published tag, or the input.
+  RELEASE_TAG: ${{ github.event_name == 'release' && github.ref_name || inputs.tag }}
 
 permissions:
   contents: write      # upload artifacts to the release
@@ -26,6 +40,9 @@ jobs:
   # ---------------------------------------------------------------- test
   test:
     name: test (${{ matrix.shard }}/4)
+    # Everything up to and including the PyPI and registry publish hangs off
+    # this job, so skipping it on a manual run skips all of them.
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     # Sharded like the push workflow's test job (RAPTOR_TEST_SHARD, see
     # tests/conftest.py), each shard over `-n auto`.
@@ -267,8 +284,12 @@ jobs:
   # ---------------------------------------------------------- installers
   installers:
     name: Installers (${{ matrix.os }})
-    # After the approved PyPI publish, so a rejected release uploads nothing.
+    # After the approved PyPI publish, so a rejected release uploads nothing;
+    # on a manual run there is no publish, and this runs on its own.
     needs: pypi
+    if: >-
+      !cancelled()
+      && (needs.pypi.result == 'success' || github.event_name == 'workflow_dispatch')
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write        # upload the artefacts to the Release
@@ -293,6 +314,14 @@ jobs:
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+      # A manual run builds the tag's code with the current packaging.
+      - name: Take the packaging from ${{ github.ref_name }}
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: git checkout ${{ github.sha }} -- installer THIRD_PARTY_NOTICES.md
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -314,9 +343,25 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install pango
 
-      - name: Install GTK runtime (Windows)
+      # WeasyPrint (PDF export) needs the 64-bit GTK3 runtime, which
+      # installer/raptor.spec bundles from `GTK3-Runtime Win64`. Chocolatey's
+      # `gtk-runtime` package is GTK 2 (32-bit) and does not provide it, so
+      # install tschoonj's GTK3 runtime, pinned by checksum.
+      - name: Install GTK3 runtime (Windows)
         if: runner.os == 'Windows'
-        run: choco install gtk-runtime -y --no-progress
+        shell: pwsh
+        run: |
+          $url = "https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases/download/2022-01-04/gtk3-runtime-3.24.31-2022-01-04-ts-win64.exe"
+          $exe = "$env:RUNNER_TEMP\gtk3-runtime.exe"
+          Invoke-WebRequest -Uri $url -OutFile $exe
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash
+          if ($hash -ne "D05E1488CA0E6FFAABB579BBEB82113C099152CA4260EBC63084B0DD174D4558") {
+            throw "GTK3 runtime checksum mismatch: $hash"
+          }
+          Start-Process -FilePath $exe -ArgumentList "/S" -Wait
+          if (-not (Test-Path "C:\Program Files\GTK3-Runtime Win64\bin\libpango-1.0-0.dll")) {
+            throw "GTK3 runtime did not install where installer/raptor.spec looks"
+          }
 
       - name: Install package + PyInstaller
         run: |
@@ -381,7 +426,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           V=${{ steps.ver.outputs.version }}
-          mkdir -p AppDir/usr
+          mkdir -p AppDir/usr/lib
           cp -a dist/raptor-studio AppDir/usr/lib/raptor-studio
           mkdir -p AppDir/usr/bin
           printf '#!/bin/sh\nexec "$(dirname "$0")/../lib/raptor-studio/raptor-studio" "$@"\n' \
@@ -421,13 +466,17 @@ jobs:
         shell: bash
         run: |
           for f in ${{ steps.arts.outputs.files }}; do
-            gh release upload "$GITHUB_REF_NAME" "$f" --clobber
+            gh release upload "$RELEASE_TAG" "$f" --clobber
           done
 
   # --------------------------------------------------------- checksums
   checksums:
     name: SHA256SUMS
     needs: [pypi, pypi-mcp, installers]
+    if: >-
+      !cancelled() && needs.installers.result == 'success'
+      && (github.event_name == 'workflow_dispatch'
+          || (needs.pypi.result == 'success' && needs.pypi-mcp.result == 'success'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -436,7 +485,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download "$GITHUB_REF_NAME" --repo "${{ github.repository }}" \
+          gh release download "$RELEASE_TAG" --repo "${{ github.repository }}" \
             --dir artifacts \
             --pattern '*.exe' --pattern '*.zip' --pattern '*.dmg' \
             --pattern '*.deb' --pattern '*.AppImage'
@@ -448,7 +497,7 @@ jobs:
       - name: Upload checksums to the GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$GITHUB_REF_NAME" \
+        run: gh release upload "$RELEASE_TAG" \
                artifacts/SHA256SUMS.txt --clobber \
                --repo "${{ github.repository }}"
 
@@ -475,8 +524,10 @@ jobs:
           **Windows (unsigned build):** SmartScreen may warn — **More info** → **Run anyway**.
 
           Verify downloads with `SHA256SUMS.txt`. PyPI: `pip install raptor-studio`.'
-          gh release view "$GITHUB_REF_NAME" --repo "${{ github.repository }}" \
+          gh release view "$RELEASE_TAG" --repo "${{ github.repository }}" \
             --json body -q .body > body.md
+          # Once only: a manual re-run must not add the table again.
+          if grep -q '^## Install$' body.md; then exit 0; fi
           printf '%s\n' "$NOTES" >> body.md
-          gh release edit "$GITHUB_REF_NAME" --repo "${{ github.repository }}" \
+          gh release edit "$RELEASE_TAG" --repo "${{ github.repository }}" \
             --notes-file body.md

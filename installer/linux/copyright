@@ -5,7 +5,7 @@ Source: https://github.com/openpowershift/RaptorStudio
 Comment: The bundled third-party components (Qt/PySide6, WeasyPrint and its
  dependencies, MathJax, Python) and their licences are listed in
  /usr/lib/raptor-studio/_internal/THIRD_PARTY_NOTICES.md; their licence
- texts are in /usr/lib/raptor-studio/_internal/licenses/.
+ texts are in /usr/lib/raptor-studio/_internal/third_party_licenses/.
 
 Files: *
 Copyright: 2026 OpenPowerShift

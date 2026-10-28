@@ -142,6 +142,16 @@ Then:
 - **A bad version reached PyPI:** *yank* it on PyPI (Manage → Releases → Options → Yank) with a reason, fix on `main`
   with a `fix:` commit, and release the next patch version. Do not delete it: deleting frees nothing, because the
   version number can never be reused.
-- **An installer job failed:** re-run that job. It uploads with `--clobber`, then re-run **SHA256SUMS** so the
-  checksums cover every file.
+- **An installer job failed for a passing reason** (a runner hiccup): re-run that job. It uploads with `--clobber`;
+  then re-run **SHA256SUMS** so the checksums cover every file.
+- **An installer job failed because the build itself needs a fix:** fix it on `main`, then rebuild the installers for
+  the existing Release. Re-running the old job would use the workflow as it was at the tag.
+
+  ```bash
+  gh workflow run release.yml --repo OpenPowerShift/RaptorStudio --ref main -f tag=vX.Y.Z
+  ```
+
+  This builds the tag's code with `main`'s packaging (`installer/`, `THIRD_PARTY_NOTICES.md`) and workflow steps,
+  uploads the installers to that Release and regenerates `SHA256SUMS.txt`. It does not touch PyPI or the MCP
+  Registry.
 - **The MCP Registry job failed:** re-run it once PyPI shows the version. It is safe to re-run.

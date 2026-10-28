@@ -32,13 +32,13 @@ datas = [
     (str(ROOT / "THIRD_PARTY_NOTICES.md"), "."),
     # The GNU texts the LGPL components (Qt/PySide6 ship none in their wheels;
     # the Windows GTK runtime) are distributed under.
-    (str(ROOT / "installer" / "licenses"), "licenses/GNU"),
+    (str(ROOT / "installer" / "licenses"), "third_party_licenses/GNU"),
 ]
 
 
 def _bundled_licences(roots=("PySide6", "weasyprint")):
     """The licence files every bundled distribution ships in its metadata,
-    as (source, licenses/<name>/...) datas: the dependency closure of
+    as (source, third_party_licenses/<name>/...) datas: the dependency closure of
     `roots`, which is what the installers carry."""
     out, seen, todo = [], set(), list(roots)
     while todo:
@@ -54,7 +54,7 @@ def _bundled_licences(roots=("PySide6", "weasyprint")):
         for f in dist.files or ():
             if re.search(r"(licen[cs]e|copying|notice|authors)", f.name, re.I) \
                     and ".dist-info" in str(f):
-                out.append((str(f.locate()), f"licenses/{dist.metadata['Name']}"))
+                out.append((str(f.locate()), f"third_party_licenses/{dist.metadata['Name']}"))
         for req in dist.requires or ():
             if "extra ==" not in req:
                 todo.append(re.split(r"[\s;<>=!\[~(]", req, maxsplit=1)[0])
@@ -68,8 +68,8 @@ datas += _bundled_licences()
 binaries = []
 
 # Windows only: WeasyPrint's PDF export needs the Pango/GLib stack that
-# pip does not carry. The CI runner installs the GTK3 runtime via
-# chocolatey; its DLLs are bundled into _gtk/ and registered by
+# pip does not carry. The CI runner installs tschoonj's GTK3 runtime
+# (64-bit, see release.yml); its DLLs are bundled into _gtk/ and registered by
 # installer/entry.py at startup.
 if sys.platform == "win32":
     gtk_dirs = [
@@ -81,13 +81,14 @@ if sys.platform == "win32":
         gtk_dlls += glob.glob(os.path.join(d, "*.dll"))
     if not gtk_dlls:
         raise SystemExit(
-            "GTK3 runtime not found -- run: choco install gtk-runtime -y")
+            "GTK3 runtime (64-bit) not found -- install gtk3-runtime-*-win64.exe from "
+            "github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer")
     binaries += [("_gtk/" + Path(p).name, p, "BINARY") for p in gtk_dlls]
     # The GTK runtime's own licence texts, when the installer provides them.
     for d in gtk_dirs:
         share = Path(d).parent / "share" / "licenses"
         if share.is_dir():
-            datas.append((str(share), "licenses/gtk-runtime"))
+            datas.append((str(share), "third_party_licenses/gtk-runtime"))
 
 a = Analysis(
     [str(ROOT / "installer" / "entry.py")],

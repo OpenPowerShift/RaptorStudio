@@ -6,8 +6,8 @@ License v1.0 for the RAPTOR-derived portions, Apache License 2.0 for new code).
 The Python packages (`pip install raptor-studio`) depend on, but do not contain,
 the components below. The Windows, macOS and Linux installers **bundle** them;
 each installer carries the licence texts the components ship with in the
-`licenses/` folder next to this file, and the GNU LGPL 2.1, LGPL 3.0 and GPL 3.0
-texts in `licenses/GNU/` (the Qt for Python wheels carry no licence file).
+`third_party_licenses/` folder next to this file, and the GNU LGPL 2.1, LGPL 3.0 and GPL 3.0
+texts in `third_party_licenses/GNU/` (the Qt for Python wheels carry no licence file).
 
 | Component | Licence | Used for | Source |
 |---|---|---|---|
