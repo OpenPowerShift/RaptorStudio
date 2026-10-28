@@ -517,9 +517,11 @@ jobs:
       - name: Upload checksums to the GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$RELEASE_TAG" \
-               artifacts/SHA256SUMS.txt --clobber \
-               --repo "${{ github.repository }}"
+        # A block scalar: in a plain one YAML folds the lines but keeps the
+        # backslashes, and the file name reached gh with a leading space.
+        run: |
+          gh release upload "$RELEASE_TAG" artifacts/SHA256SUMS.txt --clobber \
+            --repo "${{ github.repository }}"
 
       - name: Append install notes to the release body
         env:
