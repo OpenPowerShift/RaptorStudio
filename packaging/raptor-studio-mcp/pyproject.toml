@@ -7,7 +7,7 @@
 
 [project]
 name = "raptor-studio-mcp"
-version = "0.8.0"  # x-release-please-version
+version = "0.8.1"  # x-release-please-version
 description = "MCP server for RAPTOR Studio: build, validate and simulate reliability block diagrams from an AI assistant"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "raptor-studio[mcp]==0.8.0",  # x-release-please-version
+    "raptor-studio[mcp]==0.8.1",  # x-release-please-version
 ]
 
 [project.scripts]
