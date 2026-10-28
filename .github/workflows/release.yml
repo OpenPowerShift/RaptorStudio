@@ -349,6 +349,7 @@ jobs:
       # install tschoonj's GTK3 runtime, pinned by checksum.
       - name: Install GTK3 runtime (Windows)
         if: runner.os == 'Windows'
+        timeout-minutes: 10
         shell: pwsh
         run: |
           $url = "https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases/download/2022-01-04/gtk3-runtime-3.24.31-2022-01-04-ts-win64.exe"
@@ -358,7 +359,12 @@ jobs:
           if ($hash -ne "D05E1488CA0E6FFAABB579BBEB82113C099152CA4260EBC63084B0DD174D4558") {
             throw "GTK3 runtime checksum mismatch: $hash"
           }
-          Start-Process -FilePath $exe -ArgumentList "/S" -Wait
+          # Wait for the installer process only: `Start-Process -Wait` also
+          # waits for everything it spawns, and that hung the job for 30 min.
+          # NSIS: `/S` silent, `/D=` the install folder (last, unquoted).
+          $p = Start-Process -FilePath $exe -ArgumentList '/S', '/D=C:\Program Files\GTK3-Runtime Win64' -PassThru
+          if (-not $p.WaitForExit(300000)) { throw "GTK3 runtime installer did not finish in 5 minutes" }
+          if ($p.ExitCode -ne 0) { throw "GTK3 runtime installer exited with $($p.ExitCode)" }
           if (-not (Test-Path "C:\Program Files\GTK3-Runtime Win64\bin\libpango-1.0-0.dll")) {
             throw "GTK3 runtime did not install where installer/raptor.spec looks"
           }
