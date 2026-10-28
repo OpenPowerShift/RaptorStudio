@@ -4,8 +4,11 @@
 * Everything outside `raptor/gui/` must be mypy-clean.
 * `raptor/gui/` carries legacy errors (mostly PySide6 short enum names such
   as `Qt.NoPen` and unchecked Optional Qt returns). Each file's error count
-  may not rise above `tools/mypy_gui_baseline.json`; when a file
-  improves, the gate asks for the baseline to be lowered so the gain sticks.
+  may not rise above `tools/mypy_gui_baseline.json`. When a file improves
+  the gate says so, but does not fail: the count can differ by one or two
+  between machines (mypy and stub versions), so a lower count is not a
+  reliable signal. Lower the baseline with `--update` when a change of
+  yours fixes errors.
 
     python tools/mypy_gate.py            # check (CI)
     python tools/mypy_gate.py --update   # rewrite the GUI baseline
@@ -67,9 +70,8 @@ def main() -> int:
             if m and m.group(1) in worse:
                 print("   ", e)
     if better:
-        failed = True
-        print("GUI files with FEWER errors -- lock in the gain with "
-              "`python tools/mypy_gate.py --update`:")
+        print("GUI files with FEWER errors than the baseline (not a failure; if your change "
+              "fixed them, lock in the gain with `python tools/mypy_gate.py --update`):")
         for f, (old, new) in sorted(better.items()):
             print(f"  {f}: {old} -> {new}")
 

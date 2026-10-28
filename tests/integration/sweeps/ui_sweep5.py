@@ -217,10 +217,20 @@ run_check("F11.rbds.save_open_retention", f11_rbds_save_open)
 # --------------------------------------- F12 speed + units chips ---
 def f12_speed_and_units_chips():
     w._new_file(); pe()
+    # Animate is off by default (and off on a clean CI profile): the label
+    # then says so whatever the speed. Turn it on to see the speed itself.
+    was_on = w._live_sim_action.isChecked()
+    w._live_sim_action.setChecked(False); pe()
     w._set_speed(0.5); pe()
-    assert "ev/s" in w._speed_label.text()
-    w._set_speed(None); pe()
-    assert "max" in w._speed_label.text().lower()
+    assert "no animation" in w._speed_label.text()
+    w._live_sim_action.setChecked(True); pe()
+    try:
+        w._set_speed(0.5); pe()
+        assert "ev/s" in w._speed_label.text()
+        w._set_speed(None); pe()
+        assert "max" in w._speed_label.text().lower()
+    finally:
+        w._live_sim_action.setChecked(was_on); pe()
     assert "units:" in w._units_chip.text()
 run_check("F12.speed_label_units_chip", f12_speed_and_units_chips)
 
