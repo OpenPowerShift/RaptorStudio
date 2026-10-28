@@ -83,7 +83,8 @@ if sys.platform == "win32":
         raise SystemExit(
             "GTK3 runtime (64-bit) not found -- install gtk3-runtime-*-win64.exe from "
             "github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer")
-    binaries += [("_gtk/" + Path(p).name, p, "BINARY") for p in gtk_dlls]
+    # Analysis takes (source, destination folder) pairs.
+    binaries += [(p, "_gtk") for p in gtk_dlls]
     # The GTK runtime's own licence texts, when the installer provides them.
     for d in gtk_dirs:
         share = Path(d).parent / "share" / "licenses"
