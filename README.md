@@ -123,9 +123,23 @@ For the assistant server alone, `uvx raptor-studio-mcp --workspace ~/raptor-mode
 step.
 
 Then run `raptor-studio` for the application, `raptor --help` for the command line, or `raptor-studio-mcp` for the
-assistant server. Requirements: Python 3.12+. The PDF export uses WeasyPrint, which needs system Pango — Linux:
+assistant server. pip puts these three commands in the environment's `bin` folder (`Scripts` on Windows), so in a
+virtual environment either activate it first (`source .venv/bin/activate`, or `.venv\Scripts\activate` on Windows)
+or give the full path, such as `.venv/bin/raptor --help`. `pipx` and `uv tool install` put them on your `PATH` for
+you. Requirements: Python 3.12+. The PDF export uses WeasyPrint, which needs system Pango — Linux:
 `sudo apt install libpango-1.0-0 libpangocairo-1.0-0`, macOS: `brew install pango`. The Windows/macOS installers
 bundle it.
+
+**Windows note (path too long):** Qt for Python (PySide6) installs some very deeply nested files. If `pip` stops with
+`OSError: [Errno 2] No such file or directory` and a hint about *Windows Long Path support*, the install folder's path
+is too long for Windows' 260-character limit. It happens most with the Python from the Microsoft Store, whose package
+folder is already about 150 characters long. Any one of these avoids it:
+
+- use the Windows installer above, which needs no Python;
+- install into a virtual environment with a short path:
+  `py -m venv C:\raptor` then `C:\raptor\Scripts\pip install raptor-studio`;
+- use `uv tool install raptor-studio` or `pipx install raptor-studio`;
+- or [enable long paths](https://pip.pypa.io/warnings/enable-long-path) in Windows (needs an administrator).
 
 ## A first run from the command line
 

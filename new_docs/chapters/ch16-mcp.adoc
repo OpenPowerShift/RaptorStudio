@@ -1316,8 +1316,9 @@ echo units in every result, and `configure_system` can set a
 
 ==== `raptor-studio-mcp: command not found`
 
-The server is not on your PATH. Use the full path to the executable, or
-add it:
+The server is not on your PATH. If you installed into a virtual environment,
+activate it first (`source .venv/bin/activate`, or `.venv\Scripts\activate` on
+Windows). Otherwise use the full path to the executable, or add it:
 
 [source,bash]
 ----
@@ -1325,6 +1326,24 @@ which raptor-studio-mcp
 # Or use python -m
 python -m raptor.mcp --help
 ----
+
+==== `pip install` fails on Windows with a path that is too long
+
+`pip` stops with `OSError: [Errno 2] No such file or directory` on a file deep
+inside `PySide6`, and suggests enabling *Windows Long Path support*. Qt for
+Python installs some very deeply nested files, and the full path goes past
+Windows' 260-character limit; the Python from the Microsoft Store makes it
+likely, because its package folder alone is about 150 characters long. Install
+into a virtual environment with a short path instead:
+
+[source,bat]
+----
+py -m venv C:\raptor
+C:\raptor\Scripts\pip install "raptor-studio[mcp]"
+----
+
+or use `uvx raptor-studio-mcp` (or `uv tool install "raptor-studio[mcp]"`),
+or enable long paths in Windows as pip's hint describes.
 
 ==== `No module named mcp`
 

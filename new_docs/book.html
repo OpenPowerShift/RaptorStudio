@@ -10434,8 +10434,9 @@ echo units in every result, and <code>configure_system</code> can set a
 <div class="sect3">
 <h4 id="_raptor_studio_mcp_command_not_found">22.11.1. <code>raptor-studio-mcp: command not found</code></h4>
 <div class="paragraph">
-<p>The server is not on your PATH. Use the full path to the executable, or
-add it:</p>
+<p>The server is not on your PATH. If you installed into a virtual environment,
+activate it first (<code>source .venv/bin/activate</code>, or <code>.venv\Scripts\activate</code> on
+Windows). Otherwise use the full path to the executable, or add it:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -10446,7 +10447,28 @@ python -m raptor.mcp --help</code></pre>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_no_module_named_mcp">22.11.2. <code>No module named mcp</code></h4>
+<h4 id="_pip_install_fails_on_windows_with_a_path_that_is_too_long">22.11.2. <code>pip install</code> fails on Windows with a path that is too long</h4>
+<div class="paragraph">
+<p><code>pip</code> stops with <code>OSError: [Errno 2] No such file or directory</code> on a file deep
+inside <code>PySide6</code>, and suggests enabling <strong>Windows Long Path support</strong>. Qt for
+Python installs some very deeply nested files, and the full path goes past
+Windows' 260-character limit; the Python from the Microsoft Store makes it
+likely, because its package folder alone is about 150 characters long. Install
+into a virtual environment with a short path instead:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bat" data-lang="bat">py -m venv C:\raptor
+C:\raptor\Scripts\pip install "raptor-studio[mcp]"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>or use <code>uvx raptor-studio-mcp</code> (or <code>uv tool install "raptor-studio[mcp]"</code>),
+or enable long paths in Windows as pip&#8217;s hint describes.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_no_module_named_mcp">22.11.3. <code>No module named mcp</code></h4>
 <div class="paragraph">
 <p>Install the MCP dependencies:</p>
 </div>
@@ -10457,7 +10479,7 @@ python -m raptor.mcp --help</code></pre>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_no_module_named_raptor_development_checkout">22.11.3. <code>No module named raptor</code> (development checkout)</h4>
+<h4 id="_no_module_named_raptor_development_checkout">22.11.4. <code>No module named raptor</code> (development checkout)</h4>
 <div class="paragraph">
 <p>Make sure the package is installed in editable mode:</p>
 </div>
@@ -10471,7 +10493,7 @@ python -m raptor.mcp --help</code></pre>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_server_starts_but_tools_do_not_appear_in_the_client">22.11.4. Server starts but tools do not appear in the client</h4>
+<h4 id="_server_starts_but_tools_do_not_appear_in_the_client">22.11.5. Server starts but tools do not appear in the client</h4>
 <div class="olist arabic">
 <ol class="arabic">
 <li>
@@ -10489,14 +10511,14 @@ Desktop: the developer console).</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_render_diagram_is_missing_from_the_tool_list">22.11.5. <code>render_diagram</code> is missing from the tool list</h4>
+<h4 id="_render_diagram_is_missing_from_the_tool_list">22.11.6. <code>render_diagram</code> is missing from the tool list</h4>
 <div class="paragraph">
 <p>It is not exposed when <code>--no-render</code> is set or when Qt cannot start
 (for example on a headless server without Qt&#8217;s system libraries). Every other tool still works.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_path_resolves_outside_the_workspace">22.11.6. Path resolves outside the workspace</h4>
+<h4 id="_path_resolves_outside_the_workspace">22.11.7. Path resolves outside the workspace</h4>
 <div class="paragraph">
 <p><code>save_model_as</code> may only write inside the workspace. Pass
 <code>--allow-write /some/dir</code> to permit another directory, or save inside the
@@ -10504,7 +10526,7 @@ workspace and copy the file out yourself.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_models_from_the_gui_do_not_show_up_in_the_workspace">22.11.7. Models from the GUI do not show up in the workspace</h4>
+<h4 id="_models_from_the_gui_do_not_show_up_in_the_workspace">22.11.8. Models from the GUI do not show up in the workspace</h4>
 <div class="paragraph">
 <p>The MCP server uses its own workspace directory (by default
 <code>~/.local/share/raptor-studio/mcp</code>). Open a GUI model by path instead:</p>
@@ -10520,7 +10542,7 @@ mutated.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_simulation_is_refused_as_too_long">22.11.8. Simulation is refused as too long</h4>
+<h4 id="_simulation_is_refused_as_too_long">22.11.9. Simulation is refused as too long</h4>
 <div class="paragraph">
 <p>The server estimates first and refuses a run predicted to exceed
 <code>timeout_s</code> (default 120 s). Use fewer runs, a shorter <code>run_length</code>, or
@@ -10528,7 +10550,7 @@ pass <code>confirm_long_run=true</code>. <code>--max-runs</code> (default 5000) 
 </div>
 </div>
 <div class="sect3">
-<h4 id="_the_runtime_estimate_seems_off">22.11.9. The runtime estimate seems off</h4>
+<h4 id="_the_runtime_estimate_seems_off">22.11.10. The runtime estimate seems off</h4>
 <div class="paragraph">
 <p>The estimate comes from a real pilot and is deliberately a <strong>range</strong>, not a
 promise. Per-run cost can be non-uniform for models with growth/decay or
