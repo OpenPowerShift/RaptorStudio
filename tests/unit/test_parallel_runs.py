@@ -170,3 +170,111 @@ def test_stop_keeps_the_runs_of_a_chunk_still_in_flight(monkeypatch):
     assert 20 <= len(logs) < total              # runs of an unfinished chunk are kept
     assert len(sink) == len(logs)
     assert [row.run_number for row in sink] == list(range(1, len(sink) + 1))
+
+
+# --- the steering hooks and sinks of both run paths -------------------------------------------
+class _FlagStub:
+    """Stands in for a `multiprocessing.Event` / `Value` inside this process."""
+
+    def __init__(self, is_set: bool = False) -> None:
+        self.set_ = is_set
+        self.value = 0
+
+    def is_set(self) -> bool:
+        return self.set_
+
+    def set(self) -> None:
+        self.set_ = True
+
+    def get_lock(self):
+        import contextlib
+        return contextlib.nullcontext()
+
+
+def _two_block():
+    return load_rbd(os.path.join(GOLD, "TwoBlockRedundancy", "input.rbd"))
+
+
+def test_progress_raising_run_aborted_stops_a_parallel_batch(monkeypatch):
+    from raptor.core.engine import runner
+    from raptor.core.engine.errors import RunAborted
+    monkeypatch.setattr(runner, "_PARALLEL_CHUNKS", 4)
+
+    def stop_after_first(done, total):
+        raise RunAborted()
+
+    logs = run_simulation(_two_block(), num_runs=200_000, num_workers=2, progress=stop_after_first)
+    assert len(logs) < 200_000
+
+
+def test_pause_check_is_polled_while_a_parallel_batch_runs():
+    polled = []
+    run_simulation(_two_block(), num_runs=8, num_workers=2, pause_check=lambda: polled.append(1))
+    assert polled
+
+
+def test_a_parallel_batch_fills_every_output_sink():
+    rbd = load_rbd(os.path.join(GOLD, "Capacity1", "input.rbd"))
+    cap: list[str] = []
+    ao: list[str] = []
+    cost: list[str] = []
+    meta: dict = {}
+    run_simulation(rbd, num_runs=4, num_workers=2, _capacity_sink=cap, _ao_sink=ao, _cost_sink=cost,
+                   metadata_sink=meta)
+    assert cap and ao
+    assert len(meta["negative_draws"]) == 4
+
+
+def test_a_worker_told_to_stop_hands_back_only_the_runs_it_finished(monkeypatch):
+    from raptor.core.engine import runner
+    from raptor.core.fileio.rbds import render_rbds
+    payload = (render_rbds(_two_block()), 5, 1000, 10.0, 720.0, False, 0, "")
+    monkeypatch.setattr(runner, "_STOP_FLAG", _FlagStub(is_set=True))
+    result = runner._run_chunk_worker(payload)
+    assert result["done"] == 0 and result["logs"] == [] and result["negative_draws"] == []
+
+
+def test_a_worker_counts_its_runs_and_raises_the_runaway_flag(monkeypatch):
+    from raptor.core.engine import runner
+    from raptor.core.fileio.rbds import render_rbds
+
+    class Runaway(runner.SingleRunDriver):
+        def finalize(self, *a, **k):
+            out = super().finalize(*a, **k)
+            self.hit_safety_bound = True
+            return out
+
+    runaway, counter = _FlagStub(), _FlagStub()
+    monkeypatch.setattr(runner, "SingleRunDriver", Runaway)
+    monkeypatch.setattr(runner, "_RUNAWAY_FLAG", runaway)
+    monkeypatch.setattr(runner, "_RUNS_DONE", counter)
+    result = runner._run_chunk_worker((render_rbds(_two_block()), 2, 1000, 10.0, 720.0, False, 0, ""))
+    assert runaway.is_set() and result["runaway"] == 2 and counter.value == 2
+
+
+def test_the_worker_start_up_records_its_flags():
+    from raptor.core.engine import runner
+    saved = (runner._RUNAWAY_FLAG, runner._RUNS_DONE, runner._STOP_FLAG)
+    try:
+        flag, counter, stop = _FlagStub(), _FlagStub(), _FlagStub()
+        runner._init_chunk_worker(flag, counter, stop)
+        assert (flag, counter, stop) == (runner._RUNAWAY_FLAG, runner._RUNS_DONE, runner._STOP_FLAG)
+    finally:
+        runner._RUNAWAY_FLAG, runner._RUNS_DONE, runner._STOP_FLAG = saved
+
+
+def test_a_sequential_batch_honours_skip_stop_and_progress_abort():
+    from raptor.core.engine.errors import RunAborted
+    rbd = _two_block()
+
+    skips = iter([True])
+    kept = run_simulation(rbd, num_runs=3, skip_check=lambda: next(skips, False), stop_check=lambda: False)
+    assert len(kept) == 2                       # the first run was abandoned, the rest went on
+
+    stopped = run_simulation(rbd, num_runs=50, stop_check=lambda: True)
+    assert len(stopped) < 50
+
+    def abort(done, total):
+        raise RunAborted()
+    aborted = run_simulation(rbd, num_runs=50, progress=abort)
+    assert len(aborted) == 1
