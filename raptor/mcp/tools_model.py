@@ -427,11 +427,14 @@ def build_model(name: str, spec: dict[str, Any] | None = None,
     from raptor.api.validate import issues
 
     import json as _json
-    if (spec is None) == (spec_path is None):
-        raise ValueError("give exactly one of `spec` (inline) and `spec_path` "
-                         "(a JSON file in the workspace)")
+    both_or_neither = ValueError("give exactly one of `spec` (inline) and "
+                                 "`spec_path` (a JSON file in the workspace)")
     if spec_path is not None:
+        if spec is not None:
+            raise both_or_neither
         spec = _read_spec_file(spec_path)
+    elif spec is None:
+        raise both_or_neither
     try:
         encoded = _json.dumps(spec, default=str).encode("utf-8")
     except (TypeError, ValueError) as exc:

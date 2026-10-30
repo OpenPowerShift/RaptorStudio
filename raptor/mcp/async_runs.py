@@ -96,8 +96,20 @@ def _evict_locked() -> None:
         _JOBS.pop(key, None)
 
 
+def _call_work(work, abort, progress, setup_progress):
+    """Run `work`, handing it the set-up progress callback only if it takes
+    a third argument (older two-argument callers keep working)."""
+    try:
+        takes_setup = len(inspect.signature(work).parameters) >= 3
+    except (TypeError, ValueError):
+        takes_setup = False
+    if takes_setup:
+        return work(abort, progress, setup_progress)
+    return work(abort, progress)
+
+
 def start(
-    work: Callable[[threading.Event, Callable[[int, int | None], None]], Any],
+    work: Callable[..., Any],
     *,
     model_id: str,
     total: int | None,
@@ -138,12 +150,7 @@ def start(
                     job.state = "cancelled"
                     return
                 job.state = "running"
-                try:
-                    takes_setup = len(inspect.signature(work).parameters) >= 3
-                except (TypeError, ValueError):
-                    takes_setup = False
-                result = (work(job.abort, progress, setup_progress)
-                          if takes_setup else work(job.abort, progress))
+                result = _call_work(work, job.abort, progress, setup_progress)
                 job.run_id = getattr(result, "run_id", None)
                 job.wall_seconds = getattr(result, "wall_seconds", None)
                 job.done = int(getattr(result, "num_runs", job.done) or job.done)
