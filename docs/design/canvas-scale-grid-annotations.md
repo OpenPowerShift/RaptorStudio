@@ -127,6 +127,19 @@ meant to keep to. Columns never wrap in x. A `.rbd` exported from such a
 layout opens in Raptor with elements outside the grid (§1). This happens
 whatever is decided about the scale, and it should be fixed first.
 
+The refine step already knows about a canvas limit, but it uses the wrong
+one. It penalises x outside `FIRST_X..118.75`, and its `too_wide` check
+skips the refine for anything past 118.75. That treats Raptor's display
+width (120) as if it were the stored width. The stored limit is 148.75
+(§1). Layering then ignores the limit altogether.
+
+The fix goes on top of #33 (the refine time budget), not on `main`. #33
+re-indents the refine block that holds these 118.75 checks, so a branch
+from `main` would conflict. And once layouts fit the world, `too_wide` no
+longer skips the refine for large levels, so the refine will run on them
+and needs #33's budget. #37 touches the same file only at the save gate
+and does not interact.
+
 ## 5. Assessment of the first draft
 
 | Point | Verdict |
