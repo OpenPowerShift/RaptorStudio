@@ -129,6 +129,15 @@ rather than left to auto-assignment.
 (`"Weibull"`, `"Uniform Real"`, `"Pearson 5"`; see the table below); the
 writer stores the code. An unknown name is an error.
 
+**A block that never fails.** Raptor 7 has no "never fails" setting, and
+the file format keeps to what Raptor 7 can open. (`None`, code 18, is a
+*repair* distribution: the block is never repaired.) Give the block a
+`Fixed` failure time (code 19) far beyond the run length, for example
+`"fail_dist": "Fixed", "fail_params": [900000000, 0, 0]`. The largest value
+Raptor 7's input rules accept is 999,999,999.999999, so `1e9` is
+rejected. If the item can never fail, it can usually be left out of the
+diagram instead.
+
 #### Dependency
 
 A dependent block reacts when the element it follows goes down. The
