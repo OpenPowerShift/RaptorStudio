@@ -31,6 +31,8 @@ from raptor.api.limits import (
 from raptor.api.workspace import Workspace, _BLOCK_DEFAULT_FIELDS
 from raptor.core import run_experiment
 from raptor.core.fileio import rbds as _rbds
+# Re-exported for the CLI, which may not import the file layer itself.
+from raptor.core.fileio.legacy_layout import no_layout_on_save  # noqa: F401
 from raptor.core.fileio.rbd import RbdFile, RbdSection, store_distribution_values
 from raptor.core.fileio.builder import (
     get_row, set_fields, add_row, next_id, used_ids, validate, sync_counts,

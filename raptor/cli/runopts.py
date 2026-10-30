@@ -33,7 +33,17 @@ def parse_stop(text: str) -> tuple[str, float | None]:
 def apply_run_options(ws: Any, model_id: str, args: Any) -> dict[str, Any]:
     """Apply -n/-t/--stop/--stats-start/--analysis/--weak-type/--set/--set-file
     to the model in `ws`. Returns the options as they were applied (for the
-    results file). Raises CliError (exit 2) for anything unplaceable."""
+    results file). Raises CliError (exit 2) for anything unplaceable.
+
+    Nothing here re-lays the model out: the edits save through the
+    workspace, and the save-time layout gate would otherwise move every
+    block of a crammed model before the run starts."""
+    from raptor.api import build
+    with build.no_layout_on_save():
+        return _apply_run_options(ws, model_id, args)
+
+
+def _apply_run_options(ws: Any, model_id: str, args: Any) -> dict[str, Any]:
     from raptor.api import build, paths
 
     applied: dict[str, Any] = {}

@@ -77,6 +77,29 @@ _PARENT_COL = {"BLOCK_DATA": "ParentId", "NODE_DATA": "parent",
                "EVENT_DATA": "ParentId", "HIERARCHY_DATA": "Parent"}
 
 
+#: Set while something that is not a layout edit is saving a model (applying
+#: run options, say): the save-time gate in `normalize_legacy_layout` then
+#: leaves positions alone. A deliberate layout (`force=True`) is unaffected.
+_SAVE_GATE_OFF: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "raptor_layout_save_gate_off", default=False)
+
+
+@contextlib.contextmanager
+def no_layout_on_save():
+    """Saves inside this block never re-lay a model out on their own.
+
+    The gate exists to repair hand-authored crammed layouts when a file is
+    saved or exported. Applying `-n`, `--length` or `--set` before a run is
+    not that, and running the layout there made `raptor run` spend minutes
+    moving blocks in the workspace copy of a large model and drop its frozen
+    view transform."""
+    token = _SAVE_GATE_OFF.set(True)
+    try:
+        yield
+    finally:
+        _SAVE_GATE_OFF.reset(token)
+
+
 def _snap(v: float) -> float:
     return round(v / GRID) * GRID
 
@@ -845,7 +868,7 @@ def normalize_legacy_layout(f, force: bool = False,
     The collision refine has `refine_budget_s()` seconds in total across all
     containers; if it runs out, `report["refine_cut_short"]` counts the
     containers left less than fully refined."""
-    if not needs_legacy_normalization(f) and not force:
+    if not force and (_SAVE_GATE_OFF.get() or not needs_legacy_normalization(f)):
         return False
     deadline = time.monotonic() + refine_budget_s()
     kids = _container_children(f)
