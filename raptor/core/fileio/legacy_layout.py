@@ -56,6 +56,13 @@ ROW_CHUNK = 12
 ROW_CENTRE = 92.5
 #: first grid line content may occupy (Raptor 7 files start at 1.25)
 FIRST_X = 1.25
+#: Raptor's canvas in stored units: 120 x 80 display units x 1.25. A drag
+#: clamps an element to display x <= 119 and y in 1..80 (IDisplay.mod),
+#: and OpenFile does not clamp at all, so anything outside lands off the
+#: grid. Rows stop one grid line below the top border.
+X_MAX = 148.75
+Y_MAX = 98.75
+Y_MIN = 1.25
 #: view-window anchoring (Raptor 7 files: every xOrigin/yOrigin is 0/80)
 VIEW_ORIGIN_X = 0.0
 VIEW_ORIGIN_Y = 80.0
@@ -281,55 +288,94 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # and the next split) is 36 px wide on screen, and at block pitch it
     # drew as long empty links (`view_transform` charges the scale per
     # adjacent pair of columns to match).
-    col_of: dict = {}
-    row_of: dict = {}
+    #
+    # A layer of more than ROW_CHUNK elements wraps into several columns.
+    # Each layer's chunks get their own column indices: indexing them
+    # `L + chunk` put a wide layer's second chunk in the next layer's
+    # column. A layer's column is still its layer number (so a gap in
+    # the layer numbers stays an empty column, as before), pushed right by
+    # the extra chunk columns of the layers before it.
+    col_base: dict = {}
+    extra = 0
     for L in sorted(by_layer):
-        ks = sorted(by_layer[L])
-        for chunk, start in enumerate(range(0, len(ks), ROW_CHUNK)):
-            group = ks[start:start + ROW_CHUNK]
+        col_base[L] = L + extra
+        extra += -(-len(by_layer[L]) // ROW_CHUNK) - 1
+    # Rows hang from one centre line, lowered when the tallest chunk would
+    # otherwise pass the top of Raptor's canvas (Y_MAX). Centred on
+    # ROW_CENTRE, 7 or more rows reached y = 100 and beyond.
+    n_max = min(ROW_CHUNK, max(len(ks) for ks in by_layer.values()))
+    half = (n_max - 1) / 2.0 * ROW_PITCH
+    centre = min(ROW_CENTRE, Y_MAX - half)
+
+    col_of: dict = {}
+    pos: dict = {}
+
+    def place_layer(L, ordered):
+        """Put a layer's elements, in `ordered` order, into its chunk
+        columns, each chunk centred on the centre line."""
+        for chunk, start in enumerate(range(0, len(ordered), ROW_CHUNK)):
+            group = ordered[start:start + ROW_CHUNK]
             n = len(group)
             for i, k in enumerate(group):
-                col_of[k] = L + chunk
-                row_of[k] = ROW_CENTRE + (i - (n - 1) / 2.0) * ROW_PITCH
+                col_of[k] = col_base[L] + chunk
+                pos[k] = [col_of[k],
+                          centre + (i - (n - 1) / 2.0) * ROW_PITCH]
+
+    for L in sorted(by_layer):
+        place_layer(L, sorted(by_layer[L]))
     node_only: dict = {}
     for k, c in col_of.items():
         node_only[c] = node_only.get(c, True) and kind_of(k) == "node"
+
+    # The barycenter sweeps that used to follow here never reordered a
+    # row: they computed an order and then wrote rows back by loop index,
+    # so each pass only re-centred every layer in its original order. They
+    # are left out rather than repaired here, because ordering rows by
+    # their neighbours would move every layout; the rows keep that same
+    # id order.
+
+    # Columns to x. A level wider than Raptor's canvas wraps into bands
+    # stacked downward, alternating direction (left to right, then right
+    # to left) so the link from one band's last column to the next band's
+    # first stays short and vertical instead of crossing the whole band.
     col_x: dict = {}
-    x = FIRST_X
+    col_band: dict = {}
+    limit = X_MAX - FIRST_X
+    local = 0.0
+    band = 0
     prev = None
     for c in range(max(col_of.values()) + 1):
         if prev is not None:
             both_nodes = node_only.get(prev, True) and node_only.get(c, True)
-            x += NODE_PITCH if both_nodes else LAYER_PITCH
-        col_x[c] = x
+            local += NODE_PITCH if both_nodes else LAYER_PITCH
+            if local > limit + 1e-9:
+                band += 1
+                local = 0.0
+        col_x[c] = FIRST_X + local if band % 2 == 0 else X_MAX - local
+        col_band[c] = band
         prev = c
-    pos: dict = {k: [col_x[col_of[k]], row_of[k]] for k in col_of}
-
-    # --- barycenter sweeps: order rows by neighbours' mean row so
-    # connected elements align and edges stop zig-zagging ----------
-    def reassign(L, keyval):
-        ks = by_layer[L]
-        n = len(ks)
-        order = sorted(range(n),
-                       key=lambda i: (-keyval(ks[i]), ks[i]))
-        for i, _k in enumerate(order):
-            pos[ks[i]][1] = ROW_CENTRE + (i - (n - 1) / 2.0) * ROW_PITCH
-
-    for _ in range(3):
-        for L in sorted(by_layer):
-            reassign(L, lambda k: (sum(pos[p][1] for p in pred.get(k, ()))
-                                    / len(pred[k])) if pred.get(k)
-                      else pos[k][1])
-        for L in sorted(by_layer, reverse=True):
-            reassign(L, lambda k: (sum(pos[s][1] for s in succ.get(k, ()))
-                                    / len(succ[k])) if succ.get(k)
-                      else pos[k][1])
+    wrapped = band > 0
+    band_h = 2.0 * half + 2.0 * ROW_PITCH
+    centre_of = {k: centre - col_band[col_of[k]] * band_h for k in pos}
+    for k in pos:
+        pos[k] = [col_x[col_of[k]],
+                  pos[k][1] - col_band[col_of[k]] * band_h]
+    band_lo = min(_BAND_LO, centre - half)
+    band_hi = _BAND_HI
 
     # in/out markers sit exactly on the centre line (the level's in and
     # out nodes are centre aligned)
     for k in list(entries) + list(pins):
         if k in pos:
-            pos[k][1] = ROW_CENTRE
+            pos[k][1] = centre_of[k]
+
+    if min(y for _x, y in pos.values()) < Y_MIN - 1e-9:
+        # Too many bands for the canvas height: the level cannot be drawn
+        # inside Raptor's canvas at this pitch.
+        if report is not None:
+            report["outside_world"] = report.get("outside_world", 0) + 1
+        log.warning("layout: %d elements do not fit Raptor's 150 x 100 "
+                    "canvas", len(pos))
 
     # --- greedy collision refine -----------------------------------
     edge_list = [(a, b) for a in member_set for b in succ.get(a, ())]
@@ -385,12 +431,12 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
             w = _CENTRAL_W.get(kinds[k], 0.25)
             if k in entries or k in pins:
                 w = 5.0
-            s += w * (y - ROW_CENTRE) ** 2
+            s += w * (y - centre_of[k]) ** 2
             s += 0.1 * (y - by0) ** 2 + 0.1 * (x - bx0) ** 2
-            if not (_BAND_LO <= y <= _BAND_HI):
+            if not (band_lo <= y <= band_hi):
                 s += 500
                 hard += 1
-            if not (FIRST_X <= x <= 118.75):
+            if not (FIRST_X <= x <= X_MAX):
                 s += 500
                 hard += 1
         # edge-edge crossings (fan-in/fan-out lines that share an
@@ -423,13 +469,12 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # element. On a long clean chain that is the whole cost of the pass.
     #
     # Two layouts are skipped outright:
-    #   * wider than the legacy canvas -- no column move can bring x back
-    #     inside 118.75, so the search would spend every candidate on an
-    #     unfixable fault (a 100-block series needs ~250 stored units);
+    #   * wrapped into bands (wider than Raptor's canvas) -- the links
+    #     between bands are faults no column or row move can fix, so the
+    #     search would spend every candidate on them;
     #   * more than _REFINE_MAX_ELEMENTS -- the search is quadratic in
     #     elements, and a very large model's schematic is unreadable at
     #     that density anyway; layering and the barycenter sweeps stand.
-    too_wide = any(x > 118.75 + 1e-9 for x, _y in pos.values())
     def tick() -> None:
         # Called before a candidate mutates anything, so stopping here
         # leaves `pos` exactly as the last finished candidate restored it.
@@ -437,7 +482,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
             raise _OutOfTime
 
     best = None
-    if hard_state[0] and not too_wide and len(member_set) <= _REFINE_MAX_ELEMENTS:
+    if hard_state[0] and not wrapped and len(member_set) <= _REFINE_MAX_ELEMENTS:
         try:
             for _pass in range(8 if len(member_set) > 150 else 25):
                 best = None          # (score, apply_fn)
@@ -469,7 +514,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                     if kind_of(k) == "node" or k in entries or k in pins:
                         continue
                     col_ys = [pos[o][1] for o in columns[x] if o != k]
-                    for gy in _grid_rows():
+                    for gy in _grid_rows(band_lo, band_hi):
                         if any(abs(gy - oy) < ROW_PITCH - 1e-6 for oy in col_ys):
                             continue
                         tick()
@@ -484,7 +529,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                     if kind_of(k) != "block" or k in pins:
                         continue
                     for nx in (x - LAYER_PITCH, x + LAYER_PITCH):
-                        if not (FIRST_X <= nx <= 118.75):
+                        if not (FIRST_X <= nx <= X_MAX):
                             continue
                         if any(ox == nx for o, (ox, _) in pos.items() if o != k):
                             continue
@@ -522,9 +567,9 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     return {k: (_snap(x), _snap(y)) for k, (x, y) in pos.items()}
 
 
-def _grid_rows():
-    g = _BAND_LO
-    while g <= _BAND_HI + 1e-9:
+def _grid_rows(lo, hi):
+    g = lo
+    while g <= hi + 1e-9:
         yield round(g, 6)
         g += GRID
 
@@ -682,8 +727,13 @@ def _level_zoom(coords) -> float:
         return 24.0
     xs = [x for x, _ in coords]
     ys = [y for _, y in coords]
-    span_x = (max(xs) - min(xs)) / GRID
-    span_y = (max(ys) - min(ys)) / GRID
+    # The view is pinned at the canvas's top-left (VIEW_ORIGIN_X/Y), so it
+    # must reach from there to the content's far edge, not just span the
+    # content. Raptor shows 12.85/20 of the zoom vertically (ZoomFit in
+    # IDisplay.mod sizes a fit the same way); measuring the height as if
+    # it were the width cut the bottom rows of a tall level off.
+    span_x = max(xs) / GRID - VIEW_ORIGIN_X
+    span_y = (VIEW_ORIGIN_Y - min(ys) / GRID) * 20.0 / 12.85
     zoom = max(span_x, span_y) + ZOOM_PAD
     return float(min(max(round(zoom), ZOOM_MIN), ZOOM_MAX))
 

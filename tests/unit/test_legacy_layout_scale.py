@@ -12,6 +12,7 @@ cubic blow-up, not a benchmark.
 """
 from __future__ import annotations
 
+import itertools
 import time
 
 
@@ -44,7 +45,15 @@ def test_a_500_block_series_lays_out_in_seconds():
     xs = [float(r["xPos"]) for r in rows]
     ys = [float(r["yPos"]) for r in rows]
     assert len(rows) == 500
-    assert all(x > 0 for x in xs)
-    assert all(81.0 < y < 99.0 for y in ys)
-    # Layering preserves the series order left to right.
-    assert xs == sorted(xs)
+    # Inside Raptor's 150 x 100 canvas: the series wraps into bands
+    # rather than running 1,250 units to the right.
+    assert all(1.25 <= x <= 148.75 for x in xs)
+    assert all(1.25 <= y <= 98.75 for y in ys)
+    assert len(set(ys)) > 1
+    # Layering preserves the series order: each block sits next to the
+    # one before it, along a band or down to the next band.
+    order = sorted(rows, key=lambda r: int(r["ID"]))
+    pts = [(float(r["xPos"]), float(r["yPos"])) for r in order]
+    for (x1, y1), (x2, y2) in itertools.pairwise(pts):
+        assert (abs(x2 - x1) <= 2.5 and y1 == y2) or \
+            (abs(x2 - x1) <= 2.5 and 0 < y1 - y2 <= 5.0), ((x1, y1), (x2, y2))
