@@ -258,10 +258,10 @@ def _run_test_fail(
     # mechanism, nodes.determine_node_status). NumGoodPaths resets to each
     # node's own EconnectIntoNum, except the origin, seeded to exactly 1
     # (GoodPathsRequired) so its own first TestFail decrement always
-    # triggers.
-    for node in nodes_by_id.values():
-        node.num_good_paths = len(node.in_paths_array)
-    origin.num_good_paths = 1
+    # triggers. The counters live in a per-origin dict that only holds the
+    # nodes the walk reaches: resetting every node's own field for every
+    # origin made set-up quadratic in the node count.
+    paths_left: dict[int, int] = {origin.id: 1}
 
     if origin.parent_id != 0:
         origin_hier = hiers_by_id[origin.parent_id]
@@ -273,7 +273,10 @@ def _run_test_fail(
     propagated_group: set[int] = set()  # node ids
     loop_hits = 0
 
-    def test_fail(node_id: int) -> None:
+    def test_fail(node_id: int) -> list[tuple[int | None, int]]:
+        """Visit one node; returns the `(link id, target node id)` steps to
+        walk next, in order (a hierarchy In node steps to its Out node over
+        no link)."""
         nonlocal loop_hits
         node = nodes_by_id[node_id]
         if node_id == origin.id:
@@ -283,9 +286,13 @@ def _run_test_fail(
                     f"TestFail loop detected at node id={node_id} -- RunEFPA's "
                     "LoopError abort path is not ported (no fixture has a cyclic RBD graph)"
                 )
-        node.num_good_paths -= 1
-        if node.num_good_paths != 0:  # GoodPathsRequired(1) - 1 == 0
-            return
+        left = paths_left.get(node_id)
+        if left is None:
+            left = len(node.in_paths_array)
+        left -= 1
+        paths_left[node_id] = left
+        if left != 0:  # GoodPathsRequired(1) - 1 == 0
+            return []
 
         qualifies_hier_out = node.type_node == 5 and (
             hiers_by_id[node.parent_id].level >= mama or node_id == origin.id
@@ -296,16 +303,29 @@ def _run_test_fail(
                 targets, paths = node.propagates_to_node_ids, node.propagates_to_link_ids
             else:
                 targets, paths = node.next_node_ids, node.next_node_link_ids
-            for target_id, link_id in zip(targets, paths):
-                downstream_group.append(link_id)
-                test_fail(target_id)
-        elif node.type_node == 4:
+            return [(link_id, target_id) for target_id, link_id in zip(targets, paths)]
+        if node.type_node == 4:
             propagated_group.add(node_id)
-            in_hier = hiers_by_id[node.parent_id]
-            test_fail(in_hier.out_id)
+            return [(None, hiers_by_id[node.parent_id].out_id)]
         # elif node.type_node == 5 (disqualified): stop, no propagation.
+        return []
 
-    test_fail(origin.id)
+    # Depth-first, links recorded as they are taken, exactly as the source's
+    # recursion did; an explicit stack because a long chain of nodes ran past
+    # Python's recursion limit.
+    steps = test_fail(origin.id)
+    stack = [iter(steps)] if steps else []
+    while stack:
+        step = next(stack[-1], None)
+        if step is None:
+            stack.pop()
+            continue
+        link_id, target_id = step
+        if link_id is not None:
+            downstream_group.append(link_id)
+        steps = test_fail(target_id)
+        if steps:
+            stack.append(iter(steps))
 
     # `downstream_group` holds link ids; the target node id for each one is
     # re-derived from `links_by_id` here rather than reused from the walk's own
