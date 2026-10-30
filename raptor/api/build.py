@@ -2580,9 +2580,11 @@ def update_element(
                 continue
             if dist == 0 or n <= 0:
                 continue
+            from raptor.api.run import model_units
             err = validate_distro_params(
                 dist, params[:n],
-                f"Block '{row.get('blockName', row.get('ID'))}' {use}")
+                f"Block '{row.get('blockName', row.get('ID'))}' {use}",
+                model_units(rbd))
             if err:
                 row.clear()
                 row.update(before)

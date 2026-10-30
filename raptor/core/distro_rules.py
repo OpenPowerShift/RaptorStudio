@@ -75,8 +75,32 @@ DISTRO_PARAM_LABELS = {
 
 _LIMIT = 999999999.999999
 
+#: Hours in each time unit Raptor knows how to convert, smallest first. The
+#: same factors as `gui/ui/units_conv.HOURS_PER_UNIT` (pinned by a test): the
+#: hint below is core code and must not import the GUI package.
+_UNIT_HOURS = {"minutes": 1 / 60, "hours": 1.0, "days": 24.0, "weeks": 168.0,
+               "months": 730.0, "years": 8760.0}
 
-def param_error(distro: int, idx: int, v: float, use: str) -> str | None:
+
+def larger_unit_hint(v: float, units: str | None) -> str:
+    """What to say after "must be less than 999,999,999.999999".
+
+    Names the smallest larger time unit that brings `v` in range when the
+    model's own unit is one Raptor can convert; otherwise just suggests a
+    larger unit. Imported reliability data can exceed the limit (an MTTF of
+    4e9 hours), and the way round it is the model's time unit."""
+    note = " (the model's other times must be converted too)"
+    here = _UNIT_HOURS.get((units or "").strip().lower())
+    if here is None:
+        return " Choose a larger time unit for the model" + note + "."
+    for name, hours in _UNIT_HOURS.items():
+        if hours > here and v * here / hours <= _LIMIT:
+            return f" Switching the model's time unit to {name} brings it in range{note}."
+    return " No larger time unit brings it in range."
+
+
+def param_error(distro: int, idx: int, v: float, use: str,
+                units: str | None = None) -> str | None:
     """The rules `validate_distro_params` applies to ONE parameter on its
     own (finite, in range, an integer where it must be), so a field can be
     checked when it is committed without the other fields' values. The
@@ -92,7 +116,8 @@ def param_error(distro: int, idx: int, v: float, use: str) -> str | None:
     if not math.isfinite(v):
         return f"{use} {label} must be a finite number"
     if v > _LIMIT:
-        return f"{use} {label} must be less than 999,999,999.999999"
+        return (f"{use} {label} must be less than 999,999,999.999999"
+                + larger_unit_hint(v, units))
     key = label.lower()
     if key in ("mean", "scale", "n trials", "standard dev", "shape", "shape2"):
         if v < 0.000001:
@@ -114,7 +139,8 @@ def param_error(distro: int, idx: int, v: float, use: str) -> str | None:
     return None
 
 
-def validate_distro_params(distro: int, values: list[float], use: str) -> str | None:
+def validate_distro_params(distro: int, values: list[float], use: str,
+                           units: str | None = None) -> str | None:
     """Port of Raptor 7's CheckValidInput, DEFAULT display
     mode. Returns an error message for the first violated rule, or None.
 
@@ -126,7 +152,7 @@ def validate_distro_params(distro: int, values: list[float], use: str) -> str | 
     """
     labels = DISTRO_PARAM_LABELS.get(distro, ("", "", ""))
     for i, v in enumerate(values[: len(labels)]):
-        err = param_error(distro, i, v, use)
+        err = param_error(distro, i, v, use, units)
         if err is not None:
             return err
 
