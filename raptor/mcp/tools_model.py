@@ -146,6 +146,17 @@ def _resolve_model_path(path: str) -> Path:  # noqa: C901
     raise FileNotFoundError(_NOT_FOUND.format(path=path))
 
 
+def _choose_spec(spec: dict[str, Any] | None,
+                 spec_path: str | None) -> dict[str, Any]:
+    """The inline spec, or the one in `spec_path`; exactly one must be given."""
+    if (spec is None) == (spec_path is None):
+        raise ValueError("give exactly one of `spec` (inline) and `spec_path` "
+                         "(a JSON file in the workspace)")
+    if spec is not None:
+        return spec
+    return _read_spec_file(str(spec_path))
+
+
 def _read_spec_file(path: str) -> dict[str, Any]:
     """Read a JSON spec from the workspace or an `--allow-read` directory.
 
@@ -427,14 +438,7 @@ def build_model(name: str, spec: dict[str, Any] | None = None,
     from raptor.api.validate import issues
 
     import json as _json
-    both_or_neither = ValueError("give exactly one of `spec` (inline) and "
-                                 "`spec_path` (a JSON file in the workspace)")
-    if spec_path is not None:
-        if spec is not None:
-            raise both_or_neither
-        spec = _read_spec_file(spec_path)
-    elif spec is None:
-        raise both_or_neither
+    spec = _choose_spec(spec, spec_path)
     try:
         encoded = _json.dumps(spec, default=str).encode("utf-8")
     except (TypeError, ValueError) as exc:
