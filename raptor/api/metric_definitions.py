@@ -52,6 +52,20 @@ METRICS: tuple[dict[str, str], ...] = (
      "aggregate": "Yellow_Percent", "units": "%"},
     {"key": "red_percent", "metric": "Red %",
      "aggregate": "Red_Percent", "units": "%"},
+    # Capacity analysis only (`analysis`): absent from other runs' summaries.
+    {"key": "units_produced", "metric": "Units produced",
+     "aggregate": "Units_Produced", "units": "flow x time",
+     "analysis": "capacity"},
+    {"key": "mean_flow", "metric": "Mean flow",
+     "aggregate": "Mean_Flow", "units": "flow", "analysis": "capacity"},
+    {"key": "mean_capacity", "metric": "Mean capacity",
+     "aggregate": "Mean_Capacity", "units": "flow", "analysis": "capacity"},
+    {"key": "capacity_weighted_availability",
+     "metric": "Capacity-weighted availability",
+     "aggregate": "Capacity_Weighted_Availability", "units": "",
+     "analysis": "capacity"},
+    {"key": "lost_flow", "metric": "Lost flow",
+     "aggregate": "Lost_Flow", "units": "flow", "analysis": "capacity"},
 )
 
 
@@ -76,7 +90,35 @@ def samples_from_per_run(per_run: Iterable[Any]) -> dict[str, int]:
         spec["key"]: sum(1 for row in rows
                          if _finite(row.get(spec["key"])) is not None)
         for spec in METRICS
+        if not spec.get("analysis")
+        or any(spec["key"] in row for row in rows)
     }
+
+
+def _metric_row(spec: Mapping[str, str], entry: Any, units: str,
+                samples: Mapping[str, int] | None) -> dict[str, Any]:
+    """One metric's row of `from_summary`."""
+    row: dict[str, Any] = {
+        **spec,
+        "samples": (samples.get(spec["key"]) if samples is not None
+                    else None),
+        "units": units if spec["units"] == "time" else spec["units"],
+        "censored": False,
+    }
+    if isinstance(entry, Mapping):
+        for key in ("min", "mean", "max", "stdev", "sem"):
+            row[key] = _finite(entry.get(key))
+        row["censored"] = bool(entry.get("censored", False))
+        if row["censored"]:
+            row["stdev"] = None
+            row["sem"] = None
+        if row["mean"] is None:
+            row["samples"] = 0
+    else:
+        for key in ("min", "mean", "max", "stdev", "sem"):
+            row[key] = None
+        row["samples"] = 0
+    return row
 
 
 def from_summary(summary: Mapping[str, Any], *, units: str = "",
@@ -87,27 +129,9 @@ def from_summary(summary: Mapping[str, Any], *, units: str = "",
     rows: list[dict[str, Any]] = []
     for spec in METRICS:
         entry = summary.get(spec["aggregate"])
-        row: dict[str, Any] = {
-            **spec,
-            "samples": (samples.get(spec["key"]) if samples is not None
-                        else None),
-            "units": units if spec["units"] == "time" else spec["units"],
-            "censored": False,
-        }
-        if isinstance(entry, Mapping):
-            for key in ("min", "mean", "max", "stdev", "sem"):
-                row[key] = _finite(entry.get(key))
-            row["censored"] = bool(entry.get("censored", False))
-            if row["censored"]:
-                row["stdev"] = None
-                row["sem"] = None
-            if row["mean"] is None:
-                row["samples"] = 0
-        else:
-            for key in ("min", "mean", "max", "stdev", "sem"):
-                row[key] = None
-            row["samples"] = 0
-        rows.append(row)
+        if spec.get("analysis") and entry is None:
+            continue  # that analysis was off for this run
+        rows.append(_metric_row(spec, entry, units, samples))
     notes = []
     if any(row["censored"] for row in rows):
         notes.append("Censored values are lower bounds (marked > in the "

@@ -233,7 +233,10 @@ async def simulate(  # noqa: PLR0912, PLR0915
 
     Returns {run_id, model_id, model_hash, runs, requested_runs, truncated,
     wall_seconds, summary, warnings, caveats}; `summary` has each metric
-    with min/mean/max/stdev/sem.  `caveats` is the model-validation subset
+    with min/mean/max/stdev/sem. With capacity analysis on, `summary` adds
+    Units_Produced, Mean_Flow, Mean_Capacity, Capacity_Weighted_Availability
+    (Mean_Flow / FlowGenerated: the delivered fraction, where Availability
+    only means some flow got through) and Lost_Flow.  `caveats` is the model-validation subset
     of `warnings` (surfaced separately so a client can show them first).
     The Markdown body is a table with units in the headers.
 
@@ -375,6 +378,11 @@ async def simulate(  # noqa: PLR0912, PLR0915
     )
     if getattr(result, "isolation", None):
         md = f"**{result.isolation['banner']}**\n\n" + md
+    if "Capacity_Weighted_Availability" in data["summary"]:
+        md += ("\n\nCapacity analysis: `Availability` counts any flow reaching "
+               "the end; `Capacity_Weighted_Availability` (Mean_Flow / "
+               "FlowGenerated) is the delivered fraction, and `Lost_Flow` the "
+               "flow not delivered.")
     if workers_auto:
         md += (f"\n\nRan on {workers} cores (chosen for a large model; pass "
                "`workers=1` for the sequential numbers).")

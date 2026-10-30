@@ -55,6 +55,10 @@ _COST_METRICS = frozenset({
     "standby", "done", "emergship", "newspares", "initspares",
 })
 
+_FLOW_METRICS = frozenset({
+    "units_produced", "mean_flow", "mean_capacity", "lost_flow",
+})
+
 _COUNT_METRICS = frozenset({
     "system_failures", "component_failures", "num_system_failures",
     "num_component_failures", "numdelays", "failures",
@@ -66,7 +70,7 @@ def _metric_key(name: str) -> str:
 
 
 def _metric_kind(name: str) -> str:
-    """One of ``prob``, ``time``, ``cost`` or ``count``."""
+    """One of ``prob``, ``time``, ``cost``, ``count`` or ``flow``."""
     key = _metric_key(name)
     if key in _TIME_METRICS:
         return "time"
@@ -74,6 +78,8 @@ def _metric_kind(name: str) -> str:
         return "cost"
     if key in _COUNT_METRICS:
         return "count"
+    if key in _FLOW_METRICS:
+        return "flow"
     if key in _PROBABILITY_METRICS:
         return "prob"
     if key.endswith("_percent") or "availability" in key \
@@ -111,7 +117,7 @@ def _fmt_value(value: Any, kind: str) -> str:
         return str(value)
     if kind == "time":
         return f"{value:.2f}"
-    if kind == "cost":
+    if kind in ("cost", "flow"):
         return f"{value:.2f}"
     if kind == "count":
         return f"{value:g}"

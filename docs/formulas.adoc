@@ -52,6 +52,19 @@ still count.
 xref:../new_docs/book.html#ch-first-model[the lantern chapter] calls
 "reliability".
 
+|Capacity-weighted availability
+|stem:["Mean_Flow" / "FlowGenerated"]
+|With capacity analysis on: the fraction of the generated flow the system
+delivers, averaged over time. stem:[A_o] only asks whether *any* flow
+reaches the end, so a system running at half capacity still counts as up.
+`Mean_Flow` is the Start node's time-averaged flow, the Final Results row
+of that name.
+
+|Lost flow
+|stem:["Lost_Flow" = "FlowGenerated" - "Mean_Flow"]
+|The flow not delivered, on average. Multiplied by the run length it is
+the energy (or product) not supplied. The Final Results `AveLostFlow` row.
+
 |Standard error of the mean (SEM)
 |stem:["SEM" ~~ "StDev" / sqrt(n)], and for a proportion stem:[p]: stem:["SEM" ~~ sqrt((p(1-p))/n)]
 |Mean stem:[+-] 2 stem:[xx] SEM is roughly a 95% interval — a normal

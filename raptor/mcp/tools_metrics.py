@@ -88,7 +88,10 @@ def describe_metrics(run_id: str | None = None,
     Without `run_id`, returns the name and units of every metric RAPTOR
     reports: availability, reliability, conditional reliability,
     dependability, MTBDE/MDT, MTBM/MTBMs/MTBMu, MMT/MMTs/MMTu, system and
-    component failures, and green/yellow/red percentages. **Definitions and
+    component failures, and green/yellow/red percentages, plus, for a run
+    with capacity analysis, units produced, mean flow and capacity,
+    capacity-weighted availability (mean flow / flow generated) and lost
+    flow. **Definitions and
     equations are not repeated here** -- call `read_doc('formulas')` for
     them; that page is the single source. With `run_id`, also returns that
     run's sample count, min/mean/max, standard deviation and standard
