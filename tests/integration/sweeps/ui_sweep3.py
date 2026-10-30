@@ -174,10 +174,9 @@ def t6b_bg_run_with_delay_stops():
         time.sleep(0.02)
     kept = len(w._results._event_logs)
     assert w._bg_state.get("done") and w._bg_state["stop_ev"].is_set()
-    # A Stop landing during run 1 legitimately keeps ZERO completed runs
-    # since results clear at batch start.
-    assert kept <= p2[0] + 1, (kept, p2)
-    assert kept >= 0
+    # Stop keeps every run a worker had finished (the live counter's runs,
+    # sampled before the Stop), plus any that finished while it landed.
+    assert p2[0] <= kept <= 5000, (kept, p2)
     w._set_speed(None)
 run_check("6b.bg.throttle_then_stop_keeps_partial", t6b_bg_run_with_delay_stops)
 
