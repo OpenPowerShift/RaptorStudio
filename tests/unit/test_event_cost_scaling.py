@@ -90,3 +90,10 @@ def test_the_index_lists_dependents_in_model_order():
     assert [b.id for b in by_block[7]] == [1, 3, 5]
     assert [b.id for b in by_block[3]] == [2]
     assert 5 not in by_block and by_node == {}
+
+
+def test_nothing_is_logged_without_an_events_file():
+    blocks = [_block(1, BlockStatus.REPAIRING)]
+    state = SystemState(color=SystemColor.RED, last_up_down_change=0.0)
+    assert red_change_line(state, 5.0, blocks, events_file=False) is None
+    assert state.red_string == ""
