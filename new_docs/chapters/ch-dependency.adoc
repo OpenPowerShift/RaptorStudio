@@ -200,12 +200,44 @@ warns you about dependency you declared, not dependency you forgot to
 notice in the first place.
 ====
 
+=== A dependent block also breaks the path it sits on
+
+Idle does not mean "out of the way". An Idle block is not carrying
+anything, so **the path through it is broken for as long as it is Idle**.
+That is the whole point in the backup story above (the backup is Idle
+exactly when it is needed), and it has a second use.
+
+Suppose one physical item appears in two places on the diagram, and
+when it is down both places must be down. Draw the item once as a
+normal block. At the second place, draw a block that **never fails** (a
+very large time to failure, such as `9e8`, which is under the 999,999,999.999999 limit)
+and make it depend on the first block with **100% Idle**. While the
+first block is down, the second is Idle and its path is broken; while
+the first is up, the second never fails, so it adds no failures of its
+own.
+
+For example, with block X working in parallel with W, followed in series
+by a never-failing Twin that depends on X (100% Idle): failing X alone
+leaves the system Yellow without the Twin (W carries the load), and
+turns it **Red** with it, because Twin goes Idle in series.
+
+[WARNING]
+====
+A dependent block is **not independent redundancy**. Used as a
+stand-in for the same item it is exactly what you want; used as a
+"backup" it sits Idle exactly when the thing it follows is down. Check
+which of the two you are drawing before you trust the result, and read
+the dependency badge (**D**) on the canvas to see what a block follows.
+====
+
 === What you learned
 
 * A dependent block pauses (Idle) while what it depends on is down,
   and its failure clock resumes exactly where it left off.
 * Dependency has its own small badge and hover connector — real,
   useful, and easy to miss on a diagram that otherwise looks ordinary.
+* An Idle block breaks the path through it, so a never-failing block that
+  depends on another at 100% Idle is a way to show one item in two places.
 * A redundant-looking diagram can hide a single point of failure: if
   the backup depends on the primary, the system's real reliability is
   the primary's alone, no matter how good the backup is.

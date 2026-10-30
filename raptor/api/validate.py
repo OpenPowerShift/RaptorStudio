@@ -204,6 +204,12 @@ def _check_empirical(row: dict, key: str, element: str, use: str
     return []
 
 
+def _units(rbd: RbdFile) -> str:
+    """The model's time unit, for the out-of-range hint."""
+    from raptor.api.run import model_units
+    return model_units(rbd)
+
+
 def _check_block_dist_params(rbd: RbdFile) -> list[Issue]:
     """Check fail/repair distribution parameter ranges for every block."""
     result: list[Issue] = []
@@ -231,7 +237,8 @@ def _check_block_dist_params(rbd: RbdFile) -> list[Issue]:
         if dist == 16:
             result += _check_empirical(row, "FEmp", element, "fail")
         elif dist != 0 and n_params > 0:
-            err = validate_distro_params(dist, params[:n_params], f"{element} fail")
+            err = validate_distro_params(dist, params[:n_params], f"{element} fail",
+                                         _units(rbd))
             if err:
                 result.append(Issue("error", element, err))
 
@@ -245,7 +252,8 @@ def _check_block_dist_params(rbd: RbdFile) -> list[Issue]:
         if dist == 16:
             result += _check_empirical(row, "REmp", element, "repair")
         elif dist != 0 and n_params > 0:
-            err = validate_distro_params(dist, params[:n_params], f"{element} repair")
+            err = validate_distro_params(dist, params[:n_params], f"{element} repair",
+                                         _units(rbd))
             if err:
                 result.append(Issue("error", element, err))
 
@@ -286,7 +294,7 @@ def _check_event_dist_params(rbd: RbdFile) -> list[Issue]:
         except (ValueError, TypeError):
             continue
         if dist != 0:
-            err = validate_distro_params(dist, [prob], f"{element}")
+            err = validate_distro_params(dist, [prob], f"{element}", _units(rbd))
             if err:
                 result.append(Issue("error", element, err))
 
@@ -315,7 +323,7 @@ def _check_section_dist_params(rbd: RbdFile, section_name: str,
             continue
         row_name = row.get(name_col) or f"{label} (unnamed)"
         element = f"{label} '{row_name}'"
-        err = validate_distro_params(dist, params, label)
+        err = validate_distro_params(dist, params, label, _units(rbd))
         if err:
             result.append(Issue("error", element, err))
 
