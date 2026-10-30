@@ -152,3 +152,21 @@ def test_progress_moves_between_chunk_merges():
     # asserting a count made this fail under `pytest -n 8` while passing
     # alone -- see the flake note in CONTRIBUTING.
     assert len(set(seen)) >= 2
+
+
+def test_stop_keeps_the_runs_of_a_chunk_still_in_flight(monkeypatch):
+    """Stop used to keep only chunks that had finished. A big batch has few,
+    large chunks, so stopping after 70,000 counted runs kept none of them
+    ("no runs complete"). Workers now hand back the runs they had done."""
+    from raptor.core.engine import runner
+    monkeypatch.setattr(runner, "_PARALLEL_CHUNKS", 2)
+    rbd = load_rbd(os.path.join(GOLD, "TwoBlockRedundancy", "input.rbd"))
+    seen: list[int] = []
+    sink: list = []
+    total = 200_000
+    logs = run_simulation(rbd, num_runs=total, num_workers=2, _report_sink=sink,
+                          progress=lambda d, t: seen.append(d),
+                          stop_check=lambda: bool(seen) and seen[-1] >= 20)
+    assert 20 <= len(logs) < total              # runs of an unfinished chunk are kept
+    assert len(sink) == len(logs)
+    assert [row.run_number for row in sink] == list(range(1, len(sink) + 1))

@@ -67,12 +67,16 @@ _RUNAWAY_FLAG = None
 #: Set in each pool worker: a shared count of finished runs, bumped after
 #: every run so the parent can show progress between chunk merges.
 _RUNS_DONE = None
+#: Set in each pool worker: raised by the parent on Stop. A worker checks it
+#: between runs and returns the runs it has finished instead of the whole chunk.
+_STOP_FLAG = None
 
 
-def _init_chunk_worker(flag, runs_done=None) -> None:
-    global _RUNAWAY_FLAG, _RUNS_DONE
+def _init_chunk_worker(flag, runs_done=None, stop=None) -> None:
+    global _RUNAWAY_FLAG, _RUNS_DONE, _STOP_FLAG
     _RUNAWAY_FLAG = flag
     _RUNS_DONE = runs_done
+    _STOP_FLAG = stop
     # A worker outlives a parent that dies without cleaning up (a crash, or
     # `os._exit`) and would run its chunk to the end on a core nobody is
     # using; it checks on the parent and leaves with it.
@@ -86,6 +90,11 @@ def _init_chunk_worker(flag, runs_done=None) -> None:
     threading.Thread(target=_watch, daemon=True).start()
 
 
+#: How long Stop waits for in-flight chunks to hand back their finished runs
+#: (a worker answers after the run it is in the middle of).
+_STOP_GRACE_SECONDS = 15.0
+
+
 def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
                         progress=None, stop_check=None, pause_check=None,
                         metadata_sink=None) -> None:
@@ -95,7 +104,8 @@ def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
 
     At most `workers` chunks are in flight, so the batch can be steered as
     it goes: Stop (`stop_check`, or `progress` raising `RunAborted`) kills
-    the workers and keeps every chunk already finished; Pause
+    the workers and keeps every run already finished, including the runs of a
+    chunk still in flight (each worker hands back what it has done); Pause
     (`pause_check`, or a `stop_check` that blocks, as the GUI's does) hands
     out no new chunks until resumed; a run that hits the anti-runaway bound
     in any worker sets `metadata_sink["runaway_runs"]` straight away and
@@ -108,8 +118,9 @@ def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
     # chunk order (that decides the numbers), so reporting merges alone
     # left a big run's progress still for minutes.
     runs_done = mp_ctx.Value("i", 0)
+    stop_flag = mp_ctx.Event()
     pool = mp_ctx.Pool(workers, initializer=_init_chunk_worker,
-                       initargs=(flag, runs_done))
+                       initargs=(flag, runs_done, stop_flag))
     shown = 0
     pending: dict = {}
     finished: dict = {}
@@ -154,9 +165,20 @@ def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
                     metadata_sink["runaway_runs"] = max(
                         1, metadata_sink.get("runaway_runs", 0))
                 _report(max(done, shown))
-        # Stopped: keep what finished, in chunk order.
-        for i in [i for i, r in pending.items() if r.ready()]:
-            finished[i] = pending.pop(i).get()
+        # Stopped: keep what finished, in chunk order. A chunk in flight is
+        # asked to return the runs it has done (it was a big batch's whole
+        # progress otherwise: 70,000 runs counted, none kept, because no
+        # chunk of ~70,000 had finished); one that does not answer in time
+        # is dropped when the pool is terminated.
+        if stopped:
+            stop_flag.set()
+        deadline = time.monotonic() + _STOP_GRACE_SECONDS
+        for i in sorted(pending):
+            r = pending[i]
+            if stopped:
+                r.wait(max(0.0, deadline - time.monotonic()))
+            if r.ready():
+                finished[i] = pending.pop(i).get()
         for i in sorted(finished):
             done = merge(finished.pop(i))
     finally:
@@ -195,6 +217,8 @@ def _run_chunk_worker(payload):
     cap_lines: list[str] = []
     done = runaway = 0
     for i in range(chunk_runs):
+        if _STOP_FLAG is not None and _STOP_FLAG.is_set():
+            break
         driver = SingleRunDriver(ctx, i)
         driver.kickoff()
         driver.advance_to_end()
