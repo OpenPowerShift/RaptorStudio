@@ -2,6 +2,7 @@
 windows between GUI tests, and install a watchdog that dumps all thread
 stacks if a test runs past its timeout."""
 import faulthandler
+import gc
 import os
 import tempfile
 import weakref
@@ -319,6 +320,13 @@ def _test_hygiene(request):
         ThemeManager.instance()._callbacks.clear()
         _clear_orphan_undo_stacks()
         _reap()
+        # Collect now, on the thread that owns Qt. A reference cycle left
+        # holding Qt objects is otherwise freed by whichever thread next
+        # triggers a collection -- in CI, an MCP job thread running the
+        # engine -- and tearing a QObject down off the GUI thread segfaults
+        # ("Fatal Python error" under "Garbage-collecting", in unrelated
+        # engine code, in the shard that happened to schedule it there).
+        gc.collect()
 
 
 
