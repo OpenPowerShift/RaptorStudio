@@ -16,6 +16,7 @@ import pytest
 from raptor.core.engine import graph
 from raptor.core.engine.load import load_model
 from raptor.core.fileio.rbd import load_rbd
+from raptor.core.model import Link, RBDHier, RBDNode
 
 GOLD = pathlib.Path(__file__).resolve().parents[1] / "golden"
 FIXTURES = sorted(os.path.basename(os.path.dirname(p)) for p in glob.glob(str(GOLD / "*" / "input.rbd")))
