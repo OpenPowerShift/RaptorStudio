@@ -12,6 +12,7 @@ cross-run monitors `Final_Results` uses (`AvailMon`/`MTBDEMon`/etc., one sample 
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 
@@ -130,8 +131,9 @@ class TimedStat:
         return total / span
 
 
-def update_many(stats: dict, values: dict, sim_time: float) -> None:
-    """`stats[key].update(value, sim_time)` for every `key: value` in `values`.
+def update_many(stats: dict, values: dict, sim_time: float, keys: Iterable | None = None) -> None:
+    """`stats[key].update(value, sim_time)` for every `key: value` in `values`,
+    or only for `keys` when given.
 
     The same arithmetic in the same order for each monitor as `update`, so the
     results are bit-identical; the time is rounded once instead of once per
@@ -141,7 +143,8 @@ def update_many(stats: dict, values: dict, sim_time: float) -> None:
     3,470-block model was about 10 million `update` calls over five simulated
     years."""
     t = round(sim_time, _DEC)
-    for key, value in values.items():
+    items = values.items() if keys is None else ((key, values[key]) for key in keys)
+    for key, value in items:
         m = stats[key]
         dt = t - m._epoch
         m._area += m.value * (dt if dt > 0.0 else 0.0)

@@ -324,6 +324,14 @@ class CapacityState:
     #: `rpt_*_capacity.txt` lines (time / start-node flow / start-node
     #: capacity), deduplicated on flow change.
     cap_file_lines: list[str] = field(default_factory=list)
+    #: The nodes whose `NodeFlow`/`NodeCapacity` `analyze_capacity` assigns:
+    #: the capacity node group plus the start and end nodes. Set by its first
+    #: call. Every other node's values stay 0 for the whole run.
+    live_ids: list[int] | None = None
+    #: From `reset_for_new_run` until the first `touch_capacity_monitors`:
+    #: the first assignment after a reset sets a monitor's Min/Max, so that
+    #: touch still covers every node.
+    monitors_fresh: bool = True
 
 
 def reset_for_new_run(
@@ -340,6 +348,7 @@ def reset_for_new_run(
     state.cap_analysis_required = False
     state.flowing_at_max_cap = False
     state.cap_file_lines.clear()
+    state.monitors_fresh = True
     for node in nodes_by_id.values():
         flow_stat = TimedStat()
         cap_stat = TimedStat()
@@ -641,9 +650,22 @@ def touch_capacity_monitors(state: CapacityState, sim_time: float) -> None:
     when the value is unchanged. The Raptor 7 engine assigns them at the end of
     every state-changing instant, not only when a new flow analysis was
     required, which matters for the cross-run variance in the aggregate
-    report."""
-    update_many(state.flow_stats, state.node_flow, sim_time)
-    update_many(state.cap_stats, state.node_capacity, sim_time)
+    report.
+
+    Once every monitor has had its first assignment, only `live_ids` are
+    touched. Any other node's monitor holds 0 with Min/Max already 0, and
+    assigning 0 to it again changes nothing: the integral gains `0 * dt`,
+    exactly +0.0, and the split point is never read while the value is 0.
+    On a model with 901 nodes and a 5-node capacity group the full touch
+    was about a quarter of a replication's time."""
+    live = state.live_ids
+    if live is None or state.monitors_fresh:
+        update_many(state.flow_stats, state.node_flow, sim_time)
+        update_many(state.cap_stats, state.node_capacity, sim_time)
+        state.monitors_fresh = False
+        return
+    update_many(state.flow_stats, state.node_flow, sim_time, live)
+    update_many(state.cap_stats, state.node_capacity, sim_time, live)
 
 
 def analyze_capacity(
@@ -666,6 +688,9 @@ def analyze_capacity(
     system_status`); this IS the flag-gated body plus the CapFile writer.
     Updates `state`'s timed monitors exactly where the source assigns the
     `LMONITORED` arrays."""
+    if state.live_ids is None:
+        state.live_ids = list(dict.fromkeys(
+            [node.id for node in cap_node_group] + [start_node.id, end_node.id]))
     _reset_flows(cap_node_group, cap_link_ids, links_by_id)
     if not new_sys_status_red:
         if not flowing_at_max_cap:
