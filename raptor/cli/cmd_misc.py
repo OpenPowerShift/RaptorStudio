@@ -178,6 +178,23 @@ _raptor "$@"''')
 
 # ---- doctor ---------------------------------------------------------------
 
+_NATIVE_DISPLAYS = {"Windows": "Windows", "Darwin": "macOS"}
+
+
+def display_status(system: str, env: Any) -> tuple[bool, str]:
+    """`(ok, detail)` for the doctor's display line.
+
+    Only Linux desktops (X11 or Wayland) advertise a display through
+    `DISPLAY` / `WAYLAND_DISPLAY`. Windows and macOS always have a native
+    one, so reporting "none" there told users something was wrong when the
+    application displayed normally."""
+    native = _NATIVE_DISPLAYS.get(system)
+    if native is not None:
+        return True, f"native ({native})"
+    detail = env.get("WAYLAND_DISPLAY") or env.get("DISPLAY")
+    return bool(detail), detail or "none"
+
+
 def doctor_command(args: Any) -> int:
     import platform
     checks: list[dict[str, Any]] = []
@@ -212,10 +229,7 @@ def doctor_command(args: Any) -> int:
             Workspace(d)
         return True, "workspace writable"
     check("workspace", engine)
-    check("display", lambda: (bool(os.environ.get("DISPLAY")
-                                   or os.environ.get("WAYLAND_DISPLAY")),
-                              os.environ.get("WAYLAND_DISPLAY")
-                              or os.environ.get("DISPLAY") or "none"))
+    check("display", lambda: display_status(platform.system(), os.environ))
     if args.format == "json":
         emit_json({"schema": "raptor-doctor/1", "checks": checks}, None)
     else:
