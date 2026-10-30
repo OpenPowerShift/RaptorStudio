@@ -44,7 +44,7 @@ import math
 from dataclasses import dataclass, field
 
 from raptor.core.engine.report_format import real_to_str
-from raptor.core.engine.stats import TimedStat
+from raptor.core.engine.stats import TimedStat, update_many
 from raptor.core.model import Link, LinkStatus, RBDBlock, RBDEvent, RBDHier, RBDNode, NodeStatus
 
 #: The source's own flow infinity.
@@ -642,10 +642,8 @@ def touch_capacity_monitors(state: CapacityState, sim_time: float) -> None:
     every state-changing instant, not only when a new flow analysis was
     required, which matters for the cross-run variance in the aggregate
     report."""
-    for node_id, value in state.node_flow.items():
-        state.flow_stats[node_id].update(value, sim_time)
-    for node_id, value in state.node_capacity.items():
-        state.cap_stats[node_id].update(value, sim_time)
+    update_many(state.flow_stats, state.node_flow, sim_time)
+    update_many(state.cap_stats, state.node_capacity, sim_time)
 
 
 def analyze_capacity(
