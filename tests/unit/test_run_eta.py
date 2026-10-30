@@ -170,3 +170,59 @@ def test_the_background_poll_puts_the_estimate_in_the_status_bar(qapp):
     assert "Approximately 2 minutes left" in message
     win._clear_run_eta()
     win.close()
+
+
+# -- importance measures (#3) ---------------------------------------------
+
+def test_the_estimate_covers_the_importance_batches_too():
+    """The baseline's average per run, times every batch still to come."""
+    est = RunEstimate(started=__import__("time").monotonic() - 100, extra_batches=9)
+    text = est.text(10, 100, now=datetime(2026, 1, 1, 9, 0))
+    plain = RunEstimate(started=__import__("time").monotonic() - 100).text(
+        10, 100, now=datetime(2026, 1, 1, 9, 0))
+    assert text.endswith("(including importance measures)")
+    # 10 s a run: 90 runs left alone, 990 with nine more batches of 100
+    assert plain.startswith("Approximately 15 minutes left")
+    assert text.startswith("Approximately 2.8 hrs left")
+
+
+def test_no_importance_batches_leaves_the_sentence_unchanged():
+    est = RunEstimate(started=__import__("time").monotonic() - 100)
+    assert "importance" not in est.text(10, 100)
+
+
+def test_the_baseline_estimate_stays_until_the_importance_phase(qapp):
+    import time
+    from raptor.gui.ui.main_window import MainWindow
+
+    win = MainWindow()
+    win._run_eta = RunEstimate(started=time.monotonic() - 100, extra_batches=4)
+    assert "including importance measures" in win._run_eta_text(10, 20)
+    win._clear_run_eta()
+    win.close()
+
+
+def test_the_importance_phase_keeps_a_time_estimate(qapp):
+    """The estimate used to be cleared here and never came back."""
+    import time
+    from raptor.gui.ui.main_window import MainWindow
+
+    win = MainWindow()
+    win._imp_eta = RunEstimate(started=time.monotonic() - 60)
+    win._update_importance_progress(11, 101, "perfect:Pump")   # 10 of 100 variants
+    message = win._statusbar.currentMessage()
+    assert "variant 11 of 101" in message
+    assert "Approximately" in message and "left" in message, message
+    win._end_importance_progress("done")
+    assert win._imp_eta is None
+    win.close()
+
+
+def test_the_importance_estimate_waits_for_two_variants(qapp):
+    from raptor.gui.ui.main_window import MainWindow
+
+    win = MainWindow()
+    win._update_importance_progress(1, 101, "starting")
+    assert "Approximately" not in win._statusbar.currentMessage()
+    win._end_importance_progress("done")
+    win.close()

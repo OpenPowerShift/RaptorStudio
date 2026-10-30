@@ -105,7 +105,14 @@ class RunEstimate:
     counters it already has from the engine's progress callback.
     """
 
-    def __init__(self, *, started: float | None = None) -> None:
+    def __init__(self, *, started: float | None = None,
+                 extra_batches: int = 0) -> None:
+        #: Importance measures re-run the whole batch once per variant, after
+        #: this one. When there are such batches the remaining time is
+        #: `(1 + extra_batches) * total` runs' worth, not `total`, and the
+        #: sentence says so (the variants cost about what the baseline did,
+        #: so this is an approximation, not a measurement).
+        self.extra_batches = max(0, int(extra_batches))
         self._started = time.monotonic() if started is None else started
         self._paused_at: float | None = None
         self._paused_total = 0.0
@@ -128,4 +135,8 @@ class RunEstimate:
 
     def text(self, done: int, total: int, *,
              now: datetime | None = None) -> str | None:
-        return format_eta(done, total, self.active_seconds(), now=now)
+        text = format_eta(done, total * (1 + self.extra_batches),
+                          self.active_seconds(), now=now)
+        if text and self.extra_batches:
+            text += " (including importance measures)"
+        return text

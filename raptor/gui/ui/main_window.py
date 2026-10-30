@@ -4592,8 +4592,22 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _start_run_eta(self) -> None:
         """Begin timing a batch for the "approximately N left" readout."""
         from raptor.gui.ui.run_eta import RunEstimate
-        self._run_eta = RunEstimate()
+        self._run_eta = RunEstimate(
+            extra_batches=self._importance_extra_batches())
         self._bg_last_paused = False
+
+    def _importance_extra_batches(self) -> int:
+        """Batches importance measures add after the baseline (0 when off)."""
+        try:
+            mode = str(self._current_experiment().get("importance", "none")
+                       or "none")
+            if mode in ("", "none") or self._rbd is None:
+                return 0
+            from raptor.api import importance as _imp
+            return max(0, _imp.batch_count(
+                len(_imp.block_rows(self._rbd)), mode) - 1)
+        except (ImportError, KeyError, ValueError, TypeError, AttributeError):
+            return 0
 
     def _note_run_profile(self, done_runs: int) -> None:
         """Remember how long this batch actually took, for the next
@@ -4665,14 +4679,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._run_progress.setValue(pct)
         self._run_progress_label.setVisible(True)
         self._run_progress_label.setText(f"{pct}%")
-        self._clear_run_eta()      # the batch is over; importance is extra
+        self._clear_run_eta()      # the baseline batch is over
+        # `done` counts batches finished with the baseline as the first, so
+        # the variants finished are done - 1 of total - 1. Timed from the
+        # first report: the estimate was dropped here before, which left the
+        # slowest part of a run (one batch per block per measure) with no
+        # time at all.
+        imp = getattr(self, "_imp_eta", None)
+        if imp is None:
+            from raptor.gui.ui.run_eta import RunEstimate
+            imp = RunEstimate()
+            self._imp_eta: RunEstimate | None = imp
+        eta = imp.text(int(done) - 1, int(total) - 1)
         detail = f" [{label}]" if label else ""
         self._statusbar.showMessage(
             f"Importance measures — variant {int(done)} of {int(total)}"
-            f"{detail} ({pct}%)", 0)
+            f"{detail} ({pct}%)" + (f" · {eta}" if eta else ""), 0)
         QApplication.processEvents()
 
     def _end_importance_progress(self, message: str) -> None:
+        self._imp_eta = None
         self._run_progress.setVisible(False)
         self._run_progress_label.setVisible(False)
         self._statusbar.showMessage(message, 8000)
