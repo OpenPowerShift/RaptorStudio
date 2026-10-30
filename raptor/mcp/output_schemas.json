@@ -105,6 +105,9 @@
    "moved": {
     "type": "boolean"
    },
+   "refine_cut_short": {
+    "type": "integer"
+   },
    "scope": {
     "type": "string"
    }
@@ -113,6 +116,7 @@
    "elements_moved",
    "model_id",
    "moved",
+   "refine_cut_short",
    "scope"
   ],
   "type": "object"

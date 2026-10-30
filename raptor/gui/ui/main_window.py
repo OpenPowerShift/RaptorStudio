@@ -38,6 +38,7 @@ from raptor.gui.ui.run_experiment_mixin import (
 )
 from raptor.core.fileio.rbd import load_rbd, save_rbd, RbdFile
 from raptor.core.fileio import rbds as rbds_io
+from raptor.core.fileio.legacy_layout import GUI_REFINE_BUDGET_S, refine_budget
 from raptor.core.engine.weak_metric import (
     canonical as canonical_analysis, cross_run_event_metric,
     cross_run_node_metric, cross_run_weak_metric)
@@ -4003,7 +4004,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # the saved file.
         self._diagram_dock.view.write_back_annotations()
         if str(path).lower().endswith(".rbds"):
-            rbds_io.save_rbds(req(self._rbd), path)
+            # Saving can re-lay out a crammed model, on the UI thread.
+            with refine_budget(GUI_REFINE_BUDGET_S):
+                rbds_io.save_rbds(req(self._rbd), path)
             return True
         n_ann = len(getattr(self._rbd, "annotations", []) or [])
         if n_ann:
@@ -4055,7 +4058,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     yes_text="Continue, save plain values",
                     no_text="Cancel"):
                 return False
-        save_rbd(req(self._rbd), path)
+        with refine_budget(GUI_REFINE_BUDGET_S):
+            save_rbd(req(self._rbd), path)
         return True
 
     def _open_model_any(self, path: str):
@@ -7547,7 +7551,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._diagram_dock.view.write_back_annotations()
             path = self._recovery_path()
             Path(path).parent.mkdir(parents=True, exist_ok=True)
-            rbds_io.save_rbds(self._rbd, path)
+            with refine_budget(GUI_REFINE_BUDGET_S):
+                rbds_io.save_rbds(self._rbd, path)
             self._statusbar.showMessage(
                 f"Auto-saved recovery copy — {path} "
                 f"(restored automatically after a crash)", 8000)

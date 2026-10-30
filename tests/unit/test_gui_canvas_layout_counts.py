@@ -162,6 +162,46 @@ def test_auto_layout_places_an_event_on_the_flow(qapp):
     w.close()
 
 
+def test_the_auto_layout_button_uses_the_shorter_gui_budget(qapp, monkeypatch):
+    """The button blocks the UI thread, so it must not get the engine's
+    30 s default."""
+    from raptor.core.fileio import legacy_layout
+    seen = []
+    real = legacy_layout.layout_container_positions
+
+    def spy(*args, **kwargs):
+        seen.append(legacy_layout.refine_budget_s())
+        return real(*args, **kwargs)
+
+    w = _window(qapp, _event_model())     # building the model lays it out too
+    monkeypatch.setattr(legacy_layout, "layout_container_positions", spy)
+    w._diagram_dock.view.auto_layout()
+    assert seen == [legacy_layout.GUI_REFINE_BUDGET_S]
+    assert legacy_layout.GUI_REFINE_BUDGET_S < legacy_layout.REFINE_BUDGET_S
+    w._dirty = False
+    w.close()
+
+
+@pytest.mark.parametrize("suffix", [".rbds", ".rbd"])
+def test_saving_from_the_gui_uses_the_shorter_gui_budget(qapp, monkeypatch,
+                                                         tmp_path, suffix):
+    """Saving can re-lay out a crammed model, on the UI thread."""
+    from raptor.core.fileio import legacy_layout
+    seen = []
+    real = legacy_layout.normalize_legacy_layout
+
+    def spy(*args, **kwargs):
+        seen.append(legacy_layout.refine_budget_s())
+        return real(*args, **kwargs)
+
+    w = _window(qapp, _event_model())
+    monkeypatch.setattr(legacy_layout, "normalize_legacy_layout", spy)
+    assert w._write_model(str(tmp_path / f"m{suffix}"))
+    assert seen and set(seen) == {legacy_layout.GUI_REFINE_BUDGET_S}
+    w._dirty = False
+    w.close()
+
+
 # ---------------------------------------------------------------------------
 # Deleting with cross-kind id collisions, and n recounting
 # ---------------------------------------------------------------------------

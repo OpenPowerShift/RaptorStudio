@@ -31,8 +31,11 @@ pass through untouched and stay byte-stable round trips.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import logging
 import itertools
+import time
 from bisect import bisect_left, bisect_right
 
 log = logging.getLogger(__name__)
@@ -94,6 +97,47 @@ _BAND_LO, _BAND_HI = 81.0, 99.0
 #: above this element count the greedy collision refine is skipped: it is
 #: quadratic and a very large level is unreadable at that density anyway
 _REFINE_MAX_ELEMENTS = 400
+#: Wall-clock seconds one layout call may spend in that refine search. The
+#: element cap above does not bound it: the cost per candidate grows with
+#: links x elements, so a 150-branch parallel model took minutes while a
+#: 12-branch one took 10 ms (a 48-branch one 42 s). When the budget runs out
+#: the search stops and keeps the best layout found so far -- the layered,
+#: barycenter-swept result already stands without it.
+#:
+#: 30 s rather than 10: the Cascade fixture alone takes 8-10 s unloaded, so
+#: at 10 s a busy machine could cut it short and lay it out differently.
+#: The GUI lays out and saves on the UI thread, so it runs those inside
+#: `refine_budget(GUI_REFINE_BUDGET_S)`.
+REFINE_BUDGET_S = 30.0
+#: Budget for layout the GUI runs on its UI thread (the Auto Layout button,
+#: the save-time re-layout): past about 10 s desktops offer to kill a
+#: "Not responding" app.
+GUI_REFINE_BUDGET_S = 10.0
+
+_BUDGET_OVERRIDE: contextvars.ContextVar[float | None] = contextvars.ContextVar(
+    "raptor_layout_refine_budget", default=None)
+
+
+def refine_budget_s() -> float:
+    """The refine budget in force: `REFINE_BUDGET_S`, unless a
+    `refine_budget` block has set another."""
+    override = _BUDGET_OVERRIDE.get()
+    return REFINE_BUDGET_S if override is None else override
+
+
+@contextlib.contextmanager
+def refine_budget(seconds: float):
+    """Layout calls inside this block default to `seconds` of refine
+    search instead of `REFINE_BUDGET_S`."""
+    token = _BUDGET_OVERRIDE.set(seconds)
+    try:
+        yield
+    finally:
+        _BUDGET_OVERRIDE.reset(token)
+
+
+class _OutOfTime(Exception):
+    """The refine search has used its time budget."""
 
 
 def _seg_rect_pen(x1, y1, x2, y2, rx, ry, hw, hh) -> float:
@@ -149,7 +193,8 @@ _CENTRAL_W = {"node": 1.0}
 
 
 def layout_container_positions(members, edges, entries, pins=frozenset(),
-                               base=None):
+                               base=None, *, deadline: float | None = None,
+                               report: dict | None = None):
     """Layered layout for ONE container, collision-refined.
 
     members: iterable of hashable keys ("kind", id); edges: (a, b)
@@ -160,7 +205,14 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     Pipeline: longest-path layering -> rows centred pitch ROW_PITCH ->
     barycenter sweeps (crossing reduction) -> greedy collision refine
     (shift columns / slide rows within a column / nudge a lone block
-    one column sideways) so no straight edge runs through a block."""
+    one column sideways) so no straight edge runs through a block.
+
+    `deadline` is a `time.monotonic()` value after which the collision
+    refine stops (default: `refine_budget_s()` from now). If it stops early
+    and `report` is given, `report["refine_cut_short"]` is incremented, so a
+    caller can say the layout is not fully refined."""
+    if deadline is None:
+        deadline = time.monotonic() + refine_budget_s()
     member_set = sorted(set(members))      # deterministic order (ids are unique)
     if not member_set:
         return {}
@@ -355,75 +407,94 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     #     elements, and a very large model's schematic is unreadable at
     #     that density anyway; layering and the barycenter sweeps stand.
     too_wide = any(x > 118.75 + 1e-9 for x, _y in pos.values())
-    if hard_state[0] and not too_wide and len(member_set) <= _REFINE_MAX_ELEMENTS:
-        for _pass in range(8 if len(member_set) > 150 else 25):
-            best = None          # (score, apply_fn)
-            columns: dict = {}
-            for k, (x, _y) in pos.items():
-                columns.setdefault(x, []).append(k)
-            def consider(s2, apply, cur=cur):
-                nonlocal best
-                if s2 < cur - 1e-9 and (best is None or s2 < best[0]):
-                    best = (s2, apply)
+    def tick() -> None:
+        # Called before a candidate mutates anything, so stopping here
+        # leaves `pos` exactly as the last finished candidate restored it.
+        if time.monotonic() > deadline:
+            raise _OutOfTime
 
-            # whole-column vertical shifts (never for a column holding an
-            # in/out marker -- those must stay on the centre line)
-            for ks in columns.values():
-                if any(k in entries or k in pins for k in ks):
-                    continue
-                for dy in (-GRID, GRID):
-                    saved = [(k, pos[k][1]) for k in ks]
-                    for k in ks:
-                        pos[k][1] += dy
-                    consider(score(), lambda ks=ks, dy=dy:
-                             [pos[k].__setitem__(1, pos[k][1] + dy) for k in ks])
-                    for k, yv in saved:
-                        pos[k][1] = yv
-            # slide one item within its column to a free grid row (keeping
-            # the column's own ROW_PITCH clear -- 1.25-stacked rows touch)
-            for k, (x, y) in list(pos.items()):
-                if kind_of(k) == "node" or k in entries or k in pins:
-                    continue
-                col_ys = [pos[o][1] for o in columns[x] if o != k]
-                for gy in _grid_rows():
-                    if any(abs(gy - oy) < ROW_PITCH - 1e-6 for oy in col_ys):
+    best = None
+    if hard_state[0] and not too_wide and len(member_set) <= _REFINE_MAX_ELEMENTS:
+        try:
+            for _pass in range(8 if len(member_set) > 150 else 25):
+                best = None          # (score, apply_fn)
+                columns: dict = {}
+                for k, (x, _y) in pos.items():
+                    columns.setdefault(x, []).append(k)
+                def consider(s2, apply, cur=cur):
+                    nonlocal best
+                    if s2 < cur - 1e-9 and (best is None or s2 < best[0]):
+                        best = (s2, apply)
+
+                # whole-column vertical shifts (never for a column holding an
+                # in/out marker -- those must stay on the centre line)
+                for ks in columns.values():
+                    if any(k in entries or k in pins for k in ks):
                         continue
-                    old = y
-                    pos[k][1] = gy
-                    consider(score(), lambda k=k, gy=gy: pos[k].__setitem__(1, gy))
-                    pos[k][1] = old
-            # nudge a block one column sideways (same row, only into an
-            # EMPTY column -- sliding into an occupied column stacks blocks
-            # on top of each other and pierces their own edges)
-            for k, (x, _y) in list(pos.items()):
-                if kind_of(k) != "block" or k in pins:
-                    continue
-                for nx in (x - LAYER_PITCH, x + LAYER_PITCH):
-                    if not (FIRST_X <= nx <= 118.75):
+                    for dy in (-GRID, GRID):
+                        tick()
+                        saved = [(k, pos[k][1]) for k in ks]
+                        for k in ks:
+                            pos[k][1] += dy
+                        consider(score(), lambda ks=ks, dy=dy:
+                                 [pos[k].__setitem__(1, pos[k][1] + dy) for k in ks])
+                        for k, yv in saved:
+                            pos[k][1] = yv
+                # slide one item within its column to a free grid row (keeping
+                # the column's own ROW_PITCH clear -- 1.25-stacked rows touch)
+                for k, (x, y) in list(pos.items()):
+                    if kind_of(k) == "node" or k in entries or k in pins:
                         continue
-                    if any(ox == nx for o, (ox, _) in pos.items() if o != k):
+                    col_ys = [pos[o][1] for o in columns[x] if o != k]
+                    for gy in _grid_rows():
+                        if any(abs(gy - oy) < ROW_PITCH - 1e-6 for oy in col_ys):
+                            continue
+                        tick()
+                        old = y
+                        pos[k][1] = gy
+                        consider(score(), lambda k=k, gy=gy: pos[k].__setitem__(1, gy))
+                        pos[k][1] = old
+                # nudge a block one column sideways (same row, only into an
+                # EMPTY column -- sliding into an occupied column stacks blocks
+                # on top of each other and pierces their own edges)
+                for k, (x, _y) in list(pos.items()):
+                    if kind_of(k) != "block" or k in pins:
                         continue
-                    old = x
-                    pos[k][0] = nx
-                    consider(score(), lambda k=k, nx=nx: pos[k].__setitem__(0, nx))
-                    pos[k][0] = old
-            # swap two adjacent rows within a column
-            for ks in columns.values():
-                if any(k in entries or k in pins for k in ks):
-                    continue
-                by_row = sorted(ks, key=lambda k: pos[k][1])
-                for i in range(len(by_row) - 1):
-                    a, b = by_row[i], by_row[i + 1]
-                    ya, yb = pos[a][1], pos[b][1]
-                    pos[a][1], pos[b][1] = yb, ya
-                    consider(score(), lambda a=a, b=b, ya=ya, yb=yb:
-                             (pos[a].__setitem__(1, yb),
-                              pos[b].__setitem__(1, ya)))
-                    pos[a][1], pos[b][1] = ya, yb
-            if best is None:
-                break
-            cur, apply_fn = best
-            apply_fn()
+                    for nx in (x - LAYER_PITCH, x + LAYER_PITCH):
+                        if not (FIRST_X <= nx <= 118.75):
+                            continue
+                        if any(ox == nx for o, (ox, _) in pos.items() if o != k):
+                            continue
+                        tick()
+                        old = x
+                        pos[k][0] = nx
+                        consider(score(), lambda k=k, nx=nx: pos[k].__setitem__(0, nx))
+                        pos[k][0] = old
+                # swap two adjacent rows within a column
+                for ks in columns.values():
+                    if any(k in entries or k in pins for k in ks):
+                        continue
+                    by_row = sorted(ks, key=lambda k: pos[k][1])
+                    for i in range(len(by_row) - 1):
+                        tick()
+                        a, b = by_row[i], by_row[i + 1]
+                        ya, yb = pos[a][1], pos[b][1]
+                        pos[a][1], pos[b][1] = yb, ya
+                        consider(score(), lambda a=a, b=b, ya=ya, yb=yb:
+                                 (pos[a].__setitem__(1, yb),
+                                  pos[b].__setitem__(1, ya)))
+                        pos[a][1], pos[b][1] = ya, yb
+                if best is None:
+                    break
+                cur, apply_fn = best
+                apply_fn()
+        except _OutOfTime:
+            if best is not None:
+                best[1]()            # keep the best move this pass had found
+            if report is not None:
+                report["refine_cut_short"] = report.get("refine_cut_short", 0) + 1
+            log.info("layout refine stopped at its %.0f s budget",
+                     refine_budget_s())
     # snap everything to the grid
     return {k: (_snap(x), _snap(y)) for k, (x, y) in pos.items()}
 
@@ -559,7 +630,8 @@ def _link_endpoints(f):
 
 
 def _place_container(children: dict[str, list], links, entries, outs,
-                     id_of) -> None:
+                     id_of, deadline: float | None = None,
+                     report: dict | None = None) -> None:
     """Layered layout for one container; writes snapped positions back
     into the rows. `outs` (extra pinned keys, e.g. the container's own
     out node) may not move during collision refinement."""
@@ -575,7 +647,8 @@ def _place_container(children: dict[str, list], links, entries, outs,
         if a in members and b in members and a != b:
             edges.append((a, b))
     pos = layout_container_positions(members.keys(), edges,
-                                     entries, pins=outs)
+                                     entries, pins=outs, deadline=deadline,
+                                     report=report)
     for k, (x, y) in pos.items():
         members[k]["xPos"] = f"{x:.6f}"
         members[k]["yPos"] = f"{y:.6f}"
@@ -763,12 +836,18 @@ def cap_legacy_names(f) -> int:
     return fixed
 
 
-def normalize_legacy_layout(f, force: bool = False) -> bool:
+def normalize_legacy_layout(f, force: bool = False,
+                            report: dict | None = None) -> bool:
     """Re-layout an off-grid model onto the legacy grid (in place).
     Returns True when anything was moved. `force` skips the gate (an
-    explicit Auto Layout pass over every container)."""
+    explicit Auto Layout pass over every container).
+
+    The collision refine has `refine_budget_s()` seconds in total across all
+    containers; if it runs out, `report["refine_cut_short"]` counts the
+    containers left less than fully refined."""
     if not needs_legacy_normalization(f) and not force:
         return False
+    deadline = time.monotonic() + refine_budget_s()
     kids = _container_children(f)
     links = _link_endpoints(f)
 
@@ -816,7 +895,8 @@ def normalize_legacy_layout(f, force: bool = False) -> bool:
             inh, outh = _hier_in_out(hier_rows.get(parent, {}))
             entries = [("node", inh)] if inh else []
             outs = {("node", outh)} if outh else set()
-        _place_container(children, links, entries, outs, id_of)
+        _place_container(children, links, entries, outs, id_of, deadline,
+                         report)
 
     # events follow their parent element's movement delta
     moved: dict[int, tuple[float, float]] = {}
