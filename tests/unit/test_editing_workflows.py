@@ -2235,3 +2235,26 @@ def test_element_comment_is_keyed_by_the_elements_real_name(v):
     assert v.current_comment_stored("block", bid) == ""
     v._stack.redo()
     assert v.current_comment_stored("block", bid) == "checked on site"
+
+
+def test_rebuilding_the_canvas_with_a_selected_annotation_does_not_touch_deleted_items(qapp):
+    """Issue #2: `clear_model` cleared the scene (deleting every item, and emitting a
+    selection change for the selected note) while `_anno_items` still held the
+    wrappers, so the main window's enable-state refresh raised "Internal C++ object
+    (_AnnoText) already deleted"."""
+    v = DiagramView()
+    v.load_rbd(load_rbd(os.path.join(GOLD, "TwoBlockRedundancy", "input.rbd")))
+    _place_shape(v, 100, 100)
+    item = next(iter(v._anno_items.values()))
+    v._scene.clearSelection()
+    item.setSelected(True)
+    seen: list[object] = []
+
+    def refresh():                      # what MainWindow._sync_annotation_order_actions asks
+        seen.append(v.annotation_order_target("front"))
+
+    v.selection_changed.connect(refresh)
+    v.clear_model()                     # raised RuntimeError before the fix
+    assert v._anno_items == {}
+    v.load_rbd(load_rbd(os.path.join(GOLD, "TwoBlockRedundancy", "input.rbd")))
+    assert all(target is None for target in seen)
