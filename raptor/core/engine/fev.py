@@ -168,6 +168,9 @@ class FevSession:
             stats_by_block=ctx.stats_by_block, stats_by_event=ctx.stats_by_event,
             rng_by_event=ctx.rng_by_event, capacity_state=None, pool_stats_by_name={})
         cascade.fev = _FevDown(self)
+        # FEV sets some block states directly (`_start_state`), so the
+        # flagged-block registry would go stale; it keeps the full walk.
+        cascade._use_flag_registry = False
         self._start_state()
 
     def _start_state(self) -> None:

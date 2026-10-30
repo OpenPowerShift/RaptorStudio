@@ -87,6 +87,7 @@ def _check_system_status(self: _Cascade, sim_time: float) -> None:
     sys_lines = change_system_status(
         self.system_state, new_color, sim_time, self._all_blocks, events_file=True,
         system_red_cost=self.model.system_red_cost if self.model.cost_analysis else 0.0,
+        flagged_blocks=self.flagged_blocks(),
     )
     if new_color == SystemColor.RED and old_color != SystemColor.RED:
         # `ChangeStatus`: the system turning Red switches tie-breaking
@@ -98,7 +99,8 @@ def _check_system_status(self: _Cascade, sim_time: float) -> None:
     if sys_lines:
         self.logs.extend(sys_lines)
     elif not self._quiet_phase_boundary:
-        red_line = red_change_line(self.system_state, sim_time, self._all_blocks, events_file=True)
+        red_line = red_change_line(self.system_state, sim_time, self._all_blocks, events_file=True,
+                                   flagged_blocks=self.flagged_blocks())
         if red_line is not None:
             self.logs.append(red_line)
     if self.capacity_state is not None:

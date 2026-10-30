@@ -15,10 +15,11 @@ The golden fixtures under `tests/golden/` exercise this path; see
 """
 from __future__ import annotations
 
+import operator
 from typing import TYPE_CHECKING
 from collections.abc import Callable
 
-from raptor.core.engine.blocks import BlockStatistics, StateDeltas, change_block_state
+from raptor.core.engine.blocks import BlockStatistics, StateDeltas, change_block_state, note_block_flags
 from raptor.core.engine.capacity import (
     CapacityState,
 )
@@ -52,6 +53,9 @@ from raptor.core.engine.load import SimulationModel
 #: Duration used for a dependency-forced Idle block's "wait for the next
 #: Dependence_All_Up interrupt" -- just needs to exceed any real run length.
 _FAR_FUTURE = 1.0e9
+
+#: Sort key for the flagged-block registry: position in the run's block list.
+_BY_ORDER = operator.attrgetter("order")
 
 
 class _Cascade:
@@ -105,6 +109,21 @@ class _Cascade:
         #: in every ordinary run, so the run engine is unchanged.
         self.fev: FevDependencyHooks | None = None
         self._all_blocks = list(model.blocks_by_id.values())
+        #: Blocks that are cut or repairing/held/done/in maintenance, by id,
+        #: kept by `blocks.note_block_flags` (see there). The system's
+        #: State_change and Red_change comments walk this instead of every
+        #: block. Failure Effects View sets block states directly and turns it
+        #: off (`_use_flag_registry`), keeping the full walk.
+        self._flagged: dict[int, RBDBlock] = {}
+        self._use_flag_registry = True
+        for _i, _b in enumerate(self._all_blocks):
+            _b.order = _i
+            _b.flag_sink = self._flagged
+            # Seeded from the blocks' states as they are NOW: a run starts with
+            # whatever the last run left (DONE, say), kickoff resets blocks one
+            # at a time, and the comments written meanwhile name the blocks not
+            # yet reset, exactly as a walk over every block does.
+            note_block_flags(_b)
         #: Raptor 7's `hasDepObjects` is precomputed by `CheckForDeps`
         #: and gates the whole
         #: `BackFlowDependencies` dispatch.
@@ -281,6 +300,13 @@ class _Cascade:
     flush_cold_changes = cascade_cold.flush_cold_changes
     _flush_cold_changes = cascade_cold._flush_cold_changes
     _switch_interrupt = cascade_cold._switch_interrupt
+
+    def flagged_blocks(self) -> list[RBDBlock] | None:
+        """The registry's blocks in block-list order, or None to say "walk
+        them all" (Failure Effects View)."""
+        if not self._use_flag_registry:
+            return None
+        return sorted(self._flagged.values(), key=_BY_ORDER)
 
     def backflow_deps(self, *, special_back_flow: bool = False) -> BackFlowDeps:
         """Bind the node-sourced back-flow bundle once (review E-09).

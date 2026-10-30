@@ -285,6 +285,11 @@ def change_system_status(
     nodes: list | None = None,
     event_stats: dict | None = None,
     events: list | None = None,
+    #: The blocks that are cut or repairing/held/done/in maintenance, in
+    #: `blocks` order (`blocks.note_block_flags`). The State_change comment
+    #: names only such blocks, so with this it need not walk the rest; None
+    #: walks every block in `blocks`.
+    flagged_blocks: list | None = None,
 ) -> list[str]:
     """Port of `ChangeStatus` in full: color-
     duration/failure-count bookkeeping, mission begin/end bookkeeping, and the
@@ -438,12 +443,17 @@ def change_system_status(
     if not events_file or new_color == SystemColor.DONE:
         return lines
 
-    state_change_string = ""
-    for block in blocks:
-        if block.active_status == ActiveStatus.CUT:
-            state_change_string += f"_c{block.id}"
-        elif block.op_status in (BlockStatus.REPAIRING, BlockStatus.REP_HOLD, BlockStatus.DONE):
-            state_change_string += f"_d{block.id}"
+    cut = ActiveStatus.CUT
+    repairing, rep_hold, done = BlockStatus.REPAIRING, BlockStatus.REP_HOLD, BlockStatus.DONE
+    parts: list[str] = []
+    for block in (blocks if flagged_blocks is None else flagged_blocks):
+        if block.active_status is cut:
+            parts.append(f"_c{block.id}")
+        else:
+            op = block.op_status
+            if op is repairing or op is rep_hold or op is done:
+                parts.append(f"_d{block.id}")
+    state_change_string = "".join(parts)
 
     # Raptor 7 reuses the same `redString` global as both this
     # comment's scratch buffer and `red_change_line`'s dedup memory, so every
@@ -500,6 +510,7 @@ def red_change_line(
     blocks: list[RBDBlock],
     *,
     events_file: bool = False,
+    flagged_blocks: list[RBDBlock] | None = None,
 ) -> str | None:
     """Port of `AnalyzeSystem`'s repeated-Red comment-tracking
    -- the `ELSIF ((currentSysStatus=RRed) AND
@@ -526,7 +537,9 @@ def red_change_line(
     parts: list[str] = []
     cut = ActiveStatus.CUT
     tags = _RED_TAGS
-    for block in blocks:
+    # `flagged_blocks` (see `change_system_status`) holds every block that can
+    # contribute a tag, in block order.
+    for block in (blocks if flagged_blocks is None else flagged_blocks):
         if block.active_status is cut:
             parts.append(f"_c{block.id}")
         else:

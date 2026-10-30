@@ -498,6 +498,12 @@ class RBDBlock(RBDBasic):
     #: This run's state (`BlockRunState`); the driver replaces it at the
     #: start of every run.
     run_state: BlockRunState = field(default_factory=BlockRunState, repr=False, compare=False)
+    #: The run's registry of blocks that are cut or repairing/held/done/in
+    #: maintenance (`blocks.note_block_flags` keeps it), and this block's index
+    #: in the run's block list. Both are set by `_Cascade` for a run and are
+    #: None/0 outside one.
+    flag_sink: dict | None = field(default=None, repr=False, compare=False)
+    order: int = field(default=0, repr=False, compare=False)
 
 
 @dataclass

@@ -77,6 +77,7 @@ Regenerate with `python tools/gen_engine_docs.py --write`.
 | `has_trigger` | `orchestrator.py` | 
 | `park_for_trigger` | `orchestrator.py` | `WAIT FOR trig TO Fire` from a block's own `Run` (the `maintDefer` hold): queued with the trigger's other waiters, in the order they parked.
 | `begin_phase_change` | `orchestrator.py` | `PhaseChangeInProgress:=TRUE`, set by the phase clock before it TELLs the body.
+| `flagged_blocks` | `orchestrator.py` | The registry's blocks in block-list order, or None to say "walk them all" (Failure Effects View).
 | `backflow_deps` | `orchestrator.py` | Bind the node-sourced back-flow bundle once (review E-09).
 | `_mark_cap_link_change` | `orchestrator.py` | `CapAnalysisRequired:=TRUE`. The caller is `nodes.set_link_status_mirrored`, which applies the source's LinkUp-crossing test itself before calling this -- ...
 | `reset_for_new_run` | `orchestrator.py` | 

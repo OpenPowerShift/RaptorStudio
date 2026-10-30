@@ -14,7 +14,7 @@ import time
 
 from raptor.core.engine.block_env import BlockEnv, BlockPools, current_observer
 from raptor.core.engine.block_lifecycle import BlockProcess, get_start_cond
-from raptor.core.engine.blocks import change_block_state
+from raptor.core.engine.blocks import change_block_state, note_block_flags
 from raptor.core.engine.capacity import (
     CapacityState, build_capacity_run_report, determine_max_capacity,
     reset_for_new_run as capacity_reset_for_new_run, touch_capacity_monitors,
@@ -293,6 +293,7 @@ def _initialize_blocks_and_events(self: SingleRunDriver):
         block.run_state.phase_stress = phase_1_stress
         block.op_status = BlockStatus.RUNNING
         block.active_status = ActiveStatus.ACTIVE
+        note_block_flags(block)
         old_op_status = block.op_status
         init_logs, deltas = change_block_state(
             block, stats_by_block[block.id], init_status, phase_1_active, "Initialize", 0.0,
