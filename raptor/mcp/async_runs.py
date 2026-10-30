@@ -15,6 +15,7 @@ a client that polls rarely cannot grow it without limit.
 """
 from __future__ import annotations
 
+import inspect
 import threading
 import time
 import uuid
@@ -45,6 +46,19 @@ class Job:
     summary: dict[str, Any] | None = None
     error: str | None = None
     abort: threading.Event = field(default_factory=threading.Event)
+    #: Set-up progress, `(stage, done, total)` as the engine reports it; None
+    #: until it does (small models finish set-up without reporting).
+    setup: tuple[str, int, int] | None = None
+
+    @property
+    def phase(self) -> str:
+        """`setting_up` while a running job is still preparing the model,
+        `simulating` once it is running replications, else the state."""
+        if self.state != "running":
+            return self.state
+        if self.setup is not None and self.setup[1] < self.setup[2]:
+            return "setting_up"
+        return "simulating"
 
     def snapshot(self) -> dict[str, Any]:
         elapsed = (self.finished or time.time()) - self.started
@@ -54,6 +68,12 @@ class Job:
             "job_id": self.job_id,
             "model_id": self.model_id,
             "state": self.state,
+            "phase": self.phase,
+            "setup": None if self.setup is None else {
+                "stage": self.setup[0], "done": self.setup[1],
+                "total": self.setup[2],
+                "percent": round(100.0 * self.setup[1] / self.setup[2], 1)
+                           if self.setup[2] else None},
             "completed_runs": self.done,
             "requested_runs": self.total,
             "percent": None if percent is None else round(percent, 1),
@@ -104,6 +124,9 @@ def start(
         if total_hint:
             job.total = int(total_hint)
 
+    def setup_progress(stage: str, done: int, total: int) -> None:
+        job.setup = (stage, int(done), int(total))
+
     def runner() -> None:
         # Take one of the shared CPU slots (the same two that simulate, sweeps
         # and comparisons use), so background jobs cannot multiply the load.
@@ -115,7 +138,12 @@ def start(
                     job.state = "cancelled"
                     return
                 job.state = "running"
-                result = work(job.abort, progress)
+                try:
+                    takes_setup = len(inspect.signature(work).parameters) >= 3
+                except (TypeError, ValueError):
+                    takes_setup = False
+                result = (work(job.abort, progress, setup_progress)
+                          if takes_setup else work(job.abort, progress))
                 job.run_id = getattr(result, "run_id", None)
                 job.wall_seconds = getattr(result, "wall_seconds", None)
                 job.done = int(getattr(result, "num_runs", job.done) or job.done)

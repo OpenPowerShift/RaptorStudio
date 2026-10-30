@@ -667,6 +667,29 @@
   ],
   "type": "object"
  },
+ "failure_effects_batch": {
+  "properties": {
+   "count": {
+    "type": "integer"
+   },
+   "failed": {
+    "type": "integer"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "scenarios": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "count",
+   "failed",
+   "model_id",
+   "scenarios"
+  ],
+  "type": "object"
+ },
  "get_element": {
   "properties": {
    "dependency": {
@@ -1102,6 +1125,12 @@
    },
    "warnings": {
     "type": "array"
+   },
+   "workers": {
+    "type": "integer"
+   },
+   "workers_auto": {
+    "type": "boolean"
    }
   },
   "required": [
@@ -1119,7 +1148,9 @@
    "truncated",
    "units",
    "wall_seconds",
-   "warnings"
+   "warnings",
+   "workers",
+   "workers_auto"
   ],
   "type": "object"
  },

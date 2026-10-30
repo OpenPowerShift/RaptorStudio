@@ -2,7 +2,7 @@
 # Raptor Studio MCP server
 
 Raptor Studio ships a [Model Context Protocol](https://modelcontextprotocol.io) server, so an AI assistant can
-build, validate, simulate and explain reliability block diagrams. It exposes **64 tools**, a set of
+build, validate, simulate and explain reliability block diagrams. It exposes **65 tools**, a set of
 **resources** and three **prompts**. The numbers come from the same engine as the desktop app and the
 `raptor` command line.
 
@@ -132,7 +132,7 @@ description and input/output schema is what the server sends on `tools/list`.
 | `add_hierarchy` | writes | Create an empty hierarchy -- a sub-model boundary -- with its In and Out markers already wired up correctly. | `model_id`, `name`, `parent`? |
 | `add_node` | writes | Add a node to the model. | `model_id`, `type`?, `k`?, `name`?, `parent`? |
 | `auto_layout` | writes | Re-arrange a model's diagram onto the shared layered grid. | `model_id`, `hierarchy`?, `selectors`? |
-| `build_model` | writes | Build a complete model from a friendly .rbds spec document. | `name`, `spec`, `auto_layout`?, `validate_model`?, `model_id`? |
+| `build_model` | writes | Build a complete model from a friendly .rbds spec document. | `name`, `spec`?, `auto_layout`?, `validate_model`?, `model_id`?, `spec_path`? |
 | `cancel_run` | writes | Ask a background job to stop (checked between replications). | `job_id` |
 | `close_model` | destructive | Close one or more models.  Set delete=true to also remove their files. | `model_id`, `delete`? |
 | `collapse_selection` | writes | Move existing blocks/nodes/events into a new hierarchy, rewiring the boundary. | `model_id`, `selectors`, `name`?, `parent`? |
@@ -157,6 +157,7 @@ description and input/output schema is what the server sends on `tools/list`.
 | `export_tables` | writes | Write tables to files: CSV, text, or one spreadsheet. | `model_id`, `run_id`?, `tables`?, `formats`?, `folder`? |
 | `extract_hierarchy` | writes | Build a standalone model from one hierarchy (a port extension), or just list what crosses its boundary. | `model_id`, `hierarchy`, `treatments`?, `report_only`?, `name`? |
 | `failure_effects` | read-only | Run failure-effects analysis (Raptor workbook Chapter 10). | `model_id`, `fail`?, `repair`?, `phase`? |
+| `failure_effects_batch` | read-only | Run many failure-effects scenarios in one call, on one model set-up. | `model_id`, `scenarios`, `include_log`? |
 | `get_element` | read-only | Read one block, node, event, hierarchy or link back in full. | `model_id`, `selector`, `detail`? |
 | `get_report` | read-only | Get a paginated report section from a completed run. | `run_id`, `section`?, `run_number`?, `format`?, `offset`?, `limit`? |
 | `get_run_results` | read-only | One completed run as a single assessable bundle. | `run_id`, `top`? |
@@ -193,6 +194,23 @@ description and input/output schema is what the server sends on `tools/list`.
 Typical flow: `open_model` or `build_model` → `validate_model` → `estimate_runtime` → `simulate` → `get_report`.
 Use `get_element` to read one block back in full, and `read_doc('dependency')` before modelling a backup that
 follows another unit: a dependent backup sits idle exactly when the unit it follows is down.
+
+## Large models
+
+A model with hundreds of blocks can spend minutes in set-up before its first replication, and a batch can run for
+hours. What helps:
+
+- **Run in the background.** `start_run` returns a job id at once; poll `run_status`. Its `phase` is `setting_up`
+  while the model is prepared (with `setup`: `stage`, `done`, `total`, `percent`), then `simulating`, so a quiet
+  start is not a hang. `cancel_run` stops a job between replications.
+- **Cores.** Leave `workers` out and a model of 500+ blocks, events and nodes run 20+ times uses several cores
+  (half the machine's, at most 8, never fewer than two). `simulate` and `start_run` report the `workers` used and
+  `workers_auto`. Pass `workers=1` for the sequential numbers: a multi-core batch is repeatable but not
+  bit-identical to a sequential one. This default is the server's only; the desktop app and `raptor run` keep theirs.
+- **Big inputs by file.** `build_model` takes `spec_path`, a JSON file inside the workspace (or an `--allow-read`
+  directory), instead of an inline `spec`. `open_model` already takes a workspace path to a `.rbds` or `.rbd`.
+- **Many what-ifs in one call.** `failure_effects_batch` runs up to 2000 `{fail, repair, phase}` scenarios on one
+  model set-up, each from the all-good state, and reports a scenario it cannot apply without stopping the rest.
 
 ## Resources
 

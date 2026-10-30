@@ -76,7 +76,8 @@ def add_parser(sub: Any) -> None:
     o.add_argument("--metrics", metavar="LIST",
                    help="limit the summary, e.g. Availability,MTBDE,MDT")
     o.add_argument("--progress", choices=("auto", "bar", "json", "none"),
-                   default="auto", help="progress on stderr")
+                   default="auto", help="progress on stderr: replications, and the model set-up that precedes "
+                        "them on a large model (json prints one object per line)")
     o.add_argument("--strict", action="store_true",
                    help="treat model warnings as errors (exit 3)")
     o.add_argument("--workspace", metavar="DIR",
@@ -161,7 +162,8 @@ def run_model(ws: Any, model_id: str, args: Any, *,
         workers=max(1, getattr(args, "jobs", 1) or 1), timeout_s=timeout,
         collect_events="events" in (wanted or ()),
         confirm_long_run=True, seed=getattr(args, "seed", None),
-        progress=progress)
+        progress=progress,
+        setup_progress=_setup_callback(getattr(args, "progress", "auto")))
     try:
         if getattr(args, "hierarchy", None):
             from raptor.api import isolate
@@ -194,6 +196,24 @@ def _progress_callback(mode: str):
         else:
             tot = f"/{total}" if total else ""
             sys.stderr.write(f"\rrun {done}{tot}")
+            sys.stderr.flush()
+    return cb
+
+
+def _setup_callback(mode: str):
+    """Set-up progress on stderr: a large model can spend minutes here before
+    the first replication, with no other sign of life."""
+    if mode == "none" or (mode == "auto" and not sys.stderr.isatty()):
+        return None
+    import json as _json
+
+    def cb(stage: str, done: int, total: int) -> None:
+        if mode == "json":
+            eprint(_json.dumps({"event": "setup", "stage": stage,
+                                "done": done, "total": total}))
+        else:
+            sys.stderr.write(f"\r{stage} {done}/{total}"
+                             + ("\n" if done >= total else ""))
             sys.stderr.flush()
     return cb
 

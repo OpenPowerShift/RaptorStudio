@@ -240,6 +240,7 @@ def run_simulation(
     cumulative_time_path: str | None = None,
     cumulative_time_mesh: float = 0.0,
     keep_partial_logs: bool = False,
+    setup_progress=None,
 ) -> list[list[str]]:
     """Loads `rbd_file` (via `load_model`) and runs it for `num_runs`
     (defaulting to the file's own `SYSTEM_DATA.NumRuns`), returning one
@@ -295,7 +296,8 @@ def run_simulation(
     module's docstring, "SURPRISING REAL-RAPTOR BEHAVIOUR". Pass it exactly
     when the Raptor 7 capture you compare against had Interim Costs ticked.
     """
-    model = load_model(rbd_file, defer_trigger=resolve_defer_trigger(rbd_file, defer_trigger))
+    model = load_model(rbd_file, defer_trigger=resolve_defer_trigger(rbd_file, defer_trigger),
+                       progress=setup_progress)
     runs = model.num_runs if num_runs is None else num_runs
     stream_seed = int(seed or 0)
     if cumulative_trial_path is not None and cumulative_trial_interval > 0 and _report_sink is None:
@@ -609,6 +611,7 @@ def run_simulation_with_reports(
     cumulative_time_path: str | None = None,
     cumulative_time_mesh: float = 0.0,
     keep_partial_logs: bool = False,
+    setup_progress=None,
 ) -> tuple[list[list[str]], list[str], list[str]]:
     """Public entry point: same event logs as `run_simulation`, plus
     the `End_Of_Run`/`Final_Results_Report` text (`reports.
@@ -632,6 +635,7 @@ def run_simulation_with_reports(
     all_logs = run_simulation(rbd_file, num_runs, _report_sink=report_data,
                               num_workers=num_workers,
                               _capacity_sink=capacity_lines, progress=progress,
+                              setup_progress=setup_progress,
                               logs_sink=live_logs, on_event=on_event,
                               _ao_sink=ao_sink, _cost_sink=cost_sink,
                               stop_check=stop_check, pause_check=pause_check,

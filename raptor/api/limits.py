@@ -71,4 +71,11 @@ MAX_BACKGROUND_JOBS = 4
 
 #: Simulation argument bounds.
 MAX_WORKERS = 64
+
+#: MCP runs only: a model with this many blocks, events and nodes, run this
+#: many times, uses several cores unless the caller names `workers`. The
+#: desktop app and the command line keep their own defaults.
+AUTO_WORKERS_MIN_ELEMENTS = 500
+AUTO_WORKERS_MIN_RUNS = 20
+AUTO_WORKERS_MAX = 8
 MAX_TIMEOUT_S = 86_400.0

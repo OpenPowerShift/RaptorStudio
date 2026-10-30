@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *64 tools* (including the `ping` health check), a set of
+The server exposes *65 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone reference to every tool,
 option and transport is in `docs/MCP.md` in the repository.
 
@@ -451,7 +451,8 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   placed, and the result validated. Check `validation.runnable` — a
   structurally successful build can still carry engine-gate errors.
   `.rbds` is the preferred format; only export `.rbd` when explicitly
-  asked.
+  asked. For a large spec pass `spec_path`, a JSON file inside the workspace,
+  instead of the inline `spec` (exactly one of the two).
 
 | `describe_model`
 | Read back the model: counts and topology (`summary`), or every element
@@ -681,7 +682,9 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   over-budget runs unless `confirm_long_run=true`. If a run is cut short,
   `truncated` is true and `runs` is below `requested_runs`. `seed` (optional)
   re-rolls the batch reproducibly; unset keeps the engine's fixed seeds.
-  `importance` (`improvement`, `risk` or `both`) also estimates the
+  Leave `workers` out and a large model (500+ blocks, events and nodes) run
+  20+ times uses several cores, reported as `workers` and `workers_auto`;
+  pass `workers=1` for the sequential numbers. `importance` (`improvement`, `risk` or `both`) also estimates the
   IEC 61078 Annex D importance measures by re-simulation: one extra batch
   per block, two for `both`. Read them with `get_report(section="importance")`.
 
@@ -690,12 +693,16 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   Takes the same arguments as `simulate` (minus hierarchy isolation and
   importance), validates the model and checks the batch size before the
   job starts, then runs on a daemon thread. Use it when a batch outlives
-  one tool call; the completed run is an ordinary workspace run.
+  one tool call; the completed run is an ordinary workspace run. `workers`
+  defaults as for `simulate`.
 
 | `run_status`
 | Progress of a `start_run` job: `state` (`queued`, `running`, `done`,
   `cancelled`, `failed`), completed/requested runs, percent, elapsed
-  time, and — once available — the `run_id` and metric summary. Jobs are
+  time, and — once available — the `run_id` and metric summary. `phase`
+  says what a running job is doing: `setting_up` while a large model is
+  prepared (`setup` gives the stage and how far through it is; the first
+  replication can be minutes away) and then `simulating`. Jobs are
   in-process only; after a server restart the run remains, the job id
   does not.
 
@@ -718,6 +725,13 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   simulated): fail/repair blocks or events, optionally in a chosen phase, and
   get the system status and the Failure Effects text (failed, induced, idle
   and PM components, down and degraded nodes).
+
+| `failure_effects_batch`
+| Many Failure Effects scenarios in one call (up to 2000
+  `{fail, repair, phase}` objects), on one model set-up. Each starts from the
+  all-good state, as a separate `failure_effects` call does. A scenario that
+  cannot be applied is reported with its `error` and the rest still run;
+  `include_log` adds the Failure Effects text to each result.
 
 | `extract_hierarchy`
 | Build a standalone model from one

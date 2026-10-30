@@ -48,7 +48,8 @@ def _text(result) -> str:
 READ_ONLY = {
     "ping", "list_distributions", "list_models", "describe_model",
     "validate_model", "estimate_runtime", "get_report",
-    "single_point_failures", "failure_effects", "get_timeseries",
+    "single_point_failures", "failure_effects", "failure_effects_batch",
+    "get_timeseries",
     "search_docs", "read_doc", "workspace_info", "list_annotations",
     "describe_metrics",
 }

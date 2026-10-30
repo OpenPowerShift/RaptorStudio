@@ -9,6 +9,7 @@ enforced here.
 from __future__ import annotations
 
 import math
+import os
 from typing import Any, Literal
 
 from mcp.server.mcpserver import Context
@@ -20,8 +21,29 @@ from raptor.mcp.result import ADDITIVE, READ_ONLY, guarded, markdown_table, ok
 from raptor.mcp.server import mcp
 
 
+def resolve_workers(workers: int | None, rbd, runs: int) -> tuple[int, bool]:
+    """`(workers, chosen automatically)` for an MCP run.
+
+    A caller's `workers` is used as given. When it is left out, a large model
+    run many times gets several cores: half the machine's, at most
+    `AUTO_WORKERS_MAX`, and never fewer than two so the answer does not depend
+    on the machine (a multi-core batch is not bit-identical to a sequential
+    one, but is the same for any worker count above one)."""
+    from raptor.api.limits import (
+        AUTO_WORKERS_MAX, AUTO_WORKERS_MIN_ELEMENTS, AUTO_WORKERS_MIN_RUNS)
+    if workers is not None:
+        return int(workers), False
+    if runs < AUTO_WORKERS_MIN_RUNS:
+        return 1, False
+    size = sum(len(rbd.sections[s].rows) for s in
+               ("BLOCK_DATA", "EVENT_DATA", "NODE_DATA") if s in rbd.sections)
+    if size < AUTO_WORKERS_MIN_ELEMENTS:
+        return 1, False
+    return min(AUTO_WORKERS_MAX, max(2, (os.cpu_count() or 1) // 2)), True
+
+
 def _validate_run_args(timeout_s: float | None, date: str | None,
-                       workers: int = 1) -> None:
+                       workers: int | None = 1) -> None:
     """Refuse values that would otherwise fail silently or misleadingly."""
     from raptor.api.limits import MAX_TIMEOUT_S, MAX_WORKERS
     if timeout_s is None or float(timeout_s) <= 0:
@@ -29,7 +51,8 @@ def _validate_run_args(timeout_s: float | None, date: str | None,
     if not math.isfinite(float(timeout_s)) or float(timeout_s) > MAX_TIMEOUT_S:
         raise ValueError(
             f"timeout_s must be finite and at most {MAX_TIMEOUT_S:g}")
-    context.whole_number(workers, "workers", minimum=1, maximum=MAX_WORKERS)
+    if workers is not None:
+        context.whole_number(workers, "workers", minimum=1, maximum=MAX_WORKERS)
     if not date:
         return
     from datetime import datetime
@@ -117,7 +140,7 @@ def _group_messages(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 @guarded
 def estimate_runtime(model_id: str, num_runs: int = 10,
                      run_length: float | None = None,
-                     workers: int = 1,
+                     workers: int | None = None,
                      importance: Literal["none", "improvement", "risk",
                                          "both"] | None = None
                      ) -> CallToolResult:
@@ -142,8 +165,9 @@ def estimate_runtime(model_id: str, num_runs: int = 10,
     ws = context.workspace()
     from raptor.api.estimate import estimate
     from raptor.api.limits import MAX_WORKERS
-    if not 1 <= int(workers) <= MAX_WORKERS:
+    if workers is not None and not 1 <= int(workers) <= MAX_WORKERS:
         raise ValueError(f"workers must be between 1 and {MAX_WORKERS}")
+    workers, _auto = resolve_workers(workers, ws.get(model_id).rbd, num_runs)
     est = estimate(ws, model_id, num_runs=num_runs, run_length=run_length,
                    workers=workers, importance=importance)
     data: dict[str, Any] = {
@@ -184,7 +208,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
     num_runs: int | None = None,
     run_length: float | None = None,
     collect_events: bool = False,
-    workers: int = 1,
+    workers: int | None = None,
     date: str | None = None,
     timeout_s: float = 1800.0,
     confirm_long_run: bool = False,
@@ -217,7 +241,11 @@ async def simulate(  # noqa: PLR0912, PLR0915
     the issue list instead of running.  The run is estimated first and
     refused with a clear message if the estimate exceeds `timeout_s`,
     unless `confirm_long_run=true`.  `workers > 1` is faster but not
-    bit-identical to a sequential batch.
+    bit-identical to a sequential batch.  Leave `workers` out and a large
+    model (500+ blocks, events and nodes) run 20+ times uses several cores
+    (half the machine's, at most 8); the result reports the `workers` used
+    and `workers_auto`. Pass `workers=1` for the sequential numbers. This is
+    a server default only: the desktop app and the command line are unchanged.
 
     `seed` (optional, non-negative) re-rolls the batch reproducibly;
     leaving it unset keeps the engine's fixed seeds, under which the same
@@ -234,6 +262,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
     _validate_run_args(timeout_s, date, workers)
     cap = context.max_runs()
     handle = ws.get(model_id)
+    requested_workers = workers
     # The effective count is the explicit argument, else the model's own
     # NumRuns. Checking only the argument let a configured 6000-run model
     # bypass a 5000 cap; 0/negative also slipped through as a successful
@@ -254,6 +283,9 @@ async def simulate(  # noqa: PLR0912, PLR0915
             f"num_runs={effective_runs} exceeds the server cap of "
             f"{cap} (--max-runs). Lower num_runs or raise the cap."
         )
+
+    workers, workers_auto = resolve_workers(
+        requested_workers, handle.rbd, effective_runs)
 
     # Validate the model that will actually run. For an isolated run that
     # is the extracted hierarchy, not the whole source: the rest of the
@@ -329,6 +361,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
         # (e.g. capacity analysis on but no boundary node).  Also in
         # `warnings`; separated so a client can surface them prominently.
         "caveats": validation_warnings,
+        "workers": workers,
+        "workers_auto": workers_auto,
     }
     if getattr(result, "isolation", None):
         data["isolation"] = result.isolation
@@ -341,6 +375,9 @@ async def simulate(  # noqa: PLR0912, PLR0915
     )
     if getattr(result, "isolation", None):
         md = f"**{result.isolation['banner']}**\n\n" + md
+    if workers_auto:
+        md += (f"\n\nRan on {workers} cores (chosen for a large model; pass "
+               "`workers=1` for the sequential numbers).")
     if truncated:
         md = (f"**Partial batch: only {result.num_runs} of {requested} runs "
               f"completed** (timeout or abort) -- these estimates are noisier "
@@ -369,7 +406,7 @@ def start_run(
     model_id: str,
     num_runs: int | None = None,
     run_length: float | None = None,
-    workers: int = 1,
+    workers: int | None = None,
     timeout_s: float = 1800.0,
     collect_events: bool = False,
     seed: int | None = None,
@@ -387,7 +424,12 @@ def start_run(
     The model is validated and the batch size checked *before* the job
     starts, so a structural error is reported here rather than asynchronously.
 
-    Returns {job_id, state, requested_runs}.
+    `workers` defaults as it does for `simulate`: a large model run 20+ times
+    uses several cores unless you pass `workers=1`.
+
+    Returns {job_id, state, phase, setup, requested_runs, ...}. `run_status`
+    shows `phase` (`setting_up` while a big model is being prepared, then
+    `simulating`) and `setup` progress, so a long quiet start is not a hang.
     """
     _validate_run_args(timeout_s, None, workers)
     ws = context.workspace()
@@ -415,18 +457,23 @@ def start_run(
     from raptor.api.run import run as api_run
     from raptor.mcp import async_runs
 
-    def work(abort, progress):
+    workers, workers_auto = resolve_workers(workers, handle.rbd, effective_runs)
+
+    def work(abort, progress, setup_progress):
         return api_run(ws, model_id, num_runs=effective_runs,
                        run_length=run_length, workers=workers,
                        timeout_s=timeout_s, collect_events=collect_events,
                        confirm_long_run=True, abort=abort, progress=progress,
-                       seed=seed)
+                       setup_progress=setup_progress, seed=seed)
 
     job = async_runs.start(work, model_id=model_id, total=effective_runs)
     data = job.snapshot()
+    data["workers"] = workers
+    data["workers_auto"] = workers_auto
     md = (f"Started job `{job.job_id}` for {effective_runs} run(s) of "
-          f"{run_length or 'the model'}'s run length. Poll `run_status` "
-          f"with that id.")
+          f"{run_length or 'the model'}'s run length"
+          + (f" on {workers} cores" if workers_auto else "")
+          + ". Poll `run_status` with that id.")
     return ok(data, markdown=md)
 
 
@@ -435,9 +482,14 @@ def start_run(
 def run_status(job_id: str) -> CallToolResult:
     """Progress of a job started with `start_run`.
 
-    Returns {job_id, model_id, state, completed_runs, requested_runs,
-    percent, elapsed_s, wall_seconds, run_id, summary, error}. `state` is
-    queued, running, done, cancelled or failed; `run_id` is set once the
+    Returns {job_id, model_id, state, phase, setup, completed_runs,
+    requested_runs, percent, elapsed_s, wall_seconds, run_id, summary,
+    error}. `state` is queued, running, done, cancelled or failed. `phase`
+    adds what a running job is doing: `setting_up` while a large model is
+    prepared (`setup` then has `{stage, done, total, percent}`; it can take
+    minutes before the first replication, and `completed_runs` stays 0), then
+    `simulating`. Small models skip straight to `simulating` and `setup` is
+    null. `run_id` is set once the
     batch has produced a run, and `summary` then carries the mean of each
     metric. Jobs are in-process only -- after a server restart the run is
     still in the workspace, the job id is not.
@@ -452,6 +504,9 @@ def run_status(job_id: str) -> CallToolResult:
     md = (f"Job `{job.job_id}`: **{data['state']}** — "
           f"{data['completed_runs']}/{data['requested_runs']} runs, "
           f"{data['elapsed_s']}s elapsed")
+    if data["phase"] == "setting_up" and data["setup"]:
+        s = data["setup"]
+        md += f"; setting up: {s['stage']} {s['done']}/{s['total']}"
     if data["run_id"]:
         md += f", run `{data['run_id']}`"
     if data["error"]:
@@ -686,6 +741,60 @@ def failure_effects(
     if result.get("log"):
         md += "\n\n```\n" + "\n".join(result["log"][:80]) + "\n```"
     return ok(result, markdown=md)
+
+
+@mcp.tool(annotations=READ_ONLY("Failure effects, many scenarios"))
+@guarded
+def failure_effects_batch(
+    model_id: str,
+    scenarios: list[dict[str, Any]],
+    include_log: bool = False,
+) -> CallToolResult:
+    """Run many failure-effects scenarios in one call, on one model set-up.
+
+    `scenarios` is a list of `{"fail": [...], "repair": [...], "phase": N}`
+    (every key optional), up to 2000. Each scenario is independent and starts
+    from the all-good state, exactly as a separate `failure_effects` call
+    would; the model is only set up once, so hundreds of combinations on a
+    large model take seconds, not one set-up each.
+
+    Returns {model_id, count, failed, scenarios}. `scenarios[i]` has the
+    scenario's `index`, `fail` and `repair`, then either its result
+    ({system_status, affected, effects, criticality, phase}, plus the `log`
+    text when `include_log` is true) or `{"error": ...}` when that scenario
+    could not be applied (an unknown or already-failed element, a bad
+    phase). A bad scenario does not stop the others. `failed` counts them.
+    """
+    ws = context.workspace()
+    from raptor.api.analyse import AnalysisError, failure_effects_many
+    if not isinstance(scenarios, list) or not scenarios:
+        raise ValueError("scenarios must be a non-empty list of "
+                         "{fail, repair, phase} objects")
+    for i, sc in enumerate(scenarios):
+        if not isinstance(sc, dict):
+            raise ValueError(f"scenarios[{i}] must be an object with fail / "
+                             "repair / phase")
+        unknown = sorted(set(sc) - {"fail", "repair", "phase"})
+        if unknown:
+            raise ValueError(f"scenarios[{i}] has unknown keys {unknown}; "
+                             "use fail, repair and phase")
+    try:
+        rows = failure_effects_many(ws, model_id, scenarios,
+                                    include_log=include_log)
+    except AnalysisError as exc:
+        raise ValueError(str(exc)) from exc
+    failed = sum(1 for r in rows if "error" in r)
+    data = {"model_id": model_id, "count": len(rows), "failed": failed,
+            "scenarios": rows}
+    table = markdown_table(
+        ["#", "fail", "repair", "system status"],
+        [[r["index"], ", ".join(map(str, r["fail"])),
+          ", ".join(map(str, r["repair"])),
+          r.get("system_status") or f"error: {r['error']}"]
+         for r in rows[:50]])
+    md = (f"{len(rows)} scenario(s), {failed} that could not be applied.\n\n"
+          + table + ("\n\n(first 50 shown)" if len(rows) > 50 else ""))
+    return ok(data, markdown=md)
 
 
 @mcp.tool(annotations=ADDITIVE("Compare models"))

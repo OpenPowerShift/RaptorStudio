@@ -179,6 +179,23 @@ Typical flow: `open_model` or `build_model` → `validate_model` → `estimate_r
 Use `get_element` to read one block back in full, and `read_doc('dependency')` before modelling a backup that
 follows another unit: a dependent backup sits idle exactly when the unit it follows is down.
 
+## Large models
+
+A model with hundreds of blocks can spend minutes in set-up before its first replication, and a batch can run for
+hours. What helps:
+
+- **Run in the background.** `start_run` returns a job id at once; poll `run_status`. Its `phase` is `setting_up`
+  while the model is prepared (with `setup`: `stage`, `done`, `total`, `percent`), then `simulating`, so a quiet
+  start is not a hang. `cancel_run` stops a job between replications.
+- **Cores.** Leave `workers` out and a model of 500+ blocks, events and nodes run 20+ times uses several cores
+  (half the machine's, at most 8, never fewer than two). `simulate` and `start_run` report the `workers` used and
+  `workers_auto`. Pass `workers=1` for the sequential numbers: a multi-core batch is repeatable but not
+  bit-identical to a sequential one. This default is the server's only; the desktop app and `raptor run` keep theirs.
+- **Big inputs by file.** `build_model` takes `spec_path`, a JSON file inside the workspace (or an `--allow-read`
+  directory), instead of an inline `spec`. `open_model` already takes a workspace path to a `.rbds` or `.rbd`.
+- **Many what-ifs in one call.** `failure_effects_batch` runs up to 2000 `{{fail, repair, phase}}` scenarios on one
+  model set-up, each from the all-good state, and reports a scenario it cannot apply without stopping the rest.
+
 ## Resources
 
 | URI | Type | Contents |
