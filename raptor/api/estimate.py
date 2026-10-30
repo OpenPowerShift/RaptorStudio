@@ -177,6 +177,11 @@ def _model_hash(rbd: RbdFile) -> str:
 # Cache (JSON file in workspace)
 # ---------------------------------------------------------------------------
 
+#: Bumped when the pilot measures something different (v2: it requests the
+#: plot and file outputs a real batch does).
+_PILOT_KIND = "v2"
+
+
 def _cache_path(workspace: Workspace, model_hash: str,
                 run_length: float | None,
                 pilot_horizon: float | None = None) -> Path:
@@ -186,12 +191,13 @@ def _cache_path(workspace: Workspace, model_hash: str,
     is the (num_runs-independent) ``setup + n x per_run`` fit, so a pilot
     from a larger batch can answer a later small batch and vice versa.
     A request that needs more samples than the cached pilot has reruns;
-    see `_load_cache`.
+    see `_load_cache`. `_PILOT_KIND` is part of the key so fits from an
+    older, differently-run pilot are not reused.
     """
     cache_dir = workspace.root / ".estimate_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     key = (f"{model_hash}_{run_length}"
-           f"_{pilot_horizon if pilot_horizon is not None else 'same'}")
+           f"_{pilot_horizon if pilot_horizon is not None else 'same'}_{_PILOT_KIND}")
     return cache_dir / f"{key}.json"
 
 
@@ -283,6 +289,16 @@ class _TimedSink(list):
         super().append(item)
 
 
+def _run_like_a_batch(rbd: RbdFile, **kwargs: Any) -> None:
+    """`run_simulation_with_reports` with the outputs a real batch always
+    asks for (`raptor.api.run`): the availability plot, capacity and cost
+    files. Each samples or records during every replication, so a pilot
+    without them under-estimated a run by about 3x on FactoryDemo."""
+    run_simulation_with_reports(
+        rbd, collect_logs=False, ao_sink=[], capacity_sink=[], cost_sink=[],
+        **kwargs)
+
+
 def _measure_fixed_overhead(rbd: RbdFile) -> float:
     """Time a full call that does no replications.
 
@@ -293,9 +309,7 @@ def _measure_fixed_overhead(rbd: RbdFile) -> float:
     """
     try:
         t0 = time.monotonic()
-        run_simulation_with_reports(
-            rbd, num_runs=0, collect_logs=False, report_sink=[],
-        )
+        _run_like_a_batch(rbd, num_runs=0, report_sink=[])
         return max(time.monotonic() - t0, 0.0)
     except Exception:
         return 0.0
@@ -602,13 +616,8 @@ def estimate(  # noqa: C901, PLR0912, PLR0915
         return sink.bail
 
     try:
-        run_simulation_with_reports(
-            rbd,
-            num_runs=pilot_runs,
-            report_sink=sink,
-            collect_logs=False,
-            stop_check=_stop_check,
-        )
+        _run_like_a_batch(rbd, num_runs=pilot_runs, report_sink=sink,
+                          stop_check=_stop_check)
     except Exception as exc:
         raise EstimateError(f"Pilot run failed: {exc}") from exc
     batch_total = time.monotonic() - t_batch_start
