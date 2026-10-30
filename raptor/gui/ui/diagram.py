@@ -506,6 +506,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self.selection_changed.emit()
 
     def clear_model(self):
+        # Before the scene is cleared: clearing deletes every item and emits a
+        # selection change for a selected one, and the enable-state refresh it
+        # triggers reads `_anno_items` (issue #2: "_AnnoText already deleted").
+        self._anno_items = {}
         self._scene.clear()
         self._block_items.clear()
         self._node_items.clear()
@@ -1401,7 +1405,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def _selected_annotation_ids(self) -> list[int]:
         """Ids of the selected annotations, in scene insertion order."""
         return [aid for aid, it in getattr(self, "_anno_items", {}).items()
-                if it.isSelected()]
+                if isValid(it) and it.isSelected()]
 
     def _n_deletable_selected(self) -> int:
         """How many things a Delete will actually remove.
