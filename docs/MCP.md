@@ -2,7 +2,7 @@
 # Raptor Studio MCP server
 
 Raptor Studio ships a [Model Context Protocol](https://modelcontextprotocol.io) server, so an AI assistant can
-build, validate, simulate and explain reliability block diagrams. It exposes **65 tools**, a set of
+build, validate, simulate and explain reliability block diagrams. It exposes **66 tools**, a set of
 **resources** and three **prompts**. The numbers come from the same engine as the desktop app and the
 `raptor` command line.
 
@@ -177,6 +177,7 @@ description and input/output schema is what the server sends on `tools/list`.
 | `read_doc` | read-only | Read a documentation source as text (paginated). | `name`, `offset`?, `limit`? |
 | `redo_last_edit` | destructive | Step one edit forward again after `undo_last_edit` (multi-step). | `model_id` |
 | `render_diagram` | read-only | Render the model diagram as a PNG image. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `max_px`?, `include_annotations`? |
+| `render_diagram_svg` | read-only | Draw one level of the diagram as SVG text, without Qt. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `include_annotations`? |
 | `run_status` | read-only | Progress of a job started with `start_run`. | `job_id` |
 | `save_model_as` | destructive | Save a model to a file path. | `model_id`, `path`, `format`? |
 | `search_docs` | read-only | Search the RAPTOR tutorial docs for passages matching a query. | `query`, `limit`? |

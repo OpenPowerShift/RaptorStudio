@@ -1,18 +1,18 @@
 .TH "RAPTOR-RENDER" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-render \- Render the diagram of MODEL to a PNG file.
+raptor\-render \- Render the diagram of MODEL to a PNG file (needs Qt) or, when FILE ends in .svg, to a plain SVG drawing (no Qt needed).
 .SH SYNOPSIS
-\fBraptor render\fR [\-h] \-o FILE.png [\-\-level LEVEL] [\-\-highlight SELECTOR] [\-\-zoom\-to SELECTOR] [\-\-theme {light,dark}] [\-\-max\-px MAX_PX] [\-\-no\-annotations] MODEL
+\fBraptor render\fR [\-h] \-o FILE.png|FILE.svg [\-\-level LEVEL] [\-\-highlight SELECTOR] [\-\-zoom\-to SELECTOR] [\-\-theme {light,dark}] [\-\-max\-px MAX_PX] [\-\-no\-annotations] MODEL
 .SH DESCRIPTION
-Render the diagram of MODEL to a PNG file.
+Render the diagram of MODEL to a PNG file (needs Qt) or, when FILE ends in .svg, to a plain SVG drawing (no Qt needed).
 .SH OPTIONS
 .SS Options
 .TP
-\fB\-o\fR, \fB\-\-output\fR \fIFILE.png\fR
+\fB\-o\fR, \fB\-\-output\fR \fIFILE.png|FILE.svg\fR
 
 .TP
 \fB\-\-level\fR \fILEVEL\fR
-hierarchy depth to draw (0 = top)
+hierarchy id to draw (0 = top level)
 .TP
 \fB\-\-highlight\fR \fISELECTOR\fR
 

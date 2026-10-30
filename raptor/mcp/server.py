@@ -457,6 +457,10 @@ def _import_tools(args: argparse.Namespace) -> None:
     from raptor.mcp import tools_metrics  # noqa: F401
     from raptor.mcp import tools_tables  # noqa: F401
 
+    if not getattr(args, "no_render", False):
+        # The SVG drawing needs no Qt, so a headless install still has a
+        # way to look at a diagram.
+        from raptor.mcp import tools_svg  # noqa: F401
     if not getattr(args, "no_render", False) and _qt_available():
         try:
             from raptor.mcp import tools_view  # noqa: F401
