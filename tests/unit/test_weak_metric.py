@@ -345,3 +345,93 @@ class TestReliability:
         got = cross_run_weak_metric(runs, [7], "Reliability",
                                     missions=[2, 4])
         assert got[7] == pytest.approx((0.5 + 0.75) / 2)
+
+
+# --- node, event and hierarchy ratios (no Qt) ------------------------------------------------
+# These were reached only by GUI-marked tests, so the engine tier left them at
+# 44% branch coverage. They are engine functions; the engine tier pins them.
+from raptor.core.engine.weak_metric import (  # noqa: E402
+    cross_run_event_metric,
+    cross_run_node_metric,
+    event_metric,
+    hier_time_shares,
+    node_metric,
+)
+
+_NODE = {"green": 6.0, "yellow": 2.0, "red": 1.0, "orange": 0.5, "blue": 0.25, "brown": 0.25}
+
+
+class TestNodeMetric:
+    def test_availability_counts_blue_as_up_and_the_rest_in_the_denominator(self):
+        assert node_metric(_NODE, "Availability") == pytest.approx((6 + 2 + 0.25) / 10.0)
+
+    def test_dependability_leaves_standby_pm_and_dependency_out(self):
+        assert node_metric(_NODE, "Dependability") == pytest.approx(8.0 / 9.0)
+
+    def test_reliability_delegates_to_the_mission_ratio(self):
+        assert node_metric({"m_completed": 3}, "Reliability", 4) == pytest.approx(0.75)
+
+    def test_an_empty_node_is_one_not_a_crash(self):
+        assert node_metric({}, "Availability") == 1.0
+        assert node_metric({}, "Dependability") == 1.0
+
+
+class TestEventMetric:
+    _EVT = {"run": 6.0, "standby": 2.0, "repair": 2.0}
+
+    def test_availability_counts_standby_as_up(self):
+        assert event_metric(self._EVT, "Availability") == pytest.approx(0.8)
+
+    def test_dependability_leaves_standby_out(self):
+        assert event_metric(self._EVT, "Dependability") == pytest.approx(0.75)
+
+    def test_reliability_delegates_to_the_mission_ratio(self):
+        assert event_metric({"m_completed": 1}, "Reliability", 2) == pytest.approx(0.5)
+
+    def test_an_empty_event_is_one(self):
+        assert event_metric({}, "Availability") == 1.0
+
+
+class TestCrossRunNodeAndEvent:
+    def test_node_metric_is_the_mean_of_ratios_and_skips_absent_nodes(self):
+        runs = [{1: {"green": 1.0, "red": 1.0}}, {1: {"green": 3.0, "red": 1.0}}, {2: {"green": 1.0}}]
+        out = cross_run_node_metric(runs, [1, 2, 3], "Availability")
+        assert out == {1: pytest.approx((0.5 + 0.75) / 2), 2: 1.0}      # node 3 is in no run
+
+    def test_node_metric_reads_each_runs_own_mission_count(self):
+        runs = [{1: {"m_completed": 1}}, {1: {"m_completed": 3}}]
+        out = cross_run_node_metric(runs, [1], "Reliability", missions=[2, 4])
+        assert out == {1: pytest.approx((0.5 + 0.75) / 2)}
+
+    def test_event_metric_is_the_mean_of_ratios_and_skips_absent_events(self):
+        runs = [{7: {"run": 1.0, "repair": 1.0}}, {7: {"run": 3.0, "repair": 1.0}}, None]
+        out = cross_run_event_metric(runs, [7, 8], "Dependability")
+        assert out == {7: pytest.approx((0.5 + 0.75) / 2)}
+
+    def test_event_metric_reads_each_runs_own_mission_count(self):
+        runs = [{7: {"m_completed": 2}}, {7: {"m_completed": 0}}]
+        out = cross_run_event_metric(runs, [7], "Reliability", missions=[2, 2])
+        assert out == {7: pytest.approx(0.5)}
+
+
+class TestHierTimeShares:
+    def test_shares_add_to_one_and_availability_counts_standby_as_up(self):
+        out = hier_time_shares([{1: {"green": 5.0, "yellow": 1.0, "blue": 1.0, "red": 1.0,
+                                    "orange": 1.0, "brown": 1.0}}])[1]
+        assert out["working"] == pytest.approx(5 / 10)
+        assert out["degraded"] == pytest.approx(1 / 10)
+        assert out["standby"] == pytest.approx(1 / 10)
+        assert out["down"] == pytest.approx(3 / 10)
+        assert out["availability"] == pytest.approx(7 / 10)
+        assert out["working"] + out["degraded"] + out["standby"] + out["down"] == pytest.approx(1.0)
+        assert out["runs"] == 1
+
+    def test_it_averages_ratios_and_skips_runs_with_no_time(self):
+        runs = [{1: {"green": 1.0, "red": 1.0}}, {1: {"green": 3.0, "red": 1.0}},
+                {1: {}}, None]
+        out = hier_time_shares(runs)
+        assert out[1]["runs"] == 2
+        assert out[1]["availability"] == pytest.approx((0.5 + 0.75) / 2)
+
+    def test_a_hierarchy_that_never_had_time_is_absent(self):
+        assert hier_time_shares([{1: {}}]) == {}

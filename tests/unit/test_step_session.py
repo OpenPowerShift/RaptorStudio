@@ -161,3 +161,36 @@ def test_stop_requested_mid_run_discards_the_run() -> None:
                              stop_check=stop_mid_first_run,
                              keep_partial_logs=True)
     assert len(partial) == 1 and partial[0]
+
+
+def test_a_stepped_capacity_model_banks_each_runs_rows_like_the_batch() -> None:
+    """`cap_lines` and `_bank_capacity` are the capacity plot's stepped path:
+    the header once, an End_of_Run separator after every run."""
+    rbd = load_rbd(str(GOLDEN / "Capacity1" / "input.rbd"))
+    session = StepSession(rbd, num_runs=2)
+    while session.step():
+        pass
+    assert session.jump_to_next_run_start()
+    banked = session.cap_lines
+    assert banked[0].startswith("SimulationTime")
+    assert "End_of_Run_1" in "".join(banked)
+    while session.step():
+        pass
+    assert "End_of_Run_2" in "".join(session.cap_lines)
+
+
+def test_a_model_without_capacity_has_no_capacity_rows() -> None:
+    session = StepSession(load_rbd(str(GOLDEN / "TwoBlockRedundancy" / "input.rbd")))
+    assert session.cap_lines == []
+
+
+def test_early_terminate_finalizes_at_the_current_time_and_is_idempotent() -> None:
+    session = StepSession(load_rbd(str(GOLDEN / "TwoBlockRedundancy" / "input.rbd")))
+    for _ in range(3):
+        session.step()
+    stopped_at = session.time
+    logs, report = session.early_terminate()
+    assert logs and session.done
+    again_logs, again_report = session.early_terminate()
+    assert again_logs is logs and again_report is report
+    assert session.time == stopped_at
