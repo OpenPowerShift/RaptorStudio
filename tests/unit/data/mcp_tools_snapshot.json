@@ -100,11 +100,11 @@
    "model_id",
    "name",
    "spec",
+   "spec_path",
    "validate_model"
   ],
   "required": [
-   "name",
-   "spec"
+   "name"
   ]
  },
  "cancel_run": {
@@ -382,6 +382,17 @@
   ],
   "required": [
    "model_id"
+  ]
+ },
+ "failure_effects_batch": {
+  "params": [
+   "include_log",
+   "model_id",
+   "scenarios"
+  ],
+  "required": [
+   "model_id",
+   "scenarios"
   ]
  },
  "get_element": {

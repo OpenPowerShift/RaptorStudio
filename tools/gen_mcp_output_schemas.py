@@ -141,6 +141,8 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     rec.call("single_point_failures", model_id=m2)
     rec.call("failure_effects", model_id=m1, fail=["B1"])
     rec.call("failure_effects", model_id=m2, phase=2)
+    rec.call("failure_effects_batch", model_id=m1,
+             scenarios=[{"fail": ["B1"]}, {"fail": ["no such block"]}])
     rec.call("compare_models", models=[m1, m2], num_runs=2)
     rec.call("sweep_parameter", model_id=m1, selector="B1", field="fail_params", values=[[80.0, 0.0], [120.0, 0.0]],
              num_runs=2)

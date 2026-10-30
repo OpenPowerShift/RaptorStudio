@@ -330,7 +330,10 @@ class Scheduler:
 
     def __init__(self) -> None:
         self.time: float = 0.0
-        self._calendar: list[_Entry] = []
+        #: Heap of `(time, seq, entry)`: the tuple compares in C, where comparing
+        #: the entries would call `_Entry.__lt__` for every heap move. The
+        #: order is the same `(time, seq)` key `__lt__` defines.
+        self._calendar: list[tuple[float, int, _Entry]] = []
         self._counter = itertools.count()
         self._handle_counter = itertools.count()
         self._processes: dict[int, Process] = {}
@@ -587,7 +590,7 @@ class Scheduler:
             interrupt_reason=interrupt_reason, token=token, gc_owner=gc_owner,
             group_head=group_head,
         )
-        heapq.heappush(self._calendar, entry)
+        heapq.heappush(self._calendar, (entry.time, entry.seq, entry))
         self._gc_insert(entry, interrupt=interrupt_reason is not None or gc_retail, gc_owner=gc_owner)
 
     def switch_off_tie_breaking(self) -> None:
@@ -746,12 +749,12 @@ class Scheduler:
         of that instant (`cn_active_time`), `choose_next` decides instead,
         as source's `SetTieBreaking(TRUE)` does."""
         _validate_time(end_time, "step end_time")
-        if not self._calendar or self._calendar[0].time > end_time:
+        if not self._calendar or self._calendar[0][0] > end_time:
             return False
-        tie_time = self._calendar[0].time
+        tie_time = self._calendar[0][0]
         group: list[_Entry] = []
-        while self._calendar and self._calendar[0].time == tie_time:
-            entry = heapq.heappop(self._calendar)
+        while self._calendar and self._calendar[0][0] == tie_time:
+            entry = heapq.heappop(self._calendar)[2]
             if self._generations.get(entry.handle_id) != entry.generation:
                 continue  # stale -- this wait was interrupt-ed away already
             group.append(entry)
@@ -775,7 +778,7 @@ class Scheduler:
             entry = group.pop(0)
         self._gc_select(entry)
         for e in group:
-            heapq.heappush(self._calendar, e)
+            heapq.heappush(self._calendar, (e.time, e.seq, e))
         self.time = tie_time
         self._process(entry)
         return True
@@ -843,14 +846,14 @@ class Scheduler:
         `EndSimulation`'s forced termination)."""
         _validate_time(end_time, "run_until end_time")
         while True:
-            if not self._calendar or self._calendar[0].time > end_time:
+            if not self._calendar or self._calendar[0][0] > end_time:
                 break
             # Batch runs have no per-event observer: process the whole
             # same-instant group in one pass. The old loop re-popped and
             # re-sorted every remaining entry of the group once per entry
             # (O(k^2 log k)); on a 3,470-block model's ~6,900-entry t=0
             # group that was ~30 s per replication. None order changes.
-            self._tie_in_flight = self._calendar[0].time
+            self._tie_in_flight = self._calendar[0][0]
             try:
                 fast = self._run_tie_group(self._tie_in_flight)
             finally:
@@ -883,8 +886,8 @@ class Scheduler:
         if self.cn_active_time == tie_time or self._fast_ties_disabled:
             return None
         group: list[_Entry] = []
-        while self._calendar and self._calendar[0].time == tie_time:
-            entry = heapq.heappop(self._calendar)
+        while self._calendar and self._calendar[0][0] == tie_time:
+            entry = heapq.heappop(self._calendar)[2]
             if self._generations.get(entry.handle_id) == entry.generation:
                 group.append(entry)
         if not group:
@@ -907,7 +910,7 @@ class Scheduler:
                 # (tier, group rank, seq) interleaves them; let `step`
                 # handle this rare instant exactly.
                 for e2 in group:
-                    heapq.heappush(self._calendar, e2)
+                    heapq.heappush(self._calendar, (e2.time, e2.seq, e2))
                 return None
             else:
                 bucket[2].append(e)
@@ -920,7 +923,7 @@ class Scheduler:
             # dependent on the exact sequence of cascades. That is what
             # `step` implements; let it process this instant.
             for e2 in group:
-                heapq.heappush(self._calendar, e2)
+                heapq.heappush(self._calendar, (e2.time, e2.seq, e2))
             return None
         self._tie_pending = sum(len(b[2]) for b in buckets.values())
 
@@ -965,7 +968,7 @@ class Scheduler:
                 self._tie_interrupted = False
                 for _k, (_g2, _t, es) in list(buckets.items()):
                     for e2 in es:
-                        heapq.heappush(self._calendar, e2)
+                        heapq.heappush(self._calendar, (e2.time, e2.seq, e2))
                 buckets.clear()
                 self._tie_pending = 0
                 return None
@@ -977,8 +980,8 @@ class Scheduler:
             if self.on_step is not None:
                 self.on_step(self)
             # `_process` may have queued more work at this same instant.
-            while self._calendar and self._calendar[0].time == tie_time:
-                new = heapq.heappop(self._calendar)
+            while self._calendar and self._calendar[0][0] == tie_time:
+                new = heapq.heappop(self._calendar)[2]
                 if self._generations.get(new.handle_id) != new.generation:
                     continue
                 live = self._gc_live.get(new.handle_id)
@@ -994,10 +997,10 @@ class Scheduler:
                     heapq.heappush(heap, (new_tier, new_g.order, new_key))
                 elif new_bucket[1] != new_tier:
                     # Rare mixed-tier instant: hand the rest to `step`.
-                    heapq.heappush(self._calendar, new)
+                    heapq.heappush(self._calendar, (new.time, new.seq, new))
                     for _k, (_g2, _t, es) in list(buckets.items()):
                         for e2 in es:
-                            heapq.heappush(self._calendar, e2)
+                            heapq.heappush(self._calendar, (e2.time, e2.seq, e2))
                     return None
                 if new.group_head:
                     new_bucket[2].insert(0, new)
@@ -1116,6 +1119,6 @@ class Scheduler:
         head can be a stale (interrupted) entry that `step` will skip, so this
         is a lower bound on the next instant, not necessarily a live event."""
         if self._tie_in_flight is not None and self._tie_pending > 0:
-            if not self._calendar or self._calendar[0].time >= self._tie_in_flight:
+            if not self._calendar or self._calendar[0][0] >= self._tie_in_flight:
                 return self._tie_in_flight
-        return self._calendar[0].time if self._calendar else None
+        return self._calendar[0][0] if self._calendar else None

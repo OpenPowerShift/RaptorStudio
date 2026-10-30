@@ -356,8 +356,12 @@ def build_efpa_graph(
     events_by_id: dict[int, RBDEvent],
     hiers_by_id: dict[int, RBDHier],
     links_by_id: dict[int, Link],
+    progress: Callable[[str, int, int], None] | None = None,
 ) -> None:
-    """Mutates `nodes_by_id`/`blocks_by_id`/`events_by_id`'s objects in
+    """`progress(stage, done, total)`, when given, is called about a hundred
+    times while the path pass runs (the slow part of set-up on a big model).
+
+    Mutates `nodes_by_id`/`blocks_by_id`/`events_by_id`'s objects in
     place: populates each node's `in_paths_array` (types 2/3/5) and
     `next_node_ids`/`next_node_link_ids`/`propagates_to_node_ids`/
     `propagates_to_link_ids` (types 2/5), and each block/event's `downstream_link_id`.
@@ -480,10 +484,14 @@ def build_efpa_graph(
     # docstring. Order matters: a node tested earlier in this loop has
     # its PRUNED result reused by later origins passing through it.
     efpa_tested: set[int] = set()
-    for node in nodes_by_id.values():
-        if node.type_node not in (2, 5):
-            continue
+    origins = [n for n in nodes_by_id.values() if n.type_node in (2, 5)]
+    every = max(1, len(origins) // 100)
+    for i, node in enumerate(origins):
+        if progress is not None and i % every == 0:
+            progress("Analysing paths", i, len(origins))
         _run_test_fail(node, nodes_by_id, hiers_by_id, links_by_id, efpa_tested)
+    if progress is not None:
+        progress("Analysing paths", len(origins), len(origins))
 
 
     # Pass 3 -- RunEFPA's block/event / In-node fix-up (Raptor 7:

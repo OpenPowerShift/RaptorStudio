@@ -8,6 +8,7 @@ fields a run updates in place.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from raptor.core.engine.capacity import build_capacity_graph
@@ -102,14 +103,18 @@ def resolve_defer_trigger(rbd_file: RbdFile, choice: str) -> str:
     return rows[0].get("TriggerName", "") if rows else ""
 
 
-def load_model(rbd_file: RbdFile, *, defer_trigger: str = "") -> SimulationModel:
+def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
+               progress: Callable[[str, int, int], None] | None = None) -> SimulationModel:
     """Load a parsed `.rbd` file's `BLOCK_DATA`/`EVENT_DATA`/`NODE_DATA`/
     `HIERARCHY_DATA`/`LINK_DATA`/`SYSTEM_DATA` sections into ready-to-run
     model objects and build the EFPA graph over them. Skips the mandatory
     `ID=0` `BLOCK_DATA` sentinel row present in every Raptor 7 file.
 
     Raises `NotImplementedError` for `termination_type != "TimeSim"` unless
-    it is a FailSim events-only model."""
+    it is a FailSim events-only model.
+
+    `progress(stage, done, total)` reports the slow part of set-up (see
+    `build_efpa_graph`)."""
     blocks_by_id: dict[int, RBDBlock] = {}
     for row in rbd_file.sections["BLOCK_DATA"].rows:
         if row.get("ID") == "0":
@@ -158,7 +163,8 @@ def load_model(rbd_file: RbdFile, *, defer_trigger: str = "") -> SimulationModel
         link.object_num = new_id
         links_by_id[link.object_num] = link
 
-    build_efpa_graph(nodes_by_id, blocks_by_id, events_by_id, hiers_by_id, links_by_id)
+    build_efpa_graph(nodes_by_id, blocks_by_id, events_by_id, hiers_by_id, links_by_id,
+                     progress=progress)
 
     # Port of the kickoff-time `IdAndSortColds` call
     # The sort is deterministic over static `cold_priority`

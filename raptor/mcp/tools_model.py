@@ -146,6 +146,46 @@ def _resolve_model_path(path: str) -> Path:  # noqa: C901
     raise FileNotFoundError(_NOT_FOUND.format(path=path))
 
 
+def _choose_spec(spec: dict[str, Any] | None,
+                 spec_path: str | None) -> dict[str, Any]:
+    """The inline spec, or the one in `spec_path`; exactly one must be given."""
+    if (spec is None) == (spec_path is None):
+        raise ValueError("give exactly one of `spec` (inline) and `spec_path` "
+                         "(a JSON file in the workspace)")
+    if spec is not None:
+        return spec
+    return _read_spec_file(str(spec_path))
+
+
+def _read_spec_file(path: str) -> dict[str, Any]:
+    """Read a JSON spec from the workspace or an `--allow-read` directory.
+
+    Same boundary as `open_model`: a relative path, resolved under an allowed
+    root, and a file outside them answers like one that does not exist."""
+    import json as _json
+    from raptor.api.limits import MAX_MODEL_BYTES
+    path = context.require_relative_path(path, "spec_path")
+    roots = [context.workspace().root, *context.allowed_read_dirs()]
+    for root in roots:
+        try:
+            root_resolved = Path(root).resolve()
+            found = (root_resolved / path).resolve()
+        except OSError:
+            continue
+        if (root_resolved in found.parents and found.is_file()):
+            if found.stat().st_size > MAX_MODEL_BYTES:
+                raise ValueError(f"{path!r} is larger than {MAX_MODEL_BYTES} bytes")
+            try:
+                data = _json.loads(found.read_text(encoding="utf-8"))
+            except (ValueError, UnicodeDecodeError) as exc:
+                raise ValueError(f"{path!r} is not valid JSON: {exc}") from None
+            if not isinstance(data, dict):
+                raise ValueError(f"{path!r} must hold a JSON object (the spec)")
+            return data
+    raise FileNotFoundError(f"No spec file at {path!r} in the workspace or an "
+                            "--allow-read directory.")
+
+
 @mcp.tool(annotations=ADDITIVE("Create model"))
 @guarded
 def create_model(name: str,
@@ -283,11 +323,17 @@ def delete_file(path: str) -> CallToolResult:
 
 @mcp.tool(annotations=ADDITIVE("Build model"))
 @guarded
-def build_model(name: str, spec: dict[str, Any],
+def build_model(name: str, spec: dict[str, Any] | None = None,
                 auto_layout: bool = True,
                 validate_model: bool = True,
-                model_id: str | None = None) -> CallToolResult:
+                model_id: str | None = None,
+                spec_path: str | None = None) -> CallToolResult:
     """Build a complete model from a friendly .rbds spec document.
+
+    Give the spec inline as `spec`, or, for a large one, as `spec_path`: a
+    JSON file **relative to the workspace** (or an `--allow-read`
+    directory). Exactly one of the two. To open a finished `.rbds` or
+    `.rbd` file instead, use `open_model`, which takes the same kind of path.
 
     `build_model` always creates a NEW model. `model_id` is accepted only
     to reject it with a clear message: it used to be ignored silently, so
@@ -392,6 +438,7 @@ def build_model(name: str, spec: dict[str, Any],
     from raptor.api.validate import issues
 
     import json as _json
+    spec = _choose_spec(spec, spec_path)
     try:
         encoded = _json.dumps(spec, default=str).encode("utf-8")
     except (TypeError, ValueError) as exc:

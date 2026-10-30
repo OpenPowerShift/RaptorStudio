@@ -146,14 +146,21 @@ def failure_effects(
     """
     from raptor.core.engine.errors import UnrunnableModel
     from raptor.core.engine.fev import FevSession
-    from raptor.core.engine.fmeca import build_fmeca, fmeca_lists
-    from raptor.core.model import BlockStatus, EventStatus
 
     handle = workspace.get(model_id)
     try:
         session = FevSession(handle.rbd)
     except UnrunnableModel as exc:
         raise AnalysisError(str(exc)) from exc
+    return _fev_scenario(workspace, model_id, session, fail or [], repair or [],
+                         phase)
+
+
+def _fev_scenario(workspace: Workspace, model_id: str, session, fail, repair,
+                  phase: int | None) -> dict:
+    """One failure-effects scenario on a session that is in its start state."""
+    from raptor.core.engine.fmeca import build_fmeca, fmeca_lists
+    from raptor.core.model import BlockStatus, EventStatus
 
     if phase is not None:
         if not session.phased:
@@ -164,7 +171,7 @@ def failure_effects(
         session.goto_phase(phase)
 
     affected: list[str] = []
-    for selector in fail or []:
+    for selector in fail:
         kind, eid = _resolve_fev_element(workspace, model_id, selector)
         if kind == "event":
             event = session.model.events_by_id.get(eid)
@@ -181,7 +188,7 @@ def failure_effects(
                     "(already failed, not operating, or not found)")
             session.click_block(eid)
         affected.append(str(selector))
-    for selector in repair or []:
+    for selector in repair:
         kind, eid = _resolve_fev_element(workspace, model_id, selector)
         if kind == "event":
             event = session.model.events_by_id.get(eid)
@@ -193,8 +200,7 @@ def failure_effects(
             b = session.model.blocks_by_id.get(eid)
             if b is None or b.op_status not in (BlockStatus.REPAIRING, BlockStatus.PM):
                 raise AnalysisError(
-                    f"Could not repair block {selector!r} "
-                    "(already running or not found)")
+                    f"Could not repair block {selector!r} (already running or not found)")
             session.click_block(eid)
         affected.append(str(selector))
 
@@ -206,6 +212,54 @@ def failure_effects(
         "criticality": session.criticality,
         "phase": session.phase_number if session.phased else None,
     }
+
+
+#: Most scenarios one `failure_effects_many` call takes.
+MAX_FEV_SCENARIOS = 2000
+
+
+def failure_effects_many(workspace: Workspace, model_id: str,
+                         scenarios: list[dict], *,
+                         include_log: bool = False) -> list[dict]:
+    """Many independent failure-effects scenarios on ONE model set-up.
+
+    Each scenario is `{"fail": [...], "repair": [...], "phase": N}` (every key
+    optional) and starts from the all-operating state, exactly as a separate
+    `failure_effects` call does; the model is set up once instead of once per
+    scenario, which is what makes hundreds of combinations on a large model
+    practical. Returns one dict per scenario, in order: the
+    `failure_effects` result (without the `log` text unless `include_log`),
+    plus the scenario's `fail`/`repair`. A scenario that cannot be applied
+    (an unknown or already-failed element, a bad phase) gets `{"error": ...}`
+    in place of its result and the rest still run."""
+    from raptor.core.engine.errors import UnrunnableModel
+    from raptor.core.engine.fev import FevSession
+
+    if len(scenarios) > MAX_FEV_SCENARIOS:
+        raise AnalysisError(
+            f"{len(scenarios)} scenarios is over the limit of {MAX_FEV_SCENARIOS} "
+            "per call; split the list")
+    try:
+        session = FevSession(workspace.get(model_id).rbd)
+    except UnrunnableModel as exc:
+        raise AnalysisError(str(exc)) from exc
+    out: list[dict] = []
+    for i, scenario in enumerate(scenarios):
+        fail = list(scenario.get("fail") or [])
+        repair = list(scenario.get("repair") or [])
+        session.refresh_all()
+        row: dict = {"index": i, "fail": fail, "repair": repair}
+        try:
+            result = _fev_scenario(workspace, model_id, session, fail, repair,
+                                   scenario.get("phase"))
+        except AnalysisError as exc:
+            row["error"] = str(exc)
+        else:
+            if not include_log:
+                result.pop("log")
+            row.update(result)
+        out.append(row)
+    return out
 
 
 FEV_SCRIPT_ACTIONS = {

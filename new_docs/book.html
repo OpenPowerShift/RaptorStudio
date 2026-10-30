@@ -8478,7 +8478,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>64 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>65 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone reference to every tool,
 option and transport is in <code>docs/MCP.md</code> in the repository.</p>
 </div>
@@ -9099,7 +9099,8 @@ with parameter names and valid ranges.</p>
   placed, and the result validated. Check <code>validation.runnable</code> — a
   structurally successful build can still carry engine-gate errors.
   <code>.rbds</code> is the preferred format; only export <code>.rbd</code> when explicitly
-  asked.</p></td>
+  asked. For a large spec pass <code>spec_path</code>, a JSON file inside the workspace,
+  instead of the inline <code>spec</code> (exactly one of the two).</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>describe_model</code></p></td>
@@ -9395,7 +9396,9 @@ with parameter names and valid ranges.</p>
   over-budget runs unless <code>confirm_long_run=true</code>. If a run is cut short,
   <code>truncated</code> is true and <code>runs</code> is below <code>requested_runs</code>. <code>seed</code> (optional)
   re-rolls the batch reproducibly; unset keeps the engine&#8217;s fixed seeds.
-  <code>importance</code> (<code>improvement</code>, <code>risk</code> or <code>both</code>) also estimates the
+  Leave <code>workers</code> out and a large model (500+ blocks, events and nodes) run
+  20+ times uses several cores, reported as <code>workers</code> and <code>workers_auto</code>;
+  pass <code>workers=1</code> for the sequential numbers. <code>importance</code> (<code>improvement</code>, <code>risk</code> or <code>both</code>) also estimates the
   IEC 61078 Annex D importance measures by re-simulation: one extra batch
   per block, two for <code>both</code>. Read them with <code>get_report(section="importance")</code>.</p></td>
 </tr>
@@ -9405,13 +9408,17 @@ with parameter names and valid ranges.</p>
   Takes the same arguments as <code>simulate</code> (minus hierarchy isolation and
   importance), validates the model and checks the batch size before the
   job starts, then runs on a daemon thread. Use it when a batch outlives
-  one tool call; the completed run is an ordinary workspace run.</p></td>
+  one tool call; the completed run is an ordinary workspace run. <code>workers</code>
+  defaults as for <code>simulate</code>.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>run_status</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Progress of a <code>start_run</code> job: <code>state</code> (<code>queued</code>, <code>running</code>, <code>done</code>,
   <code>cancelled</code>, <code>failed</code>), completed/requested runs, percent, elapsed
-  time, and — once available — the <code>run_id</code> and metric summary. Jobs are
+  time, and — once available — the <code>run_id</code> and metric summary. <code>phase</code>
+  says what a running job is doing: <code>setting_up</code> while a large model is
+  prepared (<code>setup</code> gives the stage and how far through it is; the first
+  replication can be minutes away) and then <code>simulating</code>. Jobs are
   in-process only; after a server restart the run remains, the job id
   does not.</p></td>
 </tr>
@@ -9438,6 +9445,14 @@ with parameter names and valid ranges.</p>
   simulated): fail/repair blocks or events, optionally in a chosen phase, and
   get the system status and the Failure Effects text (failed, induced, idle
   and PM components, down and degraded nodes).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>failure_effects_batch</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Many Failure Effects scenarios in one call (up to 2000
+  <code>{fail, repair, phase}</code> objects), on one model set-up. Each starts from the
+  all-good state, as a separate <code>failure_effects</code> call does. A scenario that
+  cannot be applied is reported with its <code>error</code> and the rest still run;
+  <code>include_log</code> adds the Failure Effects text to each result.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>extract_hierarchy</code></p></td>
