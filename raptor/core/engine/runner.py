@@ -72,6 +72,25 @@ _RUNS_DONE = None
 _STOP_FLAG = None
 
 
+#: The one unrun model this worker process has loaded, with the key it was
+#: loaded for. A batch is split into up to 64 chunks and each chunk used to
+#: parse and load the model again; now the first chunk loads it and every
+#: chunk (that one included) runs on a copy, so set-up is paid once per
+#: worker. The template itself is never run.
+_TEMPLATE: tuple[tuple[str, str], object] | None = None
+
+
+def _model_template(rbd, rbd_text: str, defer_trigger: str):
+    """This worker's unrun model for `rbd_text` (loaded on first use)."""
+    global _TEMPLATE
+    import hashlib
+    key = (hashlib.sha1(rbd_text.encode("utf-8")).hexdigest(), defer_trigger)
+    if _TEMPLATE is None or _TEMPLATE[0] != key:
+        _TEMPLATE = (key, load_model(
+            rbd, defer_trigger=resolve_defer_trigger(rbd, defer_trigger)))
+    return _TEMPLATE[1]
+
+
 def _init_chunk_worker(flag, runs_done=None, stop=None) -> None:
     global _RUNAWAY_FLAG, _RUNS_DONE, _STOP_FLAG
     _RUNAWAY_FLAG = flag
@@ -202,6 +221,7 @@ def _run_chunk_worker(payload):
      collect_logs, stream_seed, defer_trigger) = payload
     from raptor.core.fileio.rbds import parse_rbds
     rbd = parse_rbds(rbd_text)
+    template = _model_template(rbd, rbd_text, defer_trigger)
     report_rows: list[RunReportData] = []
     ao_lines: list[str] = []
     cost_lines: list[str] = []
@@ -209,7 +229,8 @@ def _run_chunk_worker(payload):
         rbd, num_runs=chunk_runs, report_sink=report_rows,
         ao_sink=ao_lines, cost_sink=cost_lines,
         ao_plot_interval=ao_interval, cost_plot_interval=cost_interval,
-        stream_jump=stream_jump, stream_seed=stream_seed, defer_trigger=defer_trigger)
+        stream_jump=stream_jump, stream_seed=stream_seed, defer_trigger=defer_trigger,
+        model_template=template)
     counting = count_stream_draws(ctx)
     neg_runs: list[int] = []
     neg_before = 0
