@@ -174,7 +174,11 @@ _INT_KEYS = frozenset({
     "id", "parent", "type", "k", "n", "out", "in_id", "out_id",
     "fail_dist", "repair_dist", "fail_stream", "repair_stream", "dep_num",
     "full_flow", "div_flow", "cold_pri", "cap_pri", "nom_flow", "max_flow",
-    "flow_generated", "num_runs", "from_id", "to_id"})
+    "flow_generated", "num_runs", "from_id", "to_id",
+    # Spare-pool columns the .rbd writer also emits as whole numbers
+    # (rbd._LEGACY_INT_COLUMNS). ESO/RSO/SLO are flags: "1.000000" is not
+    # one of the spellings typed.cell_truthy reads as set.
+    "eso", "rso", "slo", "stock", "new_spares", "level", "quantity"})
 _BOOL_KEYS = frozenset({"uses_phasing", "weak_analysis", "cost_analysis",
                         "capacity_analysis"})
 _STR_KEYS = frozenset({"name", "dep_type", "units", "graphics",
