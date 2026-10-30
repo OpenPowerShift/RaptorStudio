@@ -183,3 +183,17 @@ def format_fmeca_file_block(lines: list[str]) -> str:
     with Raptor 7's CRLF line ends."""
     body = "\r\n" + "".join(f"{ln}\r\n" for ln in lines) + "\r\n"
     return body + STAR_LINE + "\r\n\r\n"
+
+
+def capacity_lines(capacity: dict) -> list[str]:
+    """`FevSession.capacity()` as a CAPACITY section laid out like the
+    Failure Effects text above it (not part of Raptor 7's text or log)."""
+    fraction = capacity["delivered_fraction"]
+    share = f" ({fraction:.1%})" if fraction is not None else ""
+    lines = ["CAPACITY", "",
+             f"     Delivered Flow:     {capacity['delivered']} of {capacity['flow_generated']}{share}", "",
+             f"     Lost Flow:     {capacity['lost']}", "",
+             f"     System Capacity:     {capacity['system_capacity']}", ""]
+    lines += [f"     {n['name']}:     flow {n['flow']}, capacity {n['capacity']}"
+              for n in capacity["nodes"]]
+    return lines

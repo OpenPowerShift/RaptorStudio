@@ -205,6 +205,10 @@ def add_parser(sub: Any) -> None:
     fv.add_argument("--criticality", action="store_true", default=None,
                     help="add the Criticality line (Raptor 7's developer "
                          "option)")
+    fv.add_argument("--capacity", action="store_true",
+                    help="also show the flow delivered, and the flow and "
+                         "capacity of each capacity node (models with "
+                         "capacity analysis; not in Raptor 7)")
     fv.set_defaults(func=fev_command)
 
     st = sub.add_parser(
@@ -554,7 +558,8 @@ def fev_command(args: Any) -> int:
         with workspace_for() as ws:
             mid = open_model(ws, args.model)
             writes = analyse.fev_script(ws, mid, actions,
-                                        criticality=args.criticality)
+                                        criticality=args.criticality,
+                                        capacity=args.capacity)
     except (AnalysisError, OSError) as exc:
         raise CliError(str(exc), X.INVALID) from exc
     if args.format == "json":
@@ -565,6 +570,10 @@ def fev_command(args: Any) -> int:
             if i:
                 print("*" * 65)
             print("\n".join(w["lines"]))
+            if "capacity" in w:
+                print("\n".join(analyse.capacity_lines(w["capacity"])))
+    if args.capacity and writes and "capacity" not in writes[0]:
+        eprint("warning: --capacity ignored: the model has no capacity analysis")
     if args.log:
         block = "".join("\r\n" + "".join(f"{ln}\r\n" for ln in w["lines"])
                         + "\r\n" + "*" * 65 + "\r\n\r\n" for w in writes)
