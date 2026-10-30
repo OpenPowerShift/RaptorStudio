@@ -360,6 +360,22 @@ def run(
     timer.daemon = True
     timer.start()
 
+    caller_setup_progress = setup_progress
+
+    def _checked_setup_progress(stage: str, done: int, total: int) -> None:
+        """Set-up can take minutes on a large model and used to be
+        uninterruptible: abort and the timeout were only looked at between
+        replications. The engine reports a hundred or so times during it, so
+        raising here is what stops it."""
+        if abort.is_set():
+            if timed_out.is_set():
+                raise RunTimeoutError(
+                    f"Simulation did not complete within {timeout_s}s "
+                    f"(it was still setting up the model)")
+            raise RunCancelledError("Simulation was cancelled during set-up")
+        if caller_setup_progress is not None:
+            caller_setup_progress(stage, done, total)
+
     # The draw log is written as the batch runs; it moves into the run directory once that exists.
     sd_tmp = (workspace.root / f".simDetails-{os.getpid()}-{time.monotonic_ns()}"
               if developer.sim_details else None)
@@ -377,7 +393,7 @@ def run(
             ao_plot_interval=ao_interval,
             cost_plot_interval=cost_interval,
             progress=progress, total=effective_runs, seed=seed,
-            setup_progress=setup_progress,
+            setup_progress=_checked_setup_progress,
             count_draws=developer.random_draw_count,
             sim_details_path=str(sd_tmp) if sd_tmp is not None else None,
             mission_path=str(mission_tmp) if mission_tmp is not None else None,

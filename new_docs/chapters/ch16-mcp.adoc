@@ -707,7 +707,8 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   does not.
 
 | `cancel_run`
-| Ask a background job to stop between replications, keeping the
+| Ask a background job to stop between replications (or during a long
+  model set-up, when it has nothing to keep), keeping the
   completed ones as a truncated run. Poll `run_status` until `state` is
   `cancelled`.
 

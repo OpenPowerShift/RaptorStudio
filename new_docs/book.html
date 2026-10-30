@@ -9494,7 +9494,8 @@ with parameter names and valid ranges.</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>cancel_run</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Ask a background job to stop between replications, keeping the
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ask a background job to stop between replications (or during a long
+  model set-up, when it has nothing to keep), keeping the
   completed ones as a truncated run. Poll <code>run_status</code> until <code>state</code> is
   <code>cancelled</code>.</p></td>
 </tr>
