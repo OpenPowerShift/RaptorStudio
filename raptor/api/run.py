@@ -239,6 +239,7 @@ def run(
     developer: Any = None,
     importance_progress: Callable[[int, int, str], None] | None = None,
     setup_progress: Callable[[str, int, int], None] | None = None,
+    worker_limit: Callable[[], int] | None = None,
 ) -> RunResult:
     """Execute a simulation and persist artefacts to ``runs/<run_id>/``.
 
@@ -393,7 +394,7 @@ def run(
             ao_plot_interval=ao_interval,
             cost_plot_interval=cost_interval,
             progress=progress, total=effective_runs, seed=seed,
-            setup_progress=_checked_setup_progress,
+            setup_progress=_checked_setup_progress, worker_limit=worker_limit,
             count_draws=developer.random_draw_count,
             sim_details_path=str(sd_tmp) if sd_tmp is not None else None,
             mission_path=str(mission_tmp) if mission_tmp is not None else None,
@@ -620,6 +621,7 @@ def _run_simulation(
     cumulative_time_mesh: float = 0.0,
     metadata_sink: dict | None = None,
     setup_progress: Callable[[str, int, int], None] | None = None,
+    worker_limit: Callable[[], int] | None = None,
 ) -> tuple[list[list[str]] | list[str], list[str], list[str]]:
     """Thin wrapper around the engine that honours an abort flag."""
     from raptor.core.engine.runner import run_simulation_with_reports as _run
@@ -658,6 +660,7 @@ def _run_simulation(
         cumulative_time_mesh=cumulative_time_mesh,
         metadata_sink=metadata_sink,
         setup_progress=setup_progress,
+        worker_limit=worker_limit,
     )
     return all_logs, eor_lines, final_lines
 

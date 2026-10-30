@@ -8043,6 +8043,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # single-replication batch is shown as 1 thread even if the
         # preference is higher.
         state["workers"] = workers if (workers > 1 and num_runs > 1) else 1
+        # How many of those may be busy right now. The Cores box can lower it
+        # (and raise it again, up to `workers`) while the batch runs; the
+        # engine reads it between runs. Plain int, written on the GUI thread,
+        # read from the worker thread: an assignment is atomic.
+        state["workers_now"] = state["workers"]
 
         def worker():
             try:
@@ -8167,6 +8172,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     # `workers` is already forced to 1 when live_view is
                     # on (above).
                     num_workers=workers,
+                    worker_limit=lambda: state["workers_now"],
                     stop_check=stop_check,
                     skip_check=skip_check,
                     ao_plot_interval=self._effective_run_interval(
@@ -8348,7 +8354,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if state.get("progress"):
             done, total = state.get("progress", (0, 0))
             paused = bool(state.get("paused"))
-            threads = self._threads_label(state.get("workers", 1))
+            pool = state.get("workers", 1)
+            now = state.get("workers_now", pool)
+            threads = (self._threads_label(pool) if now >= pool else
+                       f"{now} of {pool} cores")
             self._track_paused_eta(paused)
             # Only repaint when the count (or paused state) actually
             # changed -- the poll runs at 10 Hz and would otherwise
