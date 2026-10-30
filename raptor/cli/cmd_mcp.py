@@ -19,5 +19,5 @@ def argparse_remainder() -> str:
 
 
 def mcp_command(args: Any) -> int:
-    from raptor.mcp.server import main as mcp_main
+    from raptor.mcp.launch import main as mcp_main
     return int(mcp_main(list(args.rest)) or 0)

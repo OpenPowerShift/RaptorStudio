@@ -217,9 +217,8 @@ def doctor_command(args: Any) -> int:
     check("PySide6 (GUI)", qt)
 
     def mcp_sdk():
-        import mcp                                  # noqa: F401
-        from importlib.metadata import version
-        return True, version("mcp")
+        from raptor.mcp import sdk
+        return sdk.problem() is None, sdk.problem() or sdk.installed()
     check("mcp SDK", mcp_sdk)
 
     def engine():

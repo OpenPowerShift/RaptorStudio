@@ -55,7 +55,7 @@ mcp = ["mcp>=2.2,<3", "pydantic>=2"]
 
 [project.scripts]
 raptor = "raptor.cli.main:main"
-raptor-studio-mcp = "raptor.mcp.server:main"
+raptor-studio-mcp = "raptor.mcp.launch:main"
 
 [project.gui-scripts]
 raptor-studio = "raptor.gui.app:main"
