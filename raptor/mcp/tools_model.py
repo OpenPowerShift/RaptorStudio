@@ -1388,7 +1388,7 @@ def auto_layout(model_id: str,
     With neither, every level is laid out. `build_model` already lays out
     by default (`auto_layout=True`).
 
-    The collision-refining step has a time budget (10 s in all): a dense
+    The collision-refining step has a time budget (30 s in all): a dense
     model can otherwise take minutes. If it runs out, the layered layout is
     kept with whatever refinement was done, and `refine_cut_short` says how
     many levels were left less than fully refined (0 when none).

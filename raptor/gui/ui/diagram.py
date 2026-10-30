@@ -5509,10 +5509,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # sit on the connector lines in the saved file. Model-unit
             # pitches survive the scene<->model round trip verbatim.
             from raptor.core.fileio.legacy_layout import (
-                layout_container_positions, LAYER_PITCH, ROW_PITCH,
+                GUI_REFINE_BUDGET_S, layout_container_positions,
+                refine_budget, LAYER_PITCH, ROW_PITCH,
             )
-            pos = layout_container_positions(members.keys(), edges,
-                                             starts, pins=pins)
+            # This blocks the UI thread: the shorter GUI budget, not the
+            # engine's default.
+            with refine_budget(GUI_REFINE_BUDGET_S):
+                pos = layout_container_positions(members.keys(), edges,
+                                                 starts, pins=pins)
             for k, (mx, my) in pos.items():
                 if k not in moving:
                     continue

@@ -31,6 +31,8 @@ pass through untouched and stay byte-stable round trips.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import logging
 import itertools
 import time
@@ -101,7 +103,37 @@ _REFINE_MAX_ELEMENTS = 400
 #: 12-branch one took 10 ms (a 48-branch one 42 s). When the budget runs out
 #: the search stops and keeps the best layout found so far -- the layered,
 #: barycenter-swept result already stands without it.
-REFINE_BUDGET_S = 10.0
+#:
+#: 30 s rather than 10: the Cascade fixture alone takes 8-10 s unloaded, so
+#: at 10 s a busy machine could cut it short and lay it out differently.
+#: The GUI lays out and saves on the UI thread, so it runs those inside
+#: `refine_budget(GUI_REFINE_BUDGET_S)`.
+REFINE_BUDGET_S = 30.0
+#: Budget for layout the GUI runs on its UI thread (the Auto Layout button,
+#: the save-time re-layout): past about 10 s desktops offer to kill a
+#: "Not responding" app.
+GUI_REFINE_BUDGET_S = 10.0
+
+_BUDGET_OVERRIDE: contextvars.ContextVar[float | None] = contextvars.ContextVar(
+    "raptor_layout_refine_budget", default=None)
+
+
+def refine_budget_s() -> float:
+    """The refine budget in force: `REFINE_BUDGET_S`, unless a
+    `refine_budget` block has set another."""
+    override = _BUDGET_OVERRIDE.get()
+    return REFINE_BUDGET_S if override is None else override
+
+
+@contextlib.contextmanager
+def refine_budget(seconds: float):
+    """Layout calls inside this block default to `seconds` of refine
+    search instead of `REFINE_BUDGET_S`."""
+    token = _BUDGET_OVERRIDE.set(seconds)
+    try:
+        yield
+    finally:
+        _BUDGET_OVERRIDE.reset(token)
 
 
 class _OutOfTime(Exception):
@@ -176,11 +208,11 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     one column sideways) so no straight edge runs through a block.
 
     `deadline` is a `time.monotonic()` value after which the collision
-    refine stops (default: `REFINE_BUDGET_S` from now). If it stops early
+    refine stops (default: `refine_budget_s()` from now). If it stops early
     and `report` is given, `report["refine_cut_short"]` is incremented, so a
     caller can say the layout is not fully refined."""
     if deadline is None:
-        deadline = time.monotonic() + REFINE_BUDGET_S
+        deadline = time.monotonic() + refine_budget_s()
     member_set = sorted(set(members))      # deterministic order (ids are unique)
     if not member_set:
         return {}
@@ -461,7 +493,8 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                 best[1]()            # keep the best move this pass had found
             if report is not None:
                 report["refine_cut_short"] = report.get("refine_cut_short", 0) + 1
-            log.info("layout refine stopped at its %.0f s budget", REFINE_BUDGET_S)
+            log.info("layout refine stopped at its %.0f s budget",
+                     refine_budget_s())
     # snap everything to the grid
     return {k: (_snap(x), _snap(y)) for k, (x, y) in pos.items()}
 
@@ -809,12 +842,12 @@ def normalize_legacy_layout(f, force: bool = False,
     Returns True when anything was moved. `force` skips the gate (an
     explicit Auto Layout pass over every container).
 
-    The collision refine has `REFINE_BUDGET_S` seconds in total across all
+    The collision refine has `refine_budget_s()` seconds in total across all
     containers; if it runs out, `report["refine_cut_short"]` counts the
     containers left less than fully refined."""
     if not needs_legacy_normalization(f) and not force:
         return False
-    deadline = time.monotonic() + REFINE_BUDGET_S
+    deadline = time.monotonic() + refine_budget_s()
     kids = _container_children(f)
     links = _link_endpoints(f)
 
