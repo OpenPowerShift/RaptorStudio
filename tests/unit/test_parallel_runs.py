@@ -258,7 +258,7 @@ def test_the_worker_start_up_records_its_flags():
     try:
         flag, counter, stop = _FlagStub(), _FlagStub(), _FlagStub()
         runner._init_chunk_worker(flag, counter, stop)
-        assert (runner._RUNAWAY_FLAG, runner._RUNS_DONE, runner._STOP_FLAG) == (flag, counter, stop)
+        assert (flag, counter, stop) == (runner._RUNAWAY_FLAG, runner._RUNS_DONE, runner._STOP_FLAG)
     finally:
         runner._RUNAWAY_FLAG, runner._RUNS_DONE, runner._STOP_FLAG = saved
 
