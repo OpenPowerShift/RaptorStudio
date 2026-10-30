@@ -1016,13 +1016,24 @@ def _reject_non_finite(value: Any, path: str = "spec") -> None:
             _reject_non_finite(item, f"{path}[{i}]")
 
 
+#: Top-level keys of a complete .rbds document, which `build_model` takes
+#: as `rbds_text` rather than as spec keys.
+_WHOLE_FILE_KEYS = frozenset({"format", "version", "meta", "elements", "defaults"})
+
+
 def _validate_spec_keys(spec: dict[str, Any]) -> None:
     _reject_non_finite(spec)
     unknown = set(spec) - _SPEC_KEYS
     if unknown:
+        hint = ""
+        if unknown & _WHOLE_FILE_KEYS:
+            # The top-level keys of a complete .rbds document.
+            hint = (" This looks like a whole .rbds file: pass its text as "
+                    "spec={'rbds_text': '<the file>'}, or save it in the "
+                    "workspace and call open_model with its path.")
         raise BuildError(
             "unknown spec key(s): " + ", ".join(sorted(unknown))
-            + ". Known keys: " + ", ".join(sorted(_SPEC_KEYS)))
+            + ". Known keys: " + ", ".join(sorted(_SPEC_KEYS)) + "." + hint)
     for key, allowed in _AUX_SPEC_KEYS.items():
         entries = spec.get(key)
         if entries is None:
