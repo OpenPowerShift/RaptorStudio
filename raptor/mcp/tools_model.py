@@ -1331,7 +1331,8 @@ def _layout_coords(rbd: Any) -> dict[tuple[str, str], tuple[Any, Any]]:
 
 
 def _apply_layout_positions(rbd: Any,
-                            allowed: set[tuple[str, str]] | None) -> int:
+                            allowed: set[tuple[str, str]] | None,
+                            report: dict | None = None) -> int:
     """Lay the whole model out on a copy and adopt the in-scope positions.
 
     A partial run of the layout engine does not know where its neighbours
@@ -1342,7 +1343,7 @@ def _apply_layout_positions(rbd: Any,
     from raptor.core.fileio.legacy_layout import normalize_legacy_layout
 
     trial = copy.deepcopy(rbd)
-    normalize_legacy_layout(trial, force=True)
+    normalize_legacy_layout(trial, force=True, report=report)
     before, after = _layout_coords(rbd), _layout_coords(trial)
     applied = 0
     rows_by_section = {
@@ -1387,20 +1388,31 @@ def auto_layout(model_id: str,
     With neither, every level is laid out. `build_model` already lays out
     by default (`auto_layout=True`).
 
-    Returns {moved, model_id, scope, elements_moved}.
+    The collision-refining step has a time budget (10 s in all): a dense
+    model can otherwise take minutes. If it runs out, the layered layout is
+    kept with whatever refinement was done, and `refine_cut_short` says how
+    many levels were left less than fully refined (0 when none).
+
+    Returns {moved, model_id, scope, elements_moved, refine_cut_short}.
     """
     context.require_write()
     ws = context.workspace()
     handle = ws.get(model_id)
     scope, allowed = _layout_scope(handle.rbd, hierarchy, selectors)
-    applied = _apply_layout_positions(handle.rbd, allowed)
+    report: dict = {}
+    applied = _apply_layout_positions(handle.rbd, allowed, report)
     if applied:
         ws.save(model_id)
+    cut = int(report.get("refine_cut_short", 0))
     data = {"model_id": model_id, "moved": bool(applied), "scope": scope,
-            "elements_moved": applied}
+            "elements_moved": applied, "refine_cut_short": cut}
     md = (f"Auto-laid out {scope}: {applied} element(s) moved."
           if applied else
           f"Auto layout over {scope}: nothing needed to move.")
+    if cut:
+        md += (f"\n\nThe refinement stopped at its time budget on {cut} "
+               "level(s); the layout is layered and valid but may still have "
+               "connectors crossing blocks.")
     return ok(data, markdown=md)
 
 
