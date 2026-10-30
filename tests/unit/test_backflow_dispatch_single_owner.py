@@ -368,7 +368,9 @@ def test_no_executable_line_was_added():
     """
     src = DEP.read_text()
     lines = len(src.splitlines())
-    assert lines < 1120, (
+    # 1,120 until `index_node_dependents` (about 40 lines, a per-run index
+    # that replaced a scan of every block per event) was added.
+    assert lines < 1170, (
         f"dependency.py is {lines} lines; it was 1,048 before E-05, so this "
         "is not an extraction any more")
 

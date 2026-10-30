@@ -546,6 +546,36 @@ def resolve_dependency_node_id(
     return None
 
 
+
+def index_node_dependents(
+    all_blocks: list[RBDBlock],
+    nodes_by_id: dict[int, RBDNode] | None,
+    links_by_id: dict[int, Link],
+    end_node_id: int,
+) -> tuple[dict[int, list[RBDBlock]], dict[int, list[RBDNode]]]:
+    """Group the blocks and nodes by the node their dependency resolves to.
+
+    `back_flow_dependencies_from_node` asked every block (and every node)
+    "does your resolved target match?" on every state change, which is
+    O(model size) per event. The answer depends only on the dependency
+    settings and the links, none of which change during a run, so it is
+    resolved once here. Order within a group follows the input order, which
+    is the dispatch order the scan had."""
+    by_block: dict[int, list[RBDBlock]] = {}
+    for block in all_blocks:
+        link = links_by_id.get(block.downstream_link_id)
+        own = link.connect_to_id if link is not None else None
+        target = resolve_dependency_node_id(block, end_node_id, own)
+        if target is not None:
+            by_block.setdefault(target, []).append(block)
+    by_node: dict[int, list[RBDNode]] = {}
+    for node in (nodes_by_id or {}).values():
+        target = resolve_dependency_node_id(node, end_node_id, None)
+        if target is not None:
+            by_node.setdefault(target, []).append(node)
+    return by_block, by_node
+
+
 @dataclass(frozen=True)
 class BackFlowDeps:
     """Everything a node-sourced back-flow needs, bound once (review E-09).
@@ -595,6 +625,12 @@ class BackFlowDeps:
     apply_cold_logic: Callable[[RBDNode, float], None] | None = None
     #: Failure Effects View's own `Down` rule (`engine/fev.py`); None in a run.
     fev: FevDependencyHooks | None = None
+    #: `index_node_dependents`' result: target node id -> the blocks / nodes
+    #: that depend on it, in `all_blocks` / `nodes_by_id` order. With it a
+    #: node-sourced back-flow visits only its own dependents; without it
+    #: (`None`) every block and node is scanned, as before.
+    block_dependents_of_node: dict[int, list[RBDBlock]] | None = None
+    node_dependents_of_node: dict[int, list[RBDNode]] | None = None
 
     def cold_logic_now(
         self, sim_time: float,
@@ -657,7 +693,9 @@ def back_flow_dependencies_from_node(
     # from `deps`. Unpacking it here would have been the mirror image of the
     # duplication this replaced.
 
-    for dep_block in all_blocks:
+    indexed = deps.block_dependents_of_node
+    for dep_block in (all_blocks if indexed is None
+                      else indexed.get(node.id, ())):
         if dep_block.ignore_dep:
             continue
         # `own_node_id` is only ever consulted for `locDepend`
@@ -728,7 +766,9 @@ def _back_flow_node_dependents(
     run_cold_logic_now = deps.cold_logic_now(sim_time)
     if nodes_by_id is None:
         return
-    for dep_node in nodes_by_id.values():
+    indexed = deps.node_dependents_of_node
+    for dep_node in (nodes_by_id.values() if indexed is None
+                     else indexed.get(source_id, ())):
         # Source's own outer gate, both loops: `IF ((tempNode.Status<>Down)
         # AND (NOT tempNode.IgnoreDep))`.
         if dep_node.status == NodeStatus.DOWN or dep_node.ignore_dep:

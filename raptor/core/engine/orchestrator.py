@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     pass
 from raptor.core.engine.cascade import reconfigure_after_block_change, reconfigure_system
 from raptor.core.engine.dependency import (
-    BackFlowDeps, FevDependencyHooks,
+    BackFlowDeps, FevDependencyHooks, index_node_dependents,
     back_flow_dependencies, back_flow_dependencies_from_node, back_flow_dependency_trigger,
     node_dependency_trigger,
 )
@@ -131,6 +131,11 @@ class _Cascade:
         #: `rng_fail_by_block` persists across runs; only `_Cascade` itself
         #: is rebuilt each run.
         self.end_node = end_node
+        #: Who depends on each node, resolved once (see
+        #: `dependency.index_node_dependents`).
+        self._dependents_of_node = index_node_dependents(
+            self._all_blocks, model.nodes_by_id, model.links_by_id,
+            end_node.id if end_node else -1)
         self.rng_fail_by_block = rng_fail_by_block or {}
         #: `SysStream[11]`, `Link.SetSwitchTime`'s dedicated shared stream
         #: Read only for a cold-standby link
@@ -313,6 +318,8 @@ class _Cascade:
             special_back_flow=special_back_flow,
             apply_cold_logic=self.apply_cold_logic,
             fev=self.fev,
+            block_dependents_of_node=self._dependents_of_node[0],
+            node_dependents_of_node=self._dependents_of_node[1],
         )
 
     # cascade_dependency.py

@@ -483,6 +483,17 @@ def record_component_pm(state: SystemState, maint_time: float) -> None:
     state.comp_pm_stat.add(maint_time)
 
 
+#: The comment tag of each block status `red_change_line` reports (a CUT
+#: block is `_c`, checked before the status). Looked up per block so the
+#: common up-and-running block costs one dict miss.
+_RED_TAGS = {
+    BlockStatus.REPAIRING: "r",
+    BlockStatus.REP_HOLD: "h", BlockStatus.PM_HOLD: "h",
+    BlockStatus.DONE: "d",
+    BlockStatus.PM: "p",
+}
+
+
 def red_change_line(
     state: SystemState,
     sim_time: float,
@@ -512,18 +523,17 @@ def red_change_line(
     if not events_file:
         return None
 
-    comment = ""
+    parts: list[str] = []
+    cut = ActiveStatus.CUT
+    tags = _RED_TAGS
     for block in blocks:
-        if block.active_status == ActiveStatus.CUT:
-            comment += f"_c{block.id}"
-        elif block.op_status == BlockStatus.REPAIRING:
-            comment += f"_r{block.id}"
-        elif block.op_status in (BlockStatus.REP_HOLD, BlockStatus.PM_HOLD):
-            comment += f"_h{block.id}"
-        elif block.op_status == BlockStatus.DONE:
-            comment += f"_d{block.id}"
-        elif block.op_status == BlockStatus.PM:
-            comment += f"_p{block.id}"
+        if block.active_status is cut:
+            parts.append(f"_c{block.id}")
+        else:
+            tag = tags.get(block.op_status)
+            if tag is not None:
+                parts.append(f"_{tag}{block.id}")
+    comment = "".join(parts)
 
     if comment == state.red_string:
         return None
