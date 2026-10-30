@@ -100,6 +100,19 @@ Empirical). Two rules cover most choices:
 When you have real repair records, the *Empirical* distribution uses
 your data directly as the dice — no guessing about families at all.
 
+[NOTE]
+====
+**Very large means.** RAPTOR Studio, like Raptor 7, rejects a mean (or
+scale, or constant) of 999,999,999.999999 or more in the model's time
+unit. Very reliable parts can exceed that: a mean time to failure of
+4×10^9^ hours is over the limit. The way round it is the model's **time
+unit**, not the number: switch the unit to days (or weeks, months or
+years) and convert the other times in the model to match. The
+validation message names the smallest larger unit that brings the value
+in range. For a block that should never fail, any value below the limit
+that is far longer than the run (for example `9e8`) does the job.
+====
+
 === One more idea: the hazard function and the bathtub curve
 
 There is a name for "how risky is this part *right now*, given it has

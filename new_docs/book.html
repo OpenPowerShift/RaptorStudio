@@ -64,7 +64,8 @@
 <li><a href="#_run_it_3">4.6. Run it</a></li>
 <li><a href="#_check_yourself_4">4.7. Check yourself</a></li>
 <li><a href="#_exercise_3">4.8. Exercise</a></li>
-<li><a href="#_what_you_learned_3">4.9. What you learned</a></li>
+<li><a href="#_a_dependent_block_also_breaks_the_path_it_sits_on">4.9. A dependent block also breaks the path it sits on</a></li>
+<li><a href="#_what_you_learned_3">4.10. What you learned</a></li>
 </ul>
 </li>
 <li><a href="#ch-voting">5. Voting: A Drone That Survives Losing Motors</a>
@@ -1959,7 +1960,50 @@ notice in the first place.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_what_you_learned_3">4.9. What you learned</h3>
+<h3 id="_a_dependent_block_also_breaks_the_path_it_sits_on">4.9. A dependent block also breaks the path it sits on</h3>
+<div class="paragraph">
+<p>Idle does not mean "out of the way". An Idle block is not carrying
+anything, so <strong>the path through it is broken for as long as it is Idle</strong>.
+That is the whole point in the backup story above (the backup is Idle
+exactly when it is needed), and it has a second use.</p>
+</div>
+<div class="paragraph">
+<p>Suppose one physical item appears in two places on the diagram, and
+when it is down both places must be down. Draw the item once as a
+normal block. At the second place, draw a block that <strong>never fails</strong> (a
+very large time to failure, such as <code>9e8</code>, which is under the 999,999,999.999999 limit)
+and make it depend on the first block with <strong>100% Idle</strong>. While the
+first block is down, the second is Idle and its path is broken; while
+the first is up, the second never fails, so it adds no failures of its
+own.</p>
+</div>
+<div class="paragraph">
+<p>For example, with block X working in parallel with W, followed in series
+by a never-failing Twin that depends on X (100% Idle): failing X alone
+leaves the system Yellow without the Twin (W carries the load), and
+turns it <strong>Red</strong> with it, because Twin goes Idle in series.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Warning</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>A dependent block is <strong>not independent redundancy</strong>. Used as a
+stand-in for the same item it is exactly what you want; used as a
+"backup" it sits Idle exactly when the thing it follows is down. Check
+which of the two you are drawing before you trust the result, and read
+the dependency badge (<strong>D</strong>) on the canvas to see what a block follows.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_what_you_learned_3">4.10. What you learned</h3>
 <div class="ulist">
 <ul>
 <li>
@@ -1969,6 +2013,10 @@ and its failure clock resumes exactly where it left off.</p>
 <li>
 <p>Dependency has its own small badge and hover connector — real,
 useful, and easy to miss on a diagram that otherwise looks ordinary.</p>
+</li>
+<li>
+<p>An Idle block breaks the path through it, so a never-failing block that
+depends on another at 100% Idle is a way to show one item in two places.</p>
 </li>
 <li>
 <p>A redundant-looking diagram can hide a single point of failure: if
@@ -2514,6 +2562,28 @@ Weibull with shape between 1.5 and 3.</p>
 <div class="paragraph">
 <p>When you have real repair records, the <strong>Empirical</strong> distribution uses
 your data directly as the dice — no guessing about families at all.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p><strong>Very large means.</strong> RAPTOR Studio, like Raptor 7, rejects a mean (or
+scale, or constant) of 999,999,999.999999 or more in the model&#8217;s time
+unit. Very reliable parts can exceed that: a mean time to failure of
+4×10<sup>9</sup> hours is over the limit. The way round it is the model&#8217;s <strong>time
+unit</strong>, not the number: switch the unit to days (or weeks, months or
+years) and convert the other times in the model to match. The
+validation message names the smallest larger unit that brings the value
+in range. For a block that should never fail, any value below the limit
+that is far longer than the run (for example <code>9e8</code>) does the job.</p>
+</div>
+</td>
+</tr>
+</table>
 </div>
 </div>
 <div class="sect2">
