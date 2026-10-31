@@ -15,7 +15,7 @@ PROG = "raptor"
 #: Names accepted as the first argument. Anything else that is not an option
 #: and not an existing file is a usage error ("unknown command").
 COMMANDS = (
-    "gui", "run", "simulate", "validate", "info", "describe", "get", "set",
+    "gui", "run", "simulate", "validate", "schema", "info", "describe", "get", "set",
     "convert", "sweep", "compare", "diff", "estimate", "report", "tables", "render",
     "spf", "fev", "step", "extract", "mcp", "config", "completion", "doctor", "help",
 )

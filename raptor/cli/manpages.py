@@ -41,6 +41,10 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
         ("raptor run pump.rbd --stop failures=10 -n 50",
          "Run until the 10th system failure, 50 times."),
     ],
+    "schema": [
+        ("raptor schema -o rbds.schema.json",
+         "Save the .rbds JSON Schema for an editor or another validator."),
+    ],
     "validate": [
         ("raptor validate *.rbd", "Check several models."),
         ("raptor validate pump.rbd --strict -f json",

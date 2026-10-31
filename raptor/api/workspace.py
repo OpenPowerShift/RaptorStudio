@@ -510,10 +510,8 @@ class Workspace:
 
     @staticmethod
     def _load_any(path: str) -> RbdFile:
-        if Path(path).suffix.lower() == ".rbds":
-            return load_rbds(path)
-        from raptor.core.fileio.rbd import load_rbd
-        return load_rbd(path)
+        from raptor.core.fileio.model_file import load_model_file
+        return load_model_file(path)
 
     def register_model(self, rbd: RbdFile, *, name: str,
                        source: str = "") -> dict[str, Any]:
@@ -692,12 +690,7 @@ class Workspace:
                 # undo used to load the legacy text as JSON and fail.
                 src = Path(handle.source)
                 if src.is_file():
-                    if src.suffix.lower() == ".rbd":
-                        from raptor.core.fileio.rbd import load_rbd
-                        baseline = load_rbd(str(src))
-                    else:
-                        from raptor.core.fileio.rbds import load_rbds
-                        baseline = load_rbds(str(src))
+                    baseline = self._load_any(str(src))
                     save_rbds(baseline, str(handle.path),
                               meta={"file_name": baseline.file_name})
             self._backup(handle)

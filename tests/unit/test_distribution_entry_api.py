@@ -58,10 +58,8 @@ def _edited_rbds(fail_dist=None, fail_params=None, phase=None):
         d["elements"]["blocks"][0]["fail_dist"] = fail_dist
         d["elements"]["blocks"][0]["fail_params"] = fail_params
     if phase is not None:
-        leg = d["phases"][0]["legacy"]
-        leg["Dist"] = str(phase[0])
-        for i, v in enumerate(phase[1], 1):
-            leg[f"Param{i}"] = f"{v:.6f}"
+        d["phases"][0]["duration_dist"] = phase[0]
+        d["phases"][0]["params"] = list(phase[1])
     # json.dumps writes NaN as the bare token NaN, which a hand edit can do too
     return parse_rbds(json.dumps(d), "hand_edited.rbds")
 

@@ -5,38 +5,9 @@
   "generator": "RAPTOR Studio 0.8.0"
  },
  "system": {
-  "units": "hours",
-  "graphics": "GraphicsOn",
-  "node_anal_type": "Availability",
-  "gy_threshold": 0.95,
-  "yr_threshold": 0.9,
   "red_cost": 300000.0,
   "lost_cost": 0.0,
-  "flow_generated": 1,
-  "sys_streams": [
-   7,
-   8,
-   9,
-   10,
-   70,
-   71,
-   72,
-   73,
-   74,
-   75,
-   101
-  ],
-  "legacy": {
-   "graphTimeSlice": "100000.000000",
-   "graphYmin": "0.000000",
-   "graphYmax": "1.000000",
-   "zoomVal": "24.000000",
-   "xOrigin": "0.000000",
-   "yOrigin": "80.000000",
-   "ShowNegErrMsg": "0",
-   "IgnoreStartFail": "0",
-   "NotUsed": "1"
-  }
+  "flow_generated": 1
  },
  "experiment": {
   "trials": 20,
@@ -67,13 +38,7 @@
     "Block",
     101
    ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.05,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   "auto_time": 0.05
   },
   {
    "id": 2,
@@ -86,12 +51,7 @@
     22
    ],
    "cold_pri": 25,
-   "a_prob": 1.0,
-   "auto_time": 0.05,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   "auto_time": 0.05
   },
   {
    "id": 3,
@@ -103,13 +63,7 @@
     "Block",
     103
    ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.05,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   "auto_time": 0.05
   },
   {
    "id": 4,
@@ -121,13 +75,7 @@
     "Node",
     22
    ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.05,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   "auto_time": 0.05
   },
   {
    "id": 5,
@@ -140,12 +88,7 @@
     104
    ],
    "cold_pri": 25,
-   "a_prob": 1.0,
-   "auto_time": 0.05,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   "auto_time": 0.05
   },
   {
    "id": 6,
@@ -156,14 +99,7 @@
    "to": [
     "Node",
     26
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 7,
@@ -174,14 +110,7 @@
    "to": [
     "Block",
     10
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 8,
@@ -192,14 +121,7 @@
    "to": [
     "Node",
     25
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 9,
@@ -210,14 +132,7 @@
    "to": [
     "Block",
     12
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 10,
@@ -228,14 +143,7 @@
    "to": [
     "Node",
     25
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 11,
@@ -246,14 +154,7 @@
    "to": [
     "Node",
     23
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 12,
@@ -264,14 +165,7 @@
    "to": [
     "Hier",
     20
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 13,
@@ -282,14 +176,7 @@
    "to": [
     "Node",
     5
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 14,
@@ -300,14 +187,7 @@
    "to": [
     "Hier",
     30
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 15,
@@ -318,14 +198,7 @@
    "to": [
     "Block",
     20
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 16,
@@ -336,14 +209,7 @@
    "to": [
     "Node",
     32
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 17,
@@ -354,14 +220,7 @@
    "to": [
     "Block",
     21
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 18,
@@ -372,14 +231,7 @@
    "to": [
     "Node",
     32
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 19,
@@ -390,14 +242,7 @@
    "to": [
     "Block",
     22
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 20,
@@ -408,14 +253,7 @@
    "to": [
     "Node",
     32
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 21,
@@ -426,14 +264,7 @@
    "to": [
     "Block",
     23
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 22,
@@ -444,14 +275,7 @@
    "to": [
     "Node",
     33
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 23,
@@ -462,14 +286,7 @@
    "to": [
     "Node",
     6
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 24,
@@ -480,14 +297,7 @@
    "to": [
     "Block",
     30
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 25,
@@ -498,14 +308,7 @@
    "to": [
     "Node",
     43
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 26,
@@ -516,14 +319,7 @@
    "to": [
     "Block",
     31
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 27,
@@ -534,14 +330,7 @@
    "to": [
     "Node",
     43
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 28,
@@ -552,14 +341,7 @@
    "to": [
     "Block",
     32
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 29,
@@ -570,14 +352,7 @@
    "to": [
     "Node",
     42
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 30,
@@ -588,14 +363,7 @@
    "to": [
     "Block",
     33
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 31,
@@ -606,14 +374,7 @@
    "to": [
     "Node",
     42
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 32,
@@ -624,14 +385,7 @@
    "to": [
     "Block",
     34
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 33,
@@ -642,14 +396,7 @@
    "to": [
     "Node",
     42
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 34,
@@ -660,14 +407,7 @@
    "to": [
     "Node",
     44
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 35,
@@ -678,14 +418,7 @@
    "to": [
     "Hier",
     40
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 36,
@@ -696,14 +429,7 @@
    "to": [
     "Node",
     2
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   }
  ],
  "elements": {
@@ -714,79 +440,18 @@
     "parent": 20,
     "x": 3.5,
     "y": 87.0,
-    "fail_dist": 4,
     "fail_params": [
      1000.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      8.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -800,8 +465,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 103,
@@ -809,79 +473,17 @@
     "parent": 20,
     "x": 6.0,
     "y": 97.5,
-    "fail_dist": 4,
     "fail_params": [
      600.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
-    "repair_dist": 7,
     "repair_params": [
      6.0,
      1.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -895,8 +497,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 104,
@@ -904,79 +505,18 @@
     "parent": 20,
     "x": 10.5,
     "y": 91.25,
-    "fail_dist": 4,
     "fail_params": [
      80000.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      2.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -990,8 +530,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 10,
@@ -1005,72 +544,21 @@
      30000.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      6.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
     "uses_pm": true,
     "pm_freq": 168.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
     "pm_params": [
      2.0,
      0.0,
      0.0
     ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
     "pm_spare": false,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
     "pm_req_defer": false,
     "initial_cost": 0.0,
     "running_cost": 0.0,
@@ -1085,8 +573,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 12,
@@ -1100,73 +587,13 @@
      30000.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      6.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -1180,8 +607,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 20,
@@ -1189,79 +615,19 @@
     "parent": 30,
     "x": 5.0,
     "y": 87.5,
-    "fail_dist": 4,
     "fail_params": [
      2500.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      2.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
     "sparing_type": "Pooled",
     "spare_pool": "CRAC_Spares",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
-    "eso": 1,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -1275,8 +641,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 21,
@@ -1284,79 +649,19 @@
     "parent": 30,
     "x": 7.5,
     "y": 88.75,
-    "fail_dist": 4,
     "fail_params": [
      2500.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      2.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
     "sparing_type": "Pooled",
     "spare_pool": "CRAC_Spares",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
-    "eso": 1,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -1370,8 +675,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 22,
@@ -1379,79 +683,19 @@
     "parent": 30,
     "x": 10.0,
     "y": 90.0,
-    "fail_dist": 4,
     "fail_params": [
      2500.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      2.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
     "sparing_type": "Pooled",
     "spare_pool": "CRAC_Spares",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
-    "eso": 1,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -1465,8 +709,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 23,
@@ -1474,79 +717,18 @@
     "parent": 30,
     "x": 12.5,
     "y": 91.25,
-    "fail_dist": 4,
     "fail_params": [
      80000.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      2.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -1560,8 +742,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 30,
@@ -1569,79 +750,18 @@
     "parent": 40,
     "x": 5.0,
     "y": 90.0,
-    "fail_dist": 4,
     "fail_params": [
      50000.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      4.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -1655,8 +775,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 31,
@@ -1664,79 +783,18 @@
     "parent": 40,
     "x": 5.0,
     "y": 93.75,
-    "fail_dist": 4,
     "fail_params": [
      50000.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      4.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -1750,8 +808,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 32,
@@ -1759,79 +816,18 @@
     "parent": 40,
     "x": 10.0,
     "y": 88.75,
-    "fail_dist": 4,
     "fail_params": [
      1500.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      3.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -1845,8 +841,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 33,
@@ -1854,79 +849,18 @@
     "parent": 40,
     "x": 10.0,
     "y": 91.25,
-    "fail_dist": 4,
     "fail_params": [
      1500.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      3.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -1940,8 +874,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    },
    {
     "id": 34,
@@ -1949,79 +882,18 @@
     "parent": 40,
     "x": 10.0,
     "y": 93.75,
-    "fail_dist": 4,
     "fail_params": [
      1500.0,
      0.0,
      0.0
     ],
-    "fail_stream": 203,
     "repair_dist": 19,
     "repair_params": [
      3.0,
      0.0,
      0.0
     ],
-    "repair_stream": 203,
-    "uses_phasing": false,
-    "dep_type": "None",
-    "dep_num": 0,
-    "dep_nothing": 0.0,
-    "dep_idle": 100.0,
-    "dep_pm": 0.0,
-    "dep_fail": 0.0,
-    "dep_pm_thresh": 75.0,
-    "def_dep_state_idle": false,
-    "sim_start": 3,
-    "amount_exhausted": 0.0,
-    "standby_stress": 0.0,
-    "growth_decay_type": 0,
-    "growth_decay_rate": 1.0,
-    "growth_decay_limit": 1.0,
-    "sparing_type": "Infinite",
-    "spare_pool": "unnamed",
-    "stock": 100,
-    "new_spares": 1,
-    "arrive_every": 720.0,
-    "rso": 1,
     "eso": 0,
-    "emer_time": 24.0,
-    "slo": 0,
-    "level": 0,
-    "quantity": 1,
-    "slo_time": 24.0,
-    "pre_ldt_dist": 19,
-    "pre_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "post_ldt_dist": 19,
-    "post_ldt_params": [
-     0.0,
-     0.0,
-     0.0
-    ],
-    "num_resources": 0,
-    "repair_resources_needed": 1,
-    "pm_resources_needed": 1,
-    "resource_name": "None",
-    "uses_pm": false,
-    "pm_freq": 100.0,
-    "pm_stagger_time": 0.0,
-    "pm_duration_dist": 19,
-    "pm_params": [
-     1.0,
-     0.0,
-     0.0
-    ],
-    "pm_triggered": false,
-    "pm_trigger": "none",
-    "pm_spare": true,
-    "pm_refresh": true,
-    "pm_mis_defer": false,
-    "pm_fail_reset": true,
-    "pm_req_defer": true,
     "initial_cost": 0.0,
     "running_cost": 0.0,
     "standby_cost": 0.0,
@@ -2035,8 +907,7 @@
     "pm_cost": 0.0,
     "pm_fixed_cost": 0.0,
     "per_spare_cost": 0.0,
-    "emer_ship_cost": 0.0,
-    "add_done": false
+    "emer_ship_cost": 0.0
    }
   ],
   "nodes": [
@@ -2047,18 +918,7 @@
     "parent": 20,
     "x": 1.25,
     "y": 91.25,
-    "k": 1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "k": 1
    },
    {
     "id": 22,
@@ -2068,17 +928,9 @@
     "x": 7.75,
     "y": 91.25,
     "k": 1,
-    "full_flow": 1,
-    "div_flow": 1,
     "cold_standby": true,
     "priority_return": true,
-    "check_autos_first": true,
-    "k_star": 1,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "k_star": 1
    },
    {
     "id": 23,
@@ -2086,19 +938,7 @@
     "type": 5,
     "parent": 20,
     "x": 15.5,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "y": 91.25
    },
    {
     "id": 25,
@@ -2107,18 +947,7 @@
     "parent": 20,
     "x": 13.0,
     "y": 91.25,
-    "k": 1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "k": 1
    },
    {
     "id": 26,
@@ -2126,19 +955,7 @@
     "type": 2,
     "parent": 20,
     "x": 10.0,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "y": 91.25
    },
    {
     "id": 31,
@@ -2147,18 +964,7 @@
     "parent": 30,
     "x": 1.25,
     "y": 91.25,
-    "k": 1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "k": 1
    },
    {
     "id": 32,
@@ -2167,18 +973,7 @@
     "parent": 30,
     "x": 10.0,
     "y": 91.25,
-    "k": 2,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "k": 2
    },
    {
     "id": 33,
@@ -2186,19 +981,7 @@
     "type": 5,
     "parent": 30,
     "x": 16.25,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "y": 91.25
    },
    {
     "id": 41,
@@ -2207,18 +990,7 @@
     "parent": 40,
     "x": 1.25,
     "y": 91.25,
-    "k": 1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "k": 1
    },
    {
     "id": 43,
@@ -2227,18 +999,7 @@
     "parent": 40,
     "x": 7.5,
     "y": 91.25,
-    "k": 1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "k": 1
    },
    {
     "id": 42,
@@ -2247,18 +1008,7 @@
     "parent": 40,
     "x": 12.5,
     "y": 91.25,
-    "k": 2,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "k": 2
    },
    {
     "id": 44,
@@ -2266,19 +1016,7 @@
     "type": 5,
     "parent": 40,
     "x": 16.25,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "y": 91.25
    },
    {
     "id": 1,
@@ -2286,19 +1024,7 @@
     "type": 1,
     "parent": 0,
     "x": 1.25,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "y": 91.25
    },
    {
     "id": 2,
@@ -2306,19 +1032,7 @@
     "type": 3,
     "parent": 0,
     "x": 21.25,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "y": 91.25
    },
    {
     "id": 5,
@@ -2326,19 +1040,7 @@
     "type": 2,
     "parent": 0,
     "x": 11.75,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "y": 91.25
    },
    {
     "id": 6,
@@ -2346,19 +1048,7 @@
     "type": 2,
     "parent": 0,
     "x": 17.25,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "cold_standby": false,
-    "priority_return": false,
-    "check_autos_first": true,
-    "k_star": 0,
-    "uses_phasing": false,
-    "dep_num": 0,
-    "dep_type": "None",
-    "report_capacity": 0,
-    "report_node_anal": true
+    "y": 91.25
    }
   ],
   "events": [],
@@ -2371,21 +1061,9 @@
     "out_id": 23,
     "x": 6.25,
     "y": 91.25,
-    "uses_phasing": false,
     "legacy": {
-     "In": "1",
-     "Out": "1",
-     "isCNd": "1",
-     "zoom": "14.00",
-     "xCenter": "0.000000",
-     "yCenter": "0.000000",
-     "xOrigin": "0.000000",
-     "yOrigin": "80.000000",
-     "myDepth": "0",
      "extraInt1": "20",
-     "extraInt2": "20",
-     "extraReal1": "0.000000",
-     "extraReal2": "80.000000"
+     "extraInt2": "20"
     }
    },
    {
@@ -2396,21 +1074,9 @@
     "out_id": 33,
     "x": 14.25,
     "y": 91.25,
-    "uses_phasing": false,
     "legacy": {
-     "In": "1",
-     "Out": "1",
-     "isCNd": "1",
-     "zoom": "14.00",
-     "xCenter": "0.000000",
-     "yCenter": "0.000000",
-     "xOrigin": "0.000000",
-     "yOrigin": "80.000000",
-     "myDepth": "0",
      "extraInt1": "30",
-     "extraInt2": "30",
-     "extraReal1": "0.000000",
-     "extraReal2": "80.000000"
+     "extraInt2": "30"
     }
    },
    {
@@ -2421,21 +1087,9 @@
     "out_id": 44,
     "x": 19.25,
     "y": 91.25,
-    "uses_phasing": false,
     "legacy": {
-     "In": "1",
-     "Out": "1",
-     "isCNd": "1",
-     "zoom": "14.00",
-     "xCenter": "0.000000",
-     "yCenter": "0.000000",
-     "xOrigin": "0.000000",
-     "yOrigin": "80.000000",
-     "myDepth": "0",
      "extraInt1": "40",
-     "extraInt2": "40",
-     "extraReal1": "0.000000",
-     "extraReal2": "80.000000"
+     "extraInt2": "40"
     }
    }
   ]
@@ -2447,122 +1101,23 @@
    "parent": 0,
    "x": 0.0,
    "y": 0.0,
-   "fail_dist": 4,
-   "fail_params": [
-    100.0,
-    0.0,
-    0.0
-   ],
-   "fail_stream": 203,
-   "repair_dist": 7,
-   "repair_params": [
-    10.0,
-    2.0,
-    0.0
-   ],
-   "repair_stream": 203,
-   "uses_phasing": false,
-   "dep_type": "None",
-   "dep_num": 0,
-   "dep_nothing": 0.0,
-   "dep_idle": 100.0,
-   "dep_pm": 0.0,
-   "dep_fail": 0.0,
-   "dep_pm_thresh": 75.0,
-   "def_dep_state_idle": false,
-   "sim_start": 3,
-   "amount_exhausted": 0.0,
-   "standby_stress": 0.0,
-   "growth_decay_type": 0,
-   "growth_decay_rate": 1.0,
    "growth_decay_limit": 1.0,
-   "sparing_type": "Infinite",
-   "spare_pool": "unnamed",
-   "stock": 100,
-   "new_spares": 1,
-   "arrive_every": 720.0,
    "rso": 1,
    "eso": 1,
-   "emer_time": 24.0,
-   "slo": 0,
-   "level": 0,
-   "quantity": 1,
-   "slo_time": 24.0,
-   "pre_ldt_dist": 19,
-   "pre_ldt_params": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "post_ldt_dist": 19,
-   "post_ldt_params": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "num_resources": 0,
-   "repair_resources_needed": 1,
-   "pm_resources_needed": 1,
-   "resource_name": "None",
-   "uses_pm": false,
-   "pm_freq": 100.0,
-   "pm_stagger_time": 0.0,
-   "pm_duration_dist": 19,
-   "pm_params": [
-    1.0,
-    0.0,
-    0.0
-   ],
-   "pm_triggered": false,
-   "pm_trigger": "none",
    "pm_spare": true,
    "pm_refresh": true,
-   "pm_mis_defer": false,
    "pm_fail_reset": true,
    "pm_req_defer": true,
-   "initial_cost": 1.0,
-   "running_cost": 1.0,
-   "standby_cost": 1.0,
-   "idle_cost": 1.0,
-   "rep_hold_cost": 1.0,
-   "rep_per_time_cost": 1.0,
-   "rep_fixed_cost": 1.0,
-   "done_per_time": 1.0,
-   "done_fixed": 1.0,
-   "pm_hold_cost": 1.0,
-   "pm_cost": 1.0,
-   "pm_fixed_cost": 1.0,
-   "per_spare_cost": 1.0,
-   "emer_ship_cost": 1.0,
-   "add_done": false,
-   "legacy": {
-    "In": "0",
-    "Out": "0",
-    "#FParam": "2",
-    "#RParam": "2"
-   },
    "at": 14
   }
  },
  "spare_pools": [
   {
-   "key": "CRAC_Spares",
-   "id": 0,
-   "legacy": {
-    "PoolName": "CRAC_Spares",
-    "RSO": "1",
-    "Stock": "3",
-    "NewSp": "1",
-    "ArriveEvery": "720.000000",
-    "ESO": "1",
-    "EmerTime": "48.000000",
-    "SLO": "0",
-    "Level": "0",
-    "Quan": "1",
-    "SLOTime": "24.000000",
-    "SpCost": "1.00",
-    "emerShipCost": "1.00"
-   }
+   "name": "CRAC_Spares",
+   "stock": 3,
+   "eso": 1,
+   "emer_time": 48.0,
+   "rso": 1
   }
  ],
  "resources": [],

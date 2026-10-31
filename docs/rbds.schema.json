@@ -1,0 +1,2318 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "urn:raptor-studio:rbds",
+ "title": "RAPTOR Studio model (.rbds)",
+ "description": "Generated from raptor/core/fileio/rbds.py; see docs/RBDS_FORMAT.md.",
+ "type": "object",
+ "required": [
+  "format",
+  "version"
+ ],
+ "properties": {
+  "format": {
+   "const": "raptor-studio"
+  },
+  "version": {
+   "type": "integer",
+   "minimum": 1
+  },
+  "meta": {
+   "type": "object",
+   "additionalProperties": true,
+   "properties": {
+    "generator": {
+     "type": "string"
+    },
+    "file_name": {
+     "type": "string"
+    }
+   }
+  },
+  "system": {
+   "type": "object",
+   "properties": {
+    "units": {
+     "type": "string"
+    },
+    "graphics": {
+     "type": "string"
+    },
+    "node_anal_type": {
+     "type": "string"
+    },
+    "gy_threshold": {
+     "type": "number"
+    },
+    "yr_threshold": {
+     "type": "number"
+    },
+    "red_cost": {
+     "type": "number"
+    },
+    "lost_cost": {
+     "type": "number"
+    },
+    "flow_generated": {
+     "type": "integer"
+    },
+    "legacy": {
+     "type": "object",
+     "description": "Raptor 7 columns with no friendly name, verbatim",
+     "additionalProperties": {
+      "type": [
+       "string",
+       "number"
+      ]
+     }
+    },
+    "sys_streams": {
+     "type": "array",
+     "items": {
+      "type": "integer"
+     }
+    }
+   },
+   "patternProperties": {
+    "^x_": {}
+   },
+   "additionalProperties": false
+  },
+  "experiment": {
+   "type": "object",
+   "properties": {
+    "trials": {
+     "type": "integer"
+    },
+    "termination_type": {
+     "type": "string"
+    },
+    "term_condition": {
+     "type": "number"
+    },
+    "start_stats": {
+     "type": "number"
+    },
+    "analyses": {
+     "type": "array"
+    },
+    "importance": {
+     "type": "string"
+    },
+    "recording": {
+     "type": "object"
+    }
+   },
+   "patternProperties": {
+    "^x_": {}
+   },
+   "additionalProperties": false
+  },
+  "elements": {
+   "type": "object",
+   "properties": {
+    "blocks": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "integer"
+       },
+       "name": {
+        "type": "string"
+       },
+       "parent": {
+        "type": "integer"
+       },
+       "x": {
+        "type": "number"
+       },
+       "y": {
+        "type": "number"
+       },
+       "fail_dist": {
+        "type": [
+         "integer",
+         "string"
+        ],
+        "description": "distribution code, or its name"
+       },
+       "fail_params": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "maxItems": 3
+       },
+       "fail_stream": {
+        "type": "integer"
+       },
+       "repair_dist": {
+        "type": [
+         "integer",
+         "string"
+        ],
+        "description": "distribution code, or its name"
+       },
+       "repair_params": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "maxItems": 3
+       },
+       "repair_stream": {
+        "type": "integer"
+       },
+       "uses_phasing": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "dep_type": {
+        "enum": [
+         "None",
+         "RBDBlock",
+         "RBDNode",
+         "RBDEvent",
+         "RBDHier"
+        ]
+       },
+       "dep_num": {
+        "type": "integer"
+       },
+       "dep_nothing": {
+        "type": "number"
+       },
+       "dep_idle": {
+        "type": "number"
+       },
+       "dep_pm": {
+        "type": "number"
+       },
+       "dep_fail": {
+        "type": "number"
+       },
+       "dep_pm_thresh": {
+        "type": "number"
+       },
+       "def_dep_state_idle": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "sim_start": {
+        "type": "integer"
+       },
+       "amount_exhausted": {
+        "type": "number"
+       },
+       "standby_stress": {
+        "type": "number"
+       },
+       "growth_decay_type": {
+        "type": "integer"
+       },
+       "growth_decay_rate": {
+        "type": "number"
+       },
+       "growth_decay_limit": {
+        "type": "number"
+       },
+       "sparing_type": {
+        "enum": [
+         "Infinite",
+         "Custom",
+         "Pooled",
+         "None",
+         "Resource",
+         "ColdPool"
+        ]
+       },
+       "spare_pool": {
+        "type": "string"
+       },
+       "stock": {
+        "type": "integer"
+       },
+       "new_spares": {
+        "type": "integer"
+       },
+       "arrive_every": {
+        "type": "number"
+       },
+       "rso": {
+        "type": "integer"
+       },
+       "eso": {
+        "type": "integer"
+       },
+       "emer_time": {
+        "type": "number"
+       },
+       "slo": {
+        "type": "integer"
+       },
+       "level": {
+        "type": "integer"
+       },
+       "quantity": {
+        "type": "integer"
+       },
+       "slo_time": {
+        "type": "number"
+       },
+       "pre_ldt_dist": {
+        "type": [
+         "integer",
+         "string"
+        ],
+        "description": "distribution code, or its name"
+       },
+       "pre_ldt_params": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "maxItems": 3
+       },
+       "post_ldt_dist": {
+        "type": [
+         "integer",
+         "string"
+        ],
+        "description": "distribution code, or its name"
+       },
+       "post_ldt_params": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "maxItems": 3
+       },
+       "num_resources": {
+        "type": "integer"
+       },
+       "repair_resources_needed": {
+        "type": "integer"
+       },
+       "pm_resources_needed": {
+        "type": "integer"
+       },
+       "resource_name": {
+        "type": "string"
+       },
+       "uses_pm": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "pm_freq": {
+        "type": "number"
+       },
+       "pm_stagger_time": {
+        "type": "number"
+       },
+       "pm_duration_dist": {
+        "type": [
+         "integer",
+         "string"
+        ],
+        "description": "distribution code, or its name"
+       },
+       "pm_params": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "maxItems": 3
+       },
+       "pm_triggered": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "pm_trigger": {
+        "type": "string"
+       },
+       "pm_spare": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "pm_refresh": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "pm_mis_defer": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "pm_fail_reset": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "pm_req_defer": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "initial_cost": {
+        "type": "number"
+       },
+       "running_cost": {
+        "type": "number"
+       },
+       "standby_cost": {
+        "type": "number"
+       },
+       "idle_cost": {
+        "type": "number"
+       },
+       "rep_hold_cost": {
+        "type": "number"
+       },
+       "rep_per_time_cost": {
+        "type": "number"
+       },
+       "rep_fixed_cost": {
+        "type": "number"
+       },
+       "done_per_time": {
+        "type": "number"
+       },
+       "done_fixed": {
+        "type": "number"
+       },
+       "pm_hold_cost": {
+        "type": "number"
+       },
+       "pm_cost": {
+        "type": "number"
+       },
+       "pm_fixed_cost": {
+        "type": "number"
+       },
+       "per_spare_cost": {
+        "type": "number"
+       },
+       "emer_ship_cost": {
+        "type": "number"
+       },
+       "add_done": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "legacy": {
+        "type": "object",
+        "description": "Raptor 7 columns with no friendly name, verbatim",
+        "additionalProperties": {
+         "type": [
+          "string",
+          "number"
+         ]
+        }
+       }
+      },
+      "patternProperties": {
+       "^x_": {}
+      },
+      "additionalProperties": false,
+      "required": [
+       "id"
+      ]
+     }
+    },
+    "nodes": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "integer"
+       },
+       "name": {
+        "type": "string"
+       },
+       "type": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5
+       },
+       "parent": {
+        "type": "integer"
+       },
+       "x": {
+        "type": "number"
+       },
+       "y": {
+        "type": "number"
+       },
+       "k": {
+        "type": "integer"
+       },
+       "full_flow": {
+        "type": "integer"
+       },
+       "div_flow": {
+        "type": "integer"
+       },
+       "cold_standby": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "priority_return": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "check_autos_first": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "k_star": {
+        "type": "integer"
+       },
+       "uses_phasing": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "dep_num": {
+        "type": "integer"
+       },
+       "dep_type": {
+        "enum": [
+         "None",
+         "RBDBlock",
+         "RBDNode",
+         "RBDEvent",
+         "RBDHier"
+        ]
+       },
+       "report_capacity": {
+        "type": "integer"
+       },
+       "report_node_anal": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "legacy": {
+        "type": "object",
+        "description": "Raptor 7 columns with no friendly name, verbatim",
+        "additionalProperties": {
+         "type": [
+          "string",
+          "number"
+         ]
+        }
+       }
+      },
+      "patternProperties": {
+       "^x_": {}
+      },
+      "additionalProperties": false,
+      "required": [
+       "id"
+      ]
+     }
+    },
+    "events": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "integer"
+       },
+       "name": {
+        "type": "string"
+       },
+       "parent": {
+        "type": "integer"
+       },
+       "x": {
+        "type": "number"
+       },
+       "y": {
+        "type": "number"
+       },
+       "prob": {
+        "type": "number"
+       },
+       "fail_dist": {
+        "type": [
+         "integer",
+         "string"
+        ],
+        "description": "distribution code, or its name"
+       },
+       "fail_stream": {
+        "type": "integer"
+       },
+       "uses_phasing": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "init_cost": {
+        "type": "number"
+       },
+       "op_cost": {
+        "type": "number"
+       },
+       "rep_cost": {
+        "type": "number"
+       },
+       "legacy": {
+        "type": "object",
+        "description": "Raptor 7 columns with no friendly name, verbatim",
+        "additionalProperties": {
+         "type": [
+          "string",
+          "number"
+         ]
+        }
+       }
+      },
+      "patternProperties": {
+       "^x_": {}
+      },
+      "additionalProperties": false,
+      "required": [
+       "id"
+      ]
+     }
+    },
+    "hierarchies": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "integer"
+       },
+       "name": {
+        "type": "string"
+       },
+       "parent": {
+        "type": "integer"
+       },
+       "in_id": {
+        "type": "integer"
+       },
+       "out_id": {
+        "type": "integer"
+       },
+       "x": {
+        "type": "number"
+       },
+       "y": {
+        "type": "number"
+       },
+       "uses_phasing": {
+        "enum": [
+         false,
+         true,
+         0,
+         1
+        ]
+       },
+       "legacy": {
+        "type": "object",
+        "description": "Raptor 7 columns with no friendly name, verbatim",
+        "additionalProperties": {
+         "type": [
+          "string",
+          "number"
+         ]
+        }
+       }
+      },
+      "patternProperties": {
+       "^x_": {}
+      },
+      "additionalProperties": false,
+      "required": [
+       "id"
+      ]
+     }
+    }
+   },
+   "patternProperties": {
+    "^x_": {}
+   },
+   "additionalProperties": false
+  },
+  "blocks": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "parent": {
+      "type": "integer"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "fail_dist": {
+      "type": [
+       "integer",
+       "string"
+      ],
+      "description": "distribution code, or its name"
+     },
+     "fail_params": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 3
+     },
+     "fail_stream": {
+      "type": "integer"
+     },
+     "repair_dist": {
+      "type": [
+       "integer",
+       "string"
+      ],
+      "description": "distribution code, or its name"
+     },
+     "repair_params": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 3
+     },
+     "repair_stream": {
+      "type": "integer"
+     },
+     "uses_phasing": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "dep_type": {
+      "enum": [
+       "None",
+       "RBDBlock",
+       "RBDNode",
+       "RBDEvent",
+       "RBDHier"
+      ]
+     },
+     "dep_num": {
+      "type": "integer"
+     },
+     "dep_nothing": {
+      "type": "number"
+     },
+     "dep_idle": {
+      "type": "number"
+     },
+     "dep_pm": {
+      "type": "number"
+     },
+     "dep_fail": {
+      "type": "number"
+     },
+     "dep_pm_thresh": {
+      "type": "number"
+     },
+     "def_dep_state_idle": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "sim_start": {
+      "type": "integer"
+     },
+     "amount_exhausted": {
+      "type": "number"
+     },
+     "standby_stress": {
+      "type": "number"
+     },
+     "growth_decay_type": {
+      "type": "integer"
+     },
+     "growth_decay_rate": {
+      "type": "number"
+     },
+     "growth_decay_limit": {
+      "type": "number"
+     },
+     "sparing_type": {
+      "enum": [
+       "Infinite",
+       "Custom",
+       "Pooled",
+       "None",
+       "Resource",
+       "ColdPool"
+      ]
+     },
+     "spare_pool": {
+      "type": "string"
+     },
+     "stock": {
+      "type": "integer"
+     },
+     "new_spares": {
+      "type": "integer"
+     },
+     "arrive_every": {
+      "type": "number"
+     },
+     "rso": {
+      "type": "integer"
+     },
+     "eso": {
+      "type": "integer"
+     },
+     "emer_time": {
+      "type": "number"
+     },
+     "slo": {
+      "type": "integer"
+     },
+     "level": {
+      "type": "integer"
+     },
+     "quantity": {
+      "type": "integer"
+     },
+     "slo_time": {
+      "type": "number"
+     },
+     "pre_ldt_dist": {
+      "type": [
+       "integer",
+       "string"
+      ],
+      "description": "distribution code, or its name"
+     },
+     "pre_ldt_params": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 3
+     },
+     "post_ldt_dist": {
+      "type": [
+       "integer",
+       "string"
+      ],
+      "description": "distribution code, or its name"
+     },
+     "post_ldt_params": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 3
+     },
+     "num_resources": {
+      "type": "integer"
+     },
+     "repair_resources_needed": {
+      "type": "integer"
+     },
+     "pm_resources_needed": {
+      "type": "integer"
+     },
+     "resource_name": {
+      "type": "string"
+     },
+     "uses_pm": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "pm_freq": {
+      "type": "number"
+     },
+     "pm_stagger_time": {
+      "type": "number"
+     },
+     "pm_duration_dist": {
+      "type": [
+       "integer",
+       "string"
+      ],
+      "description": "distribution code, or its name"
+     },
+     "pm_params": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 3
+     },
+     "pm_triggered": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "pm_trigger": {
+      "type": "string"
+     },
+     "pm_spare": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "pm_refresh": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "pm_mis_defer": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "pm_fail_reset": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "pm_req_defer": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "initial_cost": {
+      "type": "number"
+     },
+     "running_cost": {
+      "type": "number"
+     },
+     "standby_cost": {
+      "type": "number"
+     },
+     "idle_cost": {
+      "type": "number"
+     },
+     "rep_hold_cost": {
+      "type": "number"
+     },
+     "rep_per_time_cost": {
+      "type": "number"
+     },
+     "rep_fixed_cost": {
+      "type": "number"
+     },
+     "done_per_time": {
+      "type": "number"
+     },
+     "done_fixed": {
+      "type": "number"
+     },
+     "pm_hold_cost": {
+      "type": "number"
+     },
+     "pm_cost": {
+      "type": "number"
+     },
+     "pm_fixed_cost": {
+      "type": "number"
+     },
+     "per_spare_cost": {
+      "type": "number"
+     },
+     "emer_ship_cost": {
+      "type": "number"
+     },
+     "add_done": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "legacy": {
+      "type": "object",
+      "description": "Raptor 7 columns with no friendly name, verbatim",
+      "additionalProperties": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     }
+    },
+    "patternProperties": {
+     "^x_": {}
+    },
+    "additionalProperties": false,
+    "required": [
+     "id"
+    ]
+   }
+  },
+  "nodes": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "type": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+     },
+     "parent": {
+      "type": "integer"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "k": {
+      "type": "integer"
+     },
+     "full_flow": {
+      "type": "integer"
+     },
+     "div_flow": {
+      "type": "integer"
+     },
+     "cold_standby": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "priority_return": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "check_autos_first": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "k_star": {
+      "type": "integer"
+     },
+     "uses_phasing": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "dep_num": {
+      "type": "integer"
+     },
+     "dep_type": {
+      "enum": [
+       "None",
+       "RBDBlock",
+       "RBDNode",
+       "RBDEvent",
+       "RBDHier"
+      ]
+     },
+     "report_capacity": {
+      "type": "integer"
+     },
+     "report_node_anal": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "legacy": {
+      "type": "object",
+      "description": "Raptor 7 columns with no friendly name, verbatim",
+      "additionalProperties": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     }
+    },
+    "patternProperties": {
+     "^x_": {}
+    },
+    "additionalProperties": false,
+    "required": [
+     "id"
+    ]
+   }
+  },
+  "events": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "parent": {
+      "type": "integer"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "prob": {
+      "type": "number"
+     },
+     "fail_dist": {
+      "type": [
+       "integer",
+       "string"
+      ],
+      "description": "distribution code, or its name"
+     },
+     "fail_stream": {
+      "type": "integer"
+     },
+     "uses_phasing": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "init_cost": {
+      "type": "number"
+     },
+     "op_cost": {
+      "type": "number"
+     },
+     "rep_cost": {
+      "type": "number"
+     },
+     "legacy": {
+      "type": "object",
+      "description": "Raptor 7 columns with no friendly name, verbatim",
+      "additionalProperties": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     }
+    },
+    "patternProperties": {
+     "^x_": {}
+    },
+    "additionalProperties": false,
+    "required": [
+     "id"
+    ]
+   }
+  },
+  "hierarchies": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "parent": {
+      "type": "integer"
+     },
+     "in_id": {
+      "type": "integer"
+     },
+     "out_id": {
+      "type": "integer"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "uses_phasing": {
+      "enum": [
+       false,
+       true,
+       0,
+       1
+      ]
+     },
+     "legacy": {
+      "type": "object",
+      "description": "Raptor 7 columns with no friendly name, verbatim",
+      "additionalProperties": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     }
+    },
+    "patternProperties": {
+     "^x_": {}
+    },
+    "additionalProperties": false,
+    "required": [
+     "id"
+    ]
+   }
+  },
+  "links": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "parent": {
+      "type": "integer"
+     },
+     "cold_pri": {
+      "type": "integer"
+     },
+     "a_prob": {
+      "type": "number"
+     },
+     "auto_time": {
+      "type": "number"
+     },
+     "man_time": {
+      "type": "number"
+     },
+     "cap_pri": {
+      "type": "integer"
+     },
+     "nom_flow": {
+      "type": "integer"
+     },
+     "max_flow": {
+      "type": "integer"
+     },
+     "legacy": {
+      "type": "object",
+      "description": "Raptor 7 columns with no friendly name, verbatim",
+      "additionalProperties": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     },
+     "from": {
+      "type": "array",
+      "prefixItems": [
+       {
+        "enum": [
+         "Block",
+         "Node",
+         "Event",
+         "Hier",
+         "RBDBlock",
+         "RBDNode",
+         "RBDEvent",
+         "RBDHier"
+        ]
+       },
+       {
+        "type": "integer"
+       }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "to": {
+      "type": "array",
+      "prefixItems": [
+       {
+        "enum": [
+         "Block",
+         "Node",
+         "Event",
+         "Hier",
+         "RBDBlock",
+         "RBDNode",
+         "RBDEvent",
+         "RBDHier"
+        ]
+       },
+       {
+        "type": "integer"
+       }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+     }
+    },
+    "patternProperties": {
+     "^x_": {}
+    },
+    "additionalProperties": false,
+    "required": [
+     "id",
+     "from",
+     "to"
+    ]
+   }
+  },
+  "defaults": {
+   "type": "object",
+   "properties": {
+    "blocks": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "integer"
+      },
+      "name": {
+       "type": "string"
+      },
+      "parent": {
+       "type": "integer"
+      },
+      "x": {
+       "type": "number"
+      },
+      "y": {
+       "type": "number"
+      },
+      "fail_dist": {
+       "type": [
+        "integer",
+        "string"
+       ],
+       "description": "distribution code, or its name"
+      },
+      "fail_params": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       },
+       "maxItems": 3
+      },
+      "fail_stream": {
+       "type": "integer"
+      },
+      "repair_dist": {
+       "type": [
+        "integer",
+        "string"
+       ],
+       "description": "distribution code, or its name"
+      },
+      "repair_params": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       },
+       "maxItems": 3
+      },
+      "repair_stream": {
+       "type": "integer"
+      },
+      "uses_phasing": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "dep_type": {
+       "enum": [
+        "None",
+        "RBDBlock",
+        "RBDNode",
+        "RBDEvent",
+        "RBDHier"
+       ]
+      },
+      "dep_num": {
+       "type": "integer"
+      },
+      "dep_nothing": {
+       "type": "number"
+      },
+      "dep_idle": {
+       "type": "number"
+      },
+      "dep_pm": {
+       "type": "number"
+      },
+      "dep_fail": {
+       "type": "number"
+      },
+      "dep_pm_thresh": {
+       "type": "number"
+      },
+      "def_dep_state_idle": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "sim_start": {
+       "type": "integer"
+      },
+      "amount_exhausted": {
+       "type": "number"
+      },
+      "standby_stress": {
+       "type": "number"
+      },
+      "growth_decay_type": {
+       "type": "integer"
+      },
+      "growth_decay_rate": {
+       "type": "number"
+      },
+      "growth_decay_limit": {
+       "type": "number"
+      },
+      "sparing_type": {
+       "enum": [
+        "Infinite",
+        "Custom",
+        "Pooled",
+        "None",
+        "Resource",
+        "ColdPool"
+       ]
+      },
+      "spare_pool": {
+       "type": "string"
+      },
+      "stock": {
+       "type": "integer"
+      },
+      "new_spares": {
+       "type": "integer"
+      },
+      "arrive_every": {
+       "type": "number"
+      },
+      "rso": {
+       "type": "integer"
+      },
+      "eso": {
+       "type": "integer"
+      },
+      "emer_time": {
+       "type": "number"
+      },
+      "slo": {
+       "type": "integer"
+      },
+      "level": {
+       "type": "integer"
+      },
+      "quantity": {
+       "type": "integer"
+      },
+      "slo_time": {
+       "type": "number"
+      },
+      "pre_ldt_dist": {
+       "type": [
+        "integer",
+        "string"
+       ],
+       "description": "distribution code, or its name"
+      },
+      "pre_ldt_params": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       },
+       "maxItems": 3
+      },
+      "post_ldt_dist": {
+       "type": [
+        "integer",
+        "string"
+       ],
+       "description": "distribution code, or its name"
+      },
+      "post_ldt_params": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       },
+       "maxItems": 3
+      },
+      "num_resources": {
+       "type": "integer"
+      },
+      "repair_resources_needed": {
+       "type": "integer"
+      },
+      "pm_resources_needed": {
+       "type": "integer"
+      },
+      "resource_name": {
+       "type": "string"
+      },
+      "uses_pm": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "pm_freq": {
+       "type": "number"
+      },
+      "pm_stagger_time": {
+       "type": "number"
+      },
+      "pm_duration_dist": {
+       "type": [
+        "integer",
+        "string"
+       ],
+       "description": "distribution code, or its name"
+      },
+      "pm_params": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       },
+       "maxItems": 3
+      },
+      "pm_triggered": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "pm_trigger": {
+       "type": "string"
+      },
+      "pm_spare": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "pm_refresh": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "pm_mis_defer": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "pm_fail_reset": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "pm_req_defer": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "initial_cost": {
+       "type": "number"
+      },
+      "running_cost": {
+       "type": "number"
+      },
+      "standby_cost": {
+       "type": "number"
+      },
+      "idle_cost": {
+       "type": "number"
+      },
+      "rep_hold_cost": {
+       "type": "number"
+      },
+      "rep_per_time_cost": {
+       "type": "number"
+      },
+      "rep_fixed_cost": {
+       "type": "number"
+      },
+      "done_per_time": {
+       "type": "number"
+      },
+      "done_fixed": {
+       "type": "number"
+      },
+      "pm_hold_cost": {
+       "type": "number"
+      },
+      "pm_cost": {
+       "type": "number"
+      },
+      "pm_fixed_cost": {
+       "type": "number"
+      },
+      "per_spare_cost": {
+       "type": "number"
+      },
+      "emer_ship_cost": {
+       "type": "number"
+      },
+      "add_done": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "legacy": {
+       "type": "object",
+       "description": "Raptor 7 columns with no friendly name, verbatim",
+       "additionalProperties": {
+        "type": [
+         "string",
+         "number"
+        ]
+       }
+      },
+      "at": {
+       "type": "integer",
+       "minimum": 0
+      }
+     },
+     "patternProperties": {
+      "^x_": {}
+     },
+     "additionalProperties": false
+    },
+    "nodes": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "integer"
+      },
+      "name": {
+       "type": "string"
+      },
+      "type": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 5
+      },
+      "parent": {
+       "type": "integer"
+      },
+      "x": {
+       "type": "number"
+      },
+      "y": {
+       "type": "number"
+      },
+      "k": {
+       "type": "integer"
+      },
+      "full_flow": {
+       "type": "integer"
+      },
+      "div_flow": {
+       "type": "integer"
+      },
+      "cold_standby": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "priority_return": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "check_autos_first": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "k_star": {
+       "type": "integer"
+      },
+      "uses_phasing": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "dep_num": {
+       "type": "integer"
+      },
+      "dep_type": {
+       "enum": [
+        "None",
+        "RBDBlock",
+        "RBDNode",
+        "RBDEvent",
+        "RBDHier"
+       ]
+      },
+      "report_capacity": {
+       "type": "integer"
+      },
+      "report_node_anal": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "legacy": {
+       "type": "object",
+       "description": "Raptor 7 columns with no friendly name, verbatim",
+       "additionalProperties": {
+        "type": [
+         "string",
+         "number"
+        ]
+       }
+      },
+      "at": {
+       "type": "integer",
+       "minimum": 0
+      }
+     },
+     "patternProperties": {
+      "^x_": {}
+     },
+     "additionalProperties": false
+    },
+    "events": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "integer"
+      },
+      "name": {
+       "type": "string"
+      },
+      "parent": {
+       "type": "integer"
+      },
+      "x": {
+       "type": "number"
+      },
+      "y": {
+       "type": "number"
+      },
+      "prob": {
+       "type": "number"
+      },
+      "fail_dist": {
+       "type": [
+        "integer",
+        "string"
+       ],
+       "description": "distribution code, or its name"
+      },
+      "fail_stream": {
+       "type": "integer"
+      },
+      "uses_phasing": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "init_cost": {
+       "type": "number"
+      },
+      "op_cost": {
+       "type": "number"
+      },
+      "rep_cost": {
+       "type": "number"
+      },
+      "legacy": {
+       "type": "object",
+       "description": "Raptor 7 columns with no friendly name, verbatim",
+       "additionalProperties": {
+        "type": [
+         "string",
+         "number"
+        ]
+       }
+      },
+      "at": {
+       "type": "integer",
+       "minimum": 0
+      }
+     },
+     "patternProperties": {
+      "^x_": {}
+     },
+     "additionalProperties": false
+    },
+    "hierarchies": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "integer"
+      },
+      "name": {
+       "type": "string"
+      },
+      "parent": {
+       "type": "integer"
+      },
+      "in_id": {
+       "type": "integer"
+      },
+      "out_id": {
+       "type": "integer"
+      },
+      "x": {
+       "type": "number"
+      },
+      "y": {
+       "type": "number"
+      },
+      "uses_phasing": {
+       "enum": [
+        false,
+        true,
+        0,
+        1
+       ]
+      },
+      "legacy": {
+       "type": "object",
+       "description": "Raptor 7 columns with no friendly name, verbatim",
+       "additionalProperties": {
+        "type": [
+         "string",
+         "number"
+        ]
+       }
+      },
+      "at": {
+       "type": "integer",
+       "minimum": 0
+      }
+     },
+     "patternProperties": {
+      "^x_": {}
+     },
+     "additionalProperties": false
+    }
+   },
+   "patternProperties": {
+    "^x_": {}
+   },
+   "additionalProperties": false
+  },
+  "spare_pools": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "stock": {
+      "type": "integer"
+     },
+     "new_spares": {
+      "type": "integer"
+     },
+     "arrive_every": {
+      "type": "number"
+     },
+     "eso": {
+      "type": "integer"
+     },
+     "emer_time": {
+      "type": "number"
+     },
+     "slo": {
+      "type": "integer"
+     },
+     "level": {
+      "type": "integer"
+     },
+     "quantity": {
+      "type": "integer"
+     },
+     "slo_time": {
+      "type": "number"
+     },
+     "rso": {
+      "type": "integer"
+     },
+     "spare_cost": {
+      "type": "number"
+     },
+     "emer_ship_cost": {
+      "type": "number"
+     },
+     "legacy": {
+      "type": "object",
+      "description": "Raptor 7 columns with no friendly name, verbatim",
+      "additionalProperties": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     },
+     "key": {
+      "type": "string"
+     },
+     "id": {
+      "type": "integer"
+     }
+    },
+    "patternProperties": {
+     "^x_": {}
+    },
+    "additionalProperties": false
+   }
+  },
+  "resources": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "num_in": {
+      "type": "number"
+     },
+     "spare_cost": {
+      "type": "number"
+     },
+     "fixed_per_use": {
+      "type": "number"
+     },
+     "per_time_unit": {
+      "type": "number"
+     },
+     "phases": {
+      "type": "integer"
+     },
+     "legacy": {
+      "type": "object",
+      "description": "Raptor 7 columns with no friendly name, verbatim",
+      "additionalProperties": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     },
+     "key": {
+      "type": "string"
+     },
+     "id": {
+      "type": "integer"
+     }
+    },
+    "patternProperties": {
+     "^x_": {}
+    },
+    "additionalProperties": false
+   }
+  },
+  "triggers": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "repeats": {
+      "type": "number"
+     },
+     "init_used": {
+      "type": "number"
+     },
+     "dist": {
+      "type": [
+       "integer",
+       "string"
+      ],
+      "description": "distribution code, or its name"
+     },
+     "params": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 3
+     },
+     "legacy": {
+      "type": "object",
+      "description": "Raptor 7 columns with no friendly name, verbatim",
+      "additionalProperties": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     },
+     "key": {
+      "type": "string"
+     },
+     "id": {
+      "type": "integer"
+     }
+    },
+    "patternProperties": {
+     "^x_": {}
+    },
+    "additionalProperties": false
+   }
+  },
+  "phases": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "num": {
+      "type": "number"
+     },
+     "mission": {
+      "type": "number"
+     },
+     "duration_dist": {
+      "type": "number"
+     },
+     "params": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 3
+     },
+     "legacy": {
+      "type": "object",
+      "description": "Raptor 7 columns with no friendly name, verbatim",
+      "additionalProperties": {
+       "type": [
+        "string",
+        "number"
+       ]
+      }
+     },
+     "key": {
+      "type": "string"
+     },
+     "id": {
+      "type": "integer"
+     }
+    },
+    "patternProperties": {
+     "^x_": {}
+    },
+    "additionalProperties": false
+   }
+  },
+  "annotations": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+     "kind": {
+      "enum": [
+       "text",
+       "rect",
+       "ellipse",
+       "arrow"
+      ]
+     },
+     "id": {
+      "type": "integer"
+     },
+     "parent": {
+      "type": "integer"
+     },
+     "text": {
+      "type": "string"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     },
+     "w": {
+      "type": "number"
+     },
+     "h": {
+      "type": "number"
+     },
+     "x1": {
+      "type": "number"
+     },
+     "y1": {
+      "type": "number"
+     },
+     "x2": {
+      "type": "number"
+     },
+     "y2": {
+      "type": "number"
+     },
+     "z": {
+      "type": "number"
+     },
+     "border_width": {
+      "type": "number"
+     },
+     "font_size": {
+      "type": "number"
+     }
+    }
+   }
+  },
+  "rates": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "expr": {
+      "type": "string"
+     },
+     "value": {
+      "type": "number"
+     },
+     "description": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "formulas": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "object"
+   }
+  },
+  "display_unit": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "project_meta": {
+   "type": [
+    "object",
+    "null"
+   ],
+   "additionalProperties": {
+    "type": "string"
+   }
+  },
+  "view_transform": {
+   "type": [
+    "object",
+    "null"
+   ],
+   "additionalProperties": {
+    "type": "number"
+   }
+  },
+  "comments": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "type": {
+      "type": "string"
+     },
+     "id": {
+      "type": [
+       "string",
+       "integer"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ "patternProperties": {
+  "^x_": {}
+ },
+ "additionalProperties": false
+}
