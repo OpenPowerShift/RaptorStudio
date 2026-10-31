@@ -20,7 +20,11 @@ from raptor.core.fileio.rbd import RbdFile, RbdSection
 from raptor.core.run_experiment import from_system_row, normalise
 
 FORMAT_ID = "raptor-studio"
-VERSION = 1
+#: 2: maintenance, sparing and the other API-named columns are friendly
+#: fields. A version-1 reader would take them for unknown keys and silently
+#: run without them, so it must refuse the file instead (it does: it
+#: rejects any version newer than its own).
+VERSION = 2
 
 # ---------------------------------------------------------------------------
 # friendly -> legacy column maps (the documented surface)
@@ -41,19 +45,67 @@ _BLOCK_MAP: ColumnMap = {
     "dep_type": "DepType", "dep_num": "DepNum",
     "dep_nothing": "DepNothing", "dep_idle": "DepIdle",
     "dep_pm": "DepPM", "dep_fail": "DepFail",
+    "dep_pm_thresh": "DepPMThresh", "def_dep_state_idle": "defDepStateIdle",
+    # Every other column the API names (`api.build`'s aliases): a file using
+    # these names used to be read with the setting silently left at its
+    # default, because they were only understood under `legacy`.
+    "sim_start": "SimStart", "amount_exhausted": "AmtExhausted",
+    "standby_stress": "SBStress",
+    "growth_decay_type": "GDType", "growth_decay_rate": "GDRate",
+    "growth_decay_limit": "GDLimit",
+    # sparing
+    "sparing_type": "SpType", "spare_pool": "SparePoolName",
+    "stock": "Stock", "new_spares": "NewSp", "arrive_every": "ArriveEvery",
+    "rso": "RSO", "eso": "ESO", "emer_time": "EmerTime",
+    "slo": "SLO", "level": "Level", "quantity": "Quan", "slo_time": "SLOTime",
+    # logistics delays before and after repair
+    "pre_ldt_dist": "Pre-LDTDist",
+    "pre_ldt_params": ("Param1#1", "Param2#1", "Param3#1"),
+    "post_ldt_dist": "Post-LDTDist",
+    "post_ldt_params": ("Param1#2", "Param2#2", "Param3#2"),
+    # resources
+    "num_resources": "NumRes", "repair_resources_needed": "#Res1Rep",
+    "pm_resources_needed": "#Res1pmRep", "resource_name": "Resource1Name",
+    # preventive maintenance
+    "uses_pm": "usesPM", "pm_freq": "PMFreq",
+    "pm_stagger_time": "PMStaggerTime",
+    "pm_duration_dist": "Dist",
+    "pm_params": ("Param1#3", "Param2#3", "Param3#3"),
+    "pm_triggered": "pmTriggered", "pm_trigger": "pmTrig",
+    "pm_spare": "PMSpare", "pm_refresh": "PMRefresh",
+    "pm_mis_defer": "PMMisDefer", "pm_fail_reset": "PMFailReset",
+    "pm_req_defer": "PMReqDefer",
+    # costs
+    "initial_cost": "initial", "running_cost": "Running",
+    "standby_cost": "standby", "idle_cost": "idle",
+    "rep_hold_cost": "repHold", "rep_per_time_cost": "repPerTime",
+    "rep_fixed_cost": "repFixed", "done_per_time": "donePerTime",
+    "done_fixed": "doneFixed", "pm_hold_cost": "pmHoldCost",
+    "pm_cost": "pmCost", "pm_fixed_cost": "pmFixedCost",
+    "per_spare_cost": "perSpare", "emer_ship_cost": "emerShipping",
+    "add_done": "addDone",
 }
 _NODE_MAP: ColumnMap = {
     "id": "ID", "name": "Name", "type": "Type", "parent": "parent",
     "x": "xPos", "y": "yPos", "k": "k",
     "full_flow": "fullflow", "div_flow": "divFlow",
+    # Named as `RBDNode` names them (the API's short `cold`, `pr`, `autos`,
+    # `rep_na`, `phases` still work for `update_element`).
+    "cold_standby": "Cold", "priority_return": "PR",
+    "check_autos_first": "Autos", "k_star": "k*",
+    "uses_phasing": "Phases", "dep_num": "depNum", "dep_type": "depType",
+    "report_capacity": "repCap", "report_node_anal": "repNA",
 }
 _EVENT_MAP: ColumnMap = {
     "id": "ID", "name": "eventName", "parent": "ParentId",
     "x": "xPos", "y": "yPos", "prob": "failVal",
+    "fail_dist": "Distro", "fail_stream": "failStream", "uses_phasing": "Phasing",
+    "init_cost": "InitCost", "op_cost": "OpCost", "rep_cost": "RepCost",
 }
 _HIER_MAP: ColumnMap = {
     "id": "ID", "name": "hierarchyName", "parent": "Parent",
     "in_id": "in", "out_id": "out", "x": "xPos", "y": "yPos",
+    "uses_phasing": "Phs",
 }
 #: `from` / `to` are handled separately (two columns each).
 _LINK_MAP: ColumnMap = {
@@ -178,13 +230,24 @@ _INT_KEYS = frozenset({
     # Spare-pool columns the .rbd writer also emits as whole numbers
     # (rbd._LEGACY_INT_COLUMNS). ESO/RSO/SLO are flags: "1.000000" is not
     # one of the spellings typed.cell_truthy reads as set.
-    "eso", "rso", "slo", "stock", "new_spares", "level", "quantity"})
+    "eso", "rso", "slo", "stock", "new_spares", "level", "quantity",
+    # Block, node, event and hierarchy columns Raptor 7 reads as integers.
+    "sim_start", "growth_decay_type", "pre_ldt_dist", "post_ldt_dist",
+    "pm_duration_dist", "num_resources", "repair_resources_needed",
+    "pm_resources_needed", "k_star", "phases", "report_capacity", "dist"})
 _BOOL_KEYS = frozenset({"uses_phasing", "weak_analysis", "cost_analysis",
-                        "capacity_analysis"})
+                        "capacity_analysis", "uses_pm", "pm_triggered",
+                        "pm_spare", "pm_refresh", "pm_mis_defer",
+                        "pm_fail_reset", "pm_req_defer",
+                        "def_dep_state_idle", "add_done", "cold_standby",
+                        "priority_return", "check_autos_first",
+                        "report_node_anal"})
 _STR_KEYS = frozenset({"name", "dep_type", "units", "graphics",
                        "node_anal_type", "termination_type", "from_type",
-                       "to_type"})
-_DIST_KEYS = frozenset({"fail_dist", "repair_dist"})
+                       "to_type", "sparing_type", "spare_pool",
+                       "pm_trigger", "resource_name"})
+_DIST_KEYS = frozenset({"fail_dist", "repair_dist", "pre_ldt_dist",
+                        "post_ldt_dist", "pm_duration_dist", "dist"})
 _TRUE = ("1", "T", "TRUE")
 _FALSE = ("0", "F", "FALSE")
 
@@ -798,6 +861,18 @@ def _read_project_meta(doc: dict) -> dict | None:
              if isinstance(pm, dict) and pm.get(k) is not None} or None)
 
 
+def newer_version_message(doc: dict, version: int) -> str:
+    """Why a file from a newer RAPTOR Studio will not open, and what to do."""
+    generator = (doc.get("meta") or {}).get("generator") if isinstance(doc.get("meta"), dict) else None
+    saved_by = f"was saved by {generator}" if isinstance(generator, str) and generator \
+        else "was saved by a newer RAPTOR Studio"
+    from raptor import __version__
+    return (f"This file {saved_by} in .rbds format version {version}, which is "
+            f"newer than this RAPTOR Studio {__version__} reads (up to version "
+            f"{VERSION}). Open it with that version or later, or ask for a copy "
+            f"saved as .rbd, which every version opens.")
+
+
 def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
     """Parse .rbds JSON into the same `RbdFile` structure every other
     subsystem already consumes. `default_name` is the model's name when
@@ -808,8 +883,7 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
         raise ValueError(f"not an {FORMAT_ID} file (format={fmt!r})")
     version = int(doc.get("version", 1))
     if version > VERSION:
-        raise ValueError(f".rbds version {version} newer than supported "
-                         f"{VERSION}")
+        raise ValueError(newer_version_message(doc, version))
     base = _base_model()
     starts = _starts()
     elements = doc.get("elements") or {}

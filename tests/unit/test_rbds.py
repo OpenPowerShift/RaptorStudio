@@ -142,8 +142,12 @@ def test_unknown_keys_preserved():
 def test_rejects_wrong_format_and_future_version():
     with pytest.raises(ValueError, match="not an"):
         parse_rbds(json.dumps({"format": "other", "version": 1}))
-    with pytest.raises(ValueError, match="newer than supported"):
-        parse_rbds(json.dumps({"format": FORMAT_ID, "version": 99}))
+    with pytest.raises(ValueError, match="format version 99, which is newer than"):
+        parse_rbds(json.dumps({"format": FORMAT_ID, "version": 99,
+                               "meta": {"generator": "RAPTOR Studio 9.9.9"}}))
+    with pytest.raises(ValueError, match="saved by RAPTOR Studio 9.9.9.*saved as .rbd"):
+        parse_rbds(json.dumps({"format": FORMAT_ID, "version": 99,
+                               "meta": {"generator": "RAPTOR Studio 9.9.9"}}))
 
 
 def test_gui_save_path_writes_and_reads_rbds(qapp, tmp_path):
@@ -338,10 +342,44 @@ def test_each_value_is_stored_once():
 
 def test_unmapped_columns_are_edited_in_legacy():
     doc = json.loads(NEW_LAYOUT.read_text(encoding="utf-8"))
-    blk = next(b for b in doc["elements"]["blocks"]
-               if b.get("name") == "Utility_Grid")
-    blk["legacy"]["SpType"] = "Pooled"
-    assert _block(parse_rbds(json.dumps(doc)), "Utility_Grid")["SpType"] == "Pooled"
+    hier = doc["elements"]["hierarchies"][0]
+    hier["legacy"]["zoom"] = "42.00"
+    rows = parse_rbds(json.dumps(doc)).section("HIERARCHY_DATA").rows
+    assert next(r for r in rows if r["ID"] == str(hier["id"]))["zoom"] == "42.00"
+
+
+#: Maintenance, sparing and the other columns the API names, as a hand-written
+#: file spells them, and the Raptor 7 column each must land in.
+_API_NAMED = {
+    "uses_pm": (True, "usesPM", "1"), "pm_freq": (500.0, "PMFreq", "500.000000"),
+    "pm_stagger_time": (25.0, "PMStaggerTime", "25.000000"),
+    "pm_duration_dist": ("Normal", "Dist", "8"), "pm_trigger": ("T1", "pmTrig", "T1"),
+    "sparing_type": ("Custom", "SpType", "Custom"), "stock": (3, "Stock", "3"),
+    "arrive_every": (100.0, "ArriveEvery", "100.000000"),
+    "pre_ldt_dist": ("Exponential", "Pre-LDTDist", "4"),
+    "resource_name": ("Crew", "Resource1Name", "Crew"),
+    "standby_stress": (0.25, "SBStress", "0.250"), "initial_cost": (99.0, "initial", "99.00"),
+}
+
+
+def test_the_api_names_are_read_from_a_hand_written_block():
+    doc = json.loads(NEW_LAYOUT.read_text(encoding="utf-8"))
+    blk = next(b for b in doc["elements"]["blocks"] if b.get("name") == "Utility_Grid")
+    blk.pop("legacy", None)
+    for key, (value, _col, _cell) in _API_NAMED.items():
+        blk[key] = value
+    row = _block(parse_rbds(json.dumps(doc)), "Utility_Grid")
+    for key, (_value, col, cell) in _API_NAMED.items():
+        assert row[col] == cell, key
+
+
+def test_maintenance_and_sparing_are_written_as_friendly_fields():
+    doc = json.loads(render_rbds(load_rbds(str(NEW_LAYOUT))))
+    blk = doc["elements"]["blocks"][0]
+    assert "legacy" not in blk
+    assert isinstance(blk["uses_pm"], bool) and isinstance(blk["pm_freq"], float)
+    assert isinstance(blk["stock"], int) and isinstance(blk["sparing_type"], str)
+    assert isinstance(blk["pm_params"], list) and len(blk["pm_params"]) == 3
 
 
 def test_numbers_are_written_as_numbers():
