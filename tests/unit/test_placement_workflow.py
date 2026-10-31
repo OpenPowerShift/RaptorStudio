@@ -222,22 +222,27 @@ class TestOpenIsReadOnly:
                 assert xy == original[key], key
         assert workspace.get(mid).layout_notice is None
 
-    def test_genuinely_crammed_model_reports_instead_of_being_silent(
+    def test_genuinely_crammed_model_is_left_alone_and_warned_about(
         self, workspace,
     ):
         """The guide's data centre as it was first authored, at sub-grid
-        pitch (0.5 on a 1.25 grid): normalising it is defensible -- but the
-        user must be told their diagram moved, not find out later. (The
-        shipped DC2 has since been laid out; this keeps the old file.)"""
+        pitch (0.5 on a 1.25 grid). An edit used to re-lay it out on save;
+        now nothing moves without an explicit Auto Layout, and validation
+        says Raptor 7 would draw it overlapping. (The shipped DC2 has since
+        been laid out; this keeps the old file.)"""
+        from raptor.api.validate import issues
         src = (Path(__file__).resolve().parents[1] / "fixtures"
                / "CrammedDataCentre" / "input.rbds")
         info = workspace.open_model(src)
         mid = info["model_id"]
+        before = self._coords(workspace.get(mid).rbd)
         add_block(workspace, mid, "Trigger", fail_dist=4,
                   fail_params=[800.0, 0.0], repair_dist=19,
                   repair_params=[2.0])
-        notice = workspace.get(mid).layout_notice
-        assert notice and "re-laid-out" in notice
+        after = self._coords(load_rbds(str(workspace.get(mid).path)))
+        assert all(after[k] == xy for k, xy in before.items())
+        assert workspace.get(mid).layout_notice is None
+        assert any(i.element == "layout" for i in issues(workspace.get(mid).rbd))
 
     def test_edit_then_save_preserves_layout(self, workspace):
         """The harm only materialises on edit-and-save, so pin the

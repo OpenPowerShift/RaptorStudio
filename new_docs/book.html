@@ -9405,10 +9405,12 @@ with parameter names and valid ranges.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>add_annotation</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add a drawing annotation — <code>text</code>, <code>rect</code>, <code>ellipse</code> or <code>arrow</code>. Place it
-  by name with <code>adjacent_to</code> (a block/node/event/hierarchy) plus <code>side</code>
-  (<code>right</code>/<code>left</code>/<code>above</code>/<code>below</code>) and <code>gap</code> — no coordinates, and it stays
-  put when the diagram is re-laid-out — or explicitly with <code>x</code>/<code>y</code>. An
-  arrow connects two elements with <code>from_</code>/<code>to</code>. Styling (colours, border,
+  next to an element with <code>adjacent_to</code> (a block/node/event/hierarchy) plus
+  <code>side</code> (<code>right</code>/<code>left</code>/<code>above</code>/<code>below</code>) and <code>gap</code> — it is anchored, and
+  moves with the element when it is dragged or <code>auto_layout</code> runs — or by
+  coordinates with <code>x</code>/<code>y</code>, in scene pixels or, with <code>units="model"</code>, the
+  model&#8217;s own coordinates. An arrow connects two elements with
+  <code>from_</code>/<code>to</code>. Styling (colours, border,
   font, <code>line_style</code>) goes in <code>style</code>. Annotations exist only in <code>.rbds</code>;
   <code>.rbd</code> export drops them.</p></td>
 </tr>

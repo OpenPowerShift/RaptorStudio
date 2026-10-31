@@ -553,18 +553,13 @@ def save_rbds(rbd: RbdFile, path: str, meta: dict | None = None) -> None:
     # stale pID is invisible here but breaks connections in the legacy
     # app. Unconditional, cheap, zero rows changed on consistent models —
     # see legacy_layout.repair_link_parents.
-    from raptor.core.fileio.legacy_layout import (normalize_legacy_layout,
-                                                  repair_link_parents)
+    from raptor.core.fileio.legacy_layout import repair_link_parents
     repair_link_parents(rbd)
-    # Same crammed-layout guard as the .rbd export: an .rbds authored
-    # with sub-grid spacing renders with blocks ON the connector lines in
-    # this app's own canvas too. Gated, so deliberately hand-tuned files
-    # pass through untouched; when it does fire, drop the FROZEN
-    # view_transform so the next open re-derives origin/scale from the NEW
-    # positions instead of rendering the normalized model through the old
-    # cramped transform.
-    if normalize_legacy_layout(rbd):
-        rbd.view_transform = {}
+    # Saving never moves an element. It used to re-lay out a model whose
+    # spacing was finer than Raptor 7's grid, which moved hand-placed
+    # figures and left scene-positioned annotations behind; a crowded
+    # layout is now a validation warning, and only an explicit Auto Layout
+    # changes positions (`raptor.api.validate.layout_warning`).
     with open(path, "w", encoding="utf-8") as f:
         f.write(render_rbds(rbd, meta))
 

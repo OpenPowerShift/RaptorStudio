@@ -46,6 +46,23 @@ class Issue:
 # Main entry point
 # ---------------------------------------------------------------------------
 
+#: What a crowded layout gets instead of being moved on save or export.
+LAYOUT_WARNING = (
+    "some elements are closer together than one Raptor 7 grid step (1.25), "
+    "so Raptor 7 draws them overlapping. Saving and exporting leave the "
+    "layout as it is; run Auto Layout to space them out.")
+
+
+def layout_warning(rbd: RbdFile) -> str | None:
+    """`LAYOUT_WARNING` when some level's spacing is finer than Raptor 7's
+    grid, else None. Nothing is moved: only Auto Layout changes positions."""
+    from raptor.core.fileio.legacy_layout import needs_legacy_normalization
+    try:
+        return LAYOUT_WARNING if needs_legacy_normalization(rbd) else None
+    except Exception:  # noqa: BLE001 - a malformed layout is reported elsewhere
+        return None
+
+
 def issues(rbd: RbdFile) -> list[Issue]:
     """Return all validation findings for *rbd*.
 
@@ -57,6 +74,11 @@ def issues(rbd: RbdFile) -> list[Issue]:
        GDType, fail_mean-undefined combos).
     """
     result: list[Issue] = []
+
+    # --- 0. A layout Raptor 7 would draw overlapping (never moved for you) ---
+    crowded = layout_warning(rbd)
+    if crowded:
+        result.append(Issue("warning", "layout", crowded))
 
     # --- 1. Structural rules ---
     from raptor.core.fileio.builder import validate as structural_validate

@@ -62,19 +62,19 @@ def test_the_run_options_themselves_still_apply(tmp_path):
     assert float(row["NumRuns"]) == 7
 
 
-def test_a_deliberate_save_still_repairs_a_crammed_layout(tmp_path):
-    """The gate is for exactly this; only the run options skip it."""
+def test_a_deliberate_save_leaves_a_crammed_layout_alone_too(tmp_path):
+    """Saving never re-lays out (#4 item 15): only Auto Layout moves things."""
     ws, mid = _crammed_workspace(str(tmp_path))
     before = _positions(ws.get(mid).rbd)
     build.configure_system(ws, mid, num_runs=2)
-    assert _positions(ws.get(mid).rbd) != before
+    with no_layout_on_save():
+        build.configure_system(ws, mid, num_runs=3)
+    assert _positions(ws.get(mid).rbd) == before
 
 
-def test_the_switch_is_scoped_to_its_block(tmp_path):
+def test_only_an_explicit_auto_layout_moves_it(tmp_path):
+    from raptor.mcp.tools_model import _apply_layout_positions
     ws, mid = _crammed_workspace(str(tmp_path))
     before = _positions(ws.get(mid).rbd)
-    with no_layout_on_save():
-        build.configure_system(ws, mid, num_runs=2)
-    assert _positions(ws.get(mid).rbd) == before
-    build.configure_system(ws, mid, num_runs=3)       # outside: gate is back
+    assert _apply_layout_positions(ws.get(mid).rbd, None) > 0
     assert _positions(ws.get(mid).rbd) != before

@@ -235,8 +235,10 @@ def convert_command(args: Any) -> int:
     with workspace_for() as ws:
         mid = open_model(ws, args.input)
         try:
-            ws.save_model_as(mid, str(dest), fmt=fmt)
+            res = ws.save_model_as(mid, str(dest), fmt=fmt)
         except Exception as exc:
             raise CliError(f"cannot write {dest}: {exc}", X.OUTPUT) from exc
     eprint(f"wrote {dest}")
+    if res.get("layout_warning"):
+        eprint(f"warning: layout: {res['layout_warning']}")
     return X.OK

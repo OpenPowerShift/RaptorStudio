@@ -230,7 +230,7 @@ class TestAnnotationTools:
         r = add_annotation(mid, kind="arrow", from_="B1", to="B2")
         assert not r.is_error, _text(r)
         s = r.structured_content["summary"]
-        assert s["anchor"] == {"from": "B1", "to": "B2"}
+        assert {k: s["anchor"][k] for k in ("from", "to")} == {"from": "B1", "to": "B2"}
         assert s["x1"] != s["x2"] or s["y1"] != s["y2"]
 
     def test_unknown_name_is_not_found(self, tmp_path):
@@ -438,7 +438,7 @@ class TestAnnotationEdgeCases:
             .structured_content["annotation_id"]
         s = update_annotation(mid, aid, {"from_": "B2", "to": "B1"}) \
             .structured_content["summary"]
-        assert s["anchor"] == {"from": "B2", "to": "B1"}
+        assert {k: s["anchor"][k] for k in ("from", "to")} == {"from": "B2", "to": "B1"}
 
     def test_reanchor_arrow_to_box_and_back(self, tmp_path):
         mid = self._model(tmp_path)
@@ -456,7 +456,7 @@ class TestAnnotationEdgeCases:
         s2 = update_annotation(mid, aid, {"kind": "arrow",
                                           "from_": "B1", "to": "B2"}) \
             .structured_content["summary"]
-        assert s2["anchor"] == {"from": "B1", "to": "B2"}
+        assert {k: s2["anchor"][k] for k in ("from", "to")} == {"from": "B1", "to": "B2"}
 
     def test_list_parent_filter(self, tmp_path):
         mid = self._model(tmp_path)

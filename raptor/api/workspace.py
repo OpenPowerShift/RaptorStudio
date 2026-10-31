@@ -100,24 +100,6 @@ def _real_row_count(rbd: RbdFile, section: str) -> int:
     return sum(1 for row in sec.rows if row.get("ID") != "0")
 
 
-def _element_coords(rbd: RbdFile) -> dict[tuple[str, str], tuple[str, str]]:
-    """Position of every element, keyed by (section, id), for diffing."""
-    out: dict[tuple[str, str], tuple[str, str]] = {}
-    for sec in ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA", "HIERARCHY_DATA"):
-        for row in rbd.section(sec).rows:
-            eid = str(row.get("ID", ""))
-            if eid == "0":
-                continue        # the block template row, never drawn
-            out[(sec, eid)] = (str(row.get("xPos", "")), str(row.get("yPos", "")))
-    return out
-
-
-def _moved_elements(before: dict, after: dict) -> int:
-    """How many elements changed position between two coord snapshots."""
-    return sum(1 for key, pos in after.items()
-               if key in before and before[key] != pos)
-
-
 def _summarise_counts(rbd: RbdFile) -> dict[str, int]:
     """Element counts for an index entry."""
     return {
@@ -663,12 +645,8 @@ class Workspace:
         *check_rules* is off only for a save that copies a whole model, not
         an edit (a sweep's copies).
 
-        `save_rbds` runs a guard that re-lays-out a model whose spacing
-        is finer than the legacy grid, so that it doesn't render with
-        blocks sitting on the connector lines.  That is occasionally the
-        right thing to do, but it moves hand-authored figures -- so when
-        it fires we record a `layout_notice` on the handle and the edit
-        tools surface it, rather than quietly rearranging the diagram.
+        Saving never moves an element: a crowded layout is a validation
+        warning, and only an explicit Auto Layout changes positions.
         """
         handle = self.get(model_id)
         with self._lock_for(model_id):
@@ -701,19 +679,11 @@ class Workspace:
                     save_rbds(baseline, str(handle.path),
                               meta={"file_name": baseline.file_name})
             self._backup(handle)
-            before = _element_coords(handle.rbd)
             _sync_counts(handle.rbd)
             save_rbds(handle.rbd, str(handle.path),
                       meta={"file_name": handle.rbd.file_name})
             handle.version += 1
-            moved = _moved_elements(before, _element_coords(handle.rbd))
-            handle.layout_notice = (
-                f"The diagram was re-laid-out on save: {moved} element(s) "
-                "moved onto Raptor 7's grid because their spacing was finer "
-                "than one grid line (blocks would otherwise overlap the "
-                "connectors). Call auto_layout deliberately if you want a "
-                "full re-layout." if moved else None
-            )
+            handle.layout_notice = None
             handle.last_modified = time.time()
             self._save_meta(handle)
             with self._cache_lock:
@@ -964,9 +934,13 @@ class Workspace:
                 save_rbds(handle.rbd, str(dest),
                           meta={"file_name": handle.rbd.file_name})
             size = dest.stat().st_size
+        from raptor.api.validate import layout_warning
         return {"path": str(dest), "bytes": size, "format": fmt,
                 "dropped": (rbds_only_content(handle.rbd)
-                            if fmt == "rbd" else [])}
+                            if fmt == "rbd" else []),
+                # The layout is exported as it is; say so when Raptor 7
+                # would draw it overlapping.
+                "layout_warning": layout_warning(handle.rbd) if fmt == "rbd" else None}
 
     # ------------------------------------------------------------------
     # Size cap
