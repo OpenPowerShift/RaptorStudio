@@ -97,6 +97,21 @@ still count.</p></td>
 "reliability".</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity-weighted availability</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"Mean_Flow" / "FlowGenerated"\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">With capacity analysis on: the fraction of the generated flow the system
+delivers, averaged over time. \$A_o\$ only asks whether <strong>any</strong> flow
+reaches the end, so a system running at half capacity still counts as up.
+<code>Mean_Flow</code> is the Start node&#8217;s time-averaged flow, the Final Results row
+of that name.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Lost flow</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"Lost_Flow" = "FlowGenerated" - "Mean_Flow"\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The flow not delivered, on average. Multiplied by the run length it is
+the energy (or product) not supplied. The Final Results <code>AveLostFlow</code> row.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Standard error of the mean (SEM)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">\$"SEM" ~~ "StDev" / sqrt(n)\$, and for a proportion \$p\$: \$"SEM" ~~ sqrt((p(1-p))/n)\$</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean \$+-\$ 2 \$xx\$ SEM is roughly a 95% interval — a normal

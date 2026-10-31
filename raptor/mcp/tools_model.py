@@ -346,7 +346,8 @@ def build_model(name: str, spec: dict[str, Any] | None = None,
     fields from docs/RBDS_FORMAT.md (e.g. a block's `fail_dist`/`fail_params`;
     distributions may be given by name or code).  Ids
     are assigned where omitted, links are wired, counts synced.  This is
-    the main tool for creating a whole model in one call.
+    the main tool for creating a whole model in one call. A complete
+    `.rbds` document goes in as `spec={"rbds_text": "<the file's text>"}`.
 
     `experiment` takes the .rbds run block itself (`trials`,
     `termination_type`, `term_condition`, `analyses`, `recording`, ...), so

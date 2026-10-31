@@ -957,3 +957,19 @@ def test_capacity_tab_flow_loss_is_the_final_results_row(qapp):
     row = fin[fin.index("FlowLoss              MinLostFlow  AveLostFlow  MaxLostFlow") + 1].split()
     shown = text.split("Flow loss (min · avg · max): ")[1].split(" · ")
     assert [f"{float(x):,.2f}" for x in row] == shown
+
+
+def test_capacity_tab_shows_the_capacity_weighted_availability_simulate_reports(qapp):
+    """GUI and MCP parity: the Capacity tab's mean flow and capacity-weighted
+    availability are the summary metrics `simulate` returns."""
+    from raptor.api.results import aggregate_metrics, metrics_to_dict
+    rbd = load_rbd(os.path.join(REPO, "tests/golden/Capacity2/input.rbd"))
+    report_data: list = []
+    logs, eor, fin = run_simulation_with_reports(rbd, num_runs=3, date="fixed", report_sink=report_data)
+    dock = ResultsDock()
+    dock.set_results(logs, eor, fin, report_data=report_data)
+    page = dock._build_capacity_page()
+    text = next(lb.text() for lb in page.findChildren(QLabel) if lb.text().startswith("Flow generated"))
+    metrics = metrics_to_dict(aggregate_metrics(report_data))
+    assert f"Mean flow: {metrics['Mean_Flow']['mean']:,.2f}" in text
+    assert f"availability {metrics['Capacity_Weighted_Availability']['mean']:.2%})" in text

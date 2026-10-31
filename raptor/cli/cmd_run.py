@@ -58,8 +58,9 @@ def add_parser(sub: Any) -> None:
     add_run_options(p)
     o = p.add_argument_group("output")
     o.add_argument("-o", "--output", metavar="DIR",
-                   help="write result files to DIR (default: none unless "
-                        "-r is given, then ./<model>-results)")
+                   help="write the summary (in the -f format; none with "
+                        "-f none) and any -r reports to DIR (default with "
+                        "-r: ./<model>-results)")
     o.add_argument("-f", "--format", choices=FORMATS, default="text",
                    help="summary on stdout (default text)")
     o.add_argument("--json", metavar="PATH", dest="json_path",
@@ -344,6 +345,26 @@ def write_reports(ws: Any, result: Any, wanted: list[str], out_dir: Path,
     return written
 
 
+_SUMMARY_EXT = {"text": "txt", "markdown": "md", "csv": "csv",
+                "json": "json", "ndjson": "ndjson"}
+
+
+def _summary(doc: dict, metrics: Any, fmt: str) -> str:
+    """The results summary in output format `fmt`, exactly as printed on stdout."""
+    import json
+    if fmt == "json":
+        from raptor.cli.common import _scrub
+        return json.dumps(_scrub(doc), indent=2, default=str, allow_nan=False) + "\n"
+    if fmt == "ndjson":
+        return "".join(json.dumps({"run": i, **r}, default=str) + "\n"
+                       for i, r in enumerate(doc["runs"], 1))
+    if fmt == "csv":
+        return summary_csv(doc, metrics)
+    if fmt == "markdown":
+        return summary_markdown(doc, metrics)
+    return summary_text(doc, metrics) + "\n"
+
+
 def run_command(args: Any) -> int:
     wanted = _wanted_reports(args.report)
     metrics = [m.strip() for m in args.metrics.split(",")] if args.metrics \
@@ -367,24 +388,24 @@ def run_command(args: Any) -> int:
                 rec_text = (ws.root / "runs" / result.run_id / "isolation.txt").read_text()
                 write_text(out_dir / f"isolation_{ws.get(model_id).name}.txt", rec_text)
                 files.append(str(out_dir / f"isolation_{ws.get(model_id).name}.txt"))
+        # `-o DIR` gets the summary in the `-f` format; it used to write
+        # nothing unless `-r` named a report. `-f none` still means no
+        # summary, so say when `-o` is left empty.
+        summary_path = None
+        if args.output and args.format != "none":
+            summary_path = (Path(args.output) / f"summary_{ws.get(model_id).name}"
+                            f".{_SUMMARY_EXT[args.format]}")
+            files.append(str(summary_path))
+        elif args.output and not files:
+            eprint(f"warning: nothing written to {args.output}: -f none and no -r report")
         doc = results_document(result, ws, model_id, args.model, applied,
                                warns, files, args)
+        if summary_path is not None:
+            write_text(summary_path, _summary(doc, metrics, args.format))
         if args.json_path:
             emit_json(doc, args.json_path)
-        if args.json_path != "-":
-            if args.format == "json":
-                emit_json(doc, None)
-            elif args.format == "ndjson":
-                import json
-                for i, r in enumerate(doc["runs"], 1):
-                    sys.stdout.write(json.dumps(
-                        {"run": i, **r}, default=str) + "\n")
-            elif args.format == "csv":
-                sys.stdout.write(summary_csv(doc, metrics))
-            elif args.format == "markdown":
-                sys.stdout.write(summary_markdown(doc, metrics))
-            elif args.format == "text":
-                sys.stdout.write(summary_text(doc, metrics) + "\n")
+        if args.json_path != "-" and args.format != "none":
+            sys.stdout.write(_summary(doc, metrics, args.format))
     partial = any(w.startswith("Completed") and "timeout or abort" in w
                   for w in doc["warnings"])
     return X.TIMEOUT if partial else X.OK

@@ -1320,11 +1320,18 @@ class ResultsDock(QWidget):
             vals = [v for v in (getter(c) for c in caps) if v is not None]
             return sum(vals) / len(vals) if vals else None
 
+        # The same figures `simulate` and describe_metrics report
+        # (`raptor.api.results.capacity_values`).
+        mean_flow = mean(lambda c: c.nodes[c.system_node_id].ave_flow)
+        generated = caps[0].flow_generated
+        weighted = (f"   ·   Mean flow: {mean_flow:,.2f} "
+                    f"(capacity-weighted availability {mean_flow / generated:.2%})"
+                    if mean_flow is not None and generated else "")
         head = QLabel(
-            f"Flow generated: {caps[0].flow_generated:,}   ·   "
+            f"Flow generated: {generated:,}   ·   "
             # Units produced is a flow quantity, not a duration: appending
             # the time unit made it read "1,513,838.93 hours".
-            f"Units produced: {mean(lambda c: c.units_produced):,.2f}   ·   "
+            f"Units produced: {mean(lambda c: c.units_produced):,.2f}{weighted}   ·   "
             f"Flow loss (min · avg · max): "
             + " · ".join(f"{x:,.2f}" for x in flow_loss_across_runs(caps)))
         head.setObjectName("SummarySentence")
@@ -1332,6 +1339,9 @@ class ResultsDock(QWidget):
         head.setToolTip(
             "Flow Generated: supply fed into the Start node each trial.\n"
             "Units Produced: total flow that made it through the system.\n"
+            "Mean flow: the Start node's time-averaged flow; divided by Flow Generated it is the\n"
+            "capacity-weighted availability, the share of the flow delivered (Ao only asks whether\n"
+            "any flow got through).\n"
             "Flow loss: Flow Generated less the flow that got through, as the Final Results report prints it\n"
             "(minimum, average and maximum over the runs).")
         v.addWidget(head)

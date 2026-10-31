@@ -137,14 +137,54 @@ def _mark_censored(metric: Metric, label: str,
                               else metric.max)
 
 
+#: Capacity-analysis metrics, present only when the model runs capacity
+#: analysis: ``(key in capacity_values, aggregate name)``. The first three
+#: are the Final Results rows of the same names.
+CAPACITY_FIELDS: list[tuple[str, str]] = [
+    ("units_produced", "Units_Produced"),
+    ("mean_flow", "Mean_Flow"),
+    ("mean_capacity", "Mean_Capacity"),
+    ("capacity_weighted_availability", "Capacity_Weighted_Availability"),
+    ("lost_flow", "Lost_Flow"),
+]
+
+
+def capacity_values(rd: RunReportData) -> dict[str, float | None] | None:
+    """One run's capacity figures, or None without capacity analysis.
+
+    ``mean_flow``/``mean_capacity`` are the system (Start) node's average
+    flow and capacity, as in Final Results. ``capacity_weighted_availability``
+    is ``mean_flow / FlowGenerated``: the fraction of the generated flow
+    delivered, where ``availability`` only says whether *any* flow got
+    through. ``lost_flow`` is ``FlowGenerated - mean_flow``."""
+    cap = rd.capacity
+    if cap is None:
+        return None
+    system = cap.nodes[cap.system_node_id]
+    generated = float(cap.flow_generated)
+    return {
+        "units_produced": cap.units_produced,
+        "mean_flow": system.ave_flow,
+        "mean_capacity": system.ave_cap,
+        "capacity_weighted_availability": (system.ave_flow / generated
+                                           if generated > 0 else None),
+        "lost_flow": generated - system.ave_flow,
+    }
+
+
 def aggregate_metrics(report_data: list[RunReportData]) -> list[Metric]:
-    """Compute per-metric ``{min, mean, max, stdev, sem}`` across all runs."""
+    """Compute per-metric ``{min, mean, max, stdev, sem}`` across all runs,
+    with the capacity metrics appended when the model has capacity analysis."""
     result: list[Metric] = []
     for attr, label in _METRIC_FIELDS:
         vals = [getattr(rd, attr, None) for rd in report_data]
         metric = _aggregate(vals, label)
         _mark_censored(metric, label, report_data)
         result.append(metric)
+    caps = [capacity_values(rd) for rd in report_data]
+    if caps and all(c is not None for c in caps):
+        for key, label in CAPACITY_FIELDS:
+            result.append(_aggregate([c[key] for c in caps if c is not None], label))
     return result
 
 

@@ -30,8 +30,13 @@ def test_metric_definitions_cover_the_reported_fields():
     # module used to carry a second copy and the two had drifted, so a
     # reappearing `definition`/`formula` key here is a regression, not a
     # feature.
-    assert all(set(row) == {"key", "metric", "aggregate", "units"}
-               for row in rows), rows[0]
+    # `analysis` marks the capacity-analysis metrics, shown only for a run
+    # that has them.
+    for row in rows:
+        assert set(row) - {"analysis"} == {"key", "metric", "aggregate", "units"}, row
+    assert {row["aggregate"] for row in rows if row.get("analysis") == "capacity"} == {
+        "Units_Produced", "Mean_Flow", "Mean_Capacity",
+        "Capacity_Weighted_Availability", "Lost_Flow"}
 
 
 def test_mcp_describe_metrics_without_a_run():
@@ -150,7 +155,9 @@ def test_metric_definitions_cover_all_summary_fields():
     from raptor.api.metric_definitions import definitions
 
     rows = definitions()
-    assert len(rows) == 17
+    # 17 reported for every run, plus 5 for a run with capacity analysis.
+    assert len([r for r in rows if not r.get("analysis")]) == 17
+    assert len(rows) == 22
     names = {row["metric"] for row in rows}
     assert {"Conditional reliability", "Dependability", "MTBMs", "MMTu",
             "Component failures", "Green %", "Yellow %", "Red %"} <= names
