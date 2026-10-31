@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import QStringListModel, Qt
+from PySide6.QtCore import QSize, QStringListModel, Qt
 from PySide6.QtGui import QAction, QUndoStack
 from PySide6.QtWidgets import (
     QComboBox, QDoubleSpinBox, QHBoxLayout, QLabel,
@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.gui.resources import icons
-from raptor.gui.resources.design_tokens import RIBBON, active_colour
+from raptor.gui.resources.design_tokens import RIBBON, ThemeManager, active_colour
 from raptor.gui.ui.run_experiment_mixin import _ANALYSIS_TIPS
 
 
@@ -496,6 +496,70 @@ class RibbonBuilders(_Base):
                 self._set_analysis_flag(c, on, l))
             group.add_action(act)
             self._analysis_actions[col] = act
+
+    _LINK_STYLES = (
+        ("straight", "Straight", "link_straight_icon",
+         "Straight lines from port to port"),
+        ("angled", "Angled", "link_angled_icon",
+         "A short stub out of each port, then a straight run"),
+        ("orthogonal", "Right-angle", "link_orthogonal_icon",
+         "Right angles only, steering round other elements. Blocks never "
+         "move; a link that cannot be routed quickly stays straight."),
+    )
+
+    def _build_link_routing_settings(self, group) -> None:
+        """View > Appearance: how links are drawn. A view setting, not model
+        data: it re-routes the canvas and leaves the model untouched."""
+        self._link_routing_combo = QComboBox()
+        self._link_routing_combo.setAccessibleName("Link style")
+        self._link_routing_combo.setToolTip(
+            "How links are drawn: straight, angled (short stubs, then a "
+            "straight run) or right-angle. No block is ever moved.")
+        self._link_routing_combo.setFixedWidth(118)
+        self._link_routing_combo.setIconSize(QSize(20, 20))
+        self._refresh_link_routing_icons()
+        self._link_routing_combo.currentIndexChanged.connect(
+            lambda _i: self._on_link_routing_changed())
+        ThemeManager.instance().on_changed(self._on_link_routing_theme)
+        group.add_widget(_labeled_box("Links", self._link_routing_combo,
+                                      label_width=76))
+
+    def _on_link_routing_theme(self, _dark: bool) -> None:
+        self._refresh_link_routing_icons()
+
+    def _refresh_link_routing_icons(self) -> None:
+        from raptor.gui.resources import icons
+        combo = self._link_routing_combo
+        current = combo.currentData()
+        colour = active_colour()["text"]
+        combo.blockSignals(True)
+        combo.clear()
+        for key, label, icon_fn, tip in self._LINK_STYLES:
+            combo.addItem(getattr(icons, icon_fn)(colour), label, key)
+            combo.setItemData(combo.count() - 1, tip,
+                              Qt.ItemDataRole.ToolTipRole)
+        idx = combo.findData(current or "straight")
+        combo.setCurrentIndex(max(idx, 0))
+        combo.blockSignals(False)
+
+    def _sync_link_routing_combo(self) -> None:
+        if not hasattr(self, "_link_routing_combo"):
+            return
+        from raptor.gui.ui.diagram_items import link_routing
+        combo = self._link_routing_combo
+        combo.blockSignals(True)
+        combo.setCurrentIndex(max(combo.findData(link_routing()), 0))
+        combo.blockSignals(False)
+
+    def _on_link_routing_changed(self) -> None:
+        from raptor.gui.ui import settings as app_settings
+        from raptor.gui.ui.diagram_items import set_link_routing
+        key = self._link_routing_combo.currentData()
+        set_link_routing(key)
+        app_settings.set_value("appearance/link_routing", key)
+        view = getattr(getattr(self, "_diagram_dock", None), "view", None)
+        if view is not None:
+            view.reroute_links()
 
     def _build_block_labels_settings(self, group) -> None:
         """View > Appearance: what the canvas writes under a block name,

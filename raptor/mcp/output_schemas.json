@@ -1076,10 +1076,16 @@
    "links_drawn": {
     "type": "integer"
    },
+   "links_routed": {
+    "type": "integer"
+   },
    "renderer": {
     "type": "string"
    },
    "resource_link": {
+    "type": "string"
+   },
+   "routing": {
     "type": "string"
    },
    "svg_path": {
@@ -1101,8 +1107,10 @@
    "inline",
    "level",
    "links_drawn",
+   "links_routed",
    "renderer",
    "resource_link",
+   "routing",
    "svg_path",
    "width",
    "zoom_to"

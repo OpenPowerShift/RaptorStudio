@@ -28,6 +28,7 @@ def render_diagram(
     theme: Literal["light", "dark"] = "light",
     max_px: int = 1600,
     include_annotations: bool = True,
+    routing: Literal["straight", "angled", "orthogonal"] = "straight",
 ) -> CallToolResult:
     """Render the model diagram as a PNG image.
 
@@ -51,6 +52,10 @@ def render_diagram(
     elements_in_view, px_per_unit, effective_label_px, legible, png_path,
     resource_link}.  `highlight` outlines named elements (e.g. the single
     points of failure).  `theme` is 'light' or 'dark'.
+    `routing` is the link style: 'straight' (default); 'angled' (a short
+    stub out of each port, then a straight run); or 'orthogonal' (right
+    angles only, steering round other elements). Blocks never move, and an
+    orthogonal link that cannot be routed quickly stays straight.
     `include_annotations` draws the model's text/rect/ellipse/arrow
     annotations (default true).
 
@@ -71,7 +76,7 @@ def render_diagram(
     # including include_annotations, so no two distinct renders collide.
     digest = hashlib.sha256(
         f"{content_hash}|{level}|{theme}|{max_px}|{margin}|"
-        f"{include_annotations}|"
+        f"{include_annotations}|{routing}|"
         f"{','.join(sorted(highlight or []))}|"
         f"{','.join(sorted(zoom_to or []))}".encode()
     ).hexdigest()[:12]
@@ -89,6 +94,7 @@ def render_diagram(
         theme=theme,
         max_px=max_px,
         include_annotations=include_annotations,
+        routing=routing,
     )
 
     from pathlib import Path

@@ -13,6 +13,7 @@ from math import atan2, cos, pi, sin
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (QColor, QFont, QFontMetrics, QIcon, QPainter,
                            QPixmap, QPen, QPolygonF)
+import itertools
 
 _SIZE = 48
 _cache: dict[tuple[str, str], QIcon] = {}
@@ -494,6 +495,47 @@ def arrow_annotation_icon(colour: str) -> QIcon:
         p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
         p.drawPolygon(arrow_head_points(x1, y1, x2, y2, 12.0))
     return _icon("arrow_annotation", colour, draw)
+
+
+def _link_icon(name: str, colour: str, route: list[tuple[float, float]]) -> QIcon:
+    """A link glyph: a small source box at the left, a target box at the
+    right and the route between them, ending in the canvas's arrowhead --
+    so the three link styles differ in the one thing that distinguishes
+    them, the shape of the line."""
+    def draw(p: QPainter, c: QColor):
+        pen = _outline_pen(c)
+        pen.setWidth(2)
+        p.setPen(pen)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(QRectF(3, 6, 9, 9))          # source, top left
+        p.drawRect(QRectF(36, 33, 9, 9))        # target, bottom right
+        pen.setWidth(3)
+        p.setPen(pen)
+        pts = [QPointF(x, y) for x, y in route]
+        for a, b in itertools.pairwise(pts):
+            p.drawLine(a, b)
+        p.setBrush(QColor(c))
+        p.drawPolygon(arrow_head_points(pts[-2].x(), pts[-2].y(),
+                                        pts[-1].x(), pts[-1].y(), 9.0))
+    return _icon(name, colour, draw)
+
+
+def link_straight_icon(colour: str) -> QIcon:
+    """Straight links: one diagonal line between the two boxes."""
+    return _link_icon("link_straight", colour, [(12, 11), (35, 37)])
+
+
+def link_angled_icon(colour: str) -> QIcon:
+    """Angled links: a short stub out of the source and into the target
+    with a diagonal between them."""
+    return _link_icon("link_angled", colour,
+                      [(12, 11), (19, 11), (28, 37), (35, 37)])
+
+
+def link_orthogonal_icon(colour: str) -> QIcon:
+    """Right-angle links: a staircase of horizontal and vertical runs."""
+    return _link_icon("link_orthogonal", colour,
+                      [(12, 11), (24, 11), (24, 37), (35, 37)])
 
 
 # --- Z-order glyphs -----------------------------------------------------

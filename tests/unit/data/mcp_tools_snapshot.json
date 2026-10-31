@@ -596,6 +596,7 @@
    "margin",
    "max_px",
    "model_id",
+   "routing",
    "theme",
    "zoom_to"
   ],
@@ -610,6 +611,7 @@
    "level",
    "margin",
    "model_id",
+   "routing",
    "theme",
    "zoom_to"
   ],

@@ -2448,6 +2448,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._label_phase = phase
         self.refresh_block_labels()
 
+    def reroute_links(self) -> None:
+        """Redraw every link (after the routing style changes). Layout only:
+        no element moves and the model is not marked changed."""
+        for it in list(self.scene().items()):
+            if isinstance(it, _LinkItem):
+                it._update_route()
+
     def refresh_block_labels(self) -> None:
         """Re-apply the label setting to every visible block (mode/phase)."""
         self._refresh_block_sublabels()

@@ -1251,6 +1251,7 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        Group("Appearance", (Btn("view.theme", True), Btn("view.prefs", True),
+                            Custom("_build_link_routing_settings"),
                             Custom("_build_block_labels_settings")),
              priority=2)),
     _p("Help", "_help_page_index",

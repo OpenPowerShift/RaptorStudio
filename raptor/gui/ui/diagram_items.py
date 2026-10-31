@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QGraphicsPolygonItem, QStyle, QStyleOptionGraphicsItem,
 )
 from PySide6.QtGui import QPainterPath
+from raptor.core.routing import ROUTING_MODES, Router, angled, fan_hint
 from raptor.gui.resources.icons import arrow_head_len, arrow_head_points
 from raptor.gui.resources.design_tokens import (
     APPENDIX_D_STATE_COLOURS,
@@ -893,14 +894,65 @@ def _links_at(item) -> tuple[list, list]:
             [link for link in pair[1] if isValid(link) and isValid(link._to)])
 
 
+#: How links are drawn: one of `raptor.core.routing.ROUTING_MODES`.
+_ROUTING = {"mode": "straight"}
+_ROUTER = Router()
+
+
+def set_link_routing(mode: str) -> None:
+    """Choose how every link on the canvas is drawn. The caller re-routes
+    the links it has (`DiagramView.reroute_links`)."""
+    _ROUTING["mode"] = mode if mode in ROUTING_MODES else "straight"
+
+
+def link_routing() -> str:
+    return _ROUTING["mode"]
+
+
+def _element_box(item) -> tuple[float, float, float, float]:
+    """The item's outline box in scene coordinates."""
+    c = _LinkItem._true_centre(item)
+    hw, hh = _LinkItem._half_extents(item)
+    return (c.x() - hw, c.y() - hh, c.x() + hw, c.y() + hh)
+
+
+def _element_boxes(scene, skip) -> list:
+    """Scene boxes (left, top, right, bottom) of every element except those
+    in `skip` -- what an orthogonal link has to keep clear of. The element
+    list is cached per scene with the link index; positions are read live."""
+    cache = getattr(scene, "_element_cache", None)
+    if cache is None or cache[0] != _LINK_GEN[0]:
+        cache = (_LINK_GEN[0], [it for it in scene.items()
+                                if isinstance(it, (_BlockItem, _NodeItem,
+                                                   _EventItem, _HierItem))])
+        scene._element_cache = cache  # type: ignore[attr-defined]
+    out = []
+    for it in cache[1]:
+        if it in skip or not isValid(it):
+            continue
+        out.append(_element_box(it))
+    return out
+
+
 def links_affected_by_moving(item) -> list:
     """Every link whose drawn route can change when `item` moves: the links
     touching it, and the links touching its direct neighbours (a
     neighbour's entry/exit side depends on where its neighbours are, and
     `item` is one of them). Nothing else reads `item`'s position, so this
-    is exact, not an approximation."""
+    is exact, not an approximation -- for straight links. A right-angle
+    link also steers round other elements, so the links whose drawn path
+    now crosses `item` are added. That is a lookup in the scene's spatial
+    index, not a re-route of every link: a link nowhere near the moved
+    element keeps its route, and so does one that merely detoured round the
+    element's old position (a detour that is no longer needed is harmless
+    and is tidied the next time the link is touched)."""
     incoming, outgoing = _links_at(item)
     affected: dict[int, object] = {}
+    scene = item.scene()
+    if _ROUTING["mode"] == "orthogonal" and scene is not None:
+        for it in scene.items(item.sceneBoundingRect().adjusted(-6, -6, 6, 6)):
+            if isinstance(it, _LinkItem):
+                affected[id(it)] = it
     for link in (*incoming, *outgoing):
         affected[id(link)] = link
         for end in (link._from, link._to):
@@ -994,21 +1046,43 @@ class _LinkItem(QGraphicsPathItem):
         for _ in range(3):
             changed = False
             if self._segment_crosses(to_item, p0, p3):
-                p3 = self._port_point(
-                    to_item, self._entry_side_for(to_item, fc))
+                entry = self._entry_side_for(to_item, fc)
+                p3 = self._port_point(to_item, entry)
                 changed = True
             if self._segment_crosses(from_item, p0, p3):
-                p0 = self._port_point(
-                    from_item, self._exit_fallback_side(from_item, tc))
+                exit_side = self._exit_fallback_side(from_item, tc)
+                p0 = self._port_point(from_item, exit_side)
                 changed = True
             if not changed:
                 break
+        route = None
+        mode = _ROUTING["mode"]
+        if mode != "straight" and from_item is not to_item \
+                and self.scene() is not None:
+            a, b = (p0.x(), p0.y()), (p3.x(), p3.y())
+            if mode == "angled":
+                route = angled(a, exit_side, b, entry)
+            else:
+                incoming, outgoing = _links_at(to_item)[0], _links_at(from_item)[1]
+                hint = fan_hint(
+                    exit_side, entry, a, b,
+                    [_element_box(link._to) for link in outgoing],
+                    [_element_box(link._from) for link in incoming])
+                route = _ROUTER.route(
+                    a, exit_side, b, entry,
+                    _element_boxes(self.scene(), (from_item, to_item)), hint)
         self.prepareGeometryChange()
         self._p0, self._p3 = p0, p3
-        self._head = arrow_head_points(p0.x(), p0.y(), p3.x(), p3.y(),
-                                       arrow_head_len(1.0))
         path = QPainterPath(p0)
-        path.lineTo(p3)
+        if route is None:               # straight, or the router gave up
+            tip_from = p0
+            path.lineTo(p3)
+        else:
+            tip_from = QPointF(*route[-2])
+            for x, y in route[1:]:
+                path.lineTo(x, y)
+        self._head = arrow_head_points(tip_from.x(), tip_from.y(),
+                                       p3.x(), p3.y(), arrow_head_len(1.0))
         self.setPath(path)
 
     @staticmethod
