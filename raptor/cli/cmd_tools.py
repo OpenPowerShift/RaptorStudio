@@ -129,12 +129,14 @@ def add_parser(sub: Any) -> None:
     r.set_defaults(func=tables_command)
 
     d = sub.add_parser(
-        "render", help="draw the diagram to PNG",
-        description="Render the diagram of MODEL to a PNG file.")
+        "render", help="draw the diagram to PNG or SVG",
+        description="Render the diagram of MODEL to a PNG file (needs Qt) "
+                    "or, when FILE ends in .svg, to a plain SVG drawing "
+                    "(no Qt needed).")
     d.add_argument("model", metavar="MODEL")
-    d.add_argument("-o", "--output", required=True, metavar="FILE.png")
+    d.add_argument("-o", "--output", required=True, metavar="FILE.png|FILE.svg")
     d.add_argument("--level", type=int, default=0,
-                   help="hierarchy depth to draw (0 = top)")
+                   help="hierarchy id to draw (0 = top level)")
     d.add_argument("--highlight", action="append", default=[],
                    metavar="SELECTOR")
     d.add_argument("--zoom-to", action="append", default=[],
@@ -498,6 +500,16 @@ def tables_command(args: Any) -> int:
 
 def render_command(args: Any) -> int:
     from raptor.api import render as api_render
+    if str(args.output).lower().endswith(".svg"):
+        try:
+            path, _meta = api_render.render_svg_file(
+                args.model, args.output, level=args.level,
+                highlight=args.highlight or None, zoom_to=args.zoom_to or None,
+                theme=args.theme, include_annotations=not args.no_annotations)
+        except (api_render.RenderError, ValueError, OSError) as exc:
+            raise CliError(str(exc), X.RUNTIME) from exc
+        eprint(f"wrote {path}")
+        return X.OK
     try:
         png, _meta = api_render.render_diagram(
             args.model, args.output, level=args.level,

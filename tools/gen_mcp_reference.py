@@ -26,7 +26,7 @@ def _params(schema: dict) -> str:
 
 
 def render() -> str:
-    from raptor.mcp import prompts, resources, server, tools_model, tools_data, tools_run, tools_metrics, tools_tables, tools_view  # noqa: F401
+    from raptor.mcp import prompts, resources, server, tools_model, tools_data, tools_run, tools_metrics, tools_tables, tools_view, tools_svg  # noqa: F401
     tools = sorted(asyncio.run(server.mcp.list_tools()), key=lambda t: t.name)
     res = asyncio.run(server.mcp.list_resources())
     template = asyncio.run(server.mcp.list_resource_templates())
