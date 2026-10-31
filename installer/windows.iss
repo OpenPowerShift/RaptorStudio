@@ -26,6 +26,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\raptor-studio.exe
+ChangesAssociations=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -42,6 +43,22 @@ Source: "..\dist\raptor-studio\*"; DestDir: "{app}"; \
 Name: "{group}\Raptor Studio"; Filename: "{app}\raptor-studio.exe"
 Name: "{autodesktop}\Raptor Studio"; Filename: "{app}\raptor-studio.exe"; \
     Tasks: desktopicon
+
+[Registry]
+; File types: a ProgID per format, then the extension pointing at it. The
+; OpenWithProgids entries put RAPTOR Studio under "Open with" for both
+; extensions. .rbd is only made the default when nothing owns it yet, so a
+; machine with Raptor 7 keeps its association and Raptor 7 stays available.
+Root: HKA; Subkey: "Software\Classes\RaptorStudio.rbds"; ValueType: string; ValueData: "RAPTOR Studio model"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\RaptorStudio.rbds\DefaultIcon"; ValueType: string; ValueData: "{app}\raptor-studio.exe,0"
+Root: HKA; Subkey: "Software\Classes\RaptorStudio.rbds\shell\open\command"; ValueType: string; ValueData: """{app}\raptor-studio.exe"" ""%1"""
+Root: HKA; Subkey: "Software\Classes\RaptorStudio.rbd"; ValueType: string; ValueData: "Raptor 7 model"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\RaptorStudio.rbd\DefaultIcon"; ValueType: string; ValueData: "{app}\raptor-studio.exe,0"
+Root: HKA; Subkey: "Software\Classes\RaptorStudio.rbd\shell\open\command"; ValueType: string; ValueData: """{app}\raptor-studio.exe"" ""%1"""
+Root: HKA; Subkey: "Software\Classes\.rbds"; ValueType: string; ValueData: "RaptorStudio.rbds"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.rbds\OpenWithProgids"; ValueType: string; ValueName: "RaptorStudio.rbds"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.rbd\OpenWithProgids"; ValueType: string; ValueName: "RaptorStudio.rbd"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.rbd"; ValueType: string; ValueData: "RaptorStudio.rbd"; Flags: createvalueifdoesntexist uninsdeletevalue
 
 [Run]
 Filename: "{app}\raptor-studio.exe"; Description: "Launch Raptor Studio"; \

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-raptor-rbds">
+    <comment>RAPTOR Studio model</comment>
+    <glob pattern="*.rbds"/>
+    <icon name="raptor-studio"/>
+  </mime-type>
+  <mime-type type="application/x-raptor-rbd">
+    <comment>Raptor 7 model</comment>
+    <glob pattern="*.rbd"/>
+    <icon name="raptor-studio"/>
+  </mime-type>
+</mime-info>

@@ -16,7 +16,7 @@ import tempfile
 from typing import cast
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QEvent, QObject, QTimer
 from PySide6.QtWidgets import QApplication
 from raptor.gui.ui.main_window import MainWindow
 
@@ -105,6 +105,33 @@ def _schedule_startup_actions(window, args) -> None:
         QTimer.singleShot(0, window._new_file)
 
 
+class _FileOpenFilter(QObject):
+    """macOS delivers a Finder double-click as a QFileOpenEvent, not argv.
+    Paths that arrive before the window exists are held until `attach`."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._window = None
+        self._pending: list[str] = []
+
+    def attach(self, window) -> None:
+        self._window = window
+        for path in self._pending:
+            QTimer.singleShot(0, lambda p=path: window._open_path(p))
+        self._pending.clear()
+
+    def eventFilter(self, obj, event) -> bool:      # noqa: N802
+        if event.type() == QEvent.Type.FileOpen:
+            path = event.file()
+            if path:
+                if self._window is None:
+                    self._pending.append(path)
+                else:
+                    self._window._open_path(path)
+            return True
+        return False
+
+
 def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
         splash_fade_ms: int | None = None) -> int:
     if argv is None:
@@ -149,6 +176,8 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
     from PySide6.QtWidgets import QStyleFactory
     app.setStyle(QStyleFactory.create("Fusion"))
     app.setOrganizationName("OpenPowerShift")
+    file_open_filter = _FileOpenFilter()
+    app.installEventFilter(file_open_filter)
     app.setApplicationName("RAPTOR Studio")
     _install_excepthook()
     # A native crash (segfault) prints the Python stack of every thread
@@ -175,6 +204,7 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
 
     window = MainWindow()
     window.enable_layout_persistence()
+    file_open_filter.attach(window)
     _schedule_startup_actions(window, args)
     def show_window() -> None:
         window.show()
