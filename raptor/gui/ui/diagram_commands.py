@@ -232,6 +232,11 @@ class MoveCmd(_ViewCmd):
         v._write_positions_to_rows()       # the rows move with the canvas
         for link in v._links:
             link._update_route()
+        # Annotations anchored to these elements go with them; on undo too,
+        # since their place is a function of the element's.
+        follow = getattr(v, "follow_anchors", None)
+        if follow is not None:
+            follow({(kind, oid) for kind, oid, _ in poses})
 
     def redo(self):
         self._place(self.moves_new)
@@ -275,6 +280,9 @@ class BulkGeometryCmd(_ViewCmd):
         finally:
             v._snap_state["x"], v._snap_state["y"] = saved_snap
         v.sync_model_positions()
+        follow = getattr(v, "follow_anchors", None)
+        if follow is not None:
+            follow()
 
     def redo(self):
         self._place(self.new)

@@ -511,10 +511,12 @@ values the GUI stores from `item.scenePos()`. They are *not* model
 coordinates. The canvas maps model coordinates to scene coordinates with
 `scene_x = (x − origin_x) · scale` and `scene_y = (flip_base − y) · scale`
 using the frozen `view_transform` (below); writing model coordinates
-straight into an annotation places it in the wrong spot. The MCP
-`add_annotation` tool handles this for you: `adjacent_to="SomeBlock"`
-places relative to a named element with no coordinates, and explicit
-`x`/`y` are taken as scene coordinates.
+straight into an annotation places it in the wrong spot. The API and the
+MCP `add_annotation`/`update_annotation` tools take either: explicit
+`x`/`y` are scene coordinates by default, or model coordinates (the
+numbers element `x`/`y` use) with `units: "model"`; `w`/`h` are always
+scene pixels (a block is 108 x 46). `adjacent_to="SomeBlock"` places it
+next to an element with no coordinates at all.
 
 **`view_transform`.** `.rbds`-only frozen canvas transform,
 `{scale, origin_x, flip_base, dx_min, dy_min}`. It is written the first
@@ -523,12 +525,27 @@ element positions and annotation geometry stay put between sessions. A
 hand-authored file without it has one derived on open, deterministically,
 from the element positions.
 
-**Anchor metadata.** An annotation created by name (`adjacent_to` or
-`from_`/`to`) additionally carries an `anchor` object —
-`{"target": "B1", "side": "right", "gap": 12}` or
-`{"from": "A", "to": "B"}`. It is display/round-trip metadata: the
-renderer ignores it (the geometry is authoritative), but `list_annotations`
-reports it and `update_annotation` can re-anchor from it.
+**Anchors.** An annotation placed next to an element (`adjacent_to`, or an
+arrow's `from_`/`to`) carries an `anchor` —
+`{"target": "B1", "ref": "Block:3", "side": "right", "gap": 12}` or
+`{"from": "A", "to": "B", "from_ref": "Node:1", "to_ref": "Block:3"}`.
+`ref` is the element's kind and id (names need not be unique; an anchor
+written before `ref` existed is resolved by name). The stored geometry is
+what is drawn; the anchor says what keeps it there: the annotation moves
+with its element when the element is dragged, aligned or laid out, in the
+GUI and through `auto_layout`. In the GUI the Inspector's **Anchor** group
+shows and changes it, and a dashed line joins a selected anchored note to
+its element. Moving the annotation itself by hand (or by coordinates
+through `update_annotation`) removes the anchor; `"anchor": null` removes
+it and leaves the annotation where it is.
+
+**Nothing re-lays out a model implicitly.** Saving, opening and exporting
+keep every position as it is. A model whose spacing is finer than Raptor
+7's grid gets a validation warning (Raptor 7 would draw it overlapping)
+and the `.rbd` export repeats it; only an explicit Auto Layout (the GUI's
+button, the MCP `auto_layout` tool, or `build_model`'s default
+`auto_layout=True`) moves elements, and anchored annotations go with them
+while the others keep their place in the model.
 
 ## Rates (.rbds only)
 

@@ -2750,7 +2750,100 @@ class InspectorDock(QWidget):
             _gb, fl = self._group("Font", layout)
             self._font_row(fl, props, emit_changes)
 
+        self._anchor_group(layout, aid, kind)
         self._restore_tab()
+
+    #: The view the anchor controls read their choices from (its
+    #: `annotation_entry` and `anchor_targets`); set by the main window.
+    anchor_source: Any = None
+
+    _ANCHOR_SIDES = (("right", "Right"), ("left", "Left"),
+                     ("above", "Above"), ("below", "Below"))
+
+    def _anchor_group(self, layout, aid, kind: str) -> None:
+        """Anchor: what the annotation is attached to. Anchored, it moves
+        with its element (dragging it, Align, Auto Layout); "Not anchored"
+        removes the link and leaves it where it is. Each change is one
+        undoable edit (`annotation_prop_changed` with an `anchor`)."""
+        src = self.anchor_source
+        if src is None or aid is None:
+            return
+        entry = src.annotation_entry(int(aid)) or {}
+        anchor = entry.get("anchor") if isinstance(entry.get("anchor"), dict) else None
+        targets = src.anchor_targets()
+        _gb, fl = self._group("Anchor", layout)
+
+        def combo_for(current_ref, current_name, none_label):
+            box = QComboBox()
+            box.addItem(none_label, None)
+            for label, ref in targets:
+                box.addItem(label, ref)
+            idx = box.findData(current_ref) if current_ref else -1
+            if idx < 0 and current_name:
+                idx = next((i for i in range(1, box.count())
+                            if box.itemText(i).split(": ", 1)[-1] == current_name), -1)
+            box.setCurrentIndex(max(idx, 0))
+            return box
+
+        def name_of(box) -> str:
+            return box.currentText().split(": ", 1)[-1]
+
+        if kind == "arrow":
+            tail = combo_for(anchor and anchor.get("from_ref"), anchor and anchor.get("from"),
+                             "Not attached")
+            head = combo_for(anchor and anchor.get("to_ref"), anchor and anchor.get("to"),
+                             "Not attached")
+
+            def commit_ends(_i=None):
+                if tail.currentData() is None or head.currentData() is None:
+                    if anchor is not None:
+                        self.annotation_prop_changed.emit(aid, {"anchor": None})
+                    return
+                self.annotation_prop_changed.emit(aid, {"anchor": {
+                    "from": name_of(tail), "to": name_of(head),
+                    "from_ref": tail.currentData(), "to_ref": head.currentData()}})
+
+            tail.currentIndexChanged.connect(commit_ends)
+            head.currentIndexChanged.connect(commit_ends)
+            fl.addRow("From:", tail)
+            fl.addRow("To:", head)
+            note = ("Attached at both ends, the arrow follows the two elements. "
+                    "Set either end to Not attached to free it.")
+        else:
+            target = combo_for(anchor and anchor.get("ref"), anchor and anchor.get("target"),
+                               "Not anchored")
+            side = QComboBox()
+            for key, label in self._ANCHOR_SIDES:
+                side.addItem(label, key)
+            side.setCurrentIndex(max(side.findData((anchor or {}).get("side", "right")), 0))
+            gap = QDoubleSpinBox()
+            gap.setRange(0.0, 500.0)
+            gap.setSuffix(" px")
+            gap.setValue(float((anchor or {}).get("gap", 12.0)))
+            side.setEnabled(anchor is not None)
+            gap.setEnabled(anchor is not None)
+
+            def commit(_v=None):
+                if target.currentData() is None:
+                    if anchor is not None:
+                        self.annotation_prop_changed.emit(aid, {"anchor": None})
+                    return
+                self.annotation_prop_changed.emit(aid, {"anchor": {
+                    "target": name_of(target), "ref": target.currentData(),
+                    "side": side.currentData(), "gap": float(gap.value())}})
+
+            target.currentIndexChanged.connect(commit)
+            side.currentIndexChanged.connect(commit)
+            gap.editingFinished.connect(commit)
+            fl.addRow("Anchored to:", target)
+            fl.addRow("Side:", side)
+            fl.addRow("Gap:", gap)
+            note = ("Anchored, it moves with the element. Dragging the "
+                    "annotation itself removes the anchor.")
+        hint = QLabel(note)
+        hint.setWordWrap(True)
+        hint.setObjectName("SectionNote")
+        fl.addRow(hint)
 
     def _colour_row(self, form: QFormLayout, label: str, current,
                     on_commit, allow_none: bool = False):

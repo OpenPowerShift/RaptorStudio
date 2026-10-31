@@ -632,10 +632,12 @@ If the server does not appear, see <<mcp-troubleshooting>>.
 
 | `add_annotation`
 | Add a drawing annotation — `text`, `rect`, `ellipse` or `arrow`. Place it
-  by name with `adjacent_to` (a block/node/event/hierarchy) plus `side`
-  (`right`/`left`/`above`/`below`) and `gap` — no coordinates, and it stays
-  put when the diagram is re-laid-out — or explicitly with `x`/`y`. An
-  arrow connects two elements with `from_`/`to`. Styling (colours, border,
+  next to an element with `adjacent_to` (a block/node/event/hierarchy) plus
+  `side` (`right`/`left`/`above`/`below`) and `gap` — it is anchored, and
+  moves with the element when it is dragged or `auto_layout` runs — or by
+  coordinates with `x`/`y`, in scene pixels or, with `units="model"`, the
+  model's own coordinates. An arrow connects two elements with
+  `from_`/`to`. Styling (colours, border,
   font, `line_style`) goes in `style`. Annotations exist only in `.rbds`;
   `.rbd` export drops them.
 

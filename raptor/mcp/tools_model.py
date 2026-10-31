@@ -219,7 +219,9 @@ def save_model_as(model_id: str, path: str,
     format's own extension is appended (so `"out"` -> `out.rbds`).  An
     explicit extension must match `format`; a mismatch or a path into the
     managed models/runs/renders trees is refused.  A .rbd export runs
-    validate() first and refuses on ERROR.
+    validate() first and refuses on ERROR. The layout is saved as it is;
+    `layout_warning` says when Raptor 7 would draw elements overlapping
+    (call `auto_layout` first to space them out).
     """
     context.require_write()
     ws = context.workspace()
@@ -231,6 +233,8 @@ def save_model_as(model_id: str, path: str,
     if dropped:
         md += ("\n\n**Not carried by .rbd:** " + ", ".join(dropped)
                + ". The .rbd opens in RAPTOR Studio without these.")
+    if result.get("layout_warning"):
+        md += f"\n\n**Layout:** {result['layout_warning']}"
     return ok(result, markdown=md)
 
 
@@ -1394,20 +1398,33 @@ def auto_layout(model_id: str,
     kept with whatever refinement was done, and `refine_cut_short` says how
     many levels were left less than fully refined (0 when none).
 
-    Returns {moved, model_id, scope, elements_moved, refine_cut_short}.
+    Annotations placed next to an element (`adjacent_to`, or an arrow's
+    `from_`/`to`) move with it; ones placed by coordinates stay where they
+    are in the model. Nothing else ever re-lays out a model: saving and
+    exporting keep the positions as they are.
+    Returns {moved, model_id, scope, elements_moved, annotations_moved,
+    refine_cut_short}.
     """
     context.require_write()
     ws = context.workspace()
     handle = ws.get(model_id)
     scope, allowed = _layout_scope(handle.rbd, hierarchy, selectors)
     report: dict = {}
+    from raptor.api.annotations import ensure_view_transform, follow_layout
+    old_transform = ensure_view_transform(handle.rbd)
     applied = _apply_layout_positions(handle.rbd, allowed, report)
+    # Annotations go with the diagram: anchored ones are placed next to
+    # their element again, the others keep their place in the model.
+    annotations_moved = follow_layout(handle.rbd, old_transform) if applied else 0
     if applied:
         ws.save(model_id)
     cut = int(report.get("refine_cut_short", 0))
     data = {"model_id": model_id, "moved": bool(applied), "scope": scope,
-            "elements_moved": applied, "refine_cut_short": cut}
-    md = (f"Auto-laid out {scope}: {applied} element(s) moved."
+            "elements_moved": applied, "annotations_moved": annotations_moved,
+            "refine_cut_short": cut}
+    md = (f"Auto-laid out {scope}: {applied} element(s) moved"
+          + (f", {annotations_moved} anchored annotation(s) with them."
+             if annotations_moved else ".")
           if applied else
           f"Auto layout over {scope}: nothing needed to move.")
     if cut:
@@ -1795,14 +1812,19 @@ def add_annotation(
     y2: float | None = None,
     parent: int | None = None,
     style: dict[str, Any] | None = None,
+    units: Literal["scene", "model"] = "scene",
 ) -> CallToolResult:
     """Add a drawing annotation (text box, rect, ellipse or arrow).
 
-    Place it **by name** with `adjacent_to` (a block/node/event/hierarchy
-    name or id) plus `side` (`right`/`left`/`above`/`below`) and `gap` --
-    no coordinates, and it stays put when the diagram is re-laid-out.  Or
-    place it **explicitly** with `x`/`y` (+ `w`/`h`), in the same scene
-    space the GUI uses.
+    Place it **next to an element** with `adjacent_to` (a block/node/event/
+    hierarchy name or `Kind:id`) plus `side` (`right`/`left`/`above`/
+    `below`) and `gap`: it is anchored, so it moves with the element when
+    the element is dragged or `auto_layout` runs. Or place it **by
+    coordinates** with `x`/`y` (+ `w`/`h`): in scene pixels (the default,
+    what the GUI stores) or, with `units="model"`, in the model's own
+    coordinates (the numbers element `x`/`y` use). `w`/`h` are scene pixels
+    (a block is 108 x 46). It inherits the element's hierarchy; set
+    `parent` to draw it inside another level.
 
     An `arrow` connects two elements by name: give `from_` and `to`, or
     the four coordinates `x1`/`y1`/`x2`/`y2`.
@@ -1826,6 +1848,7 @@ def add_annotation(
         "kind": kind, "text": text, "adjacent_to": adjacent_to, "side": side,
         "gap": gap, "x": x, "y": y, "w": w, "h": h, "from_": from_, "to": to,
         "x1": x1, "y1": y1, "x2": x2, "y2": y2, "parent": parent,
+        "units": units,
     }
     kwargs.update(style or {})
     result = _add(ws, model_id, **kwargs)
@@ -1872,8 +1895,11 @@ def update_annotation(model_id: str, annotation_id: int,
     """Patch one annotation.
 
     Accepts any style field, `text`, explicit geometry (`x`/`y`/`w`/`h`/
-    `x1`/`y1`/`x2`/`y2`), or a re-anchor via `adjacent_to`/`side`/`gap`
-    (text/rect/ellipse) or `from_`/`to` (arrow).  Returns
+    `x1`/`y1`/`x2`/`y2`, in scene pixels or with `"units": "model"`), or an
+    anchor via `adjacent_to`/`side`/`gap` (text/rect/ellipse) or
+    `from_`/`to` (arrow). Moving an anchored annotation by coordinates
+    removes its anchor, as dragging it in the GUI does; `"anchor": null`
+    removes it and leaves the annotation where it is.  Returns
     {annotation_id, annotation, summary}.
     """
     context.require_write()

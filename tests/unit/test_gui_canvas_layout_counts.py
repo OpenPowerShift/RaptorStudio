@@ -183,21 +183,17 @@ def test_the_auto_layout_button_uses_the_shorter_gui_budget(qapp, monkeypatch):
 
 
 @pytest.mark.parametrize("suffix", [".rbds", ".rbd"])
-def test_saving_from_the_gui_uses_the_shorter_gui_budget(qapp, monkeypatch,
-                                                         tmp_path, suffix):
-    """Saving can re-lay out a crammed model, on the UI thread."""
+def test_saving_from_the_gui_never_lays_out(qapp, monkeypatch,
+                                           tmp_path, suffix):
+    """Saving (.rbds) and exporting (.rbd) keep the positions as they are:
+    only Auto Layout moves elements (#4 item 15)."""
     from raptor.core.fileio import legacy_layout
     seen = []
-    real = legacy_layout.normalize_legacy_layout
-
-    def spy(*args, **kwargs):
-        seen.append(legacy_layout.refine_budget_s())
-        return real(*args, **kwargs)
-
-    w = _window(qapp, _event_model())
-    monkeypatch.setattr(legacy_layout, "normalize_legacy_layout", spy)
+    w = _window(qapp, _event_model())     # building it lays it out, on purpose
+    monkeypatch.setattr(legacy_layout, "normalize_legacy_layout",
+                        lambda *a, **k: seen.append(1) or False)
     assert w._write_model(str(tmp_path / f"m{suffix}"))
-    assert seen and set(seen) == {legacy_layout.GUI_REFINE_BUDGET_S}
+    assert seen == []
     w._dirty = False
     w.close()
 

@@ -882,14 +882,12 @@ def save_rbd(f: RbdFile, path: str) -> None:
     # place silently changed the open model (a later .rbds save kept the
     # truncated names) with no undo entry and no canvas refresh.
     out = copy.deepcopy(f)
-    # Grid-compatibility: models authored in this app's own fractional
-    # coordinates render in Raptor 7 as a tiny cluster of overlapping
-    # boxes "split across 4 grid squares". Re-layout badly off-grid models
-    # onto the legacy 1.25 grid before serialising; already-clean files
-    # (every Raptor 7 fixture, even mildly off-grid ones) pass through
-    # untouched — see legacy_layout.py.
-    from raptor.core.fileio.legacy_layout import (normalize_legacy_layout,
-                                                  repair_link_parents,
+    # The layout is exported as it is. A model whose spacing is finer than
+    # Raptor 7's grid draws there as overlapping boxes; the export used to
+    # re-lay out the copy silently. Now the caller reports
+    # `raptor.api.validate.layout_warning` and the author decides whether
+    # to run Auto Layout first.
+    from raptor.core.fileio.legacy_layout import (repair_link_parents,
                                                   normalize_node_kofn,
                                                   cap_legacy_names)
     from raptor.core.fileio.rbds import sync_derived
@@ -901,6 +899,5 @@ def save_rbd(f: RbdFile, path: str) -> None:
     # convention, with ~n distinguishers on truncated collisions. The
     # .rbds keeps the full names.
     cap_legacy_names(out)
-    normalize_legacy_layout(out)
     with open(path, "w", encoding="latin-1") as fh:
         fh.write(render_rbd(out))

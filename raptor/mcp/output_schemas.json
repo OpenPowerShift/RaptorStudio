@@ -96,6 +96,9 @@
  },
  "auto_layout": {
   "properties": {
+   "annotations_moved": {
+    "type": "integer"
+   },
    "elements_moved": {
     "type": "integer"
    },
@@ -113,6 +116,7 @@
    }
   },
   "required": [
+   "annotations_moved",
    "elements_moved",
    "model_id",
    "moved",
@@ -1116,6 +1120,9 @@
    "format": {
     "type": "string"
    },
+   "layout_warning": {
+    "type": "null"
+   },
    "path": {
     "type": "string"
    }
@@ -1124,6 +1131,7 @@
    "bytes",
    "dropped",
    "format",
+   "layout_warning",
    "path"
   ],
   "type": "object"

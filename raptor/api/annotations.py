@@ -139,6 +139,77 @@ def _anchor_for(rbd, ref: str | int) -> dict[str, Any]:
     }
 
 
+_SELECTOR_KIND = {"Block": "Block", "Node": "Node", "Event": "Event",
+                  "Hierarchy": "Hier"}
+
+
+def _ref(anchor: dict) -> str:
+    """`Kind:id` for an anchor: names need not be unique, ids are."""
+    return f"{_SELECTOR_KIND[anchor['kind']]}:{anchor['id']}"
+
+
+def _to_scene_units(rbd, units: str, *coords: float | None) -> tuple[float | None, ...]:
+    """Coordinates given in `units` ("scene" or "model") as scene pixels;
+    a coordinate pair converts together, a missing one stays None."""
+    if units == "scene":
+        return coords
+    if units != "model":
+        raise BuildError(f"units must be 'scene' or 'model', got {units!r}")
+    out: list[float | None] = []
+    for i in range(0, len(coords), 2):
+        cx, cy = coords[i], coords[i + 1]
+        if cx is None or cy is None:
+            out += [cx, cy]
+        else:
+            sx, sy = _model_to_scene(rbd, float(cx), float(cy))
+            out += [round(sx, 2), round(sy, 2)]
+    return tuple(out)
+
+
+_GEOMETRY = ("x", "y", "w", "h", "x1", "y1", "x2", "y2")
+
+
+def follow_layout(rbd, old_transform: dict | None = None) -> int:
+    """Keep annotations with the diagram after Auto Layout moved elements.
+
+    An annotation placed next to an element (``anchor``) is placed next to
+    it again, on the same side and gap; an arrow between two elements is
+    redrawn between them. One placed by coordinates keeps its position in
+    the model when the canvas transform changed (`old_transform` is the
+    transform before the layout). An anchor whose element no longer
+    exists, or whose name is ambiguous, leaves the annotation where it is.
+    Returns how many annotations moved."""
+    new = view_transform.ensure(rbd)
+    old = view_transform.ViewTransform.from_dict(old_transform) if old_transform else None
+    moved = 0
+    for entry in getattr(rbd, "annotations", None) or []:
+        before = {k: entry.get(k) for k in _GEOMETRY}
+        anchor = entry.get("anchor") if isinstance(entry.get("anchor"), dict) else None
+        try:
+            if anchor and entry.get("kind") == "arrow" and anchor.get("from") is not None:
+                tail = _anchor_for(rbd, anchor.get("from_ref") or anchor["from"])
+                head = _anchor_for(rbd, anchor.get("to_ref") or anchor["to"])
+                entry.update({"x1": round(tail["cx"], 2), "y1": round(tail["cy"], 2),
+                              "x2": round(head["cx"], 2), "y2": round(head["cy"], 2)})
+            elif anchor and anchor.get("target") is not None:
+                target = _anchor_for(rbd, anchor.get("ref") or anchor["target"])
+                px, py = _place_on_side(target, str(anchor.get("side", "right")),
+                                        float(anchor.get("gap", 12.0)),
+                                        float(entry.get("w") or 0), float(entry.get("h") or 0))
+                entry["x"], entry["y"] = round(px, 2), round(py, 2)
+            elif old is not None and old != new:
+                for kx, ky in (("x", "y"), ("x1", "y1"), ("x2", "y2")):
+                    if isinstance(entry.get(kx), (int, float)) and isinstance(entry.get(ky), (int, float)):
+                        mx, my = old.to_model(float(entry[kx]), float(entry[ky]))
+                        sx, sy = new.to_scene(mx, my)
+                        entry[kx], entry[ky] = round(sx, 2), round(sy, 2)
+        except BuildError:
+            continue                        # its element is gone: leave it
+        if any(entry.get(k) != before[k] for k in _GEOMETRY):
+            moved += 1
+    return moved
+
+
 def _auto_size(text: str) -> tuple[float, float]:
     lines = (text or "").splitlines() or [""]
     longest = max((len(ln) for ln in lines), default=0)
@@ -207,12 +278,17 @@ def place_annotation(
     from_: str | int | None = None,
     to: str | int | None = None,
     parent: int | None = None,
+    units: str = "scene",
     **style: Any,
 ) -> dict[str, Any]:
     """Add one annotation to *rbd* and return its entry (no save).
 
     Exactly one placement mode is required: ``adjacent_to`` (or
     ``from_``/``to`` for an arrow) **or** explicit coordinates.
+    ``units="model"`` gives ``x``/``y`` (and an arrow's ``x1``..``y2``) in
+    the model's own coordinates, the ones element ``x``/``y`` use; the
+    default ``"scene"`` is the canvas pixels annotations are stored in.
+    ``w``/``h`` are always scene pixels (a block is 108 x 46).
 
     Every rejected argument raises ``BuildError`` with a message naming
     what to supply. That is deliberate and is the reason the checks below
@@ -234,6 +310,7 @@ def place_annotation(
             f"annotation limit reached ({MAX_ANNOTATIONS})")
     _require_finite_geometry(
         gap=gap, x=x, y=y, w=w, h=h, x1=x1, y1=y1, x2=x2, y2=y2)
+    x, y, x1, y1, x2, y2 = _to_scene_units(rbd, units, x, y, x1, y1, x2, y2)
     if parent is not None:
         hiers = rbd.sections.get("HIERARCHY_DATA")
         known = {str(h.get("ID")) for h in (hiers.rows if hiers else [])}
@@ -319,7 +396,8 @@ def place_annotation(
                 "x2": round(head["cx"], 2), "y2": round(head["cy"], 2),
                 "parent": tail["parent"] if parent is None else parent,
                 "x": 0.0, "y": 0.0,
-                "anchor": {"from": tail["name"], "to": head["name"]},
+                "anchor": {"from": tail["name"], "to": head["name"],
+                           "from_ref": _ref(tail), "to_ref": _ref(head)},
             })
         else:
             # An explicit `or`-chain rather than a `for v in (...)` loop:
@@ -346,8 +424,8 @@ def place_annotation(
             entry.update({
                 "x": round(px, 2), "y": round(py, 2), "w": aw, "h": ah,
                 "parent": anchor["parent"] if parent is None else parent,
-                "anchor": {"target": anchor["name"], "side": side,
-                           "gap": float(gap)},
+                "anchor": {"target": anchor["name"], "ref": _ref(anchor),
+                           "side": side, "gap": float(gap)},
             })
         else:
             # `explicit_xy` is a value, not an inference: it is a definite
@@ -430,7 +508,11 @@ def update_annotation(
         existing_anchor = {}
     reanchor = any(k in patch for k in ("adjacent_to", "from_", "to", "side",
                                         "gap"))
-    # Geometry/style fields applied directly.
+    # Geometry/style fields applied directly; explicit coordinates may be
+    # given in model units (`units: "model"`).
+    patch = dict(patch)
+    units = str(patch.pop("units", "scene"))
+    drop_anchor = "anchor" in patch and patch.pop("anchor") is None
     direct = {k: v for k, v in patch.items()
               if k not in ("adjacent_to", "from_", "to", "side", "gap",
                            "kind")}
@@ -450,6 +532,12 @@ def update_annotation(
     _require_finite_geometry(**{
         k: direct[k] for k in ("gap", "x", "y", "w", "h",
                                "x1", "y1", "x2", "y2") if k in direct})
+    if units != "scene":
+        for kx, ky in (("x", "y"), ("x1", "y1"), ("x2", "y2")):
+            if (kx in direct) != (ky in direct):
+                raise BuildError(f"with units='model' give {kx} and {ky} together")
+            if kx in direct:
+                direct[kx], direct[ky] = _to_scene_units(rbd, units, direct[kx], direct[ky])
 
     if reanchor:
         # Rebuild geometry in place: remove, re-place with the merged fields.
@@ -510,6 +598,9 @@ def update_annotation(
             "(e.g. a new arrow needs from_/to); pass kind together with "
             "adjacent_to or from_/to")
     entry.update(direct)
+    # Placed by hand now: it no longer follows its element.
+    if drop_anchor or any(k in direct for k in ("x", "y", "x1", "y1", "x2", "y2")):
+        entry.pop("anchor", None)
     workspace.save(model_id)
     return {"annotation": entry, "annotation_id": annotation_id,
             "summary": _summary(entry, rbd)}
