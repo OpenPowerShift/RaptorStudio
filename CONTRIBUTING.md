@@ -22,6 +22,31 @@ Linux headless runs need the Qt runtime libraries listed in
 | Generated pages | `python tools/gen_engine_docs.py --check` and `python tools/gen_mcp_reference.py --check`: `docs/engine-design/` and `docs/MCP.md` match the code |
 | Rendered docs | `pytest tests/unit/test_docs_html_current.py` (needs asciidoctor 2.0.26): the committed HTML matches its AsciiDoc |
 
+## Skipping CI
+
+There are two ways to keep a small change off the 30-minute matrix. Both are narrow on purpose.
+
+**Automatic: documentation-only changes.** The `changed` job in `.github/workflows/tests.yml` diffs the branch against
+its base and sets `docs_only` when every changed file is a Markdown file (`*.md`) or a licence file (`LICENSE`,
+`LICENSES/*`). The matrix jobs (`test`, `fidelity`, `long-checks`, `ui-sweeps`, `mcp-e2e`, `typecheck`) then skip.
+A skipped job reports as successful, so this does not leave a required check waiting.
+
+`docs-html` still runs: it is the only job that proves a committed artefact matches its source, and it takes minutes.
+AsciiDoc sources (`docs/**/*.adoc`, `new_docs/**/*.adoc`) are **not** documentation-only for this purpose, because
+they regenerate `manual.html`, `book.html` and friends. Anything outside those two groups — code, tests, tools,
+packaging, workflows — runs the full matrix.
+
+So a codename commit that edits both `raptor/gui/ui/splash.py` and `RELEASING.md` is *not* docs-only: the constant is
+code. Expect the suite.
+
+**Manual: `[skip ci]` in the commit message.** GitHub's own keyword (also `[ci skip]`, `[no ci]`, `[skip actions]`,
+`[actions skip]`) stops every workflow for that push or pull request, including `release-please`.
+
+- On a pull request, a skipped workflow leaves its checks **pending**, which can block the merge when they are
+  required. Reach for it only on a branch where you do not need those checks.
+- On `main`, the commit is not picked up until the next push, because `release-please` reads commits between runs.
+- Never use it for a commit that changes behaviour. "Small" is not the test; "cannot be wrong" is.
+
 The suite is tiered by the reason a test is expensive; the default run
 excludes the last three, and CI gives each its own job:
 
