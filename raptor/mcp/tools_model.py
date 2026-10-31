@@ -1400,8 +1400,13 @@ def auto_layout(model_id: str,
 
     Annotations placed next to an element (`adjacent_to`, or an arrow's
     `from_`/`to`) move with it; ones placed by coordinates stay where they
-    are in the model. Nothing else ever re-lays out a model: saving and
-    exporting keep the positions as they are.
+    are in the model. For a whole-model layout the gaps between stacked
+    elements are first stretched so notes anchored `above`/`below` fit
+    (the elements either side move apart equally; nothing moves closer),
+    and a note that would still land on an element or another note is
+    nudged to the nearest clear spot; one a user dragged away keeps its
+    offset. Nothing else ever re-lays out a model: saving and exporting
+    keep the positions as they are.
     Returns {moved, model_id, scope, elements_moved, annotations_moved,
     refine_cut_short}.
     """
@@ -1836,8 +1841,12 @@ def add_annotation(
     inherits the target's hierarchy; set `parent` to draw it inside
     another level.
 
-    An `arrow` connects two elements by name: give `from_` and `to`, or
-    the four coordinates `x1`/`y1`/`x2`/`y2`.
+    An `arrow` connects two things by name: give `from_` and `to` (an
+    element or an `Annotation:<id>`), or the four coordinates
+    `x1`/`y1`/`x2`/`y2`. Each end is independent: name just one (say
+    `from_`) and give the other end as coordinates (`x2`/`y2`) to leave it
+    free. An attached end follows its target and stops at the target's
+    edge, not its centre.
 
     `style` carries the cosmetic fields: `border_colour`, `border_width`
     (0 = none), `line_style` (`solid`/`dash`/`dot`/`dash-dot`/

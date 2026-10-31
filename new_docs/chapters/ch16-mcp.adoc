@@ -639,8 +639,10 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   and moves with the target when it is dragged or `auto_layout` runs.
   `center` puts it over the target and ignores `gap`. Or place it by
   coordinates with `x`/`y`, in scene pixels or, with `units="model"`, the
-  model's own coordinates. An arrow connects two elements with
-  `from_`/`to`. Styling (colours, border,
+  model's own coordinates. An arrow connects two things with
+  `from_`/`to` (an element or `Annotation:<id>`); each end is independent,
+  so name one and give the other as `x2`/`y2` (or `x1`/`y1`) to leave it
+  free. An attached end stops at its target's edge, not its centre. Styling (colours, border,
   font, `line_style`) goes in `style`. Annotations exist only in `.rbds`;
   `.rbd` export drops them.
 
@@ -665,7 +667,8 @@ If the server does not appear, see <<mcp-troubleshooting>>.
 
 | `validate_model`
 | Structural and parameter pre-flight. Returns errors, warnings, and a
-  runnable flag.
+  runnable flag. Warns about an annotation whose anchor no longer leads
+  anywhere (target deleted or renamed ambiguously, empty, or a cycle).
 
 | `describe_metrics`
 | List the result metrics and their units (availability, reliability,
@@ -792,7 +795,11 @@ If the server does not appear, see <<mcp-troubleshooting>>.
 | Re-arrange the diagram onto the shared layered grid and save the
   positions. This is the *only* layout step: `build_model` runs it by
   default, and `render_diagram` never re-lays-out. Use it after building a
-  model by hand.
+  model by hand. A whole-model layout also makes room for anchored
+  annotations: gaps between stacked elements are stretched so notes
+  anchored `above`/`below` fit, and a note that would still land on an
+  element or another note is nudged clear. A note a user dragged away keeps
+  its offset.
 |===
 
 ==== Results and time series

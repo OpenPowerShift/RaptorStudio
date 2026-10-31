@@ -9430,8 +9430,10 @@ with parameter names and valid ranges.</p>
   and moves with the target when it is dragged or <code>auto_layout</code> runs.
   <code>center</code> puts it over the target and ignores <code>gap</code>. Or place it by
   coordinates with <code>x</code>/<code>y</code>, in scene pixels or, with <code>units="model"</code>, the
-  model&#8217;s own coordinates. An arrow connects two elements with
-  <code>from_</code>/<code>to</code>. Styling (colours, border,
+  model&#8217;s own coordinates. An arrow connects two things with
+  <code>from_</code>/<code>to</code> (an element or <code>Annotation:&lt;id&gt;</code>); each end is independent,
+  so name one and give the other as <code>x2</code>/<code>y2</code> (or <code>x1</code>/<code>y1</code>) to leave it
+  free. An attached end stops at its target&#8217;s edge, not its centre. Styling (colours, border,
   font, <code>line_style</code>) goes in <code>style</code>. Annotations exist only in <code>.rbds</code>;
   <code>.rbd</code> export drops them.</p></td>
 </tr>
@@ -9470,7 +9472,8 @@ with parameter names and valid ranges.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>validate_model</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Structural and parameter pre-flight. Returns errors, warnings, and a
-  runnable flag.</p></td>
+  runnable flag. Warns about an annotation whose anchor no longer leads
+  anywhere (target deleted or renamed ambiguously, empty, or a cycle).</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>describe_metrics</code></p></td>
@@ -9633,7 +9636,11 @@ with parameter names and valid ranges.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Re-arrange the diagram onto the shared layered grid and save the
   positions. This is the <strong>only</strong> layout step: <code>build_model</code> runs it by
   default, and <code>render_diagram</code> never re-lays-out. Use it after building a
-  model by hand.</p></td>
+  model by hand. A whole-model layout also makes room for anchored
+  annotations: gaps between stacked elements are stretched so notes
+  anchored <code>above</code>/<code>below</code> fit, and a note that would still land on an
+  element or another note is nudged clear. A note a user dragged away keeps
+  its offset.</p></td>
 </tr>
 </tbody>
 </table>
