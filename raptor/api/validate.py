@@ -853,6 +853,21 @@ def _check_capacity_settings(rbd: RbdFile) -> list[Issue]:
         if _int_or(n.get("fullflow")) == 0
         or _int_or(n.get("divFlow")) == 0
     ]
+    for marker in boundary:
+        kind = {"4": "In", "5": "Out"}.get(str(_int_or(marker.get("Type"))))
+        if kind is None:
+            continue
+        label = marker.get("Name") or marker.get("ID")
+        result.append(Issue(
+            "warning", f"Node {marker.get('ID')} '{label}'",
+            f"this hierarchy {kind} marker is set as a capacity boundary "
+            "(full_flow=0 or div_flow=0). Raptor 7's own models leave every "
+            "marker unrestricted, and with capacity analysis on the caps "
+            "then bind on the links into the marker, so flow through the "
+            "hierarchy can come out far lower than expected (even zero) "
+            "with no error. Put the boundary on an ordinary node instead, "
+            "or leave the marker transparent",
+        ))
     if not boundary:
         result.append(Issue(
             "warning", "model",
