@@ -99,6 +99,10 @@ Grab the installer for your platform from the
 Verify the checksums against `SHA256SUMS.txt` in the same release. The installers carry the desktop application only;
 the `raptor` command line and the MCP server come with the pip package (below).
 
+**File types:** the Windows installer, macOS app and `.deb` register `.rbds` and `.rbd` so a double-click opens the model
+in RAPTOR Studio. On a machine with Raptor 7, `.rbd` keeps opening Raptor 7 by default and RAPTOR Studio is added under
+"Open with". The AppImage cannot register file types system-wide; run `raptor-studio model.rbds` or use File → Open.
+
 **macOS note (unsigned build):** Gatekeeper will ask for confirmation.
 Right-click **RAPTOR Studio** → **Open** → **Open**, or run
 `xattr -cr "/Applications/RAPTOR Studio.app"` once in Terminal.

@@ -131,6 +131,10 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
+    # Embedded in raptor-studio.exe; the installer's file-type entries point
+    # at it too. Regenerate with installer/make_icons.py.
+    icon=str(ROOT / "installer" / "raptor-studio.ico")
+    if sys.platform == "win32" else None,
 )
 
 coll = COLLECT(
@@ -146,10 +150,45 @@ if sys.platform == "darwin":
     app = BUNDLE(
         coll,
         name="RAPTOR Studio.app",
+        icon=str(ROOT / "installer" / "raptor-studio.icns"),
         bundle_identifier="org.openpowershift.raptor-studio",
         info_plist={
             "NSHighResolutionCapable": True,
             "CFBundleDisplayName": "RAPTOR Studio",
             "LSMinimumSystemVersion": "13.0",
+            # Finder's double-click / "Open with" for the two model formats.
+            "CFBundleDocumentTypes": [
+                {
+                    "CFBundleTypeName": "RAPTOR Studio model",
+                    "CFBundleTypeRole": "Editor",
+                    "LSHandlerRank": "Owner",
+                    "LSItemContentTypes": [
+                        "org.openpowershift.raptor-studio.rbds"],
+                },
+                {
+                    "CFBundleTypeName": "Raptor 7 model",
+                    "CFBundleTypeRole": "Editor",
+                    # Alternate: leave Raptor 7's claim on .rbd alone.
+                    "LSHandlerRank": "Alternate",
+                    "LSItemContentTypes": [
+                        "org.openpowershift.raptor-studio.rbd"],
+                },
+            ],
+            "UTExportedTypeDeclarations": [
+                {
+                    "UTTypeIdentifier": "org.openpowershift.raptor-studio.rbds",
+                    "UTTypeDescription": "RAPTOR Studio model",
+                    "UTTypeConformsTo": ["public.json", "public.data"],
+                    "UTTypeTagSpecification": {
+                        "public.filename-extension": ["rbds"]},
+                },
+                {
+                    "UTTypeIdentifier": "org.openpowershift.raptor-studio.rbd",
+                    "UTTypeDescription": "Raptor 7 model",
+                    "UTTypeConformsTo": ["public.data"],
+                    "UTTypeTagSpecification": {
+                        "public.filename-extension": ["rbd"]},
+                },
+            ],
         },
     )

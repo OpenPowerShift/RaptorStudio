@@ -425,12 +425,17 @@ jobs:
           mkdir -p staging/DEBIAN staging/usr/bin \
                    staging/usr/lib/raptor-studio \
                    staging/usr/share/applications \
+                   staging/usr/share/mime/packages \
                    staging/usr/share/icons/hicolor/256x256/apps
           cp -a dist/raptor-studio/. staging/usr/lib/raptor-studio/
           printf '#!/bin/sh\nexec /usr/lib/raptor-studio/raptor-studio "$@"\n' \
             > staging/usr/bin/raptor-studio
           chmod +x staging/usr/bin/raptor-studio
           cp installer/linux/raptor-studio.desktop staging/usr/share/applications/
+          cp installer/linux/raptor-studio-mime.xml \
+             staging/usr/share/mime/packages/raptor-studio.xml
+          install -m 755 installer/linux/postinst installer/linux/postrm \
+             staging/DEBIAN/
           mkdir -p staging/usr/share/doc/raptor-studio
           cp installer/linux/copyright staging/usr/share/doc/raptor-studio/
           cp raptor/gui/resources/raptor_icon.png \
