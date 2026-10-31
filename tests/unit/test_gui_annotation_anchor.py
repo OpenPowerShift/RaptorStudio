@@ -342,3 +342,43 @@ def test_editing_a_notes_text_updates_anchors_to_it(setup):
                              adjacent_to=f"Annotation:{note}")
     apply_anno_state(v, note, {**v.annotation_entry(note), "text": "Edited"})
     assert v.annotation_entry(child["id"])["anchor"]["target"] == "Edited"
+
+
+def test_auto_layout_makes_room_for_notes_between_stacked_blocks(qapp):
+    """The reported case: a 2-of-2 split with a note above the lower block
+    and a note above that note. After Auto Layout neither note sits on the
+    block above."""
+    from raptor.api import build
+    from raptor.api.annotations import place_annotation
+    from raptor.gui.ui.main_window import MainWindow
+    spec = {"blocks": [{"name": "A", "x": 2, "y": 80}, {"name": "B", "x": 2, "y": 70}],
+            "nodes": [{"name": "s", "type": 1, "x": 1, "y": 75},
+                      {"name": "j", "type": 2, "n": 2, "k": 2, "x": 3, "y": 75},
+                      {"name": "e", "type": 3, "x": 4, "y": 75}],
+            "links": [{"from": "s", "to": "A"}, {"from": "s", "to": "B"},
+                      {"from": "A", "to": "j"}, {"from": "B", "to": "j"},
+                      {"from": "j", "to": "e"}]}
+    rbd = build.build_from_spec(spec, auto_layout=False)
+    one = place_annotation(rbd, kind="text", text="one", adjacent_to="A", location="above")
+    place_annotation(rbd, kind="text", text="two", adjacent_to=f"Annotation:{one['id']}",
+                     location="above")
+    w = MainWindow()
+    try:
+        w._load_into_app(rbd, "x.rbd")
+        v = w._diagram_dock.view
+        v.auto_layout()
+        qapp.processEvents()
+        boxes = {b.name: v._block_items[i].sceneBoundingRect() for i, b in v.blocks.items()}
+        lower = max(boxes, key=lambda n: boxes[n].top())
+        other = next(n for n in boxes if n != lower)
+        assert v.annotation_entry(one["id"])["anchor"]["target"] == "A"
+        for note in v.annotations:
+            assert note["y"] >= boxes[other].bottom() - 0.5, note["text"]
+            assert note["y"] + note["h"] <= boxes[lower].top() + 0.5, note["text"]
+        # rows agree with what is drawn (the rebuild must not undo the stretch)
+        row_y = {r["blockName"]: float(r["yPos"]) for r in v._rbd_ref.section("BLOCK_DATA").rows
+                 if r["ID"] != "0"}
+        assert (row_y[other] - row_y[lower]) * v._scale > 100
+    finally:
+        w._dirty = False
+        w.close()

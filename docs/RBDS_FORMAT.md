@@ -548,8 +548,15 @@ The stored geometry is what is drawn; the anchor says what keeps it
 there: the annotation moves with its target when the target is dragged,
 aligned or laid out, in the GUI and through `auto_layout`. Anchors can
 chain (a note anchored to a note anchored to a block follows the block);
-a chain that loops back to the annotation is rejected. After an Auto
-Layout (the GUI's, or the MCP tool's) a note that would land on an
+a chain that loops back to the annotation is rejected. A whole-model
+Auto Layout (the GUI's, or the MCP tool's) first **makes room**: where
+notes anchored `above`/`below` an element (stacked, and notes on notes,
+each adding its height and gap) would not fit between it and the next
+element in its column, the gap is stretched. The elements on either side
+move apart by the same grid-multiple amount, so the middle of a split
+stays centred; nothing moves closer, and a model that already has room is
+left alone. (A partial MCP layout never moves elements outside its
+scope.) Then a note that would still land on an
 element, a free-standing note or another anchored note is nudged to the
 nearest clear spot: first the same location pushed further out, then the
 other sides. `center` is never nudged, the stored `location` is not

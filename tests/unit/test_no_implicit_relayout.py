@@ -189,3 +189,42 @@ def test_real_auto_layout_moves_a_chain_consistently_and_is_stable(tmp_path):
     assert by_id(first["annotation_id"])["anchor"]["target"] == "B2_renamed"
     auto_layout(mid)
     check()
+
+
+def test_mcp_auto_layout_makes_room_for_notes_between_stacked_blocks(tmp_path):
+    """Two blocks in a 2-of-2 split, two chained notes above the lower one:
+    after Auto Layout both notes sit clear of the block above, not on it."""
+    from raptor.api.annotations import _element_boxes
+    from raptor.mcp.server import mcp
+    mcp._raptor_args = type("A", (), {"workspace": str(tmp_path)})()
+    mcp._raptor_ws = None
+    from raptor.mcp import context
+    from raptor.mcp.tools_model import auto_layout
+    spec = {"blocks": [{"name": "A", "x": 2.0, "y": 80.0}, {"name": "B", "x": 2.0, "y": 70.0}],
+            "nodes": [{"name": "s", "type": 1, "x": 1.0, "y": 75.0},
+                      {"name": "j", "type": 2, "n": 2, "k": 2, "x": 3.0, "y": 75.0},
+                      {"name": "e", "type": 3, "x": 4.0, "y": 75.0}],
+            "links": [{"from": "s", "to": "A"}, {"from": "s", "to": "B"},
+                      {"from": "A", "to": "j"}, {"from": "B", "to": "j"},
+                      {"from": "j", "to": "e"}]}
+    ws = context.workspace()
+    mid = ws.register_model(build.build_from_spec(spec, auto_layout=False), name="m")["model_id"]
+    rbd = ws.get(mid).rbd
+    auto_layout(mid)                      # decide which block is lower
+    ys = {r["blockName"]: float(r["yPos"]) for r in rbd.section("BLOCK_DATA").rows if r["ID"] != "0"}
+    lower = min(ys, key=ys.get)
+    one = add_annotation(ws, mid, kind="text", text="one", adjacent_to=lower, location="above")
+    add_annotation(ws, mid, kind="text", text="two", location="above",
+                         adjacent_to=f"Annotation:{one['annotation_id']}")
+    # Squeeze them together again, then lay out with the notes in place.
+    for r in rbd.section("BLOCK_DATA").rows:
+        if r["ID"] != "0":
+            r["yPos"] = "81.250000" if r["blockName"] != lower else "78.750000"
+    data = auto_layout(mid).structured_content
+    assert data["moved"]
+    for note in rbd.annotations:
+        for _p, ref, l, t, r, b in _element_boxes(rbd):
+            if ref == note["anchor"]["ref"]:
+                continue
+            assert not (note["x"] < r and note["x"] + note["w"] > l
+                        and note["y"] < b and note["y"] + note["h"] > t), (note["text"], ref)

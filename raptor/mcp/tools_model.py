@@ -1415,6 +1415,12 @@ def auto_layout(model_id: str,
     applied = _apply_layout_positions(handle.rbd, allowed, report)
     # Annotations go with the diagram: anchored ones are placed next to
     # their element again, the others keep their place in the model.
+    if applied and allowed is None:
+        # Whole-model layout only: a partial one must not move elements
+        # outside its scope. Stretch gaps so anchored notes fit between
+        # stacked elements (they would otherwise sit on a neighbour).
+        from raptor.api.annotations import make_room_for_annotations
+        applied += len(make_room_for_annotations(handle.rbd))
     annotations_moved = follow_layout(handle.rbd, old_transform) if applied else 0
     if applied:
         ws.save(model_id)

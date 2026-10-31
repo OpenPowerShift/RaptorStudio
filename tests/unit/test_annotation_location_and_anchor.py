@@ -352,3 +352,92 @@ class TestDraggedOffset:
         from raptor.core.fileio.rbds_schema import build_schema
         props = build_schema()["properties"]["annotations"]["items"]["properties"]["anchor"]["properties"]
         assert props["dx"] == {"type": "number"} and props["dy"] == {"type": "number"}
+
+
+class TestMakeRoom:
+    """Auto Layout stretches the space between stacked elements so the
+    notes anchored above/below them fit, instead of sitting on a
+    neighbour."""
+
+    @staticmethod
+    def _tight_model():
+        from raptor.api import build
+        # A above B, only one grid step apart: far too close for a note.
+        return build.build_from_spec(
+            {"blocks": [{"name": "A", "x": 2.0, "y": 81.25},
+                        {"name": "B", "x": 2.0, "y": 78.75}],
+             "nodes": [{"name": "s", "type": 1, "x": 0.0, "y": 80.0},
+                       {"name": "j", "type": 2, "n": 2, "k": 2, "x": 4.0, "y": 80.0},
+                       {"name": "e", "type": 3, "x": 6.0, "y": 80.0}],
+             "links": [{"from": "s", "to": "A"}, {"from": "s", "to": "B"},
+                       {"from": "A", "to": "j"}, {"from": "B", "to": "j"},
+                       {"from": "j", "to": "e"}]}, auto_layout=False)
+
+    @staticmethod
+    def _clear_of_elements(rbd, note):
+        from raptor.api.annotations import _element_boxes
+        for _p, ref, l, t, r, b in _element_boxes(rbd):
+            if ref == note["anchor"]["ref"]:
+                continue
+            assert not (note["x"] < r and note["x"] + note["w"] > l
+                        and note["y"] < b and note["y"] + note["h"] > t), ref
+
+    def test_a_stack_of_notes_between_two_blocks_gets_room(self):
+        from raptor.api.annotations import make_room_for_annotations
+        rbd = self._tight_model()
+        # B is the lower block (smaller model y): notes above it sit in the gap.
+        one = place_annotation(rbd, kind="text", text="one", adjacent_to="B")
+        two = place_annotation(rbd, kind="text", text="two",
+                               adjacent_to=f"Annotation:{one['id']}")
+        moved = make_room_for_annotations(rbd)
+        assert moved
+        follow_layout(rbd)
+        self._clear_of_elements(rbd, one)
+        self._clear_of_elements(rbd, two)
+
+    def test_the_joining_nodes_stay_centred_and_nothing_moves_closer(self):
+        from raptor.api.annotations import make_room_for_annotations
+        rbd = self._tight_model()
+        one = place_annotation(rbd, kind="text", text="one", adjacent_to="B")
+        place_annotation(rbd, kind="text", text="two",
+                         adjacent_to=f"Annotation:{one['id']}")
+        rows = {r["blockName"]: r for r in rbd.section("BLOCK_DATA").rows if r["ID"] != "0"}
+        a0, b0 = float(rows["A"]["yPos"]), float(rows["B"]["yPos"])
+        node = next(r for r in rbd.section("NODE_DATA").rows if r["Name"] == "j")
+        mid0 = float(node["yPos"])
+        make_room_for_annotations(rbd)
+        a1, b1 = float(rows["A"]["yPos"]), float(rows["B"]["yPos"])
+        assert a1 >= a0 and b1 <= b0 and (a1 - b1) > (a0 - b0)
+        assert float(node["yPos"]) == mid0
+        assert (a1 - mid0) == pytest.approx(mid0 - b1)         # still symmetric
+        assert (a1 - a0) % 1.25 == pytest.approx(0, abs=1e-6) or \
+            (a1 - a0) % 1.25 == pytest.approx(1.25, abs=1e-6)  # on the grid
+
+    def test_it_is_idempotent_and_leaves_a_roomy_model_alone(self):
+        from raptor.api.annotations import make_room_for_annotations
+        rbd = self._tight_model()
+        place_annotation(rbd, kind="text", text="one", adjacent_to="B")
+        make_room_for_annotations(rbd)
+        assert make_room_for_annotations(rbd) == {}
+
+    def test_notes_on_the_outer_side_of_the_column_need_no_room(self):
+        from raptor.api.annotations import make_room_for_annotations
+        rbd = self._tight_model()
+        place_annotation(rbd, kind="text", text="n", adjacent_to="A",
+                         location="above")                # nothing above A
+        place_annotation(rbd, kind="text", text="m", adjacent_to="B",
+                         location="below")                # nothing below B
+        assert make_room_for_annotations(rbd) == {}
+
+    def test_side_notes_and_dragged_notes_ask_for_nothing(self):
+        from raptor.api.annotations import make_room_for_annotations
+        rbd = self._tight_model()
+        place_annotation(rbd, kind="text", text="n", adjacent_to="B",
+                         location="right")
+        dragged = place_annotation(rbd, kind="text", text="d", adjacent_to="B")
+        dragged["anchor"]["dx"] = 30.0
+        assert make_room_for_annotations(rbd) == {}
+
+    def test_a_model_without_notes_is_untouched(self):
+        from raptor.api.annotations import make_room_for_annotations
+        assert make_room_for_annotations(self._tight_model()) == {}

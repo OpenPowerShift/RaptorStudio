@@ -419,9 +419,9 @@ _SECTION_REF = (("BLOCK_DATA", "Block"), ("NODE_DATA", "Node"),
                 ("EVENT_DATA", "Event"), ("HIERARCHY_DATA", "Hier"))
 
 
-def _element_boxes(rbd) -> list[tuple[int, str, float, float, float, float]]:
-    """(parent, ref, left, top, right, bottom) of every drawn element, in
-    scene pixels. The ``ref`` lets a note ignore its own target."""
+def _element_records(rbd) -> list[dict[str, Any]]:
+    """Every drawn element: its parent level, ``ref``, section, row and
+    scene box ``(left, top, right, bottom)``."""
     out = []
     for section, prefix in _SECTION_REF:
         sec = rbd.sections.get(section)
@@ -433,9 +433,140 @@ def _element_boxes(rbd) -> list[tuple[int, str, float, float, float, float]]:
                 a = _anchor_for(rbd, ref)
             except BuildError:
                 continue
-            out.append((a["parent"], ref, a["cx"] - a["half_w"], a["cy"] - a["half_h"],
-                        a["cx"] + a["half_w"], a["cy"] + a["half_h"]))
+            out.append({"parent": a["parent"], "ref": ref, "section": section,
+                        "row": row,
+                        "box": (a["cx"] - a["half_w"], a["cy"] - a["half_h"],
+                                a["cx"] + a["half_w"], a["cy"] + a["half_h"])})
     return out
+
+
+def _element_boxes(rbd) -> list[tuple[int, str, float, float, float, float]]:
+    """(parent, ref, left, top, right, bottom) of every drawn element, in
+    scene pixels. The ``ref`` lets a note ignore its own target."""
+    return [(r["parent"], r["ref"], *r["box"]) for r in _element_records(rbd)]
+
+
+def _stack_needs(rbd) -> dict[tuple[str, str], float]:
+    """Vertical room, in scene pixels, the anchored notes want above and
+    below each element: ``{(element ref, "above"|"below"): px}``.
+
+    Notes anchored the same way on one element stack, and a note on a note
+    on an element (all "above", say) stacks on top of it, so each adds its
+    height plus its gap. Only ``above``/``below`` need vertical room; a
+    note a user dragged away (``dx``/``dy``) is where they put it and asks
+    for none."""
+    entries = [e for e in (getattr(rbd, "annotations", None) or [])
+               if isinstance(e.get("anchor"), dict) and e.get("kind") != "arrow"]
+    by_id = {int(e.get("id", 0) or 0): e for e in entries}
+    needs: dict[tuple[str, str], float] = {}
+    for entry in entries:
+        anchor = entry["anchor"]
+        direction = str(anchor.get("location", ANNO_DEFAULT_LOCATION))
+        if direction not in ("above", "below") or any(anchor_offset(anchor)):
+            continue
+        cost = float(entry.get("h") or 0) + float(anchor.get("gap", 12.0))
+        current, depth = entry, 0
+        while depth < 64:
+            ref = str((current["anchor"].get("ref") or current["anchor"].get("target")) or "")
+            prefix, _, ident = ref.partition(":")
+            if prefix.strip().lower() == "annotation" and ident.strip().isdigit():
+                parent = by_id.get(int(ident))
+                if parent is None or str(parent["anchor"].get("location",
+                                                              ANNO_DEFAULT_LOCATION)) != direction:
+                    break
+                current, depth = parent, depth + 1
+                continue
+            if ":" in ref:
+                needs[(ref, direction)] = needs.get((ref, direction), 0.0) + cost
+            break
+    return needs
+
+
+#: Extra clearance kept around an obstacle so a nudged note does not touch.
+_NUDGE_MARGIN = 2.0
+
+#: Slack added to the room a stack of notes asks for, so the outermost note
+#: is not hard against the next element (drawn blocks are a little larger
+#: than the nominal size notes are placed against).
+_ROOM_SLACK = 12.0 + 2 * _NUDGE_MARGIN
+
+
+def make_room_for_annotations(rbd) -> dict[tuple[str, int], tuple[float, float]]:
+    """Stretch the space between vertically stacked elements so the notes
+    anchored above or below them fit, instead of leaving them on top of a
+    neighbour.
+
+    For a pair of neighbours in one column that the notes between them
+    would not fit, the elements above the gap move up and those below move
+    down, by the same (grid-multiple) amount, so a split's joining nodes
+    stay centred. Nothing ever moves closer; elements between the pair
+    (the middle of a split) stay put; other hierarchy levels are separate.
+    Horizontal room (``left``/``right`` notes) is not made.
+
+    Positions are model units; the frozen view transform is not changed, so
+    the stretch shows at the same scale. Returns the elements it moved as
+    ``{(section, id): (x, y)}`` so a caller that keeps its own copy of
+    positions (the GUI) can update it. Deterministic, and a model that
+    already has room is left untouched.
+    """
+    from raptor.core.fileio.legacy_layout import GRID
+
+    needs = _stack_needs(rbd)
+    if not needs:
+        return {}
+    scale = view_transform.ensure(rbd).scale
+    moved: dict[tuple[str, int], tuple[float, float]] = {}
+    for _round in range(200):
+        records = _element_records(rbd)
+        violation = None
+        for upper in sorted(records, key=lambda r: r["box"][1]):
+            below_need = needs.get((upper["ref"], "below"), 0.0)
+            for lower in records:
+                if lower is upper or lower["parent"] != upper["parent"]:
+                    continue
+                if lower["box"][1] < upper["box"][3] - 1e-6:
+                    continue                      # not below it
+                if not (lower["box"][0] < upper["box"][2]
+                        and lower["box"][2] > upper["box"][0]):
+                    continue                      # a different column
+                if any(m is not upper and m is not lower
+                       and m["parent"] == upper["parent"]
+                       and m["box"][1] >= upper["box"][3] - 1e-6
+                       and m["box"][3] <= lower["box"][1] + 1e-6
+                       and m["box"][0] < min(upper["box"][2], lower["box"][2])
+                       and m["box"][2] > max(upper["box"][0], lower["box"][0])
+                       for m in records):
+                    continue                      # not neighbours
+                want = below_need + needs.get((lower["ref"], "above"), 0.0)
+                if want <= 0:
+                    continue
+                short = want + _ROOM_SLACK - (lower["box"][1] - upper["box"][3])
+                if short > 1e-6:
+                    violation = (upper, lower, short)
+                    break
+            if violation:
+                break
+        if violation is None:
+            break
+        upper, lower, short = violation
+        step = 2 * GRID
+        grow = math.ceil(short / scale / step - 1e-9) * step     # model units
+        up_y = float(upper["row"]["yPos"])
+        low_y = float(lower["row"]["yPos"])
+        for rec in records:
+            if rec["parent"] != upper["parent"]:
+                continue
+            y = float(rec["row"]["yPos"])
+            if y >= up_y - 1e-9:
+                y += grow / 2.0
+            elif y <= low_y + 1e-9:
+                y -= grow / 2.0
+            else:
+                continue
+            rec["row"]["yPos"] = f"{round(y, 6) + 0.0:.6f}"
+            moved[(rec["section"], int(float(rec["row"]["ID"])))] = (
+                float(rec["row"]["xPos"]), y)
+    return moved
 
 
 def _note_boxes(notes: list[dict[str, Any]], skip: dict[str, Any]):
@@ -461,8 +592,6 @@ def anchor_offset(anchor: dict[str, Any]) -> tuple[float, float]:
         return 0.0, 0.0
 
 
-#: Extra clearance kept around an obstacle so a nudged note does not touch.
-_NUDGE_MARGIN = 2.0
 #: How many times the gap a note may be pushed out along one location.
 _NUDGE_STEPS = 6
 

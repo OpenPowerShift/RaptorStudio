@@ -6061,7 +6061,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._compute_model_transform(rbd)
             # Annotations go with the diagram: anchored ones next to their
             # element again, the others at the same place in the model.
-            from raptor.api.annotations import follow_layout
+            from raptor.api.annotations import (
+                follow_layout,
+                make_room_for_annotations,
+            )
+            # Stretch gaps so anchored notes fit between stacked elements,
+            # and tell the position overlay (a rebuild reads it, not the
+            # rows) about every element that moved.
+            kinds = {"BLOCK_DATA": "block", "NODE_DATA": "node",
+                     "EVENT_DATA": "event", "HIERARCHY_DATA": "hier"}
+            for (section, oid), xy in make_room_for_annotations(rbd).items():
+                self._pos_overrides[(kinds[section], oid)] = xy
+                room_tables: dict[str, dict[int, Any]] = {
+                    "block": self.blocks, "node": self.nodes,
+                    "event": self.events, "hier": self.hiers}
+                obj = room_tables[kinds[section]].get(oid)
+                if obj is not None:
+                    obj.x_position, obj.y_position = xy
             follow_layout(rbd, old_transform)
             self._rebuild_scene()
         # Up/Home (which rebuild from rows) and Save keep the layout

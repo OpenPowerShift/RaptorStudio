@@ -191,7 +191,9 @@ Above, Below or Centre — and a gap. *Centre* sits the annotation over its
 target and ignores the gap. *Pick on canvas…* arms a click: the next
 element or annotation you click becomes the target, and Esc cancels. An
 anchored annotation follows its target through drags, Align and Auto
-Layout, and anchored notes can chain. Drag an anchored note wherever you
+Layout, and anchored notes can chain. Auto Layout leaves room for notes
+anchored above or below a block, widening the gap between stacked blocks
+rather than letting a note sit on its neighbour. Drag an anchored note wherever you
 like and it keeps following its target from there; *Reset position*
 returns it to its Location and *Break link* frees it. (Dragging an anchored
 arrow still frees it.)
