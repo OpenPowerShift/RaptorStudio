@@ -819,6 +819,55 @@ class AnnoCmd(_ViewCmd):
                 v._anno_items[int(self.entry["id"])] = item
         self._done()
 
+def apply_anno_state(v, aid: int, state: dict) -> None:
+    """Put annotation `aid` (its model entry and canvas item) into `state`:
+    what `AnnoEditCmd` does, shared with the anchor-following code."""
+    for _i, a in enumerate(v.annotations):
+        if int(a.get("id", 0)) == aid:
+            a.clear(); a.update(state)
+            break
+    item = getattr(v, "_anno_items", {}).get(aid)
+    if item is not None:
+        item.props = {k: v for k, v in state.items()
+                      if k in ANNO_DEFAULTS}
+        item.apply_props()
+        if hasattr(item, "setPlainText"):
+            item.setPlainText(state.get("text",
+                                        item.toPlainText()))
+        if hasattr(item, "setRect"):
+            r0 = item.rect()
+            item.setRect(r0.left(), r0.top(),
+                         float(state.get("w", r0.width())),
+                         float(state.get("h", r0.height())))
+            if getattr(item, "_handle", None) is not None:
+                item._handle.setPos(r0.left() +
+                                    float(state.get("w", 120)),
+                                    r0.top() +
+                                    float(state.get("h", 70)))
+        elif hasattr(item, "set_box"):
+            # Text box: resize (and reflow) rather than setRect.
+            item.set_box(float(state.get("w", item._box_w)),
+                         float(state.get("h", item._box_h)))
+        if hasattr(item, "setLine"):
+            ln = item.line()
+            item.prepareGeometryChange()
+            item.setLine(float(state.get("x1", ln.x1())),
+                        float(state.get("y1", ln.y1())),
+                        float(state.get("x2", ln.x2())),
+                        float(state.get("y2", ln.y2())))
+            if getattr(item, "_tail_handle", None) is not None:
+                item._tail_handle.setPos(item.line().p1())
+            if getattr(item, "_head_handle", None) is not None:
+                item._head_handle.setPos(item.line().p2())
+        sp = item.scenePos()
+        item.setPos(float(state.get("x", sp.x())),
+                    float(state.get("y", sp.y())))
+        item.setZValue(float(state.get("z", ANNO_Z_MIDDLE)))
+    refresh = getattr(v, "_refresh_anchor_leader", None)
+    if refresh is not None:
+        refresh()
+
+
 class AnnoEditCmd(_ViewCmd):
     """Props/geometry/text/z edit of one annotation (old <-> new state).
     `label` overrides the history text so a command with a name of its
@@ -836,48 +885,7 @@ class AnnoEditCmd(_ViewCmd):
             self.needs_rule_check = False
 
     def _apply(self, state: dict):
-        v = self._v
-        for _i, a in enumerate(v.annotations):
-            if int(a.get("id", 0)) == self.aid:
-                a.clear(); a.update(state)
-                break
-        item = getattr(v, "_anno_items", {}).get(self.aid)
-        if item is not None:
-            item.props = {k: v for k, v in state.items()
-                          if k in ANNO_DEFAULTS}
-            item.apply_props()
-            if hasattr(item, "setPlainText"):
-                item.setPlainText(state.get("text",
-                                            item.toPlainText()))
-            if hasattr(item, "setRect"):
-                r0 = item.rect()
-                item.setRect(r0.left(), r0.top(),
-                             float(state.get("w", r0.width())),
-                             float(state.get("h", r0.height())))
-                if getattr(item, "_handle", None) is not None:
-                    item._handle.setPos(r0.left() +
-                                        float(state.get("w", 120)),
-                                        r0.top() +
-                                        float(state.get("h", 70)))
-            elif hasattr(item, "set_box"):
-                # Text box: resize (and reflow) rather than setRect.
-                item.set_box(float(state.get("w", item._box_w)),
-                             float(state.get("h", item._box_h)))
-            if hasattr(item, "setLine"):
-                ln = item.line()
-                item.prepareGeometryChange()
-                item.setLine(float(state.get("x1", ln.x1())),
-                            float(state.get("y1", ln.y1())),
-                            float(state.get("x2", ln.x2())),
-                            float(state.get("y2", ln.y2())))
-                if getattr(item, "_tail_handle", None) is not None:
-                    item._tail_handle.setPos(item.line().p1())
-                if getattr(item, "_head_handle", None) is not None:
-                    item._head_handle.setPos(item.line().p2())
-            sp = item.scenePos()
-            item.setPos(float(state.get("x", sp.x())),
-                        float(state.get("y", sp.y())))
-            item.setZValue(float(state.get("z", ANNO_Z_MIDDLE)))
+        apply_anno_state(self._v, self.aid, state)
 
     def redo(self):
         self._apply(self.new); self._done()

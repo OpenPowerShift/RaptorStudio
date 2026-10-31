@@ -2343,6 +2343,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._inspector.annotation_prop_changed.connect(
             lambda aid, changes: self._diagram_dock.view
             .set_annotation_props(aid, changes))
+        # The Inspector's Anchor controls list this level's elements.
+        self._inspector.anchor_source = self._diagram_dock.view
         self._inspector.rates_changed.connect(self._mark_dirty)
         self._inspector.system_threshold_changed.connect(
             self._on_system_threshold_changed)

@@ -123,6 +123,7 @@ from raptor.gui.ui.diagram_annotations import (  # noqa: F401
     ANNO_Z_MIDDLE,
     AnnoCmd,
     AnnoEditCmd,
+    apply_anno_state,
     CommentCmd,
     _ANNO_CLASSES,
     _ANNO_TYPES,
@@ -484,6 +485,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # disconnects (widget teardown order) -- Qt then still emits
             # selection changes on dead items. Non-fatal; ignore.
             return
+        self._refresh_anchor_leader()
         if not items:
             self.selection_cleared.emit()
             self.selection_changed.emit()
@@ -510,6 +512,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # selection change for a selected one, and the enable-state refresh it
         # triggers reads `_anno_items` (issue #2: "_AnnoText already deleted").
         self._anno_items = {}
+        self._anchor_leader = None
         self._scene.clear()
         self._block_items.clear()
         self._node_items.clear()
@@ -1331,6 +1334,175 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     a["x2"] = round(ln.x2(), 2); a["y2"] = round(ln.y2(), 2)
                 break
         self.layout_changed.emit()
+
+    # --- annotation anchors ------------------------------------------------
+    # An annotation placed next to an element keeps an `anchor`
+    # ({target, ref, side, gap}, or an arrow's {from, to, from_ref, to_ref});
+    # its position is then a function of the element's, so it moves with
+    # the element (drag, align, undo, Auto Layout). Dragging the annotation
+    # itself removes the anchor. `raptor.api.annotations` owns the format.
+
+    _REF_KIND = {"Block": "block", "Node": "node", "Event": "event", "Hier": "hier"}
+    _KIND_REF = {v: k for k, v in _REF_KIND.items()}
+
+    def _anchor_tables(self) -> dict[str, dict[int, Any]]:
+        return {"block": self._block_items, "node": self._node_items,
+                "event": self._event_items, "hier": getattr(self, "_hier_items", {})}
+
+    def _anchor_element_name(self, kind: str, oid: int) -> str:
+        tables: dict[str, dict[int, Any]] = {
+            "block": self.blocks, "node": self.nodes, "event": self.events,
+            "hier": self.hiers}
+        obj = tables[kind].get(oid)
+        if obj is None:
+            return ""
+        return (getattr(obj, "node_name", "") if kind == "node" else getattr(obj, "name", "")) or ""
+
+    def _anchor_item(self, ref):
+        """The canvas item an anchor names on this level (`Block:3`, or a
+        name that is unique here), else None."""
+        if ref in (None, ""):
+            return None
+        text = str(ref)
+        prefix, _, ident = text.partition(":")
+        tables = self._anchor_tables()
+        if prefix in self._REF_KIND and ident.strip().isdigit():
+            return tables[self._REF_KIND[prefix]].get(int(ident))
+        found = [item for kind, table in tables.items() for oid, item in table.items()
+                 if self._anchor_element_name(kind, oid) == text]
+        return found[0] if len(found) == 1 else None
+
+    def _anchor_geometry(self, ref) -> dict | None:
+        item = self._anchor_item(ref)
+        if item is None:
+            return None
+        centre = _LinkItem._true_centre(item)
+        if hasattr(item, "_half_w"):           # an event's hexagon
+            hw, hh = float(item._half_w), float(item._r)
+        elif hasattr(item, "rect"):
+            r = item.rect()
+            hw, hh = r.width() / 2.0, r.height() / 2.0
+        else:
+            return None
+        return {"cx": centre.x(), "cy": centre.y(), "half_w": hw, "half_h": hh}
+
+    def _anchored_geometry(self, entry: dict) -> dict | None:
+        """The geometry that puts `entry` next to its anchor again, or None
+        when it has no anchor or the element is not on this level."""
+        anchor = entry.get("anchor")
+        if not isinstance(anchor, dict):
+            return None
+        from raptor.api.annotations import _place_on_side
+        if entry.get("kind") == "arrow":
+            tail = self._anchor_geometry(anchor.get("from_ref") or anchor.get("from"))
+            head = self._anchor_geometry(anchor.get("to_ref") or anchor.get("to"))
+            if tail is None or head is None:
+                return None
+            return {"x1": round(tail["cx"], 2), "y1": round(tail["cy"], 2),
+                    "x2": round(head["cx"], 2), "y2": round(head["cy"], 2)}
+        target = self._anchor_geometry(anchor.get("ref") or anchor.get("target"))
+        if target is None:
+            return None
+        px, py = _place_on_side(target, str(anchor.get("side", "right")),
+                                float(anchor.get("gap", 12.0)),
+                                float(entry.get("w") or 0), float(entry.get("h") or 0))
+        return {"x": round(px, 2), "y": round(py, 2)}
+
+    def follow_anchors(self, moved: set | None = None) -> int:
+        """Put the annotations anchored to the `moved` elements ((kind, id)
+        pairs; every anchored one when None) back next to them. Called from
+        inside the move commands, so it makes no command of its own."""
+        refs: set[str] | None = None
+        if moved is not None:
+            refs = set()
+            for kind, oid in moved:
+                refs.add(f"{self._KIND_REF.get(kind, kind)}:{oid}")
+                name = self._anchor_element_name(kind, oid)
+                if name:
+                    refs.add(name)
+        count = 0
+        for entry in list(getattr(self, "annotations", [])):
+            anchor = entry.get("anchor")
+            if not isinstance(anchor, dict) or int(entry.get("parent", 0) or 0) != self._current_parent:
+                continue
+            if refs is not None and not refs & {anchor.get(k) for k in
+                                                ("ref", "target", "from_ref", "to_ref", "from", "to")}:
+                continue
+            geometry = self._anchored_geometry(entry)
+            if geometry is None or all(entry.get(k) == v for k, v in geometry.items()):
+                continue
+            apply_anno_state(self, int(entry.get("id", 0)), {**entry, **geometry})
+            count += 1
+        self._refresh_anchor_leader()
+        return count
+
+    def anchor_targets(self) -> list[tuple[str, str]]:
+        """(label, `Kind:id`) for every element on this level an annotation
+        can be anchored to, for the Inspector."""
+        out = []
+        for kind, table in self._anchor_tables().items():
+            for oid in table:
+                name = self._anchor_element_name(kind, oid) or f"#{oid}"
+                out.append((f"{self._KIND_REF[kind]}: {name}", f"{self._KIND_REF[kind]}:{oid}"))
+        return sorted(out, key=lambda t: t[0].lower())
+
+    def annotation_entry(self, aid: int) -> dict | None:
+        return next((dict(a) for a in getattr(self, "annotations", [])
+                     if int(a.get("id", 0)) == aid), None)
+
+    def _refresh_anchor_leader(self) -> None:
+        """While one anchored box annotation is selected, a dashed line from
+        it to its element shows what it is attached to."""
+        old = getattr(self, "_anchor_leader", None)
+        self._anchor_leader = None
+        if old is not None:
+            try:
+                if old.scene() is not None:
+                    self._scene.removeItem(old)
+            except RuntimeError:
+                pass            # deleted with the scene
+        try:
+            selected = self._scene.selectedItems()
+        except RuntimeError:
+            return
+        if len(selected) != 1 or not isinstance(selected[0], tuple(_ANNO_TYPES)):
+            return
+        item = selected[0]
+        entry = self.annotation_entry(int(getattr(item, "_anno_id", 0)))
+        anchor = (entry or {}).get("anchor")
+        if not isinstance(anchor, dict) or (entry or {}).get("kind") == "arrow":
+            return
+        target = self._anchor_item(anchor.get("ref") or anchor.get("target"))
+        if target is None:
+            return
+        a = item.sceneBoundingRect().center()
+        b = _LinkItem._true_centre(target)
+        leader = QGraphicsLineItem(a.x(), a.y(), b.x(), b.y())
+        pen = QPen(QColor(COLOUR["accent"]), 1.5, Qt.PenStyle.DashLine)
+        pen.setCosmetic(True)
+        leader.setPen(pen)
+        leader.setZValue(item.zValue() - 0.5)
+        leader.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        leader.setToolTip(f"Anchored to {anchor.get('target')}")
+        self._scene.addItem(leader)
+        self._anchor_leader = leader
+
+    def _detach_if_moved_alone(self, old_state: dict, new_state: dict,
+                               moved: set) -> None:
+        """An anchored annotation dragged by hand, without its element,
+        is placed by hand now: drop the anchor (undo puts it back)."""
+        anchor = old_state.get("anchor")
+        if not isinstance(anchor, dict):
+            return
+        refs = {f"{self._KIND_REF.get(k, k)}:{i}" for k, i in moved}
+        refs |= {self._anchor_element_name(k, i) for k, i in moved}
+        if refs & {anchor.get(k) for k in ("ref", "target", "from_ref", "to_ref", "from", "to")}:
+            return
+        new_state.pop("anchor", None)
+        sink: Any = getattr(self, "status_message_sink", None)
+        if sink is not None:
+            sink(f"Annotation moved by hand: no longer anchored to "
+                 f"{anchor.get('target') or anchor.get('from')} (re-anchor it in the Inspector)")
 
     def _sync_anno_z(self, item):
         aid = getattr(item, "_anno_id", None)
@@ -2412,6 +2584,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             start_state["text"] = item.toPlainText()
         start_state["z"] = item.zValue()
         end_state = dict(start_state)
+        changes = dict(changes)
+        if "anchor" in changes:
+            # Anchor or unanchor from the Inspector: anchoring places the
+            # annotation next to its element at once; removing the anchor
+            # leaves it where it is.
+            anchor = changes.pop("anchor")
+            if anchor is None:
+                end_state.pop("anchor", None)
+            else:
+                end_state["anchor"] = dict(anchor)
+                placed = self._anchored_geometry(end_state)
+                if placed is None:
+                    sink: Any = getattr(self, "status_message_sink", None)
+                    if sink is not None:
+                        sink("Cannot anchor there: that element is not on this level")
+                    return
+                end_state.update(placed)
         end_state.update(changes)
         if end_state == start_state:
             return
@@ -4170,6 +4359,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if kind == "hier" and obj.parent_id != self._current_parent:
                     continue
                 pos[(kind, oid)] = (obj.x_position, obj.y_position)
+        # Annotations' geometry too: Auto Layout moves them with the diagram.
+        for a in getattr(self, "annotations", []):
+            pos[("anno", int(a.get("id", 0)))] = tuple(
+                (k, a.get(k)) for k in ("x", "y", "x1", "y1", "x2", "y2") if k in a)
         rbd = self._rbd_ref
         vt = getattr(rbd, "view_transform", None) if rbd is not None else None
         return pos, (dict(vt) if vt else None)
@@ -4184,7 +4377,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         cols = {"block": ("BLOCK_DATA", "ID"), "node": ("NODE_DATA", "ID"),
                 "event": ("EVENT_DATA", "ID"), "hier": ("HIERARCHY_DATA", "ID")}
-        for (kind, oid), (x, y) in pos.items():
+        annos = {aid: dict(geom) for (kind, aid), geom in pos.items() if kind == "anno"}
+        for a in getattr(self, "annotations", []):
+            if int(a.get("id", 0)) in annos:
+                a.update(annos[int(a.get("id", 0))])
+        for (kind, oid), value in pos.items():
+            if kind == "anno":
+                continue
+            x, y = value
             sec = rbd.sections.get(cols[kind][0])
             for row in (sec.rows if sec else []):
                 if _safe_int(row.get("ID")) == oid:
@@ -4484,7 +4684,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                         moves.append((kind, oid, old, new))
                 if saved_snap is not None:
                     self._snap_state["x"], self._snap_state["y"] = saved_snap
+                moved_keys = {(k, i) for k, i, _o, _n in moves}
                 for aid, old_state, new_state in anno_edits:
+                    self._detach_if_moved_alone(old_state, new_state, moved_keys)
                     self._stack.push(AnnoEditCmd(self, aid, old_state,
                                                  new_state, layout_only=True))
                 if moves:
@@ -4705,7 +4907,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     moves.append((kind, oid, tuple(start), now))
             drag_start, self._drag_start = self._drag_start, []
             if anno_edits:
+                moved_keys = {(k, i) for k, i, _o, _n in moves}
                 for aid, old_state, new_state in anno_edits:
+                    self._detach_if_moved_alone(old_state, new_state, moved_keys)
                     self._stack.push(AnnoEditCmd(self, aid, old_state,
                                                  new_state, layout_only=True))
             if moves:
@@ -5577,8 +5781,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         rbd = self._rbd_ref
         if rbd is not None:
             self.write_back_to_rbd(rbd)
+            old_transform = dict(rbd.view_transform) if rbd.view_transform else None
             rbd.view_transform = None
             self._compute_model_transform(rbd)
+            # Annotations go with the diagram: anchored ones next to their
+            # element again, the others at the same place in the model.
+            from raptor.api.annotations import follow_layout
+            follow_layout(rbd, old_transform)
             self._rebuild_scene()
         # Up/Home (which rebuild from rows) and Save keep the layout
         self._apply_scene_layout()
