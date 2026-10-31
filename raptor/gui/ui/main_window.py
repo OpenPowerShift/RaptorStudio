@@ -2633,15 +2633,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if not ok:
                 self._uncheck_overlay(attr)
             action.setEnabled(ok)
-        # Importance is the one overlay whose prerequisite is an OFF-BY-DEFAULT
-        # Run-panel setting, so greying it out is a dead end: a disabled
-        # QAction does not show its tooltip, and there is nothing on screen
-        # saying how to get the data. Keep it clickable while a model is open
-        # and let its handler explain what to switch on (the same
-        # self-explaining pattern `_update_readiness` uses for Run).
-        imp = getattr(self, "_importance_overlay_action", None)
-        if imp is not None and self._rbd is not None:
-            imp.setEnabled(True)
         spread = getattr(self, "_weak_spread_action", None)
         if spread is not None:
             spread.setEnabled(
