@@ -2800,6 +2800,17 @@ class InspectorDock(QWidget):
         def name_of(box) -> str:
             return box.currentText().split(": ", 1)[-1]
 
+        buttons = QHBoxLayout()
+        buttons.setContentsMargins(0, 0, 0, 0)
+        break_link = QPushButton("Break link")
+        break_link.setToolTip("Stop following the target; the annotation "
+                              "stays where it is")
+        break_link.setEnabled(anchor is not None)
+        break_link.clicked.connect(
+            lambda _c=False: self.annotation_prop_changed.emit(
+                aid, {"anchor": None}))
+        buttons.addWidget(break_link)
+
         if kind == "arrow":
             tail = combo_for(anchor and anchor.get("from_ref"), anchor and anchor.get("from"),
                              "Not attached")
@@ -2896,9 +2907,27 @@ class InspectorDock(QWidget):
             fl.addRow("Anchored to:", target_row)
             fl.addRow("Location:", location)
             fl.addRow("Gap:", gap)
+            offset = bool(anchor and (anchor.get("dx") or anchor.get("dy")))
+            reset = QPushButton("Reset position")
+            reset.setToolTip("Put the annotation back at its anchored "
+                             "location (undoes where you dragged it)")
+            reset.setEnabled(offset)
+
+            def reset_position():
+                self.annotation_prop_changed.emit(aid, {"anchor": {
+                    k: v for k, v in (anchor or {}).items()
+                    if k not in ("dx", "dy")}})
+
+            reset.clicked.connect(lambda _c=False: reset_position())
+            buttons.addWidget(reset)
             note = ("Anchored, it moves with its target. Centre ignores the "
-                    "gap. Dragging the annotation itself removes the anchor. "
-                    "Use Pick on canvas… to choose the target by clicking it.")
+                    "gap. Drag the annotation to place it where you like; "
+                    "it keeps following its target from there. Reset "
+                    "position returns it to its Location, Break link frees "
+                    "it. Use Pick on canvas… to choose the target by "
+                    "clicking it.")
+        buttons.addStretch(1)
+        fl.addRow(buttons)
         hint = QLabel(note)
         hint.setWordWrap(True)
         hint.setObjectName("SectionNote")

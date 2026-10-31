@@ -1416,7 +1416,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         anchor = entry.get("anchor")
         if not isinstance(anchor, dict):
             return None
-        from raptor.api.annotations import _place_at_location
+        from raptor.api.annotations import _place_at_location, anchor_offset
         if entry.get("kind") == "arrow":
             tail = self._anchor_geometry(anchor.get("from_ref") or anchor.get("from"))
             head = self._anchor_geometry(anchor.get("to_ref") or anchor.get("to"))
@@ -1432,7 +1432,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                                     float(anchor.get("gap", 12.0)),
                                     float(entry.get("w") or 0),
                                     float(entry.get("h") or 0))
-        return {"x": round(px, 2), "y": round(py, 2)}
+        ox, oy = anchor_offset(anchor)
+        return {"x": round(px + ox, 2), "y": round(py + oy, 2)}
 
     def follow_anchors(self, moved: set | None = None) -> int:
         """Put the annotations anchored to the `moved` targets ((kind, id)
@@ -1689,8 +1690,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def _detach_if_moved_alone(self, old_state: dict, new_state: dict,
                                moved: set) -> None:
-        """An anchored annotation dragged by hand, without its element,
-        is placed by hand now: drop the anchor (undo puts it back)."""
+        """An anchored annotation dragged by hand, without its target.
+
+        A box note keeps its anchor and records how far it was dragged from
+        the anchored place (``dx``/``dy``), so it follows its target from
+        its new spot; the Inspector's *Reset position* clears the offset and
+        *Break link* removes the anchor. An arrow has no single place to
+        offset from, so dragging it by hand still frees it. Either is one
+        undoable edit (undo puts back the old state)."""
         anchor = old_state.get("anchor")
         if not isinstance(anchor, dict):
             return
@@ -1698,11 +1705,27 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         refs |= {self._anchor_element_name(k, i) for k, i in moved}
         if refs & {anchor.get(k) for k in ("ref", "target", "from_ref", "to_ref", "from", "to")}:
             return
-        new_state.pop("anchor", None)
         sink: Any = getattr(self, "status_message_sink", None)
-        if sink is not None:
-            sink(f"Annotation moved by hand: no longer anchored to "
-                 f"{anchor.get('target') or anchor.get('from')} (re-anchor it in the Inspector)")
+        base = None
+        if new_state.get("kind") != "arrow":
+            plain = {**new_state, "anchor": {k: v for k, v in anchor.items()
+                                             if k not in ("dx", "dy")}}
+            base = self._anchored_geometry(plain)
+        if base is None:
+            new_state.pop("anchor", None)
+            if sink is not None:
+                sink(f"Annotation moved by hand: no longer anchored to "
+                     f"{anchor.get('target') or anchor.get('from')} (re-anchor it in the Inspector)")
+            return
+        dx = round(float(new_state.get("x", 0)) - base["x"], 2)
+        dy = round(float(new_state.get("y", 0)) - base["y"], 2)
+        kept = {k: v for k, v in anchor.items() if k not in ("dx", "dy")}
+        if dx or dy:
+            kept["dx"], kept["dy"] = dx, dy
+        new_state["anchor"] = kept
+        if sink is not None and (dx or dy):
+            sink(f"Moved; still anchored to {anchor.get('target')} "
+                 f"(Inspector: Reset position or Break link)")
 
     def _sync_anno_z(self, item):
         aid = getattr(item, "_anno_id", None)

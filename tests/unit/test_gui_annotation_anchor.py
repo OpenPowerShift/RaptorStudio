@@ -67,17 +67,74 @@ def test_a_leader_line_shows_while_selected(setup):
     assert v._anchor_leader is None
 
 
-def test_dragging_it_alone_removes_the_anchor_and_undo_restores_it(setup):
+def test_dragging_a_note_alone_keeps_the_link_as_an_offset_and_undo_restores(setup):
     from raptor.gui.ui.diagram import AnnoEditCmd
     _w, v, note, _f, messages = setup
+    old = v._anno_state(note)
+    new = dict(old, x=old["x"] + 200, y=old["y"] - 30)
+    v._detach_if_moved_alone(old, new, set())
+    v._stack.push(AnnoEditCmd(v, note, old, new, layout_only=True))
+    anchor = v.annotation_entry(note)["anchor"]
+    assert anchor["target"] == "ArcticAir_10000"
+    assert (anchor["dx"], anchor["dy"]) == pytest.approx((200.0, -30.0), abs=0.01)
+    assert "still anchored" in messages[-1]
+    v._stack.undo()
+    assert "dx" not in v.annotation_entry(note)["anchor"]
+
+
+def test_a_dragged_note_keeps_its_offset_when_the_target_moves(setup):
+    from raptor.gui.ui.diagram import AnnoEditCmd, MoveCmd
+    _w, v, note, _f, _m = setup
     old = v._anno_state(note)
     new = dict(old, x=old["x"] + 200)
     v._detach_if_moved_alone(old, new, set())
     v._stack.push(AnnoEditCmd(v, note, old, new, layout_only=True))
-    assert "anchor" not in v.annotation_entry(note)
+    dragged = _xy(v, note)
+    bid = _block(v, "ArcticAir_10000")
+    item = v._block_items[bid]
+    start = (item.scenePos().x(), item.scenePos().y())
+    item.setPos(start[0] + 100, start[1])
+    v._stack.push(MoveCmd(v, [("block", bid, start, (start[0] + 100, start[1]))]))
+    assert _xy(v, note) == pytest.approx((dragged[0] + 100, dragged[1]), abs=0.5)
+
+
+def test_dragging_an_arrow_alone_still_frees_it(setup):
+    from raptor.api.annotations import place_annotation
+    w, v, _note, _f, messages = setup
+    arrow = place_annotation(w._rbd, kind="arrow", from_="ArcticAir_10000",
+                             to="CB2000_25000")
+    v._rebuild_scene()
+    old = v._anno_state(arrow["id"])
+    new = dict(old, x1=old["x1"] + 10, x2=old["x2"] + 10)
+    v._detach_if_moved_alone(old, new, set())
+    assert "anchor" not in new
     assert "no longer anchored" in messages[-1]
-    v._stack.undo()
-    assert v.annotation_entry(note)["anchor"]["target"] == "ArcticAir_10000"
+
+
+def test_the_inspector_breaks_the_link_and_resets_the_position(setup):
+    from raptor.gui.ui.diagram import AnnoEditCmd
+    _w, v, note, _f, _m = setup
+    old = v._anno_state(note)
+    new = dict(old, x=old["x"] + 80)
+    v._detach_if_moved_alone(old, new, set())
+    v._stack.push(AnnoEditCmd(v, note, old, new, layout_only=True))
+    base = _xy(v, note)
+    v.set_annotation_props(note, {"anchor": {
+        k: x for k, x in v.annotation_entry(note)["anchor"].items()
+        if k not in ("dx", "dy")}})
+    assert _xy(v, note) == pytest.approx((base[0] - 80, base[1]), abs=0.5)
+    v.set_annotation_props(note, {"anchor": None})
+    assert "anchor" not in v.annotation_entry(note)
+    assert _xy(v, note) == pytest.approx((base[0] - 80, base[1]), abs=0.5)
+
+
+def test_the_inspector_has_break_link_and_reset_position_buttons(setup):
+    from PySide6.QtWidgets import QPushButton
+    w, v, note, _f, _m = setup
+    w._inspector.show_annotation(v._anno_items[note])
+    labels = {b.text(): b for b in w._inspector.findChildren(QPushButton)}
+    assert labels["Break link"].isEnabled()
+    assert not labels["Reset position"].isEnabled()      # never dragged
 
 
 def test_dragged_with_its_element_it_keeps_the_anchor(setup):

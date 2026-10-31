@@ -170,6 +170,10 @@ def build_schema() -> dict[str, Any]:
                 "ref": {"type": "string"},
                 "location": {"enum": list(ANNO_LOCATIONS)},
                 "gap": {"type": "number"},
+                # Where the user dragged the note, as an offset from the
+                # place its anchor computes (absent = never dragged).
+                "dx": {"type": "number"},
+                "dy": {"type": "number"},
                 "from": {"type": "string"},
                 "to": {"type": "string"},
                 "from_ref": {"type": "string"},

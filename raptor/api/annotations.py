@@ -321,7 +321,8 @@ def follow_layout(rbd, old_transform: dict | None = None) -> int:
     `_nudge`). This only happens here, after a layout: dragging an element
     in the GUI puts its notes back at their stored location, because a
     note that hops sideways while you drag is more surprising than one
-    that briefly overlaps.
+    that briefly overlaps. A note the user dragged away from its anchored
+    spot (the anchor's ``dx``/``dy``) keeps that offset and is not nudged.
 
     Anchors can chain (a note on a note on a block, an arrow between
     notes), so entries are processed in dependency order: every target is
@@ -367,10 +368,17 @@ def follow_layout(rbd, old_transform: dict | None = None) -> int:
                 w, h = float(entry.get("w") or 0), float(entry.get("h") or 0)
                 location = str(anchor.get("location", ANNO_DEFAULT_LOCATION))
                 gap = float(anchor.get("gap", 12.0))
-                px, py = _nudge(
-                    target, location, gap, w, h,
-                    int(entry.get("parent", 0) or 0),
-                    obstacles + [b for b in _note_boxes(free + placed, entry)])
+                dx, dy = anchor_offset(anchor)
+                if dx or dy:
+                    # Dragged by hand: the user chose this spot, so it is
+                    # the anchored place plus their offset, never nudged.
+                    px, py = _place_at_location(target, location, gap, w, h)
+                    px, py = px + dx, py + dy
+                else:
+                    px, py = _nudge(
+                        target, location, gap, w, h,
+                        int(entry.get("parent", 0) or 0),
+                        obstacles + [b for b in _note_boxes(free + placed, entry)])
                 entry["x"], entry["y"] = round(px, 2), round(py, 2)
                 placed.append(entry)
         except BuildError:
@@ -441,6 +449,16 @@ def _note_boxes(notes: list[dict[str, Any]], skip: dict[str, Any]):
             continue
         yield (int(n.get("parent", 0) or 0), f"Annotation:{n.get('id')}",
                x, y, x + w, y + h)
+
+
+def anchor_offset(anchor: dict[str, Any]) -> tuple[float, float]:
+    """The manual offset (``dx``, ``dy`` scene px) a user dragged a note to
+    from where its anchor puts it. (0, 0) when it was never dragged or the
+    stored values are not numbers."""
+    try:
+        return float(anchor.get("dx", 0) or 0), float(anchor.get("dy", 0) or 0)
+    except (TypeError, ValueError):
+        return 0.0, 0.0
 
 
 #: Extra clearance kept around an obstacle so a nudged note does not touch.

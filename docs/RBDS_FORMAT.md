@@ -562,9 +562,14 @@ it is and stops following anything. In the GUI the
 Inspector's **Anchor** group shows and changes the target and location,
 **Pick on canvas…** arms a click-to-anchor mode (click an element or
 another annotation; Esc cancels), and a dashed line joins a selected
-anchored note to its target. Moving the annotation itself by hand (or by
-coordinates through `update_annotation`) removes the anchor;
-`"anchor": null` removes it and leaves the annotation where it is.
+anchored note to its target. Dragging a note by hand keeps its anchor and
+stores how far it went as `dx`/`dy` (scene pixels, added to the place the
+`location` computes), so it keeps following its target from where you put
+it; such a note is never nudged. The Inspector's **Reset position**
+clears the offset and **Break link** removes the anchor. Dragging an
+*arrow* by hand has no single place to offset from, so it still frees it,
+as does setting coordinates through `update_annotation`;
+`"anchor": null` removes the anchor and leaves the annotation where it is.
 
 **Nothing re-lays out a model implicitly.** Saving, opening and exporting
 keep every position as it is. A model whose spacing is finer than Raptor

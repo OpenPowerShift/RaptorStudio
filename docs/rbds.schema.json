@@ -2289,6 +2289,12 @@
        "gap": {
         "type": "number"
        },
+       "dx": {
+        "type": "number"
+       },
+       "dy": {
+        "type": "number"
+       },
        "from": {
         "type": "string"
        },

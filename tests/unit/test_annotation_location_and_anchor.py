@@ -335,3 +335,20 @@ class TestNudge:
         # Placed from `two`'s FINAL spot (not where it first wanted to be),
         # so it stays beside it even after being nudged itself.
         assert abs(three["x"] - two["x"]) < 400 and abs(three["y"] - two["y"]) < 400
+
+
+class TestDraggedOffset:
+    def test_a_dragged_note_keeps_its_offset_through_a_layout_and_is_not_nudged(self):
+        t = TestNudge()
+        rbd = t._model()
+        note = place_annotation(rbd, kind="text", text="n", adjacent_to="A")
+        base = (note["x"], note["y"])
+        note["anchor"]["dx"], note["anchor"]["dy"] = 25.0, 10.0
+        follow_layout(rbd)
+        assert (note["x"], note["y"]) == pytest.approx((base[0] + 25, base[1] + 10))
+        assert follow_layout(rbd) == 0
+
+    def test_the_offset_is_part_of_the_schema(self):
+        from raptor.core.fileio.rbds_schema import build_schema
+        props = build_schema()["properties"]["annotations"]["items"]["properties"]["anchor"]["properties"]
+        assert props["dx"] == {"type": "number"} and props["dy"] == {"type": "number"}
