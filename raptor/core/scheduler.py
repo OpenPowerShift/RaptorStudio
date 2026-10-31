@@ -181,11 +181,6 @@ class _Entry:
     handle_id: int
     generation: int
     interrupt_reason: str | None = None
-    #: `Wait(group_head=True)`: this continuation goes to the HEAD of its
-    #: owner's same-instant records (the kickoff barrier's hop). `step`
-    #: gets that from `_gc_insert`'s `_gc_head_handle`; the batch tie
-    #: grouping has to carry the flag explicitly.
-    group_head: bool = False
     #: Optional identity carried with a `"Pool_Available"` interrupt (see
     #: `interrupt`'s own docstring): which KIND of pool grant this wake
     #: announces, so the resumed wait can tell whether the grant belongs
@@ -195,6 +190,11 @@ class _Entry:
     #: Per-record owner (see `interrupt`'s `gc_owner`), for records whose
     #: MODSIM owner is not the process's own object.
     gc_owner: Owner | None = None
+    #: Same-instant index bookkeeping (see `Scheduler.step`): the stamp of
+    #: this entry's current item in the instant heap (-1 when it has none),
+    #: and the owner group that item's key was computed from.
+    istamp: int = field(default=-1, repr=False, compare=False)
+    igroup: OwnerGroup | None = field(default=None, repr=False, compare=False)
 
     def __lt__(self, other: _Entry) -> bool:  # pragma: no cover - exercised via heapq
         if self.time == other.time:
@@ -207,16 +207,14 @@ class OwnerGroup:
     """One owner's pending records, in wake-time order (Raptor 7's per-owner
     group, cached at `[owner+0xc]`).
 
-    `eq=False`: every `_gc_cal` membership test and `_gc_rank` lookup used to
-    compare groups by their whole `recs` list, recursively, because a plain
-    dataclass generates `__eq__`. Identity is the right comparison here, and
-    it keeps the same-instant tie sort O(groups) instead of O(groups x recs).
+    `eq=False`: groups are compared, and hashed, by identity. A plain
+    dataclass would compare their whole `recs` lists, recursively.
     """
 
     recs: list[_Entry] = field(default_factory=list)
     #: Tail-stamp of this group in the recovered owner-group calendar,
-    #: assigned whenever the group is (re)appended. `_gc_rank` uses it
-    #: instead of `_gc_cal.index`.
+    #: assigned whenever the group is (re)appended. Stamps only grow, so
+    #: they order the groups exactly as the calendar list would.
     order: int = 0
 
     @property
@@ -381,33 +379,34 @@ class Scheduler:
         #: Used ONLY to order a tied group in `step` (tier, then this rank,
         #: then seq).
         self._gc_groups: dict[Owner, OwnerGroup] = {}
-        self._gc_cal: list[OwnerGroup] = []
         self._gc_order = itertools.count()
         self._gc_live: dict[int, tuple[OwnerGroup, _Entry]] = {}
         #: handle id -> explicit owner key for a non-block owner (a spare
         #: pool's `OrderASpare` TELLs all share their pool). Without it a
         #: non-block handle is its own one-activity owner.
         self._gc_owner_override: dict[int, Owner] = {}
-        #: The instant a batch tie-group is being processed for. Its
-        #: remaining entries live in `_run_tie_group`'s buckets rather than
-        #: the heap; `next_time` must still report that instant so per-event
-        #: observers see "more at this instant" exactly as `step` did.
-        self._tie_in_flight: float | None = None
-        #: Entries of that instant still waiting in the fast-path buckets.
-        self._tie_pending: int = 0
-        #: Set by `interrupt` while a batch tie group is in flight. The
-        #: interrupt protocol mutates/replaces records in ways that depend
-        #: on which record is still first; rather than re-derive that
-        #: ordering inside the fast path, hand the REST of the instant back
-        #: to `step` (which is the authority) and keep already-processed
-        #: entries -- their order matched it up to this point.
-        self._tie_interrupted = False
-        #: Once any interrupt has fired inside a fast tie group, this
-        #: run's same-instant ordering is left to `step` for the rest of
-        #: the run. MODSIM's "a second interrupt mutates the first record"
-        #: rule makes the fast path's bucket order depend on cascade order
-        #: in a way only `step` reproduces exactly.
-        self._fast_ties_disabled = False
+        #: Owner groups changed since `step` last brought the instant
+        #: index up to date (their records' keys may have moved).
+        self._gc_dirty: set[OwnerGroup] = set()
+        #: The instant index (see `step`). `_inst_time` is the instant being
+        #: worked through, or None between instants. `_inst_pool` holds that
+        #: instant's entries taken off the calendar (by `id`); `_inst_heap`
+        #: orders them by `(tier, group order, position in group, seq)`, with
+        #: stale items left in place and skipped by their stamp.
+        #: `_inst_by_group` lists the pool entries keyed from each owner group,
+        #: so a changed group re-keys only its own entries.
+        self._inst_time: float | None = None
+        self._inst_pool: dict[int, _Entry] = {}
+        self._inst_heap: list[tuple[int, int, int, int, int, _Entry]] = []
+        self._inst_by_group: dict[OwnerGroup, list[_Entry]] = {}
+        self._inst_stamps = itertools.count()
+        #: `(ChooseNext active, tie-breaking switched off)` for `_inst_time`
+        #: when the keys were computed; the tier table depends on it.
+        self._inst_mode: tuple[bool, bool] | None = None
+        #: Whether the last selection left other live entries at
+        #: `_inst_time`: the old one-at-a-time `step` put those back on the
+        #: calendar, so `next_time` reported the instant as not finished.
+        self._inst_more = False
         #: The instant at which `CallEndSimulation` was selected: ChooseNext
         #: governs the rest of that instant (`SetTieBreaking(TRUE)`,
         #: Raptor 7; `TimeAdvance` turns it off).
@@ -578,7 +577,6 @@ class Scheduler:
         self, handle_id: int, time: float, generation: int, *,
         interrupt_reason: str | None = None, seq: int | None = None,
         token: object | None = None, gc_owner: Owner | None = None, gc_retail: bool = False,
-        group_head: bool = False,
     ) -> None:
         if seq is None:
             seq = next(self._counter)
@@ -588,7 +586,6 @@ class Scheduler:
         entry = _Entry(
             time=time, seq=seq, handle_id=handle_id, generation=generation,
             interrupt_reason=interrupt_reason, token=token, gc_owner=gc_owner,
-            group_head=group_head,
         )
         heapq.heappush(self._calendar, (entry.time, entry.seq, entry))
         self._gc_insert(entry, interrupt=interrupt_reason is not None or gc_retail, gc_owner=gc_owner)
@@ -620,21 +617,19 @@ class Scheduler:
             return
         g, e = live
         g.recs.remove(e)
-        if not g.recs and g in self._gc_cal:
-            self._gc_cal.remove(g)
+        self._gc_dirty.add(g)
 
     def _gc_tail(self, g: OwnerGroup) -> None:
-        """Move `g` to the recovered calendar tail and stamp its order."""
-        if g in self._gc_cal:
-            self._gc_cal.remove(g)
+        """Move `g` to the recovered calendar tail by stamping its order."""
         g.order = next(self._gc_order)
-        self._gc_cal.append(g)
+        self._gc_dirty.add(g)
 
     def _gc_insert(self, entry: _Entry, *, interrupt: bool = False, gc_owner: Owner | None = None) -> None:
         self._gc_remove(entry.handle_id)
         g = self._gc_groups.setdefault(
             gc_owner if gc_owner is not None else self._gc_owner_key(entry.handle_id), OwnerGroup())
         recs = g.recs
+        self._gc_dirty.add(g)
         if self._gc_head_handle == entry.handle_id:
             self._gc_head_handle = None
             if recs and entry.time <= g.head_time:
@@ -736,9 +731,8 @@ class Scheduler:
     def step(self, end_time: float) -> bool:
         """Pop and process ONE calendar entry (if one is due at or before
         `end_time`); return whether an entry was processed. `run_until` is
-        now just `while self.step(end_time): pass`. Enables
-        interactive/live-sim drivers that want to observe model state
-        between events.
+        just `while self.step(end_time): pass`. Enables interactive/live-sim
+        drivers that want to observe model state between events.
 
         A same-time tie group is ordered by `(tier, owner-group calendar
         rank, seq)`: PoolObj-owned processes (`front_tier`) first, then the
@@ -747,41 +741,197 @@ class Scheduler:
         source-side process behind them; giving them the non-block tier
         reorders kickoff). From `CallEndSimulation`'s selection to the end
         of that instant (`cn_active_time`), `choose_next` decides instead,
-        as source's `SetTieBreaking(TRUE)` does."""
+        as source's `SetTieBreaking(TRUE)` does.
+
+        The instant's entries are held in an index (`_inst_pool`,
+        `_inst_heap`) instead of being popped, sorted and pushed back on
+        every call. That cost O(k log k) per entry, O(k^2 log k) per instant
+        of k entries: about 35 s per replication on a 3,470-block model whose
+        t=0 instant has ~4,000 entries. A key only changes when its owner
+        group changes (`_gc_dirty`), so only that group's entries are
+        re-keyed, and the selection is the minimum of exactly the key the
+        full sort used. Entries that went stale stay in the index until they
+        reach the top; `_inst_more` reproduces what the full sort left on the
+        calendar, which `next_time` reports.
+        """
         _validate_time(end_time, "step end_time")
-        if not self._calendar or self._calendar[0][0] > end_time:
+        tie_time = self._open_instant(end_time)
+        if tie_time is None:
             return False
-        tie_time = self._calendar[0][0]
-        group: list[_Entry] = []
-        while self._calendar and self._calendar[0][0] == tie_time:
-            entry = heapq.heappop(self._calendar)[2]
-            if self._generations.get(entry.handle_id) != entry.generation:
-                continue  # stale -- this wait was interrupt-ed away already
-            group.append(entry)
-        if not group:
-            return True
-        if self.cn_active_time == tie_time:
-            # The rest of the `CallEndSimulation` instant: calendar order,
-            # then the faithful ChooseNext port.
-            group.sort(key=lambda e: (self._gc_rank(e), e.seq))
-            chosen = choose_next(group, self._identity)
-            entry = group.pop(next(i for i, e in enumerate(group) if e is chosen))
+        mode = (self.cn_active_time == tie_time, self.cn_off_time == tie_time)
+        if self._inst_mode is None:
+            self._inst_mode = mode
+        tiers = _TIER_CN_OFF if mode[1] else _TIER
+        entry = self._inst_admit(tie_time, tiers)
+        if entry is not None and not mode[0]:
+            # The only live entry of the instant: nothing to order.
+            self._gc_dirty.clear()
+            self._inst_more = False
         else:
-            tiers = _TIER_CN_OFF if self.cn_off_time == tie_time else _TIER
-            group.sort(
-                key=lambda e: (
-                    tiers.get(self._owners.get(e.handle_id), 1),
-                    self._gc_rank(e),
-                    e.seq,
-                )
-            )
-            entry = group.pop(0)
+            if entry is not None:
+                self._inst_pool[id(entry)] = entry
+                self._inst_push(entry, tiers)
+            self._inst_rekey(mode, tiers)
+            entry = self._inst_choose_next() if mode[0] else self._inst_select()
+            if entry is None:
+                # Every entry left at this instant went stale: this call
+                # consumes them, as the full sort's pop did.
+                self._close_instant()
+                return True
+            self._inst_forget(entry)
         self._gc_select(entry)
-        for e in group:
-            heapq.heappush(self._calendar, (e.time, e.seq, e))
         self.time = tie_time
         self._process(entry)
         return True
+
+    def _open_instant(self, end_time: float) -> float | None:
+        """The instant `step` works on (opening the next one when the
+        current one is finished), or None when nothing is due by `end_time`."""
+        cal = self._calendar
+        tie_time = self._inst_time
+        if tie_time is not None and not self._inst_more and (not cal or cal[0][0] != tie_time):
+            # Nothing of the instant is left (the pool holds stale entries at most).
+            self._close_instant()
+            tie_time = None
+        if tie_time is None:
+            if not cal or cal[0][0] > end_time:
+                return None
+            tie_time = cal[0][0]
+            self._inst_time = tie_time
+        elif tie_time > end_time:
+            return None
+        return tie_time
+
+    def _inst_admit(self, tie_time: float, tiers: dict[str | None, int]) -> _Entry | None:
+        """Move what was queued at `tie_time` since the last call into the
+        index. Returns, without indexing it, an entry that is the instant's
+        only live one."""
+        cal = self._calendar
+        gens = self._generations
+        pool = self._inst_pool
+        while cal and cal[0][0] == tie_time:
+            entry = heapq.heappop(cal)[2]
+            if gens.get(entry.handle_id) != entry.generation:
+                continue
+            if not pool and not (cal and cal[0][0] == tie_time):
+                return entry
+            pool[id(entry)] = entry
+            self._inst_push(entry, tiers)
+        return None
+
+    def _inst_rekey(self, mode: tuple[bool, bool], tiers: dict[str | None, int]) -> None:
+        """Re-key the pool entries whose owner group changed since the last
+        call, or all of them when the tier table changed mid-instant
+        (`CallEndSimulation`, `switch_off_tie_breaking`)."""
+        dirty = self._gc_dirty
+        if mode != self._inst_mode:
+            self._inst_mode = mode
+            self._inst_heap.clear()
+            self._inst_by_group.clear()
+            for entry in self._inst_pool.values():
+                self._inst_push(entry, tiers)
+        elif dirty:
+            by_group = self._inst_by_group
+            for g in dirty:
+                entries = by_group.pop(g, None)
+                if entries:
+                    for entry in entries:
+                        self._inst_push(entry, tiers)
+        dirty.clear()
+
+    def _inst_choose_next(self) -> _Entry | None:
+        """The rest of the `CallEndSimulation` instant: calendar order, then
+        the faithful ChooseNext port."""
+        gens = self._generations
+        group = [e for e in self._inst_pool.values() if gens.get(e.handle_id) == e.generation]
+        if not group:
+            return None
+        group.sort(key=lambda e: (self._gc_rank(e), e.seq))
+        self._inst_more = len(group) > 1
+        return choose_next(group, self._identity)
+
+    def _inst_select(self) -> _Entry | None:
+        """Pop the live entry with the smallest key, and record whether
+        another live entry is left (`_inst_more`)."""
+        heap = self._inst_heap
+        gens = self._generations
+        entry = None
+        while heap:
+            item = heapq.heappop(heap)
+            e = item[5]
+            if e.istamp != item[4]:
+                continue  # superseded by a re-keyed item
+            if gens.get(e.handle_id) != e.generation:
+                self._inst_forget(e)
+                continue
+            entry = e
+            break
+        if entry is None:
+            return None
+        while heap:
+            item = heap[0]
+            e = item[5]
+            if e.istamp == item[4] and gens.get(e.handle_id) == e.generation:
+                break
+            heapq.heappop(heap)
+            if e.istamp == item[4]:
+                self._inst_forget(e)
+        self._inst_more = bool(heap)
+        return entry
+
+    def _inst_push(self, entry: _Entry, tiers: dict[str | None, int]) -> None:
+        """(Re-)key a pool entry from the current owner-group state: the
+        same `(tier, rank, seq)` `step` used to sort by. Any older heap item
+        for it is superseded by the new stamp."""
+        live = self._gc_live.get(entry.handle_id)
+        if live is None or live[1] is not entry:
+            g = None
+            order, pos = 1 << 30, entry.seq
+        else:
+            g = live[0]
+            order = g.order
+            recs = g.recs
+            pos = len(recs)
+            for i, candidate in enumerate(recs):
+                if candidate is entry:
+                    pos = i
+                    break
+        stamp = next(self._inst_stamps)
+        entry.istamp = stamp
+        entry.igroup = g
+        tier = tiers.get(self._owners.get(entry.handle_id), 1)
+        heapq.heappush(self._inst_heap, (tier, order, pos, entry.seq, stamp, entry))
+        if g is not None:
+            entries = self._inst_by_group.get(g)
+            if entries is None:
+                self._inst_by_group[g] = [entry]
+            else:
+                entries.append(entry)
+
+    def _inst_forget(self, entry: _Entry) -> None:
+        """Take `entry` out of the instant index (selected, or found stale)."""
+        self._inst_pool.pop(id(entry), None)
+        entry.istamp = -1
+        g = entry.igroup
+        if g is not None:
+            entry.igroup = None
+            entries = self._inst_by_group.get(g)
+            if entries is not None:
+                for i, candidate in enumerate(entries):
+                    if candidate is entry:
+                        del entries[i]
+                        break
+
+    def _close_instant(self) -> None:
+        for entry in self._inst_pool.values():
+            entry.istamp = -1
+            entry.igroup = None
+        self._inst_pool.clear()
+        self._inst_heap.clear()
+        self._inst_by_group.clear()
+        self._inst_time = None
+        self._inst_mode = None
+        self._inst_more = False
 
     def _process(self, entry: _Entry) -> None:
         """Resume the process behind `entry` once (see `step`'s docstring).
@@ -816,8 +966,7 @@ class Scheduler:
         if request.group_head:
             self._gc_head_handle = handle_id
         self._push(handle_id, self.time + wait, generation,
-                   gc_owner=request.owner, gc_retail=request.retail,
-                   group_head=request.group_head)
+                   gc_owner=request.owner, gc_retail=request.retail)
         if request.replaces is not None:
             # Retire the slot placeholder AFTER the requeue joined its group,
             # so the group keeps its calendar position.
@@ -845,26 +994,7 @@ class Scheduler:
         real event was earlier, see `block_lifecycle.py`'s docstring on
         `EndSimulation`'s forced termination)."""
         _validate_time(end_time, "run_until end_time")
-        while True:
-            if not self._calendar or self._calendar[0][0] > end_time:
-                break
-            # Batch runs have no per-event observer: process the whole
-            # same-instant group in one pass. The old loop re-popped and
-            # re-sorted every remaining entry of the group once per entry
-            # (O(k^2 log k)); on a 3,470-block model's ~6,900-entry t=0
-            # group that was ~30 s per replication. None order changes.
-            self._tie_in_flight = self._calendar[0][0]
-            try:
-                fast = self._run_tie_group(self._tie_in_flight)
-            finally:
-                self._tie_in_flight = None
-            if fast is not None:
-                # False means the instant held only stale entries; they
-                # are consumed, so continue with the next time.
-                continue
-            # ChooseNext/mixed-tier instant: the one-at-a-time path.
-            if not self.step(end_time):
-                break
+        while self.step(end_time):
             if self.block_hook is not None:
                 # May block indefinitely (GUI Pause): sim time is frozen
                 # because this loop simply doesn't advance while blocked.
@@ -872,147 +1002,6 @@ class Scheduler:
             if self.on_step is not None:
                 self.on_step(self)
         self.time = end_time
-
-    def _run_tie_group(self, tie_time: float) -> bool | None:  # noqa: C901, PLR0912, PLR0915
-        """Process every valid entry at `tie_time` in the same order the
-        one-at-a-time `step` path would, without the repeated full sort.
-
-        Returns True when the instant is finished, False when nothing was
-        left, or None when this instant needs the slow path (ChooseNext
-        governs it, or an owner group mixes tiers). The caller then falls
-        back to `step`, so the faithful tie rules stay in one place.
-        """
-        self._tie_pending = 0
-        if self.cn_active_time == tie_time or self._fast_ties_disabled:
-            return None
-        group: list[_Entry] = []
-        while self._calendar and self._calendar[0][0] == tie_time:
-            entry = heapq.heappop(self._calendar)[2]
-            if self._generations.get(entry.handle_id) == entry.generation:
-                group.append(entry)
-        if not group:
-            return False
-        tiers = _TIER_CN_OFF if self.cn_off_time == tie_time else _TIER
-
-        # id(owner group) -> [owner group, tier, entries still pending]
-        buckets: dict[int, list] = {}
-        for e in group:
-            live = self._gc_live.get(e.handle_id)
-            if live is None or live[1] is not e:
-                continue
-            g = live[0]
-            tier = tiers.get(self._owners.get(e.handle_id), 1)
-            bucket = buckets.get(id(g))
-            if bucket is None:
-                buckets[id(g)] = [g, tier, [e]]
-            elif bucket[1] != tier:
-                # Same owner, different tiers: the global key
-                # (tier, group rank, seq) interleaves them; let `step`
-                # handle this rare instant exactly.
-                for e2 in group:
-                    heapq.heappush(self._calendar, (e2.time, e2.seq, e2))
-                return None
-            else:
-                bucket[2].append(e)
-        if not buckets:
-            return False
-        if any(len(bucket[2]) > 1 for bucket in buckets.values()):
-            # One owner with several records at this instant: MODSIM's
-            # interrupt rule (a second interrupt mutates the FIRST record's
-            # reason and keeps its position) makes within-group order
-            # dependent on the exact sequence of cascades. That is what
-            # `step` implements; let it process this instant.
-            for e2 in group:
-                heapq.heappush(self._calendar, (e2.time, e2.seq, e2))
-            return None
-        self._tie_pending = sum(len(b[2]) for b in buckets.values())
-
-        # Within an owner group the order is (position in g.recs, seq).
-        heap: list[tuple[int, int, int]] = []
-        for key, (g, tier, entries) in buckets.items():
-            index = {id(r): i for i, r in enumerate(g.recs)}
-            entries.sort(
-                key=lambda e: (index.get(id(e), len(g.recs)), e.seq))
-            heapq.heappush(heap, (tier, g.order, key))
-
-        return self._run_tie_buckets(tie_time, buckets, heap, tiers)
-
-    def _run_tie_buckets(  # noqa: C901, PLR0912, PLR0915
-        self, tie_time: float, buckets: dict[int, list],
-        heap: list[tuple[int, int, int]], tiers: dict,
-    ) -> bool | None:
-        """Drain one instant's `(tier, owner-group rank, seq)` buckets."""
-        while heap:
-            _tier, _order, key = heapq.heappop(heap)
-            bucket = buckets.get(key)
-            if bucket is None:
-                continue
-            g, g_tier, entries = bucket
-            while entries:
-                e = entries[0]
-                if self._generations.get(e.handle_id) == e.generation:
-                    break
-                entries.pop(0)
-            if not entries:
-                buckets.pop(key, None)
-                continue
-            entry = entries.pop(0)
-            self._gc_select(entry)
-            self.time = tie_time
-            self._process(entry)
-            if self._tie_interrupted:
-                # An interrupt landed during this turn. The remaining
-                # records' order depends on MODSIM's "second interrupt
-                # keeps the first record's position" rule, which `step`
-                # implements; let it sort the rest of the instant.
-                self._tie_interrupted = False
-                for _k, (_g2, _t, es) in list(buckets.items()):
-                    for e2 in es:
-                        heapq.heappush(self._calendar, (e2.time, e2.seq, e2))
-                buckets.clear()
-                self._tie_pending = 0
-                return None
-            self._tie_pending = sum(len(b[2]) for b in buckets.values())
-            if self.block_hook is not None:
-                # GUI Pause / Stop / Skip between events, exactly as the
-                # one-at-a-time loop does after `step`.
-                self.block_hook()
-            if self.on_step is not None:
-                self.on_step(self)
-            # `_process` may have queued more work at this same instant.
-            while self._calendar and self._calendar[0][0] == tie_time:
-                new = heapq.heappop(self._calendar)[2]
-                if self._generations.get(new.handle_id) != new.generation:
-                    continue
-                live = self._gc_live.get(new.handle_id)
-                if live is None or live[1] is not new:
-                    continue
-                new_g = live[0]
-                new_tier = tiers.get(self._owners.get(new.handle_id), 1)
-                new_key = id(new_g)
-                new_bucket = buckets.get(new_key)
-                if new_bucket is None:
-                    new_bucket = [new_g, new_tier, []]
-                    buckets[new_key] = new_bucket
-                    heapq.heappush(heap, (new_tier, new_g.order, new_key))
-                elif new_bucket[1] != new_tier:
-                    # Rare mixed-tier instant: hand the rest to `step`.
-                    heapq.heappush(self._calendar, (new.time, new.seq, new))
-                    for _k, (_g2, _t, es) in list(buckets.items()):
-                        for e2 in es:
-                            heapq.heappush(self._calendar, (e2.time, e2.seq, e2))
-                    return None
-                if new.group_head:
-                    new_bucket[2].insert(0, new)
-                else:
-                    new_bucket[2].append(new)
-            if entries:
-                heapq.heappush(heap, (g_tier, g.order, key))
-            else:
-                buckets.pop(key, None)
-            self._tie_pending = sum(len(b[2]) for b in buckets.values())
-        self._tie_pending = 0
-        return True
 
     def interrupt(self, handle: ProcessHandle, reason: str, *,
                   token: object | None = None, gc_owner: Owner | None = None) -> None:
@@ -1058,9 +1047,6 @@ class Scheduler:
 """
         if handle.id not in self._processes:
             return
-        if self._tie_in_flight is not None:
-            self._tie_interrupted = True
-            self._fast_ties_disabled = True
         if handle.id in self._unstarted:
             self._start_unstarted(handle.id)
             if handle.id not in self._processes:
@@ -1112,13 +1098,12 @@ class Scheduler:
                    seq=seq, token=token, gc_owner=gc_owner)
 
     def pending_count(self) -> int:
-        return len(self._calendar)
+        return len(self._calendar) + len(self._inst_pool)
 
     def next_time(self) -> float | None:
         """Time of the calendar's head entry, or None when it is empty. The
         head can be a stale (interrupted) entry that `step` will skip, so this
         is a lower bound on the next instant, not necessarily a live event."""
-        if self._tie_in_flight is not None and self._tie_pending > 0:
-            if not self._calendar or self._calendar[0][0] >= self._tie_in_flight:
-                return self._tie_in_flight
+        if self._inst_time is not None and self._inst_more:
+            return self._inst_time
         return self._calendar[0][0] if self._calendar else None
