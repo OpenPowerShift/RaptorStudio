@@ -275,6 +275,36 @@ def _to_scene_units(rbd, units: str, *coords: float | None) -> tuple[float | Non
 _GEOMETRY = ("x", "y", "w", "h", "x1", "y1", "x2", "y2")
 
 
+def refresh_anchor_names(rbd) -> int:
+    """Rewrite each anchor's stored names from the elements its ``ref``s
+    point at, so a rename (of a block, node, event, hierarchy or an
+    annotation's text) cannot leave a stale ``target``/``from``/``to``.
+
+    ``ref`` is the authority (ids are unique and survive a rename); the
+    names are kept for readers of the file and as a fallback. A ref that no
+    longer resolves is left alone. Returns how many anchors changed."""
+    changed = 0
+    for entry in getattr(rbd, "annotations", None) or []:
+        anchor = entry.get("anchor")
+        if not isinstance(anchor, dict):
+            continue
+        touched = False
+        for name_key, ref_key in (("target", "ref"), ("from", "from_ref"),
+                                  ("to", "to_ref")):
+            ref = anchor.get(ref_key)
+            if not ref or name_key not in anchor:
+                continue
+            try:
+                name = _anchor_for(rbd, ref)["name"]
+            except BuildError:
+                continue
+            if anchor[name_key] != name:
+                anchor[name_key] = name
+                touched = True
+        changed += touched
+    return changed
+
+
 def follow_layout(rbd, old_transform: dict | None = None) -> int:
     """Keep annotations with the diagram after Auto Layout moved elements.
 
@@ -294,6 +324,7 @@ def follow_layout(rbd, old_transform: dict | None = None) -> int:
     """
     new = view_transform.ensure(rbd)
     old = view_transform.ViewTransform.from_dict(old_transform) if old_transform else None
+    refresh_anchor_names(rbd)
     entries = list(getattr(rbd, "annotations", None) or [])
     anchored = [e for e in entries
                 if isinstance(e.get("anchor"), dict)]

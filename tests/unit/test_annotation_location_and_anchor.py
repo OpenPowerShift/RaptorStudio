@@ -141,3 +141,55 @@ class TestChainedFollowing:
         assert middle["x"] != before_leaf[0]
         assert leaf["x"] == pytest.approx(middle["x"])
         assert leaf["y"] > middle["y"]
+
+
+class TestAnchorNamesFollowRenames:
+    """`ref` is the authority; the stored names must not go stale."""
+
+    def test_a_renamed_block_updates_target_but_not_ref(self, rbd):
+        from raptor.api.annotations import refresh_anchor_names
+        row = next(r for r in rbd.section("BLOCK_DATA").rows if r["ID"] != "0")
+        old = row["blockName"]
+        note = place_annotation(rbd, kind="text", text="n", adjacent_to=old)
+        ref = note["anchor"]["ref"]
+        row["blockName"] = "Renamed"
+        assert refresh_anchor_names(rbd) == 1
+        assert note["anchor"]["target"] == "Renamed"
+        assert note["anchor"]["ref"] == ref
+        assert refresh_anchor_names(rbd) == 0          # idempotent
+
+    def test_an_arrows_ends_follow_renames(self):
+        from raptor.api import build
+        from raptor.api.annotations import refresh_anchor_names
+        rbd = build.build_from_spec(
+            {"blocks": [{"name": "A", "x": 1.0, "y": 1.0},
+                        {"name": "B", "x": 3.0, "y": 1.0}],
+             "nodes": [{"name": "s", "type": 1, "x": 0.0, "y": 1.0},
+                       {"name": "e", "type": 3, "x": 4.0, "y": 1.0}],
+             "links": [{"from": "s", "to": "A"}, {"from": "A", "to": "B"},
+                       {"from": "B", "to": "e"}]}, auto_layout=False)
+        rows = [r for r in rbd.section("BLOCK_DATA").rows if r["ID"] != "0"]
+        arrow = place_annotation(rbd, kind="arrow", from_=rows[0]["blockName"],
+                                 to=rows[1]["blockName"])
+        rows[1]["blockName"] = "Head"
+        refresh_anchor_names(rbd)
+        assert arrow["anchor"]["to"] == "Head"
+
+    def test_editing_an_annotations_text_updates_anchors_to_it(self, rbd):
+        from raptor.api.annotations import refresh_anchor_names
+        root = place_annotation(rbd, kind="text", text="old label",
+                                x=10.0, y=10.0)
+        child = place_annotation(rbd, kind="text", text="c",
+                                 adjacent_to=f"Annotation:{root['id']}")
+        root["text"] = "new label"
+        refresh_anchor_names(rbd)
+        assert child["anchor"]["target"] == "new label"
+        assert child["anchor"]["ref"] == f"Annotation:{root['id']}"
+
+    def test_a_dangling_ref_is_left_alone(self, rbd):
+        from raptor.api.annotations import refresh_anchor_names
+        note = place_annotation(rbd, kind="text", text="n", x=1.0, y=1.0)
+        note["anchor"] = {"target": "Gone", "ref": "Block:9999",
+                          "location": "above", "gap": 12.0}
+        assert refresh_anchor_names(rbd) == 0
+        assert note["anchor"]["target"] == "Gone"

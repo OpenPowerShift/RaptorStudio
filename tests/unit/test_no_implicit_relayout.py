@@ -126,3 +126,58 @@ def test_an_anchor_records_the_element_id(crowded):
     add_annotation(ws, mid, kind="text", text="n", adjacent_to="B1")
     anchor = list_annotations(ws, mid)["annotations"][0]["anchor"]
     assert anchor["ref"].startswith("Block:") and anchor["target"] == "B1"
+
+
+def test_real_auto_layout_moves_a_chain_consistently_and_is_stable(tmp_path):
+    """End to end through the MCP tool: a block note, a note anchored to
+    that note and an arrow between two blocks all land where their anchors
+    say, a second layout changes nothing, and a rename afterwards keeps the
+    stored names in step."""
+    from raptor.api.annotations import _anchor_for, _place_at_location, refresh_anchor_names
+    from raptor.mcp.server import mcp
+    mcp._raptor_args = type("A", (), {"workspace": str(tmp_path)})()
+    mcp._raptor_ws = None
+    from raptor.mcp import context
+    from raptor.mcp.tools_model import auto_layout
+    ws = context.workspace()
+    mid = ws.register_model(build.build_from_spec(SPEC, auto_layout=False), name="m")["model_id"]
+    first = add_annotation(ws, mid, kind="text", text="first", adjacent_to="B2",
+                           location="above")
+    second = add_annotation(ws, mid, kind="text", text="second",
+                            adjacent_to=f"Annotation:{first['annotation_id']}",
+                            location="below")
+    arrow = add_annotation(ws, mid, kind="arrow", from_="B0", to="B3")
+    rbd = ws.get(mid).rbd
+
+    def by_id(i):
+        return next(a for a in rbd.annotations if a["id"] == i)
+
+    def check():
+        for aid, loc in ((first["annotation_id"], "above"),
+                         (second["annotation_id"], "below")):
+            note = by_id(aid)
+            target = _anchor_for(rbd, note["anchor"]["ref"])
+            px, py = _place_at_location(target, loc, 12.0, note["w"], note["h"])
+            assert (note["x"], note["y"]) == pytest.approx((round(px, 2), round(py, 2)))
+        a = by_id(arrow["annotation_id"])
+        tail = _anchor_for(rbd, a["anchor"]["from_ref"])
+        head = _anchor_for(rbd, a["anchor"]["to_ref"])
+        assert (a["x1"], a["y1"], a["x2"], a["y2"]) == pytest.approx(
+            (round(tail["cx"], 2), round(tail["cy"], 2),
+             round(head["cx"], 2), round(head["cy"], 2)))
+
+    assert auto_layout(mid).structured_content["moved"]
+    check()
+    snapshot = [(a["id"], a.get("x"), a.get("y"), a.get("x2"), a.get("y2"))
+                for a in rbd.annotations]
+    auto_layout(mid)
+    check()
+    assert snapshot == [(a["id"], a.get("x"), a.get("y"), a.get("x2"), a.get("y2"))
+                        for a in rbd.annotations]
+
+    row = next(r for r in rbd.section("BLOCK_DATA").rows if r["blockName"] == "B2")
+    row["blockName"] = "B2_renamed"
+    refresh_anchor_names(rbd)
+    assert by_id(first["annotation_id"])["anchor"]["target"] == "B2_renamed"
+    auto_layout(mid)
+    check()

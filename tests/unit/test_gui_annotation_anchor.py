@@ -264,3 +264,24 @@ def test_a_new_note_starts_behind_the_reliability_elements(setup):
     v._handle_tool_click(QPointF(60.0, 60.0))
     newest = max(v._anno_items)
     assert v._anno_items[newest].zValue() == ANNO_Z_BEHIND
+
+
+def test_renaming_the_target_updates_the_anchor_name_and_undo_restores(setup):
+    _w, v, note, _free, _m = setup
+    bid = _block(v, "ArcticAir_10000")
+    ref = v.annotation_entry(note)["anchor"]["ref"]
+    v.rename_block(bid, "Chiller_A")
+    anchor = v.annotation_entry(note)["anchor"]
+    assert anchor["target"] == "Chiller_A" and anchor["ref"] == ref
+    v._stack.undo()
+    assert v.annotation_entry(note)["anchor"]["target"] == "ArcticAir_10000"
+
+
+def test_editing_a_notes_text_updates_anchors_to_it(setup):
+    from raptor.api.annotations import place_annotation
+    from raptor.gui.ui.diagram_annotations import apply_anno_state
+    w, v, note, _free, _m = setup
+    child = place_annotation(w._rbd, kind="text", text="c",
+                             adjacent_to=f"Annotation:{note}")
+    apply_anno_state(v, note, {**v.annotation_entry(note), "text": "Edited"})
+    assert v.annotation_entry(child["id"])["anchor"]["target"] == "Edited"

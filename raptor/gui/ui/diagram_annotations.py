@@ -825,7 +825,12 @@ def apply_anno_state(v, aid: int, state: dict) -> None:
     what `AnnoEditCmd` does, shared with the anchor-following code."""
     for _i, a in enumerate(v.annotations):
         if int(a.get("id", 0)) == aid:
+            text_changed = a.get("text") != state.get("text")
             a.clear(); a.update(state)
+            if text_changed and getattr(v, "_rbd_ref", None) is not None:
+                # Anchors to this note store its label beside the id.
+                from raptor.api.annotations import refresh_anchor_names
+                refresh_anchor_names(v._rbd_ref)
             break
     item = getattr(v, "_anno_items", {}).get(aid)
     if item is not None:

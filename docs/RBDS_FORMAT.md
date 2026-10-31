@@ -533,7 +533,10 @@ annotation (`adjacent_to`, or an arrow's `from_`/`to`) carries an
 `{"target": "B1", "ref": "Block:3", "location": "right", "gap": 12}` or
 `{"from": "A", "to": "B", "from_ref": "Node:1", "to_ref": "Block:3"}`.
 `ref` is the target's kind and id (names need not be unique; an anchor
-written before `ref` existed is resolved by name). A target can be any
+written before `ref` existed is resolved by name). The name beside it is
+kept in step with the target: renaming a block, node, event or
+hierarchy (or editing an annotation's text) rewrites it, and Auto Layout
+refreshes it too, so it never goes stale. A target can be any
 block, node, event or hierarchy, or another annotation
 (`Annotation:<id>`; a label is accepted when it is unique). For an
 annotation target the bounding box is its stored `x`/`y`/`w`/`h`, or

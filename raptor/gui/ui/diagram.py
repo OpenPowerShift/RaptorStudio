@@ -2585,6 +2585,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._editor.sync_hier_row(oid)
         else:
             self._editor.write_element(self._rbd_ref, kind, oid)
+        # Anchors keep the target's name beside its id: keep them in step.
+        if self._rbd_ref is not None:
+            from raptor.api.annotations import refresh_anchor_names
+            refresh_anchor_names(self._rbd_ref)
         item_maps: dict[str, dict[int, Any]] = {
             "block": self._block_items, "node": self._node_items,
             "event": self._event_items, "hier": self._hier_items}
