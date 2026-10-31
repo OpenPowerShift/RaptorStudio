@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.gate.outputs.run }}
+      docs_only: ${{ steps.docs.outputs.docs_only }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,11 +40,49 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
             echo "No commits in the last 25 hours; skipping the nightly."
           fi
+      - id: docs
+        # A prose-only change cannot move engine behaviour, so it does not
+        # need the 30-minute suite. Only `*.md` and the licence files count:
+        # AsciiDoc sources (`docs/**/*.adoc`) do change a committed artefact
+        # and keep `docs-html`, and everything else -- code, tests, tools,
+        # packaging, workflows -- runs the full matrix. See CONTRIBUTING.md,
+        # "Skipping CI".
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+          else
+            base="${{ github.event.before }}"
+            # A branch pushed for the first time has an all-zero `before`;
+            # compare with its first parent instead.
+            case "$base" in
+              0000000000000000000000000000000000000000|"") base="HEAD^" ;;
+            esac
+          fi
+
+          files=$(git diff --name-only "$base" HEAD 2>/dev/null || true)
+          docs_only=false
+          if [ -n "$files" ]; then
+            docs_only=true
+            while IFS= read -r file; do
+              case "$file" in
+                *.md|LICENSE|LICENSES/*) ;;
+                *) docs_only=false; break ;;
+              esac
+            done <<< "$files"
+          fi
+
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          if [ "$docs_only" = "true" ]; then
+            echo "Documentation-only change; skipping the test matrix."
+          fi
 
   test:
     name: test (${{ matrix.shard }}/4)
     needs: [changed, typecheck, ui-sweeps, mcp-e2e, docs-html]
-    if: needs.changed.outputs.run == 'true'
+    if: >-
+      needs.changed.outputs.run == 'true'
+      && needs.changed.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     # Four runners, each with a quarter of the tests (`RAPTOR_TEST_SHARD`, see
     # tests/conftest.py) spread over its cores with `-n auto`, as the UI sweeps
@@ -85,7 +124,9 @@ jobs:
   fidelity:
     name: fidelity (${{ matrix.shard }}/3)
     needs: [changed, typecheck, ui-sweeps, mcp-e2e, docs-html]
-    if: needs.changed.outputs.run == 'true'
+    if: >-
+      needs.changed.outputs.run == 'true'
+      && needs.changed.outputs.docs_only != 'true'
     # Three shards by test id, each over `-n auto` (see the `test` job).
     strategy:
       fail-fast: false
@@ -134,7 +175,9 @@ jobs:
 
   long-checks:
     needs: changed
-    if: needs.changed.outputs.run == 'true'
+    if: >-
+      needs.changed.outputs.run == 'true'
+      && needs.changed.outputs.docs_only != 'true'
     # Analytical/statistical cross-checks and documentation number gates:
     # Monte Carlo against IEC 61078's worked examples, and every number the
     # book quotes re-derived from its tutorial model. Together ~5 minutes,
@@ -162,7 +205,9 @@ jobs:
 
   ui-sweeps:
     needs: changed
-    if: needs.changed.outputs.run == 'true'
+    if: >-
+      needs.changed.outputs.run == 'true'
+      && needs.changed.outputs.docs_only != 'true'
     # The UI smoke sweeps were 285 assertions of Simulate-tab and
     # end-to-end behaviour that CI NEVER RAN: `pyproject.toml` sets
     # `addopts = '-m "not slow and not fidelity and not long"'`, the sweeps are marked `slow`, and
@@ -220,7 +265,9 @@ jobs:
 
   mcp-e2e:
     needs: changed
-    if: needs.changed.outputs.run == 'true'
+    if: >-
+      needs.changed.outputs.run == 'true'
+      && needs.changed.outputs.docs_only != 'true'
     # The MCP server's end-to-end acceptance tests -- and the only
     # systematic check that the mcp front door agrees with the engine and
     # the api layer (TestEquivalenceTests::test_mcp_matches_engine).
@@ -259,6 +306,10 @@ jobs:
 
   docs-html:
     needs: changed
+    # Deliberately runs on a docs-only change too: it is the one job that
+    # proves a committed artefact still matches its source (and the only one
+    # that installs asciidoctor), so it stays on the gate even when the
+    # matrix is skipped. It is minutes, not half an hour.
     if: needs.changed.outputs.run == 'true'
     # The committed help HTML (book, manual, formulas) ships in the wheel and
     # the installers, so it must be what the AsciiDoc sources build.
@@ -287,7 +338,9 @@ jobs:
 
   typecheck:
     needs: changed
-    if: needs.changed.outputs.run == 'true'
+    if: >-
+      needs.changed.outputs.run == 'true'
+      && needs.changed.outputs.docs_only != 'true'
     # mypy: everything outside raptor/gui must be clean; raptor/gui may not
     # add errors beyond tools/mypy_gui_baseline.json (see
     # tools/mypy_gate.py). ruff: the rule set in pyproject.toml.
@@ -323,6 +376,7 @@ jobs:
     # that `test` already ran. The floors are still enforced, a day late.
     if: >-
       needs.changed.outputs.run == 'true'
+      && needs.changed.outputs.docs_only != 'true'
       && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     # Branch coverage of the engine tier. Fails if any engine module drops
     # below tools/coverage_floors.json; the HTML report (with
