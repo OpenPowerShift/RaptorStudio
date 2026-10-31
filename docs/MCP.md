@@ -133,7 +133,7 @@ description and input/output schema is what the server sends on `tools/list`.
 | `add_node` | writes | Add a node to the model. | `model_id`, `type`?, `k`?, `name`?, `parent`? |
 | `auto_layout` | writes | Re-arrange a model's diagram onto the shared layered grid. | `model_id`, `hierarchy`?, `selectors`? |
 | `build_model` | writes | Build a complete model from a friendly .rbds spec document. | `name`, `spec`?, `auto_layout`?, `validate_model`?, `model_id`?, `spec_path`? |
-| `cancel_run` | writes | Ask a background job to stop (checked between replications). | `job_id` |
+| `cancel_run` | writes | Ask a background job to stop (checked between replications, and while a large model is still being set up). | `job_id` |
 | `close_model` | destructive | Close one or more models.  Set delete=true to also remove their files. | `model_id`, `delete`? |
 | `collapse_selection` | writes | Move existing blocks/nodes/events into a new hierarchy, rewiring the boundary. | `model_id`, `selectors`, `name`?, `parent`? |
 | `compare_models` | writes | Compare 2–5 models or runs side by side. | `models`, `num_runs`?, `metrics`? |
@@ -202,7 +202,7 @@ hours. What helps:
 
 - **Run in the background.** `start_run` returns a job id at once; poll `run_status`. Its `phase` is `setting_up`
   while the model is prepared (with `setup`: `stage`, `done`, `total`, `percent`), then `simulating`, so a quiet
-  start is not a hang. `cancel_run` stops a job between replications.
+  start is not a hang. `cancel_run` stops a job between replications, or during set-up.
 - **Cores.** Leave `workers` out and a model of 500+ blocks, events and nodes run 20+ times uses several cores
   (half the machine's, at most 8, never fewer than two). `simulate` and `start_run` report the `workers` used and
   `workers_auto`. Pass `workers=1` for the sequential numbers: a multi-core batch is repeatable but not

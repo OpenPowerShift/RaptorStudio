@@ -517,7 +517,8 @@ def run_status(job_id: str) -> CallToolResult:
 @mcp.tool(annotations=ADDITIVE("Cancel run"))
 @guarded
 def cancel_run(job_id: str) -> CallToolResult:
-    """Ask a background job to stop (checked between replications).
+    """Ask a background job to stop (checked between replications, and
+    while a large model is still being set up).
 
     The replications already completed are kept and become a run, exactly
     as when `simulate` is cut short: the result is marked truncated. Returns
