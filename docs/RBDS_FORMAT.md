@@ -548,7 +548,17 @@ The stored geometry is what is drawn; the anchor says what keeps it
 there: the annotation moves with its target when the target is dragged,
 aligned or laid out, in the GUI and through `auto_layout`. Anchors can
 chain (a note anchored to a note anchored to a block follows the block);
-a chain that loops back to the annotation is rejected. In the GUI the
+a chain that loops back to the annotation is rejected. After an Auto
+Layout (the GUI's, or the MCP tool's) a note that would land on an
+element, a free-standing note or another anchored note is nudged to the
+nearest clear spot: first the same location pushed further out, then the
+other sides. `center` is never nudged, the stored `location` is not
+rewritten (so a later layout starts from it again and gives the same
+answer), and dragging an element in the GUI puts its notes back at their
+stored location without nudging. Link lines are not obstacles. `validate_model`
+warns about an anchor whose target no longer exists (or whose name
+matches several), an empty anchor, and a cycle: such a note stays where
+it is and stops following anything. In the GUI the
 Inspector's **Anchor** group shows and changes the target and location,
 **Pick on canvas…** arms a click-to-anchor mode (click an element or
 another annotation; Esc cancels), and a dashed line joins a selected

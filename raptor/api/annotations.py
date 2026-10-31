@@ -316,19 +316,25 @@ def follow_layout(rbd, old_transform: dict | None = None) -> int:
     anchor whose target no longer exists, or whose name is ambiguous,
     leaves the annotation where it is. Returns how many annotations moved.
 
-    Annotation-to-annotation anchors can chain, so anchored entries are
-    re-evaluated in passes: a note anchored to a note anchored to a block
-    reaches its final place on the second pass regardless of list order.
-    The pass count is bounded by the number of anchored entries, which
-    also stops a cycle (which the API refuses to create) from spinning.
+    Anchored notes that would land on an element, a free-standing note or
+    a note placed before them are *nudged* to the nearest clear spot (see
+    `_nudge`). This only happens here, after a layout: dragging an element
+    in the GUI puts its notes back at their stored location, because a
+    note that hops sideways while you drag is more surprising than one
+    that briefly overlaps.
+
+    Anchors can chain (a note on a note on a block, an arrow between
+    notes), so entries are processed in dependency order: every target is
+    final before what is anchored to it. A cycle (which the API refuses to
+    create, but a hand-edited file could hold) is processed once in file
+    order rather than looped on.
     """
     new = view_transform.ensure(rbd)
     old = view_transform.ViewTransform.from_dict(old_transform) if old_transform else None
     refresh_anchor_names(rbd)
     entries = list(getattr(rbd, "annotations", None) or [])
-    anchored = [e for e in entries
-                if isinstance(e.get("anchor"), dict)]
     moved: set[int] = set()
+    before = {id(e): {k: e.get(k) for k in _GEOMETRY} for e in entries}
 
     # Coordinate-placed annotations follow the transform once.
     for entry in entries:
@@ -342,32 +348,142 @@ def follow_layout(rbd, old_transform: dict | None = None) -> int:
                 sx, sy = new.to_scene(mx, my)
                 entry[kx], entry[ky] = round(sx, 2), round(sy, 2)
 
-    for _pass in range(len(anchored) + 1):
-        changed = 0
-        for entry in anchored:
-            before = {k: entry.get(k) for k in _GEOMETRY}
-            anchor = entry["anchor"]
-            try:
-                if entry.get("kind") == "arrow" and anchor.get("from") is not None:
-                    tail = _anchor_for(rbd, anchor.get("from_ref") or anchor["from"])
-                    head = _anchor_for(rbd, anchor.get("to_ref") or anchor["to"])
-                    entry.update({"x1": round(tail["cx"], 2), "y1": round(tail["cy"], 2),
-                                  "x2": round(head["cx"], 2), "y2": round(head["cy"], 2)})
-                elif anchor.get("target") is not None:
-                    target = _anchor_for(rbd, anchor.get("ref") or anchor["target"])
-                    px, py = _place_at_location(
-                        target, str(anchor.get("location", ANNO_DEFAULT_LOCATION)),
-                        float(anchor.get("gap", 12.0)),
-                        float(entry.get("w") or 0), float(entry.get("h") or 0))
-                    entry["x"], entry["y"] = round(px, 2), round(py, 2)
-            except BuildError:
-                continue                    # its target is gone: leave it
-            if any(entry.get(k) != before[k] for k in _GEOMETRY):
-                changed += 1
-                moved.add(int(entry.get("id", 0) or 0))
-        if not changed:
-            break
+    anchored = sorted((e for e in entries if isinstance(e.get("anchor"), dict)),
+                      key=lambda e: _anchor_depth(rbd, e))
+    free = [e for e in entries
+            if not isinstance(e.get("anchor"), dict) and e.get("kind") != "arrow"]
+    placed: list[dict[str, Any]] = []        # anchored boxes already settled
+    obstacles = _element_boxes(rbd)
+    for entry in anchored:
+        anchor = entry["anchor"]
+        try:
+            if entry.get("kind") == "arrow" and anchor.get("from") is not None:
+                tail = _anchor_for(rbd, anchor.get("from_ref") or anchor["from"])
+                head = _anchor_for(rbd, anchor.get("to_ref") or anchor["to"])
+                entry.update({"x1": round(tail["cx"], 2), "y1": round(tail["cy"], 2),
+                              "x2": round(head["cx"], 2), "y2": round(head["cy"], 2)})
+            elif anchor.get("target") is not None:
+                target = _anchor_for(rbd, anchor.get("ref") or anchor["target"])
+                w, h = float(entry.get("w") or 0), float(entry.get("h") or 0)
+                location = str(anchor.get("location", ANNO_DEFAULT_LOCATION))
+                gap = float(anchor.get("gap", 12.0))
+                px, py = _nudge(
+                    target, location, gap, w, h,
+                    int(entry.get("parent", 0) or 0),
+                    obstacles + [b for b in _note_boxes(free + placed, entry)])
+                entry["x"], entry["y"] = round(px, 2), round(py, 2)
+                placed.append(entry)
+        except BuildError:
+            continue                        # its target is gone: leave it
+
+    for entry in entries:
+        if any(entry.get(k) != before[id(entry)][k] for k in _GEOMETRY):
+            moved.add(int(entry.get("id", 0) or 0))
     return len(moved)
+
+
+def _anchor_depth(rbd, entry: dict[str, Any]) -> int:
+    """How many annotations sit between `entry` and an element: 0 for one
+    anchored to an element, 1 to a note on an element, and so on. Bounded,
+    so a cycle yields a finite number instead of recursing."""
+    depth, current, seen = 0, entry, set()
+    while depth < 64:
+        cid = int(current.get("id", 0) or 0)
+        if cid in seen:
+            break
+        seen.add(cid)
+        nxt = None
+        for ref in _annotation_refs(current):
+            try:
+                found = _annotation_in(rbd, ref)
+            except BuildError:
+                continue
+            if found is not None:
+                nxt = found
+                break
+        if nxt is None:
+            break
+        depth, current = depth + 1, nxt
+    return depth
+
+
+_SECTION_REF = (("BLOCK_DATA", "Block"), ("NODE_DATA", "Node"),
+                ("EVENT_DATA", "Event"), ("HIERARCHY_DATA", "Hier"))
+
+
+def _element_boxes(rbd) -> list[tuple[int, str, float, float, float, float]]:
+    """(parent, ref, left, top, right, bottom) of every drawn element, in
+    scene pixels. The ``ref`` lets a note ignore its own target."""
+    out = []
+    for section, prefix in _SECTION_REF:
+        sec = rbd.sections.get(section)
+        for row in (sec.rows if sec else []):
+            if str(row.get("ID", "0")).strip() in ("", "0"):
+                continue
+            ref = f"{prefix}:{int(float(row['ID']))}"
+            try:
+                a = _anchor_for(rbd, ref)
+            except BuildError:
+                continue
+            out.append((a["parent"], ref, a["cx"] - a["half_w"], a["cy"] - a["half_h"],
+                        a["cx"] + a["half_w"], a["cy"] + a["half_h"]))
+    return out
+
+
+def _note_boxes(notes: list[dict[str, Any]], skip: dict[str, Any]):
+    for n in notes:
+        if n is skip:
+            continue
+        try:
+            x, y = float(n["x"]), float(n["y"])
+            w, h = float(n.get("w") or 0), float(n.get("h") or 0)
+        except (KeyError, TypeError, ValueError):
+            continue
+        yield (int(n.get("parent", 0) or 0), f"Annotation:{n.get('id')}",
+               x, y, x + w, y + h)
+
+
+#: Extra clearance kept around an obstacle so a nudged note does not touch.
+_NUDGE_MARGIN = 2.0
+#: How many times the gap a note may be pushed out along one location.
+_NUDGE_STEPS = 6
+
+
+def _nudge(target: dict, location: str, gap: float, w: float, h: float,
+           parent: int, boxes) -> tuple[float, float]:
+    """The first clear top-left for a w x h note around `target`.
+
+    Candidates, best first: the stored `location` at its gap, then the same
+    location pushed out in gap-sized steps, then the other locations in a
+    fixed order. The first that overlaps nothing wins; if none is clear the
+    stored location is used unchanged. ``center`` is never nudged: it is
+    meant to cover its target. The target itself is not an obstacle (the
+    gap already keeps clear of it), and neither is anything on another
+    hierarchy level. Deterministic in its inputs and independent of where
+    the note is now, so a second layout gives the same answer.
+    """
+    preferred = _place_at_location(target, location, gap, w, h)
+    if location == "center":
+        return preferred
+    own = (f"{target['kind'] if target['kind'] != 'Hierarchy' else 'Hier'}:"
+           f"{target['id']}")
+    relevant = [b for b in boxes if b[0] == parent and b[1] != own]
+
+    def clear(pos: tuple[float, float]) -> bool:
+        left, top = pos[0] - _NUDGE_MARGIN, pos[1] - _NUDGE_MARGIN
+        right, bottom = pos[0] + w + _NUDGE_MARGIN, pos[1] + h + _NUDGE_MARGIN
+        return not any(left < b[4] and right > b[2] and top < b[5] and bottom > b[3]
+                       for b in relevant)
+
+    if clear(preferred):
+        return preferred
+    others = [loc for loc in ("above", "right", "below", "left") if loc != location]
+    for loc in [location] + others:
+        for step in range(1 if loc != location else 2, _NUDGE_STEPS + 1):
+            candidate = _place_at_location(target, loc, gap * step, w, h)
+            if clear(candidate):
+                return candidate
+    return preferred
 
 
 def _auto_size(text: str) -> tuple[float, float]:

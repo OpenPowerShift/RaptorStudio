@@ -193,3 +193,145 @@ class TestAnchorNamesFollowRenames:
                           "location": "above", "gap": 12.0}
         assert refresh_anchor_names(rbd) == 0
         assert note["anchor"]["target"] == "Gone"
+
+
+class TestAnchorValidation:
+    def _model(self):
+        from raptor.api import build
+        return build.build_from_spec(
+            {"blocks": [{"name": "A", "x": 1.0, "y": 1.0}],
+             "nodes": [{"name": "s", "type": 1, "x": 0.0, "y": 1.0},
+                       {"name": "e", "type": 3, "x": 2.0, "y": 1.0}],
+             "links": [{"from": "s", "to": "A"}, {"from": "A", "to": "e"}]},
+            auto_layout=False)
+
+    def _anchor_issues(self, rbd):
+        from raptor.api.validate import issues
+        return [i for i in issues(rbd) if i.element.startswith("Annotation")]
+
+    def test_a_healthy_anchor_is_silent(self):
+        rbd = self._model()
+        place_annotation(rbd, kind="text", text="n", adjacent_to="A")
+        assert self._anchor_issues(rbd) == []
+
+    def test_a_deleted_target_is_a_warning(self):
+        rbd = self._model()
+        note = place_annotation(rbd, kind="text", text="n", adjacent_to="A")
+        note["anchor"]["ref"] = "Block:99"           # hand-edited / deleted
+        found = self._anchor_issues(rbd)
+        assert len(found) == 1 and found[0].severity == "warning"
+        assert "Block:99" in found[0].message
+
+    def test_an_unknown_name_without_a_ref_is_a_warning(self):
+        rbd = self._model()
+        note = place_annotation(rbd, kind="text", text="n", adjacent_to="A")
+        del note["anchor"]["ref"]
+        note["anchor"]["target"] = "Nope"
+        assert len(self._anchor_issues(rbd)) == 1
+
+    def test_a_broken_arrow_end_is_reported(self):
+        rbd = self._model()
+        arrow = place_annotation(rbd, kind="arrow", from_="s", to="A")
+        arrow["anchor"]["to_ref"] = "Block:42"
+        assert len(self._anchor_issues(rbd)) == 1
+
+    def test_a_hand_made_cycle_is_reported(self):
+        rbd = self._model()
+        a = place_annotation(rbd, kind="text", text="a", x=10.0, y=10.0)
+        b = place_annotation(rbd, kind="text", text="b",
+                             adjacent_to=f"Annotation:{a['id']}")
+        a["anchor"] = {"target": "b", "ref": f"Annotation:{b['id']}",
+                       "location": "right", "gap": 12.0}
+        assert any("itself" in i.message for i in self._anchor_issues(rbd))
+
+    def test_an_empty_anchor_is_reported(self):
+        rbd = self._model()
+        note = place_annotation(rbd, kind="text", text="n", x=1.0, y=1.0)
+        note["anchor"] = {}
+        assert len(self._anchor_issues(rbd)) == 1
+
+
+class TestNudge:
+    def _model(self):
+        from raptor.api import build
+        return build.build_from_spec(
+            {"blocks": [{"name": "A", "x": 2.0, "y": 2.0},
+                        {"name": "B", "x": 2.0, "y": 1.0}],
+             "nodes": [{"name": "s", "type": 1, "x": 0.0, "y": 1.0},
+                       {"name": "e", "type": 3, "x": 4.0, "y": 1.0}],
+             "links": [{"from": "s", "to": "A"}, {"from": "A", "to": "B"},
+                       {"from": "B", "to": "e"}]}, auto_layout=False)
+
+    @staticmethod
+    def _overlap(a, b):
+        return (a["x"] < b["x"] + b["w"] and a["x"] + a["w"] > b["x"]
+                and a["y"] < b["y"] + b["h"] and a["y"] + a["h"] > b["y"])
+
+    def test_two_notes_wanting_the_same_spot_are_separated(self):
+        rbd = self._model()
+        one = place_annotation(rbd, kind="text", text="one", adjacent_to="A")
+        two = place_annotation(rbd, kind="text", text="two", adjacent_to="A")
+        assert self._overlap(one, two)            # same place when created
+        follow_layout(rbd)
+        assert not self._overlap(one, two)
+
+    def test_a_note_is_moved_off_a_block_it_would_cover(self):
+        rbd = self._model()
+        # "below" A lands on B (one grid step away): it must be moved clear.
+        note = place_annotation(rbd, kind="text", text="n", adjacent_to="A",
+                                location="below", gap=1.0)
+        from raptor.api.annotations import _element_boxes
+        follow_layout(rbd)
+        for _p, ref, l, t, r, b in _element_boxes(rbd):
+            if ref == note["anchor"]["ref"]:
+                continue
+            assert not (note["x"] < r and note["x"] + note["w"] > l
+                        and note["y"] < b and note["y"] + note["h"] > t), ref
+
+    def test_the_preferred_location_is_kept_when_it_is_clear(self):
+        rbd = self._model()
+        note = place_annotation(rbd, kind="text", text="n", adjacent_to="A",
+                                location="above")
+        before = (note["x"], note["y"])
+        follow_layout(rbd)
+        assert (note["x"], note["y"]) == before
+
+    def test_center_is_never_nudged(self):
+        rbd = self._model()
+        note = place_annotation(rbd, kind="text", text="n", adjacent_to="A",
+                                location="center")
+        before = (note["x"], note["y"])
+        follow_layout(rbd)
+        assert (note["x"], note["y"]) == before
+
+    def test_nudging_is_idempotent(self):
+        rbd = self._model()
+        place_annotation(rbd, kind="text", text="one", adjacent_to="A")
+        place_annotation(rbd, kind="text", text="two", adjacent_to="A")
+        follow_layout(rbd)
+        first = [(a["x"], a["y"]) for a in rbd.annotations]
+        assert follow_layout(rbd) == 0
+        assert [(a["x"], a["y"]) for a in rbd.annotations] == first
+
+    def test_a_free_note_is_not_moved_but_is_avoided(self):
+        rbd = self._model()
+        note = place_annotation(rbd, kind="text", text="n", adjacent_to="A")
+        free = place_annotation(rbd, kind="rect", x=note["x"], y=note["y"],
+                                w=note["w"], h=note["h"])
+        fx, fy = free["x"], free["y"]
+        follow_layout(rbd)
+        assert (free["x"], free["y"]) == (fx, fy)
+        assert not self._overlap(note, free)
+
+    def test_a_dependent_follows_a_nudged_note(self):
+        rbd = self._model()
+        place_annotation(rbd, kind="text", text="one", adjacent_to="A")
+        two = place_annotation(rbd, kind="text", text="two", adjacent_to="A")
+        three = place_annotation(rbd, kind="text", text="three",
+                                 adjacent_to=f"Annotation:{two['id']}",
+                                 location="below")
+        follow_layout(rbd)
+        assert not self._overlap(two, three)
+        # Placed from `two`'s FINAL spot (not where it first wanted to be),
+        # so it stays beside it even after being nudged itself.
+        assert abs(three["x"] - two["x"]) < 400 and abs(three["y"] - two["y"]) < 400

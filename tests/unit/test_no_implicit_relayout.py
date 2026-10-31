@@ -130,10 +130,10 @@ def test_an_anchor_records_the_element_id(crowded):
 
 def test_real_auto_layout_moves_a_chain_consistently_and_is_stable(tmp_path):
     """End to end through the MCP tool: a block note, a note anchored to
-    that note and an arrow between two blocks all land where their anchors
-    say, a second layout changes nothing, and a rename afterwards keeps the
+    that note and an arrow between two blocks end up clear of every
+    element and of each other, the arrow on its targets, a second layout changes nothing, and a rename afterwards keeps the
     stored names in step."""
-    from raptor.api.annotations import _anchor_for, _place_at_location, refresh_anchor_names
+    from raptor.api.annotations import _anchor_for, refresh_anchor_names
     from raptor.mcp.server import mcp
     mcp._raptor_args = type("A", (), {"workspace": str(tmp_path)})()
     mcp._raptor_ws = None
@@ -153,12 +153,20 @@ def test_real_auto_layout_moves_a_chain_consistently_and_is_stable(tmp_path):
         return next(a for a in rbd.annotations if a["id"] == i)
 
     def check():
-        for aid, loc in ((first["annotation_id"], "above"),
-                         (second["annotation_id"], "below")):
+        from raptor.api.annotations import _element_boxes
+        boxes = {}
+        for aid in (first["annotation_id"], second["annotation_id"]):
             note = by_id(aid)
-            target = _anchor_for(rbd, note["anchor"]["ref"])
-            px, py = _place_at_location(target, loc, 12.0, note["w"], note["h"])
-            assert (note["x"], note["y"]) == pytest.approx((round(px, 2), round(py, 2)))
+            boxes[aid] = (note["x"], note["y"], note["x"] + note["w"], note["y"] + note["h"])
+            own = note["anchor"]["ref"]
+            for _parent, ref, l, t, r, btm in _element_boxes(rbd):
+                if ref == own:
+                    continue
+                assert not (boxes[aid][0] < r and boxes[aid][2] > l
+                            and boxes[aid][1] < btm and boxes[aid][3] > t), \
+                    f"note {aid} overlaps {ref}"
+        f, g = boxes[first["annotation_id"]], boxes[second["annotation_id"]]
+        assert not (f[0] < g[2] and f[2] > g[0] and f[1] < g[3] and f[3] > g[1])
         a = by_id(arrow["annotation_id"])
         tail = _anchor_for(rbd, a["anchor"]["from_ref"])
         head = _anchor_for(rbd, a["anchor"]["to_ref"])

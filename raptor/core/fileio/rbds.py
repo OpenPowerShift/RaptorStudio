@@ -890,7 +890,7 @@ def _read_annotations(doc: dict) -> list[dict]:
                  "border_colour", "border_width", "fill_colour",
                  "text_colour", "z", "font_family", "font_size",
                  "font_bold", "font_italic", "line_style",
-                 "x1", "y1", "x2", "y2"}
+                 "x1", "y1", "x2", "y2", "anchor"}
     cleaned = []
     for a in doc.get("annotations") or []:
         entry = dict(a)

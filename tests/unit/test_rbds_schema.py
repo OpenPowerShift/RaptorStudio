@@ -270,3 +270,23 @@ def test_the_schema_rejects_a_wrong_location_or_legacy_side_key(anchor):
     doc = _doc()
     doc["annotations"] = [_annotation(anchor)]
     assert check_document(doc)
+
+
+def test_removing_an_anchor_survives_a_save_and_reload():
+    """`anchor` used to be kept twice (the entry and `_extra`), so an
+    anchor taken off a note came back the next time the file was saved."""
+    from raptor.api import build
+    from raptor.api.annotations import place_annotation
+    from raptor.core.fileio import rbds
+    rbd = build.build_from_spec(
+        {"blocks": [{"name": "A", "x": 1.0, "y": 1.0}],
+         "nodes": [{"name": "s", "type": 1, "x": 0.0, "y": 1.0},
+                   {"name": "e", "type": 3, "x": 3.0, "y": 1.0}],
+         "links": [{"from": "s", "to": "A"}, {"from": "A", "to": "e"}]},
+        auto_layout=False)
+    place_annotation(rbd, kind="text", text="n", adjacent_to="A")
+    loaded = rbds.parse_rbds(rbds.render_rbds(rbd))
+    assert "anchor" in loaded.annotations[0]
+    assert "anchor" not in (loaded.annotations[0].get("_extra") or {})
+    loaded.annotations[0].pop("anchor")
+    assert "anchor" not in rbds.parse_rbds(rbds.render_rbds(loaded)).annotations[0]
