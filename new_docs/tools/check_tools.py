@@ -57,8 +57,8 @@ def live_tool_names() -> set[str]:
     Read from the server's tool manager rather than `list_tools()`: the
     public one is async, and this check is synchronous (and is called from
     a plain pytest test, not the event loop).  Importing the tool modules
-    is what registers them, so import all five parts first -- the same
-    set `server.py` wires up.
+    is what registers them, so import every part first -- the same set
+    `server.py` wires up.
     """
     import raptor.mcp.tools_model      # noqa: F401  (registers on import)
     import raptor.mcp.tools_data       # noqa: F401
@@ -66,6 +66,7 @@ def live_tool_names() -> set[str]:
     import raptor.mcp.tools_metrics    # noqa: F401
     import raptor.mcp.tools_tables     # noqa: F401
     import raptor.mcp.tools_view       # noqa: F401
+    import raptor.mcp.tools_svg        # noqa: F401
     from raptor.mcp.server import mcp
     return set(mcp._tool_manager._tools)
 

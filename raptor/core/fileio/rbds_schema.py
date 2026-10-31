@@ -20,6 +20,7 @@ import difflib
 from dataclasses import dataclass
 from typing import Any
 
+from raptor.core.annotations import ANNO_LOCATIONS
 from raptor.core.fileio import rbds
 
 SCHEMA_ID = "urn:raptor-studio:rbds"
@@ -149,7 +150,37 @@ def build_schema() -> dict[str, Any]:
         "kind": {"enum": ["text", "rect", "ellipse", "arrow"]}, "id": {"type": "integer"},
         "parent": {"type": "integer"}, "text": {"type": "string"},
         **{k: {"type": "number"} for k in ("x", "y", "w", "h", "x1", "y1", "x2", "y2", "z",
-                                           "border_width", "font_size")}}}
+                                           "border_width", "font_size")},
+        "border_colour": {"type": ["string", "null"]},
+        "text_colour": {"type": ["string", "null"]},
+        "fill_colour": {"type": ["string", "null"]},
+        "font_family": {"type": "string"},
+        "font_bold": {"type": "boolean"},
+        "font_italic": {"type": "boolean"},
+        "line_style": {"enum": ["solid", "dash", "dot", "dash-dot",
+                                "dash-dot-dot"]},
+        # What keeps an annotation with its target. `location` replaced the
+        # old `side`; `center` places it over the target and ignores `gap`.
+        # A target can be an element or another annotation (`Annotation:7`).
+        "anchor": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "target": {"type": "string"},
+                "ref": {"type": "string"},
+                "location": {"enum": list(ANNO_LOCATIONS)},
+                "gap": {"type": "number"},
+                # Where the user dragged the note, as an offset from the
+                # place its anchor computes (absent = never dragged).
+                "dx": {"type": "number"},
+                "dy": {"type": "number"},
+                "from": {"type": "string"},
+                "to": {"type": "string"},
+                "from_ref": {"type": "string"},
+                "to_ref": {"type": "string"},
+            },
+        },
+    }}
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": SCHEMA_ID,

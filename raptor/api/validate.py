@@ -125,7 +125,68 @@ def issues(rbd: RbdFile) -> list[Issue]:
     result.extend(_check_capacity_settings(rbd))
     result.extend(_check_start_to_end_reachable(rbd))
     result.extend(_check_link_cycle(rbd))
+    result.extend(_check_annotation_anchors(rbd))
 
+    return result
+
+
+def _check_annotation_anchors(rbd: RbdFile) -> list[Issue]:
+    """Annotations whose anchor no longer leads anywhere.
+
+    A warning, not an error: nothing here affects a simulation. The note
+    simply stops following its target (it stays where it is), which is
+    easy to miss after a hand edit of the ``.rbds`` or a deleted element.
+    Reported: a ref/name that matches no element or annotation, a name
+    that matches several, a malformed ``Annotation:`` ref, and a cycle of
+    annotations.
+    """
+    from raptor.api.annotations import (
+        _annotation_in,
+        _annotation_refs,
+        _anchor_for,
+        _would_cycle,
+    )
+    from raptor.api.build import BuildError
+
+    result: list[Issue] = []
+    for entry in getattr(rbd, "annotations", None) or []:
+        if not isinstance(entry.get("anchor"), dict):
+            continue
+        who = f"Annotation {entry.get('id', '?')}"
+        text = " ".join(str(entry.get("text") or "").split())
+        if text:
+            who += f" '{text[:30]}'"
+        refs = _annotation_refs(entry)
+        if not refs:
+            result.append(Issue("warning", who, "its anchor names no target, "
+                                "so it does not follow anything; remove the "
+                                "anchor or set a target"))
+            continue
+        broken = False
+        for ref in refs:
+            try:
+                _anchor_for(rbd, ref)
+            except BuildError as exc:
+                broken = True
+                result.append(Issue(
+                    "warning", who,
+                    f"anchored to {ref!r} but {exc}; it stays where it is "
+                    "and no longer follows anything. Re-anchor it or "
+                    "remove the anchor"))
+        if broken:
+            continue
+        for ref in refs:
+            try:
+                target = _annotation_in(rbd, ref)
+            except BuildError:
+                continue
+            if target is not None and _would_cycle(
+                    rbd, target, int(entry.get("id", 0) or 0)):
+                result.append(Issue(
+                    "warning", who,
+                    f"its anchor to {ref!r} leads back to itself through "
+                    "other annotations, so its place can never settle"))
+                break
     return result
 
 

@@ -241,3 +241,52 @@ def test_writing_again_changes_nothing(path):
     text = Path(path).read_text(encoding="utf-8")
     assert render_rbds(parse_rbds(text)) == text.rstrip("\n") or \
         render_rbds(parse_rbds(render_rbds(parse_rbds(text)))) == render_rbds(parse_rbds(text))
+
+
+def _annotation(anchor):
+    return {"kind": "text", "id": 1, "parent": 0, "text": "note",
+            "x": 10.0, "y": 10.0, "w": 100.0, "h": 30.0, "z": 20.0,
+            "anchor": anchor}
+
+
+@pytest.mark.parametrize("anchor", [
+    {"target": "B1", "ref": "Block:1", "location": "right", "gap": 12.0},
+    {"target": "B1", "ref": "Block:1", "location": "center", "gap": 0.0},
+    {"target": "note", "ref": "Annotation:2", "location": "below", "gap": 4.0},
+    {"from": "A", "to": "B", "from_ref": "Node:1", "to_ref": "Block:1"},
+])
+def test_the_schema_accepts_anchor_locations_and_annotation_targets(anchor):
+    doc = _doc()
+    doc["annotations"] = [_annotation(anchor)]
+    assert check_document(doc) == []
+
+
+@pytest.mark.parametrize("anchor", [
+    {"target": "B1", "ref": "Block:1", "location": "sideways"},
+    {"target": "B1", "ref": "Block:1", "side": "right"},
+    {"target": "B1", "ref": "Block:1", "location": "right", "gap": "wide"},
+])
+def test_the_schema_rejects_a_wrong_location_or_legacy_side_key(anchor):
+    doc = _doc()
+    doc["annotations"] = [_annotation(anchor)]
+    assert check_document(doc)
+
+
+def test_removing_an_anchor_survives_a_save_and_reload():
+    """`anchor` used to be kept twice (the entry and `_extra`), so an
+    anchor taken off a note came back the next time the file was saved."""
+    from raptor.api import build
+    from raptor.api.annotations import place_annotation
+    from raptor.core.fileio import rbds
+    rbd = build.build_from_spec(
+        {"blocks": [{"name": "A", "x": 1.0, "y": 1.0}],
+         "nodes": [{"name": "s", "type": 1, "x": 0.0, "y": 1.0},
+                   {"name": "e", "type": 3, "x": 3.0, "y": 1.0}],
+         "links": [{"from": "s", "to": "A"}, {"from": "A", "to": "e"}]},
+        auto_layout=False)
+    place_annotation(rbd, kind="text", text="n", adjacent_to="A")
+    loaded = rbds.parse_rbds(rbds.render_rbds(rbd))
+    assert "anchor" in loaded.annotations[0]
+    assert "anchor" not in (loaded.annotations[0].get("_extra") or {})
+    loaded.annotations[0].pop("anchor")
+    assert "anchor" not in rbds.parse_rbds(rbds.render_rbds(loaded)).annotations[0]

@@ -125,7 +125,7 @@ description and input/output schema is what the server sends on `tools/list`.
 
 | Tool | Kind | What it does | Parameters |
 | --- | --- | --- | --- |
-| `add_annotation` | writes | Add a drawing annotation (text box, rect, ellipse or arrow). | `model_id`, `kind`?, `text`?, `adjacent_to`?, `side`?, `gap`?, `x`?, `y`?, `w`?, `h`?, `from_`?, `to`?, `x1`?, `y1`?, `x2`?, `y2`?, `parent`?, `style`?, `units`? |
+| `add_annotation` | writes | Add a drawing annotation (text box, rect, ellipse or arrow). | `model_id`, `kind`?, `text`?, `adjacent_to`?, `location`?, `gap`?, `x`?, `y`?, `w`?, `h`?, `from_`?, `to`?, `x1`?, `y1`?, `x2`?, `y2`?, `parent`?, `style`?, `units`? |
 | `add_block` | writes | Add a block to the model. | `model_id`, `name`, `fail_dist`?, `fail_params`?, `repair_dist`?, `repair_params`?, `parent`?, `after`? |
 | `add_elements` | writes | Add many blocks, nodes or events with one save. | `model_id`, `elements` |
 | `add_event` | writes | Add an event to the model.  `prob` is its probability (0-1). | `model_id`, `name`, `prob`? |
