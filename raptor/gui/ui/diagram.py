@@ -1408,7 +1408,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             hw, hh = r.width() / 2.0, r.height() / 2.0
         else:
             return None
-        return {"cx": centre.x(), "cy": centre.y(), "half_w": hw, "half_h": hh}
+        return {"cx": centre.x(), "cy": centre.y(), "half_w": hw, "half_h": hh,
+                "shape": ("ellipse" if isinstance(item, (_NodeItem, _EventItem))
+                          else "rect")}
 
     def _anchored_geometry(self, entry: dict) -> dict | None:
         """The geometry that puts `entry` next to its anchor again, or None
@@ -1418,12 +1420,21 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return None
         from raptor.api.annotations import _place_at_location, anchor_offset
         if entry.get("kind") == "arrow":
-            tail = self._anchor_geometry(anchor.get("from_ref") or anchor.get("from"))
-            head = self._anchor_geometry(anchor.get("to_ref") or anchor.get("to"))
-            if tail is None or head is None:
+            # Each end may be attached or free; an attached end stops at
+            # the target's outline, not its centre.
+            from raptor.core.annotations import arrow_points
+            tail = head = None
+            has_tail = anchor.get("from_ref") or anchor.get("from")
+            has_head = anchor.get("to_ref") or anchor.get("to")
+            if has_tail:
+                tail = self._anchor_geometry(has_tail)
+            if has_head:
+                head = self._anchor_geometry(has_head)
+            if (has_tail and tail is None) or (has_head and head is None):
+                return None             # a target is not on this level
+            if tail is None and head is None:
                 return None
-            return {"x1": round(tail["cx"], 2), "y1": round(tail["cy"], 2),
-                    "x2": round(head["cx"], 2), "y2": round(head["cy"], 2)}
+            return arrow_points(entry, tail, head)
         target = self._anchor_geometry(anchor.get("ref") or anchor.get("target"))
         if target is None:
             return None
@@ -1555,11 +1566,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     #: click on an element or another annotation anchors to it.
     _anchor_pick_for: int | None = None
 
-    def start_anchor_pick(self, aid: int) -> None:
+    #: Which end of an arrow the pending pick is for ("from"/"to"), or None
+    #: for a box annotation (which has one target).
+    _anchor_pick_end: str | None = None
+
+    def start_anchor_pick(self, aid: int, end: str | None = None) -> None:
         """Arm pick-anchor mode for annotation `aid`: the next canvas click
-        chooses the target instead of selecting or moving anything."""
+        chooses the target instead of selecting or moving anything. For an
+        arrow `end` says which end ("from" or "to") the click attaches."""
         if int(aid) not in self._anno_items:
             return
+        self._anchor_pick_end = end if end in ("from", "to") else None
         self._anchor_pick_for = int(aid)
         self.viewport().setCursor(Qt.CursorShape.CrossCursor)
         _view_status(self, "Click an element or another annotation to "
@@ -1569,6 +1586,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if self._anchor_pick_for is None:
             return
         self._anchor_pick_for = None
+        self._anchor_pick_end = None
         self._apply_tool_cursor()
         if message:
             _view_status(self, message)
@@ -1633,13 +1651,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             _view_status(self, "An annotation cannot be anchored to itself "
                          "— click another element (Esc to cancel)")
             return
+        end = self._anchor_pick_end
         self.cancel_anchor_pick()
         entry = self.annotation_entry(aid) or {}
         stored = entry.get("anchor")
         old: dict = stored if isinstance(stored, dict) else {}
-        anchor["location"] = str(old.get("location", ANNO_DEFAULT_LOCATION))
-        anchor["gap"] = float(old.get("gap", 12.0))
-        self.set_annotation_props(aid, {"anchor": anchor})
+        if end is not None:
+            # An arrow end: keep the other end as it is.
+            merged = {k: v for k, v in old.items()
+                      if k in ("from", "from_ref", "to", "to_ref")}
+            merged[end] = anchor["target"]
+            merged[f"{end}_ref"] = anchor["ref"]
+            self.set_annotation_props(aid, {"anchor": merged})
+            anchor = {"target": anchor["target"]}
+        else:
+            anchor["location"] = str(old.get("location", ANNO_DEFAULT_LOCATION))
+            anchor["gap"] = float(old.get("gap", 12.0))
+            self.set_annotation_props(aid, {"anchor": anchor})
         note = self._anno_items.get(aid)
         if note is not None:
             self._scene.clearSelection()

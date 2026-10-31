@@ -196,4 +196,7 @@ anchored above or below a block, widening the gap between stacked blocks
 rather than letting a note sit on its neighbour. Drag an anchored note wherever you
 like and it keeps following its target from there; *Reset position*
 returns it to its Location and *Break link* frees it. (Dragging an anchored
-arrow still frees it.)
+arrow still frees it.) An arrow's two ends attach separately: each has its
+own *Pick…* and *Remove* buttons in the Inspector, an attached end follows
+its target and stops at the target's edge rather than its centre, and a
+removed end stays where it was.

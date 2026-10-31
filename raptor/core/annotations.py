@@ -133,4 +133,48 @@ def annotation_geometry(entry: dict[str, Any]) -> dict[str, Any] | None:
         "name": annotation_label(entry),
         "parent": int(entry.get("parent", 0) or 0),
         "cx": cx, "cy": cy, "half_w": hw, "half_h": hh,
+        "shape": "ellipse" if entry.get("kind") == "ellipse" else "rect",
     }
+
+
+#: How far short of a target's outline an arrow stops, in scene pixels.
+ARROW_EDGE_PAD = 2.0
+
+
+def edge_point(geometry: dict[str, Any], toward_x: float, toward_y: float,
+               pad: float = ARROW_EDGE_PAD) -> tuple[float, float]:
+    """Where the line from a target's centre to (`toward_x`, `toward_y`)
+    leaves its outline, `pad` pixels beyond it: the point an arrow should
+    touch instead of the centre. The outline is the target's box, or an
+    ellipse for round things (nodes, events, ellipse annotations). A point
+    inside the outline, or at the centre, gives the centre back (there is
+    no edge to point at)."""
+    cx, cy = float(geometry["cx"]), float(geometry["cy"])
+    dx, dy = toward_x - cx, toward_y - cy
+    hw = max(float(geometry.get("half_w", 0.0)) + pad, 1e-6)
+    hh = max(float(geometry.get("half_h", 0.0)) + pad, 1e-6)
+    if abs(dx) < 1e-9 and abs(dy) < 1e-9:
+        return cx, cy
+    if geometry.get("shape") == "ellipse":
+        reach = ((dx / hw) ** 2 + (dy / hh) ** 2) ** 0.5
+    else:
+        reach = max(abs(dx) / hw, abs(dy) / hh)
+    if reach <= 1.0:
+        return cx, cy
+    return cx + dx / reach, cy + dy / reach
+
+
+def arrow_points(entry: dict[str, Any], tail: dict[str, Any] | None,
+                 head: dict[str, Any] | None) -> dict[str, float]:
+    """The ``x1``..``y2`` of an arrow whose ends may each be attached to a
+    target (`tail`/`head` geometry) or free (None: the entry's own
+    coordinates). An attached end stops at its target's outline on the line
+    towards the other end, rather than at the target's centre."""
+    p1 = (float(entry.get("x1", 0) or 0), float(entry.get("y1", 0) or 0))
+    p2 = (float(entry.get("x2", 0) or 0), float(entry.get("y2", 0) or 0))
+    from_c = (tail["cx"], tail["cy"]) if tail else p1
+    to_c = (head["cx"], head["cy"]) if head else p2
+    x1, y1 = edge_point(tail, *to_c) if tail else p1
+    x2, y2 = edge_point(head, *from_c) if head else p2
+    return {"x1": round(x1, 2), "y1": round(y1, 2),
+            "x2": round(x2, 2), "y2": round(y2, 2)}

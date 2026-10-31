@@ -382,3 +382,56 @@ def test_auto_layout_makes_room_for_notes_between_stacked_blocks(qapp):
     finally:
         w._dirty = False
         w.close()
+
+
+def _arrow(w, v):
+    from raptor.api.annotations import place_annotation
+    arrow = place_annotation(w._rbd, kind="arrow", from_="ArcticAir_10000",
+                             to="CB2000_25000")
+    v._rebuild_scene()
+    return arrow["id"]
+
+
+def test_an_arrow_end_stops_at_the_outline_not_the_centre(setup):
+    w, v, _n, _f, _m = setup
+    aid = _arrow(w, v)
+    e = v.annotation_entry(aid)
+    tail = v._anchor_geometry(e["anchor"]["from_ref"])
+    assert (e["x1"], e["y1"]) != (round(tail["cx"], 2), round(tail["cy"], 2))
+    inside = (abs(e["x1"] - tail["cx"]) < tail["half_w"]
+              and abs(e["y1"] - tail["cy"]) < tail["half_h"])
+    assert not inside
+
+
+def test_picking_one_arrow_end_keeps_the_other(setup):
+    w, v, _n, _f, _m = setup
+    aid = _arrow(w, v)
+    before = dict(v.annotation_entry(aid)["anchor"])
+    target = _block(v, "CB2000_25000")
+    v.start_anchor_pick(aid, "from")
+    assert v._anchor_pick_end == "from"
+    item = v._block_items[target]
+    v._handle_anchor_pick(item.sceneBoundingRect().center())
+    after = v.annotation_entry(aid)["anchor"]
+    assert after["from"] == "CB2000_25000" and after["to_ref"] == before["to_ref"]
+    assert v._anchor_pick_end is None
+
+
+def test_the_inspector_has_pick_and_remove_for_each_arrow_end(setup):
+    from PySide6.QtWidgets import QPushButton
+    w, v, _n, _f, _m = setup
+    aid = _arrow(w, v)
+    w._inspector.show_annotation(v._anno_items[aid])
+    labels = [b.text() for b in w._inspector.findChildren(QPushButton)]
+    assert labels.count("Pick…") == 2 and labels.count("Remove") == 2
+
+
+def test_removing_one_arrow_end_frees_only_that_end(setup):
+    from PySide6.QtWidgets import QPushButton
+    w, v, _n, _f, _m = setup
+    aid = _arrow(w, v)
+    w._inspector.show_annotation(v._anno_items[aid])
+    removes = [b for b in w._inspector.findChildren(QPushButton) if b.text() == "Remove"]
+    removes[0].click()                       # the From end
+    anchor = v.annotation_entry(aid).get("anchor") or {}
+    assert "from" not in anchor and "to" in anchor

@@ -170,9 +170,12 @@ def test_real_auto_layout_moves_a_chain_consistently_and_is_stable(tmp_path):
         a = by_id(arrow["annotation_id"])
         tail = _anchor_for(rbd, a["anchor"]["from_ref"])
         head = _anchor_for(rbd, a["anchor"]["to_ref"])
+        # The arrow stops at each target's outline, not at its centre.
+        from raptor.core.annotations import arrow_points
+        want = arrow_points(a, tail, head)
         assert (a["x1"], a["y1"], a["x2"], a["y2"]) == pytest.approx(
-            (round(tail["cx"], 2), round(tail["cy"], 2),
-             round(head["cx"], 2), round(head["cy"], 2)))
+            (want["x1"], want["y1"], want["x2"], want["y2"]))
+        assert (a["x1"], a["y1"]) != (round(tail["cx"], 2), round(tail["cy"], 2))
 
     assert auto_layout(mid).structured_content["moved"]
     check()

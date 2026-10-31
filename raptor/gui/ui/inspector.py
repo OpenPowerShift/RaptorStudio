@@ -390,6 +390,8 @@ class InspectorDock(QWidget):
     #: canvas arms a click-to-anchor mode. Kept as a signal rather than a
     #: direct `anchor_source` call so the dock stays usable without a view.
     annotation_anchor_pick_requested = Signal(int)
+    #: (annotation id, "from" | "to"): the canvas pick for one arrow end.
+    annotation_arrow_pick_requested = Signal(int, str)
     #: Fired when the Rates library itself changes via a field's
     #: "Use saved rate…" picker (add/edit while browsing) -- the
     #: Inspector never marks the model dirty itself for anything else
@@ -2813,25 +2815,57 @@ class InspectorDock(QWidget):
 
         if kind == "arrow":
             tail = combo_for(anchor and anchor.get("from_ref"), anchor and anchor.get("from"),
-                             "Not attached")
+                             "Free")
             head = combo_for(anchor and anchor.get("to_ref"), anchor and anchor.get("to"),
-                             "Not attached")
+                             "Free")
 
             def commit_ends(_i=None):
-                if tail.currentData() is None or head.currentData() is None:
+                new: dict[str, Any] = {}
+                for end, box in (("from", tail), ("to", head)):
+                    if box.currentData() is not None:
+                        new[end] = name_of(box)
+                        new[f"{end}_ref"] = box.currentData()
+                if not new:
                     if anchor is not None:
                         self.annotation_prop_changed.emit(aid, {"anchor": None})
                     return
-                self.annotation_prop_changed.emit(aid, {"anchor": {
-                    "from": name_of(tail), "to": name_of(head),
-                    "from_ref": tail.currentData(), "to_ref": head.currentData()}})
+                self.annotation_prop_changed.emit(aid, {"anchor": new})
+
+            def end_row(box, end: str):
+                pick = QPushButton("Pick…")
+                pick.setToolTip(f"Click, then click an element or annotation "
+                                f"to attach the arrow's {end} end to it (Esc cancels)")
+                pick.setEnabled(hasattr(src, "start_anchor_pick"))
+                pick.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                pick.clicked.connect(
+                    lambda _c=False: self.annotation_arrow_pick_requested.emit(int(aid), end))
+                remove = QPushButton("Remove")
+                remove.setToolTip(f"Detach the {end} end: it stays where it is and "
+                                  "no longer follows anything")
+                remove.setEnabled(box.currentData() is not None)
+                remove.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                remove.clicked.connect(lambda _c=False: box.setCurrentIndex(0))
+                row = QWidget()
+                lay = QHBoxLayout(row)
+                lay.setContentsMargins(0, 0, 0, 0)
+                lay.setSpacing(4)
+                box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                box.setMinimumContentsLength(8)
+                box.setSizeAdjustPolicy(
+                    QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+                lay.addWidget(box, 1)
+                lay.addWidget(pick)
+                lay.addWidget(remove)
+                return row
 
             tail.currentIndexChanged.connect(commit_ends)
             head.currentIndexChanged.connect(commit_ends)
-            fl.addRow("From:", tail)
-            fl.addRow("To:", head)
-            note = ("Attached at both ends, the arrow follows the two elements. "
-                    "Set either end to Not attached to free it.")
+            fl.addRow("From:", end_row(tail, "from"))
+            fl.addRow("To:", end_row(head, "to"))
+            note = ("Each end can be attached to an element or another "
+                    "annotation: it then follows it and stops at its edge. "
+                    "Pick… chooses the target by clicking it; Remove frees "
+                    "that end where it is.")
         else:
             target = combo_for(anchor and anchor.get("ref"),
                                anchor and anchor.get("target"), "Not anchored")

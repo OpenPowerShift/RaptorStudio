@@ -2343,6 +2343,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._inspector.annotation_prop_changed.connect(
             lambda aid, changes: self._diagram_dock.view
             .set_annotation_props(aid, changes))
+        self._inspector.annotation_arrow_pick_requested.connect(
+            lambda aid, end: self._diagram_dock.view.start_anchor_pick(aid, end))
         self._inspector.annotation_anchor_pick_requested.connect(
             lambda aid: self._diagram_dock.view.start_anchor_pick(aid))
         # The Inspector's Anchor controls list this level's elements.

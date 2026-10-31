@@ -41,6 +41,7 @@ from raptor.api.build import (
 from raptor.api.workspace import Workspace
 from raptor.core.annotations import (  # noqa: E402,F401
     ANNO_DEFAULT_LOCATION,
+    arrow_points,
     ANNO_DEFAULTS,
     ANNO_LOCATIONS,
     ANNO_Z_DEFAULT,
@@ -242,6 +243,7 @@ def _anchor_for(rbd, ref: str | int) -> dict[str, Any]:
         or f"{kind} {row.get('ID')}",
         "parent": parent, "cx": cx, "cy": cy,
         "half_w": half[0], "half_h": half[1],
+        "shape": "ellipse" if kind in ("Node", "Event") else "rect",
     }
 
 
@@ -358,11 +360,9 @@ def follow_layout(rbd, old_transform: dict | None = None) -> int:
     for entry in anchored:
         anchor = entry["anchor"]
         try:
-            if entry.get("kind") == "arrow" and anchor.get("from") is not None:
-                tail = _anchor_for(rbd, anchor.get("from_ref") or anchor["from"])
-                head = _anchor_for(rbd, anchor.get("to_ref") or anchor["to"])
-                entry.update({"x1": round(tail["cx"], 2), "y1": round(tail["cy"], 2),
-                              "x2": round(head["cx"], 2), "y2": round(head["cy"], 2)})
+            if entry.get("kind") == "arrow" and (
+                    anchor.get("from") is not None or anchor.get("to") is not None):
+                entry.update(_arrow_ends(rbd, entry, anchor))
             elif anchor.get("target") is not None:
                 target = _anchor_for(rbd, anchor.get("ref") or anchor["target"])
                 w, h = float(entry.get("w") or 0), float(entry.get("h") or 0)
@@ -388,6 +388,17 @@ def follow_layout(rbd, old_transform: dict | None = None) -> int:
         if any(entry.get(k) != before[id(entry)][k] for k in _GEOMETRY):
             moved.add(int(entry.get("id", 0) or 0))
     return len(moved)
+
+
+def _arrow_ends(rbd, entry: dict[str, Any], anchor: dict[str, Any]) -> dict[str, float]:
+    """x1..y2 for an arrow whose anchor names one or both ends; an end the
+    anchor does not name keeps the entry's own coordinates."""
+    tail = head = None
+    if anchor.get("from") is not None or anchor.get("from_ref") is not None:
+        tail = _anchor_for(rbd, anchor.get("from_ref") or anchor["from"])
+    if anchor.get("to") is not None or anchor.get("to_ref") is not None:
+        head = _anchor_for(rbd, anchor.get("to_ref") or anchor["to"])
+    return arrow_points(entry, tail, head)
 
 
 def _anchor_depth(rbd, entry: dict[str, Any]) -> int:
@@ -796,8 +807,11 @@ def place_annotation(
             raise BuildError(
                 "an arrow needs from_ and to (element names) or all four of "
                 "x1/y1/x2/y2")
-        if arrow_refs and (from_ is None or to is None):
-            raise BuildError("an arrow needs both from_ and to")
+        if arrow_refs and ((from_ is None and (x1 is None or y1 is None))
+                           or (to is None and (x2 is None or y2 is None))):
+            raise BuildError(
+                "an arrow with one end named needs the other end as "
+                "coordinates (x1/y1 for the tail, x2/y2 for the head)")
     else:
         if anchor_ref is None and not has_coords:
             raise BuildError(
@@ -832,23 +846,22 @@ def place_annotation(
 
     if kind == "arrow":
         if arrow_refs:
-            # `arrow_refs` is true when AT LEAST ONE endpoint was given,
-            # and the check above already established that both are
-            # present. A type checker cannot follow that through a bool,
-            # so the invariant is restated here rather than assumed --
-            # marked unreachable because it is, and because duplicating
-            # the message is cheaper than a cast.
-            if from_ is None or to is None:      # pragma: no cover
-                raise BuildError("an arrow needs both from_ and to")
-            tail = _anchor_for(rbd, from_)
-            head = _anchor_for(rbd, to)
+            # Each end is either a named target (attached: it follows the
+            # target and stops at its outline) or coordinates (free).
+            tail = _anchor_for(rbd, from_) if from_ is not None else None
+            head = _anchor_for(rbd, to) if to is not None else None
+            seed = {"x1": x1 or 0.0, "y1": y1 or 0.0, "x2": x2 or 0.0, "y2": y2 or 0.0}
+            anchor_obj: dict[str, Any] = {}
+            if tail is not None:
+                anchor_obj.update({"from": tail["name"], "from_ref": _ref(tail)})
+            if head is not None:
+                anchor_obj.update({"to": head["name"], "to_ref": _ref(head)})
+            first = tail or head
+            assert first is not None
             entry.update({
-                "x1": round(tail["cx"], 2), "y1": round(tail["cy"], 2),
-                "x2": round(head["cx"], 2), "y2": round(head["cy"], 2),
-                "parent": tail["parent"] if parent is None else parent,
-                "x": 0.0, "y": 0.0,
-                "anchor": {"from": tail["name"], "to": head["name"],
-                           "from_ref": _ref(tail), "to_ref": _ref(head)},
+                **arrow_points(seed, tail, head),
+                "parent": first["parent"] if parent is None else parent,
+                "x": 0.0, "y": 0.0, "anchor": anchor_obj,
             })
         else:
             # An explicit `or`-chain rather than a `for v in (...)` loop:

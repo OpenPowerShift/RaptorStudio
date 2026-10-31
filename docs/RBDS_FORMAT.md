@@ -532,6 +532,11 @@ annotation (`adjacent_to`, or an arrow's `from_`/`to`) carries an
 `anchor` —
 `{"target": "B1", "ref": "Block:3", "location": "right", "gap": 12}` or
 `{"from": "A", "to": "B", "from_ref": "Node:1", "to_ref": "Block:3"}`.
+An arrow's two ends are attached independently: an anchor may name only
+`from` (or only `to`), and the other end stays at its own `x`/`y`
+coordinates. An attached end stops at the target's outline (the box, or
+the ellipse of a node, event or ellipse note) on the line towards the
+other end, not at its centre.
 `ref` is the target's kind and id (names need not be unique; an anchor
 written before `ref` existed is resolved by name). The name beside it is
 kept in step with the target: renaming a block, node, event or

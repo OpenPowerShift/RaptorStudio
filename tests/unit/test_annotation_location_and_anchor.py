@@ -441,3 +441,94 @@ class TestMakeRoom:
     def test_a_model_without_notes_is_untouched(self):
         from raptor.api.annotations import make_room_for_annotations
         assert make_room_for_annotations(self._tight_model()) == {}
+
+
+class TestArrowEdges:
+    """An attached arrow end stops at the target's outline, not its centre,
+    and each end can be attached or free independently."""
+
+    @staticmethod
+    def _model():
+        from raptor.api import build
+        return build.build_from_spec(
+            {"blocks": [{"name": "A", "x": 2.0, "y": 80.0},
+                        {"name": "B", "x": 6.0, "y": 80.0}],
+             "nodes": [{"name": "s", "type": 1, "x": 0.0, "y": 80.0},
+                       {"name": "e", "type": 3, "x": 8.0, "y": 80.0}],
+             "links": [{"from": "s", "to": "A"}, {"from": "A", "to": "B"},
+                       {"from": "B", "to": "e"}]}, auto_layout=False)
+
+    def test_edge_point_rect_and_ellipse(self):
+        from raptor.core.annotations import edge_point
+        rect = {"cx": 0.0, "cy": 0.0, "half_w": 50.0, "half_h": 20.0}
+        assert edge_point(rect, 200.0, 0.0, pad=0) == pytest.approx((50.0, 0.0))
+        assert edge_point(rect, 0.0, -100.0, pad=0) == pytest.approx((0.0, -20.0))
+        ell = dict(rect, shape="ellipse")
+        assert edge_point(ell, 200.0, 0.0, pad=0) == pytest.approx((50.0, 0.0))
+        x, y = edge_point(ell, 100.0, 40.0, pad=0)
+        assert (x / 50.0) ** 2 + (y / 20.0) ** 2 == pytest.approx(1.0)
+        assert edge_point(rect, 10.0, 5.0) == (0.0, 0.0)       # inside: centre
+        assert edge_point(rect, 0.0, 0.0) == (0.0, 0.0)
+
+    def test_an_arrow_between_blocks_runs_edge_to_edge(self):
+        from raptor.api.annotations import _anchor_for
+        rbd = self._model()
+        arrow = place_annotation(rbd, kind="arrow", from_="A", to="B")
+        a, b = _anchor_for(rbd, "A"), _anchor_for(rbd, "B")
+        assert arrow["x1"] == pytest.approx(a["cx"] + a["half_w"] + 2.0, abs=0.01)
+        assert arrow["x2"] == pytest.approx(b["cx"] - b["half_w"] - 2.0, abs=0.01)
+        assert arrow["y1"] == pytest.approx(a["cy"], abs=0.01)
+
+    def test_one_end_can_be_free(self):
+        from raptor.api.annotations import _anchor_for
+        rbd = self._model()
+        arrow = place_annotation(rbd, kind="arrow", from_="A",
+                                 x2=900.0, y2=-300.0)
+        assert set(arrow["anchor"]) == {"from", "from_ref"}
+        assert (arrow["x2"], arrow["y2"]) == (900.0, -300.0)
+        a = _anchor_for(rbd, "A")
+        follow_layout(rbd)
+        assert (arrow["x2"], arrow["y2"]) == (900.0, -300.0)
+        assert arrow["x1"] > a["cx"]                      # left the centre
+
+    def test_a_half_named_arrow_needs_the_other_end_as_coordinates(self):
+        rbd = self._model()
+        with pytest.raises(BuildError):
+            place_annotation(rbd, kind="arrow", from_="A")
+
+    def test_an_arrow_can_point_at_a_note_and_stops_at_its_edge(self):
+        rbd = self._model()
+        note = place_annotation(rbd, kind="rect", x=400.0, y=-400.0,
+                                w=100.0, h=60.0)
+        arrow = place_annotation(rbd, kind="arrow", from_="A",
+                                 to=f"Annotation:{note['id']}")
+        top = note["y"] - 2.0
+        left = note["x"] - 2.0
+        assert (arrow["x2"] == pytest.approx(left, abs=0.01)
+                or arrow["y2"] == pytest.approx(top, abs=0.01)
+                or arrow["y2"] == pytest.approx(note["y"] + note["h"] + 2.0, abs=0.01))
+
+    def test_a_half_attached_arrow_is_not_a_validation_problem(self):
+        from raptor.api.validate import issues
+        rbd = self._model()
+        place_annotation(rbd, kind="arrow", from_="A", x2=10.0, y2=10.0)
+        assert [i for i in issues(rbd) if i.element.startswith("Annotation")] == []
+
+
+def test_the_reported_two_pumps_file_gets_room_on_auto_layout():
+    """~/Downloads/test1.rbds as reported: two pumps stacked one step apart,
+    a note above the lower pump and another note above that note. Before
+    the gap was stretched, the upper note sat on the pump above."""
+    from pathlib import Path
+
+    from raptor.api.annotations import _element_boxes, make_room_for_annotations
+    from raptor.core.fileio.rbds import load_rbds
+    rbd = load_rbds(str(Path(__file__).parent / "data" / "annotation_stack_two_pumps.rbds"))
+    assert make_room_for_annotations(rbd)
+    follow_layout(rbd)
+    for note in rbd.annotations:
+        for _p, ref, l, t, r, b in _element_boxes(rbd):
+            if ref == note["anchor"]["ref"]:
+                continue
+            assert not (note["x"] < r and note["x"] + note["w"] > l
+                        and note["y"] < b and note["y"] + note["h"] > t), (note["id"], ref)

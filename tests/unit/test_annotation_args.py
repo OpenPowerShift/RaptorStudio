@@ -94,7 +94,7 @@ class TestArrowCoordinates:
     def test_one_endpoint_reference_is_rejected(self, rbd):
         with pytest.raises(BuildError) as exc:
             place_annotation(rbd, kind="arrow", from_=_block_id(rbd))
-        assert "both from_ and to" in str(exc.value)
+        assert "other end" in str(exc.value)
 
     def test_endpoints_and_adjacent_to_are_mutually_exclusive(self, rbd):
         with pytest.raises(BuildError):
