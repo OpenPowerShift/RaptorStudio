@@ -273,6 +273,12 @@ class RbdFile:
     #: Without this the port would
     #: happily overwrite a file Raptor 7 refuses to.
     protected_file: bool = False
+    #: .rbds only: top-level keys this version does not know, written back
+    #: verbatim on save (the format's extensibility rule).
+    rbds_extra: dict = field(default_factory=dict)
+    #: .rbds only: what the schema check found that does not stop the file
+    #: loading (an unknown key, kept but ignored). `validate` reports them.
+    format_warnings: list = field(default_factory=list)
 
     def section(self, name: str) -> RbdSection:
         return self.sections[name]

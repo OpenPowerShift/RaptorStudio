@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QApplication
 
 from raptor.core.engine.runner import run_simulation_with_reports
 from raptor.core.fileio.rbd import load_rbd
-from raptor.core.fileio.rbds import (_DERIVED, FORMAT_ID, load_rbds,
+from raptor.core.fileio.rbds import (_DERIVED, _RUN_COLUMNS, FORMAT_ID, load_rbds,
                                      parse_rbds, render_rbds)
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -26,6 +26,13 @@ FIXTURES = sorted(d for d in os.listdir(GOLD)
 @pytest.fixture(scope="module")
 def qapp():
     return QApplication.instance() or QApplication([])
+
+
+def _num(text):
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return text
 
 
 def _sections_equal(a, b):
@@ -53,6 +60,12 @@ def _sections_equal(a, b):
                 # is not part of this product); reading fills the template's default.
                 x = {k: v for k, v in x.items() if k != "imageString"}
                 y = {k: v for k, v in y.items() if k != "imageString"}
+                # The run settings live once, in `experiment`, and are written
+                # back in Raptor 7's own spelling ("1" comes back "1.000000"):
+                # the same value, which Raptor 7 reads with ReadReal.
+                for col in _RUN_COLUMNS:
+                    if col in x and col in y and _num(x[col]) == _num(y[col]):
+                        y = {**y, col: x[col]}
             if dict(x) != dict(y):
                 diff = {k: (x.get(k), y.get(k))
                         for k in set(x) | set(y)
@@ -374,22 +387,24 @@ def test_the_api_names_are_read_from_a_hand_written_block():
 
 
 def test_maintenance_and_sparing_are_written_as_friendly_fields():
-    doc = json.loads(render_rbds(load_rbds(str(NEW_LAYOUT))))
-    blk = doc["elements"]["blocks"][0]
+    rbd = load_rbds(str(NEW_LAYOUT))
+    row = next(r for r in rbd.section("BLOCK_DATA").rows if r["ID"] != "0")
+    row.update({"usesPM": "1", "PMFreq": "777.000000", "Stock": "7", "SpType": "Custom"})
+    blk = json.loads(render_rbds(rbd))["elements"]["blocks"][0]
     assert "legacy" not in blk
-    assert isinstance(blk["uses_pm"], bool) and isinstance(blk["pm_freq"], float)
-    assert isinstance(blk["stock"], int) and isinstance(blk["sparing_type"], str)
-    assert isinstance(blk["pm_params"], list) and len(blk["pm_params"]) == 3
+    assert blk["uses_pm"] is True and blk["pm_freq"] == 777.0
+    assert blk["stock"] == 7 and blk["sparing_type"] == "Custom"
 
 
 def test_numbers_are_written_as_numbers():
-    doc = json.loads(render_rbds(load_rbds(str(NEW_LAYOUT))))
-    blk = doc["elements"]["blocks"][0]
-    for key in ("id", "parent", "fail_dist", "repair_dist", "fail_stream",
-                "dep_num"):
+    rbd = load_rbds(str(NEW_LAYOUT))
+    row = next(r for r in rbd.section("BLOCK_DATA").rows if r["ID"] != "0")
+    row.update({"FDist": "15", "RDist": "8", "FStream": "17", "DepNum": "3", "Phasing": "1"})
+    blk = json.loads(render_rbds(rbd))["elements"]["blocks"][0]
+    for key in ("id", "parent", "fail_dist", "repair_dist", "fail_stream", "dep_num"):
         assert isinstance(blk[key], int), key
-    assert isinstance(blk["uses_phasing"], bool)
-    assert doc["meta"]["generator"].startswith("RAPTOR Studio")
+    assert blk["uses_phasing"] is True
+    assert json.loads(render_rbds(rbd))["meta"]["generator"].startswith("RAPTOR Studio")
 
 
 def test_the_defaults_row_is_not_an_element_and_keeps_its_place():

@@ -46,6 +46,13 @@ class Issue:
 # Main entry point
 # ---------------------------------------------------------------------------
 
+def rbds_schema() -> dict:
+    """The `.rbds` JSON Schema that opening and validating a file check
+    against (`raptor.core.fileio.rbds_schema`)."""
+    from raptor.core.fileio.rbds_schema import build_schema
+    return build_schema()
+
+
 def issues(rbd: RbdFile) -> list[Issue]:
     """Return all validation findings for *rbd*.
 
@@ -57,6 +64,10 @@ def issues(rbd: RbdFile) -> list[Issue]:
        GDType, fail_mean-undefined combos).
     """
     result: list[Issue] = []
+
+    # --- 0. The .rbds schema check's warnings (keys it kept but ignores) ---
+    for msg in getattr(rbd, "format_warnings", None) or []:
+        result.append(Issue("warning", "file", msg))
 
     # --- 1. Structural rules ---
     from raptor.core.fileio.builder import validate as structural_validate

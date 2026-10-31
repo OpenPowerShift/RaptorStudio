@@ -21,9 +21,11 @@ from raptor.core.run_experiment import from_system_row, normalise
 
 FORMAT_ID = "raptor-studio"
 #: 2: maintenance, sparing and the other API-named columns are friendly
-#: fields. A version-1 reader would take them for unknown keys and silently
-#: run without them, so it must refuse the file instead (it does: it
-#: rejects any version newer than its own).
+#: fields, and an element leaves out every field equal to the file's own
+#: `defaults` entry and is read starting from it (version 1 read every
+#: element from the built-in template). A version-1 reader would ignore the
+#: new fields and fill the gaps from the wrong row, so it must refuse the
+#: file instead (it does: it rejects any version newer than its own).
 VERSION = 2
 
 # ---------------------------------------------------------------------------
@@ -154,6 +156,14 @@ _SECTION_KEY = {          # json key -> RbdFile section name
     "phases": "PHASES",
 }
 _ELEMENT_KEYS = ("blocks", "nodes", "events", "hierarchies")
+#: Every top-level key this version reads; any other is kept verbatim.
+TOP_LEVEL_KEYS = frozenset({
+    "format", "version", "meta", "system", "experiment", "elements", "links",
+    "defaults", "spare_pools", "resources", "triggers", "phases",
+    "annotations", "rates", "formulas", "display_unit", "project_meta",
+    "view_transform", "comments",
+    # an early layout put the element lists at the top level; still read
+    "blocks", "nodes", "events", "hierarchies"})
 
 #: Columns the reader computes, so the file never stores them (a stored
 #: copy could only disagree after a hand edit): link counts from the links,
@@ -394,39 +404,56 @@ def _rebuilt_exactly(cell: str | None, key: str, value: Any,
     return _to_cell(start_cell, key, value) == cell
 
 
-def _split_row(row: dict, field_map: ColumnMap,
-               start: dict | None = None) -> tuple[dict, dict]:
+#: Fields written even when they equal the start row: what identifies and
+#: places an element. A link's `parent` is also one the reader would
+#: otherwise infer.
+_ALWAYS_WRITTEN = frozenset({"id", "name", "parent", "x", "y", "type",
+                             "in_id", "out_id", "num"})
+
+
+def _split_row(row: dict, field_map: ColumnMap, start: dict | None = None, *,
+               omit_defaults: bool = False) -> tuple[dict, dict]:
     """(friendly fields, legacy columns) for one row.
 
-    A column goes to the friendly layer; it ALSO stays in `legacy` only
-    when the reader would not rebuild its exact text from the value (Raptor
-    7 spells the same column "1" in one file and "1.000000" in another), so
-    a `.rbd` -> `.rbds` -> `.rbd` round trip is byte-exact. `start` is the
-    row the reader starts from. Integer columns compare numerically (see
-    `_rebuilt_exactly`) because the writer normalises their spelling."""
+    Each column is written once: as a friendly field when the reader
+    rebuilds its exact text from the value, otherwise verbatim in `legacy`
+    (Raptor 7 spells the same column "1" in one file and "1.000000" in
+    another, and a `.rbd` -> `.rbds` -> `.rbd` round trip is byte-exact).
+    `start` is the row the reader starts from; with `omit_defaults`, a
+    column holding exactly the start row's text is not written at all,
+    except the identifying fields in `_ALWAYS_WRITTEN`. Integer columns
+    compare numerically (see `_rebuilt_exactly`) because the writer
+    normalises their spelling."""
     start = start or {}
+    same = ({c for c, v in row.items() if c in start and start[c] == v}
+            if omit_defaults else set())
     friendly: dict[str, Any] = {}
     taken: set[str] = set()
     for fk, col in field_map.items():
         cols = col if isinstance(col, tuple) else (col,)
         if not all(c in row for c in cols):
             continue
+        if fk not in _ALWAYS_WRITTEN and all(c in same for c in cols):
+            taken.update(cols)                # the reader's start row has it
+            continue
         try:
             if isinstance(col, tuple):
                 vals = [float(row[c] or 0) for c in col]
                 if not all(math.isfinite(v) for v in vals):
                     continue
-                friendly[fk] = vals
+                value: Any = vals
                 pairs = list(zip(cols, vals))
             else:
-                friendly[fk] = _from_cell(fk, row[col])
-                pairs = [(col, friendly[fk])]
+                value = _from_cell(fk, row[col])
+                pairs = [(col, value)]
         except (TypeError, ValueError):
             continue                          # stays in legacy, verbatim
-        taken.update(c for c, v in pairs
-                     if _rebuilt_exactly(row[c], fk, v, start.get(c)))
+        if all(_rebuilt_exactly(row[c], fk, v, start.get(c)) for c, v in pairs):
+            friendly[fk] = value
+            taken.update(cols)
+        # else: the columns stay in legacy only, so the value is not stored twice
     legacy = {k: v for k, v in row.items()
-              if k not in taken and not k.startswith("_")}
+              if k not in taken and k not in same and not k.startswith("_")}
     return friendly, legacy
 
 
@@ -446,11 +473,16 @@ def _without_derived(row: dict, section: str, inferred_pid: int | None
     return {k: v for k, v in row.items() if k not in drop}
 
 
-def _emit_element(row: dict, section: str,
-                  inferred_pid: int | None = None) -> dict:
+def _emit_element(row: dict, section: str, inferred_pid: int | None = None,
+                  start: dict | None = None) -> dict:
+    """One element; fields equal to `start` (the row the reader begins
+    from) are left out. The ID-0 defaults row itself is written against the
+    built-in template."""
     field_map = _MAPS.get(section, {})
     row = _without_derived(row, section, inferred_pid)
-    friendly, legacy = _split_row(row, field_map, _starts().get(section))
+    friendly, legacy = _split_row(row, field_map,
+                                  start if start is not None else _starts().get(section),
+                                  omit_defaults=True)
     obj: dict[str, Any] = {}
     if "id" in friendly:
         obj["id"] = friendly.pop("id")
@@ -474,14 +506,14 @@ def _emit_element(row: dict, section: str,
     return obj
 
 
-def _emit_keyed(row: dict) -> dict:
-    """Spare pools, resources, triggers, phases: named rows, all columns
-    in `legacy`."""
-    name = (row.get("PoolName") or row.get("TriggerName")
-            or row.get("PhaseName") or next(iter(row.values()), ""))
-    obj: dict[str, Any] = {"key": name, "id": _row_id(row),
-                           "legacy": {k: v for k, v in row.items()
-                                      if not k.startswith("_")}}
+def _emit_keyed(row: dict, section: str) -> dict:
+    """Spare pools, resources, triggers, phases: named rows in their
+    friendly fields, leaving out what equals the table's template row."""
+    friendly, legacy = _split_row(row, _MAPS[section], _aux_starts()[section],
+                                  omit_defaults=True)
+    obj: dict[str, Any] = dict(friendly)
+    if legacy:
+        obj["legacy"] = legacy
     extra = row.get("_rbds_extra")
     if isinstance(extra, dict):
         for k, v in extra.items():
@@ -508,14 +540,12 @@ def _emit_system(rbd: RbdFile) -> tuple[dict, dict]:
     # so a `.rbd` written from this file still opens in Raptor 7.
     source_row.pop("imageString", None)
     base = _starts()["SYSTEM_DATA"]
-    run, _ = _split_row({c: source_row[c] for c in _RUN_COLUMNS if c in source_row},
-                        {fk: c for fk, c in _SYSTEM_MAP.items()
-                         if c in _RUN_COLUMNS}, base)
-    for fk, col in _SYSTEM_MAP.items():   # spelled as the reader would?
-        if col in _RUN_COLUMNS and fk in run and \
-                _rebuilt_exactly(source_row.get(col), fk, run[fk], base.get(col)):
-            source_row.pop(col)
-    system, legacy = _split_row(source_row, _SYSTEM_FILE_MAP, base)
+    # The run settings are the experiment's: never stored twice, so a cell
+    # Raptor 7 spelled "1" rather than "1.000000" comes back in Raptor 7's
+    # own spelling (the same value; Raptor 7 reads it with ReadReal).
+    for col in _RUN_COLUMNS:
+        source_row.pop(col, None)
+    system, legacy = _split_row(source_row, _SYSTEM_FILE_MAP, base, omit_defaults=True)
     streams = str(legacy.get("SysStreamsArray", "")).split()
     if streams and all(s.lstrip("-").isdigit() for s in streams):
         system["sys_streams"] = [int(s) for s in streams]
@@ -552,10 +582,14 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
     for jkey in _ELEMENT_KEYS + ("links",):
         section = _SECTION_KEY[jkey]
         out = []
+        own = (None if jkey == "links" else
+               next((r for r in rows_of(section) if _row_id(r) == 0), None))
         for i, row in enumerate(rows_of(section)):
+            is_default = _row_id(row) == 0 and jkey != "links"
             obj = _emit_element(row, section,
                                 _shared_parent(row, parents)
-                                if jkey == "links" else None)
+                                if jkey == "links" else None,
+                                start=None if is_default else own)
             if _row_id(row) == 0 and jkey != "links":
                 if i:              # where Raptor 7 keeps it varies; keep it
                     obj["at"] = i
@@ -570,7 +604,7 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
     if defaults:
         doc["defaults"] = defaults
     for jkey in ("spare_pools", "resources", "triggers", "phases"):
-        doc[jkey] = [_emit_keyed(r) for r in rows_of(_SECTION_KEY[jkey])]
+        doc[jkey] = [_emit_keyed(r, _SECTION_KEY[jkey]) for r in rows_of(_SECTION_KEY[jkey])]
 
     if getattr(rbd, "annotations", None):
         anns = []
@@ -606,6 +640,8 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
          "name": r.get("Name", ""), "text": r.get("Comment", "")}
         for r in (comment_section.rows if comment_section else [])
     ]
+    for key, value in (getattr(rbd, "rbds_extra", None) or {}).items():
+        doc.setdefault(key, value)      # unknown top-level keys, kept verbatim
     return json.dumps(doc, indent=1, ensure_ascii=False)
 
 
@@ -655,6 +691,24 @@ def _starts() -> dict[str, dict]:
         _STARTS = _default_rows(base)
         _STARTS["SYSTEM_DATA"] = dict(base.sections["SYSTEM_DATA"].rows[0])
     return _STARTS
+
+
+_AUX_STARTS: dict[str, dict] | None = None
+
+
+def _aux_starts() -> dict[str, dict]:
+    """The row a spare pool, resource, trigger or phase starts from (its
+    builder's defaults), so a hand-written entry gets every column."""
+    global _AUX_STARTS
+    if _AUX_STARTS is None:
+        from raptor.core.fileio import rbdlib
+        _AUX_STARTS = {
+            "SPARE_POOL_DATA": rbdlib.make_spare_pool_row(""),
+            "RESOURCE_DATA": rbdlib.make_resource_row("", 1),
+            "TRIGGERS": rbdlib.make_trigger_row(""),
+            "PHASES": rbdlib.make_phase_row("", 1),
+        }
+    return _AUX_STARTS
 
 
 def _default_rows(base: RbdFile) -> dict[str, dict]:
@@ -881,9 +935,17 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
     if not isinstance(doc, dict) or doc.get("format") != FORMAT_ID:
         fmt = doc.get("format") if isinstance(doc, dict) else None
         raise ValueError(f"not an {FORMAT_ID} file (format={fmt!r})")
-    version = int(doc.get("version", 1))
-    if version > VERSION:
+    version = doc.get("version", 1)
+    if isinstance(version, int) and not isinstance(version, bool) and version > VERSION:
         raise ValueError(newer_version_message(doc, version))
+    version = version if isinstance(version, int) else 1
+    # The schema check: an error stops the load with a message naming the
+    # element and field; a warning (an unknown key) is kept for `validate`.
+    from raptor.core.fileio.rbds_schema import RbdsFormatError, check_document
+    findings = check_document(doc)
+    errors = [f for f in findings if f.severity == "error"]
+    if errors:
+        raise RbdsFormatError(errors)
     base = _base_model()
     starts = _starts()
     elements = doc.get("elements") or {}
@@ -894,16 +956,25 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
     for jkey, sec in _SECTION_KEY.items():
         objs = (doc.get("links") if jkey == "links"
                 else elements.get(jkey) or doc.get(jkey)) or []
+        own_default = None
         if jkey in defaults:
             d = defaults[jkey]
             at = max(0, min(int(d.get("at", 0) or 0), len(objs)))
             objs = [*objs[:at], d, *objs[at:]]
+            own_default = _build_row(d, sec, starts.get(sec))
         if not objs and jkey not in ("blocks", "nodes", "links"):
             # keep whatever template the base model carries
             sections[sec] = base.sections[sec]
             continue
-        start = None if sec in _KEYED_SECTIONS else starts.get(sec)
-        rows = [_build_row(o, sec, start) for o in objs]
+        start = (_aux_starts()[sec] if sec in _KEYED_SECTIONS
+                 else starts.get(sec))
+        # From version 2 an element starts from the file's own defaults row
+        # (the writer leaves out every field equal to it); a version-1 file
+        # was read from the built-in template.
+        elem_start = (own_default if own_default is not None and version >= 2
+                      else start)
+        rows = [own_default if (own_default is not None and o is defaults.get(jkey))
+                else _build_row(o, sec, elem_start) for o in objs]
         if sec == "LINK_DATA":
             pid_missing = [r for o, r in zip(objs, rows)
                            if "parent" not in o
@@ -936,7 +1007,9 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
                   display_unit=doc.get("display_unit") or None,
                   view_transform=doc.get("view_transform") or None,
                   project_meta=_read_project_meta(doc),
-                  experiment=experiment)
+                  experiment=experiment,
+                  rbds_extra={k: v for k, v in doc.items() if k not in TOP_LEVEL_KEYS},
+                  format_warnings=[str(f) for f in findings])
     # The header counts and the phase columns are file-format bookkeeping
     # that follow from the rows.
     from raptor.core.fileio.builder import sync_counts

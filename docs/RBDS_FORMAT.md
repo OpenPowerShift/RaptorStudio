@@ -6,13 +6,19 @@ As `.rbds`.
 
 ## Goals
 
-1. **Simple** — one UTF-8 JSON document, human-readable, diff-friendly.
+1. **Simple** — one UTF-8 JSON document, human-readable, diff-friendly;
+   an element shows only what differs from the file's defaults.
 2. **Each value stored once** — a setting lives in exactly one place, so
    editing the file by hand (or by an AI) always takes effect.
 3. **Complete** — every Raptor 7 column is kept, so nothing is lost and a
-   `.rbd` → `.rbds` → `.rbd` round trip is byte-exact.
+   `.rbd` → `.rbds` → `.rbd` round trip is byte-exact, except that the run
+   settings come back in Raptor 7's own spelling (a trial count written
+   `1` returns as `1.000000`, the same value).
 4. **Extensible** — unknown keys are preserved on read→write.
-5. **AI-generatable** — friendly snake_case names for everything an
+5. **Checked** — every load validates against the JSON Schema
+   (`docs/rbds.schema.json`): a wrong value stops the load with a message
+   naming the field, an unknown key is reported as a warning.
+6. **AI-generatable** — friendly snake_case names for everything an
    author needs; a minimal valid file is ~30 lines.
 
 ## Top-level shape
@@ -21,7 +27,7 @@ As `.rbds`.
 {
   "format": "raptor-studio",
   "version": 2,
-  "meta":       { "generator": "RAPTOR Studio 0.8.0", "file_name": "..." },
+  "meta":       { "generator": "RAPTOR Studio 0.9.0", "file_name": "..." },
   "system":     { ...mission-wide settings (not the run settings)... },
   "experiment": { ...the run settings: trials, termination, analyses... },
   "elements": {
@@ -59,21 +65,30 @@ Every element has **two layers**, and each value is in exactly one:
 
 1. **Friendly fields** — the ones authors (human or AI) set:
    `id`, `name`, `parent` (hierarchy id, 0 = home), `x`, `y`, plus the
-   per-kind fields listed below. All optional; sensible defaults. Numbers
-   are JSON numbers (`"fail_dist": 4`, not `"4"`).
-2. **`"legacy"`** — every other Raptor 7 column, verbatim as text
-   (`PMMisDefer`, `SpType`, …). Edit these here; they have no friendly
-   name yet.
+   per-kind fields listed below. Numbers are JSON numbers
+   (`"fail_dist": 4`, not `"4"`).
+2. **`"legacy"`** — the few Raptor 7 columns with no friendly name
+   (a phased element's `P 001`… cells, a hierarchy's view state), verbatim
+   as text.
 
-Precedence on read: defaults ← `legacy` ← friendly fields. A friendly
+**Only what differs from the defaults is written.** An element is read
+starting from the file's own `defaults` entry for its kind (or, without
+one, the built-in template), and the writer leaves out every field equal
+to it — so a block shows only what makes it different. `id`, `name`,
+`parent`, `x`, `y` (and a node's `type`) are always written. The
+`defaults` entry itself is written against the built-in template.
+(Version 1 files wrote every field and read every element from the
+built-in template; they still open unchanged.)
+
+Precedence on read: start row ← `legacy` ← friendly fields. A friendly
 field always wins over the same column in `legacy`.
 
-**One exception keeps round trips byte-exact.** Raptor 7 does not always
-spell a number the same way (`"1"` in one file, `"1.000000"` in another).
-When the reader would not rebuild a column's exact text from its friendly
-value, the writer also keeps that text in `legacy`; the reader then keeps
-the `legacy` spelling as long as the two agree in value. Change the
-friendly value and the change wins.
+**A value is never written twice.** Raptor 7 does not always spell a
+number the same way (`"1"` in one file, `"1.000000"` in another). When
+the reader would not rebuild a column's exact text from a friendly value,
+the writer puts that column in `legacy` only, verbatim, instead of the
+friendly field; that keeps a `.rbd` → `.rbds` → `.rbd` round trip
+byte-exact. Setting the friendly field by hand overrides it.
 
 ### Values the reader computes (never stored)
 
@@ -307,7 +322,10 @@ analyses engine already truncates a fractional value (`133.76` behaves as
 
 These four sections are **keyed** lists rather than element lists: each entry
 is a flat object whose friendly field names map onto the legacy table columns,
-and none of them carries a meaningful numeric id.
+and none of them carries a meaningful numeric id. As for elements, an entry
+is read starting from its table's defaults and only what differs is written;
+files written before 0.9 kept every column under `legacy` with a `key`, and
+still open.
 
 ```json
 "spare_pools": [
@@ -337,7 +355,9 @@ and none of them carries a meaningful numeric id.
 | `triggers` | `name`, `repeats`, `init_used`, `dist`, `params` |
 | `phases` | `name`, `num`, `mission`, `duration_dist`, `params` |
 
-A block's `sparing_type` is `Infinite`, `Custom`, `Pooled` or `Resource`.
+A block's `sparing_type` is `Infinite`, `Custom`, `Pooled` or `None`
+(Raptor 7 also reads `Resource` and `ColdPool`, as no sparing; the schema
+check refuses any other value, which Raptor 7 would silently read as none).
 With `Custom`, the block's own `stock`/`restock_every` govern. With `Pooled`,
 the **pool's** `stock` and `arrive_every` govern; the block's own `stock`
 column is not used. `dist`/`duration_dist` accept a name or a code, like
@@ -574,18 +594,40 @@ on reopen. Keys are all floats:
 Legacy `.rbd` has no representation and re-derives a fresh transform on
 each load.
 
+## Schema and checking
+
+`docs/rbds.schema.json` is the format's JSON Schema (draft 2020-12),
+generated from the reader's own field maps (`tools/gen_rbds_schema.py`;
+`raptor schema` prints it). Every load checks the file against it:
+
+* **Errors stop the load**, naming the element and field: a value of the
+  wrong type (`elements.blocks[1] "Fuel_Day_Tank".pm_freq: must be a
+  number; got 'abc'`), an element or link without its `id`, a link
+  without `from`/`to`, an unknown distribution name.
+* **Warnings** are unknown keys: kept and written back, but not used, so a
+  misspelt field would otherwise be silently ignored. They name the
+  nearest real field (`fial_dist: unknown key, kept but not used; did
+  you mean fail_dist?`).
+
+`raptor validate MODEL.rbds`, and the MCP `open_model`, `build_model` and
+`validate_model` tools, report both. Keys starting with `x_` are an
+extension namespace: kept, and never warned about.
+
 ## Extensibility rules
 
 * Readers MUST ignore unknown keys at every level (but preserve them —
-  see below).
-* Writers MUST round-trip unknown keys verbatim. Implementation: each
-  parsed object keeps an `_extra` dict; the writer emits it unchanged.
+  see below), and report them as warnings unless they start with `x_`.
+* Writers MUST round-trip unknown keys verbatim, top-level ones included.
+  Implementation: each parsed object keeps an `_extra` dict; the writer
+  emits it unchanged.
 * Bumping `version` is only for breaking changes; additive fields do
   NOT bump it. A change an older reader would silently misread counts as
-  breaking: version 2 moved maintenance, sparing and the other API-named
-  columns out of `legacy` into friendly fields, which a version-1 reader
-  would have ignored. A reader refuses a `version` newer than its own,
-  saying which RAPTOR Studio saved the file.
+  breaking. Version 2 did both: it moved maintenance, sparing and the other
+  API-named columns out of `legacy` into friendly fields, which a version-1
+  reader would have ignored, and it started leaving out fields equal to the
+  file's `defaults`, which a version-1 reader would have filled from the
+  wrong row. A reader refuses a `version` newer than its own, saying which
+  RAPTOR Studio saved the file.
 * Writers emit one value per setting and never a value the reader computes
   (see "Element objects").
 

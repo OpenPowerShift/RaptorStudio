@@ -430,14 +430,9 @@ def run_job(job: dict[str, Any]) -> dict[str, Any]:
     from raptor.gui.resources.design_tokens import ThemeManager
     ThemeManager.instance().set_dark(theme == "dark")
 
-    # Existing loaders, chosen by extension exactly like
-    # MainWindow._open_model_any.
-    if str(model_path).lower().endswith(".rbds"):
-        from raptor.core.fileio.rbds import load_rbds
-        rbd = load_rbds(str(model_path))
-    else:
-        from raptor.core.fileio.rbd import load_rbd
-        rbd = load_rbd(str(model_path))
+    # The loader every front end uses (MainWindow._open_model_any too).
+    from raptor.core.fileio.model_file import load_model_file
+    rbd = load_model_file(str(model_path))
 
     from raptor.gui.ui.diagram import DiagramView
 
