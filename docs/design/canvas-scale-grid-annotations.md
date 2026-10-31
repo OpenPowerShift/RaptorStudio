@@ -208,7 +208,7 @@ rewritten on open.
    of writing coordinates nobody can reach. `.rbds` saves are unaffected.
 8. **Annotations in model units, anchors authoritative** (the draft's 3 and
    4). `x`/`y` are in stored units and drawn through the same transform. A
-   name-anchored annotation keeps `{target, side, gap}`, with `gap` in
+   name-anchored annotation keeps `{target, location, gap}`, with `gap` in
    stored units, and is re-placed from its anchor on every draw. Arrows
    follow both ends. Raptor has no annotations, so they are free to snap to
    half a cell for finer placement. Migration on open: if the file carries a

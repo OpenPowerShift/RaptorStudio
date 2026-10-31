@@ -241,3 +241,32 @@ def test_writing_again_changes_nothing(path):
     text = Path(path).read_text(encoding="utf-8")
     assert render_rbds(parse_rbds(text)) == text.rstrip("\n") or \
         render_rbds(parse_rbds(render_rbds(parse_rbds(text)))) == render_rbds(parse_rbds(text))
+
+
+def _annotation(anchor):
+    return {"kind": "text", "id": 1, "parent": 0, "text": "note",
+            "x": 10.0, "y": 10.0, "w": 100.0, "h": 30.0, "z": 20.0,
+            "anchor": anchor}
+
+
+@pytest.mark.parametrize("anchor", [
+    {"target": "B1", "ref": "Block:1", "location": "right", "gap": 12.0},
+    {"target": "B1", "ref": "Block:1", "location": "center", "gap": 0.0},
+    {"target": "note", "ref": "Annotation:2", "location": "below", "gap": 4.0},
+    {"from": "A", "to": "B", "from_ref": "Node:1", "to_ref": "Block:1"},
+])
+def test_the_schema_accepts_anchor_locations_and_annotation_targets(anchor):
+    doc = _doc()
+    doc["annotations"] = [_annotation(anchor)]
+    assert check_document(doc) == []
+
+
+@pytest.mark.parametrize("anchor", [
+    {"target": "B1", "ref": "Block:1", "location": "sideways"},
+    {"target": "B1", "ref": "Block:1", "side": "right"},
+    {"target": "B1", "ref": "Block:1", "location": "right", "gap": "wide"},
+])
+def test_the_schema_rejects_a_wrong_location_or_legacy_side_key(anchor):
+    doc = _doc()
+    doc["annotations"] = [_annotation(anchor)]
+    assert check_document(doc)

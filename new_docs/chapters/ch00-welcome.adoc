@@ -183,3 +183,13 @@ bold/italic). Delete with the Del key as usual.
 Annotations are saved in the native `.rbds` format. The older
 `.rbd` format cannot store them — RAPTOR Studio warns before
 dropping them if you save as `.rbd`.
+
+Annotations can be anchored so they travel with the diagram. Select one
+and use the Inspector's *Anchor* group: choose a target (block, node,
+event, hierarchy or another annotation), a *Location* — Right, Left,
+Above, Below or Centre — and a gap. *Centre* sits the annotation over its
+target and ignores the gap. *Pick on canvas…* arms a click: the next
+element or annotation you click becomes the target, and Esc cancels. An
+anchored annotation follows its target through drags, Align and Auto
+Layout, and anchored notes can chain. Dragging the annotation itself
+removes the anchor.

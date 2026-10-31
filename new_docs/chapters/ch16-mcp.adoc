@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *65 tools* (including the `ping` health check), a set of
+The server exposes *66 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone reference to every tool,
 option and transport is in `docs/MCP.md` in the repository.
 
@@ -385,8 +385,8 @@ careful about what it exposes:
 
 . *Check the tool list.* Ask your assistant "What RAPTOR tools do you
   have?" or, in the MCP Inspector, click *Tools*. You should see the tools
-  listed below: 64 including `render_diagram` and `ping`, or 63 when
-  `--no-render` hides the diagram tool.
+  listed below: 65 including `render_diagram`, `render_diagram_svg` and
+  `ping`, or 64 when `--no-render` hides the PNG diagram tool.
 
 . *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
   tool manually. It should return `"pong"`.
@@ -632,9 +632,12 @@ If the server does not appear, see <<mcp-troubleshooting>>.
 
 | `add_annotation`
 | Add a drawing annotation — `text`, `rect`, `ellipse` or `arrow`. Place it
-  next to an element with `adjacent_to` (a block/node/event/hierarchy) plus
-  `side` (`right`/`left`/`above`/`below`) and `gap` — it is anchored, and
-  moves with the element when it is dragged or `auto_layout` runs — or by
+  next to an element or another annotation with `adjacent_to` (a
+  block/node/event/hierarchy name, `Kind:id`, `Annotation:<id>` or a unique
+  annotation label) plus `location`
+  (`right`/`left`/`above`/`below`/`center`, default `above`) and `gap` — it is anchored,
+  and moves with the target when it is dragged or `auto_layout` runs.
+  `center` puts it over the target and ignores `gap`. Or place it by
   coordinates with `x`/`y`, in scene pixels or, with `units="model"`, the
   model's own coordinates. An arrow connects two elements with
   `from_`/`to`. Styling (colours, border,
@@ -643,11 +646,11 @@ If the server does not appear, see <<mcp-troubleshooting>>.
 
 | `list_annotations`
 | List a model's annotations, optionally filtered by hierarchy `parent`,
-  with geometry and any `anchor` (target/side/gap, or from/to).
+  with geometry and any `anchor` (target/location/gap, or from/to).
 
 | `update_annotation`
 | Patch one annotation's text/style/geometry, or re-anchor it (supply
-  `adjacent_to` or `from_`/`to`; `side`/`gap` alone keeps the existing
+  `adjacent_to` or `from_`/`to`; `location`/`gap` alone keeps the existing
   anchor).
 
 | `delete_annotation`
@@ -777,6 +780,13 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   `legible`; `highlight` outlines elements (for example the single
   points of failure); `include_annotations` draws the overlays. Light/dark
   theme and a pixel cap.
+
+| `render_diagram_svg`
+| Draw one level as SVG text without Qt. Same `level`/`zoom_to`/`margin`/
+  `highlight`/`include_annotations` options as `render_diagram`. Available
+  even when `--no-render` hides the PNG tool, and useful when SVG text is
+  easier to inspect than an image. Fonts are not measured, so long names
+  are shortened (the full name is in each element's `<title>`).
 
 | `auto_layout`
 | Re-arrange the diagram onto the shared layered grid and save the

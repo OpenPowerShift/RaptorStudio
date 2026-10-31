@@ -32,6 +32,12 @@ from PySide6.QtWidgets import (
 from raptor.core.fileio.rbd import RbdFile, RbdSection
 from raptor.core.fileio.rbdlib import dist_param_count as _dist_param_count
 from raptor.core.fileio import view_transform
+from raptor.core.annotations import (
+    ANNO_DEFAULT_LOCATION,
+    ANNO_Z_DEFAULT,
+    annotation_geometry,
+    annotation_label,
+)
 from raptor.gui import row_ops
 from raptor.gui.clipboard_plan import count_elements, plan_copy, plan_paste
 from raptor.gui.ui.diagram_items import links_affected_by_moving
@@ -513,6 +519,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # triggers reads `_anno_items` (issue #2: "_AnnoText already deleted").
         self._anno_items = {}
         self._anchor_leader = None
+        # A pick armed for an annotation in the old model must not follow
+        # into the new one (its id would name something else, or nothing).
+        self._anchor_pick_for = None
+        self._hidden_following = []
         self._scene.clear()
         self._block_items.clear()
         self._node_items.clear()
@@ -1223,7 +1233,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 continue
             item = cls(int(a.get("id", 0)), cur, a, self,
                        *_anno_ctor_args(a))
-            item.setZValue(float(a.get("z", ANNO_Z_MIDDLE)))
+            item.setZValue(float(a.get("z", ANNO_Z_DEFAULT)))
             self._scene.addItem(item)
             self._anno_items[int(a.get("id", 0))] = item
 
@@ -1337,12 +1347,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     # --- annotation anchors ------------------------------------------------
     # An annotation placed next to an element keeps an `anchor`
-    # ({target, ref, side, gap}, or an arrow's {from, to, from_ref, to_ref});
+    # ({target, ref, location, gap}, or an arrow's
+    # {from, to, from_ref, to_ref});
     # its position is then a function of the element's, so it moves with
     # the element (drag, align, undo, Auto Layout). Dragging the annotation
     # itself removes the anchor. `raptor.api.annotations` owns the format.
 
-    _REF_KIND = {"Block": "block", "Node": "node", "Event": "event", "Hier": "hier"}
+    _REF_KIND = {"Block": "block", "Node": "node", "Event": "event",
+                 "Hier": "hier", "Annotation": "annotation"}
     _KIND_REF = {v: k for k, v in _REF_KIND.items()}
 
     def _anchor_tables(self) -> dict[str, dict[int, Any]]:
@@ -1350,6 +1362,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 "event": self._event_items, "hier": getattr(self, "_hier_items", {})}
 
     def _anchor_element_name(self, kind: str, oid: int) -> str:
+        if kind == "annotation":
+            entry = self.annotation_entry(int(oid))
+            return annotation_label(entry) if entry is not None else ""
         tables: dict[str, dict[int, Any]] = {
             "block": self.blocks, "node": self.nodes, "event": self.events,
             "hier": self.hiers}
@@ -1359,23 +1374,32 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         return (getattr(obj, "node_name", "") if kind == "node" else getattr(obj, "name", "")) or ""
 
     def _anchor_item(self, ref):
-        """The canvas item an anchor names on this level (`Block:3`, or a
-        name that is unique here), else None."""
+        """The canvas item an anchor names on this level (`Block:3`,
+        `Annotation:7`, or a name/label that is unique here), else None."""
         if ref in (None, ""):
             return None
         text = str(ref)
         prefix, _, ident = text.partition(":")
+        if prefix == "Annotation" and ident.strip().isdigit():
+            return getattr(self, "_anno_items", {}).get(int(ident))
         tables = self._anchor_tables()
         if prefix in self._REF_KIND and ident.strip().isdigit():
             return tables[self._REF_KIND[prefix]].get(int(ident))
         found = [item for kind, table in tables.items() for oid, item in table.items()
                  if self._anchor_element_name(kind, oid) == text]
-        return found[0] if len(found) == 1 else None
+        if found:
+            return found[0] if len(found) == 1 else None
+        notes = [item for aid, item in getattr(self, "_anno_items", {}).items()
+                 if annotation_label(self.annotation_entry(aid) or {}) == text]
+        return notes[0] if len(notes) == 1 else None
 
     def _anchor_geometry(self, ref) -> dict | None:
         item = self._anchor_item(ref)
         if item is None:
             return None
+        if isinstance(item, tuple(_ANNO_TYPES)):
+            entry = self.annotation_entry(int(getattr(item, "_anno_id", 0)))
+            return annotation_geometry(entry) if entry is not None else None
         centre = _LinkItem._true_centre(item)
         if hasattr(item, "_half_w"):           # an event's hexagon
             hw, hh = float(item._half_w), float(item._r)
@@ -1388,11 +1412,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def _anchored_geometry(self, entry: dict) -> dict | None:
         """The geometry that puts `entry` next to its anchor again, or None
-        when it has no anchor or the element is not on this level."""
+        when it has no anchor or the target is not on this level."""
         anchor = entry.get("anchor")
         if not isinstance(anchor, dict):
             return None
-        from raptor.api.annotations import _place_on_side
+        from raptor.api.annotations import _place_at_location
         if entry.get("kind") == "arrow":
             tail = self._anchor_geometry(anchor.get("from_ref") or anchor.get("from"))
             head = self._anchor_geometry(anchor.get("to_ref") or anchor.get("to"))
@@ -1403,15 +1427,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         target = self._anchor_geometry(anchor.get("ref") or anchor.get("target"))
         if target is None:
             return None
-        px, py = _place_on_side(target, str(anchor.get("side", "right")),
-                                float(anchor.get("gap", 12.0)),
-                                float(entry.get("w") or 0), float(entry.get("h") or 0))
+        px, py = _place_at_location(target,
+                                    str(anchor.get("location", ANNO_DEFAULT_LOCATION)),
+                                    float(anchor.get("gap", 12.0)),
+                                    float(entry.get("w") or 0),
+                                    float(entry.get("h") or 0))
         return {"x": round(px, 2), "y": round(py, 2)}
 
     def follow_anchors(self, moved: set | None = None) -> int:
-        """Put the annotations anchored to the `moved` elements ((kind, id)
+        """Put the annotations anchored to the `moved` targets ((kind, id)
         pairs; every anchored one when None) back next to them. Called from
-        inside the move commands, so it makes no command of its own."""
+        inside the move commands, so it makes no command of its own.
+
+        An annotation can be anchored to another annotation, so this runs
+        in passes: a note behind a note behind a block reaches its final
+        place however the annotations happen to be ordered. The pass count
+        is bounded, which also stops a cycle from spinning.
+        """
         refs: set[str] | None = None
         if moved is not None:
             refs = set()
@@ -1420,35 +1452,198 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 name = self._anchor_element_name(kind, oid)
                 if name:
                     refs.add(name)
-        count = 0
-        for entry in list(getattr(self, "annotations", [])):
-            anchor = entry.get("anchor")
-            if not isinstance(anchor, dict) or int(entry.get("parent", 0) or 0) != self._current_parent:
-                continue
-            if refs is not None and not refs & {anchor.get(k) for k in
-                                                ("ref", "target", "from_ref", "to_ref", "from", "to")}:
-                continue
-            geometry = self._anchored_geometry(entry)
-            if geometry is None or all(entry.get(k) == v for k, v in geometry.items()):
-                continue
-            apply_anno_state(self, int(entry.get("id", 0)), {**entry, **geometry})
-            count += 1
+        entries = [e for e in list(getattr(self, "annotations", []))
+                   if isinstance(e.get("anchor"), dict)
+                   and int(e.get("parent", 0) or 0) == self._current_parent]
+        changed_ids: set[int] = set()
+        for _pass in range(len(entries) + 1):
+            changed = 0
+            for entry in entries:
+                anchor = entry["anchor"]
+                if refs is not None and _pass == 0 and not refs & {
+                        anchor.get(k) for k in
+                        ("ref", "target", "from_ref", "to_ref", "from", "to")}:
+                    continue
+                geometry = self._anchored_geometry(entry)
+                if geometry is None or all(entry.get(k) == v for k, v in geometry.items()):
+                    continue
+                apply_anno_state(self, int(entry.get("id", 0)), {**entry, **geometry})
+                changed += 1
+                changed_ids.add(int(entry.get("id", 0)))
+            if not changed:
+                break
         self._refresh_anchor_leader()
-        return count
+        return len(changed_ids)
 
-    def anchor_targets(self) -> list[tuple[str, str]]:
-        """(label, `Kind:id`) for every element on this level an annotation
-        can be anchored to, for the Inspector."""
+    #: Annotations hidden for the duration of a drag of the target they
+    #: follow. Hiding them avoids showing the note at its old position (or
+    #: over the space the target has left) until the element is dropped and
+    #: `follow_anchors` has re-placed it.
+    _hidden_following: list[int]
+
+    def _hide_following_annotations(self, moved: set[tuple[str, int]]) -> None:
+        refs: set[str] = set()
+        for kind, oid in moved:
+            refs.add(f"{self._KIND_REF.get(kind, kind)}:{oid}")
+            name = self._anchor_element_name(kind, oid)
+            if name:
+                refs.add(name)
+        entries = [e for e in list(getattr(self, "annotations", []))
+                   if int(e.get("parent", 0) or 0) == self._current_parent]
+        hidden: list[int] = []
+        changed = True
+        while changed:
+            changed = False
+            for entry in entries:
+                aid = int(entry.get("id", 0) or 0)
+                if aid in hidden:
+                    continue
+                anchor = entry.get("anchor")
+                if not isinstance(anchor, dict):
+                    continue
+                if not refs & {anchor.get(k) for k in
+                               ("ref", "target", "from_ref", "to_ref",
+                                "from", "to")}:
+                    continue
+                item = self._anno_items.get(aid)
+                if item is not None:
+                    item.setVisible(False)
+                hidden.append(aid)
+                # A note anchored to this one follows it too, so hide it
+                # in the next pass even though its target did not move
+                # directly.
+                refs.add(f"Annotation:{aid}")
+                refs.add(annotation_label(entry))
+                changed = True
+        self._hidden_following = hidden
+        self._refresh_anchor_leader()
+
+    def _show_following_annotations(self) -> None:
+        for aid in getattr(self, "_hidden_following", []) or []:
+            item = self._anno_items.get(aid)
+            if item is not None:
+                item.setVisible(True)
+        self._hidden_following = []
+        self._refresh_anchor_leader()
+
+    def anchor_targets(self, exclude: int | None = None) -> list[tuple[str, str]]:
+        """(label, `Kind:id`) for everything on this level an annotation can
+        be anchored to, for the Inspector. `exclude` is the annotation being
+        anchored: it cannot anchor to itself."""
         out = []
         for kind, table in self._anchor_tables().items():
             for oid in table:
                 name = self._anchor_element_name(kind, oid) or f"#{oid}"
                 out.append((f"{self._KIND_REF[kind]}: {name}", f"{self._KIND_REF[kind]}:{oid}"))
+        for aid in getattr(self, "_anno_items", {}):
+            if exclude is not None and int(aid) == int(exclude):
+                continue
+            entry = self.annotation_entry(int(aid))
+            if entry is None:
+                continue
+            out.append((f"Annotation: {annotation_label(entry)}",
+                        f"Annotation:{aid}"))
         return sorted(out, key=lambda t: t[0].lower())
 
     def annotation_entry(self, aid: int) -> dict | None:
         return next((dict(a) for a in getattr(self, "annotations", [])
                      if int(a.get("id", 0)) == aid), None)
+
+    #: The annotation waiting for a canvas click to choose its anchor, or
+    #: None. Armed by the Inspector's "Pick on canvas…" button; the next
+    #: click on an element or another annotation anchors to it.
+    _anchor_pick_for: int | None = None
+
+    def start_anchor_pick(self, aid: int) -> None:
+        """Arm pick-anchor mode for annotation `aid`: the next canvas click
+        chooses the target instead of selecting or moving anything."""
+        if int(aid) not in self._anno_items:
+            return
+        self._anchor_pick_for = int(aid)
+        self.viewport().setCursor(Qt.CursorShape.CrossCursor)
+        _view_status(self, "Click an element or another annotation to "
+                     "anchor to it (Esc to cancel)")
+
+    def cancel_anchor_pick(self, message: str | None = None) -> None:
+        if self._anchor_pick_for is None:
+            return
+        self._anchor_pick_for = None
+        self._apply_tool_cursor()
+        if message:
+            _view_status(self, message)
+
+    def _anchor_pick_target(self, scene_pos: QPointF):
+        """Topmost annotation at `scene_pos`, else the topmost element (with
+        the same near-miss tolerance Connect uses), else the topmost
+        annotation whose box contains the point.
+
+        The last fallback matters because an annotation's own `shape()` is
+        only its border band (so clicks pass through a transparent note).
+        Anchoring to a note means its whole box, otherwise clicking the
+        middle of an ellipse could never pick it."""
+        for it in self._scene.items(scene_pos):
+            if isinstance(it, tuple(_ANNO_TYPES)):
+                return it
+        element = self._element_at(scene_pos)
+        if element is not None:
+            return element
+        best = None
+        for it in getattr(self, "_anno_items", {}).values():
+            if it.sceneBoundingRect().contains(scene_pos) and (
+                    best is None or it.zValue() >= best.zValue()):
+                best = it
+        return best
+
+    def _anchor_for_item(self, item) -> dict | None:
+        """Anchor object naming `item`, sans location/gap (the caller keeps
+        the annotation's current ones)."""
+        if isinstance(item, tuple(_ANNO_TYPES)):
+            aid = int(getattr(item, "_anno_id", 0))
+            entry = self.annotation_entry(aid)
+            if entry is None:
+                return None
+            return {"target": annotation_label(entry),
+                    "ref": f"Annotation:{aid}"}
+        kind = ("block" if isinstance(item, _BlockItem)
+                else "node" if isinstance(item, _NodeItem)
+                else "event" if isinstance(item, _EventItem)
+                else "hier" if isinstance(item, _HierItem) else None)
+        if kind is None:
+            return None
+        oid = int(item._block_id if kind == "block"
+                  else item._node_id if kind == "node"
+                  else item._event_id if kind == "event"
+                  else item._hier_id)
+        return {"target": self._anchor_element_name(kind, oid),
+                "ref": f"{self._KIND_REF[kind]}:{oid}"}
+
+    def _handle_anchor_pick(self, scene_pos: QPointF) -> None:
+        aid = self._anchor_pick_for
+        if aid is None:
+            return
+        item = self._anchor_pick_target(scene_pos)
+        anchor = self._anchor_for_item(item) if item is not None else None
+        if anchor is None:
+            _view_status(self, "Nothing to anchor to there — click an "
+                         "element or another annotation (Esc to cancel)")
+            return
+        if isinstance(item, tuple(_ANNO_TYPES)) \
+                and int(getattr(item, "_anno_id", 0)) == aid:
+            _view_status(self, "An annotation cannot be anchored to itself "
+                         "— click another element (Esc to cancel)")
+            return
+        self.cancel_anchor_pick()
+        entry = self.annotation_entry(aid) or {}
+        stored = entry.get("anchor")
+        old: dict = stored if isinstance(stored, dict) else {}
+        anchor["location"] = str(old.get("location", ANNO_DEFAULT_LOCATION))
+        anchor["gap"] = float(old.get("gap", 12.0))
+        self.set_annotation_props(aid, {"anchor": anchor})
+        note = self._anno_items.get(aid)
+        if note is not None:
+            self._scene.clearSelection()
+            note.setSelected(True)
+        _view_status(self, f"Anchored to {anchor['target']}")
 
     def _refresh_anchor_leader(self) -> None:
         """While one anchored box annotation is selected, a dashed line from
@@ -1468,6 +1663,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if len(selected) != 1 or not isinstance(selected[0], tuple(_ANNO_TYPES)):
             return
         item = selected[0]
+        if not item.isVisible():
+            return          # hidden for a drag; the leader would lag it
         entry = self.annotation_entry(int(getattr(item, "_anno_id", 0)))
         anchor = (entry or {}).get("anchor")
         if not isinstance(anchor, dict) or (entry or {}).get("kind") == "arrow":
@@ -1475,8 +1672,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         target = self._anchor_item(anchor.get("ref") or anchor.get("target"))
         if target is None:
             return
+        geometry = self._anchor_geometry(anchor.get("ref") or anchor.get("target"))
+        if geometry is None:
+            return
         a = item.sceneBoundingRect().center()
-        b = _LinkItem._true_centre(target)
+        b = QPointF(geometry["cx"], geometry["cy"])
         leader = QGraphicsLineItem(a.x(), a.y(), b.x(), b.y())
         pen = QPen(QColor(COLOUR["accent"]), 1.5, Qt.PenStyle.DashLine)
         pen.setCosmetic(True)
@@ -1569,7 +1769,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         slot someone is actually using rather than an arbitrary +1, so
         two notes that share a band are swapped in one press instead of
         needing a dozen."""
-        zs = {round(float(a.get("z", ANNO_Z_MIDDLE)), 4)
+        zs = {round(float(a.get("z", ANNO_Z_DEFAULT)), 4)
               for a in getattr(self, "annotations", [])
               if int(a.get("parent", 0)) == self._current_parent}
         return sorted(zs)
@@ -1750,13 +1950,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         return True
 
     def new_annotation_z(self) -> float:
-        """z for a freshly placed annotation: on top of whatever is
-        already on this level, never below the middle band. Without
-        this, drawing a new note after a Bring to Front silently filed it
-        *under* the note that had just been sent to the front (a new one
-        always got the fixed ANNO_Z_MIDDLE default)."""
-        top = max(self._anno_z_values(), default=ANNO_Z_MIDDLE)
-        return max(ANNO_Z_MIDDLE, top)
+        """z for a freshly placed annotation: behind the reliability
+        elements.
+
+        A note annotates the diagram; starting it in front let it cover
+        the blocks it describes (and, while a target was being dragged,
+        float over the space that target had left). Bring Forward / Bring
+        to Front are still there for a callout the user wants on top.
+        """
+        return ANNO_Z_DEFAULT
 
     def _anno_default_props(self, kind: str) -> dict:
         """Fresh props for a newly placed `kind` annotation: the
@@ -2598,7 +2800,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if placed is None:
                     sink: Any = getattr(self, "status_message_sink", None)
                     if sink is not None:
-                        sink("Cannot anchor there: that element is not on this level")
+                        sink("Cannot anchor there: that target is not on this level")
                     return
                 end_state.update(placed)
         end_state.update(changes)
@@ -4175,6 +4377,18 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
             event.accept()
             return
+        if self._anchor_pick_for is not None:
+            # Pick-anchor mode owns the next click: choose the target
+            # rather than selecting, dragging or placing anything.
+            if event.button() == Qt.MouseButton.RightButton:
+                self.cancel_anchor_pick("Anchoring cancelled")
+                event.accept()
+                return
+            if event.button() == Qt.MouseButton.LeftButton:
+                self._handle_anchor_pick(
+                    self.mapToScene(event.position().toPoint()))
+                event.accept()
+                return
         if event.button() == Qt.MouseButton.RightButton:
             # A tool in the middle of placing owns the right-click: it
             # cancels that placement and does NOT also open the context
@@ -4333,6 +4547,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 state = self._anno_state(hit_aid)
                 if state is not None:
                     self._drag_start.append(("anno", hit_aid, state))
+            # Notes that follow a moving element would otherwise sit at
+            # their old position, or over the space it has left, for the
+            # whole gesture. Hide them until the release has re-placed
+            # them.
+            moved = {(k, o) for k, o, _s in self._drag_start
+                     if k != "anno"}
+            if moved:
+                self._hide_following_annotations(moved)
             return
 
     # -------------------------------------------------- align/distribute
@@ -4552,6 +4774,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         return (self._editing_annotation() is not None
                 or self.tool_mode != "select"
                 or getattr(self, "_delete_armed", False)
+                or getattr(self, "_anchor_pick_for", None) is not None
                 or getattr(self, "_fev_armed_mode", None) in ("fail", "repair")
                 or getattr(self, "_connect_from", None) is not None)
 
@@ -4568,6 +4791,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self.set_delete_armed(False)
         if getattr(self, "_fev_armed_mode", None) in ("fail", "repair"):
             self.set_fev_armed("click" if self._fev_view_open else None)
+        self.cancel_anchor_pick("Anchoring cancelled")
+        # A drag interrupted by Esc must not leave its following notes
+        # hidden for good.
+        self._show_following_annotations()
         if self.tool_mode != "select":
             self.tool_mode = "select"
         self._drop_connect_ghost()
@@ -4685,10 +4912,18 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if saved_snap is not None:
                     self._snap_state["x"], self._snap_state["y"] = saved_snap
                 moved_keys = {(k, i) for k, i, _o, _n in moves}
+                # An annotation that is itself a target can move in
+                # the same gesture; do not detach the notes that
+                # follow it.
+                moved_keys |= {("annotation", aid)
+                               for aid, _old, _new in anno_edits}
                 for aid, old_state, new_state in anno_edits:
                     self._detach_if_moved_alone(old_state, new_state, moved_keys)
                     self._stack.push(AnnoEditCmd(self, aid, old_state,
                                                  new_state, layout_only=True))
+                if anno_edits:
+                    self.follow_anchors({("annotation", aid)
+                                         for aid, _old, _new in anno_edits})
                 if moves:
                     self._stack.push(MoveCmd(self, moves))
                 event.accept()
@@ -4908,10 +5143,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             drag_start, self._drag_start = self._drag_start, []
             if anno_edits:
                 moved_keys = {(k, i) for k, i, _o, _n in moves}
+                # An annotation that is itself a target can move in
+                # the same gesture; do not detach the notes that
+                # follow it.
+                moved_keys |= {("annotation", aid)
+                               for aid, _old, _new in anno_edits}
                 for aid, old_state, new_state in anno_edits:
                     self._detach_if_moved_alone(old_state, new_state, moved_keys)
                     self._stack.push(AnnoEditCmd(self, aid, old_state,
                                                  new_state, layout_only=True))
+                # Anything anchored to the annotations that just moved
+                # follows them, including notes chained through another
+                # annotation.
+                self.follow_anchors({("annotation", aid)
+                                     for aid, _old, _new in anno_edits})
             if moves:
                 # A drag can now carry hierarchy ovals too -- they ride
                 # along in the same gesture but never reparent (only
@@ -4950,6 +5195,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     if not viewport_scene.intersects(
                             item.sceneBoundingRect()):
                         self.centerOn(item)
+            # The gesture is over and `follow_anchors` has put every note
+            # where it belongs: show the ones hidden at press.
+            self._show_following_annotations()
         super().mouseReleaseEvent(event)
 
     def _item_comfortably_visible(self, item) -> bool:

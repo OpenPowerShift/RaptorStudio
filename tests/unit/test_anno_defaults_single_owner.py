@@ -26,9 +26,11 @@ from pathlib import Path
 import pytest
 
 from raptor.core.annotations import (
+    ANNO_DEFAULT_LOCATION,
     ANNO_DEFAULTS,
     ANNO_Z_BANDS,
     ANNO_Z_BEHIND,
+    ANNO_Z_DEFAULT,
     ANNO_Z_FRONT,
     ANNO_Z_MIDDLE,
 )
@@ -96,8 +98,14 @@ class TestTheZbands:
         0 (10 when selected), so at-or-below -1 is behind all of them."""
         assert ANNO_Z_BEHIND <= -1
 
-    def test_middle_is_what_a_new_annotation_gets(self):
+    def test_middle_is_the_callout_band(self):
         assert ANNO_Z_MIDDLE == 20.0
+
+    def test_a_new_annotation_is_behind_by_default(self):
+        assert ANNO_Z_DEFAULT == ANNO_Z_BEHIND
+
+    def test_a_new_annotation_is_above_its_target_by_default(self):
+        assert ANNO_DEFAULT_LOCATION == "above"
 
     def test_they_are_floats_consistently(self):
         """The API's copy was the int `20` where the GUI's was `20.0`.
@@ -123,12 +131,15 @@ class TestOneOwner:
         assert annotations.ANNO_DEFAULTS is ANNO_DEFAULTS, (
             "the API still carries its own ANNO_DEFAULTS")
         assert annotations.ANNO_Z_MIDDLE is ANNO_Z_MIDDLE
+        assert annotations.ANNO_Z_DEFAULT is ANNO_Z_DEFAULT
+        assert annotations.ANNO_DEFAULT_LOCATION is ANNO_DEFAULT_LOCATION
 
     def test_the_gui_imports_rather_than_defines(self):
         pytest.importorskip("PySide6")
         from raptor.gui.ui import diagram_annotations
         assert diagram_annotations.ANNO_DEFAULTS is ANNO_DEFAULTS
         assert diagram_annotations.ANNO_Z_MIDDLE is ANNO_Z_MIDDLE
+        assert diagram_annotations.ANNO_Z_DEFAULT is ANNO_Z_DEFAULT
 
     @pytest.mark.parametrize("rel", FILES)
     def test_nobody_builds_the_dict_again(self, rel):
@@ -142,7 +153,9 @@ class TestOneOwner:
                 if not isinstance(target, ast.Name):
                     continue
                 if target.id in ("ANNO_DEFAULTS", "ANNO_Z_MIDDLE",
-                                 "ANNO_Z_BEHIND", "ANNO_Z_FRONT"):
+                                 "ANNO_Z_BEHIND", "ANNO_Z_FRONT",
+                                 "ANNO_Z_DEFAULT",
+                                 "ANNO_DEFAULT_LOCATION"):
                     pytest.fail(
                         f"{rel}:{node.lineno} assigns {target.id}; it lives "
                         "in raptor.core.annotations")

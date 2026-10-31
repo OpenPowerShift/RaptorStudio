@@ -22,9 +22,10 @@ from PySide6.QtWidgets import (
     QWidget, QLayout, QVBoxLayout, QScrollArea, QLabel, QGroupBox, QFormLayout, QHBoxLayout, QTabWidget, QLineEdit,
     QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QPushButton,
     QRadioButton, QButtonGroup, QTableWidget, QTableWidgetItem, QFrame,
-    QToolButton,
+    QToolButton, QSizePolicy,
 )
 from raptor.core.engine.diststats import compute_stats
+from raptor.core.annotations import ANNO_DEFAULT_LOCATION, ANNO_LOCATIONS
 
 from raptor.core.fileio.rbd import RbdFile
 from raptor.core.fileio.typed import system_config_from_row
@@ -218,6 +219,13 @@ _ANNO_KIND_LABELS = {
     "text": "Text", "arrow": "Arrow",
 }
 
+#: How the Inspector spells each stored anchor location. The stored values
+#: live in `raptor.core.annotations.ANNO_LOCATIONS`; this is only display.
+_ANCHOR_LOCATION_LABELS = {
+    "right": "Right", "left": "Left", "above": "Above",
+    "below": "Below", "center": "Centre",
+}
+
 
 def _vbox(layout: QLayout | None) -> QVBoxLayout:
     """The page layouts the inspector tabs build are all QVBoxLayouts; the stubs return `QLayout | None`."""
@@ -378,6 +386,10 @@ class InspectorDock(QWidget):
     #: after state for one `AnnoEditCmd`, matching the standalone dialog
     #: this replaced.
     annotation_prop_changed = Signal(int, dict)
+    #: (annotation_id) -- the Inspector's "Pick on canvas…" button: the
+    #: canvas arms a click-to-anchor mode. Kept as a signal rather than a
+    #: direct `anchor_source` call so the dock stays usable without a view.
+    annotation_anchor_pick_requested = Signal(int)
     #: Fired when the Rates library itself changes via a field's
     #: "Use saved rate…" picker (add/edit while browsing) -- the
     #: Inspector never marks the model dirty itself for anything else
@@ -2757,8 +2769,8 @@ class InspectorDock(QWidget):
     #: `annotation_entry` and `anchor_targets`); set by the main window.
     anchor_source: Any = None
 
-    _ANCHOR_SIDES = (("right", "Right"), ("left", "Left"),
-                     ("above", "Above"), ("below", "Below"))
+    _ANCHOR_LOCATIONS = tuple(
+        (key, _ANCHOR_LOCATION_LABELS[key]) for key in ANNO_LOCATIONS)
 
     def _anchor_group(self, layout, aid, kind: str) -> None:
         """Anchor: what the annotation is attached to. Anchored, it moves
@@ -2770,7 +2782,7 @@ class InspectorDock(QWidget):
             return
         entry = src.annotation_entry(int(aid)) or {}
         anchor = entry.get("anchor") if isinstance(entry.get("anchor"), dict) else None
-        targets = src.anchor_targets()
+        targets = src.anchor_targets(exclude=int(aid))
         _gb, fl = self._group("Anchor", layout)
 
         def combo_for(current_ref, current_name, none_label):
@@ -2810,18 +2822,62 @@ class InspectorDock(QWidget):
             note = ("Attached at both ends, the arrow follows the two elements. "
                     "Set either end to Not attached to free it.")
         else:
-            target = combo_for(anchor and anchor.get("ref"), anchor and anchor.get("target"),
-                               "Not anchored")
-            side = QComboBox()
-            for key, label in self._ANCHOR_SIDES:
-                side.addItem(label, key)
-            side.setCurrentIndex(max(side.findData((anchor or {}).get("side", "right")), 0))
+            target = combo_for(anchor and anchor.get("ref"),
+                               anchor and anchor.get("target"), "Not anchored")
+            # Editable, so the list doubles as a search field: type part of
+            # an element name or annotation label and Qt's completer narrows
+            # it. `NoInsert` stops a half-typed name becoming an option.
+            target.setEditable(True)
+            target.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+            # The Inspector is ~380 px wide; an unconstrained combo plus a
+            # "Pick on canvas…" button overflowed it and clipped both. Let
+            # the combo expand into whatever is left and cap its preferred
+            # width instead of sizing to the longest element name.
+            target.setSizeAdjustPolicy(
+                QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            target.setMinimumContentsLength(8)
+            target.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                 QSizePolicy.Policy.Fixed)
+            if target.completer() is not None:
+                target.completer().setFilterMode(
+                    Qt.MatchFlag.MatchContains)
+                target.completer().setCaseSensitivity(
+                    Qt.CaseSensitivity.CaseInsensitive)
+            pick = QPushButton("Pick on canvas…")
+            pick.setToolTip("Click, then click an element or another "
+                            "annotation to anchor this annotation to it "
+                            "(Esc cancels)")
+            pick.setEnabled(hasattr(src, "start_anchor_pick"))
+            pick.setSizePolicy(QSizePolicy.Policy.Fixed,
+                               QSizePolicy.Policy.Fixed)
+            pick.clicked.connect(
+                lambda _checked=False: self.annotation_anchor_pick_requested
+                .emit(int(aid)))
+            target_row = QWidget()
+            target_layout = QHBoxLayout(target_row)
+            target_layout.setContentsMargins(0, 0, 0, 0)
+            target_layout.setSpacing(4)
+            target_layout.addWidget(target, 1)
+            target_layout.addWidget(pick)
+
+            location = QComboBox()
+            for key, label in self._ANCHOR_LOCATIONS:
+                location.addItem(label, key)
+            location.setCurrentIndex(max(
+                location.findData((anchor or {}).get(
+                    "location", ANNO_DEFAULT_LOCATION)), 0))
             gap = QDoubleSpinBox()
             gap.setRange(0.0, 500.0)
             gap.setSuffix(" px")
             gap.setValue(float((anchor or {}).get("gap", 12.0)))
-            side.setEnabled(anchor is not None)
+            location.setEnabled(anchor is not None)
             gap.setEnabled(anchor is not None)
+
+            def sync_gap(_v=None):
+                gap.setEnabled(anchor is not None
+                               and location.currentData() != "center")
+
+            sync_gap()
 
             def commit(_v=None):
                 if target.currentData() is None:
@@ -2830,16 +2886,19 @@ class InspectorDock(QWidget):
                     return
                 self.annotation_prop_changed.emit(aid, {"anchor": {
                     "target": name_of(target), "ref": target.currentData(),
-                    "side": side.currentData(), "gap": float(gap.value())}})
+                    "location": location.currentData(),
+                    "gap": float(gap.value())}})
 
             target.currentIndexChanged.connect(commit)
-            side.currentIndexChanged.connect(commit)
+            location.currentIndexChanged.connect(sync_gap)
+            location.currentIndexChanged.connect(commit)
             gap.editingFinished.connect(commit)
-            fl.addRow("Anchored to:", target)
-            fl.addRow("Side:", side)
+            fl.addRow("Anchored to:", target_row)
+            fl.addRow("Location:", location)
             fl.addRow("Gap:", gap)
-            note = ("Anchored, it moves with the element. Dragging the "
-                    "annotation itself removes the anchor.")
+            note = ("Anchored, it moves with its target. Centre ignores the "
+                    "gap. Dragging the annotation itself removes the anchor. "
+                    "Use Pick on canvas… to choose the target by clicking it.")
         hint = QLabel(note)
         hint.setWordWrap(True)
         hint.setObjectName("SectionNote")

@@ -8,9 +8,11 @@ documented in ``docs/RBDS_FORMAT.md``.
 This module is the missing write path: before it, annotations could only
 be created in the GUI.  It offers two placement modes:
 
-* **By name** (``adjacent_to="Srv_3_Disk", side="right"``) -- no
+* **By name** (``adjacent_to="Srv_3_Disk", location="right"``) -- no
   coordinates, stable across ``auto_layout`` re-runs.  For arrows,
-  ``from_``/``to`` anchor the tail and head to two elements.
+  ``from_``/``to`` anchor the tail and head to two elements.  The target
+  may be another annotation (``Annotation:7``, or its label when unique):
+  placement then uses that annotation's bounding box.
 * **By coordinates** (``x``/``y``/``w``/``h`` or ``x1``/``y1``/``x2``/
   ``y2``) -- in the same *scene* space the GUI writes (see below).
 
@@ -33,17 +35,23 @@ from typing import Any
 
 from raptor.api.build import (
     BuildError,
+    ElementNotFound,
     resolve_element,
 )
 from raptor.api.workspace import Workspace
-from raptor.core.annotations import ANNO_DEFAULTS, ANNO_Z_MIDDLE  # noqa: E402,F401
+from raptor.core.annotations import (  # noqa: E402,F401
+    ANNO_DEFAULT_LOCATION,
+    ANNO_DEFAULTS,
+    ANNO_LOCATIONS,
+    ANNO_Z_DEFAULT,
+    ANNO_Z_MIDDLE,
+    annotation_geometry,
+    annotation_label,
+)
 from raptor.core.fileio import view_transform
 
 #: Annotation kinds (mirrors ``docs/RBDS_FORMAT.md``).
 ANNO_KINDS = ("text", "rect", "ellipse", "arrow")
-
-#: Sides for name-anchored placement.
-ANNO_SIDES = ("right", "left", "above", "below")
 
 # `ANNO_DEFAULTS` and `ANNO_Z_MIDDLE` are imported at the top of this module
 # from `raptor.core.annotations` (review E-07). Both used to be spelled out
@@ -105,10 +113,108 @@ def _model_to_scene(rbd, x: float, y: float) -> tuple[float, float]:
 # Anchors
 # ---------------------------------------------------------------------------
 
+def _annotation_in(rbd, ref: str | int) -> dict[str, Any] | None:
+    """The annotation an anchor selector names, if it names one.
+
+    Accepts ``Annotation:7`` and a label (the annotation's text, or
+    ``Annotation 7`` for an empty one). A label that matches more than one
+    annotation is ambiguous and rejected; ids are never ambiguous.
+    """
+    entries = list(getattr(rbd, "annotations", None) or [])
+    text = str(ref).strip()
+    prefix, _, ident = text.partition(":")
+    if prefix.strip().lower() == "annotation":
+        if not ident.strip().isdigit():
+            raise BuildError(
+                f"{text!r} is not an annotation id; use Annotation:<id>")
+        for entry in entries:
+            if int(entry.get("id", 0) or 0) == int(ident):
+                return entry
+        raise ElementNotFound(f"No annotation with ID {ident}")
+    matches = [e for e in entries if annotation_label(e) == text]
+    if len(matches) > 1:
+        raise BuildError(
+            f"annotation label {text!r} is ambiguous; use Annotation:<id>")
+    return matches[0] if matches else None
+
+
+def _annotation_geometry_for(rbd, ref) -> dict[str, Any] | None:
+    entry = _annotation_in(rbd, ref)
+    return annotation_geometry(entry) if entry is not None else None
+
+
+def _annotation_refs(entry: dict[str, Any]) -> list[str]:
+    """Annotation references an entry's anchor holds (box target, or an
+    arrow's two ends)."""
+    anchor = entry.get("anchor")
+    if not isinstance(anchor, dict):
+        return []
+    refs = [anchor.get("ref") or anchor.get("target")]
+    for end in ("from", "to"):
+        if anchor.get(end) is not None:
+            refs.append(anchor.get(f"{end}_ref") or anchor.get(end))
+    return [str(r) for r in refs if r]
+
+
+def _would_cycle(rbd, target_entry: dict[str, Any],
+                 new_id: int) -> bool:
+    """True if anchoring at `target_entry` would loop back to `new_id`.
+
+    Anchors to annotations can chain (and an arrow can join two of them),
+    and a cycle would make following a layout chase its own tail: the
+    placement is bounded, so it would not hang, but it could never settle.
+    Ids break ties: labels need not be unique, so the stored ``ref`` is
+    preferred.
+    """
+    seen: set[int] = set()
+    stack: list[dict[str, Any]] = [target_entry]
+    while stack:
+        current = stack.pop()
+        cid = int(current.get("id", 0) or 0)
+        if cid == int(new_id):
+            return True
+        if cid in seen:                 # a pre-existing cycle, not ours
+            continue
+        seen.add(cid)
+        for ref in _annotation_refs(current):
+            prefix, _, ident = ref.partition(":")
+            if prefix.strip().lower() == "annotation" \
+                    and ident.strip().isdigit() \
+                    and int(ident) == int(new_id):
+                return True
+            try:
+                found = _annotation_in(rbd, ref)
+            except BuildError:
+                continue                # the target is gone; no cycle
+            if found is not None:
+                stack.append(found)
+    return False
+
+
 def _anchor_for(rbd, ref: str | int) -> dict[str, Any]:
-    """Resolve an element name/id to its scene centre, half-extents and
-    hierarchy level."""
-    section, row = resolve_element(rbd, ref)
+    """Resolve an element name/id or an annotation to its scene centre,
+    half-extents and hierarchy level."""
+    text = str(ref).strip()
+    explicit_annotation = text.partition(":")[0].strip().lower() == "annotation"
+    if explicit_annotation:
+        geometry = _annotation_geometry_for(rbd, ref)
+        if geometry is None:
+            raise BuildError(f"annotation {ref!r} has no usable geometry")
+        return geometry
+    try:
+        section, row = resolve_element(rbd, ref)
+    except ElementNotFound:
+        # Plain names resolve to elements first (a block called "B1" wins
+        # over an annotation whose text happens to be "B1"); only when no
+        # element matches is the name treated as an annotation label.
+        annotation = _annotation_in(rbd, ref)
+        if annotation is None:
+            raise
+        geometry = annotation_geometry(annotation)
+        if geometry is None:        # pragma: no cover - entries are numeric
+            raise BuildError(
+                f"annotation {ref!r} has no usable geometry") from None
+        return geometry
     try:
         x = float(row.get("xPos", 0) or 0)
         y = float(row.get("yPos", 0) or 0)
@@ -140,7 +246,7 @@ def _anchor_for(rbd, ref: str | int) -> dict[str, Any]:
 
 
 _SELECTOR_KIND = {"Block": "Block", "Node": "Node", "Event": "Event",
-                  "Hierarchy": "Hier"}
+                  "Hierarchy": "Hier", "Annotation": "Annotation"}
 
 
 def _ref(anchor: dict) -> str:
@@ -172,42 +278,65 @@ _GEOMETRY = ("x", "y", "w", "h", "x1", "y1", "x2", "y2")
 def follow_layout(rbd, old_transform: dict | None = None) -> int:
     """Keep annotations with the diagram after Auto Layout moved elements.
 
-    An annotation placed next to an element (``anchor``) is placed next to
-    it again, on the same side and gap; an arrow between two elements is
-    redrawn between them. One placed by coordinates keeps its position in
-    the model when the canvas transform changed (`old_transform` is the
-    transform before the layout). An anchor whose element no longer
-    exists, or whose name is ambiguous, leaves the annotation where it is.
-    Returns how many annotations moved."""
+    An annotation placed next to an element or another annotation
+    (``anchor``) is placed next to it again, at the same location and gap;
+    an arrow between two targets is redrawn between them. One placed by
+    coordinates keeps its position in the model when the canvas transform
+    changed (`old_transform` is the transform before the layout). An
+    anchor whose target no longer exists, or whose name is ambiguous,
+    leaves the annotation where it is. Returns how many annotations moved.
+
+    Annotation-to-annotation anchors can chain, so anchored entries are
+    re-evaluated in passes: a note anchored to a note anchored to a block
+    reaches its final place on the second pass regardless of list order.
+    The pass count is bounded by the number of anchored entries, which
+    also stops a cycle (which the API refuses to create) from spinning.
+    """
     new = view_transform.ensure(rbd)
     old = view_transform.ViewTransform.from_dict(old_transform) if old_transform else None
-    moved = 0
-    for entry in getattr(rbd, "annotations", None) or []:
-        before = {k: entry.get(k) for k in _GEOMETRY}
-        anchor = entry.get("anchor") if isinstance(entry.get("anchor"), dict) else None
-        try:
-            if anchor and entry.get("kind") == "arrow" and anchor.get("from") is not None:
-                tail = _anchor_for(rbd, anchor.get("from_ref") or anchor["from"])
-                head = _anchor_for(rbd, anchor.get("to_ref") or anchor["to"])
-                entry.update({"x1": round(tail["cx"], 2), "y1": round(tail["cy"], 2),
-                              "x2": round(head["cx"], 2), "y2": round(head["cy"], 2)})
-            elif anchor and anchor.get("target") is not None:
-                target = _anchor_for(rbd, anchor.get("ref") or anchor["target"])
-                px, py = _place_on_side(target, str(anchor.get("side", "right")),
-                                        float(anchor.get("gap", 12.0)),
-                                        float(entry.get("w") or 0), float(entry.get("h") or 0))
-                entry["x"], entry["y"] = round(px, 2), round(py, 2)
-            elif old is not None and old != new:
-                for kx, ky in (("x", "y"), ("x1", "y1"), ("x2", "y2")):
-                    if isinstance(entry.get(kx), (int, float)) and isinstance(entry.get(ky), (int, float)):
-                        mx, my = old.to_model(float(entry[kx]), float(entry[ky]))
-                        sx, sy = new.to_scene(mx, my)
-                        entry[kx], entry[ky] = round(sx, 2), round(sy, 2)
-        except BuildError:
-            continue                        # its element is gone: leave it
-        if any(entry.get(k) != before[k] for k in _GEOMETRY):
-            moved += 1
-    return moved
+    entries = list(getattr(rbd, "annotations", None) or [])
+    anchored = [e for e in entries
+                if isinstance(e.get("anchor"), dict)]
+    moved: set[int] = set()
+
+    # Coordinate-placed annotations follow the transform once.
+    for entry in entries:
+        if isinstance(entry.get("anchor"), dict):
+            continue
+        if old is None or old == new:
+            continue
+        for kx, ky in (("x", "y"), ("x1", "y1"), ("x2", "y2")):
+            if isinstance(entry.get(kx), (int, float)) and isinstance(entry.get(ky), (int, float)):
+                mx, my = old.to_model(float(entry[kx]), float(entry[ky]))
+                sx, sy = new.to_scene(mx, my)
+                entry[kx], entry[ky] = round(sx, 2), round(sy, 2)
+
+    for _pass in range(len(anchored) + 1):
+        changed = 0
+        for entry in anchored:
+            before = {k: entry.get(k) for k in _GEOMETRY}
+            anchor = entry["anchor"]
+            try:
+                if entry.get("kind") == "arrow" and anchor.get("from") is not None:
+                    tail = _anchor_for(rbd, anchor.get("from_ref") or anchor["from"])
+                    head = _anchor_for(rbd, anchor.get("to_ref") or anchor["to"])
+                    entry.update({"x1": round(tail["cx"], 2), "y1": round(tail["cy"], 2),
+                                  "x2": round(head["cx"], 2), "y2": round(head["cy"], 2)})
+                elif anchor.get("target") is not None:
+                    target = _anchor_for(rbd, anchor.get("ref") or anchor["target"])
+                    px, py = _place_at_location(
+                        target, str(anchor.get("location", ANNO_DEFAULT_LOCATION)),
+                        float(anchor.get("gap", 12.0)),
+                        float(entry.get("w") or 0), float(entry.get("h") or 0))
+                    entry["x"], entry["y"] = round(px, 2), round(py, 2)
+            except BuildError:
+                continue                    # its target is gone: leave it
+            if any(entry.get(k) != before[k] for k in _GEOMETRY):
+                changed += 1
+                moved.add(int(entry.get("id", 0) or 0))
+        if not changed:
+            break
+    return len(moved)
 
 
 def _auto_size(text: str) -> tuple[float, float]:
@@ -218,20 +347,25 @@ def _auto_size(text: str) -> tuple[float, float]:
     return round(w, 2), round(h, 2)
 
 
-def _place_on_side(anchor: dict, side: str, gap: float,
-                   w: float, h: float) -> tuple[float, float]:
-    """Top-left scene position for a w x h box on *side* of the anchor."""
+def _place_at_location(anchor: dict, location: str, gap: float,
+                       w: float, h: float) -> tuple[float, float]:
+    """Top-left scene position for a w x h box at *location* around the
+    anchor. ``center`` ignores ``gap``: a callout belongs over the target,
+    not offset from it."""
     cx, cy = anchor["cx"], anchor["cy"]
     hw, hh = anchor["half_w"], anchor["half_h"]
-    if side == "right":
+    if location == "right":
         return (cx + hw + gap, cy - h / 2.0)
-    if side == "left":
+    if location == "left":
         return (cx - hw - gap - w, cy - h / 2.0)
-    if side == "above":
+    if location == "above":
         return (cx - w / 2.0, cy - hh - gap - h)
-    if side == "below":
+    if location == "below":
         return (cx - w / 2.0, cy + hh + gap)
-    raise BuildError(f"unknown side {side!r}; use one of {ANNO_SIDES}")
+    if location == "center":
+        return (cx - w / 2.0, cy - h / 2.0)
+    raise BuildError(
+        f"unknown location {location!r}; use one of {ANNO_LOCATIONS}")
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +399,7 @@ def place_annotation(
     kind: str = "text",
     text: str = "",
     adjacent_to: str | int | None = None,
-    side: str = "right",
+    location: str = ANNO_DEFAULT_LOCATION,
     gap: float = 12.0,
     x: float | None = None,
     y: float | None = None,
@@ -285,6 +419,7 @@ def place_annotation(
 
     Exactly one placement mode is required: ``adjacent_to`` (or
     ``from_``/``to`` for an arrow) **or** explicit coordinates.
+    ``location`` defaults to ``"above"``; ``center`` ignores ``gap``.
     ``units="model"`` gives ``x``/``y`` (and an arrow's ``x1``..``y2``) in
     the model's own coordinates, the ones element ``x``/``y`` use; the
     default ``"scene"`` is the canvas pixels annotations are stored in.
@@ -318,8 +453,9 @@ def place_annotation(
             raise BuildError(
                 f"no hierarchy {parent!r}; annotations would be invisible "
                 "at every level")
-    if side not in ANNO_SIDES:
-        raise BuildError(f"unknown side {side!r}; use {ANNO_SIDES}")
+    if location not in ANNO_LOCATIONS:
+        raise BuildError(
+            f"unknown location {location!r}; use {ANNO_LOCATIONS}")
     unknown = set(style) - _ANNO_STYLE_KEYS
     if unknown:
         raise BuildError(
@@ -379,6 +515,27 @@ def place_annotation(
         entry[k] = v
     entry.update(style)
 
+    # Anchors may point at another annotation; refuse a chain that loops
+    # back to this one. Checked here, once the new id is known, and before
+    # any geometry is written.
+    for ref in (anchor_ref, from_, to):
+        if ref is None:
+            continue
+        prefix, _, ident = str(ref).strip().partition(":")
+        if prefix.strip().lower() == "annotation" and ident.strip().isdigit() \
+                and int(ident) == int(entry["id"]):
+            raise BuildError(
+                "an annotation cannot be anchored to itself")
+        target = _anchor_for(rbd, ref)
+        if target.get("kind") != "Annotation":
+            continue
+        target_entry = _find(rbd, int(target["id"]))
+        if target_entry is not None and _would_cycle(
+                rbd, target_entry, int(entry["id"])):
+            raise BuildError(
+                "that anchor would create a cycle of annotations; pick a "
+                "target that does not lead back to this annotation")
+
     if kind == "arrow":
         if arrow_refs:
             # `arrow_refs` is true when AT LEAST ONE endpoint was given,
@@ -420,12 +577,12 @@ def place_annotation(
         aw, ah = float(aw), float(ah)
         if anchor_ref is not None:
             anchor = _anchor_for(rbd, anchor_ref)
-            px, py = _place_on_side(anchor, side, gap, aw, ah)
+            px, py = _place_at_location(anchor, location, gap, aw, ah)
             entry.update({
                 "x": round(px, 2), "y": round(py, 2), "w": aw, "h": ah,
                 "parent": anchor["parent"] if parent is None else parent,
                 "anchor": {"target": anchor["name"], "ref": _ref(anchor),
-                           "side": side, "gap": float(gap)},
+                           "location": location, "gap": float(gap)},
             })
         else:
             # `explicit_xy` is a value, not an inference: it is a definite
@@ -437,7 +594,7 @@ def place_annotation(
             entry.update({"x": round(px, 2), "y": round(py, 2),
                           "w": aw, "h": ah, "parent": parent or 0})
     entry["text"] = text
-    entry.setdefault("z", ANNO_Z_MIDDLE)
+    entry.setdefault("z", ANNO_Z_DEFAULT)
 
     if not hasattr(rbd, "annotations") or rbd.annotations is None:
         rbd.annotations = []
@@ -480,15 +637,16 @@ def update_annotation(
     annotation_id: int,
     patch: dict[str, Any],
 ) -> dict[str, Any]:
-    """Patch one annotation.  Re-anchor with ``adjacent_to``/``side``/``gap``
-    (text/rect/ellipse) or ``from_``/``to`` (arrow); any style, ``text`` or
-    explicit geometry field is applied directly.
+    """Patch one annotation.  Re-anchor with
+    ``adjacent_to``/``location``/``gap`` (text/rect/ellipse) or
+    ``from_``/``to`` (arrow); any style, ``text`` or explicit geometry
+    field is applied directly.
 
-    Supplying ``side``/``gap`` alone keeps the annotation's existing anchor
-    (so ``{"side": "left"}`` re-places a name-anchored annotation without
-    needing the target again).  ``kind`` may be changed, but changing it
-    between ``arrow`` and the box kinds also needs the matching placement
-    fields."""
+    Supplying ``location``/``gap`` alone keeps the annotation's existing
+    anchor (so ``{"location": "left"}`` re-places a name-anchored
+    annotation without needing the target again).  ``kind`` may be
+    changed, but changing it between ``arrow`` and the box kinds also
+    needs the matching placement fields."""
     handle = workspace.get(model_id)
     rbd = handle.rbd
     entry = _find(rbd, annotation_id)
@@ -506,15 +664,15 @@ def update_annotation(
     existing_anchor = entry.get("anchor")
     if not isinstance(existing_anchor, dict):
         existing_anchor = {}
-    reanchor = any(k in patch for k in ("adjacent_to", "from_", "to", "side",
-                                        "gap"))
+    reanchor = any(k in patch for k in ("adjacent_to", "from_", "to",
+                                        "location", "gap"))
     # Geometry/style fields applied directly; explicit coordinates may be
     # given in model units (`units: "model"`).
     patch = dict(patch)
     units = str(patch.pop("units", "scene"))
     drop_anchor = "anchor" in patch and patch.pop("anchor") is None
     direct = {k: v for k, v in patch.items()
-              if k not in ("adjacent_to", "from_", "to", "side", "gap",
+              if k not in ("adjacent_to", "from_", "to", "location", "gap",
                            "kind")}
     unknown = set(direct) - _ANNO_STYLE_KEYS - {
         "text", "x", "y", "w", "h", "x1", "y1", "x2", "y2", "parent"}
@@ -542,29 +700,52 @@ def update_annotation(
     if reanchor:
         # Rebuild geometry in place: remove, re-place with the merged fields.
         # Fall back to the existing anchor's target/from/to when only
-        # side/gap is supplied, so a lone {"side": "left"} re-places instead
-        # of silently de-anchoring.
+        # location/gap is supplied, so a lone {"location": "left"} re-places
+        # instead of silently de-anchoring.
         kind = str(patch.get("kind", entry.get("kind", "text")))
         adjacent_to = patch.get("adjacent_to")
         from_ = patch.get("from_")
         to = patch.get("to")
         if adjacent_to is None and from_ is None and to is None:
-            # Only side/gap was supplied: keep the existing anchor.
-            adjacent_to = existing_anchor.get("target")
-            from_ = existing_anchor.get("from")
-            to = existing_anchor.get("to")
+            # Only location/gap was supplied: keep the existing anchor.
+            # Prefer the stored `ref` (ids are unique; annotation labels
+            # and element names need not be).
+            adjacent_to = existing_anchor.get("ref") or existing_anchor.get("target")
+            from_ = existing_anchor.get("from_ref") or existing_anchor.get("from")
+            to = existing_anchor.get("to_ref") or existing_anchor.get("to")
             if from_ is not None or to is not None:
                 adjacent_to = None
         elif adjacent_to is not None:
             # An explicit box anchor replaces any arrow endpoints.
             from_ = to = None
+        # Check against the id being kept, not the temporary one
+        # `place_annotation` may allocate after removing this entry: a
+        # gap in the id sequence can otherwise hide a cycle. `place_annotation`
+        # checks again with its own id; this one is authoritative for an
+        # update.
+        for ref in (adjacent_to, from_, to):
+            if ref is None:
+                continue
+            try:
+                target = _anchor_for(rbd, ref)
+            except BuildError:
+                continue            # placement will report the bad target
+            if target.get("kind") != "Annotation":
+                continue
+            target_entry = _find(rbd, int(target["id"]))
+            if target_entry is not None and _would_cycle(
+                    rbd, target_entry, annotation_id):
+                raise BuildError(
+                    "that anchor would create a cycle of annotations; pick a "
+                    "target that does not lead back to this annotation")
         merged = {
             "kind": kind,
             "text": direct.pop("text", entry.get("text", "")),
             "adjacent_to": adjacent_to,
             "from_": from_,
             "to": to,
-            "side": patch.get("side", existing_anchor.get("side", "right")),
+            "location": patch.get("location",
+                                  existing_anchor.get("location", ANNO_DEFAULT_LOCATION)),
             "gap": patch.get("gap", existing_anchor.get("gap", 12.0)),
             "parent": direct.pop("parent", entry.get("parent")),
         }

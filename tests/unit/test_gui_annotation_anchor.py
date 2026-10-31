@@ -22,7 +22,7 @@ def setup(qapp):
     from raptor.core.fileio.rbd import load_rbd
     from raptor.gui.ui.main_window import MainWindow
     rbd = load_rbd(str(GOLD))
-    note = place_annotation(rbd, kind="text", text="Check", adjacent_to="ArcticAir_10000", side="above")
+    note = place_annotation(rbd, kind="text", text="Check", adjacent_to="ArcticAir_10000", location="above")
     free = place_annotation(rbd, kind="rect", x=20.0, y=20.0, w=80.0, h=40.0)
     w = MainWindow()
     w._load_into_app(rbd, str(GOLD))
@@ -92,7 +92,7 @@ def test_the_inspector_anchors_and_unanchors(setup):
     w, v, _note, free, _m = setup
     ref = next(r for label, r in v.anchor_targets() if label.endswith("CB2000_25000"))
     v.set_annotation_props(free, {"anchor": {"target": "CB2000_25000", "ref": ref,
-                                             "side": "right", "gap": 12.0}})
+                                             "location": "right", "gap": 12.0}})
     e = v.annotation_entry(free)
     assert e["anchor"]["ref"] == ref and _xy(v, free) != (20.0, 20.0)
     w._inspector.show_annotation(v._anno_items[free])
@@ -112,3 +112,155 @@ def test_auto_layout_carries_it_and_undo_restores_it(setup):
         {"x": _xy(v, note)[0], "y": _xy(v, note)[1]}, abs=0.5)
     v._stack.undo()
     assert _xy(v, note) == pytest.approx(before, abs=0.5)
+
+
+def test_a_fresh_annotation_can_be_anchored_immediately(setup):
+    """The first thing a user does after drawing a note is anchor it. The
+    Inspector must offer the Anchor group (target, location, gap and Pick)
+    without needing a reselect, and picking another annotation must work."""
+    from PySide6.QtCore import QPointF
+    from PySide6.QtWidgets import QGroupBox, QPushButton
+
+    w, v, _note, free, _m = setup
+    v.tool_mode = "anno_text"
+    v._handle_tool_click(QPointF(60.0, 60.0))
+    new = max(int(a["id"]) for a in v.annotations)
+    assert new != free
+
+    w._inspector_select_timer.stop()
+    w._flush_canvas_block_selection()
+    group = next(g for g in w._inspector.findChildren(QGroupBox)
+                 if g.title() == "Anchor")
+    assert any(b.text().startswith("Pick on canvas")
+               for b in group.findChildren(QPushButton))
+    assert any(ref.startswith("Annotation:") and str(free) in ref
+               for _label, ref in v.anchor_targets(exclude=new))
+
+    v.start_anchor_pick(new)
+    assert v._anchor_pick_for == new
+    v._handle_anchor_pick(v._anno_items[free].sceneBoundingRect().center())
+    entry = v.annotation_entry(new)
+    assert entry["anchor"]["ref"] == f"Annotation:{free}"
+    assert entry["anchor"]["location"] == "above"
+
+
+def test_the_pick_button_can_choose_a_block(setup):
+    _w, v, _note, free, _m = setup
+    bids = _block(v, "CB2000_25000")
+    v.start_anchor_pick(free)
+    v._handle_anchor_pick(v._block_items[bids].sceneBoundingRect().center())
+    assert v.annotation_entry(free)["anchor"]["ref"] == f"Block:{bids}"
+
+
+def test_escape_cancels_picking_without_changing_the_anchor(setup):
+    w, v, note, _free, _m = setup
+    before = v.annotation_entry(note)["anchor"]
+    v.start_anchor_pick(note)
+    assert v.has_armed()
+    # Through the window's Esc handler, the path a real key press takes
+    # while the Inspector button (not the canvas) has focus.
+    w._handle_escape_activated()
+    assert v._anchor_pick_for is None
+    assert not v.has_armed()
+    assert v.annotation_entry(note)["anchor"] == before
+
+
+def test_clicking_the_annotation_itself_is_refused(setup):
+    _w, v, note, _free, _m = setup
+    before = v.annotation_entry(note)["anchor"]
+    v.start_anchor_pick(note)
+    v._handle_anchor_pick(v._anno_items[note].sceneBoundingRect().center())
+    assert v._anchor_pick_for == note        # still armed for a valid target
+    assert v.annotation_entry(note)["anchor"] == before
+    v.cancel_armed()
+
+
+def test_center_location_places_over_the_target(setup):
+    _w, v, _note, free, _m = setup
+    ref = next(r for label, r in v.anchor_targets() if label.endswith("CB2000_25000"))
+    v.set_annotation_props(free, {"anchor": {
+        "target": "CB2000_25000", "ref": ref,
+        "location": "center", "gap": 99.0}})
+    entry = v.annotation_entry(free)
+    geometry = v._anchor_geometry(ref)
+    assert entry["x"] + entry["w"] / 2 == pytest.approx(geometry["cx"], abs=0.5)
+    assert entry["y"] + entry["h"] / 2 == pytest.approx(geometry["cy"], abs=0.5)
+
+
+def test_a_note_anchored_to_a_note_follows_it(setup):
+    from raptor.gui.ui.diagram import AnnoEditCmd
+    _w, v, note, free, _m = setup
+    v.set_annotation_props(note, {"anchor": {
+        "target": "Annotation", "ref": f"Annotation:{free}",
+        "location": "center", "gap": 0.0}})
+    before = _xy(v, note)
+    old = v._anno_state(free)
+    new = dict(old, x=old["x"] + 40.0)
+    v._stack.push(AnnoEditCmd(v, free, old, new, layout_only=True))
+    assert v.follow_anchors({("annotation", free)}) >= 1
+    assert _xy(v, note)[0] == pytest.approx(before[0] + 40.0, abs=0.5)
+
+
+def test_the_inspector_offers_location_centre_and_pick(setup):
+    from PySide6.QtWidgets import (
+        QComboBox, QDoubleSpinBox, QGroupBox, QPushButton,
+    )
+    w, v, _note, free, _m = setup
+    w._inspector.show_annotation(v._anno_items[free])
+    group = next(g for g in w._inspector.findChildren(QGroupBox)
+                 if g.title() == "Anchor")
+    combos = group.findChildren(QComboBox)
+    location = combos[1]
+    labels = [location.itemText(i) for i in range(location.count())]
+    assert labels == ["Right", "Left", "Above", "Below", "Centre"]
+
+    picked: list[int] = []
+    w._inspector.annotation_anchor_pick_requested.connect(picked.append)
+    button = next(b for b in group.findChildren(QPushButton)
+                  if b.text().startswith("Pick on canvas"))
+    button.click()
+    assert picked == [free]
+
+    # Centre commits through the same undoable annotation path, and the
+    # gap field is disabled because Centre ignores it.
+    ref = next(r for label, r in v.anchor_targets() if label.endswith("CB2000_25000"))
+    v.set_annotation_props(free, {"anchor": {
+        "target": "CB2000_25000", "ref": ref,
+        "location": "right", "gap": 12.0}})
+    w._inspector.show_annotation(v._anno_items[free])
+    group = next(g for g in w._inspector.findChildren(QGroupBox)
+                 if g.title() == "Anchor")
+    combos = group.findChildren(QComboBox)
+    combos[1].setCurrentIndex(combos[1].findData("center"))
+    assert v.annotation_entry(free)["anchor"]["location"] == "center"
+    gaps = [c for c in group.findChildren(QDoubleSpinBox)]
+    assert gaps and not gaps[0].isEnabled()
+
+
+def test_notes_that_follow_a_dragged_element_hide_until_the_drop(setup):
+    """A note used to sit at its old position (or over the space the
+    element had left) for the whole drag. It is hidden on press, re-placed
+    and shown on release."""
+    _w, v, note, free, _m = setup
+    # A chained note: `free` follows `note`, which follows the block.
+    v.set_annotation_props(free, {"anchor": {
+        "target": "Annotation", "ref": f"Annotation:{note}",
+        "location": "center", "gap": 0.0}})
+    bid = _block(v, "ArcticAir_10000")
+    v._hide_following_annotations({("block", bid)})
+    assert not v._anno_items[note].isVisible()
+    assert not v._anno_items[free].isVisible()
+    v._show_following_annotations()
+    assert v._anno_items[note].isVisible()
+    assert v._anno_items[free].isVisible()
+
+
+def test_a_new_note_starts_behind_the_reliability_elements(setup):
+    from PySide6.QtCore import QPointF
+    from raptor.core.annotations import ANNO_Z_BEHIND
+
+    _w, v, _note, _free, _m = setup
+    v.tool_mode = "anno_text"
+    v._handle_tool_click(QPointF(60.0, 60.0))
+    newest = max(v._anno_items)
+    assert v._anno_items[newest].zValue() == ANNO_Z_BEHIND

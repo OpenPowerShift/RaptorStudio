@@ -38,7 +38,7 @@ def crowded(tmp_path):
 def test_registering_and_saving_keep_hand_placed_positions(crowded):
     ws, mid, xs = crowded
     assert _xs(ws.get(mid).rbd) == xs
-    add_annotation(ws, mid, kind="text", text="note", adjacent_to="B2", side="above")
+    add_annotation(ws, mid, kind="text", text="note", adjacent_to="B2", location="above")
     assert _xs(ws.get(mid).rbd) == xs
     reread = ws._load_any(str(ws.get(mid).path))
     assert _xs(reread) == xs
@@ -76,7 +76,7 @@ def test_mcp_auto_layout_moves_anchored_annotations_and_keeps_free_ones(tmp_path
     from raptor.mcp.tools_model import auto_layout
     ws = context.workspace()
     mid = ws.register_model(build.build_from_spec(SPEC, auto_layout=False), name="m")["model_id"]
-    note = add_annotation(ws, mid, kind="text", text="n", adjacent_to="B2", side="above")
+    note = add_annotation(ws, mid, kind="text", text="n", adjacent_to="B2", location="above")
     free = add_annotation(ws, mid, kind="rect", x=10.0, y=10.0, w=40.0, h=20.0)
     before = {a["id"]: (a["x"], a["y"]) for a in ws.get(mid).rbd.annotations}
     data = auto_layout(mid).structured_content

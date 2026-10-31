@@ -2230,6 +2230,78 @@
      },
      "font_size": {
       "type": "number"
+     },
+     "border_colour": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "text_colour": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "fill_colour": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "font_family": {
+      "type": "string"
+     },
+     "font_bold": {
+      "type": "boolean"
+     },
+     "font_italic": {
+      "type": "boolean"
+     },
+     "line_style": {
+      "enum": [
+       "solid",
+       "dash",
+       "dot",
+       "dash-dot",
+       "dash-dot-dot"
+      ]
+     },
+     "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "target": {
+        "type": "string"
+       },
+       "ref": {
+        "type": "string"
+       },
+       "location": {
+        "enum": [
+         "right",
+         "left",
+         "above",
+         "below",
+         "center"
+        ]
+       },
+       "gap": {
+        "type": "number"
+       },
+       "from": {
+        "type": "string"
+       },
+       "to": {
+        "type": "string"
+       },
+       "from_ref": {
+        "type": "string"
+       },
+       "to_ref": {
+        "type": "string"
+       }
+      }
      }
     }
    }

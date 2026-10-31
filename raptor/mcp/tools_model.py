@@ -1798,7 +1798,7 @@ def add_annotation(
     kind: Literal["text", "rect", "ellipse", "arrow"] = "text",
     text: str = "",
     adjacent_to: str | None = None,
-    side: Literal["right", "left", "above", "below"] = "right",
+    location: Literal["right", "left", "above", "below", "center"] = "above",
     gap: float = 12.0,
     x: float | None = None,
     y: float | None = None,
@@ -1816,15 +1816,19 @@ def add_annotation(
 ) -> CallToolResult:
     """Add a drawing annotation (text box, rect, ellipse or arrow).
 
-    Place it **next to an element** with `adjacent_to` (a block/node/event/
-    hierarchy name or `Kind:id`) plus `side` (`right`/`left`/`above`/
-    `below`) and `gap`: it is anchored, so it moves with the element when
-    the element is dragged or `auto_layout` runs. Or place it **by
-    coordinates** with `x`/`y` (+ `w`/`h`): in scene pixels (the default,
-    what the GUI stores) or, with `units="model"`, in the model's own
-    coordinates (the numbers element `x`/`y` use). `w`/`h` are scene pixels
-    (a block is 108 x 46). It inherits the element's hierarchy; set
-    `parent` to draw it inside another level.
+    Place it **next to an element or another annotation** with
+    `adjacent_to` (a block/node/event/hierarchy name or `Kind:id`, or
+    `Annotation:<id>` / an annotation's label) plus `location`
+    (`right`/`left`/`above`/`below`/`center`, default `above`) and `gap`:
+    it is anchored,
+    so it moves with the target when the target is dragged or
+    `auto_layout` runs. `center` puts the annotation over the target and
+    ignores `gap`. Or place it **by coordinates** with `x`/`y` (+ `w`/`h`):
+    in scene pixels (the default, what the GUI stores) or, with
+    `units="model"`, in the model's own coordinates (the numbers element
+    `x`/`y` use). `w`/`h` are scene pixels (a block is 108 x 46). It
+    inherits the target's hierarchy; set `parent` to draw it inside
+    another level.
 
     An `arrow` connects two elements by name: give `from_` and `to`, or
     the four coordinates `x1`/`y1`/`x2`/`y2`.
@@ -1845,8 +1849,9 @@ def add_annotation(
     ws = context.workspace()
     from raptor.api.annotations import add_annotation as _add
     kwargs: dict[str, Any] = {
-        "kind": kind, "text": text, "adjacent_to": adjacent_to, "side": side,
-        "gap": gap, "x": x, "y": y, "w": w, "h": h, "from_": from_, "to": to,
+        "kind": kind, "text": text, "adjacent_to": adjacent_to,
+        "location": location, "gap": gap, "x": x, "y": y, "w": w, "h": h,
+        "from_": from_, "to": to,
         "x1": x1, "y1": y1, "x2": x2, "y2": y2, "parent": parent,
         "units": units,
     }
@@ -1855,7 +1860,7 @@ def add_annotation(
     s = result["summary"]
     md = (f"Added {s['kind']} annotation "
           f"`{s['annotation_id']}`"
-          + (f" anchored {s['anchor'].get('side')} of "
+          + (f" anchored {s['anchor'].get('location')} of "
              f"`{s['anchor'].get('target') or s['anchor'].get('from')}`."
              if s.get("anchor") else "."))
     return ok(result, markdown=md)
@@ -1870,7 +1875,7 @@ def list_annotations(model_id: str,
     `parent` filters to one hierarchy level (the `parent` field, 0 =
     home).  Returns {annotations, count}; each annotation gives
     annotation_id, kind, parent, text, geometry and, for name-anchored
-    ones, its `anchor` (target/side/gap, or from/to for an arrow).
+    ones, its `anchor` (target/location/gap, or from/to for an arrow).
     """
     ws = context.workspace()
     from raptor.api.annotations import list_annotations as _list
@@ -1896,11 +1901,12 @@ def update_annotation(model_id: str, annotation_id: int,
 
     Accepts any style field, `text`, explicit geometry (`x`/`y`/`w`/`h`/
     `x1`/`y1`/`x2`/`y2`, in scene pixels or with `"units": "model"`), or an
-    anchor via `adjacent_to`/`side`/`gap` (text/rect/ellipse) or
-    `from_`/`to` (arrow). Moving an anchored annotation by coordinates
-    removes its anchor, as dragging it in the GUI does; `"anchor": null`
-    removes it and leaves the annotation where it is.  Returns
-    {annotation_id, annotation, summary}.
+    anchor via `adjacent_to`/`location`/`gap` (text/rect/ellipse) or
+    `from_`/`to` (arrow). Re-anchoring to another annotation uses
+    `adjacent_to="Annotation:<id>"` (or its unique label). Moving an
+    anchored annotation by coordinates removes its anchor, as dragging it
+    in the GUI does; `"anchor": null` removes it and leaves the annotation
+    where it is.  Returns {annotation_id, annotation, summary}.
     """
     context.require_write()
     ws = context.workspace()

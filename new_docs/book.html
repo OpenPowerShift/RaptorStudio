@@ -670,6 +670,17 @@ bold/italic). Delete with the Del key as usual.</p>
 <code>.rbd</code> format cannot store them — RAPTOR Studio warns before
 dropping them if you save as <code>.rbd</code>.</p>
 </div>
+<div class="paragraph">
+<p>Annotations can be anchored so they travel with the diagram. Select one
+and use the Inspector&#8217;s <strong>Anchor</strong> group: choose a target (block, node,
+event, hierarchy or another annotation), a <strong>Location</strong> — Right, Left,
+Above, Below or Centre — and a gap. <strong>Centre</strong> sits the annotation over its
+target and ignores the gap. <strong>Pick on canvas…</strong> arms a click: the next
+element or annotation you click becomes the target, and Esc cancels. An
+anchored annotation follows its target through drags, Align and Auto
+Layout, and anchored notes can chain. Dragging the annotation itself
+removes the anchor.</p>
+</div>
 </div>
 </div>
 </div>
@@ -8554,7 +8565,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>65 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>66 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone reference to every tool,
 option and transport is in <code>docs/MCP.md</code> in the repository.</p>
 </div>
@@ -9078,8 +9089,8 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 64 including <code>render_diagram</code> and <code>ping</code>, or 63 when
-<code>--no-render</code> hides the diagram tool.</p>
+listed below: 65 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+<code>ping</code>, or 64 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
 <p><strong>Ping the server.</strong> Ask the assistant to "ping RAPTOR" or call the <code>ping</code>
@@ -9405,9 +9416,12 @@ with parameter names and valid ranges.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>add_annotation</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add a drawing annotation — <code>text</code>, <code>rect</code>, <code>ellipse</code> or <code>arrow</code>. Place it
-  next to an element with <code>adjacent_to</code> (a block/node/event/hierarchy) plus
-  <code>side</code> (<code>right</code>/<code>left</code>/<code>above</code>/<code>below</code>) and <code>gap</code> — it is anchored, and
-  moves with the element when it is dragged or <code>auto_layout</code> runs — or by
+  next to an element or another annotation with <code>adjacent_to</code> (a
+  block/node/event/hierarchy name, <code>Kind:id</code>, <code>Annotation:&lt;id&gt;</code> or a unique
+  annotation label) plus <code>location</code>
+  (<code>right</code>/<code>left</code>/<code>above</code>/<code>below</code>/<code>center</code>, default <code>above</code>) and <code>gap</code> — it is anchored,
+  and moves with the target when it is dragged or <code>auto_layout</code> runs.
+  <code>center</code> puts it over the target and ignores <code>gap</code>. Or place it by
   coordinates with <code>x</code>/<code>y</code>, in scene pixels or, with <code>units="model"</code>, the
   model&#8217;s own coordinates. An arrow connects two elements with
   <code>from_</code>/<code>to</code>. Styling (colours, border,
@@ -9417,12 +9431,12 @@ with parameter names and valid ranges.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_annotations</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">List a model&#8217;s annotations, optionally filtered by hierarchy <code>parent</code>,
-  with geometry and any <code>anchor</code> (target/side/gap, or from/to).</p></td>
+  with geometry and any <code>anchor</code> (target/location/gap, or from/to).</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>update_annotation</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Patch one annotation&#8217;s text/style/geometry, or re-anchor it (supply
-  <code>adjacent_to</code> or <code>from_</code>/<code>to</code>; <code>side</code>/<code>gap</code> alone keeps the existing
+  <code>adjacent_to</code> or <code>from_</code>/<code>to</code>; <code>location</code>/<code>gap</code> alone keeps the existing
   anchor).</p></td>
 </tr>
 <tr>
@@ -9598,6 +9612,14 @@ with parameter names and valid ranges.</p>
   <code>legible</code>; <code>highlight</code> outlines elements (for example the single
   points of failure); <code>include_annotations</code> draws the overlays. Light/dark
   theme and a pixel cap.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>render_diagram_svg</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Draw one level as SVG text without Qt. Same <code>level</code>/<code>zoom_to</code>/<code>margin</code>/
+  <code>highlight</code>/<code>include_annotations</code> options as <code>render_diagram</code>. Available
+  even when <code>--no-render</code> hides the PNG tool, and useful when SVG text is
+  easier to inspect than an image. Fonts are not measured, so long names
+  are shortened (the full name is in each element&#8217;s <code>&lt;title&gt;</code>).</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>auto_layout</code></p></td>

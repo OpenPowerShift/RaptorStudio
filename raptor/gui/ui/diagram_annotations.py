@@ -41,6 +41,7 @@ from raptor.gui.ui.diagram_items import (  # noqa: I001
 from raptor.core.annotations import (  # noqa: F401  (re-exported)
     ANNO_DEFAULTS,
     ANNO_Z_BANDS,
+    ANNO_Z_DEFAULT,
     ANNO_Z_BEHIND,
     ANNO_Z_FRONT,
     ANNO_Z_MIDDLE,
@@ -782,7 +783,7 @@ class AnnoCmd(_ViewCmd):
             return None
         item = cls(int(a.get("id", 0)), int(a.get("parent", 0)), a,
                    self._v, *_anno_ctor_args(a))
-        item.setZValue(float(a.get("z", ANNO_Z_MIDDLE)))
+        item.setZValue(float(a.get("z", ANNO_Z_DEFAULT)))
         return item
 
     def redo(self):
@@ -862,7 +863,7 @@ def apply_anno_state(v, aid: int, state: dict) -> None:
         sp = item.scenePos()
         item.setPos(float(state.get("x", sp.x())),
                     float(state.get("y", sp.y())))
-        item.setZValue(float(state.get("z", ANNO_Z_MIDDLE)))
+        item.setZValue(float(state.get("z", ANNO_Z_DEFAULT)))
     refresh = getattr(v, "_refresh_anchor_leader", None)
     if refresh is not None:
         refresh()
