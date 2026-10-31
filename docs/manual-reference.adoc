@@ -240,7 +240,7 @@ current value).
 |Capacity |Colour each capacity node by its average utilization (Green < 70% · Yellow < 90% · Red ≥ 90%). Needs Capacity analysis and at least one node without unrestricted flow. |
 |Cost |Colour each block by its total life-cycle cost, relative to the most expensive block (Green < 1/3 · Yellow < 2/3 · Red ≥ 2/3); Spread bands it by quartile instead. Needs Cost Analysis. |
 |Spares |Colour each block Red if it ever ran out of spares or reached end of life during the run (% of run time and sparing cost on hover), Green otherwise. Needs Weak Link analysis. |
-|Importance |Colour each block by its importance, using the measure the Importance tab ranks by (Vesely–Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), Yellow ≥ ⅓, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Needs Importance measures enabled for the run. |
+|Importance |Colour each block by its importance, using the measure the Importance tab ranks by (Vesely–Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), Yellow ≥ ⅓, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Greyed out until the run has importance measures: switch on Run ▸ Analysis ▸ Importance measures and run again. |
 |===
 
 ==== Bands

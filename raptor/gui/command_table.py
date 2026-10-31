@@ -908,8 +908,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
             "since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), "
             "Yellow ≥ ⅓, Green below; the value is printed under each "
             "block. This is a RANKING, not a health reading: red means "
-            "'fix this first'. Needs Importance measures enabled for the "
-            "run."),
+            "'fix this first'. Greyed out until the run has importance "
+            "measures: switch on Run ▸ Analysis ▸ Importance measures and "
+            "run again."),
         handler="_on_importance_overlay_toggled",
         on="toggled",
         checkable=True,

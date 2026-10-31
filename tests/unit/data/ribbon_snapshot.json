@@ -700,7 +700,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Importance",
-   "tooltip": "Colour each block by its importance, using the measure the Importance tab ranks by (Vesely\u2013Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (\u2265 \u2154 of the largest value), Yellow \u2265 \u2153, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Needs Importance measures enabled for the run."
+   "tooltip": "Colour each block by its importance, using the measure the Importance tab ranks by (Vesely\u2013Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (\u2265 \u2154 of the largest value), Yellow \u2265 \u2153, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Greyed out until the run has importance measures: switch on Run \u25b8 Analysis \u25b8 Importance measures and run again."
   },
   "_inspector_toggle_action": {
    "checkable": true,
@@ -1609,7 +1609,7 @@
    "_hier_up_action": false,
    "_import_library_action": true,
    "_import_rbd_action": true,
-   "_importance_overlay_action": true,
+   "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,
    "_live_sim_action": true,

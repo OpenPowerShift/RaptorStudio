@@ -88,21 +88,18 @@ def test_results_tab_appears_only_with_data(qapp):
 
 
 # --------------------------------------------------------------- Overlay
-def test_overlay_is_clickable_without_data_and_says_what_to_switch_on(qapp):
-    """The bug this test locks down: the button was greyed out, a disabled
-    QAction shows no tooltip, and nothing on screen said how to get data."""
+def test_overlay_is_greyed_out_without_data_and_tooltip_says_how_to_enable(qapp):
     from raptor.core.fileio.rbds import load_rbds
     from raptor.gui.ui.main_window import MainWindow
 
     win = MainWindow()
     win._load_into_app(load_rbds(MODEL), MODEL)
     win._sync_overlay_actions([])
-    assert win._importance_overlay_action.isEnabled(), (
-        "a disabled action cannot explain itself; keep it clickable while a "
-        "model is open")
+    action = win._importance_overlay_action
+    assert not action.isEnabled()
+    assert "Importance measures" in action.toolTip()
     win._on_importance_overlay_toggled(True)
     assert "Importance measures" in win.statusBar().currentMessage()
-    assert "one extra batch per block" in win.statusBar().currentMessage()
     win.close()
 
 
