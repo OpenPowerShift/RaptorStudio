@@ -108,7 +108,10 @@
  },
  "auto_layout": {
   "params": [
+   "all_levels",
+   "direction",
    "hierarchy",
+   "max_columns",
    "model_id",
    "selectors"
   ],
@@ -617,6 +620,7 @@
    "margin",
    "max_px",
    "model_id",
+   "routing",
    "theme",
    "zoom_to"
   ],
@@ -631,6 +635,7 @@
    "level",
    "margin",
    "model_id",
+   "routing",
    "theme",
    "zoom_to"
   ],

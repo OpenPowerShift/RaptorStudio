@@ -624,6 +624,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 win, spec.text),
         })
         self._commands.create_all()
+        self._sync_link_routing()
         self._undo_stack.cleanChanged.connect(self._on_undo_clean_changed)
         # Spread applies to the ACTIVE overlay, and only Weak and Cost
         # have quartile bands. Enable it from the checked state, not from
@@ -2448,6 +2449,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 default_yes=True):
             view = self._diagram_dock.view
             view.fix_annotation_contrast(view.find_low_contrast_annotations())
+
+    def _sync_link_routing(self) -> None:
+        """Apply the saved link style and show it in the View combo."""
+        from raptor.gui.ui.diagram_items import set_link_routing
+        mode = str(settings.get("appearance/link_routing", "straight"))
+        set_link_routing(mode)
+        self._sync_link_routing_combo()
 
     def _toggle_theme(self, checked: bool):
         ThemeManager.instance().set_dark(checked)

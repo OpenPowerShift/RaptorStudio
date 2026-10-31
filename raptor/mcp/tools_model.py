@@ -1287,7 +1287,8 @@ _LAYOUT_SECTIONS = ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA",
 
 
 def _layout_scope(rbd: Any, hierarchy: str | int | None,
-                  selectors: list[str] | None) -> tuple[str, set[tuple[str, str]] | None]:
+                  selectors: list[str] | None,
+                  all_levels: bool = False) -> tuple[str, set[tuple[str, str]] | None]:
     """The auto-layout scope: a title, and the rows it may repaint.
 
     ``allowed=None`` means the whole model. Resolving the scope is
@@ -1321,7 +1322,20 @@ def _layout_scope(rbd: Any, hierarchy: str | int | None,
             section, row = resolve_element(rbd, str(selector))
             selected.add((section, str(row["ID"])))
         return f"{len(selected)} selected element(s)", selected
-    return "model", None
+    if all_levels:
+        return "model", None
+    # Default: the home level only, matching the GUI. A whole-model rewrite
+    # from a no-argument call was too destructive on a large model.
+    allowed = set()
+    for sec in _LAYOUT_SECTIONS:
+        for r in rbd.section(sec).rows:
+            eid = str(r.get("ID"))
+            if eid == "0":
+                continue
+            parent = r.get("ParentId", r.get("parent", "0"))
+            if str(parent) == "0":
+                allowed.add((sec, eid))
+    return "home level", allowed
 
 
 def _layout_coords(rbd: Any) -> dict[tuple[str, str], tuple[Any, Any]]:
@@ -1337,7 +1351,9 @@ def _layout_coords(rbd: Any) -> dict[tuple[str, str], tuple[Any, Any]]:
 
 def _apply_layout_positions(rbd: Any,
                             allowed: set[tuple[str, str]] | None,
-                            report: dict | None = None) -> int:
+                            report: dict | None = None, *,
+                            direction: str = "LR",
+                            max_columns: int | None = None) -> int:
     """Lay the whole model out on a copy and adopt the in-scope positions.
 
     A partial run of the layout engine does not know where its neighbours
@@ -1348,7 +1364,8 @@ def _apply_layout_positions(rbd: Any,
     from raptor.core.fileio.legacy_layout import normalize_legacy_layout
 
     trial = copy.deepcopy(rbd)
-    normalize_legacy_layout(trial, force=True, report=report)
+    normalize_legacy_layout(trial, force=True, report=report,
+                            direction=direction, max_columns=max_columns)
     before, after = _layout_coords(rbd), _layout_coords(trial)
     applied = 0
     rows_by_section = {
@@ -1372,7 +1389,10 @@ def _apply_layout_positions(rbd: Any,
 @guarded
 def auto_layout(model_id: str,
                 hierarchy: str | int | None = None,
-                selectors: list[str] | None = None) -> CallToolResult:
+                selectors: list[str] | None = None,
+                all_levels: bool = False,
+                direction: str = "LR",
+                max_columns: int | None = None) -> CallToolResult:
     """Re-arrange a model's diagram onto the shared layered grid.
 
     Runs the same engine the GUI's Auto Layout button and .rbd save
@@ -1390,8 +1410,14 @@ def auto_layout(model_id: str,
       isolation does not line up with its neighbours), but only the named
       elements adopt the new positions.
 
-    With neither, every level is laid out. `build_model` already lays out
-    by default (`auto_layout=True`).
+    With neither, the home level is laid out (matching the GUI); pass
+    `all_levels=True` for every level. `build_model` already lays out by
+    default (`auto_layout=True`).
+
+    `direction` is LR/RL/TB/BT; `max_columns` wraps the flow after that
+    many columns instead of waiting for the canvas width. Use the existing
+    View > Link style `orthogonal` setting (or `render_diagram`) for
+    right-angle links.
 
     The collision-refining step has a time budget (30 s in all): a dense
     model can otherwise take minutes. If it runs out, the layered layout is
@@ -1413,11 +1439,14 @@ def auto_layout(model_id: str,
     context.require_write()
     ws = context.workspace()
     handle = ws.get(model_id)
-    scope, allowed = _layout_scope(handle.rbd, hierarchy, selectors)
+    scope, allowed = _layout_scope(handle.rbd, hierarchy, selectors,
+                                   all_levels=all_levels)
     report: dict = {}
     from raptor.api.annotations import ensure_view_transform, follow_layout
     old_transform = ensure_view_transform(handle.rbd)
-    applied = _apply_layout_positions(handle.rbd, allowed, report)
+    applied = _apply_layout_positions(
+        handle.rbd, allowed, report, direction=direction,
+        max_columns=max_columns)
     # Annotations go with the diagram: anchored ones are placed next to
     # their element again, the others keep their place in the model.
     if applied and allowed is None:

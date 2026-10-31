@@ -2738,6 +2738,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._label_phase = phase
         self.refresh_block_labels()
 
+    def reroute_links(self) -> None:
+        """Redraw every link (after the routing style changes). Layout only:
+        no element moves and the model is not marked changed."""
+        for it in list(self.scene().items()):
+            if isinstance(it, _LinkItem):
+                it._update_route()
+
     def refresh_block_labels(self) -> None:
         """Re-apply the label setting to every visible block (mode/phase)."""
         self._refresh_block_sublabels()
@@ -6002,7 +6009,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         for hid, item in self._hier_items.items():
             item.set_dsi(dsi.get(hid))
 
-    def auto_layout(self):
+    def auto_layout(self, direction: str | None = None,
+                    max_columns: int | None = None):
         """Rearrange the whole level by graph topology: columns follow the
         longest-path layer from the Start node(s) (left = upstream), rows
         spread evenly within each column. Marks the model dirty via
@@ -6014,6 +6022,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         and pressing Auto Layout lifted it off the line ("wonky"), and the
         re-selection afterwards made the next press partial too. The whole
         level is laid out every time; the selection is kept."""
+        if direction is None:
+            direction = str(app_settings.get("layout/direction", "LR"))
+        if max_columns is None:
+            configured = int(app_settings.get("layout/max_columns", 0) or 0)
+            max_columns = configured if configured > 0 else None
         # Bipartite adjacency, ref-aware: ('Node', 3) and ('Block', 3)
         # are different elements -- keying by bare id let a layering walk
         # jump between kinds. Members = this level's blocks/nodes/hier
@@ -6126,7 +6139,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             with refine_budget(GUI_REFINE_BUDGET_S):
                 pos = layout_container_positions(
                     members.keys(), edges, starts, pins=pins,
-                    sizes=sizes, scale=scale)
+                    sizes=sizes, scale=scale, direction=direction,
+                    max_columns=max_columns)
             for k, (mx, my) in pos.items():
                 if k not in moving:
                     continue

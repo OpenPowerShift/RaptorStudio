@@ -17,6 +17,7 @@ from typing import Any
 from xml.sax.saxutils import escape, quoteattr
 
 from raptor.core.fileio import view_transform
+from raptor.core.routing import ROUTING_MODES, Router, angled, fan_hint, path_d
 from raptor.core.fileio.typed import block_from_row, event_from_row, hier_from_row, link_from_row, node_from_row
 
 #: Hierarchy oval and event hexagon sizes, as the GUI draws them
@@ -180,14 +181,73 @@ def _frame(boxes: list[tuple[float, float, float, float]],
     return x0, y0, max(x1 - x0, 1.0), max(y1 - y0, 1.0)
 
 
+def _routed(src: _Shape, dst: _Shape, shapes: list[_Shape], router: Router, mode: str,
+            targets: list[_Shape], sources: list[_Shape]):
+    """A right-angled route from `src` to `dst`, or None (draw it straight).
+    Leaves along the page flow: sideways when the target is more across than
+    up/down, otherwise top/bottom."""
+    if src is dst:
+        return None
+    dx, dy = dst.cx - src.cx, dst.cy - src.cy
+    if abs(dx) >= 0.5 * abs(dy):
+        out_side, in_side = ("right", "left") if dx >= 0 else ("left", "right")
+    else:
+        out_side, in_side = ("bottom", "top") if dy >= 0 else ("top", "bottom")
+
+    def port(s: _Shape, side: str) -> tuple[float, float]:
+        hw, hh = s.half
+        return {"right": (s.cx + hw, s.cy), "left": (s.cx - hw, s.cy),
+                "bottom": (s.cx, s.cy + hh), "top": (s.cx, s.cy - hh)}[side]
+
+    if mode == "angled":
+        return angled(port(src, out_side), out_side, port(dst, in_side), in_side)
+    boxes = [s.bounds() for s in shapes if s is not src and s is not dst]
+    p0, p3 = port(src, out_side), port(dst, in_side)
+    hint = fan_hint(out_side, in_side, p0, p3,
+                    [t.bounds() for t in targets], [s.bounds() for s in sources])
+    return router.route(p0, out_side, p3, in_side, boxes, hint)
+
+
+def _links_svg(links: list[tuple[_Shape, _Shape]], shapes: list[_Shape],
+               routing: str, c: dict[str, str]) -> tuple[list[str], int]:
+    """The SVG for every link, and how many were drawn routed (not as a
+    straight line)."""
+    router = Router(per_route_s=0.05, total_s=3.0, window_s=1e9)
+    fans_out: dict[int, list[_Shape]] = {}
+    fans_in: dict[int, list[_Shape]] = {}
+    for s, d in links:
+        fans_out.setdefault(id(s), []).append(d)
+        fans_in.setdefault(id(d), []).append(s)
+    out: list[str] = []
+    routed = 0
+    for src, dst in links:
+        route = (_routed(src, dst, shapes, router, routing,
+                         fans_out[id(src)], fans_in[id(dst)])
+                 if routing != "straight" else None)
+        if route is not None:
+            routed += 1
+            out.append(f'<path d="{path_d(route)}" fill="none" stroke="{c["link"]}" '
+                       f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+            continue
+        ax, ay = src.port(dst.cx, dst.cy)
+        bx, by = dst.port(src.cx, src.cy)
+        out.append(f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}" stroke="{c["link"]}" '
+                   f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+    return out, routed
+
+
 def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
                zoom_to: list[Any] | None = None, margin: float = 12.0, theme: str = "light",
-               include_annotations: bool = True) -> tuple[str, dict[str, Any]]:
+               include_annotations: bool = True,
+               routing: str = "straight") -> tuple[str, dict[str, Any]]:
     """Draw one level of `rbd` as SVG. Returns `(svg_text, meta)`.
 
     `level` is 0 for the top level or a hierarchy id, as for the PNG
     renderer. `zoom_to` frames the named elements, padded by `margin` scene
-    units; `highlight` outlines them. Coordinates are the GUI's scene
+    units; `highlight` outlines them. `routing` is "straight" or
+    "angled" (short stubs, then a straight run) or "orthogonal" (right
+    angles only, round the other elements; a link that cannot be routed
+    within the time budget stays straight). Coordinates are the GUI's scene
     pixels, so annotation positions match the canvas."""
     if theme not in _THEMES:
         raise SvgRenderError(f"theme must be 'light' or 'dark', got {theme!r}")
@@ -195,6 +255,8 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
         raise SvgRenderError(f"level {level} is not 0 or a hierarchy id; available: {_levels(rbd)}")
     if not math.isfinite(float(margin)) or margin < 0:
         raise SvgRenderError(f"margin must be a finite value >= 0, got {margin}")
+    if routing not in ROUTING_MODES:
+        raise SvgRenderError(f"routing must be one of {ROUTING_MODES}, got {routing!r}")
     c = _THEMES[theme]
     vt = view_transform.ensure(rbd)
     shapes = _shapes(rbd, level, vt)
@@ -215,11 +277,8 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
            f'fill="{c["link"]}"/></marker></defs>',
            f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{c["bg"]}"/>']
     out.append('<g class="links">')
-    for src, dst in links:
-        ax, ay = src.port(dst.cx, dst.cy)
-        bx, by = dst.port(src.cx, src.cy)
-        out.append(f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}" stroke="{c["link"]}" '
-                   f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+    link_svg, routed = _links_svg(links, shapes, routing, c)
+    out.extend(link_svg)
     out.append("</g>")
     out.append('<g class="elements">')
     for s in shapes:
@@ -243,7 +302,8 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
                   if s.cx >= x0 and s.cx <= x0 + w and s.cy >= y0 and s.cy <= y0 + h)
     meta = {
         "renderer": "svg", "level": level, "width": round(w), "height": round(h),
-        "elements_drawn": len(shapes), "elements_in_view": in_view, "links_drawn": len(links),
+        "elements_drawn": len(shapes), "elements_in_view": in_view, "links_drawn": len(links), "routing": routing,
+        "links_routed": routed,
         "annotations_drawn": len(annos), "highlighted": [s.name or f"{s.kind}:{s.id}" for s in lit],
     }
     return "\n".join(out) + "\n", meta

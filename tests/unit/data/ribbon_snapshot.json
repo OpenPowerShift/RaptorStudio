@@ -2559,6 +2559,21 @@
        "class": "QWidget",
        "kind": "widget",
        "large": false
+      },
+      {
+       "children": [
+        "QComboBox",
+        "QFrame",
+        "QLabel",
+        "QListView",
+        "QScrollBar",
+        "QScrollBar",
+        "QWidget",
+        "QWidget"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
       }
      ],
      "title": "Appearance"
