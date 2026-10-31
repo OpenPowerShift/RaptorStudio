@@ -101,6 +101,7 @@ def _conduct_phase_change_body(self: _Cascade, new_phase: int, sim_time: float, 
             self.system_state, self.system_state.color, sim_time, self._all_blocks,
             events_file=True, new_mission_status=MissionStatus.NON_MISSION,
             system_red_cost=self.model.system_red_cost if self.model.cost_analysis else 0.0,
+            flagged_blocks=self.flagged_blocks(),
         # Weak-link per-element mission bookkeeping at a phased mission
         # boundary (Raptor 7 at begin at
         # end). Source does this inside `ChangeStatus` on every
@@ -350,6 +351,7 @@ def _conduct_phase_change_body(self: _Cascade, new_phase: int, sim_time: float, 
             self.system_state, new_color, sim_time, self._all_blocks,
             events_file=True, new_mission_status=MissionStatus.MISSION,
             system_red_cost=self.model.system_red_cost if self.model.cost_analysis else 0.0,
+            flagged_blocks=self.flagged_blocks(),
         # Weak-link per-element mission bookkeeping at a phased mission
         # boundary. Source does this inside `ChangeStatus` on every
         # mission-status change, not only the run-end one.

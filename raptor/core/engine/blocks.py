@@ -173,6 +173,29 @@ def write_block_failed_line(block: RBDBlock, sim_time: float, operating_time: fl
     )
 
 
+def note_block_flags(block: RBDBlock) -> None:
+    """Keep the run's registry of "unusual" blocks in step with `block`.
+
+    The system's State_change and Red_change comments list the blocks that are
+    cut (`_c`) or repairing, held, done or in maintenance (`_d`/`_r`/`_h`/`_p`).
+    They were found by walking every block on every status change, which on a
+    3,470-block model was a fifth of a replication. The comments only ever name
+    blocks in one of those states, so the walk visits just this registry (in
+    block order) and builds the same text. The states are compared by identity:
+    enum hashing is a Python-level call."""
+    sink = block.flag_sink
+    if sink is None:
+        return
+    op = block.op_status
+    if (block.active_status is ActiveStatus.CUT
+            or op is BlockStatus.REPAIRING or op is BlockStatus.REP_HOLD
+            or op is BlockStatus.DONE or op is BlockStatus.PM_HOLD
+            or op is BlockStatus.PM):
+        sink[block.id] = block
+    else:
+        sink.pop(block.id, None)
+
+
 def change_block_state(
     block: RBDBlock,
     stats: BlockStatistics,
@@ -199,6 +222,7 @@ def change_block_state(
     old_active_status = block.active_status
     block.op_status = new_op_status
     block.active_status = new_active_status
+    note_block_flags(block)
     if new_op_status == BlockStatus.RUNNING:
         # See `BlockRunState.run_needs_respawn`'s own docstring -- cleared
         # centrally here (any transition TO Running) rather than only at
