@@ -240,6 +240,11 @@ class RibbonBuilders(_Base):
         from raptor.gui import cores
         from raptor.gui.ui import settings
         settings.set_value(cores.KEY, int(n))
+        state = getattr(self, "_bg_state", None)
+        if state and not state.get("done") and int(state.get("workers", 1)) > 1:
+            # A multi-core batch is running: give cores back (or take them
+            # again, up to the number it started with) without restarting.
+            state["workers_now"] = max(1, min(int(n), int(state["workers"])))
         self._sync_cores_box()
         if hasattr(self, "_update_readiness"):
             self._update_readiness()
@@ -252,6 +257,11 @@ class RibbonBuilders(_Base):
         animate = bool(getattr(self, "_live_sim_action", None)
                        and self._live_sim_action.isChecked())
         running = bool(getattr(self, "_run_in_progress", False))
+        state = getattr(self, "_bg_state", None)
+        # A multi-core background batch can be told to use fewer cores (or
+        # more again, up to what it started with) while it runs.
+        adjustable = bool(running and state and not state.get("done")
+                          and int(state.get("workers", 1)) > 1)
         chip = getattr(self, "_cores_chip", None)
         if chip is not None:
             n = 1 if animate else cores.chosen()
@@ -259,12 +269,20 @@ class RibbonBuilders(_Base):
                          + (" (Animate)" if animate else ""))
             chip.setToolTip(cores.describe(animate)
                             + ". Change it in the Run panel.")
+        started_with = int(state.get("workers", 1)) if state else 1
         why = ("Animate is on: an animated run uses one core." if animate
+               else f"Takes effect while the run is going (up to {started_with})."
+               if adjustable
                else "A run is using these cores." if running else "")
         tip = (
             "Animate is on: an animated run uses one core, so you can watch "
             "each event. Turn Animate off to run at full speed on these "
             "cores." if animate else
+            f"Lower this to give cores back to the machine while the run "
+            f"goes on: it takes effect within a run or two and the results "
+            f"do not change. Raise it again up to the {started_with} the run "
+            f"started with. It is also your setting for the next run."
+            if adjustable else
             "A run is using these cores. Change the number when it has "
             "finished; it applies to the next run." if running else
             f"A full-speed run splits its trials across this many cores "
@@ -277,11 +295,12 @@ class RibbonBuilders(_Base):
             spin.blockSignals(True)
             spin.setValue(cores.chosen())
             spin.blockSignals(False)
-            spin.setEnabled(not animate and not running)
+            spin.setEnabled(not animate and not running)   # the read-out
             spin.setToolTip(tip)
         panel = getattr(self, "_run_panel", None)
         if panel is not None:
-            panel.set_cores(cores.chosen(), not animate and not running,
+            panel.set_cores(cores.chosen(),
+                            not animate and (not running or adjustable),
                             why, tip)
 
     def _build_step_menu(self, group) -> None:

@@ -70,6 +70,12 @@ _RUNS_DONE = None
 #: Set in each pool worker: raised by the parent on Stop. A worker checks it
 #: between runs and returns the runs it has finished instead of the whole chunk.
 _STOP_FLAG = None
+#: Set in each pool worker: a shared semaphore of "run permits". A worker
+#: holds one while it simulates a run, so at most as many runs execute at
+#: once as there are permits. The parent takes permits out of circulation to
+#: lower the number of busy cores while a batch is running, and puts them back
+#: to raise it again (see `_set_concurrency`).
+_PERMITS = None
 
 
 #: The one unrun model this worker process has loaded, with the key it was
@@ -91,11 +97,12 @@ def _model_template(rbd, rbd_text: str, defer_trigger: str):
     return _TEMPLATE[1]
 
 
-def _init_chunk_worker(flag, runs_done=None, stop=None) -> None:
-    global _RUNAWAY_FLAG, _RUNS_DONE, _STOP_FLAG
+def _init_chunk_worker(flag, runs_done=None, stop=None, permits=None) -> None:
+    global _RUNAWAY_FLAG, _RUNS_DONE, _STOP_FLAG, _PERMITS
     _RUNAWAY_FLAG = flag
     _RUNS_DONE = runs_done
     _STOP_FLAG = stop
+    _PERMITS = permits
     # A worker outlives a parent that dies without cleaning up (a crash, or
     # `os._exit`) and would run its chunk to the end on a core nobody is
     # using; it checks on the parent and leaves with it.
@@ -114,9 +121,31 @@ def _init_chunk_worker(flag, runs_done=None, stop=None) -> None:
 _STOP_GRACE_SECONDS = 15.0
 
 
+def _set_concurrency(permits, held: int, pool_size: int, wanted) -> int:
+    """Move the number of permits the parent holds toward the level that
+    leaves `wanted` runs able to execute at once; returns the new `held`.
+
+    A pool of `pool_size` workers starts with `pool_size` permits in
+    circulation. The parent holds `pool_size - wanted` of them, so only
+    `wanted` workers can be inside a run. Taking a permit waits (briefly)
+    for a worker to finish its current run, so a reduction lands within one
+    run; giving permits back is immediate. Only the number of runs executing
+    at once changes: every chunk still runs start to finish in its own
+    random-number stream, so the results do not depend on it."""
+    target = pool_size - max(1, min(int(wanted), pool_size))
+    while held > target:
+        permits.release()
+        held -= 1
+    while held < target:
+        if not permits.acquire(timeout=0.05):
+            break
+        held += 1
+    return held
+
+
 def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
                         progress=None, stop_check=None, pause_check=None,
-                        metadata_sink=None) -> None:
+                        metadata_sink=None, worker_limit=None) -> None:
     """Run the chunks on `workers` processes, merging results in chunk
     order (the order decides the numbers, so it never depends on which
     worker finished first).
@@ -131,6 +160,11 @@ def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
     calls `progress`, so a caller can ask whether to go on (the sequential
     path does the same after the run). It used to be one `ex.map` over every
     chunk: none of those hooks worked, and Stop waited for the whole batch.
+
+    `worker_limit()` (polled about ten times a second) returns how many
+    workers may be busy right now, between 1 and `workers`: a GUI that lets
+    the user give cores back to the machine mid-batch passes one. See
+    `_set_concurrency`.
     """
     flag = mp_ctx.Event()
     # Runs finished in any worker, for progress. Results are only MERGED in
@@ -138,8 +172,10 @@ def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
     # left a big run's progress still for minutes.
     runs_done = mp_ctx.Value("i", 0)
     stop_flag = mp_ctx.Event()
+    permits = mp_ctx.Semaphore(workers)
+    held = 0
     pool = mp_ctx.Pool(workers, initializer=_init_chunk_worker,
-                       initargs=(flag, runs_done, stop_flag))
+                       initargs=(flag, runs_done, stop_flag, permits))
     shown = 0
     pending: dict = {}
     finished: dict = {}
@@ -168,6 +204,8 @@ def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
                 pending[nxt] = pool.apply_async(_run_chunk_worker,
                                                 (payloads[nxt],))
                 nxt += 1
+            if worker_limit is not None:
+                held = _set_concurrency(permits, held, workers, worker_limit())
             pending[min(pending)].wait(0.1)
             for i in [i for i, r in pending.items() if r.ready()]:
                 finished[i] = pending.pop(i).get()
@@ -208,6 +246,21 @@ def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
         pool.join()
 
 
+def _take_run_permit() -> bool:
+    """Wait for permission to simulate one run; False if Stop came first."""
+    if _PERMITS is None:
+        return True
+    while not _PERMITS.acquire(timeout=0.25):
+        if _STOP_FLAG is not None and _STOP_FLAG.is_set():
+            return False
+    return True
+
+
+def _give_run_permit() -> None:
+    if _PERMITS is not None:
+        _PERMITS.release()
+
+
 def _run_chunk_worker(payload):
     """Subprocess entry for num_workers>1 batches (see run_simulation).
     Runs its chunk sequentially with this worker's disjoint stream
@@ -240,10 +293,15 @@ def _run_chunk_worker(payload):
     for i in range(chunk_runs):
         if _STOP_FLAG is not None and _STOP_FLAG.is_set():
             break
-        driver = SingleRunDriver(ctx, i)
-        driver.kickoff()
-        driver.advance_to_end()
-        driver.finalize()
+        if not _take_run_permit():
+            break                      # stopped while waiting for a core
+        try:
+            driver = SingleRunDriver(ctx, i)
+            driver.kickoff()
+            driver.advance_to_end()
+            driver.finalize()
+        finally:
+            _give_run_permit()
         logs_list.append(list(driver.logs) if collect_logs else [])
         neg_total = negative_draw_total(_streams_of(ctx).distinct_streams())
         neg_runs.append(neg_total - neg_before)
@@ -273,6 +331,7 @@ def run_simulation(
     _ao_sink: list[str] | None = None, ao_plot_interval: float = 10.0,
     stop_check=None, pause_check=None, skip_check=None,
     num_workers: int = 1,
+    worker_limit=None,
     metadata_sink: dict | None = None,
     collect_logs: bool = True,
     seed: int | None = None,
@@ -294,6 +353,11 @@ def run_simulation(
     Raptor 7; those streams persist across runs. Events use
     the same per-object dedicated-or-shared stream lookup with a single fail
     stream each (see `events.py`).
+
+    `worker_limit` (a callable, parallel batches only) says how many of the
+    `num_workers` may be busy at any moment; it is read as the batch runs, so
+    the number of cores in use can be lowered, and raised again, without
+    restarting. The results do not depend on it.
 
     `num_workers > 1` splits the batch across that many processes, each with
     a disjoint segment of every random stream (`rng.jump_ahead`). Replications
@@ -408,7 +472,8 @@ def run_simulation(
         _run_chunks_in_pool(
             mp_ctx, payloads, min(num_workers, n_chunks), _merge, runs,
             progress=progress, stop_check=stop_check,
-            pause_check=pause_check, metadata_sink=metadata_sink)
+            pause_check=pause_check, metadata_sink=metadata_sink,
+            worker_limit=worker_limit)
         if _report_sink is not None:
             # chunks each numbered from 1 -- renumber sequentially
             for i, row in enumerate(_report_sink):
@@ -638,6 +703,7 @@ def run_simulation_with_reports(
     ao_sink: list[str] | None = None,
     cost_sink: list[str] | None = None,
     num_workers: int = 1,
+    worker_limit=None,
     stop_check=None,
     pause_check=None,
     skip_check=None,
@@ -678,7 +744,7 @@ def run_simulation_with_reports(
     capacity_lines: list[str] = []
     live_logs: list[list[str]] = []
     all_logs = run_simulation(rbd_file, num_runs, _report_sink=report_data,
-                              num_workers=num_workers,
+                              num_workers=num_workers, worker_limit=worker_limit,
                               _capacity_sink=capacity_lines, progress=progress,
                               setup_progress=setup_progress,
                               logs_sink=live_logs, on_event=on_event,

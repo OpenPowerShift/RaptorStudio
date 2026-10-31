@@ -410,7 +410,16 @@ core.
 
 **Animate** is the other way to run: one core, with each event drawn on the
 diagram as it happens. The Cores box, in both places, greys out while it
-is on, and while any run is going, and says why when you point at it.
+is on, and says why when you point at it.
+
+**Giving cores back during a run.** While a full-speed run is going on
+several cores, the Run panel's Cores field stays editable. Lower it and
+the run keeps going on fewer cores within a run or two, so the computer is
+yours again without stopping anything; raise it again, up to the number the
+run started with, and it spreads out again. The results do not change: only
+how many trials run at once does. The number you leave there is also the
+setting for the next run. A one-core run, and a run that is not going
+(or is Animate), has nothing to change, so the box is greyed.
 
 The core count is **a setting of this computer, not of the model**. It is
 not saved in the `.rbd` or `.rbds` file, so a model opened on another
