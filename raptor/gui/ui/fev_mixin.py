@@ -133,6 +133,13 @@ class FevMixin:
         if self._fev_show_criticality():
             from raptor.core.engine.reports import real_to_str
             text += f" — Criticality = {real_to_str(s.criticality)}"
+        flow = s.capacity()
+        if flow is not None:
+            # Not in Raptor 7's view: the flow this state delivers, as the
+            # CLI's `fev --capacity` and the MCP tools report it.
+            share = (f" ({flow['delivered_fraction']:.1%})"
+                     if flow["delivered_fraction"] is not None else "")
+            text += f" — Flow {flow['delivered']} of {flow['flow_generated']}{share}"
         self._statusbar.showMessage(text)
         if getattr(self, "_fev_status_dialog", None) is not None \
                 and self._fev_status_dialog.isVisible():
@@ -146,8 +153,16 @@ class FevMixin:
         return dev_settings.current_options().show_criticality
 
     def _fev_text(self) -> str:
-        from raptor.core.engine.fmeca import build_fmeca
-        return "\n".join(build_fmeca(self._fev, show_criticality=self._fev_show_criticality()))
+        """The Failure Effects text, then the capacity lines for a model with
+        capacity analysis (the written log keeps Raptor 7's format)."""
+        from raptor.core.engine.fmeca import build_fmeca, capacity_lines
+        session = self._fev
+        assert session is not None   # only called while the view is open
+        lines = build_fmeca(session, show_criticality=self._fev_show_criticality())
+        flow = session.capacity()
+        if flow is not None:
+            lines = [*lines, *capacity_lines(flow)]
+        return "\n".join(lines)
 
     # ---- acting on elements --------------------------------------------------
 

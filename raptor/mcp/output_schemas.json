@@ -642,6 +642,9 @@
    "affected": {
     "type": "array"
    },
+   "capacity": {
+    "type": "object"
+   },
    "criticality": {
     "type": "number"
    },

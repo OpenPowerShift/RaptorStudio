@@ -16,7 +16,7 @@ _raptor() {
     doctor) opts="--format --help" ;;
     estimate) opts="--format --help --length --runs" ;;
     extract) opts="--deps --format --help --hierarchy --output --pools --report-hazards --streams --treat" ;;
-    fev) opts="--criticality --cycle --fail --format --help --log --phase --repair --script" ;;
+    fev) opts="--capacity --criticality --cycle --fail --format --help --log --phase --repair --script" ;;
     get) opts="--format --help" ;;
     gui) opts="--help --new --theme" ;;
     help) opts="--help" ;;

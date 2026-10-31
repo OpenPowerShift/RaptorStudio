@@ -55,6 +55,7 @@ complete -c raptor -n '__fish_seen_subcommand_from extract' -l report-hazards
 complete -c raptor -n '__fish_seen_subcommand_from extract' -l streams
 complete -c raptor -n '__fish_seen_subcommand_from extract' -l treat
 complete -c raptor -n '__fish_use_subcommand' -a fev
+complete -c raptor -n '__fish_seen_subcommand_from fev' -l capacity
 complete -c raptor -n '__fish_seen_subcommand_from fev' -l criticality
 complete -c raptor -n '__fish_seen_subcommand_from fev' -l cycle
 complete -c raptor -n '__fish_seen_subcommand_from fev' -l fail
