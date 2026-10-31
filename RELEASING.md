@@ -45,6 +45,29 @@ Already done for this repository; repeat only for a fork or a new maintainer.
   `fix:` gives a patch release, `feat:` a minor one, and `feat!:` or a `BREAKING CHANGE:` footer a major one.
   `docs:`, `test:`, `chore:` and `refactor:` appear in the history but do not trigger a release on their own.
 - Check the **Tests** workflow is green on the latest `main` commit.
+- Set this release's codename (see below), or confirm the one on `main` is the one you want.
+
+### Release codename
+
+Every release carries a short byline that the splash screen shows as `vX.Y.Z — Byline`. It is **not** managed by
+release-please, so it is the one version-adjacent thing you edit by hand.
+
+- It lives in `raptor/gui/ui/splash.py` as `RELEASE_CODENAME`.
+- Change it on `main` *before* merging the release PR, so the tag, the wheels and the installers all carry it.
+- Use the byline for the version being released, not the one in development: when 0.9 ships with "The Diagram Lives",
+  bump it to 0.10's byline immediately afterwards.
+- Keep it short (it is drawn over the logo, in one line) and prefer something that names a feature of that release
+  over a generic slogan.
+
+Recent bylines:
+
+| Version | Byline |
+|---|---|
+| 0.9 | Nine Nines and a Dream |
+| 0.8 | Living in the Experiment |
+
+Bumping the codename alone does not trigger a release: release-please only reacts to `fix:`/`feat:` commits, so make
+the change in a `docs:` or `chore:` commit if nothing else is shipping.
 
 ### 2. Check locally (optional, recommended)
 
@@ -68,7 +91,8 @@ checks the current version; the release PR only changes the version number.
 2. Check the version is the one you expect and read the generated `CHANGELOG.md` entry; edit the PR if the wording
    needs it.
 3. Check the PR changes the version in all five places: `pyproject.toml`, `raptor/__init__.py`, `server.json` (twice)
-   and `packaging/raptor-studio-mcp/pyproject.toml` (the version **and** the `raptor-studio[mcp]==` pin).
+   and `packaging/raptor-studio-mcp/pyproject.toml` (the version **and** the `raptor-studio[mcp]==` pin). It does not
+   touch `RELEASE_CODENAME`; check that by hand at the same time.
 4. Merge it. release-please then creates the `vX.Y.Z` tag and a published GitHub Release, which starts **Release** in
    the Actions tab.
 
