@@ -16,6 +16,11 @@ import os
 import sys
 from typing import Any
 
+from raptor.mcp import sdk as _sdk
+
+if (_problem := _sdk.problem()) is not None:     # clearer than the ImportError below
+    raise ImportError(_problem)
+
 from mcp.server import MCPServer
 
 from raptor.mcp.result import READ_ONLY, ok
