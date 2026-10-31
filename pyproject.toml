@@ -1,6 +1,6 @@
 [project]
 name = "raptor-studio"
-version = "0.8.0"
+version = "0.9.0"
 description = "RAPTOR Studio — reliability block diagram simulation (open Python port of Raptor 7)"
 readme = "README.md"
 requires-python = ">=3.12"
