@@ -1,43 +1,13 @@
 {
  "format": "raptor-studio",
- "version": 1,
+ "version": 2,
  "meta": {
-  "generator": "RAPTOR Studio 0.8.0",
-  "file_name": "FinaleShow1.rbds"
+  "generator": "RAPTOR Studio 0.8.0"
  },
  "system": {
-  "units": "hours",
-  "graphics": "GraphicsOn",
-  "node_anal_type": "Availability",
-  "gy_threshold": 0.95,
-  "yr_threshold": 0.9,
   "red_cost": 0.0,
   "lost_cost": 0.0,
-  "flow_generated": 1,
-  "sys_streams": [
-   7,
-   8,
-   9,
-   10,
-   70,
-   71,
-   72,
-   73,
-   74,
-   75,
-   101
-  ],
-  "legacy": {
-   "graphTimeSlice": "100000.000000",
-   "graphYmin": "0.000000",
-   "graphYmax": "1.000000",
-   "zoomVal": "24.000000",
-   "xOrigin": "0.000000",
-   "yOrigin": "80.000000",
-   "ShowNegErrMsg": "0",
-   "IgnoreStartFail": "0",
-   "NotUsed": "1"
-  }
+  "flow_generated": 1
  },
  "experiment": {
   "trials": 1000,
@@ -65,14 +35,7 @@
    "to": [
     "Event",
     1
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 2,
@@ -83,14 +46,7 @@
    "to": [
     "Event",
     2
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 3,
@@ -101,14 +57,7 @@
    "to": [
     "Event",
     3
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 4,
@@ -119,14 +68,7 @@
    "to": [
     "Event",
     4
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 5,
@@ -137,14 +79,7 @@
    "to": [
     "Event",
     5
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 6,
@@ -155,14 +90,7 @@
    "to": [
     "Node",
     16
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 7,
@@ -173,14 +101,7 @@
    "to": [
     "Node",
     16
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 8,
@@ -191,14 +112,7 @@
    "to": [
     "Node",
     16
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 9,
@@ -209,14 +123,7 @@
    "to": [
     "Node",
     16
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 10,
@@ -227,14 +134,7 @@
    "to": [
     "Node",
     16
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 11,
@@ -245,14 +145,7 @@
    "to": [
     "Node",
     15
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   },
   {
    "id": 12,
@@ -263,14 +156,7 @@
    "to": [
     "Node",
     17
-   ],
-   "cold_pri": 50,
-   "a_prob": 1.0,
-   "auto_time": 0.0,
-   "man_time": 0.0,
-   "cap_pri": 50,
-   "nom_flow": -2,
-   "max_flow": -1
+   ]
   }
  ],
  "elements": {
@@ -282,21 +168,7 @@
     "type": 1,
     "parent": 0,
     "x": 1.25,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "legacy": {
-     "Cold": "0",
-     "PR": "0",
-     "Autos": "1",
-     "k*": "0",
-     "Phases": "0",
-     "depNum": "0",
-     "depType": "None",
-     "repCap": "0",
-     "repNA": "1"
-    }
+    "y": 91.25
    },
    {
     "id": 16,
@@ -305,20 +177,7 @@
     "parent": 0,
     "x": 13.75,
     "y": 91.25,
-    "k": 3,
-    "full_flow": 1,
-    "div_flow": 1,
-    "legacy": {
-     "Cold": "0",
-     "PR": "0",
-     "Autos": "1",
-     "k*": "0",
-     "Phases": "0",
-     "depNum": "0",
-     "depType": "None",
-     "repCap": "0",
-     "repNA": "1"
-    }
+    "k": 3
    },
    {
     "id": 15,
@@ -326,21 +185,7 @@
     "type": 3,
     "parent": 0,
     "x": 18.75,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "legacy": {
-     "Cold": "0",
-     "PR": "0",
-     "Autos": "1",
-     "k*": "0",
-     "Phases": "0",
-     "depNum": "0",
-     "depType": "None",
-     "repCap": "0",
-     "repNA": "1"
-    }
+    "y": 91.25
    },
    {
     "id": 17,
@@ -348,21 +193,7 @@
     "type": 2,
     "parent": 0,
     "x": 2.5,
-    "y": 91.25,
-    "k": -1,
-    "full_flow": 1,
-    "div_flow": 1,
-    "legacy": {
-     "Cold": "0",
-     "PR": "0",
-     "Autos": "1",
-     "k*": "0",
-     "Phases": "0",
-     "depNum": "0",
-     "depType": "None",
-     "repCap": "0",
-     "repNA": "1"
-    }
+    "y": 91.25
    }
   ],
   "events": [
@@ -372,15 +203,7 @@
     "parent": 0,
     "x": 8.75,
     "y": 93.75,
-    "prob": 0.8,
-    "legacy": {
-     "Phasing": "0",
-     "Distro": "17",
-     "failStream": "203",
-     "InitCost": "1.00",
-     "OpCost": "1.00",
-     "RepCost": "1.00"
-    }
+    "prob": 0.8
    },
    {
     "id": 2,
@@ -388,15 +211,7 @@
     "parent": 0,
     "x": 8.75,
     "y": 92.5,
-    "prob": 0.8,
-    "legacy": {
-     "Phasing": "0",
-     "Distro": "17",
-     "failStream": "203",
-     "InitCost": "1.00",
-     "OpCost": "1.00",
-     "RepCost": "1.00"
-    }
+    "prob": 0.8
    },
    {
     "id": 3,
@@ -404,15 +219,7 @@
     "parent": 0,
     "x": 8.75,
     "y": 91.25,
-    "prob": 0.8,
-    "legacy": {
-     "Phasing": "0",
-     "Distro": "17",
-     "failStream": "203",
-     "InitCost": "1.00",
-     "OpCost": "1.00",
-     "RepCost": "1.00"
-    }
+    "prob": 0.8
    },
    {
     "id": 4,
@@ -420,15 +227,7 @@
     "parent": 0,
     "x": 8.75,
     "y": 90.0,
-    "prob": 0.8,
-    "legacy": {
-     "Phasing": "0",
-     "Distro": "17",
-     "failStream": "203",
-     "InitCost": "1.00",
-     "OpCost": "1.00",
-     "RepCost": "1.00"
-    }
+    "prob": 0.8
    },
    {
     "id": 5,
@@ -436,15 +235,7 @@
     "parent": 0,
     "x": 8.75,
     "y": 88.75,
-    "prob": 0.8,
-    "legacy": {
-     "Phasing": "0",
-     "Distro": "17",
-     "failStream": "203",
-     "InitCost": "1.00",
-     "OpCost": "1.00",
-     "RepCost": "1.00"
-    }
+    "prob": 0.8
    }
   ],
   "hierarchies": []
@@ -456,94 +247,13 @@
    "parent": 0,
    "x": 0.0,
    "y": 0.0,
-   "fail_dist": 4,
-   "fail_params": [
-    100.0,
-    0.0,
-    0.0
-   ],
-   "fail_stream": 203,
-   "repair_dist": 7,
-   "repair_params": [
-    10.0,
-    2.0,
-    0.0
-   ],
-   "repair_stream": 203,
-   "uses_phasing": false,
-   "dep_type": "None",
-   "dep_num": 0,
-   "dep_nothing": 0.0,
-   "dep_idle": 100.0,
-   "dep_pm": 0.0,
-   "dep_fail": 0.0,
-   "legacy": {
-    "In": "0",
-    "Out": "0",
-    "SimStart": "3",
-    "AmtExhausted": "0.000000",
-    "#FParam": "2",
-    "#RParam": "2",
-    "SBStress": "0.000",
-    "GDType": "0",
-    "GDRate": "1.000000",
-    "GDLimit": "1.000000",
-    "SparePoolName": "unnamed",
-    "SpType": "Infinite",
-    "RSO": "1",
-    "Stock": "100",
-    "NewSp": "1",
-    "ArriveEvery": "720.000000",
-    "ESO": "1",
-    "EmerTime": "24.000000",
-    "SLO": "0",
-    "Level": "0",
-    "Quan": "1",
-    "SLOTime": "24.000000",
-    "Pre-LDTDist": "19",
-    "Param1#1": "0.000000",
-    "Param2#1": "0.000000",
-    "Param3#1": "0.000000",
-    "Post-LDTDist": "19",
-    "Param1#2": "0.000000",
-    "Param2#2": "0.000000",
-    "Param3#2": "0.000000",
-    "NumRes": "0",
-    "#Res1Rep": "1",
-    "#Res1pmRep": "1",
-    "Resource1Name": "None",
-    "usesPM": "0",
-    "PMSpare": "1",
-    "PMRefresh": "1",
-    "PMMisDefer": "0",
-    "PMFailReset": "1",
-    "PMReqDefer": "1",
-    "PMStaggerTime": "0.000000",
-    "PMFreq": "100.000000",
-    "pmTriggered": "0",
-    "pmTrig": "none",
-    "Dist": "19",
-    "Param1#3": "1.000000",
-    "Param2#3": "0.000000",
-    "Param3#3": "0.000000",
-    "DepPMThresh": "75.00",
-    "defDepStateIdle": "0",
-    "initial": "1.00",
-    "Running": "1.00",
-    "standby": "1.00",
-    "idle": "1.00",
-    "repHold": "1.00",
-    "repPerTime": "1.00",
-    "repFixed": "1.00",
-    "donePerTime": "1.00",
-    "doneFixed": "1.00",
-    "pmHoldCost": "1.00",
-    "pmCost": "1.00",
-    "pmFixedCost": "1.00",
-    "perSpare": "1.00",
-    "emerShipping": "1.00",
-    "addDone": "0"
-   }
+   "growth_decay_limit": 1.0,
+   "rso": 1,
+   "eso": 1,
+   "pm_spare": true,
+   "pm_refresh": true,
+   "pm_fail_reset": true,
+   "pm_req_defer": true
   }
  },
  "spare_pools": [],

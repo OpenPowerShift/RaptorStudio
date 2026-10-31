@@ -73,7 +73,7 @@ class Recorder:
 
 def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     """The scripted tool session. Deterministic, a few seconds."""
-    from raptor.mcp import tools_model, tools_run, tools_metrics, tools_tables, tools_view  # noqa: F401 (registers the tools)
+    from raptor.mcp import tools_model, tools_run, tools_metrics, tools_tables, tools_view, tools_svg  # noqa: F401 (registers the tools)
     from raptor.mcp.server import mcp
     mcp._raptor_args = type("A", (), {"workspace": str(workspace), "read_only": False})()
     mcp._raptor_ws = None
@@ -115,6 +115,7 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     rec.call("update_annotation", model_id=m1, annotation_id=1, patch={"text": "hi"})
     rec.call("delete_annotation", model_id=m1, annotation_id=1)
     rec.call("auto_layout", model_id=m1)
+    rec.call("render_diagram_svg", model_id=m1)
     rec.call("undo_last_edit", model_id=m1)
     rec.call("redo_last_edit", model_id=m1)
     rec.call("diff_models", model_a=m1, model_b=m3)
@@ -208,7 +209,7 @@ def main() -> int:
         session(record, Path(d))
     schemas = infer(record.seen)
     asyncio.set_event_loop(asyncio.new_event_loop())
-    from raptor.mcp import server, tools_model, tools_run, tools_tables, tools_view  # noqa: F401
+    from raptor.mcp import server, tools_model, tools_run, tools_tables, tools_view, tools_svg  # noqa: F401
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     for n in sorted(names - set(schemas)):
         print(f"no schema: {n} ({record.failed.get(n, 'not driven')})", file=sys.stderr)

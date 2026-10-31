@@ -4,7 +4,7 @@ _raptor() {
     case "${COMP_WORDS[i]}" in -*) ;; *) cmd="${COMP_WORDS[i]}"; break;; esac
   done
   if [[ -z "$cmd" ]]; then
-    COMPREPLY=( $(compgen -W "compare completion config convert describe diff doctor estimate extract fev get gui help info mcp render report run set simulate spf step sweep tables validate --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
+    COMPREPLY=( $(compgen -W "compare completion config convert describe diff doctor estimate extract fev get gui help info mcp render report run schema set simulate spf step sweep tables validate --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
   fi
   case "$cmd" in
     compare) opts="--analysis --format --help --importance --jobs --length --metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --weak-type" ;;
@@ -16,7 +16,7 @@ _raptor() {
     doctor) opts="--format --help" ;;
     estimate) opts="--format --help --length --runs" ;;
     extract) opts="--deps --format --help --hierarchy --output --pools --report-hazards --streams --treat" ;;
-    fev) opts="--criticality --cycle --fail --format --help --log --phase --repair --script" ;;
+    fev) opts="--capacity --criticality --cycle --fail --format --help --log --phase --repair --script" ;;
     get) opts="--format --help" ;;
     gui) opts="--help --new --theme" ;;
     help) opts="--help" ;;
@@ -25,6 +25,7 @@ _raptor() {
     render) opts="--help --highlight --level --max-px --no-annotations --output --theme --zoom-to" ;;
     report) opts="--format --help --report --workspace" ;;
     run) opts="--analysis --deps --format --help --hierarchy --importance --jobs --json --legacy-names --length --metrics --output --pools --progress --report --runs --save-model --seed --set --set-file --stats-start --stop --streams --strict --timeout --treat --weak-type --workspace" ;;
+    schema) opts="--help --output" ;;
     set) opts="--backup --help --in-place --output --set-file" ;;
     simulate) opts="--analysis --deps --format --help --hierarchy --importance --jobs --json --legacy-names --length --metrics --output --pools --progress --report --runs --save-model --seed --set --set-file --stats-start --stop --streams --strict --timeout --treat --weak-type --workspace" ;;
     spf) opts="--criticality --format --help --output" ;;

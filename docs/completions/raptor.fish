@@ -55,6 +55,7 @@ complete -c raptor -n '__fish_seen_subcommand_from extract' -l report-hazards
 complete -c raptor -n '__fish_seen_subcommand_from extract' -l streams
 complete -c raptor -n '__fish_seen_subcommand_from extract' -l treat
 complete -c raptor -n '__fish_use_subcommand' -a fev
+complete -c raptor -n '__fish_seen_subcommand_from fev' -l capacity
 complete -c raptor -n '__fish_seen_subcommand_from fev' -l criticality
 complete -c raptor -n '__fish_seen_subcommand_from fev' -l cycle
 complete -c raptor -n '__fish_seen_subcommand_from fev' -l fail
@@ -121,6 +122,9 @@ complete -c raptor -n '__fish_seen_subcommand_from run' -l timeout
 complete -c raptor -n '__fish_seen_subcommand_from run' -l treat
 complete -c raptor -n '__fish_seen_subcommand_from run' -l weak-type
 complete -c raptor -n '__fish_seen_subcommand_from run' -l workspace
+complete -c raptor -n '__fish_use_subcommand' -a schema
+complete -c raptor -n '__fish_seen_subcommand_from schema' -l help
+complete -c raptor -n '__fish_seen_subcommand_from schema' -l output
 complete -c raptor -n '__fish_use_subcommand' -a set
 complete -c raptor -n '__fish_seen_subcommand_from set' -l backup
 complete -c raptor -n '__fish_seen_subcommand_from set' -l help

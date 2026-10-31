@@ -63,6 +63,13 @@ def layout_warning(rbd: RbdFile) -> str | None:
         return None
 
 
+def rbds_schema() -> dict:
+    """The `.rbds` JSON Schema that opening and validating a file check
+    against (`raptor.core.fileio.rbds_schema`)."""
+    from raptor.core.fileio.rbds_schema import build_schema
+    return build_schema()
+
+
 def issues(rbd: RbdFile) -> list[Issue]:
     """Return all validation findings for *rbd*.
 
@@ -75,7 +82,10 @@ def issues(rbd: RbdFile) -> list[Issue]:
     """
     result: list[Issue] = []
 
-    # --- 0. A layout Raptor 7 would draw overlapping (never moved for you) ---
+    # --- 0. The .rbds schema check's warnings (keys it kept but ignores) ---
+    for msg in getattr(rbd, "format_warnings", None) or []:
+        result.append(Issue("warning", "file", msg))
+    # --- 0b. A layout Raptor 7 would draw overlapping (never moved for you) ---
     crowded = layout_warning(rbd)
     if crowded:
         result.append(Issue("warning", "layout", crowded))

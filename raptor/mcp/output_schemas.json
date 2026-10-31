@@ -646,6 +646,9 @@
    "affected": {
     "type": "array"
    },
+   "capacity": {
+    "type": "object"
+   },
    "criticality": {
     "type": "number"
    },
@@ -1044,6 +1047,65 @@
   "required": [
    "restored_version",
    "summary"
+  ],
+  "type": "object"
+ },
+ "render_diagram_svg": {
+  "properties": {
+   "annotations_drawn": {
+    "type": "integer"
+   },
+   "elements_drawn": {
+    "type": "integer"
+   },
+   "elements_in_view": {
+    "type": "integer"
+   },
+   "height": {
+    "type": "integer"
+   },
+   "highlighted": {
+    "type": "array"
+   },
+   "inline": {
+    "type": "boolean"
+   },
+   "level": {
+    "type": "integer"
+   },
+   "links_drawn": {
+    "type": "integer"
+   },
+   "renderer": {
+    "type": "string"
+   },
+   "resource_link": {
+    "type": "string"
+   },
+   "svg_path": {
+    "type": "string"
+   },
+   "width": {
+    "type": "integer"
+   },
+   "zoom_to": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "annotations_drawn",
+   "elements_drawn",
+   "elements_in_view",
+   "height",
+   "highlighted",
+   "inline",
+   "level",
+   "links_drawn",
+   "renderer",
+   "resource_link",
+   "svg_path",
+   "width",
+   "zoom_to"
   ],
   "type": "object"
  },

@@ -33,11 +33,8 @@ _KIND = {"Block": "block", "Node": "node", "Event": "event",
 
 
 def load_model(path: str):
-    if path.lower().endswith(".rbds"):
-        from raptor.core.fileio.rbds import load_rbds
-        return load_rbds(path)
-    from raptor.core.fileio.rbd import load_rbd
-    return load_rbd(path)
+    from raptor.core.fileio.model_file import load_model_file
+    return load_model_file(path)
 
 
 def _ids_here(result: dict) -> dict[tuple[str, str], int]:

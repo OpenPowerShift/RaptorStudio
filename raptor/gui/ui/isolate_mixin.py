@@ -157,12 +157,7 @@ class IsolateMixin:
         self._statusbar.showMessage(
             f"Saved {Path(path).name} — {record.banner}", 10000)
         if dlg.open_after.isChecked() and self._confirm_discard_unsaved():
-            from raptor.core.fileio.builder import load
-            self._load_into_app(load(path) if path.lower().endswith(".rbd")
-                                else _load_rbds(path), path)
+            from raptor.core.fileio.model_file import load_model_file
+            self._load_into_app(load_model_file(path), path)
             self._remember_recent(path)
 
-
-def _load_rbds(path: str):
-    from raptor.core.fileio.rbds import load_rbds
-    return load_rbds(path)

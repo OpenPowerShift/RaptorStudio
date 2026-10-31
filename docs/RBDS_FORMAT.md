@@ -6,13 +6,19 @@ As `.rbds`.
 
 ## Goals
 
-1. **Simple** — one UTF-8 JSON document, human-readable, diff-friendly.
+1. **Simple** — one UTF-8 JSON document, human-readable, diff-friendly;
+   an element shows only what differs from the file's defaults.
 2. **Each value stored once** — a setting lives in exactly one place, so
    editing the file by hand (or by an AI) always takes effect.
 3. **Complete** — every Raptor 7 column is kept, so nothing is lost and a
-   `.rbd` → `.rbds` → `.rbd` round trip is byte-exact.
+   `.rbd` → `.rbds` → `.rbd` round trip is byte-exact, except that the run
+   settings come back in Raptor 7's own spelling (a trial count written
+   `1` returns as `1.000000`, the same value).
 4. **Extensible** — unknown keys are preserved on read→write.
-5. **AI-generatable** — friendly snake_case names for everything an
+5. **Checked** — every load validates against the JSON Schema
+   (`docs/rbds.schema.json`): a wrong value stops the load with a message
+   naming the field, an unknown key is reported as a warning.
+6. **AI-generatable** — friendly snake_case names for everything an
    author needs; a minimal valid file is ~30 lines.
 
 ## Top-level shape
@@ -20,8 +26,8 @@ As `.rbds`.
 ```json
 {
   "format": "raptor-studio",
-  "version": 1,
-  "meta":       { "generator": "RAPTOR Studio 0.8.0", "file_name": "..." },
+  "version": 2,
+  "meta":       { "generator": "RAPTOR Studio 0.9.0", "file_name": "..." },
   "system":     { ...mission-wide settings (not the run settings)... },
   "experiment": { ...the run settings: trials, termination, analyses... },
   "elements": {
@@ -59,21 +65,30 @@ Every element has **two layers**, and each value is in exactly one:
 
 1. **Friendly fields** — the ones authors (human or AI) set:
    `id`, `name`, `parent` (hierarchy id, 0 = home), `x`, `y`, plus the
-   per-kind fields listed below. All optional; sensible defaults. Numbers
-   are JSON numbers (`"fail_dist": 4`, not `"4"`).
-2. **`"legacy"`** — every other Raptor 7 column, verbatim as text
-   (`PMMisDefer`, `SpType`, …). Edit these here; they have no friendly
-   name yet.
+   per-kind fields listed below. Numbers are JSON numbers
+   (`"fail_dist": 4`, not `"4"`).
+2. **`"legacy"`** — the few Raptor 7 columns with no friendly name
+   (a phased element's `P 001`… cells, a hierarchy's view state), verbatim
+   as text.
 
-Precedence on read: defaults ← `legacy` ← friendly fields. A friendly
+**Only what differs from the defaults is written.** An element is read
+starting from the file's own `defaults` entry for its kind (or, without
+one, the built-in template), and the writer leaves out every field equal
+to it — so a block shows only what makes it different. `id`, `name`,
+`parent`, `x`, `y` (and a node's `type`) are always written. The
+`defaults` entry itself is written against the built-in template.
+(Version 1 files wrote every field and read every element from the
+built-in template; they still open unchanged.)
+
+Precedence on read: start row ← `legacy` ← friendly fields. A friendly
 field always wins over the same column in `legacy`.
 
-**One exception keeps round trips byte-exact.** Raptor 7 does not always
-spell a number the same way (`"1"` in one file, `"1.000000"` in another).
-When the reader would not rebuild a column's exact text from its friendly
-value, the writer also keeps that text in `legacy`; the reader then keeps
-the `legacy` spelling as long as the two agree in value. Change the
-friendly value and the change wins.
+**A value is never written twice.** Raptor 7 does not always spell a
+number the same way (`"1"` in one file, `"1.000000"` in another). When
+the reader would not rebuild a column's exact text from a friendly value,
+the writer puts that column in `legacy` only, verbatim, instead of the
+friendly field; that keeps a `.rbd` → `.rbds` → `.rbd` round trip
+byte-exact. Setting the friendly field by hand overrides it.
 
 ### Values the reader computes (never stored)
 
@@ -124,6 +139,56 @@ rather than left to auto-assignment.
 | dep_type | str | "None" | what this block follows: `RBDBlock`, `RBDNode`, `RBDEvent`, `RBDHier` or `None` (see Dependency below) |
 | dep_num | int | 0 | id of the element it follows; `-1` = its own node (local), `-2` = the whole system |
 | dep_nothing, dep_idle, dep_pm, dep_fail | float % | 0, 100, 0, 0 | what happens when the followed element goes down: no effect / forced Idle / preventive maintenance / induced failure. Should add to 100 |
+| dep_pm_thresh | float % | 75 | a `dep_pm` reaction only does the PM when the block has operated more than this % of its mean time to failure |
+| def_dep_state_idle | bool | false | while waiting on the element it follows, the block sits Idle instead of operating |
+| sim_start | int | 3 | how the block starts a run: 1 random state; 2 up, random life used; 3 up, `amount_exhausted` of life used; 4 down, random point in its repair; 5 down, `amount_exhausted` % of the repair done; 6 down, repair just starting |
+| amount_exhausted | float | 0 | life used (start 3) or % of the repair done (start 5) |
+| standby_stress | float | 0 | failure-clock rate while in standby (0 = no ageing, 1 = as running) |
+| growth_decay_type, growth_decay_rate, growth_decay_limit | int, float, float | 0, 1, 0.5 | reliability growth/decay model (type 0 = none) |
+
+**Sparing.** `stock`, `new_spares`, `arrive_every`, `rso`, `eso`, `emer_time`, `slo`, `level`, `quantity` and `slo_time` mean what they mean for a spare pool (see "Auxiliary tables"); they apply when `sparing_type` is `Custom`.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| sparing_type | str | "Infinite" | `Infinite`, `Custom` (the block's own stock), `Pooled` (draws from `spare_pool`) or `None` |
+| spare_pool | str | "unnamed" | the spare pool a `Pooled` block draws from |
+| stock, new_spares, rso, eso, slo, level, quantity | int | 100, 1, 0, 0, 0, 0, 1 | own stock and ordering rules (Custom) |
+| arrive_every, emer_time, slo_time | float | 720, 24, 24 | restock interval, emergency shipping time, stock-level order time |
+| pre_ldt_dist, pre_ldt_params | int, [f,f,f] | 19, [0,0,0] | logistics delay before a repair starts (19 = Fixed) |
+| post_ldt_dist, post_ldt_params | int, [f,f,f] | 19, [0,0,0] | logistics delay after a repair ends |
+| num_resources | int | 0 | how many resource types repairs and PM use (0 = none); the file names the first, `resource_name` |
+| resource_name | str | "None" | the resource pool repairs and PM draw from |
+| repair_resources_needed, pm_resources_needed | int | 1, 1 | units of that resource one repair / one PM needs |
+
+**Preventive maintenance.**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| uses_pm | bool | false | the block has scheduled PM |
+| pm_freq | float | 100 | operating time between PMs |
+| pm_stagger_time | float | 0 | how much earlier the FIRST PM comes: it is due after `pm_freq - pm_stagger_time` of operation |
+| pm_duration_dist, pm_params | int, [f,f,f] | 19, [1,0,0] | how long a PM takes |
+| pm_triggered, pm_trigger | bool, str | false, "none" | PM is started by the named trigger instead of the interval |
+| pm_spare | bool | false | needs a spare to conduct PM |
+| pm_refresh | bool | false | after a PM the block is refreshed like new |
+| pm_mis_defer | bool | false | defer PM until a non-mission phase (phased models) |
+| pm_fail_reset | bool | false | a failure resets the time to the next PM |
+| pm_req_defer | bool | false | defer PM until a spare or the resources are available |
+
+The PM clock counts the block's **operating** time, as Raptor 7's does: the
+first PM is due after `pm_freq - pm_stagger_time`, and the clock refills to
+`pm_freq` when a PM ends, so each later PM is `pm_freq` of operation after
+the end of the previous one, not on a fixed calendar. With `pm_freq` 105,120 h
+and `pm_stagger_time` 8,760 h, the first PM comes at 96,360 h of operation.
+
+**Costs.** `initial_cost`, `running_cost`, `standby_cost`, `idle_cost`,
+`rep_hold_cost`, `rep_per_time_cost`, `rep_fixed_cost`, `done_per_time`,
+`done_fixed`, `pm_hold_cost`, `pm_cost`, `pm_fixed_cost`, `per_spare_cost`
+and `emer_ship_cost` (floats, default 1) are the block's cost-analysis
+rates; `add_done` (bool) always adds the Done cost at run end.
+
+The per-phase states of a phased block (`P 001`, `P 002`, …) are the
+columns still written under `legacy`.
 
 `fail_dist` and `repair_dist` also accept a distribution **name**
 (`"Weibull"`, `"Uniform Real"`, `"Pearson 5"`; see the table below); the
@@ -153,6 +218,14 @@ redundancy: it is idle exactly when it is needed.
 | k | int | 1 | required-good count (K-of-N). `-1` is the "K-of-N dialog never opened" sentinel: it is stored and reported as `-1`, and treated as **1** when the model runs — it does **not** mean "all incoming paths required"; use `k = n` for an all-required node. Real Raptor ignores `k` on an **End** node (it needs one good path there) and its GUI never offers it: put the K-of-N on a node in front of End and link that node to End. `validate_model` warns about an End node with `k > 1`. |
 | full_flow | int 0/1 | 1 | "Unrestricted flow" — 1 lets all flow pass straight through this node; **0 makes it a capacity boundary** (see Links/System below) |
 | div_flow | int 0/1 | 1 | "Use any available path" — 0 also makes the node a capacity boundary |
+| cold_standby | bool | false | engage the standby logic (the node's Standby tab) |
+| priority_return | bool | false | return to the primary path once it is repaired |
+| check_autos_first | bool | true | try automatic switchover before manual |
+| k_star | int | 0 | the Standby tab's k\* (at least `k`) |
+| uses_phasing | bool | false | the node has per-phase k values (the `P001`… columns, in `legacy`) |
+| dep_type, dep_num | str, int | "None", 0 | what the node follows, as for a block |
+| report_node_anal | bool | true | include the node in the node-analysis output |
+| report_capacity | int | 0 | Raptor 7's unused report-capacity column |
 
 A node's incoming and outgoing link counts are computed from the links
 (see "Values the reader computes").
@@ -188,6 +261,9 @@ builds a correct converge-through-a-Node example to copy.
 |---|---|---|---|
 | id, name, parent, x, y | | | as Block |
 | prob | float 0..1 | 0.5 | firing probability |
+| fail_dist, fail_stream | int | 17, 203 | its distribution (17 = Bernoulli) and random-number stream |
+| uses_phasing | bool | false | the event has a phase schedule |
+| init_cost, op_cost, rep_cost | float | 1, 1, 1 | cost-analysis rates |
 
 ### Hierarchy
 
@@ -198,6 +274,10 @@ builds a correct converge-through-a-Node example to copy.
 | parent | int | 0 | enclosing hierarchy (nesting) |
 | in_id, out_id | int | required | ids of its type-4/5 marker nodes |
 | x, y | float | | oval position on the PARENT level |
+| uses_phasing | bool | false | Raptor 7's hierarchy phasing flag |
+
+A hierarchy's view state (`zoom`, `xCenter`, `yCenter`, `xOrigin`,
+`yOrigin`, …) is written under `legacy`.
 
 **The In/Out marker nodes' own `parent` must be the hierarchy's `id`
 itself** (they live *inside* the hierarchy they mark), not the
@@ -242,7 +322,10 @@ analyses engine already truncates a fractional value (`133.76` behaves as
 
 These four sections are **keyed** lists rather than element lists: each entry
 is a flat object whose friendly field names map onto the legacy table columns,
-and none of them carries a meaningful numeric id.
+and none of them carries a meaningful numeric id. As for elements, an entry
+is read starting from its table's defaults and only what differs is written;
+files written before 0.9 kept every column under `legacy` with a `key`, and
+still open.
 
 ```json
 "spare_pools": [
@@ -272,7 +355,9 @@ and none of them carries a meaningful numeric id.
 | `triggers` | `name`, `repeats`, `init_used`, `dist`, `params` |
 | `phases` | `name`, `num`, `mission`, `duration_dist`, `params` |
 
-A block's `sparing_type` is `Infinite`, `Custom`, `Pooled` or `Resource`.
+A block's `sparing_type` is `Infinite`, `Custom`, `Pooled` or `None`
+(Raptor 7 also reads `Resource` and `ColdPool`, as no sparing; the schema
+check refuses any other value, which Raptor 7 would silently read as none).
 With `Custom`, the block's own `stock`/`restock_every` govern. With `Pooled`,
 the **pool's** `stock` and `arrive_every` govern; the block's own `stock`
 column is not used. `dist`/`duration_dist` accept a name or a code, like
@@ -526,14 +611,40 @@ on reopen. Keys are all floats:
 Legacy `.rbd` has no representation and re-derives a fresh transform on
 each load.
 
+## Schema and checking
+
+`docs/rbds.schema.json` is the format's JSON Schema (draft 2020-12),
+generated from the reader's own field maps (`tools/gen_rbds_schema.py`;
+`raptor schema` prints it). Every load checks the file against it:
+
+* **Errors stop the load**, naming the element and field: a value of the
+  wrong type (`elements.blocks[1] "Fuel_Day_Tank".pm_freq: must be a
+  number; got 'abc'`), an element or link without its `id`, a link
+  without `from`/`to`, an unknown distribution name.
+* **Warnings** are unknown keys: kept and written back, but not used, so a
+  misspelt field would otherwise be silently ignored. They name the
+  nearest real field (`fial_dist: unknown key, kept but not used; did
+  you mean fail_dist?`).
+
+`raptor validate MODEL.rbds`, and the MCP `open_model`, `build_model` and
+`validate_model` tools, report both. Keys starting with `x_` are an
+extension namespace: kept, and never warned about.
+
 ## Extensibility rules
 
 * Readers MUST ignore unknown keys at every level (but preserve them —
-  see below).
-* Writers MUST round-trip unknown keys verbatim. Implementation: each
-  parsed object keeps an `_extra` dict; the writer emits it unchanged.
+  see below), and report them as warnings unless they start with `x_`.
+* Writers MUST round-trip unknown keys verbatim, top-level ones included.
+  Implementation: each parsed object keeps an `_extra` dict; the writer
+  emits it unchanged.
 * Bumping `version` is only for breaking changes; additive fields do
-  NOT bump it. A reader refuses a `version` newer than its own.
+  NOT bump it. A change an older reader would silently misread counts as
+  breaking. Version 2 did both: it moved maintenance, sparing and the other
+  API-named columns out of `legacy` into friendly fields, which a version-1
+  reader would have ignored, and it started leaving out fields equal to the
+  file's `defaults`, which a version-1 reader would have filled from the
+  wrong row. A reader refuses a `version` newer than its own, saying which
+  RAPTOR Studio saved the file.
 * Writers emit one value per setting and never a value the reader computes
   (see "Element objects").
 
@@ -545,7 +656,7 @@ links. This example is part of the parser's own regression suite and validates c
 ```json
 {
   "format": "raptor-studio",
-  "version": 1,
+  "version": 2,
   "elements": {
     "blocks": [
       {"id": 1, "name": "Fan_A", "fail_dist": "Exponential",

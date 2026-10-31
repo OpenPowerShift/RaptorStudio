@@ -29,6 +29,7 @@ __all__ = [
     "RenderUnavailable",
     "qt_available",
     "render_diagram",
+    "render_svg_file",
     "worker_path",
 ]
 
@@ -192,4 +193,36 @@ def render_diagram(
             hashlib.sha256(Path(model_path).read_bytes()).hexdigest())
     except OSError:
         pass
+    return str(out), meta
+
+
+def render_svg_file(
+    model_path: str | Path,
+    out_path: str | Path,
+    *,
+    level: int = 0,
+    highlight: list[str] | None = None,
+    zoom_to: list[str] | None = None,
+    margin: float = 12.0,
+    theme: str = "light",
+    include_annotations: bool = True,
+) -> tuple[str, dict[str, Any]]:
+    """Draw ``model_path`` (``.rbd``/``.rbds``) as SVG to ``out_path``, in
+    process and without Qt (see `raptor.render.svg`). Returns
+    ``(svg_path, meta)``; a bad level or selector raises ``ValueError``."""
+    from raptor.render.svg import render_svg
+    path = Path(model_path)
+    if path.suffix.lower() == ".rbds":
+        from raptor.core.fileio.rbds import load_rbds
+        rbd = load_rbds(str(path))
+    else:
+        from raptor.core.fileio.rbd import load_rbd
+        rbd = load_rbd(str(path))
+    svg, meta = render_svg(rbd, level=level, highlight=highlight or [],
+                           zoom_to=zoom_to or [], margin=margin, theme=theme,
+                           include_annotations=include_annotations)
+    out = Path(out_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(svg, encoding="utf-8")
+    meta["svg_path"] = str(out)
     return str(out), meta

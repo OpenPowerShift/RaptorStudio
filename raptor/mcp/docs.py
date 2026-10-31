@@ -18,6 +18,7 @@ from raptor.bundled import data_root
 REPO = data_root()
 CHAPTERS = REPO / "new_docs" / "chapters"
 RBDS_FORMAT = REPO / "docs" / "RBDS_FORMAT.md"
+RBDS_SCHEMA = REPO / "docs" / "rbds.schema.json"
 IEC61078_DOC = REPO / "docs" / "IEC61078.md"
 MCP_GUIDE = CHAPTERS / "ch16-mcp.adoc"
 
@@ -130,6 +131,8 @@ _DOC_ALIASES: dict[str, Path] = {
     "rbds-format": RBDS_FORMAT,
     "rbds_format": RBDS_FORMAT,
     "format": RBDS_FORMAT,
+    "rbds-schema": RBDS_SCHEMA,
+    "schema": RBDS_SCHEMA,
     "iec61078": IEC61078_DOC,
     "iec-61078": IEC61078_DOC,
     "61078": IEC61078_DOC,

@@ -726,7 +726,11 @@ def failure_effects(
     system status and the Failure Effects text (failed, induced, idle and PM
     components, down and degraded nodes). A phased model starts in phase 1;
     `phase` moves it to another phase first. Returns {system_status, affected,
-    log, effects, criticality, phase}.
+    log, effects, criticality, phase}, plus, for a model with capacity
+    analysis, `capacity`: {flow_generated, delivered, lost,
+    delivered_fraction, system_capacity, nodes: [{id, name, flow,
+    capacity}]} -- the flow the state delivers, as capacity analysis would
+    record it (Raptor 7's view shows no flow).
 
     Each call is an **independent scenario starting from the all-good
     state**: it does not accumulate failures across calls.  To test
@@ -737,6 +741,10 @@ def failure_effects(
     from raptor.api.analyse import failure_effects as fev
     result = fev(ws, model_id, fail=fail or [], repair=repair or [], phase=phase)
     md = f"System status: **{result['system_status']}**"
+    if result.get("capacity"):
+        flow = result["capacity"]
+        md += (f"\n\nDelivered flow: **{flow['delivered']}** of "
+               f"{flow['flow_generated']} (lost {flow['lost']})")
     if result.get("affected"):
         md += "\n\nAffected: " + ", ".join(result["affected"])
     if result.get("log"):
@@ -761,8 +769,9 @@ def failure_effects_batch(
 
     Returns {model_id, count, failed, scenarios}. `scenarios[i]` has the
     scenario's `index`, `fail` and `repair`, then either its result
-    ({system_status, affected, effects, criticality, phase}, plus the `log`
-    text when `include_log` is true) or `{"error": ...}` when that scenario
+    ({system_status, affected, effects, criticality, phase}, `capacity` for
+    a model with capacity analysis, plus the `log` text when `include_log`
+    is true) or `{"error": ...}` when that scenario
     could not be applied (an unknown or already-failed element, a bad
     phase). A bad scenario does not stop the others. `failed` counts them.
     """
@@ -787,11 +796,13 @@ def failure_effects_batch(
     failed = sum(1 for r in rows if "error" in r)
     data = {"model_id": model_id, "count": len(rows), "failed": failed,
             "scenarios": rows}
+    flow = any("capacity" in r for r in rows)
     table = markdown_table(
-        ["#", "fail", "repair", "system status"],
+        ["#", "fail", "repair", "system status"] + (["delivered"] if flow else []),
         [[r["index"], ", ".join(map(str, r["fail"])),
           ", ".join(map(str, r["repair"])),
           r.get("system_status") or f"error: {r['error']}"]
+         + ([r["capacity"]["delivered"] if "capacity" in r else ""] if flow else [])
          for r in rows[:50]])
     md = (f"{len(rows)} scenario(s), {failed} that could not be applied.\n\n"
           + table + ("\n\n(first 50 shown)" if len(rows) > 50 else ""))

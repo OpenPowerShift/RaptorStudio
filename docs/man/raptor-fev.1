@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-fev \- Fail things and read the effects (Failure Effects View).
 .SH SYNOPSIS
-\fBraptor fev\fR [\-h] [\-\-phase N] [\-\-fail SEL] [\-\-repair SEL] [\-\-cycle SEL] [\-\-script FILE] [\-\-log FILE] [\-f {text,json}] [\-\-criticality] MODEL
+\fBraptor fev\fR [\-h] [\-\-phase N] [\-\-fail SEL] [\-\-repair SEL] [\-\-cycle SEL] [\-\-script FILE] [\-\-log FILE] [\-f {text,json}] [\-\-criticality] [\-\-capacity] MODEL
 .SH DESCRIPTION
 Fail things and read the effects (Failure Effects View).
 Start from the all\-operating state (phase 1 of a phased model), apply the actions, and print the Failure Effects text. Nothing is simulated and no random number is drawn. Actions run in this order: \-\-phase, \-\-fail, \-\-repair, \-\-cycle; use \-\-script for any other order (see the script actions in raptor\-fev(1)).
@@ -32,6 +32,9 @@ write the Raptor 7\-format Failure Effects log (CRLF, the file Write To Failure 
 .TP
 \fB\-\-criticality\fR
 add the Criticality line (Raptor 7's developer option)
+.TP
+\fB\-\-capacity\fR
+also show the flow delivered, and the flow and capacity of each capacity node (models with capacity analysis; not in Raptor 7)
 .SH EXAMPLES
 .PP
 Fail one block and read what it does to the system.

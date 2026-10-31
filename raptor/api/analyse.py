@@ -156,6 +156,13 @@ def failure_effects(
                          phase)
 
 
+def capacity_lines(capacity: dict) -> list[str]:
+    """A failure-effects `capacity` result as text (the CAPACITY section the
+    GUI shows; `raptor.core.engine.fmeca.capacity_lines`)."""
+    from raptor.core.engine.fmeca import capacity_lines as _lines
+    return _lines(capacity)
+
+
 def _fev_scenario(workspace: Workspace, model_id: str, session, fail, repair,
                   phase: int | None) -> dict:
     """One failure-effects scenario on a session that is in its start state."""
@@ -204,7 +211,7 @@ def _fev_scenario(workspace: Workspace, model_id: str, session, fail, repair,
             session.click_block(eid)
         affected.append(str(selector))
 
-    return {
+    result = {
         "system_status": session.system_color.value,
         "affected": affected,
         "log": build_fmeca(session, show_criticality=_criticality_on(None)),
@@ -212,6 +219,11 @@ def _fev_scenario(workspace: Workspace, model_id: str, session, fail, repair,
         "criticality": session.criticality,
         "phase": session.phase_number if session.phased else None,
     }
+    capacity = session.capacity()
+    if capacity is not None:
+        result["capacity"] = capacity
+    return result
+
 
 
 #: Most scenarios one `failure_effects_many` call takes.
@@ -300,9 +312,12 @@ def parse_fev_script(text: str) -> list[tuple[str, str]]:
 
 def fev_script(workspace: Workspace, model_id: str,
                actions: list[tuple[str, str]], *,
-               criticality: bool | None = None) -> list[dict]:
+               criticality: bool | None = None,
+               capacity: bool = False) -> list[dict]:
     """Drive Failure Effects View through `actions` and return one record per
-    ``write`` (or a single record of the final state when there is none)."""
+    ``write`` (or a single record of the final state when there is none).
+    With `capacity`, a model with capacity analysis adds the delivered flow
+    to each record (`FevSession.capacity`)."""
     from raptor.core.engine.errors import UnrunnableModel
     from raptor.core.engine.fev import FevSession
     from raptor.core.engine.fmeca import build_fmeca, fmeca_lists
@@ -315,7 +330,7 @@ def fev_script(workspace: Workspace, model_id: str,
         raise AnalysisError(str(exc)) from exc
 
     def record(label: str) -> dict:
-        return {
+        rec = {
             "after": label,
             "system_status": session.system_color.value,
             "phase": session.phase_number if session.phased else None,
@@ -323,6 +338,10 @@ def fev_script(workspace: Workspace, model_id: str,
             "lines": build_fmeca(session, show_criticality=criticality),
             "effects": fmeca_lists(session),
         }
+        flow = session.capacity() if capacity else None
+        if flow is not None:
+            rec["capacity"] = flow
+        return rec
 
     def element(arg: str) -> tuple[str, int]:
         return _resolve_fev_element(workspace, model_id, arg)

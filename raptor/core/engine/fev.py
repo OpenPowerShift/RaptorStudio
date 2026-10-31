@@ -34,6 +34,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from raptor.core.engine.blocks import change_block_state
+from raptor.core.engine.capacity import CapacityState, analyze_capacity, determine_max_capacity
+from raptor.core.engine.capacity import reset_for_new_run as reset_capacity
 from raptor.core.engine.cold_standby import NoSwitchTime, sort_cold_links
 from raptor.core.engine.driver import build_engine_ctx
 from raptor.core.engine.dependency import back_flow_dependencies_from_node
@@ -177,6 +179,13 @@ class FevSession:
         """`StartFEVmode` / `RefreshAllFEV`: everything operating, phase 1."""
         model, cascade, ctx = self.model, self.cascade, self.ctx
         cascade.reset_for_new_run()
+        # `DetermineMaxCapacity` on the all-up network, as kickoff does at a
+        # run's start. Only the flow fields are touched, and nothing FEV
+        # decides reads them.
+        self._flowing_at_max_cap = bool(
+            model.capacity_analysis and model.flow_generated == determine_max_capacity(
+                model.nodes_by_id[model.start_node_id], model.cap_node_group,
+                model.cap_link_ids, model.nodes_by_id, model.links_by_id))
         for node in model.nodes_by_id.values():
             node.good_paths = ctx.original_good_paths[node.id]
         cascade.sim_in_progress = False
@@ -534,6 +543,45 @@ class FevSession:
         return FevDelta(action, self.system_color,
                         tuple(b.name for b in self.fev_dep_group),
                         self.criticality, text)
+
+    # ---- capacity ------------------------------------------------------
+
+    def capacity(self) -> dict[str, Any] | None:
+        """The flow the current state delivers, for a model with capacity
+        analysis (None otherwise): what capacity analysis would record if a
+        run reached this state.
+
+        Raptor 7's Failure Effects View shows no flow. This runs the engine's
+        own `analyze_capacity` on a throwaway `CapacityState` over the
+        current link and node statuses. It writes only the flow fields of
+        nodes and links, which FEV never reads, so a click's outcome is
+        unchanged."""
+        m = self.model
+        if not m.capacity_analysis:
+            return None
+        state = CapacityState()
+        reset_capacity(state, m.nodes_by_id)
+        state.flowing_at_max_cap = self._flowing_at_max_cap
+        start = m.nodes_by_id[m.start_node_id]
+        analyze_capacity(
+            state, new_sys_status_red=self.system_color == SystemColor.RED, sim_time=0.0,
+            cap_node_group=m.cap_node_group, cap_link_ids=m.cap_link_ids,
+            nodes_by_id=m.nodes_by_id, links_by_id=m.links_by_id, start_node=start,
+            end_node=m.nodes_by_id[m.end_node_id], flow_generated=m.flow_generated,
+            flowing_at_max_cap=state.flowing_at_max_cap)
+        delivered = state.node_flow[start.id]
+        generated = m.flow_generated
+        return {
+            "flow_generated": generated,
+            "delivered": delivered,
+            "lost": generated - delivered,
+            "delivered_fraction": delivered / generated if generated else None,
+            "system_capacity": state.node_capacity[start.id],
+            "nodes": [{"id": n.id, "name": n.report_name,
+                       "flow": state.node_flow.get(n.id, 0),
+                       "capacity": state.node_capacity.get(n.id, 0)}
+                      for n in m.cap_node_group if n.id != start.id],
+        }
 
     # ---- inspection (tests, UI) ----------------------------------------
 

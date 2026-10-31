@@ -603,6 +603,20 @@
    "model_id"
   ]
  },
+ "render_diagram_svg": {
+  "params": [
+   "highlight",
+   "include_annotations",
+   "level",
+   "margin",
+   "model_id",
+   "theme",
+   "zoom_to"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "run_status": {
   "params": [
    "job_id"

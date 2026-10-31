@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QApplication
 
 from raptor.core.engine.runner import run_simulation_with_reports
 from raptor.core.fileio.rbd import load_rbd
-from raptor.core.fileio.rbds import (_DERIVED, FORMAT_ID, load_rbds,
+from raptor.core.fileio.rbds import (_DERIVED, _RUN_COLUMNS, FORMAT_ID, load_rbds,
                                      parse_rbds, render_rbds)
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -26,6 +26,13 @@ FIXTURES = sorted(d for d in os.listdir(GOLD)
 @pytest.fixture(scope="module")
 def qapp():
     return QApplication.instance() or QApplication([])
+
+
+def _num(text):
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return text
 
 
 def _sections_equal(a, b):
@@ -53,6 +60,12 @@ def _sections_equal(a, b):
                 # is not part of this product); reading fills the template's default.
                 x = {k: v for k, v in x.items() if k != "imageString"}
                 y = {k: v for k, v in y.items() if k != "imageString"}
+                # The run settings live once, in `experiment`, and are written
+                # back in Raptor 7's own spelling ("1" comes back "1.000000"):
+                # the same value, which Raptor 7 reads with ReadReal.
+                for col in _RUN_COLUMNS:
+                    if col in x and col in y and _num(x[col]) == _num(y[col]):
+                        y = {**y, col: x[col]}
             if dict(x) != dict(y):
                 diff = {k: (x.get(k), y.get(k))
                         for k in set(x) | set(y)
@@ -142,8 +155,12 @@ def test_unknown_keys_preserved():
 def test_rejects_wrong_format_and_future_version():
     with pytest.raises(ValueError, match="not an"):
         parse_rbds(json.dumps({"format": "other", "version": 1}))
-    with pytest.raises(ValueError, match="newer than supported"):
-        parse_rbds(json.dumps({"format": FORMAT_ID, "version": 99}))
+    with pytest.raises(ValueError, match="format version 99, which is newer than"):
+        parse_rbds(json.dumps({"format": FORMAT_ID, "version": 99,
+                               "meta": {"generator": "RAPTOR Studio 9.9.9"}}))
+    with pytest.raises(ValueError, match="saved by RAPTOR Studio 9.9.9.*saved as .rbd"):
+        parse_rbds(json.dumps({"format": FORMAT_ID, "version": 99,
+                               "meta": {"generator": "RAPTOR Studio 9.9.9"}}))
 
 
 def test_gui_save_path_writes_and_reads_rbds(qapp, tmp_path):
@@ -338,20 +355,56 @@ def test_each_value_is_stored_once():
 
 def test_unmapped_columns_are_edited_in_legacy():
     doc = json.loads(NEW_LAYOUT.read_text(encoding="utf-8"))
-    blk = next(b for b in doc["elements"]["blocks"]
-               if b.get("name") == "Utility_Grid")
-    blk["legacy"]["SpType"] = "Pooled"
-    assert _block(parse_rbds(json.dumps(doc)), "Utility_Grid")["SpType"] == "Pooled"
+    hier = doc["elements"]["hierarchies"][0]
+    hier["legacy"]["zoom"] = "42.00"
+    rows = parse_rbds(json.dumps(doc)).section("HIERARCHY_DATA").rows
+    assert next(r for r in rows if r["ID"] == str(hier["id"]))["zoom"] == "42.00"
+
+
+#: Maintenance, sparing and the other columns the API names, as a hand-written
+#: file spells them, and the Raptor 7 column each must land in.
+_API_NAMED = {
+    "uses_pm": (True, "usesPM", "1"), "pm_freq": (500.0, "PMFreq", "500.000000"),
+    "pm_stagger_time": (25.0, "PMStaggerTime", "25.000000"),
+    "pm_duration_dist": ("Normal", "Dist", "8"), "pm_trigger": ("T1", "pmTrig", "T1"),
+    "sparing_type": ("Custom", "SpType", "Custom"), "stock": (3, "Stock", "3"),
+    "arrive_every": (100.0, "ArriveEvery", "100.000000"),
+    "pre_ldt_dist": ("Exponential", "Pre-LDTDist", "4"),
+    "resource_name": ("Crew", "Resource1Name", "Crew"),
+    "standby_stress": (0.25, "SBStress", "0.250"), "initial_cost": (99.0, "initial", "99.00"),
+}
+
+
+def test_the_api_names_are_read_from_a_hand_written_block():
+    doc = json.loads(NEW_LAYOUT.read_text(encoding="utf-8"))
+    blk = next(b for b in doc["elements"]["blocks"] if b.get("name") == "Utility_Grid")
+    blk.pop("legacy", None)
+    for key, (value, _col, _cell) in _API_NAMED.items():
+        blk[key] = value
+    row = _block(parse_rbds(json.dumps(doc)), "Utility_Grid")
+    for key, (_value, col, cell) in _API_NAMED.items():
+        assert row[col] == cell, key
+
+
+def test_maintenance_and_sparing_are_written_as_friendly_fields():
+    rbd = load_rbds(str(NEW_LAYOUT))
+    row = next(r for r in rbd.section("BLOCK_DATA").rows if r["ID"] != "0")
+    row.update({"usesPM": "1", "PMFreq": "777.000000", "Stock": "7", "SpType": "Custom"})
+    blk = json.loads(render_rbds(rbd))["elements"]["blocks"][0]
+    assert "legacy" not in blk
+    assert blk["uses_pm"] is True and blk["pm_freq"] == 777.0
+    assert blk["stock"] == 7 and blk["sparing_type"] == "Custom"
 
 
 def test_numbers_are_written_as_numbers():
-    doc = json.loads(render_rbds(load_rbds(str(NEW_LAYOUT))))
-    blk = doc["elements"]["blocks"][0]
-    for key in ("id", "parent", "fail_dist", "repair_dist", "fail_stream",
-                "dep_num"):
+    rbd = load_rbds(str(NEW_LAYOUT))
+    row = next(r for r in rbd.section("BLOCK_DATA").rows if r["ID"] != "0")
+    row.update({"FDist": "15", "RDist": "8", "FStream": "17", "DepNum": "3", "Phasing": "1"})
+    blk = json.loads(render_rbds(rbd))["elements"]["blocks"][0]
+    for key in ("id", "parent", "fail_dist", "repair_dist", "fail_stream", "dep_num"):
         assert isinstance(blk[key], int), key
-    assert isinstance(blk["uses_phasing"], bool)
-    assert doc["meta"]["generator"].startswith("RAPTOR Studio")
+    assert blk["uses_phasing"] is True
+    assert json.loads(render_rbds(rbd))["meta"]["generator"].startswith("RAPTOR Studio")
 
 
 def test_the_defaults_row_is_not_an_element_and_keeps_its_place():

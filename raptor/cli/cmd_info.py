@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
 from raptor.cli import exitcodes as X
 from raptor.cli.common import (
-    eprint, emit_json, load_set_file, open_model, workspace_for,
+    eprint, emit_json, load_set_file, open_model, workspace_for, write_text,
 )
 from raptor.cli.exitcodes import CliError
 
@@ -19,14 +20,24 @@ INFO_SCHEMA = "raptor-info/1"
 def add_parser(sub: Any) -> None:
     v = sub.add_parser(
         "validate", help="check models and report errors and warnings",
-        description="Check each MODEL the way a run would, without running. "
-                    "Exit 3 if any model has errors (or warnings, with "
-                    "--strict).")
+        description="Check each MODEL the way a run would, without running; "
+                    "an .rbds file is also checked against the format's JSON "
+                    "Schema (see `raptor schema`). Exit 3 if any model has "
+                    "errors (or warnings, with --strict).")
     v.add_argument("models", nargs="+", metavar="MODEL")
     v.add_argument("-f", "--format", choices=("text", "json"), default="text")
     v.add_argument("--strict", action="store_true",
                    help="warnings are failures too")
     v.set_defaults(func=validate_command)
+
+    sc = sub.add_parser(
+        "schema", help="print the .rbds JSON Schema",
+        description="Print the JSON Schema of the .rbds format (the one "
+                    "`validate` and opening a file check against), for an "
+                    "editor or another validator.")
+    sc.add_argument("-o", "--output", metavar="FILE",
+                    help="write it to FILE instead of stdout")
+    sc.set_defaults(func=schema_command)
 
     i = sub.add_parser(
         "info", aliases=["describe"],
@@ -78,6 +89,17 @@ def add_parser(sub: Any) -> None:
     c.set_defaults(func=convert_command)
 
 
+def schema_command(args: Any) -> int:
+    from raptor.api.validate import rbds_schema
+    text = json.dumps(rbds_schema(), indent=1) + "\n"
+    if args.output:
+        write_text(Path(args.output), text)
+        eprint(f"wrote {args.output}")
+    else:
+        sys.stdout.write(text)
+    return X.OK
+
+
 def validate_command(args: Any) -> int:
     worst = X.OK
     docs: list[dict] = []
@@ -109,7 +131,7 @@ def validate_command(args: Any) -> int:
     else:
         for d in docs:
             if "error" in d:
-                print(f"{d['model']}: cannot read: {d['error']}")
+                print(f"{d['model']}: {d['error']}")
                 continue
             ne, nw = len(d["errors"]), len(d["warnings"])
             print(f"{d['model']}: {ne} error(s), {nw} warning(s)")

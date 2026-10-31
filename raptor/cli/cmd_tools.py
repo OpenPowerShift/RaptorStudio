@@ -129,12 +129,14 @@ def add_parser(sub: Any) -> None:
     r.set_defaults(func=tables_command)
 
     d = sub.add_parser(
-        "render", help="draw the diagram to PNG",
-        description="Render the diagram of MODEL to a PNG file.")
+        "render", help="draw the diagram to PNG or SVG",
+        description="Render the diagram of MODEL to a PNG file (needs Qt) "
+                    "or, when FILE ends in .svg, to a plain SVG drawing "
+                    "(no Qt needed).")
     d.add_argument("model", metavar="MODEL")
-    d.add_argument("-o", "--output", required=True, metavar="FILE.png")
+    d.add_argument("-o", "--output", required=True, metavar="FILE.png|FILE.svg")
     d.add_argument("--level", type=int, default=0,
-                   help="hierarchy depth to draw (0 = top)")
+                   help="hierarchy id to draw (0 = top level)")
     d.add_argument("--highlight", action="append", default=[],
                    metavar="SELECTOR")
     d.add_argument("--zoom-to", action="append", default=[],
@@ -205,6 +207,10 @@ def add_parser(sub: Any) -> None:
     fv.add_argument("--criticality", action="store_true", default=None,
                     help="add the Criticality line (Raptor 7's developer "
                          "option)")
+    fv.add_argument("--capacity", action="store_true",
+                    help="also show the flow delivered, and the flow and "
+                         "capacity of each capacity node (models with "
+                         "capacity analysis; not in Raptor 7)")
     fv.set_defaults(func=fev_command)
 
     st = sub.add_parser(
@@ -498,6 +504,16 @@ def tables_command(args: Any) -> int:
 
 def render_command(args: Any) -> int:
     from raptor.api import render as api_render
+    if str(args.output).lower().endswith(".svg"):
+        try:
+            path, _meta = api_render.render_svg_file(
+                args.model, args.output, level=args.level,
+                highlight=args.highlight or None, zoom_to=args.zoom_to or None,
+                theme=args.theme, include_annotations=not args.no_annotations)
+        except (api_render.RenderError, ValueError, OSError) as exc:
+            raise CliError(str(exc), X.RUNTIME) from exc
+        eprint(f"wrote {path}")
+        return X.OK
     try:
         png, _meta = api_render.render_diagram(
             args.model, args.output, level=args.level,
@@ -554,7 +570,8 @@ def fev_command(args: Any) -> int:
         with workspace_for() as ws:
             mid = open_model(ws, args.model)
             writes = analyse.fev_script(ws, mid, actions,
-                                        criticality=args.criticality)
+                                        criticality=args.criticality,
+                                        capacity=args.capacity)
     except (AnalysisError, OSError) as exc:
         raise CliError(str(exc), X.INVALID) from exc
     if args.format == "json":
@@ -565,6 +582,10 @@ def fev_command(args: Any) -> int:
             if i:
                 print("*" * 65)
             print("\n".join(w["lines"]))
+            if "capacity" in w:
+                print("\n".join(analyse.capacity_lines(w["capacity"])))
+    if args.capacity and writes and "capacity" not in writes[0]:
+        eprint("warning: --capacity ignored: the model has no capacity analysis")
     if args.log:
         block = "".join("\r\n" + "".join(f"{ln}\r\n" for ln in w["lines"])
                         + "\r\n" + "*" * 65 + "\r\n\r\n" for w in writes)

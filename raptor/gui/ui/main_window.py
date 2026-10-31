@@ -36,7 +36,7 @@ from raptor.core import run_experiment, run_manifest
 from raptor.gui.ui.run_experiment_mixin import (
     RunExperimentMixin,
 )
-from raptor.core.fileio.rbd import load_rbd, save_rbd, RbdFile
+from raptor.core.fileio.rbd import save_rbd, RbdFile
 from raptor.core.fileio import rbds as rbds_io
 from raptor.core.engine.weak_metric import (
     canonical as canonical_analysis, cross_run_event_metric,
@@ -4061,10 +4061,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         return True
 
     def _open_model_any(self, path: str):
-        """Read .rbds or legacy .rbd by extension."""
-        if str(path).lower().endswith(".rbds"):
-            return rbds_io.load_rbds(path)
-        return load_rbd(path)
+        """Read .rbds or legacy .rbd by extension: the loader the CLI and MCP
+        server use too, with the same schema check and messages."""
+        from raptor.core.fileio.model_file import load_model_file
+        return load_model_file(path)
 
     def _save_file(self):
         if self._rbd is None:
