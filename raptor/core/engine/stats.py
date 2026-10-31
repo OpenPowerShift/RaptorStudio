@@ -12,6 +12,7 @@ cross-run monitors `Final_Results` uses (`AvailMon`/`MTBDEMon`/etc., one sample 
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 
@@ -128,3 +129,28 @@ class TimedStat:
             return float(self.value)
         total = self._area + self.value * max(end_time - self._epoch, 0.0)
         return total / span
+
+
+def update_many(stats: dict, values: dict, sim_time: float, keys: Iterable | None = None) -> None:
+    """`stats[key].update(value, sim_time)` for every `key: value` in `values`,
+    or only for `keys` when given.
+
+    The same arithmetic in the same order for each monitor as `update`, so the
+    results are bit-identical; the time is rounded once instead of once per
+    monitor, and the attribute traffic is bound to locals. Capacity analysis
+    touches every node's flow and capacity monitor at the end of every
+    state-changing instant (see `capacity.touch_capacity_monitors`), which on a
+    3,470-block model was about 10 million `update` calls over five simulated
+    years."""
+    t = round(sim_time, _DEC)
+    items = values.items() if keys is None else ((key, values[key]) for key in keys)
+    for key, value in items:
+        m = stats[key]
+        dt = t - m._epoch
+        m._area += m.value * (dt if dt > 0.0 else 0.0)
+        m._epoch = t
+        m.value = value
+        if value < m.minimum:
+            m.minimum = value
+        if value > m.maximum:
+            m.maximum = value
