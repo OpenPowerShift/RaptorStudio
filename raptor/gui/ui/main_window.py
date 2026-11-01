@@ -4002,6 +4002,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if str(path).lower().endswith(".rbds"):
             # Saving can re-lay out a crammed model, on the UI thread.
             rbds_io.save_rbds(req(self._rbd), path)
+            # The open model is now THIS file: reports and the run
+            # manifest title themselves with `RbdFile.file_name`, so a
+            # Save As has to move it with the file instead of leaving
+            # the template's "NewModel.rbd" behind. (`save_rbd` does the
+            # same for the legacy format.)
+            rbd = req(self._rbd)
+            rbd.file_name = Path(path).name
             return True
         n_ann = len(getattr(self._rbd, "annotations", []) or [])
         if n_ann:
