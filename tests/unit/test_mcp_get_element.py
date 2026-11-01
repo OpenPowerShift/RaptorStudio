@@ -81,6 +81,10 @@ class TestOtherKinds:
         assert d["kind"] == "Node" and d["node_type"] == "start"
         assert d["downstream"][0]["name"] == "Casing"
 
+    def test_kind_name_selectors(self, motor):
+        assert _get(motor, "Block:Armature")["name"] == "Armature"
+        assert _get(motor, "Node:start")["name"] == "start"
+
     def test_link(self, motor):
         d = _get(motor, "Link:2")
         assert d["from"]["name"] == "Casing" and d["to"]["name"] == "Armature"
