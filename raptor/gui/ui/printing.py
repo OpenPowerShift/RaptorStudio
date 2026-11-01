@@ -6,6 +6,7 @@ Print sends that report's pages to the printer. So a printed report and an
 exported one are the same document."""
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from raptor.gui.ui.modality import exec_dialog
@@ -17,12 +18,15 @@ def _default_project_name(win) -> str:
     Better than a blank field (which is all this used to ever show) and
     better than a global setting, since a printout is attributable to
     the model it came from."""
-    path = getattr(win, "_current_path", None)
+    path = getattr(win, "_current_file", None)
     if path:
-        from pathlib import Path
         stem = Path(path).stem
         if stem:
             return stem
+    rbd = getattr(win, "_rbd", None)
+    stem = Path(str(getattr(rbd, "file_name", "") or "")).stem
+    if stem:
+        return stem
     return "NewModel"
 
 

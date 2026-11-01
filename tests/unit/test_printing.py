@@ -7,13 +7,14 @@ the diagram's "pages across"."""
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 import pytest
 from raptor.gui.ui import filedialogs as _fdg
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QDialog
+from PySide6.QtWidgets import QApplication, QDialog, QFileDialog
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 
 from raptor.core.fileio.rbd import load_rbd
@@ -235,3 +236,56 @@ def test_export_svg_action_enabled_after_load(w):
 def test_export_svg_action_disabled_before_any_model_loaded(qapp):
     empty_w = MainWindow()
     assert not empty_w._export_svg_action.isEnabled()
+
+
+# ---------------------------------------------------------------------
+# The title block's Project default and the model's own name. Both used
+# to say "NewModel" after Save As: the window kept the chosen path in
+# `_current_file` (the title-block reader looked for `_current_path`),
+# and the model's `file_name` stayed at the new-model template's.
+# ---------------------------------------------------------------------
+
+def test_default_project_name_prefers_the_open_file():
+    win = SimpleNamespace(_current_file="/tmp/series.rbds",
+                          _current_path="/tmp/stale.rbd",
+                          _rbd=SimpleNamespace(file_name="stale.rbd"))
+    assert printing._default_project_name(win) == "series"
+
+
+def test_default_project_name_falls_back_to_the_models_own_name():
+    win = SimpleNamespace(_current_file=None,
+                          _rbd=SimpleNamespace(file_name="Unit5.rbd"))
+    assert printing._default_project_name(win) == "Unit5"
+
+
+def test_default_project_name_is_NewModel_only_for_an_unnamed_model():
+    win = SimpleNamespace(_current_file=None,
+                          _rbd=SimpleNamespace(file_name=""))
+    assert printing._default_project_name(win) == "NewModel"
+
+
+def test_save_as_moves_the_models_name_with_the_file(qapp, tmp_path,
+                                                     monkeypatch):
+    """A model built as NewModel.rbd must report (and manifest) itself
+    under the file it was actually saved to, without a reopen."""
+    from raptor.core.run_manifest import build_manifest
+    from raptor.gui.new_model import build_new_model
+
+    win = MainWindow()
+    win._load_into_app(build_new_model("NewModel"), None)
+    qapp.processEvents()
+    assert win._rbd.file_name == "NewModel.rbd"
+
+    target = str(tmp_path / "series.rbds")
+    monkeypatch.setattr(QFileDialog, "exec", lambda self: True)
+    monkeypatch.setattr(QFileDialog, "selectedFiles", lambda self: [target])
+    monkeypatch.setattr(win, "_remember_recent", lambda path: None)
+    win._save_file_as()
+    qapp.processEvents()
+
+    assert win._current_file == target
+    assert win._rbd.file_name == "series.rbds"
+    assert printing._default_project_name(win) == "series"
+    manifest = build_manifest(win._rbd, win._rbd.experiment or {})
+    assert manifest["model_name"] == "series.rbds"
+
