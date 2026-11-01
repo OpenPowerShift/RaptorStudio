@@ -40,7 +40,7 @@ class DerivedResultsDialog(QDialog):
         intro = QLabel(
             f"Additive run metrics over {len(self._data)} run(s): "
             "availability classifications, MTTFF, Red-time causes and "
-            "criticality ratios. Legacy report text is unchanged.")
+            "criticality ratios. Report text is unchanged.")
         intro.setWordWrap(True)
         lay.addWidget(intro)
 

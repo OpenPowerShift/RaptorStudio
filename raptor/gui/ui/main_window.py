@@ -4065,7 +4065,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             msgbox.warning(
                 self, "Age settings not supported in the .rbd format",
                 f"{age_blocks} block(s) use duty cycle, start age or "
-                "restoration settings. The legacy .rbd format has no "
+                "restoration settings. The .rbd format has no "
                 "columns for them and they will be DROPPED. The simulation "
                 "values that follow are unaffected in this session; save as "
                 ".rbds to keep the settings.")
