@@ -21,6 +21,7 @@
 <li><a href="#input-rules">Values and links Raptor 7 refuses</a></li>
 <li><a href="#results">Results dock</a>
 <ul class="sectlevel2">
+<li><a href="#_analytical_analysis">Analytical analysis</a></li>
 <li><a href="#_a_hierarchys_body_and_its_dsi">A hierarchy&#8217;s body and its DSI</a></li>
 <li><a href="#_editing_while_results_are_showing">Editing while results are showing</a></li>
 </ul>
@@ -456,6 +457,33 @@ They are always present after a run; each has an explanatory empty
 state when its analysis was not enabled.</p>
 </li>
 </ul>
+</div>
+<div class="sect2">
+<h3 id="_analytical_analysis">Analytical analysis</h3>
+<div class="paragraph">
+<p><strong>Results ▸ Analytical…</strong> opens the exact static solver. It does not sample
+and does not change the model. Choose <strong>Reliability</strong> for a non-repairable
+<code>R(t)</code> (PDF, hazard, MTTF, BX life, conditional reliability, exact importance)
+or <strong>Availability</strong> for steady-state availability with independent, perfectly
+repaired components. Mission time and optional curve times are entered in the
+dialog; BX percentages default to 10.</p>
+</div>
+<div class="paragraph">
+<p>The solver covers series, parallel, mixed, k-of-n, bridge networks and
+hierarchies. It refuses, naming the first offending element, PM, spares,
+resources, dependencies, standby, phases and non-Bernoulli events; use the
+simulator for those. <code>Ignore repairs</code> in reliability mode gives the
+first-failure reliability of a repairable model. The full scope and the API
+are in <a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md">the analytical solver guide</a>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Results ▸ Availability &amp; Criticality…</strong> reads the latest run&#8217;s additive
+metrics: operational / inherent / achieved availability, MTTFF, MTBF and
+MTBE on a total-time denominator, component CM/PM counts, Red-time cause
+buckets, and per-block failure / downtime / cost criticality. These are not
+added to the legacy report text, which stays byte-compatible with captured
+reference output.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_a_hierarchys_body_and_its_dsi">A hierarchy&#8217;s body and its DSI</h3>
@@ -1258,11 +1286,12 @@ vector file.</p>
 <h2 id="standards">IEC 61078 and standards alignment</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>RAPTOR Studio is an RBD <strong>simulator</strong>, not an analytical IEC 61078
-solver. The standard defines series, parallel and m-out-of-n logic and
-the Boolean/BDD/closed-form methods for evaluating it. This application
-simulates the same structures, which lets it include repair, spares,
-phases, dependencies and limited resources.</p>
+<p>RAPTOR Studio is an RBD <strong>simulator</strong> with a bounded analytical solver for
+the static subset. The standard defines series, parallel and m-out-of-n logic
+and the Boolean/BDD/closed-form methods for evaluating it. Simulation covers
+repair, spares, phases, dependencies and limited resources; <strong>Results ▸
+Analytical…</strong> gives exact reliability or steady-state availability where those
+assumptions hold.</p>
 </div>
 <div class="paragraph">
 <p>There is no standards-specific menu or results page. The one Annex D
@@ -1299,11 +1328,12 @@ phases.</p>
 </ul>
 </div>
 <div class="paragraph">
-<p>What is not implemented: minimal cut/tie sets, Boolean/BDD evaluation,
-analytical (non-simulated) importance factors, criticality and DIM importance,
-PFD<sub>avg</sub>, Vesely/unconditional failure intensities, repeated/common blocks,
-multi-port transfer gates, non-coherent blocks, PAND/SEQ and CCF
-beta factors.</p>
+<p>What is not implemented: minimal cut/tie sets, qualitative Boolean/BDD
+output, analytical availability beyond the static solver subset, DIM
+importance, PFD<sub>avg</sub>, Vesely/unconditional failure intensities,
+repeated/common blocks, multi-port transfer gates, non-coherent blocks,
+PAND/SEQ and CCF beta factors. The analytical solver reports exact
+Birnbaum/RAW/RRW/Vesely–Fussell and a criticality measure on its subset.</p>
 </div>
 <div class="paragraph">
 <p>The numerical regression checks against the standard&#8217;s worked examples run
@@ -2164,6 +2194,16 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Domains…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Domain of each node — which elements' failures can propagate to it</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Analytical…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Availability  Criticality…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The legacy report text is unchanged.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 </tbody>

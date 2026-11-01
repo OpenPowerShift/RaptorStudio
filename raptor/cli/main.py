@@ -17,7 +17,8 @@ PROG = "raptor"
 COMMANDS = (
     "gui", "run", "simulate", "validate", "schema", "info", "describe", "get", "set",
     "convert", "sweep", "compare", "diff", "estimate", "report", "tables", "render",
-    "spf", "fev", "step", "extract", "mcp", "config", "completion", "doctor", "help",
+    "spf", "fev", "step", "extract", "analytic", "mcp", "config",
+    "completion", "doctor", "help",
 )
 
 
@@ -68,8 +69,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _register(sub: Any) -> None:
     from raptor.cli import (cmd_gui, cmd_info, cmd_misc, cmd_run, cmd_tools,
-                            cmd_mcp)
-    for mod in (cmd_gui, cmd_run, cmd_info, cmd_tools, cmd_mcp, cmd_misc):
+                            cmd_mcp, cmd_analytic)
+    for mod in (cmd_gui, cmd_run, cmd_info, cmd_tools, cmd_mcp, cmd_misc,
+                cmd_analytic):
         mod.add_parser(sub)
 
 

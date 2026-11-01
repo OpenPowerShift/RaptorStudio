@@ -90,6 +90,16 @@
    "text": "Weak Link",
    "tooltip": "Track per-element state times for the Weak Link view \u2014 writes this model's settings"
   },
+  "_analytical_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Analytical\u2026",
+   "tooltip": "Exact reliability or steady-state availability for the static subset of this model \u2014 series, parallel, k-of-n and hierarchies. No sampling, no model changes.\n\nUnavailable: open or create a model first"
+  },
   "_anno_arrow_tool": {
    "checkable": true,
    "checked": false,
@@ -369,6 +379,16 @@
    ],
    "text": "Delete Selected",
    "tooltip": "Delete selected blocks/nodes (Del)\n\nUnavailable: open or create a model first"
+  },
+  "_derived_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Availability & Criticality\u2026",
+   "tooltip": "Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The legacy report text is unchanged.\n\nUnavailable: there are no results to clear \u2014 run the model first"
   },
   "_diff_action": {
    "checkable": false,
@@ -1415,6 +1435,7 @@
    "_analysis_actions[capacityAnalysis]": true,
    "_analysis_actions[costAnalysis]": true,
    "_analysis_actions[weakAnalysis]": true,
+   "_analytical_action": false,
    "_anno_arrow_tool": false,
    "_anno_ellipse_tool": false,
    "_anno_order_actions[back]": false,
@@ -1441,6 +1462,7 @@
    "_cut_action": false,
    "_data_tables_action": true,
    "_delete_tool": false,
+   "_derived_action": false,
    "_diff_action": false,
    "_domains_action": false,
    "_explorer_toggle_action": true,
@@ -1551,6 +1573,7 @@
    "_analysis_actions[capacityAnalysis]": true,
    "_analysis_actions[costAnalysis]": true,
    "_analysis_actions[weakAnalysis]": true,
+   "_analytical_action": true,
    "_anno_arrow_tool": true,
    "_anno_ellipse_tool": true,
    "_anno_order_actions[back]": false,
@@ -1577,6 +1600,7 @@
    "_cut_action": true,
    "_data_tables_action": true,
    "_delete_tool": false,
+   "_derived_action": false,
    "_diff_action": true,
    "_domains_action": true,
    "_explorer_toggle_action": true,
@@ -1687,6 +1711,7 @@
    "_analysis_actions[capacityAnalysis]": true,
    "_analysis_actions[costAnalysis]": true,
    "_analysis_actions[weakAnalysis]": true,
+   "_analytical_action": false,
    "_anno_arrow_tool": false,
    "_anno_ellipse_tool": false,
    "_anno_order_actions[back]": false,
@@ -1713,6 +1738,7 @@
    "_cut_action": false,
    "_data_tables_action": true,
    "_delete_tool": false,
+   "_derived_action": false,
    "_diff_action": false,
    "_domains_action": false,
    "_explorer_toggle_action": true,
@@ -2330,6 +2356,16 @@
        "kind": "action",
        "large": false,
        "text": "Domains\u2026"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Analytical\u2026"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Availability & Criticality\u2026"
       }
      ],
      "title": "Show"

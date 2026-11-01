@@ -2,7 +2,7 @@
 # Raptor Studio MCP server
 
 Raptor Studio ships a [Model Context Protocol](https://modelcontextprotocol.io) server, so an AI assistant can
-build, validate, simulate and explain reliability block diagrams. It exposes **66 tools**, a set of
+build, validate, simulate and explain reliability block diagrams. It exposes **67 tools**, a set of
 **resources** and three **prompts**. The numbers come from the same engine as the desktop app and the
 `raptor` command line.
 
@@ -131,6 +131,7 @@ description and input/output schema is what the server sends on `tools/list`.
 | `add_event` | writes | Add an event to the model.  `prob` is its probability (0-1). | `model_id`, `name`, `prob`? |
 | `add_hierarchy` | writes | Create an empty hierarchy -- a sub-model boundary -- with its In and Out markers already wired up correctly. | `model_id`, `name`, `parent`? |
 | `add_node` | writes | Add a node to the model. | `model_id`, `type`?, `k`?, `name`?, `parent`? |
+| `analytical_analysis` | read-only | Solve the static subset of a model exactly. | `model_id`, `mode`?, `at`?, `times`?, `bx`?, `importance`?, `equation`?, `ignore_repairs`? |
 | `auto_layout` | writes | Re-arrange a model's diagram onto the shared layered grid. | `model_id`, `hierarchy`?, `selectors`? |
 | `build_model` | writes | Build a complete model from a friendly .rbds spec document. | `name`, `spec`?, `auto_layout`?, `validate_model`?, `model_id`?, `spec_path`? |
 | `cancel_run` | writes | Ask a background job to stop (checked between replications, and while a large model is still being set up). | `job_id` |

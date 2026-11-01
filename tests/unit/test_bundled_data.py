@@ -55,6 +55,7 @@ def _wheel_data_files() -> set[str]:
 def test_wheel_ships_what_the_mcp_server_serves():
     shipped = _wheel_data_files()
     needed = [docs.RBDS_FORMAT, docs.IEC61078_DOC, docs.MCP_GUIDE,
+              REPO / "docs" / "ANALYTICAL.md",
               *docs.CHAPTERS.glob("*.adoc"),
               *(REPO / "new_docs" / "models").glob("*.rbd*")]
     missing = [str(p.relative_to(REPO)) for p in needed if str(p.relative_to(REPO)) not in shipped]

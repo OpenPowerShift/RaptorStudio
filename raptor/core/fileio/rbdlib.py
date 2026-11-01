@@ -136,6 +136,8 @@ def make_block_row(bid, name="unnamed", x=0.0, y=0.0, parent=0, nlinks=(1, 1),
              fdist=D_EXPO, fparams=(100.0, 0.0, 0.0), fstream=SYS_STREAM_C,
              rdist=D_LOGNORM, rparams=(10.0, 2.0, 0.0), rstream=SYS_STREAM_C,
              simstart=3, amtexh=0.0, phasing=0, sbstress=0.0,
+             duty_cycle=1.0, start_age=0.0,
+             restoration_factor=0.0, restoration_type=1,
              gdtype=0, gdrate=1.0, gdlimit=1.0,
              pool="unnamed", sptype="Infinite",
              rso=1, stock=100, newsp=1, arrive=720.0, eso=1, emertime=24.0,
@@ -177,6 +179,15 @@ def make_block_row(bid, name="unnamed", x=0.0, y=0.0, parent=0, nlinks=(1, 1),
             f"{depfail:.2f}", f"{depthresh:.2f}", str(defidle), deptype]
     vals += [f"{c:.2f}" for c in costs]
     vals.append(str(adddone))
+    # `.rbds`-only extension fields. They are deliberately not in BLOCK_COLS:
+    # the legacy writer must never see them (an extra token shifts every
+    # later column Raptor 7 reads).
+    extra_fields = {
+        "_DutyCycle": fnum(duty_cycle),
+        "_StartAge": fnum(start_age),
+        "_RestoreFactor": fnum(restoration_factor),
+        "_RestoreType": str(restoration_type),
+    }
     cols = list(BLOCK_COLS)
     # disambiguated column keys (Param1#1 etc.) as rbd.py produces them
     row = {}
@@ -189,6 +200,7 @@ def make_block_row(bid, name="unnamed", x=0.0, y=0.0, parent=0, nlinks=(1, 1),
             seen[c] = 1
             key = f"{c}#1" if cols.count(c) > 1 else c
         row[key] = v
+    row.update(extra_fields)
     if phases:
         for i, pv in enumerate(phases, 1):
             row[f"P {i:03d}"] = pv

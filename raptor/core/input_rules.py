@@ -89,6 +89,10 @@ def has_blank(text: str) -> bool:
 
 def control_problem(text: str) -> str | None:
     """Why *text* may not be stored (a control or invisible character), else None."""
+    for ch in text:
+        if 0xD800 <= ord(ch) <= 0xDFFF or unicodedata.category(ch) == "Cs":
+            return (f"contains an unpaired surrogate (U+{ord(ch):04X}), "
+                    "which cannot be saved in UTF-8")
     m = _CONTROL_RE.search(text)
     if m is None:
         return None
@@ -581,10 +585,36 @@ def _check_block(row: dict, pools: dict, out: list[Violation]) -> None:
     _block_pm(row, s)
     _block_costs_and_dependency(row, s)
     _block_growth_decay(row, s)
+    _block_age_features(row, s)
     _block_start_standby_resources(row, pools, s)
 
 
 # ---------------------------------------------------------------- other dialogs
+
+def _block_age_features(row: dict, s: _Scope) -> None:
+    """Duty cycle, restoration factor and start age.
+
+    These are `.rbds`-only fields (there is no legacy column for them), so
+    the checks are the dialog's own range checks rather than a port of a
+    Raptor 7 alert.
+    """
+    duty = _num(row, "_DutyCycle")
+    if duty is not None and duty <= 0.0:
+        s.add("age.duty", "Duty cycle must be greater than zero!")
+    restore = _num(row, "_RestoreFactor")
+    if restore is not None and _out_of(restore, 0.0, 1.0):
+        s.add("age.restore", "Restoration factor must be between 0 and 1!")
+    rtype = _int(row, "_RestoreType", 1)
+    if rtype not in (1, 2):
+        s.add("age.restore_type", "Restoration type must be 1 or 2!")
+    age = _num(row, "_StartAge")
+    if age is not None and _out_of(age, 0.0, 999999999.0):
+        s.add("age.start", "Start age must be between 0 and 999,999,999!")
+    if age is not None and age > 0.0 and _int(row, "SimStart", 3) != 3:
+        s.add("age.start_condition",
+              "Start age is used only by the Start='up, some complete' "
+              "condition (SimStart=3).")
+
 
 def _check_event(row: dict, out: list[Violation]) -> None:
     """`EventsBoxObj.ReceiveData`."""

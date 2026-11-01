@@ -95,3 +95,11 @@ def reset_system_state_for_new_run(system_state: SystemState) -> None:
     system_state.comp_repair_stat = RunningStat()
     system_state.mission_success = True
     system_state.missions_completed = 0
+    system_state.first_system_failure_time = None
+    system_state.color_timeline = [(0.0, "Green")]
+    system_state.red_cause = "other"
+    system_state.red_corrective_time = 0.0
+    system_state.red_pm_time = 0.0
+    system_state.red_logistics_time = 0.0
+    system_state.red_done_time = 0.0
+    system_state.red_other_time = 0.0

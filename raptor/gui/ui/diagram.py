@@ -2375,6 +2375,34 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._stack.push(ParamsCmd(self, "block standby stress",
                                    block_id, block.sb_stress, value))
 
+    def set_block_duty_cycle(self, block_id: int, value: float):
+        block = self.blocks.get(block_id)
+        if block is None or block.duty_cycle == value:
+            return
+        self._stack.push(ParamsCmd(self, "block duty cycle", block_id,
+                                   block.duty_cycle, value))
+
+    def set_block_start_age(self, block_id: int, value: float):
+        block = self.blocks.get(block_id)
+        if block is None or block.start_age == value:
+            return
+        self._stack.push(ParamsCmd(self, "block start age", block_id,
+                                   block.start_age, value))
+
+    def set_block_restoration_factor(self, block_id: int, value: float):
+        block = self.blocks.get(block_id)
+        if block is None or block.restoration_factor == value:
+            return
+        self._stack.push(ParamsCmd(self, "block restoration factor",
+                                   block_id, block.restoration_factor, value))
+
+    def set_block_restoration_type(self, block_id: int, value: int):
+        block = self.blocks.get(block_id)
+        if block is None or block.restoration_type == value:
+            return
+        self._stack.push(ParamsCmd(self, "block restoration type",
+                                   block_id, block.restoration_type, value))
+
     def set_block_gd_enabled(self, block_id: int, value: bool):
         """Growth/Decay on/off: off is the `GDType=0` sentinel; on defaults to Linear
         (1) if no type was ever chosen. Ported in

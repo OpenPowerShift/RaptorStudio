@@ -26,7 +26,7 @@ FORMAT_ID = "raptor-studio"
 #: element from the built-in template). A version-1 reader would ignore the
 #: new fields and fill the gaps from the wrong row, so it must refuse the
 #: file instead (it does: it rejects any version newer than its own).
-VERSION = 2
+VERSION = 3
 
 # ---------------------------------------------------------------------------
 # friendly -> legacy column maps (the documented surface)
@@ -53,6 +53,9 @@ _BLOCK_MAP: ColumnMap = {
     # default, because they were only understood under `legacy`.
     "sim_start": "SimStart", "amount_exhausted": "AmtExhausted",
     "standby_stress": "SBStress",
+    "duty_cycle": "_DutyCycle", "start_age": "_StartAge",
+    "restoration_factor": "_RestoreFactor",
+    "restoration_type": "_RestoreType",
     "growth_decay_type": "GDType", "growth_decay_rate": "GDRate",
     "growth_decay_limit": "GDLimit",
     # sparing
@@ -244,7 +247,8 @@ _INT_KEYS = frozenset({
     # Block, node, event and hierarchy columns Raptor 7 reads as integers.
     "sim_start", "growth_decay_type", "pre_ldt_dist", "post_ldt_dist",
     "pm_duration_dist", "num_resources", "repair_resources_needed",
-    "pm_resources_needed", "k_star", "phases", "report_capacity", "dist"})
+    "pm_resources_needed", "k_star", "phases", "report_capacity", "dist",
+    "restoration_type"})
 _BOOL_KEYS = frozenset({"uses_phasing", "weak_analysis", "cost_analysis",
                         "capacity_analysis", "uses_pm", "pm_triggered",
                         "pm_spare", "pm_refresh", "pm_mis_defer",

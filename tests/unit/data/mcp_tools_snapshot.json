@@ -85,6 +85,21 @@
    "model_id"
   ]
  },
+ "analytical_analysis": {
+  "params": [
+   "at",
+   "bx",
+   "equation",
+   "ignore_repairs",
+   "importance",
+   "mode",
+   "model_id",
+   "times"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "auto_layout": {
   "params": [
    "hierarchy",

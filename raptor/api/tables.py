@@ -589,9 +589,27 @@ _PER_RUN_LABELS = {
     "mtbms": "MTBMs", "mmt": "MMT", "mmtu": "MMTu", "mmts": "MMTs",
     "num_system_failures": "System Failures",
     "num_component_failures": "Component Failures",
+    "mttff": "MTTFF", "mttff_censored": "MTTFF Censored",
+    "inherent_availability": "Inherent Availability",
+    "achieved_availability": "Achieved Availability",
+    "operational_availability": "Operational Availability",
+    "mtbf_total": "MTBF (total)", "mtbe_total": "MTBE (total)",
+    "num_component_cms": "Component CMs",
+    "num_component_pms": "Component PMs",
+    "total_time": "Total Time", "uptime": "Uptime", "downtime": "Downtime",
+    "red_corrective_time": "Corrective Red Time",
+    "red_pm_time": "PM Red Time",
+    "red_logistics_time": "Logistics Red Time",
+    "red_done_time": "Done Red Time",
+    "red_other_time": "Other Red Time",
     "green_percent": "Green %", "yellow_percent": "Yellow %",
     "red_percent": "Red %",
 }
+
+
+def _scalar(value: object) -> bool:
+    """True for values that belong in a flat per-run table cell."""
+    return value is None or isinstance(value, (int, float, str, bool))
 
 #: Result tables that are long and rarely wanted: off by default.
 _LONG = {"results.event_log", "results.end_of_run", "results.interim_cost"}
@@ -638,7 +656,8 @@ def _per_run_table(per_run: Sequence[dict]) -> Table | None:
     if not per_run:
         return None
     keys = [k for k in _PER_RUN_LABELS if any(k in r for r in per_run)]
-    keys += [k for k in per_run[0] if k not in _PER_RUN_LABELS]
+    keys += [k for k in per_run[0]
+             if k not in _PER_RUN_LABELS and _scalar(per_run[0][k])]
     headers = ["Run"] + [_PER_RUN_LABELS.get(k, k) for k in keys]
     body = [[i + 1] + [r.get(k) for k in keys] for i, r in enumerate(per_run)]
     return Table("results.per_run", "Per-Run Results", RESULTS, headers, body)

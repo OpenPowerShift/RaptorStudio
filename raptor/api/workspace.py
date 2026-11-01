@@ -108,7 +108,7 @@ def _summarise_counts(rbd: RbdFile) -> dict[str, int]:
     }
 
 
-def rbds_only_content(rbd: RbdFile) -> list[str]:
+def rbds_only_content(rbd: RbdFile) -> list[str]:  # noqa: C901, PLR0912  # noqa: C901, PLR0912
     """What a `.rbd` save would drop: content only `.rbds` can carry.
 
     The run experiment counts only when it differs from the one derived
@@ -120,6 +120,34 @@ def rbds_only_content(rbd: RbdFile) -> list[str]:
         lost.append("rate definitions")
     if getattr(rbd, "formulas", None):
         lost.append("formulas")
+    block_sec = rbd.sections.get("BLOCK_DATA")
+    for row in (block_sec.rows if block_sec is not None else []):
+        try:
+            if (float(row.get("_DutyCycle", 1.0)) != 1.0
+                    or float(row.get("_StartAge", 0.0)) != 0.0
+                    or float(row.get("_RestoreFactor", 0.0)) != 0.0
+                    or int(float(row.get("_RestoreType", 1))) != 1):
+                lost.append("block age settings (duty cycle, start age, restoration)")
+                break
+        except (TypeError, ValueError):
+            continue
+    block = rbd.sections.get("BLOCK_DATA")
+    if block is not None:
+        for row in block.rows:
+            if str(row.get("ID", "")) in ("", "0"):
+                continue
+            try:
+                if (float(row.get("_DutyCycle", 1.0)) != 1.0
+                        or float(row.get("_StartAge", 0.0)) != 0.0
+                        or float(row.get("_RestoreFactor", 0.0)) != 0.0
+                        or int(float(row.get("_RestoreType", 1))) != 1):
+                    lost.append("age settings (duty cycle, start age, "
+                                "restoration)")
+                    break
+            except (TypeError, ValueError):
+                lost.append("age settings (duty cycle, start age, "
+                            "restoration)")
+                break
     experiment = getattr(rbd, "experiment", None)
     if experiment:
         from raptor.core import run_experiment

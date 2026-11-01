@@ -224,6 +224,10 @@ _ARMS: dict[str, Arm] = {
     "block new spares": Arm("block", ("new_spares", "new_spares_arrival"),
                             spread_attrs=True),
     "block standby stress": Arm("block", ("sb_stress",)),
+    "block duty cycle": Arm("block", ("duty_cycle",)),
+    "block start age": Arm("block", ("start_age",)),
+    "block restoration factor": Arm("block", ("restoration_factor",)),
+    "block restoration type": Arm("block", ("restoration_type",)),
     "block gd type": Arm("block", ("gd_type",)),
     "block gd rate limit": Arm("block", ("gd_rate", "gd_limit"),
                                spread_attrs=True),
@@ -534,7 +538,7 @@ class ModelEditor:
         elif kind == "event":
             self.sync_event_row(oid)
 
-    def _write_blocks(self, rbd: Any, only: int | None = None) -> None:
+    def _write_blocks(self, rbd: Any, only: int | None = None) -> None:  # noqa: C901
         section = rbd.sections.get("BLOCK_DATA")
         if not section:
             return
@@ -598,6 +602,19 @@ class ModelEditor:
             if not same:
                 row["SBStress"] = f"{b.sb_stress:.6f}"
             row["GDType"] = str(b.gd_type)
+            # `.rbds`-only fields. Write them only when the row already
+            # carries the key or the value is non-default: a blanket write
+            # would make every ordinary edit add four columns to legacy
+            # rows (breaking the apply-value characterization and needlessly
+            # growing saved files).
+            if "_DutyCycle" in row or b.duty_cycle != 1.0:
+                row["_DutyCycle"] = f"{b.duty_cycle:.6f}"
+            if "_StartAge" in row or b.start_age != 0.0:
+                row["_StartAge"] = f"{b.start_age:.6f}"
+            if "_RestoreFactor" in row or b.restoration_factor != 0.0:
+                row["_RestoreFactor"] = f"{b.restoration_factor:.6f}"
+            if "_RestoreType" in row or b.restoration_type != 1:
+                row["_RestoreType"] = str(b.restoration_type)
             row["GDRate"] = f"{b.gd_rate:.6f}"
             row["GDLimit"] = f"{b.gd_limit:.6f}"
 

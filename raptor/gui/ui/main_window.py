@@ -2273,6 +2273,18 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._inspector.block_standby_stress_changed.connect(
             lambda bid, v: self._diagram_dock.view
             .set_block_standby_stress(bid, v))
+        self._inspector.block_duty_cycle_changed.connect(
+            lambda bid, v: self._diagram_dock.view
+            .set_block_duty_cycle(bid, v))
+        self._inspector.block_start_age_changed.connect(
+            lambda bid, v: self._diagram_dock.view
+            .set_block_start_age(bid, v))
+        self._inspector.block_restoration_factor_changed.connect(
+            lambda bid, v: self._diagram_dock.view
+            .set_block_restoration_factor(bid, v))
+        self._inspector.block_restoration_type_changed.connect(
+            lambda bid, v: self._diagram_dock.view
+            .set_block_restoration_type(bid, v))
         # Re-populate on toggle: enabling/disabling growth-decay changes
         # whether the Type/Rate/Limit fields exist at all.
         self._inspector.block_gd_enabled_changed.connect(
@@ -3342,6 +3354,18 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         elif not hid:
             self._diagram_dock.view.go_home()
 
+    def _show_derived_dialog(self):
+        """Results ▸ Availability & Criticality: additive run metrics."""
+        from raptor.gui.ui.derived_dialog import open_derived_dialog
+        open_derived_dialog(self)
+
+    def _open_analytic_dialog(self):
+        """Results ▸ Analytical: exact static reliability/availability."""
+        if self._rbd is None:
+            return
+        from raptor.gui.ui.analytic_dialog import open_analytic_dialog
+        open_analytic_dialog(self)
+
     def _show_domains_dialog(self):
         """Weak Link Domain Diagram as a ribbon dialog:
         per Regular/End node, every element whose failure propagates."""
@@ -4026,6 +4050,25 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 "cannot be stored in the .rbd format and will be "
                 "DROPPED. Printouts from this file will fall back to the "
                 "file's own name. Save as .rbds to keep it.")
+        block_sec = self._rbd.sections.get("BLOCK_DATA")
+        age_blocks = 0
+        for row in (block_sec.rows if block_sec is not None else []):
+            try:
+                if (float(row.get("_DutyCycle", 1.0)) != 1.0
+                        or float(row.get("_StartAge", 0.0)) != 0.0
+                        or float(row.get("_RestoreFactor", 0.0)) != 0.0
+                        or int(float(row.get("_RestoreType", 1))) != 1):
+                    age_blocks += 1
+            except (TypeError, ValueError):
+                continue
+        if age_blocks:
+            msgbox.warning(
+                self, "Age settings not supported in the .rbd format",
+                f"{age_blocks} block(s) use duty cycle, start age or "
+                "restoration settings. The legacy .rbd format has no "
+                "columns for them and they will be DROPPED. The simulation "
+                "values that follow are unaffected in this session; save as "
+                ".rbds to keep the settings.")
         # Rates/formulas: unlike annotations, the field's own numeric
         # value is already a plain float in `sections` regardless --
         # what legacy can't hold is the formula/rate record explaining

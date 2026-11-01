@@ -22,8 +22,8 @@ from raptor.core.engine.eventlog import format_event_log_line
 from raptor.core.engine.nodes import NodeStatistics, change_node_state
 from raptor.core.engine.run_control import reset_node_and_links_for_new_run, reset_system_state_for_new_run
 from raptor.core.engine.system_status import (
-    SystemState, analyze_system, block_fail_count_delta, change_system_status,
-    end_node_system_up_transition, red_change_line,
+    SystemColor, SystemState, analyze_system, block_fail_count_delta,
+    change_system_status, end_node_system_up_transition, red_change_line,
 )
 from raptor.core.model import ActiveStatus, BlockStatus, Link, LinkStatus, RBDBlock, RBDNode
 from raptor.core.rng import Distribution, RandomGen, RaptorStream, fetch_raptor_seed
@@ -273,3 +273,18 @@ def test_ldt_full_cascade_matches_real_captured_log() -> None:
     )
     assert "Red_change" in " ".join(logs), "sanity check: should have exercised red_change_line at least once"
     assert counts["match"] + counts["fp32-noise"] > 1000
+
+
+def test_first_system_failure_timeline_and_red_cause_buckets() -> None:
+    state = SystemState()
+    block = RBDBlock(name="A", id=1, op_status=BlockStatus.REPAIRING)
+    change_system_status(state, state.color, 10.0, [block])
+    change_system_status(state, SystemColor.RED, 50.0, [block])
+    assert state.first_system_failure_time == 50.0
+    assert state.color_timeline[-1] == (50.0, "Red")
+    assert state.red_cause == "corrective"
+
+    change_system_status(state, SystemColor.GREEN, 60.0, [block])
+    assert state.red_corrective_time == 10.0
+    assert state.red_pm_time == 0.0
+    assert state.color_timeline[-1] == (60.0, "Green")

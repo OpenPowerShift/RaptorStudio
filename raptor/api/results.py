@@ -91,6 +91,14 @@ _METRIC_FIELDS: list[tuple[str, str]] = [
     ("mmts", "MMTs"),
     ("num_system_failures", "System_Failures"),
     ("num_component_failures", "Component_Failures"),
+    ("mttff", "MTTFF"),
+    ("inherent_availability", "Inherent_Availability"),
+    ("achieved_availability", "Achieved_Availability"),
+    ("operational_availability", "Operational_Availability"),
+    ("mtbf_total", "MTBF_Total"),
+    ("mtbe_total", "MTBE_Total"),
+    ("num_component_cms", "Component_CMs"),
+    ("num_component_pms", "Component_PMs"),
     ("green_percent", "Green_Percent"),
     ("yellow_percent", "Yellow_Percent"),
     ("red_percent", "Red_Percent"),
@@ -122,6 +130,10 @@ def _mark_censored(metric: Metric, label: str,
     if label == "MTBDE":
         is_censored = any(
             getattr(rd, "num_system_failures", 0) == 0
+            for rd in report_data)
+    elif label == "MTTFF":
+        is_censored = any(
+            getattr(rd, "mttff_censored", False)
             for rd in report_data)
     else:
         attr = _CENSORED_BY_RUN_LENGTH.get(label)

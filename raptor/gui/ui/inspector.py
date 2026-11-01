@@ -299,6 +299,11 @@ class InspectorDock(QWidget):
     #: field, folded into our Failure tab (no free tab slot -- same
     #: precedent as Simulation Theory being folded into Failure/Repair).
     block_standby_stress_changed = Signal(int, float)
+    #: (block_id, value) -- duty cycle / start age / restoration.
+    block_duty_cycle_changed = Signal(int, float)
+    block_start_age_changed = Signal(int, float)
+    block_restoration_factor_changed = Signal(int, float)
+    block_restoration_type_changed = Signal(int, int)
     #: (block_id, on) -- Growth/Decay enable (real GDType 0 <-> last
     #: non-zero type).
     block_gd_enabled_changed = Signal(int, bool)
@@ -1730,6 +1735,12 @@ class InspectorDock(QWidget):
             self._row(fl, "% complete", f"{block.amount_exhausted:.3f}")
         elif block.sim_start_type in (3,):
             self._row(fl, "Amount exhausted", f"{block.amount_exhausted:.3f}")
+        if block.sim_start_type == 3:
+            self._float_row(
+                fl, "Start age", block.start_age,
+                lambda v, bid=block_id:
+                    self.block_start_age_changed.emit(bid, v),
+                is_time=True)
 
     def _populate_failure(self, block: RBDBlock):
         w = self._scroll_failure.widget()
@@ -1770,6 +1781,64 @@ class InspectorDock(QWidget):
             lambda bid=block_id, sp=stress_spin:
                 self.block_standby_stress_changed.emit(bid, sp.value()))
         fl.addRow("Standby stress:", stress_spin)
+
+        duty_spin = QDoubleSpinBox()
+        duty_spin.setRange(0.000001, 1e9)
+        duty_spin.setDecimals(6)
+        duty_spin.setValue(float(block.duty_cycle))
+        duty_spin.setAccessibleName("Duty cycle")
+        duty_spin.setToolTip(
+            "Effective operating-time multiplier: 1 = continuous rated "
+            "duty, 0.3 = 30% duty, 1.5 = 50% overload. It compounds with a "
+            "phase stress multiplier.")
+        duty_spin.setSingleStep(0.05)
+        duty_spin.setKeyboardTracking(False)
+        duty_spin.valueChanged.connect(
+            lambda v, bid=block_id:
+                self.block_duty_cycle_changed.emit(bid, v))
+        duty_spin.setKeyboardTracking(False)
+        duty_spin.valueChanged.connect(
+            lambda v, bid=block_id:
+                self.block_duty_cycle_changed.emit(bid, v))
+        fl.addRow("Duty cycle:", duty_spin)
+
+        restore_spin = QDoubleSpinBox()
+        restore_spin.setRange(0.0, 1.0)
+        restore_spin.setDecimals(6)
+        restore_spin.setSingleStep(0.05)
+        restore_spin.setValue(float(block.restoration_factor))
+        restore_spin.setAccessibleName("Restoration factor")
+        restore_spin.setToolTip(
+            "Fraction of accumulated age removed by PM/repair: 0 = none "
+            "(age kept), 1 = as good as new (age reset to 0). 0.7 leaves "
+            "30% of the age.")
+        restore_spin.setSingleStep(0.05)
+        restore_spin.setKeyboardTracking(False)
+        restore_spin.valueChanged.connect(
+            lambda v, bid=block_id:
+                self.block_restoration_factor_changed.emit(bid, v))
+        restore_spin.setKeyboardTracking(False)
+        restore_spin.valueChanged.connect(
+            lambda v, bid=block_id:
+                self.block_restoration_factor_changed.emit(bid, v))
+        fl.addRow("Restoration factor:", restore_spin)
+
+        restore_combo = QComboBox()
+        restore_combo.addItem("Kijima Type I", 1)
+        restore_combo.addItem("Kijima Type II", 2)
+        restore_combo.setCurrentIndex(
+            max(0, restore_combo.findData(int(block.restoration_type))))
+        restore_combo.currentIndexChanged.connect(
+            lambda _i, bid=block_id, cmb=restore_combo:
+                self.block_restoration_type_changed.emit(
+                    bid, int(cmb.currentData())))
+        restore_combo.setAccessibleName("Restoration type")
+        restore_combo.setEnabled(block.restoration_factor > 0.0)
+        restore_combo.setToolTip(
+            "Type I restores damage since the previous action; Type II "
+            "restores a fraction of the whole age. Only used when the "
+            "restoration factor is above zero.")
+        fl.addRow("Restoration type:", restore_combo)
 
         gd_cb = QCheckBox(
             "This block's mean life changes following a failure")

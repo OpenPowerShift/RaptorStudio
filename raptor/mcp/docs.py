@@ -20,6 +20,7 @@ CHAPTERS = REPO / "new_docs" / "chapters"
 RBDS_FORMAT = REPO / "docs" / "RBDS_FORMAT.md"
 RBDS_SCHEMA = REPO / "docs" / "rbds.schema.json"
 IEC61078_DOC = REPO / "docs" / "IEC61078.md"
+ANALYTICAL_DOC = REPO / "docs" / "ANALYTICAL.md"
 MCP_GUIDE = CHAPTERS / "ch16-mcp.adoc"
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
@@ -39,7 +40,7 @@ def _chapter_files() -> list[Path]:
 #: dependency semantics, etc.) -- included in `search_docs` so this isn't
 #: findable only by already knowing to `read_doc` it by name.
 def _reference_docs() -> list[Path]:
-    return [p for p in (RBDS_FORMAT, IEC61078_DOC) if p.is_file()]
+    return [p for p in (RBDS_FORMAT, IEC61078_DOC, ANALYTICAL_DOC) if p.is_file()]
 
 
 def _tokens(text: str) -> list[str]:
@@ -134,6 +135,11 @@ _DOC_ALIASES: dict[str, Path] = {
     "rbds-schema": RBDS_SCHEMA,
     "schema": RBDS_SCHEMA,
     "iec61078": IEC61078_DOC,
+    "analytical": ANALYTICAL_DOC,
+    "formulas": REPO / "docs" / "formulas.adoc",
+    "formula": REPO / "docs" / "formulas.adoc",
+    "analytic": ANALYTICAL_DOC,
+    "solver": ANALYTICAL_DOC,
     "iec-61078": IEC61078_DOC,
     "61078": IEC61078_DOC,
     "dependency": CHAPTERS / "ch-dependency.adoc",

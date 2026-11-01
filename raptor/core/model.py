@@ -457,6 +457,17 @@ class RBDBlock(RBDBasic):
     start_val: float = 0.0
     first_pre_ldt: float = 0.0
     sb_stress: float = 0.0
+    #: Effective-operating-time multiplier (1.0 = continuous rated duty).
+    #: Stored in `.rbds` only; a legacy `.rbd` has no column for it.
+    duty_cycle: float = 1.0
+    #: Initial age at t=0, in the model's time units. Used by the
+    #: Start=3 ("up, some complete") first-life draw.
+    start_age: float = 0.0
+    #: 0.0 = no restoration, 1.0 = as good as new. Applies to PM and repair.
+    restoration_factor: float = 0.0
+    #: 1 = Kijima Type I (restore damage since the last restoration),
+    #: 2 = Kijima Type II (restore a fraction of total age).
+    restoration_type: int = 1
     pm_stagger: float = 0.0
     pm_freq: float = 0.0
     pm_fixed_cost: float = 0.0

@@ -88,6 +88,10 @@ _BLOCK_EXTRA: dict[str, Any] = {
     "sim_start": "SimStart", "simstart": "SimStart",
     "amt_exhausted": "AmtExhausted", "amount_exhausted": "AmtExhausted",
     "standby_stress": "SBStress", "sb_stress": "SBStress",
+    "duty_cycle": "_DutyCycle", "duty": "_DutyCycle",
+    "start_age": "_StartAge",
+    "restoration_factor": "_RestoreFactor", "restore_factor": "_RestoreFactor",
+    "restoration_type": "_RestoreType", "restore_type": "_RestoreType",
     "growth_decay_type": "GDType", "gd_type": "GDType",
     "growth_decay_rate": "GDRate", "gd_rate": "GDRate",
     "growth_decay_limit": "GDLimit", "gd_limit": "GDLimit",
@@ -257,6 +261,7 @@ _COL_FMT: dict[str, int] = {
     "DepNothing": 2, "DepIdle": 2, "DepPM": 2, "DepFail": 2,
     "DepPMThresh": 2,
     "SBStress": 3,
+    "_DutyCycle": 6, "_RestoreFactor": 6, "_StartAge": 6,
 }
 
 _SYSTEM_FLOAT_COLS = {
@@ -1295,6 +1300,8 @@ def build_from_spec(spec: dict[str, Any],
             cols: list[str] = []
             for row in sec.rows:
                 for key in row:
+                    if key.startswith("_"):
+                        continue
                     if key not in cols:
                         cols.append(key)
             sec.columns = cols

@@ -129,6 +129,26 @@ class SystemState:
     #: `block_lifecycle.py`'s ESO-order branch consults it for a one-time
     #: grace on whichever failures land at that exact instant.
     first_failure_time: float | None = None
+    #: Absolute sim time of the first SYSTEM failure this run (first
+    #: transition into Red), or None if the run never went Red. Distinct from
+    #: `first_failure_time` above, which is a COMPONENT failure. This is the
+    #: MTTFF sample.
+    first_system_failure_time: float | None = None
+    #: Colour transitions this run as ``(sim_time, colour_name)``, starting
+    #: with ``(0.0, "Green")``. Point availability at any time is the last
+    #: entry at or before that time. Bookkeeping only; it never feeds a
+    #: decision.
+    color_timeline: list[tuple[float, str]] = field(default_factory=list)
+    #: Red-time cause buckets. The cause is classified when the system enters
+    #: Red from the blocks that are down at that instant; the duration is
+    #: charged to that bucket when the system leaves Red. These are additive
+    #: report data and do not affect the engine.
+    red_cause: str = "other"
+    red_corrective_time: float = 0.0
+    red_pm_time: float = 0.0
+    red_logistics_time: float = 0.0
+    red_done_time: float = 0.0
+    red_other_time: float = 0.0
     #: `CompPMMon` (`LMONITORED CompTimeToDoPM`) -- each
     #: sample is one block's own PM duration, fed at `PerformPM`'s completion
     #: (`block_lifecycle.py`'s PM-due handling). Reset every run
@@ -267,6 +287,35 @@ def analyze_system(state: SystemState) -> SystemColor:
     return SystemColor.RED
 
 
+_RED_CAUSE_ATTR = {
+    "corrective": "red_corrective_time",
+    "preventive": "red_pm_time",
+    "logistics": "red_logistics_time",
+    "done": "red_done_time",
+    "other": "red_other_time",
+}
+
+
+def red_cause(blocks: list[RBDBlock]) -> str:
+    """Classify why the system is Red from the blocks down at that instant.
+
+    This is a coarse, deterministic bucket: corrective takes precedence over
+    preventive, preventive over dependency/logistics, and a wholly Done
+    system is terminal. It is deliberately not a causal attribution; it is
+    the best classification available from the state at the Red transition.
+    """
+    statuses = {block.op_status for block in blocks}
+    if statuses & {BlockStatus.REPAIRING, BlockStatus.REP_HOLD}:
+        return "corrective"
+    if statuses & {BlockStatus.PM, BlockStatus.PM_HOLD}:
+        return "preventive"
+    if BlockStatus.IDLE in statuses:
+        return "logistics"
+    if BlockStatus.DONE in statuses:
+        return "done"
+    return "other"
+
+
 def change_system_status(
     state: SystemState,
     new_color: SystemColor,
@@ -332,9 +381,12 @@ def change_system_status(
         # the OLD color, same as the duration feeding above).
         if old_color == SystemColor.RED:
             state.total_red_cost += system_red_cost * color_time
+            attr = _RED_CAUSE_ATTR.get(state.red_cause, "red_other_time")
+            setattr(state, attr, getattr(state, attr) + color_time)
         state.last_color_change = sim_time
 
         state.color = new_color
+        state.color_timeline.append((sim_time, new_color.value))
         if new_color == SystemColor.RED:
             # Raptor 7 -- unconditional on the OLD color,
             # only keyed on the color actually just becoming Red.
@@ -347,6 +399,9 @@ def change_system_status(
                 state.sys_fail_stat.add(sim_time - state.last_up_down_change)
                 if state.stats_started:
                     state.sys_fail_times.append(sim_time - state.last_up_down_change)
+                if state.first_system_failure_time is None:
+                    state.first_system_failure_time = sim_time
+            state.red_cause = red_cause(flagged_blocks if flagged_blocks is not None else blocks)
             state.last_up_down_change = sim_time
             if state.mission_status == MissionStatus.MISSION and state.mission_success:
                 state.mission_success = False
