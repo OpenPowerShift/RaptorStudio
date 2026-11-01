@@ -465,8 +465,12 @@ state when its analysis was not enabled.</p>
 and does not change the model. Choose <strong>Reliability</strong> for a non-repairable
 <code>R(t)</code> (PDF, hazard, MTTF, BX life, conditional reliability, exact importance)
 or <strong>Availability</strong> for steady-state availability with independent, perfectly
-repaired components. Mission time and optional curve times are entered in the
-dialog; BX percentages default to 10.</p>
+repaired components. The mission time (default: the run length) and optional
+curve times are entered in the dialog; BX percentages default to 10. The
+solve runs in the background and the result is shown as headline figures, a
+sortable per-element table of importance measures, a reliability curve, the
+exact equation and the assumptions behind the answer. Components are treated
+as independent, whatever random-number streams they use.</p>
 </div>
 <div class="paragraph">
 <p>The solver covers series, parallel, mixed, k-of-n, bridge networks and
