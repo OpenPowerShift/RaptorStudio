@@ -74,6 +74,38 @@ def test_build_model_rejects_unknown_and_non_finite_spec_values(tmp_path):
     assert bad.is_error and "finite" in bad.content[0].text
 
 
+def test_build_model_reports_an_unknown_analysis_name(tmp_path):
+    """Issue #73: `analyses: ["Capacity"]` built silently with `analyses:
+    []` and ran with capacity off. A name that is still unknown after the
+    case/alias normalisation must fail the build, naming the valid names,
+    instead of vanishing."""
+    _use_workspace(tmp_path / "ws")
+    from raptor.mcp.tools_model import build_model
+
+    spec = {"blocks": [{"name": "A", "fail_dist": 4,
+                        "fail_params": [100, 0]}],
+            "nodes": [{"name": "Start", "type": "start"},
+                      {"name": "End", "type": "end"}],
+            "links": [{"from": "Start", "to": "A"},
+                      {"from": "A", "to": "End"}]}
+    refused = build_model("x", {**spec,
+                                "experiment": {"analyses": ["Capacity", "foo"]}})
+    assert refused.is_error
+    text = refused.content[0].text
+    assert "`foo`" in text
+    for name in ("weak", "cost", "capacity"):
+        assert f"`{name}`" in text
+
+    built = build_model("y", {**spec,
+                              "experiment": {"analyses": ["Capacity"]}})
+    assert not built.is_error, built.content
+    from raptor.mcp import context
+    mid = built.structured_content["model_id"]
+    rbd = context.workspace().get(mid).rbd
+    assert rbd.experiment["analyses"] == ["capacity"]
+    assert rbd.section("SYSTEM_DATA").rows[0]["capacityAnalysis"] == "1"
+
+
 def test_build_model_refuses_fractional_capacity_flow(tmp_path):
     """A fractional nom_flow/max_flow cannot be stored in a legacy .rbd:
     the reader uses ReadInt, so the decimal desynchronises the token stream

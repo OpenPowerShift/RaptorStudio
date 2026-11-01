@@ -68,6 +68,48 @@ class TestNormalise:
         out = rx.normalise({"analyses": ["weak", "nonsense", "cost"]})
         assert out["analyses"] == ["weak", "cost"]
 
+    @pytest.mark.parametrize("raw,canonical", [
+        ("Capacity", "capacity"),
+        ("CAPACITY", "capacity"),
+        ("Weak", "weak"),
+        ("Cost", "cost"),
+        ("CapacityAnalysis", "capacity"),
+        ("capacity_analysis", "capacity"),
+        ("Capacity Analysis", "capacity"),
+        ("WeakLink", "weak"),
+        ("weak_link", "weak"),
+        ("weak-link", "weak"),
+        ("Weak Link", "weak"),
+        ("CostAnalysis", "cost"),
+    ])
+    def test_analysis_spellings_normalise_to_the_canonical_name(
+            self, raw, canonical):
+        """Issue #73: "Capacity" used to be filtered out silently, so the
+        model was saved with no analyses and ran with capacity off."""
+        out = rx.normalise({"analyses": [raw]})
+        assert out["analyses"] == [canonical]
+        assert rx.unknown_analyses([raw]) == []
+
+    def test_analysis_list_is_deduplicated_in_canonical_order(self):
+        out = rx.normalise(
+            {"analyses": ["Capacity", "weak", "CAPACITY", "Cost"]})
+        assert out["analyses"] == ["weak", "cost", "capacity"]
+
+    def test_an_unknown_analysis_is_reported_not_just_dropped(self):
+        """`normalise` must stay tolerant for a stale file, but the caller
+        has to be able to say what it could not read -- the silent drop is
+        the bug."""
+        out = rx.normalise({"analyses": ["Capacity", "foo", "foo"]})
+        assert out["analyses"] == ["capacity"]
+        assert rx.unknown_analyses(["Capacity", "foo", "foo"]) == ["foo"]
+        problem = rx.analyses_problem(["Capacity", "foo"])
+        assert problem is not None
+        assert "`foo`" in problem
+        assert "weak" in problem and "cost" in problem and "capacity" in problem
+        assert rx.analyses_problem(["Capacity"]) is None
+        assert rx.analyses_problem([]) is None
+        assert rx.analyses_problem("weak") is None   # not a list: the schema's job
+
     def test_non_dict_recording_is_ignored(self):
         out = rx.normalise({"recording": "yes please"})
         assert out["recording"]["event_log"] is True

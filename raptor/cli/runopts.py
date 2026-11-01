@@ -68,16 +68,20 @@ def _apply_run_options(ws: Any, model_id: str, args: Any) -> dict[str, Any]:
         cfg["start_stats"] = args.stats_start
     analysis = getattr(args, "analysis", None)
     if analysis is not None:
-        names = {a.strip().lower() for a in analysis.split(",") if a.strip()}
-        if names == {"none"}:
-            names = set()
-        unknown = names - {"weak", "cost", "capacity"}
+        from raptor.core import run_experiment as _rx
+        names = [a.strip() for a in analysis.split(",") if a.strip()]
+        if {a.lower() for a in names} == {"none"}:
+            names = []
+        unknown = _rx.unknown_analyses(names)
         if unknown:
-            raise CliError(f"--analysis: unknown {sorted(unknown)}; use "
-                           f"weak, cost, capacity or none", USAGE)
-        cfg["weak_link"] = "weak" in names
-        cfg["cost"] = "cost" in names
-        cfg["capacity"] = "capacity" in names
+            # One owner of the analysis names, so the CLI accepts exactly
+            # what `build_model` and a `.rbds` read accept (issue #73).
+            raise CliError(f"--analysis: {_rx.analyses_problem(names)}",
+                           USAGE)
+        wanted = _rx.analyses_from(names)
+        cfg["weak_link"] = "weak" in wanted
+        cfg["cost"] = "cost" in wanted
+        cfg["capacity"] = "capacity" in wanted
     extra: dict[str, Any] = {}
     if getattr(args, "weak_type", None):
         extra["nodeAnalType"] = args.weak_type.capitalize()
