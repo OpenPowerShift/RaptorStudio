@@ -12,8 +12,10 @@ from statistics import fmean
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView, QDialog, QDialogButtonBox, QHeaderView, QLabel,
-    QMessageBox, QTabWidget, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QTabWidget, QTableWidget, QTableWidgetItem, QVBoxLayout,
 )
+
+from raptor.gui.ui import msgbox
 
 
 def _mean(values):
@@ -145,7 +147,7 @@ class DerivedResultsDialog(QDialog):
 def open_derived_dialog(win):
     data = getattr(win._results, "_report_data", None)
     if not data:
-        QMessageBox.information(
+        msgbox.information(
             win, "Availability & Criticality",
             "There are no simulation results yet. Run the model first.")
         return None
