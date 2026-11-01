@@ -66,6 +66,9 @@ def analytical_analysis(
     importance: bool = True,
     equation: bool = False,
     ignore_repairs: bool = False,
+    ignore: list[Literal["repairs", "pm", "spares", "resources"]] | None = None,
+    phase: int | None = None,
+    standby: Literal["active", "absent"] | None = None,
 ) -> CallToolResult:
     """Solve the static subset of a model exactly.
 
@@ -79,8 +82,8 @@ def analytical_analysis(
     phases and non-Bernoulli events; use `simulate` for those. `at` defaults
     to the model's time-terminated run length. `tau` adds the conditional
     reliability of a further mission of that length after `at`.
-    `ignore_repairs` gives the
-    first-failure reliability of a repairable model.
+    `ignore_repairs` (same as `ignore=["repairs"]`) gives the first-failure
+    reliability of a repairable model.
     """
     from raptor.api.analytical import analyse
 
@@ -88,6 +91,7 @@ def analytical_analysis(
         context.workspace(), model_id,
         mode=mode, at=at, times=times, bx=bx, tau=tau,
         importance=importance, equation=equation,
-        ignore_repairs=ignore_repairs,
+        ignore_repairs=ignore_repairs, ignore=ignore or (), phase=phase,
+        standby=standby,
     )
     return ok(result, markdown=_markdown(result))

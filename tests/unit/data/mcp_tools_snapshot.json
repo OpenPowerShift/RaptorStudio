@@ -90,10 +90,13 @@
    "at",
    "bx",
    "equation",
+   "ignore",
    "ignore_repairs",
    "importance",
    "mode",
    "model_id",
+   "phase",
+   "standby",
    "tau",
    "times"
   ],

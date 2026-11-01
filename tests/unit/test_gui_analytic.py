@@ -77,7 +77,7 @@ def test_analytic_dialog_refuses_phases_without_a_traceback(qapp):
     _win, dialog = _dialog(qapp, "AirlinerMission")
     assert dialog._pages.currentIndex() == 0
     assert "outside the static solver" in dialog._notice_title.text()
-    assert "hased models" in dialog._notice_body.text()
+    assert "choose a Phase" in dialog._notice_body.text()
     assert not dialog._copy.isEnabled()
     dialog.close()
 
@@ -207,4 +207,75 @@ def test_derived_results_dialog_shows_classifications_and_criticality(qapp):
     tabs = dialog.findChild(QTabWidget)
     assert tabs is not None
     assert tabs.count() == 2
+    dialog.close()
+
+
+def test_scope_controls_appear_only_when_the_model_has_them(qapp):
+    _win, plain = _dialog(qapp, "Lantern1")
+    assert plain._phase.count() == 0
+    assert not plain._form.isRowVisible(plain._phase)
+    assert not plain._form.isRowVisible(plain._standby)
+    plain.close()
+    _win, phased = _dialog(qapp, "AirlinerMission")
+    assert phased._form.isRowVisible(phased._phase)
+    assert phased._phase.count() == 6          # prompt + five phases
+    assert phased._result is None              # refused until a phase is chosen
+    phased._phase.setCurrentIndex(3)
+    phased._ignore.setChecked(True)
+    phased._ignore_pm.setChecked(True)
+    phased._ignore_spares.setChecked(True)
+    phased._ignore_resources.setChecked(True)
+    phased._standby.setCurrentIndex(1)
+    phased.compute()
+    phased.wait_for_result()
+    assert phased._result["scope"]["standby"] is None   # no standby here
+    assert "Phase 3" in phased._scope_note.text()
+    assert "standby" not in phased._scope_note.text()
+    assert phased._result["scope"]["phase"] == 3
+    assert phased._result["scope"]["ignore"] == [
+        "pm", "repairs", "resources", "spares"]
+    phased.close()
+
+
+def test_bx_card_says_what_the_percentage_means(qapp):
+    from PySide6.QtWidgets import QLabel
+    _win, dialog = _dialog(qapp, "Lantern1")
+    subs = [label.text() for label in dialog._summary_page.findChildren(QLabel)
+            if label.objectName() == "MetricSub"]
+    assert "10% of systems fail by this time" in subs
+    assert "node" not in dialog._banner.text()
+    dialog.close()
+
+
+def test_export_writes_a_workbook_and_copy_explains_the_bdd(qapp, tmp_path):
+    import zipfile
+
+    from PySide6.QtWidgets import QApplication
+    _win, dialog = _dialog(qapp, "Lantern1")
+    out = dialog.export_result(str(tmp_path / "result.xlsx"))
+    assert out is not None
+    with zipfile.ZipFile(out) as book:
+        assert "xl/workbook.xml" in book.namelist()
+        names = book.read("xl/workbook.xml").decode()
+    for sheet in ("Summary", "Elements", "Curve", "Assumptions"):
+        assert sheet in names
+    dialog._copy_result()
+    assert "binary decision diagram" in QApplication.clipboard().text()
+    dialog.close()
+
+
+def test_derived_dialog_copies_and_exports(qapp, tmp_path):
+    from types import SimpleNamespace
+
+    run = SimpleNamespace(operational_availability=0.9, criticality={
+        1: {"name": "Pump", "failure": 0.5, "downtime": 0.25, "cost": 0.1}})
+    parent = QWidget()
+    dialog = DerivedResultsDialog(parent, [run])
+    dialog.copy_current()
+    assert "Operational availability\t0.9" in QApplication.clipboard().text()
+    dialog._tabs.setCurrentIndex(1)
+    dialog.copy_current()
+    assert "Pump\t50.00" in QApplication.clipboard().text()
+    assert dialog.export_xlsx(str(tmp_path / "d.xlsx")) is not None
+    assert (tmp_path / "d.xlsx").stat().st_size > 0
     dialog.close()

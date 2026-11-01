@@ -54,7 +54,7 @@ def test_api_availability_mode(workspace):
 
 def test_api_refuses_phased_model(workspace):
     model_id = _open(workspace, "AirlinerMission")
-    with pytest.raises(NotApplicable, match="phased"):
+    with pytest.raises(NotApplicable, match="has phases"):
         analyse(workspace, model_id)
 
 
@@ -83,7 +83,7 @@ def test_cli_refusal_exit_code(capsys):
     code = main(["analytic", str(MODELS / "AirlinerMission.rbds")])
     captured = capsys.readouterr()
     assert code == X.INVALID
-    assert "phased" in captured.err
+    assert "has phases" in captured.err
 
 
 def test_cli_ignore_repairs(capsys):

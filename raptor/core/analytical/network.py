@@ -12,6 +12,7 @@ result would not prove anything.
 from __future__ import annotations
 
 import math
+from collections.abc import Collection
 from dataclasses import dataclass, field
 
 from raptor.core.engine.load import SimulationModel
@@ -30,6 +31,25 @@ _NONE_SPARING = "NONE"
 #: recursion limit. Practical models are far smaller; this is a refusal, not
 #: an approximation.
 MAX_VARIABLES = 750
+
+
+IGNORABLE = ("repairs", "pm", "spares", "resources")
+STANDBY_MODES = ("active", "absent")
+
+
+@dataclass(frozen=True)
+class Scope:
+    """What the caller asks the solver to assume.
+
+    ``ignore`` drops a whole class of simulation-only behaviour instead of
+    refusing the model (see `IGNORABLE`). ``phase`` is the 1-based phase to
+    analyse as if the system stayed in it. ``standby`` says how to treat
+    cold-standby paths: ``"active"`` (in service) or ``"absent"``.
+    """
+
+    ignore: frozenset[str] = frozenset()
+    phase: int | None = None
+    standby: str | None = None
 
 
 @dataclass
@@ -57,6 +77,11 @@ class BlockInfo:
     event_success: float | None = None
     duty_cycle: float = 1.0
     start_age: float = 0.0
+    #: Cut in the analysed phase: out of the circuit, so no path through it.
+    forced_down: bool = False
+    #: A note on how this element was treated ("cut", "linked", "stress x1.8",
+    #: "standby treated as absent"), or empty when it was analysed as is.
+    state: str = ""
 
     @property
     def mean_down(self) -> float | None:
@@ -70,6 +95,8 @@ class BlockInfo:
     @property
     def availability(self) -> float:
         """Steady-state up probability for an independent component."""
+        if self.forced_down:
+            return 0.0
         if self.perfect:
             return 1.0
         if self.event_success is not None:
@@ -89,6 +116,8 @@ class BlockInfo:
         return self.mean_fail / total
 
     def reliability(self, t: float) -> float:
+        if self.forced_down:
+            return 0.0
         if self.perfect:
             return 1.0
         if self.event_success is not None:
@@ -104,7 +133,7 @@ class BlockInfo:
         return survival.sf(self.fail_code, self.fail_params, effective)
 
     def density(self, t: float) -> float | None:
-        if self.perfect:
+        if self.perfect or self.forced_down:
             return 0.0
         if self.event_success is not None:
             return None
@@ -137,6 +166,7 @@ class BuildResult:
     assumptions: list[str] = field(default_factory=list)
     horizon: float | None = None
     capacity_ignored: bool = False
+    scope: Scope = field(default_factory=Scope)
 
     @property
     def node_count(self) -> int:
@@ -159,7 +189,8 @@ class BuildResult:
             return [0.0] * len(self.variables)
         out: list[float] = []
         for info in self._ordered():
-            if info.perfect or info.event_success is not None:
+            if (info.perfect or info.forced_down
+                    or info.event_success is not None):
                 out.append(0.0)
                 continue
             density = info.density(t)
@@ -174,7 +205,9 @@ class BuildResult:
 
 
 def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, PLR0912, PLR0915
-          ignore_repairs: bool = False) -> BuildResult:
+          ignore_repairs: bool = False, ignore: Collection[str] = (),
+          phase: int | None = None,
+          standby: str | None = None) -> BuildResult:
     """Build the success BDD for ``model``.
 
     Raises `NotApplicable` when the model uses a construct the static solver
@@ -182,7 +215,8 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
     """
     if mode not in ("reliability", "availability"):
         raise ValueError(f"unknown analytical mode {mode!r}")
-    _gate(model, mode=mode, ignore_repairs=ignore_repairs)
+    scope = _scope(model, mode, ignore_repairs, ignore, phase, standby)
+    _gate(model, mode=mode, scope=scope)
 
     start = _one_node(model, 1, "Start")
     end = _one_node(model, 3, "End")
@@ -204,6 +238,7 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
 
     node_memo: dict[int, int] = {}
     visiting: set[int] = set()
+    standby_absent: set[tuple[str, int]] = set()
 
     def input_condition(kind: str, ident: int) -> int:
         link = block_in.get((kind, ident))
@@ -240,12 +275,21 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
         if node.type_node == 1:
             out = TRUE
         else:
-            branches = [branch_condition(link)
-                        for link in incoming.get(node_id, [])]
-            k = node.good_paths
-            if node.type_node == 3 or k <= 0:
-                k = 1
-            out = bdd.threshold(branches, k)
+            links = incoming.get(node_id, [])
+            k = _node_k(node, scope, len(links))
+            if k <= 0 and node.type_node == 5 and scope.phase is not None:
+                out = TRUE   # a hierarchy Out node Linked in this phase
+            else:
+                if node.type_node == 3 or k <= 0:
+                    k = 1
+                if node.cold_standby and scope.standby == "absent":
+                    kept, dropped = _split_standby(node, links, k)
+                    links = kept
+                    for link in dropped:
+                        kind, ident = _link_source(link)
+                        if kind in ("RBDBlock", "RBDEvent"):
+                            standby_absent.add((kind, ident))
+                out = bdd.threshold([branch_condition(link) for link in links], k)
         visiting.remove(node_id)
         node_memo[node_id] = out
         return out
@@ -257,10 +301,12 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
         kind, ident = key
         if kind == "RBDBlock":
             infos.append(_block_info(model.blocks_by_id[ident],
-                                     var_index[key], mode=mode))
+                                     var_index[key], mode=mode, scope=scope))
         else:
             infos.append(_event_info(model.events_by_id[ident],
-                                     var_index[key]))
+                                     var_index[key], scope=scope))
+        if key in standby_absent:
+            infos[-1].state = "standby, treated as absent"
 
     warnings: list[str] = []
     if model.capacity_analysis:
@@ -294,15 +340,20 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
     ]
     if mode == "reliability":
         assumptions.append("no repairs: R(t) is the first-failure reliability")
-        assumptions.append("duty cycle scales effective age; Start=3 start "
-                           "ages are conditional")
-        if ignore_repairs:
-            assumptions.append("repair distributions were explicitly ignored")
+        assumptions.append(
+            "a block with a duty cycle ages at that fraction of calendar "
+            "time; a block with a start age is treated as having already "
+            "survived to that age, so its reliability is conditional on that")
     else:
         assumptions.append(
             "steady state, perfect repair, independent alternating-renewal "
             "components")
         assumptions.append("A_i = MTTF_i / (MTTF_i + MTTR_i)")
+    assumptions.extend(_scope_notes(model, scope, mode, infos))
+    if scope.phase is not None:
+        warnings.append(
+            "phase transitions are ignored: the system is analysed as if it "
+            "stayed in this phase for the whole time")
 
     horizon = model.run_length if model.termination_type == "TimeSim" else None
     return BuildResult(
@@ -318,6 +369,7 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
         assumptions=assumptions,
         horizon=horizon,
         capacity_ignored=model.capacity_analysis,
+        scope=scope,
     )
 
 
@@ -335,60 +387,91 @@ def _one_node(model: SimulationModel, node_type: int, label: str) -> int:
     return found[0]
 
 
-def _gate(model: SimulationModel, *, mode: str, ignore_repairs: bool) -> None:
-    if model.phases:
+def _gate(model: SimulationModel, *, mode: str, scope: Scope) -> None:  # noqa: C901
+    if model.phases and scope.phase is None:
         raise NotApplicable(
-            "phased models are outside the analytical solver: the structure "
-            "or k-requirement can change by phase")
+            "the model has phases, and the structure or k-requirement can "
+            "change by phase. Choose one phase to analyse as if the system "
+            "stayed in it")
     if model.startup_failures:
         raise NotApplicable(
             "the model uses the StartUpFaiLures trigger, which is a startup "
             "redraw rule outside the static solver")
     for block in model.blocks_by_id.values():
-        _gate_block(block, mode=mode, ignore_repairs=ignore_repairs)
+        _gate_block(block, mode=mode, scope=scope)
+    cold_links: set[int] = set()
     for node in model.nodes_by_id.values():
-        if node.cold_standby or node.cold_links or _has_dep(node):
+        if _has_dep(node):
             raise NotApplicable(
-                f"node {node.id} {node.node_name!r} uses cold standby or a "
-                "dependency; the analytical solver covers plain success paths")
+                f"node {node.id} {node.node_name!r} has a dependency; the "
+                "analytical solver covers plain success paths")
+        if node.cold_standby or node.cold_links:
+            if scope.standby is None:
+                raise NotApplicable(
+                    f"node {node.id} {node.node_name!r} uses cold standby. "
+                    "Choose whether to treat the standby paths as in "
+                    "service or as absent")
+            cold_links.update(node.cold_links)
         if node.active_status != ActiveStatus.ACTIVE:
             raise NotApplicable(
-                f"node {node.id} {node.node_name!r} is not Active; phased or "
-                "cut structures are outside the analytical solver")
+                f"node {node.id} {node.node_name!r} is not Active; cut "
+                "structures are outside the analytical solver")
     for event in model.events_by_id.values():
-        _gate_event(event)
+        _gate_event(event, scope)
     for link in model.links_by_id.values():
-        if link.switch_status or link.sb_link:
+        if (link.switch_status or link.sb_link) \
+                and link.object_num not in cold_links:
             raise NotApplicable(
                 f"link {link.object_num} is a standby/dependency link; the "
                 "analytical solver covers plain success paths")
 
 
-def _gate_block(block: RBDBlock, *, mode: str, ignore_repairs: bool) -> None:  # noqa: C901, PLR0912
+def _phase_of(item, scope: Scope) -> tuple[str, float] | None:
+    """The (type, value) a block/event takes in the analysed phase."""
+    if scope.phase is None or not item.uses_phasing or not item.phase_type:
+        return None
+    index = scope.phase - 1
+    if index >= len(item.phase_type):
+        return None
+    value = item.phase_value[index] if index < len(item.phase_value) else 1.0
+    return item.phase_type[index].strip().upper()[:1], float(value)
+
+
+def _gate_block(block: RBDBlock, *, mode: str, scope: Scope) -> None:  # noqa: C901, PLR0912, PLR0915
     name = f"block {block.id} {block.name!r}"
     if block.active_status != ActiveStatus.ACTIVE:
         raise NotApplicable(f"{name} is not Active")
-    if block.uses_phasing or block.phase_type or block.phase_value:
+    phase = _phase_of(block, scope)
+    if scope.phase is None and (block.uses_phasing or block.phase_type
+                                or block.phase_value):
         raise NotApplicable(f"{name} uses phases")
-    if _has_dep(block):
+    if phase is not None and phase[0] not in ("A", "C", "L"):
+        raise NotApplicable(
+            f"{name} has phase type {phase[0]!r}, which the analytical "
+            "solver does not understand")
+    if _has_dep(block) and not (block.cold_dep and scope.standby):
         raise NotApplicable(f"{name} has a dependency")
-    if block.uses_pm or block.pm_triggered:
+    if (block.uses_pm or block.pm_triggered) and "pm" not in scope.ignore:
         raise NotApplicable(f"{name} uses preventive maintenance")
-    if block.cold_dep:
+    if block.cold_dep and not scope.standby:
         raise NotApplicable(f"{name} uses cold standby")
-    if block.sb_stress not in (0.0, 1.0):
+    if block.sb_stress not in (0.0, 1.0) and not scope.standby:
         raise NotApplicable(
             f"{name} has standby stress {block.sb_stress!r}; standby stress "
             "is outside the analytical solver")
-    if block.sparing_type.name not in (_NONE_SPARING, _INFINITE_SPARING):
+    spares_ok = "spares" in scope.ignore
+    if (block.sparing_type.name not in (_NONE_SPARING, _INFINITE_SPARING)
+            and not spares_ok):
         raise NotApplicable(
             f"{name} uses sparing type {block.sparing_type.value!r}; spare "
             "pools are simulation-only")
-    if block.pool_name and block.pool_name.lower() not in ("", "none", "unnamed"):
+    if (block.pool_name and not spares_ok
+            and block.pool_name.lower() not in ("", "none", "unnamed")):
         raise NotApplicable(
             f"{name} names spare pool {block.pool_name!r}; spare pools are "
             "simulation-only")
-    if block.resource_pool_name and block.resource_pool_name.lower() not in ("", "none"):
+    if (block.resource_pool_name and "resources" not in scope.ignore
+            and block.resource_pool_name.lower() not in ("", "none")):
         raise NotApplicable(
             f"{name} names resource pool {block.resource_pool_name!r}; "
             "resources are simulation-only")
@@ -424,10 +507,10 @@ def _gate_block(block: RBDBlock, *, mode: str, ignore_repairs: bool) -> None:  #
                 f"{block.amount_exhausted!r} already consumed; reliability "
                 "mode assumes every block starts up at age zero")
         if block.repair_distro != int(RngDistribution.NONE):
-            if not ignore_repairs:
+            if "repairs" not in scope.ignore:
                 raise NotApplicable(
-                    f"{name} has a repair distribution; reliability mode "
-                    "means non-repairable. Pass --ignore-repairs to compute "
+                    f"{name} has a repair distribution, but reliability "
+                    "mode means non-repairable. Ignore repairs to compute "
                     "the first-failure reliability anyway")
             return
     else:  # availability
@@ -463,12 +546,18 @@ def _has_dep(item) -> bool:
                 or dep_type not in ('', 'none'))
 
 
-def _gate_event(event: RBDEvent) -> None:
+def _gate_event(event: RBDEvent, scope: Scope) -> None:
     name = f"event {event.id} {event.name!r}"
     if event.active_status != ActiveStatus.ACTIVE:
         raise NotApplicable(f"{name} is not Active")
-    if event.uses_phasing or event.phase_type or event.phase_value:
+    phase = _phase_of(event, scope)
+    if scope.phase is None and (event.uses_phasing or event.phase_type
+                                or event.phase_value):
         raise NotApplicable(f"{name} uses phases")
+    if phase is not None and phase[0] not in ("A", "C", "L"):
+        raise NotApplicable(
+            f"{name} has phase type {phase[0]!r}, which the analytical "
+            "solver does not understand")
     if event.fail_distro != int(RngDistribution.BERNOULLI):
         raise NotApplicable(
             f"{name} uses failure distribution code {event.fail_distro}; "
@@ -577,8 +666,104 @@ def _mean_or_inf(code: int, params: list[float]) -> float:
     return math.inf if value is None else value
 
 
-def _block_info(block: RBDBlock, variable: int, *, mode: str) -> BlockInfo:
+def _scope(model: SimulationModel, mode: str, ignore_repairs: bool,
+           ignore: Collection[str], phase: int | None,
+           standby: str | None) -> Scope:
+    chosen = {str(item).lower() for item in ignore}
+    if ignore_repairs:
+        chosen.add("repairs")
+    unknown = chosen - set(IGNORABLE)
+    if unknown:
+        raise ValueError(
+            f"cannot ignore {sorted(unknown)}; choose from {list(IGNORABLE)}")
+    if mode == "availability":
+        chosen.discard("repairs")   # availability is defined by repairs
+    if standby is not None and standby not in STANDBY_MODES:
+        raise ValueError(f"standby must be one of {list(STANDBY_MODES)}")
+    if phase is not None:
+        if not model.phases:
+            raise NotApplicable("the model has no phases to choose from")
+        if not 1 <= phase <= len(model.phases):
+            raise ValueError(
+                f"phase must be between 1 and {len(model.phases)}")
+    return Scope(frozenset(chosen), phase, standby)
+
+
+def _node_k(node, scope: Scope, inputs: int) -> int:
+    """The good-paths requirement of ``node`` in the analysed phase.
+
+    A phase value of -1 is the engine's "impossible" sentinel (more paths
+    than the node has).
+    """
+    if scope.phase is not None and node.uses_phasing and node.phase:
+        index = scope.phase - 1
+        if index < len(node.phase):
+            value = node.phase[index]
+            return inputs + 1 if value == -1 else value
+    return node.good_paths
+
+
+def _split_standby(node, links: list, k: int):
+    """Split a cold node's input links into the first ``k`` by switching
+    priority (in service) and the rest (standby)."""
+    order = {lid: pos for pos, lid in enumerate(node.cold_links)}
+    ranked = sorted(links, key=lambda link: order.get(link.object_num, -1))
+    return ranked[:k], ranked[k:]
+
+
+_IGNORE_NOTES = {
+    "repairs": "repair distributions were ignored: blocks are treated as "
+               "non-repairable",
+    "pm": "preventive maintenance was ignored: results do not include PM "
+          "downtime or age renewal",
+    "spares": "spares were ignored: a replacement part is assumed always "
+              "available at once",
+    "resources": "resources were ignored: crews and tools are assumed "
+                 "always available",
+}
+
+
+def _scope_notes(model: SimulationModel, scope: Scope, mode: str,
+                 infos: list[BlockInfo]) -> list[str]:
+    notes = [_IGNORE_NOTES[item] for item in IGNORABLE
+             if item in scope.ignore]
+    if scope.phase is not None:
+        phase = model.phases[scope.phase - 1]
+        label = phase.phase_name or f"phase {scope.phase}"
+        notes.append(
+            f"analysed in phase {scope.phase} ({label}) for the whole time; "
+            "phase types and values were applied to each element")
+    if scope.standby == "active":
+        notes.append(
+            "standby paths are treated as fully in service; switching "
+            "time and switch failures are ignored")
+    elif scope.standby == "absent":
+        count = sum(1 for info in infos if "absent" in info.state)
+        notes.append(
+            f"standby paths are treated as absent ({count} element(s) "
+            "removed); switching is ignored")
+    return notes
+
+
+def _block_info(block: RBDBlock, variable: int, *, mode: str,
+                scope: Scope) -> BlockInfo:
     perfect = block.fail_distro == int(RngDistribution.NONE)
+    duty = block.duty_cycle
+    forced_down = False
+    state = ""
+    phase = _phase_of(block, scope)
+    if phase is not None:
+        kind, value = phase
+        if kind == "C":
+            forced_down, state = True, "cut in this phase"
+        elif kind == "L":
+            perfect, state = True, "linked (bypassed) in this phase"
+        elif value != 1.0:
+            duty = block.duty_cycle * value
+            state = f"stress x{value:g} in this phase"
+            if duty <= 0.0:
+                perfect = True
+                state = "does not age in this phase"
     repairable = block.repair_distro != int(RngDistribution.NONE)
     mean_fail = None if perfect else survival.mean(block.fail_distro,
                                                    block.fail_values)
@@ -606,18 +791,31 @@ def _block_info(block: RBDBlock, variable: int, *, mode: str) -> BlockInfo:
         post_params=list(block.post_params),
         perfect=perfect,
         repairable=repairable,
-        mean_fail=(mean_fail / block.duty_cycle
-                   if mean_fail is not None and block.duty_cycle > 0 else None),
+        mean_fail=(mean_fail / duty
+                   if mean_fail is not None and duty > 0 else None),
         mean_repair=mean_repair,
         mean_pre=mean_pre,
         mean_post=mean_post,
-        duty_cycle=block.duty_cycle,
+        duty_cycle=duty if duty > 0 else block.duty_cycle,
         start_age=block.start_age,
+        forced_down=forced_down,
+        state=state,
     )
 
 
-def _event_info(event: RBDEvent, variable: int) -> BlockInfo:
+def _event_info(event: RBDEvent, variable: int, *, scope: Scope) -> BlockInfo:
     probability = float(event.fail_mean)
+    state = ""
+    phase = _phase_of(event, scope)
+    forced_down = False
+    if phase is not None:
+        kind, value = phase
+        if kind == "A":
+            probability, state = value, "probability set by this phase"
+        elif kind == "C":
+            forced_down, state = True, "cut in this phase"
+        elif kind == "L":
+            probability, state = 1.0, "linked (bypassed) in this phase"
     if not (0.0 <= probability <= 1.0):
         raise NotApplicable(
             f"event {event.id} {event.name!r} has success probability "
@@ -636,4 +834,6 @@ def _event_info(event: RBDEvent, variable: int) -> BlockInfo:
         post_code=int(RngDistribution.FIXED),
         post_params=[0.0],
         event_success=probability,
+        forced_down=forced_down,
+        state=state,
     )

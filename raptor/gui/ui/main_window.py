@@ -3384,7 +3384,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._diagram_dock.view.go_home()
 
     def _show_derived_dialog(self):
-        """Results ▸ Availability & Criticality: additive run metrics."""
+        """Results ▸ Availability and Criticality: additive run metrics."""
         from raptor.gui.ui.derived_dialog import open_derived_dialog
         open_derived_dialog(self)
 

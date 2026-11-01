@@ -847,7 +847,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(
         id="results.derived",
         attr="_derived_action",
-        text="Availability & Criticality…",
+        text="Availability and Criticality…",
         icon="detail_view_icon:accent",
         tooltip=(
             "Additive run metrics: inherent/achieved/operational "

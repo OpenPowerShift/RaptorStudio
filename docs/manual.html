@@ -475,18 +475,23 @@ as independent, whatever random-number streams they use.</p>
 <div class="paragraph">
 <p>The solver covers series, parallel, mixed, k-of-n, bridge networks and
 hierarchies. It refuses, naming the first offending element, PM, spares,
-resources, dependencies, standby, phases and non-Bernoulli events; use the
-simulator for those. <code>Ignore repairs</code> in reliability mode gives the
-first-failure reliability of a repairable model. The full scope and the API
+resources, repairs (in reliability mode), dependencies, cold standby, phases
+and non-Bernoulli events; use the simulator for those. The <strong>Ignore</strong> row
+(Repairs, Preventive maintenance, Spares, Resources) drops that behaviour
+instead of refusing, <strong>Phase</strong> analyses a phased model as if it stayed in one
+phase, and <strong>Standby</strong> treats cold-standby paths as fully in service or as
+absent; each choice is listed under the assumptions. <strong>Copy</strong> and
+<strong>Export…</strong> (a spreadsheet) save the result. The full scope and the API
 are in <a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md">the analytical solver guide</a>.</p>
 </div>
 <div class="paragraph">
-<p><strong>Results ▸ Availability &amp; Criticality…</strong> reads the latest run&#8217;s additive
+<p><strong>Results ▸ Availability and Criticality…</strong> reads the latest run&#8217;s additive
 metrics: operational / inherent / achieved availability, MTTFF, MTBF and
 MTBE on a total-time denominator, component CM/PM counts, Red-time cause
 buckets, and per-block failure / downtime / cost criticality. These are not
 added to the legacy report text, which stays byte-compatible with captured
-reference output.</p>
+reference output. <strong>Copy</strong> puts the visible tab on the clipboard and
+<strong>Export…</strong> saves both tabs as a spreadsheet.</p>
 </div>
 </div>
 <div class="sect2">
@@ -2206,7 +2211,7 @@ current value).</p>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Availability  Criticality…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Availability and Criticality…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The report text is unchanged.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>

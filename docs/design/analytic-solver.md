@@ -67,8 +67,10 @@ measures into exact ones on this subset.
   up probability above.
 - Preventive maintenance, inspections, on-condition tasks.
 - Spare pools, resource pools, crews, queues.
-- Dependencies, cold/hot standby, switching.
-- Phases and phase-dependent structure.
+- Dependencies and switching (cold standby is analysed only when the caller
+  chooses to treat it as in service or absent).
+- Phase changes during a mission (one chosen phase can be analysed as if
+  the system stayed in it).
 - Capacity/flow as the success criterion.
 - Non-coherent logic (inverted blocks, fault trees).
 - Load sharing, common cause, multi-state blocks.
@@ -216,10 +218,11 @@ correctly gives `A_ss = 0`.
 
 Reliability mode requires:
 
-- every block's `repair_distro` is `NONE`, or `ignore_repairs=True` was
-  passed explicitly (the result says "repairs ignored");
-- no PM, spares, resources, dependencies, standby, phases, capacity
-  success criterion, or non-Bernoulli events.
+- every block's `repair_distro` is `NONE`, or `repairs` is in `ignore`
+  (the result says "repair distributions were ignored");
+- no PM, spares or resources unless in `ignore`; no dependencies, capacity
+  success criterion, or non-Bernoulli events; cold standby only with a
+  `standby` choice, and phases only with a chosen `phase`.
 
 Availability mode requires:
 
@@ -227,8 +230,7 @@ Availability mode requires:
   (`fail_distro == NONE`), or explicitly non-repairable and accepted as
   `A_i = 0` at steady state. A series path through a non-repairable block
   correctly gives `A_sys = 0`; a parallel path may still keep the system up.
-- no PM, spares, resources, dependencies, standby, phases, capacity
-  success criterion;
+- the same scope rules as reliability mode (`ignore`, `phase`, `standby`);
 - pre/post logistic delays are allowed only when their distributions are
   non-random or their means are finite; they are added to MTTR;
 - no warning about shared random streams: draws from one stream are still
@@ -298,7 +300,9 @@ raptor analytic MODEL
     --bx 10,5
     --importance
     --equation
-    --ignore-repairs
+    --ignore repairs,pm,spares,resources   (--ignore-repairs still works)
+    --phase N
+    --standby active|absent
     -f text|json|csv
 ```
 

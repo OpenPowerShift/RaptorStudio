@@ -159,6 +159,9 @@
    "schema": {
     "type": "string"
    },
+   "scope": {
+    "type": "object"
+   },
    "time": {
     "type": [
      "number",
@@ -187,6 +190,7 @@
    "mode",
    "model",
    "schema",
+   "scope",
    "time",
    "units",
    "warnings"

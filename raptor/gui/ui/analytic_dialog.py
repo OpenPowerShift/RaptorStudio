@@ -26,10 +26,11 @@ from PySide6.QtWidgets import (
     QPushButton, QSizePolicy, QStackedWidget, QTableWidget,
     QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget)
 
-from raptor.api.analytical import analyse_rbd
+from raptor.api.analytical import analyse_rbd, scope_options
 from raptor.api.analytical_text import fmt as _fmt_full
-from raptor.api.analytical_text import summary_text
+from raptor.api.analytical_text import scope_sentence, summary_text
 from raptor.core.analytical.errors import AnalyticalError
+from raptor.gui.ui import msgbox
 from raptor.gui.resources.design_tokens import (
     RADIUS, SPACING, TYPE, ThemeManager, active_colour)
 
@@ -217,6 +218,7 @@ class AnalyticDialog(QDialog):
         self._token = 0
         self._busy = False
         self._rerun = False     # settings changed while a solve was running
+        self._has_standby = False   # the open model has cold-standby nodes
         self._shown_rbd_id: int | None = None
         self._result: dict[str, Any] | None = None
         self._inbox: queue.Queue = queue.Queue()
@@ -246,7 +248,12 @@ class AnalyticDialog(QDialog):
             "Exact answers without sampling, for models inside the static "
             "subset. Reliability mode is non-repairable; availability mode "
             "is the steady state of independent, perfectly repaired "
-            "components. Components are treated as independent.")
+            "components. Components are treated as independent.\n"
+            "The solver turns the diagram into a BDD (binary decision "
+            "diagram): a compact exact map of which combinations of working "
+            "and failed elements keep the system up. It is a calculation "
+            "aid, not a simulation, and its size is not the number of "
+            "blocks.")
         self._intro.setObjectName("SectionNote")
         self._intro.setWordWrap(True)
         root.addWidget(self._intro)
@@ -258,6 +265,13 @@ class AnalyticDialog(QDialog):
         self._banner.setObjectName("SectionNote")
         self._banner.setWordWrap(True)
         root.addWidget(self._banner)
+
+        self._scope_note = QLabel("")
+        self._scope_note.setObjectName("ScopeNote")
+        self._scope_note.setWordWrap(True)
+        self._scope_note.setTextFormat(Qt.TextFormat.PlainText)
+        self._scope_note.hide()
+        root.addWidget(self._scope_note)
 
         self._pages = QStackedWidget()
         self._pages.addWidget(self._build_message_page())
@@ -271,10 +285,18 @@ class AnalyticDialog(QDialog):
         self._copy.setAutoDefault(False)
         self._copy.setEnabled(False)
         self._copy.clicked.connect(self._copy_result)
+        self._export = QPushButton("Export…")
+        self._export.setToolTip(
+            "Save the result as a spreadsheet (.xlsx): summary, elements "
+            "with importance measures, curve, equation and assumptions")
+        self._export.setAutoDefault(False)
+        self._export.setEnabled(False)
+        self._export.clicked.connect(self.export_result)
         close = QPushButton("Close")
         close.setAutoDefault(False)
         close.clicked.connect(self.close)
         footer.addWidget(self._copy)
+        footer.addWidget(self._export)
         footer.addWidget(close)
         root.addLayout(footer)
 
@@ -333,13 +355,8 @@ class AnalyticDialog(QDialog):
         self._equation = QCheckBox("Equation")
         self._equation.setToolTip(
             "The exact system equation as a sum of path products.")
-        self._ignore = QCheckBox("Ignore repairs")
-        self._ignore.setToolTip(
-            "Reliability mode only: compute the first-failure reliability "
-            "of a model that has repair distributions.")
         for check, name in ((self._importance, "Importance measures"),
-                            (self._equation, "Show the equation"),
-                            (self._ignore, "Ignore repairs")):
+                            (self._equation, "Show the equation")):
             check.setAccessibleName(name)
             options.addWidget(check)
         options.addStretch(1)
@@ -348,12 +365,58 @@ class AnalyticDialog(QDialog):
         options.setContentsMargins(0, 0, 0, 0)
         form.addRow("Include:", self._options_host)
 
+        ignore = QHBoxLayout()
+        ignore.setContentsMargins(0, 0, 0, 0)
+        self._ignore = QCheckBox("Repairs")
+        self._ignore.setToolTip(
+            "Reliability mode only: compute the first-failure reliability "
+            "of a model that has repair distributions.")
+        self._ignore_pm = QCheckBox("Preventive maintenance")
+        self._ignore_pm.setToolTip(
+            "Leave out PM: no PM downtime and no age renewal.")
+        self._ignore_spares = QCheckBox("Spares")
+        self._ignore_spares.setToolTip(
+            "Assume a replacement part is always available at once.")
+        self._ignore_resources = QCheckBox("Resources")
+        self._ignore_resources.setToolTip(
+            "Assume crews and tools are always available.")
+        for check in (self._ignore, self._ignore_pm, self._ignore_spares,
+                      self._ignore_resources):
+            check.setAccessibleName(f"Ignore {check.text().lower()}")
+            ignore.addWidget(check)
+        ignore.addStretch(1)
+        self._ignore_host = QWidget()
+        self._ignore_host.setLayout(ignore)
+        form.addRow("Ignore:", self._ignore_host)
+
+        self._phase = QComboBox()
+        self._phase.setAccessibleName("Phase to analyse")
+        self._phase.setToolTip(
+            "Analyse the system as if it stayed in this phase for the whole "
+            "time. Phase changes during the mission are not modelled.")
+        form.addRow("Phase:", self._phase)
+
+        self._standby = QComboBox()
+        self._standby.setAccessibleName("Standby treatment")
+        self._standby.setToolTip(
+            "Cold-standby paths are normally refused. Choose to treat them "
+            "as fully in service, or as if they did not exist. Switching "
+            "time and switch failures are ignored either way.")
+        self._standby.addItem("Not chosen (the model is refused)", None)
+        self._standby.addItem("Treat as fully in service", "active")
+        self._standby.addItem("Treat as absent", "absent")
+        form.addRow("Standby:", self._standby)
+
         self._form = form
         self._reliability_rows = (self._at, self._times, self._bx)
         self._mode.currentIndexChanged.connect(self._mode_changed)
         for signal in (self._at.valueChanged, self._times.textChanged,
                        self._bx.textChanged, self._importance.toggled,
-                       self._equation.toggled, self._ignore.toggled):
+                       self._equation.toggled, self._ignore.toggled,
+                       self._ignore_pm.toggled, self._ignore_spares.toggled,
+                       self._ignore_resources.toggled,
+                       self._phase.currentIndexChanged,
+                       self._standby.currentIndexChanged):
             signal.connect(self._settings_changed)
         for line in (self._times, self._bx):
             line.returnPressed.connect(self.compute)
@@ -443,8 +506,15 @@ class AnalyticDialog(QDialog):
         self._equation_view.setAccessibleName("System equation")
         self._equation_view.setFont(QFontDatabase.systemFont(
             QFontDatabase.SystemFont.FixedFont))
-        self._tab_equation = self._tabs.addTab(self._equation_view,
-                                               "Equation")
+        equation_page = QWidget()
+        equation_lay = QVBoxLayout(equation_page)
+        equation_lay.setContentsMargins(0, SPACING["sm"], 0, 0)
+        self._equation_note = QLabel("")
+        self._equation_note.setObjectName("SectionNote")
+        self._equation_note.setWordWrap(True)
+        equation_lay.addWidget(self._equation_note)
+        equation_lay.addWidget(self._equation_view, 1)
+        self._tab_equation = self._tabs.addTab(equation_page, "Equation")
 
         self._notes = QPlainTextEdit()
         self._notes.setReadOnly(True)
@@ -457,6 +527,11 @@ class AnalyticDialog(QDialog):
     def _restyle(self) -> None:
         c = active_colour()
         self.setStyleSheet(
+            f"QLabel#ScopeNote {{ color: {c['text']}; "
+            f"border: 1px solid {c['accent']}; "
+            f"border-left: {SPACING['xs']}px solid {c['accent']}; "
+            f"border-radius: {RADIUS['control']}px; "
+            f"padding: {SPACING['sm']}px {SPACING['md']}px; }}"
             f"QLabel#DialogHeading {{ font-size: {TYPE['title']}px; "
             f"font-weight: 600; color: {c['text']}; }}"
             f"QLabel#SectionNote {{ color: {c['muted']}; "
@@ -491,6 +566,7 @@ class AnalyticDialog(QDialog):
         self._at.setValue(horizon if horizon is not None else 0.0)
         self._at.blockSignals(False)
         self._set_title(rbd)
+        self._fill_scope_controls(rbd)
         self._mode_changed(solve=False)
         if horizon is None and self._mode.currentData() == "reliability":
             self._show_notice(
@@ -501,6 +577,27 @@ class AnalyticDialog(QDialog):
             self._at.setFocus()
         else:
             self.compute()
+
+    def _fill_scope_controls(self, rbd: Any) -> None:
+        """Show the phase and standby choices only when the model has them."""
+        try:
+            offered = scope_options(rbd)
+        except Exception:  # noqa: BLE001 - the solve will explain a bad model
+            offered = {"phases": [], "has_standby": False}
+        phases = offered["phases"]
+        for widget in (self._phase, self._standby):
+            widget.blockSignals(True)
+        self._phase.clear()
+        if phases:
+            self._phase.addItem("Choose a phase…", None)
+            for number, name in enumerate(phases, 1):
+                self._phase.addItem(f"{number}. {name}", number)
+        self._standby.setCurrentIndex(0)
+        for widget in (self._phase, self._standby):
+            widget.blockSignals(False)
+        self._form.setRowVisible(self._phase, bool(phases))
+        self._has_standby = bool(offered["has_standby"])
+        self._form.setRowVisible(self._standby, self._has_standby)
 
     def _model_name(self) -> str:
         path = getattr(self._win, "_current_file", None)
@@ -552,8 +649,21 @@ class AnalyticDialog(QDialog):
             "bx": bx,
             "importance": self._importance.isChecked(),
             "equation": self._equation.isChecked(),
-            "ignore_repairs": self._ignore.isChecked() and reliability,
+            "ignore": self._ignored(reliability),
+            "phase": self._phase.currentData(),
+            "standby": (self._standby.currentData()
+                        if self._has_standby else None),
         }
+
+    def _ignored(self, reliability: bool) -> list[str]:
+        chosen = []
+        for check, key in ((self._ignore, "repairs"),
+                           (self._ignore_pm, "pm"),
+                           (self._ignore_spares, "spares"),
+                           (self._ignore_resources, "resources")):
+            if check.isChecked() and (reliability or key != "repairs"):
+                chosen.append(key)
+        return chosen
 
     # -- running --------------------------------------------------------------
 
@@ -612,20 +722,30 @@ class AnalyticDialog(QDialog):
             return
         if error is not None:
             self._result = None
-            self._copy.setEnabled(False)
+            self._set_actions(False)
             kind, message = error
             titles = {
                 "refused": "This model is outside the static solver",
                 "invalid": "Check the settings",
                 "failed": "The analysis could not be completed",
             }
-            repairs = ("\n\nIf you only want the first-failure reliability, "
-                       "tick “Ignore repairs”."
-                       if "repair distribution" in message else "")
+            tips = {
+                "repair distribution": "tick Ignore ▸ Repairs",
+                "preventive maintenance": "tick Ignore ▸ Preventive "
+                                          "maintenance",
+                "spare": "tick Ignore ▸ Spares",
+                "resource": "tick Ignore ▸ Resources",
+                "has phases": "choose a Phase",
+                "cold standby": "choose a Standby treatment",
+            }
+            lowered = message.lower()
+            advice = [tip for key, tip in tips.items() if key in lowered]
+            suggestion = (f"\n\nTo analyse the model anyway, "
+                          f"{advice[0]}." if advice else "")
             hint = {
                 "refused": "\n\nSimulation handles repairs, preventive "
                            "maintenance, spares, resources, dependencies, "
-                           "standby and phases." + repairs,
+                           "standby and phases." + suggestion,
                 "invalid": "",
                 "failed": "\n\nThe model was not changed.",
             }[kind]
@@ -642,7 +762,7 @@ class AnalyticDialog(QDialog):
         self._notice_body.setText(body)
         self._pages.setCurrentIndex(0)
         self._banner.setText("")
-        self._copy.setEnabled(False)
+        self._set_actions(False)
 
     def _show_result(self, result: dict[str, Any]) -> None:
         self._fill_summary(result)
@@ -650,20 +770,38 @@ class AnalyticDialog(QDialog):
         self._fill_curve(result)
         equation = result.get("equation")
         self._equation_view.setPlainText(equation or "")
+        quantity = ("reliability" if result["mode"] == "reliability"
+                    else "availability")
+        letter = "R" if result["mode"] == "reliability" else "A"
+        self._equation_note.setText(
+            f"The system {quantity} written out exactly. {letter}_name is "
+            f"that element's {quantity}"
+            + (" at the mission time" if letter == "R" else "")
+            + f"; (1 - {letter}_name) means it has failed. Each bracketed "
+            "term is one distinct way the system can work, and the terms "
+            "never overlap, so adding them gives the system "
+            f"{quantity}.")
         self._fill_notes(result)
         self._tabs.setTabVisible(self._tab_curve, bool(result.get("times")))
         self._tabs.setTabVisible(self._tab_equation, bool(equation))
+        self._show_scope(result)
         self._pages.setCurrentIndex(1)
         if self._tabs.currentIndex() == -1 or not self._tabs.isTabVisible(
                 self._tabs.currentIndex()):
             self._tabs.setCurrentIndex(self._tab_summary)
-        self._copy.setEnabled(True)
+        self._set_actions(True)
         warnings = len(result.get("warnings") or [])
         note = (f"  {warnings} warning(s) on the Assumptions tab."
                 if warnings else "")
         self._banner.setText(
-            f"Exact static result from a {result['bdd_nodes']:,}-node "
-            f"diagram. The model was not sampled or changed.{note}")
+            f"Exact static result. The model was not sampled or "
+            f"changed.{note}")
+
+    def _show_scope(self, result: dict[str, Any]) -> None:
+        """Say plainly, above every tab, what this answer assumed."""
+        text = scope_sentence(result.get("scope"))
+        self._scope_note.setText(text)
+        self._scope_note.setVisible(bool(text))
 
     def _clear_cards(self) -> None:
         while self._cards.count():
@@ -723,6 +861,7 @@ class AnalyticDialog(QDialog):
                 cards.append(self._card(
                     f"B{key} life", value,
                     f"Time by which {key} % of systems have failed.",
+                    sub=f"{key}% of systems fail by this time",
                     suffix=suffix))
             conditional = result.get("conditional")
             if conditional:
@@ -763,7 +902,7 @@ class AnalyticDialog(QDialog):
                        for k in keys]
         return values
 
-    def _fill_elements(self, result: dict[str, Any]) -> None:
+    def _fill_elements(self, result: dict[str, Any]) -> None:  # noqa: C901
         availability = result["mode"] == "availability"
         importance = {(row["kind"], row["id"]): row
                       for row in result.get("importance") or []}
@@ -775,6 +914,9 @@ class AnalyticDialog(QDialog):
             headers += ["Birnbaum", "RAW", "RRW", "Fussell–Vesely",
                         "Criticality"]
         components = list(result.get("components") or [])
+        treated = any(c.get("state") for c in components)
+        if treated:
+            headers.append("Treatment")
         if importance:
             order = {key: i for i, key in enumerate(importance)}
             components.sort(key=lambda row: order.get(
@@ -798,9 +940,13 @@ class AnalyticDialog(QDialog):
                 importance.get((comp["kind"], comp["id"])), bool(importance))
             for offset, value in enumerate(cells, 1):
                 table.setItem(row, offset, _NumItem(value))
+            if treated:
+                table.setItem(row, len(headers) - 1,
+                              QTableWidgetItem(comp.get("state") or ""))
         table.setSortingEnabled(True)
         if importance:
-            table.sortItems(len(headers) - 1, Qt.SortOrder.DescendingOrder)
+            table.sortItems(len(headers) - 1 - int(treated),
+                            Qt.SortOrder.DescendingOrder)
 
     def _fill_curve(self, result: dict[str, Any]) -> None:
         points = result.get("times") or []
@@ -830,6 +976,34 @@ class AnalyticDialog(QDialog):
             f"Assumptions ({len(warnings)} warning"
             f"{'s' if len(warnings) != 1 else ''})" if warnings
             else "Assumptions")
+
+    def _set_actions(self, enabled: bool) -> None:
+        self._copy.setEnabled(enabled)
+        self._export.setEnabled(enabled)
+
+    def export_result(self, path: str | None = None) -> str | None:
+        """Write the current result to a workbook (asks for a file if none)."""
+        if self._result is None:
+            return None
+        from raptor.api.analytical_export import export_xlsx
+        if not path:
+            from raptor.gui.ui.filedialogs import getSaveFileName
+            start = os.path.dirname(
+                str(getattr(self._win, "_current_file", "") or "")
+            ) or os.getcwd()
+            path, _ = getSaveFileName(
+                self, "Export analytical result",
+                os.path.join(start, f"{self._model_name()}_analytical.xlsx"),
+                "Spreadsheet (*.xlsx)")
+            if not path:
+                return None
+        try:
+            export_xlsx(self._result, path)
+        except OSError as exc:
+            msgbox.warning(self, "Export failed", str(exc))
+            return None
+        self._banner.setText(f"Saved {os.path.basename(path)}")
+        return path
 
     def _copy_result(self) -> None:
         if self._result is not None:

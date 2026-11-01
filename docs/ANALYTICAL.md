@@ -43,10 +43,16 @@ Returns:
 - a curve with `--times`; the application plots one from 0 to the mission
   time when none is given.
 
+The solver works on a **BDD** (binary decision diagram): a compact, exact map
+of which combinations of working and failed elements keep the system up. It
+is a calculation aid, not a simulation, and its node count ("solver size") is
+not the number of blocks in the diagram; a k-out-of-n group of a few blocks
+can need a hundred nodes.
+
 Every block must be non-repairable (`Repair Dist = None`). If the model has
-repair distributions, the command refuses by default. `--ignore-repairs`
-computes the first-failure reliability of the same structure and labels
-that assumption in the result.
+repair distributions, the command refuses by default. `--ignore repairs`
+(or the older `--ignore-repairs`) computes the first-failure reliability of
+the same structure and labels that assumption in the result.
 
 ### Availability: steady state, repairable
 
@@ -74,6 +80,36 @@ The steady-state result is not the finite-horizon number a simulation
 reports. Use simulation when you need the startup transient, PM, crews,
 spares or repair queues.
 
+## Leaving things out: ignore, phase and standby
+
+Instead of refusing, the solver can be told what to assume. Each choice is
+recorded in the result's `scope` and listed under the assumptions, and the
+model is never changed.
+
+- **Ignore** (`--ignore repairs,pm,spares,resources`): drop a whole class of
+  simulation-only behaviour. *Repairs* (reliability mode only) gives the
+  first-failure reliability. *PM* leaves out preventive maintenance (no PM
+  downtime, no age renewal). *Spares* assumes a replacement part is always
+  available at once. *Resources* assumes crews and tools are always
+  available. The answer then describes a better-supported system than the
+  real one; use simulation for the real behaviour.
+- **Phase** (`--phase N`, 1-based): analyse a phased model as if it stayed in
+  phase N for the whole time. Phase changes during the mission are not
+  modelled, and the result says so. In that phase an Active block's phase
+  value multiplies its duty (a value of 0 means it does not age), a Cut block
+  is out of the circuit (no path through it), a Linked block is bypassed
+  (perfect), a node uses the phase's k-of-n requirement, and an event takes
+  the phase's success probability. A phased model with no phase chosen is
+  refused.
+- **Standby** (`--standby active|absent`): cold-standby nodes are refused
+  unless you choose. `active` treats every standby path as fully in service
+  (an ordinary parallel path); `absent` keeps only the first k paths in
+  switching-priority order and removes the rest (their elements show no
+  importance). Switching time and switch failures are ignored either way.
+  This is independent of the phase choice.
+
+Dependencies and non-Bernoulli events are always refused.
+
 ## What is in scope
 
 - Acyclic RBDs with one Start and one End node.
@@ -90,17 +126,19 @@ spares or repair queues.
 
 The solver refuses, naming the first offending element:
 
-- repairs in reliability mode (unless `--ignore-repairs` is explicit);
-- PM, spares, resources, crews;
-- dependencies and cold/hot standby;
-- phases;
+- repairs in reliability mode (unless ignored);
+- PM, spares, resources, crews (unless ignored);
+- dependencies;
+- cold standby (unless you choose how to treat it) and phases (unless you
+  choose a phase);
 - capacity/flow as the success criterion: capacity analysis is ignored with a warning, and success is the End node being up;
 - non-Bernoulli events;
 - non-coherent logic.
 
 Duty cycle scales effective age in reliability mode and the calendar MTTF in
-availability mode. A `Start=3` start age is handled as conditional
-reliability; other start conditions, and a non-zero amount already consumed,
+availability mode. A block with a start age is treated as having already
+survived to that age (start condition 3), so its reliability is conditional
+on that; other start conditions, and a non-zero amount already consumed,
 are refused in reliability mode. Start age does not affect steady-state
 availability.
 
@@ -112,9 +150,16 @@ are refusals, not approximations.
 **Results ▸ Analytical…** solves on a background thread, so the window stays
 responsive on a large diagram. Choose the mode, mission time (it defaults to
 the model's run length, and a model that is not time-terminated asks for
-one), optional curve times, BX percentages and which extras to include, then
-press **Compute**. Changing a setting after a result leaves the old result in
+one), optional curve times, BX percentages, which extras to include, which
+simulation-only features to ignore and (when the model has them) which phase
+and standby treatment to use, then press **Compute**. Changing a setting after a result leaves the old result in
 place with a "press Compute" note rather than silently recomputing.
+
+When a phase, a standby treatment or any ignored feature was chosen, a note
+above the tabs says so ("This result assumes: Phase 3 (Cruise) analysed as
+if the system stayed in it the whole time; …"), the Elements tab gains a
+Treatment column (cut, linked, stress ×, standby treated as absent), and the
+same facts head the copied text and the exported Summary sheet.
 
 The result has these tabs:
 
@@ -129,7 +174,14 @@ The result has these tabs:
 
 A model outside the solver's subset shows the reason, naming the first
 offending element, in place of the tabs. The window never changes the model.
-**Copy** puts the full-precision plain-text result on the clipboard.
+**Copy** puts the full-precision plain-text result on the clipboard, with a
+short note on what a BDD is at the top. **Export…** saves a spreadsheet
+(.xlsx) with Summary, Elements (with the importance measures), Curve,
+Equation and Assumptions sheets. The simulation's table export does not
+include analytical results; use this button for them.
+
+**Results ▸ Availability and Criticality…** (simulation metrics) has its own
+**Copy** (the visible tab, tab-separated) and **Export…** (both tabs, .xlsx).
 
 ## Reading the result
 
@@ -155,6 +207,7 @@ offending element, in place of the tabs. The window never changes the model.
     disappears if the element is made perfect;
   - criticality: the probability that the element is failed and critical,
     given that the system has failed.
+- `Bx life` is read as "x % of systems fail by this time".
 
 Ratios are `N/A` when the system has no unavailability to divide by, or when
 the denominator of that particular ratio is zero (RRW when making the element

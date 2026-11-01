@@ -7,7 +7,7 @@ or survival modules directly. Results are JSON-safe (undefined values are
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from typing import Any
 
 from raptor.api.workspace import Workspace
@@ -48,6 +48,9 @@ def analyse(  # noqa: C901, PLR0912
     importance: bool = True,
     equation: bool = False,
     ignore_repairs: bool = False,
+    ignore: Collection[str] = (),
+    phase: int | None = None,
+    standby: str | None = None,
 ) -> dict[str, Any]:
     """Run the static solver for one model handle.
 
@@ -61,7 +64,8 @@ def analyse(  # noqa: C901, PLR0912
         handle.rbd, handle.name,
         mode=mode, at=at, times=times, bx=bx, tau=tau,
         importance=importance, equation=equation,
-        ignore_repairs=ignore_repairs,
+        ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
+        standby=standby,
     )
 
 
@@ -77,6 +81,9 @@ def analyse_rbd(
     importance: bool = True,
     equation: bool = False,
     ignore_repairs: bool = False,
+    ignore: Collection[str] = (),
+    phase: int | None = None,
+    standby: str | None = None,
 ) -> dict[str, Any]:
     """Analyse an in-memory ``RbdFile`` (the GUI's open model)."""
     try:
@@ -84,7 +91,8 @@ def analyse_rbd(
             return _analyse_rbd(
                 rbd, name, mode=mode, at=at, times=times, bx=bx, tau=tau,
                 importance=importance, equation=equation,
-                ignore_repairs=ignore_repairs)
+                ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
+                standby=standby)
     except RecursionError as exc:
         raise NotApplicable(
             "the diagram is nested too deeply for the analytical solver; "
@@ -103,6 +111,9 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
     importance: bool = True,
     equation: bool = False,
     ignore_repairs: bool = False,
+    ignore: Collection[str] = (),
+    phase: int | None = None,
+    standby: str | None = None,
 ) -> dict[str, Any]:
     if mode not in ("reliability", "availability"):
         raise ValueError("mode must be 'reliability' or 'availability'")
@@ -139,7 +150,8 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
 
     try:
         built = build_analytical(model, mode=mode,
-                                 ignore_repairs=ignore_repairs)
+                                 ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
+                standby=standby)
     except NotApplicable:
         raise
     except (OverflowError, ZeroDivisionError, ValueError) as exc:
@@ -173,6 +185,7 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
         "assumptions": list(built.assumptions),
         "warnings": list(built.warnings),
         "bdd_nodes": built.node_count,
+        "scope": _scope_dict(model, built.scope),
     }
 
     if mode == "reliability":
@@ -234,6 +247,29 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
     return _safe(result)
 
 
+def _scope_dict(model, scope) -> dict[str, Any]:
+    phase = scope.phase
+    return {
+        "ignore": sorted(scope.ignore),
+        "phase": phase,
+        "phase_name": (model.phases[phase - 1].phase_name
+                       if phase is not None else None),
+        "standby": scope.standby,
+    }
+
+
+def scope_options(rbd) -> dict[str, Any]:
+    """What the model offers to ignore or choose: phase names, whether it has
+    cold-standby nodes. Lets a front end show only the controls that apply."""
+    model = load_model(rbd)
+    return {
+        "phases": [phase.phase_name or f"Phase {i}"
+                   for i, phase in enumerate(model.phases, start=1)],
+        "has_standby": any(node.cold_standby or node.cold_links
+                           for node in model.nodes_by_id.values()),
+    }
+
+
 def _components(built, at: float) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for info in built.variables:
@@ -245,6 +281,7 @@ def _components(built, at: float) -> list[dict[str, Any]]:
             "repairable": info.repairable,
             "mttf": _num(info.mean_fail),
             "mttr": _num(info.mean_down),
+            "state": info.state,
         }
         if built.mode == "reliability":
             row["reliability"] = _num(info.reliability(at))
@@ -297,4 +334,5 @@ __all__ = [
     "BddTooLarge",
     "NotApplicable",
     "analyse",
+    "scope_options",
 ]

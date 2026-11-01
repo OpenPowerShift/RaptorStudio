@@ -84,7 +84,7 @@ def test_events_are_constant_variables():
 
 
 def test_phases_are_refused():
-    with pytest.raises(NotApplicable, match="phased"):
+    with pytest.raises(NotApplicable, match="has phases"):
         build(_model("AirlinerMission"), mode="reliability")
 
 

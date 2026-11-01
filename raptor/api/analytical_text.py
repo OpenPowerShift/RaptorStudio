@@ -7,6 +7,55 @@ from __future__ import annotations
 from typing import Any
 
 
+#: What "BDD" means, shown at the top of every copied or printed result and
+#: (in similar words) in the application window.
+BDD_NOTE = (
+    "A BDD (binary decision diagram) is an exact map of which combinations "
+    "of working and failed elements keep the system up. It is a calculation "
+    "aid, not a simulation; its node count is not the number of blocks.")
+
+
+def scope_sentence(scope: dict[str, Any] | None) -> str:
+    """One sentence naming the phase, standby and ignore choices, or ``""``."""
+    if not scope:
+        return ""
+    parts = []
+    if scope.get("phase") is not None:
+        name = f" ({scope['phase_name']})" if scope.get("phase_name") else ""
+        parts.append(f"Phase {scope['phase']}{name} analysed as if the "
+                     "system stayed in it the whole time")
+    if scope.get("standby"):
+        parts.append("standby paths treated as " + (
+            "fully in service" if scope["standby"] == "active"
+            else "absent"))
+    if scope.get("ignore"):
+        names = {"repairs": "repairs", "pm": "preventive maintenance",
+                 "spares": "spares", "resources": "resources"}
+        parts.append("ignoring " + ", ".join(
+            names.get(item, item) for item in scope["ignore"]))
+    if not parts:
+        return ""
+    text = "; ".join(parts)
+    return "This result assumes: " + text[:1].upper() + text[1:] + "."
+
+
+def _scope_lines(scope: dict[str, Any] | None) -> list[str]:
+    if not scope:
+        return []
+    out = []
+    if scope.get("phase") is not None:
+        out.append(f"Phase analysed: {scope['phase']}"
+                   + (f" ({scope['phase_name']})"
+                      if scope.get("phase_name") else ""))
+    if scope.get("ignore"):
+        out.append("Ignored: " + ", ".join(scope["ignore"]))
+    if scope.get("standby"):
+        out.append("Standby treated as: " + (
+            "fully in service" if scope["standby"] == "active"
+            else "absent"))
+    return out + [""] if out else out
+
+
 def fmt(value: float | None, digits: int = 9) -> str:
     """A number for display: ``N/A`` for undefined, 9 significant digits."""
     if value is None:
@@ -31,9 +80,11 @@ def _table(header: tuple[str, ...], rows: list[list[str]]) -> list[str]:
 def summary_text(result: dict[str, Any]) -> str:  # noqa: C901, PLR0912
     lines = [
         f"Analytical analysis: {result['model']} ({result['mode']})",
-        f"BDD nodes: {result['bdd_nodes']}",
+        f"Solver size: {result['bdd_nodes']} BDD nodes",
+        BDD_NOTE,
         "",
     ]
+    lines.extend(_scope_lines(result.get("scope")))
     unit = result.get("units") or ""
     suffix = f" {unit}" if unit else ""
     if result["mode"] == "reliability":

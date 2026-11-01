@@ -48,6 +48,16 @@ def add_parser(sub: Any) -> None:
                    help="reliability mode only: compute first-failure "
                         "reliability even when the model has repair "
                         "distributions")
+    p.add_argument("--ignore", default=None, metavar="LIST",
+                   help="comma-separated simulation-only features to leave "
+                        "out instead of refusing: repairs (reliability "
+                        "mode), pm, spares, resources")
+    p.add_argument("--phase", type=int, default=None, metavar="N",
+                   help="analyse a phased model as if it stayed in phase N "
+                        "(1-based) the whole time")
+    p.add_argument("--standby", choices=("active", "absent"), default=None,
+                   help="cold-standby paths: treat as fully in service, or "
+                        "as if they did not exist")
     p.add_argument("-f", "--format", choices=("text", "json", "csv"),
                    default="text")
     p.set_defaults(func=analytic_command)
@@ -107,6 +117,10 @@ def analytic_command(args: Any) -> int:
                 importance=args.importance,
                 equation=args.equation,
                 ignore_repairs=args.ignore_repairs,
+                ignore=[x.strip() for x in (args.ignore or "").split(",")
+                        if x.strip()],
+                phase=args.phase,
+                standby=args.standby,
             )
         except AnalyticalError as exc:
             raise CliError(str(exc), X.INVALID) from exc

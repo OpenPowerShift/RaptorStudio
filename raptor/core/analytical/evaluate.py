@@ -149,6 +149,8 @@ def bx_life(build: BuildResult, percent: float) -> float | None:  # noqa: C901, 
 
 def _death_time(info) -> float:
     """Calendar time by which this element has certainly failed (or inf)."""
+    if info.forced_down:
+        return 0.0
     if info.perfect:
         return math.inf
     if info.event_success is not None:
