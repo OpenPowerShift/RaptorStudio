@@ -269,6 +269,38 @@ def defaults() -> dict:
     return _copy(RUN_DEFAULTS)
 
 
+#: The analyses an experiment can ask for, in their stored order.
+ANALYSES = ("weak", "cost", "capacity")
+
+#: Spellings people (and generated specs) use, folded to the stored names.
+#: Compared with case, spaces, hyphens and underscores removed, so
+#: ``"Capacity"``, ``"weak_link"`` and ``"Weak Link"`` all resolve.
+_ANALYSIS_ALIASES = {
+    "weak": "weak", "weaklink": "weak", "weakanalysis": "weak",
+    "weaklinkanalysis": "weak",
+    "cost": "cost", "costs": "cost", "costanalysis": "cost",
+    "capacity": "capacity", "capacityanalysis": "capacity",
+}
+
+
+def canonical_analysis(name: Any) -> str | None:
+    """The stored name (``weak``/``cost``/``capacity``) for a spelling of an
+    analysis, or None when it names no analysis."""
+    if not isinstance(name, str):
+        return None
+    key = "".join(ch for ch in name.lower() if ch not in " _-")
+    return _ANALYSIS_ALIASES.get(key)
+
+
+def unknown_analyses(raw: Any) -> list[Any]:
+    """Entries of an `analyses` list that name no analysis. `normalise`
+    drops these (a stale file must still open); an authored spec should
+    refuse them instead (`build_from_spec` does)."""
+    if not isinstance(raw, list):
+        return []
+    return [a for a in raw if canonical_analysis(a) is None]
+
+
 def normalise(raw: dict | None) -> dict:
     """Coerce arbitrary stored/hand-edited input into a valid experiment.
 
@@ -301,8 +333,8 @@ def normalise(raw: dict | None) -> dict:
 
     analyses = src.get("analyses")
     if isinstance(analyses, list):
-        out["analyses"] = [a for a in ("weak", "cost", "capacity")
-                           if a in analyses]
+        wanted = {canonical_analysis(a) for a in analyses}
+        out["analyses"] = [a for a in ANALYSES if a in wanted]
 
     mode = str(src.get("importance", out["importance"])).strip().lower()
     if mode in IMPORTANCE_MODES:

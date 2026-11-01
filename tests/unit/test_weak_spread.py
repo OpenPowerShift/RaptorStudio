@@ -34,6 +34,50 @@ def win():
     w.close()
 
 
+def test_all_green_overlay_points_at_spread(win):
+    """A highly available model is all Green, so the overlay ranks
+    nothing. Switching it on must say that and name Spread, instead of
+    leaving the user staring at a canvas where every block looks the
+    same (issue #65). The bands themselves stay untouched."""
+    assert win._weak_color_action.isChecked()
+    assert win._gy_spin.value() == pytest.approx(0.95)
+    assert win._yr_spin.value() == pytest.approx(0.90)
+    msg = win._statusbar.currentMessage()
+    assert "above the Green threshold" in msg
+    assert "press Spread" in msg
+
+
+def test_no_hint_when_the_metric_already_spans_bands(win):
+    """After Spread the values separate, so the flat-band hint must not
+    replace the quartile summary."""
+    win._weak_spread_action.trigger()
+    QApplication.processEvents()
+    msg = win._statusbar.currentMessage()
+    assert "press Spread" not in msg
+    assert "spread by quartile" in msg
+
+
+def test_hint_is_not_repeated_on_repaint_or_selection(win):
+    """The hint belongs to the activation, not to every repaint: a
+    selection refresh must not resurrect it after it was dismissed."""
+    assert "press Spread" in win._statusbar.currentMessage()
+    win._statusbar.clearMessage()
+    win._results.refresh_weak_selection()
+    QApplication.processEvents()
+    assert win._statusbar.currentMessage() == ""
+
+
+def test_flat_band_hint_covers_the_other_two_bands(win):
+    """The helper is band-aware: all-Red and all-Yellow are just as
+    uninformative, while a metric spanning two bands gets no hint."""
+    hint = win._weak_flat_band_hint
+    assert "above the Green" in hint([0.97, 0.99], 0.95, 0.90, "Availability")
+    assert "below the Red" in hint([0.70, 0.80], 0.95, 0.90, "Availability")
+    assert "Yellow band" in hint([0.91, 0.94], 0.95, 0.90, "Availability")
+    assert hint([0.80, 0.97], 0.95, 0.90, "Availability") is None
+    assert hint([], 0.95, 0.90, "Availability") is None
+
+
 def test_spread_puts_the_bands_at_the_quartiles_and_keeps_results(win):
     assert win._weak_spread_action.isEnabled()
     win._weak_spread_action.trigger()

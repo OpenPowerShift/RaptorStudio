@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
+import logging
 import os
 import shutil
 import tempfile
@@ -23,6 +24,9 @@ from typing import Any
 from raptor.core.fileio.rbd import RbdFile
 from raptor.core.fileio.rbds import load_rbds, save_rbds
 from raptor.api.limits import MAX_MODEL_BYTES, MAX_TOTAL_MODELS
+
+
+log = logging.getLogger(__name__)
 
 
 #: The friendly block fields a workspace's house defaults may set, applied
@@ -1232,6 +1236,16 @@ class Workspace:
 
         # Warm the cache up to the cap, most recently modified first, so the
         # common case of "reopen what I had open" costs nothing.
+        self._warm_cache()
+
+    def _warm_cache(self) -> None:
+        """Materialise the most recently used models, skipping bad ones.
+
+        One unreadable model -- written by an older, incompatible build, or
+        damaged on disk -- must not stop the workspace (and therefore the MCP
+        server) from starting.  It stays in the index so `list_models` still
+        shows it, and a later explicit `get` reports the real error.
+        """
         for model_id, _ in sorted(
             self._index.items(),
             key=lambda kv: kv[1].get("last_modified") or 0.0,
@@ -1241,6 +1255,10 @@ class Workspace:
                 self.get(model_id)
             except UnknownHandle:
                 self._index.pop(model_id, None)
+            except Exception as exc:            # noqa: BLE001
+                log.warning(
+                    "workspace: could not load model %s at start-up; "
+                    "continuing without it: %s", model_id, exc)
 
     def _index_entry(self, handle: ModelHandle) -> dict[str, Any]:
         """The index row for *handle*, matching `ModelHandle.to_dict`."""

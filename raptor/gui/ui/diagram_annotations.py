@@ -10,6 +10,7 @@ from PySide6.QtGui import (
     QPen, QBrush, QColor, QFont,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QGraphicsItem,
     QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsTextItem,
     QGraphicsLineItem, QStyle, QStyleOptionGraphicsItem,
@@ -481,11 +482,60 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
         super().__init__(text)
         self._box_w = max(20.0, float(w))
         self._box_h = max(12.0, float(h))
+        #: True only between an explicit edit request (double-click, F2,
+        #: the context menu's Edit Text…) and its commit. A text box is
+        #: otherwise a perfectly ordinary movable item.
+        self._text_editing = False
+        #: Press point/base position for a drag that starts inside a note
+        #: already being edited (see mouseMoveEvent).
+        self._edit_drag_from: QPointF | None = None
+        self._edit_drag_base = QPointF()
+        self._edit_dragging = False
         self._init_anno(anno_id, parent_level, props, view)
         self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        self.setCursor(Qt.CursorShape.OpenHandCursor)
         self.apply_props()
         self.setPos(x, y)
         self.ensure_handle()
+
+    # ---------------------------------------------------------- edit mode
+    def enter_edit(self):
+        """Enter explicit in-place text editing. The ONLY way in: a
+        double-click, F2, the context menu, or a fresh placement (which
+        should be immediately typeable). A single click or drag on the
+        body never calls this."""
+        self._text_editing = True
+        self.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextEditorInteraction)
+        self.setCursor(Qt.CursorShape.IBeamCursor)
+        self.setFocus()
+
+    def _finish_edit(self):
+        """Leave edit mode exactly once, committing the text and restoring
+        the movable-item cursor/flags. Safe to call when the flags were
+        set directly (a rebuilt/restored item) but no edit session is
+        recorded."""
+        editing = self._text_editing or bool(
+            self.textInteractionFlags()
+            & Qt.TextInteractionFlag.TextEditorInteraction)
+        if not editing:
+            return
+        self._text_editing = False
+        self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.prepareGeometryChange()   # re-measure after edits
+        # don't leave a lingering selection inside the box
+        c = self.textCursor()
+        c.clearSelection()
+        self.setTextCursor(c)
+        view = getattr(self, "_view", None)
+        if view is not None:
+            view.set_annotation_text(self, self.toPlainText())
+
+    def end_edit(self):
+        self._finish_edit()
+        if self.hasFocus():
+            self.clearFocus()
 
     def rect(self) -> QRectF:
         """The text box's fixed frame in local coords. Lets the shared
@@ -575,20 +625,61 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
         super().paint(painter, _anno_unselected_option(option), widget)
 
     def mouseDoubleClickEvent(self, event):
-        self.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
-        self.setFocus()
+        self.enter_edit()
         super().mouseDoubleClickEvent(event)
 
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self._text_editing:
+                # Remember the press so a real drag can take over from text
+                # selection (mouseMoveEvent). Until then the text control
+                # still places the caret/selects on the press below.
+                self._edit_drag_from = event.scenePos()
+                self._edit_drag_base = self.pos()
+                self._edit_dragging = False
+            else:
+                # Edit flags can outlive the session that set them (e.g. a
+                # rebuild or focus moved to another widget without a scene
+                # focus-out). They must never turn an ordinary press into
+                # a text click -- end the stale session first, then let the
+                # movable-item base class start the drag.
+                self._finish_edit()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if (self._edit_drag_from is not None
+                and event.buttons() & Qt.MouseButton.LeftButton):
+            if not self._edit_dragging:
+                moved = (event.screenPos()
+                         - event.buttonDownScreenPos(Qt.MouseButton.LeftButton)
+                         ).manhattanLength()
+                if moved >= QApplication.startDragDistance():
+                    # The user is dragging, not selecting text: leave edit
+                    # mode and turn the gesture into a normal annotation
+                    # move, which the view's release handler commits with
+                    # the same anchor/undo path every other drag uses.
+                    self._edit_dragging = True
+                    self._finish_edit()
+                    self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            if self._edit_dragging:
+                delta = event.scenePos() - self._edit_drag_from
+                self.setPos(self._edit_drag_base + delta)
+                event.accept()
+                return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        dragging = self._edit_dragging
+        self._edit_drag_from = None
+        self._edit_dragging = False
+        if dragging and event.button() == Qt.MouseButton.LeftButton:
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
     def focusOutEvent(self, event):
-        self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
-        self.prepareGeometryChange()   # re-measure after edits
-        # don't leave a lingering selection inside the box
-        c = self.textCursor()
-        c.clearSelection()
-        self.setTextCursor(c)
-        view = getattr(self, "_view", None)
-        if view is not None:
-            view.set_annotation_text(self, self.toPlainText())
+        self._finish_edit()
         super().focusOutEvent(event)
 
     def resize_to(self, handle_pos):

@@ -110,6 +110,24 @@ class TestBuildFromSpec:
             assert row["flowGenerated"] == "250", key
             assert row["capacityAnalysis"] == "1", key
 
+    def test_system_capacity_survives_an_experiment_block(self):
+        """An ``experiment`` without ``analyses`` must not reset the system
+        capacity flag to off (MCP build_model used to lose it)."""
+        spec = {
+            "system": {"capacity_analysis": True, "flow_generated": 250},
+            "experiment": {"trials": 4, "term_condition": 100},
+            "blocks": [{"name": "A"}],
+            "nodes": [{"name": "Start", "type": 1},
+                      {"name": "End", "type": 3}],
+            "links": [{"from": "Start", "to": "A"},
+                      {"from": "A", "to": "End"}],
+        }
+        rbd = build_from_spec(spec)
+        row = rbd.section("SYSTEM_DATA").rows[0]
+        assert row["capacityAnalysis"] == "1"
+        assert row["flowGenerated"] == "250"
+        assert rbd.experiment["analyses"] == ["capacity"]
+
     def test_links_wire_by_name_and_ids_assigned(self):
         rbd = build_from_spec(k_of_n(2, 3))
         block_ids = {b["ID"] for b in rbd.section("BLOCK_DATA").rows
@@ -947,3 +965,37 @@ def test_every_advertised_settable_field_resolves():
         for name in names:
             assert _column_targets(sections[kind], {}, name), (kind, name)
     assert "fail_params" in fields["Block"] and "num_runs" in fields["System"]
+
+
+class TestExperimentAnalysisNames:
+    """Issue #73: a spec asking for an analysis must get it, or an error."""
+
+    @staticmethod
+    def _spec(analyses):
+        return {
+            "system": {"capacity_analysis": True, "flow_generated": 100},
+            "experiment": {"trials": 4, "term_condition": 100, "analyses": analyses},
+            "blocks": [{"name": "A"}],
+            "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+            "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "End"}],
+        }
+
+    def test_a_capitalised_name_is_honoured(self):
+        rbd = build_from_spec(self._spec(["Capacity"]))
+        assert rbd.experiment["analyses"] == ["capacity"]
+        assert rbd.section("SYSTEM_DATA").rows[0]["capacityAnalysis"] == "1"
+
+    def test_an_unknown_name_is_refused_with_the_valid_ones(self):
+        with pytest.raises(BuildError) as exc:
+            build_from_spec(self._spec(["Reliability"]))
+        text = str(exc.value)
+        assert "Reliability" in text and "capacity" in text and "weak" in text
+
+    def test_analyses_must_be_a_list(self):
+        with pytest.raises(BuildError):
+            build_from_spec(self._spec("capacity"))
+
+    def test_an_explicit_empty_list_still_clears_the_flags(self):
+        rbd = build_from_spec(self._spec([]))
+        assert rbd.experiment["analyses"] == []
+        assert rbd.section("SYSTEM_DATA").rows[0]["capacityAnalysis"] == "0"

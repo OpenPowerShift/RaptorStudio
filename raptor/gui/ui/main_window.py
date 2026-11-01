@@ -12,6 +12,7 @@ from raptor.gui.ui.qtcompat import req
 from raptor.gui.ui import msgbox
 from raptor.bundled import candidate_roots
 import logging
+import math
 import os
 import platform
 import re
@@ -2405,11 +2406,39 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         for rethemer in (self._dock_titlebar_rethemers or []):
             rethemer()
 
+    #: Contrast prompts waiting their turn, shared by every model window.
+    #: A theme change makes each open window ask; nesting one modal
+    #: `exec()` inside another left a prompt behind a different window
+    #: and the foreground window looked frozen. They run one at a time.
+    _contrast_queue: list[tuple[MainWindow, int]] = []
+    _contrast_busy: bool = False
+
     def _on_annotations_may_be_invisible(self, count: int) -> None:
         """The view has already run the contrast check (`DiagramView.
         find_low_contrast_annotations`); this asks before touching
-        anything the user deliberately coloured."""
+        anything the user deliberately coloured. With several model
+        windows open the prompts are sequenced, each raised above its
+        own window before it is shown."""
+        MainWindow._contrast_queue.append((self, count))
+        if MainWindow._contrast_busy:
+            return
+        MainWindow._contrast_busy = True
+        try:
+            while MainWindow._contrast_queue:
+                win, n = MainWindow._contrast_queue.pop(0)
+                try:
+                    win._ask_contrast_fix(n)
+                except RuntimeError:
+                    pass  # window was closed while it waited
+        finally:
+            MainWindow._contrast_busy = False
+
+    def _ask_contrast_fix(self, count: int) -> None:
         from raptor.gui.ui.dialogs import question_box
+        # Bring this window forward so the modal opens on top of it,
+        # never behind another model window.
+        self.raise_()
+        self.activateWindow()
         plural = "s" if count != 1 else ""
         if question_box(
                 self, "Annotations may be hard to see",
@@ -3681,10 +3710,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _on_collapse_selection(self):
         if self._rbd is None:
             return
-        hid = self._diagram_dock.view.collapse_selection()
+        view = self._diagram_dock.view
+        hid = view.collapse_selection()
         if hid is None:
-            self._statusbar.showMessage(
-                "Collapse: select at least one block, node, or event first")
+            # A refusal (a boundary that cannot be rebuilt, or a selection a
+            # hierarchy cannot hold) has already shown its own message; only
+            # an empty selection needs this hint.
+            if not any(view.selected_elements()[:3]):
+                self._statusbar.showMessage(
+                    "Collapse: select at least one block, node, or event first")
         else:
             self._explorer.refresh()
             self._refresh_goto_combo()
@@ -4026,6 +4060,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if str(path).lower().endswith(".rbds"):
             # Saving can re-lay out a crammed model, on the UI thread.
             rbds_io.save_rbds(req(self._rbd), path)
+            # The open model is now THIS file: reports and the run
+            # manifest title themselves with `RbdFile.file_name`, so a
+            # Save As has to move it with the file instead of leaving
+            # the template's "NewModel.rbd" behind. (`save_rbd` does the
+            # same for the legacy format.)
+            rbd = req(self._rbd)
+            rbd.file_name = Path(path).name
             return True
         n_ann = len(getattr(self._rbd, "annotations", []) or [])
         if n_ann:
@@ -7790,6 +7831,38 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             f"Weak Link bands spread by quartile: Green ≥ {q3:.6g} "
             f"({green} blocks), Red < {q1:.6g} ({red} blocks)", 8000)
 
+    def _weak_flat_band_hint(self, values, gy: float, yr: float,
+                             metric_name: str) -> str | None:
+        """Status hint when every Weak Link value lands in ONE band.
+
+        A highly reliable model puts every block above the Green
+        threshold, so the overlay paints one flat colour and ranks
+        nothing; the same is true of a model entirely inside the Yellow
+        band or entirely below Red. The user's thresholds are NOT
+        rewritten -- Spread is the user's call, and this only points at
+        it. Returns None when the values do span more than one band.
+        """
+        finite = [v for v in values if math.isfinite(v)]
+        if not finite:
+            return None
+        hi, lo = max(gy, yr), min(gy, yr)
+        bands = {"Green" if v >= hi else
+                 "Yellow" if v >= lo else "Red" for v in finite}
+        if len(bands) != 1:
+            return None
+        band = bands.pop()
+        if band == "Green":
+            return (f"All {metric_name} values are above the Green "
+                    f"threshold (lowest {min(finite):.6g}) — press Spread "
+                    f"to band this run")
+        if band == "Red":
+            return (f"Every {metric_name} value is below the Red threshold "
+                    f"(highest {max(finite):.6g}) — press Spread to band "
+                    f"this run")
+        return (f"Every {metric_name} value is in the Yellow band "
+                f"({min(finite):.6g}–{max(finite):.6g}) — press Spread to "
+                f"band this run")
+
     def _toggle_weak_colors(self):
         # Explicit `setChecked` throughout (never relying on Qt's own
         # auto-toggle-on-click) -- several existing call sites invoke
@@ -7826,9 +7899,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         all_values = [*metric.values(), *node_metric.values(),
                       *event_metric.values(), *hier_metric.values()]
         worst = min(all_values) if all_values else 1.0
-        self._statusbar.showMessage(
-            f"Weak Link colouring on ({metric_name}) — lowest value "
-            f"{worst:.6g} (Green ≥ {gy:.6g} ≥ Yellow ≥ {yr:.6g} > Red)")
+        # A flat all-Green (or all-Red/all-Yellow) canvas ranks nothing.
+        # Say so ONCE, here on activation -- never on a repaint or a
+        # selection, which do not pass through this handler -- and leave
+        # the bands and Spread itself untouched.
+        hint = self._weak_flat_band_hint(all_values, gy, yr, metric_name)
+        if hint is not None:
+            self._statusbar.showMessage(hint, 12000)
+        else:
+            self._statusbar.showMessage(
+                f"Weak Link colouring on ({metric_name}) — lowest value "
+                f"{worst:.6g} (Green ≥ {gy:.6g} ≥ Yellow ≥ {yr:.6g} > Red)")
         self._update_overlay_chip()
 
     def _update_overlay_chip(self) -> None:

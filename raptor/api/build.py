@@ -18,6 +18,7 @@ provenance recorded in ``RbdFile.formulas``.
 """
 from __future__ import annotations
 
+import copy
 import math
 import re
 from typing import Any
@@ -393,8 +394,11 @@ def resolve_element(rbd: RbdFile,
                 raise ElementNotFound(
                     f"No {kind} with ID {rest} in {section}") from None
             return section, row
-        # Named auxiliary rows (`Pool:PumpPool`, `Resource:Crew`, ...).
-        if section in _NAMED_ONLY_SECTIONS:
+        # Named rows (`Pool:PumpPool`, `Resource:Crew`, ...), and the
+        # `Kind:name` form for every section that has a name column. The
+        # bare-name path below has always accepted names; the explicit
+        # kind should too, so `Node:Pump A` does not fail as "not an id".
+        if section in _NAMED_ONLY_SECTIONS or section in _NAME_COLS:
             return section, _resolve_name(rbd, section, rest)
         raise BuildError(f"{kind}:{rest} is not an id; use an integer id")
     for sec_name in ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA",
@@ -1140,7 +1144,26 @@ def build_from_spec(spec: dict[str, Any],
     if exp_spec is not None:
         if not isinstance(exp_spec, dict):
             raise BuildError("spec['experiment'] must be an object")
+        if "analyses" in exp_spec:
+            given = exp_spec["analyses"]
+            if not isinstance(given, list):
+                raise BuildError(
+                    "spec['experiment']['analyses'] must be a list drawn "
+                    f"from {list(run_experiment.ANALYSES)}")
+            unknown = run_experiment.unknown_analyses(given)
+            if unknown:
+                raise BuildError(
+                    f"unknown analysis name(s) {unknown!r} in "
+                    "spec['experiment']['analyses']; use "
+                    f"{list(run_experiment.ANALYSES)} (any case; "
+                    "'weak_link' is accepted for 'weak')")
         experiment = run_experiment.normalise(exp_spec)
+        if "analyses" not in exp_spec:
+            # The system dict's weak/cost/capacity flags are the defaults.
+            # An experiment that does not choose analyses must not reset them
+            # to empty (that silently disabled capacity analysis).
+            experiment["analyses"] = run_experiment.from_system_row(
+                source_row)["analyses"]
         for column, value in run_experiment.to_system_row(experiment):
             source_row[column] = value
         rbd.experiment = experiment
@@ -2072,6 +2095,31 @@ def collapse_selection(
     if problem:
         raise BuildError(problem)
 
+    # A link that touches the selection but is filed on another level
+    # cannot be split here: leaving it alone would strand half the edge
+    # inside the new hierarchy. Refuse before touching the model.
+    stray = [link for link in rbd.section("LINK_DATA").rows
+             if _as_int_id(link.get("pID")) != parent
+             and ((link.get("FromType", ""), str(link.get("FromID", ""))) in keys
+                  or (link.get("ToType", ""), str(link.get("ToID", ""))) in keys)]
+    if stray:
+        ids = ", ".join(str(link.get("ID")) for link in stray)
+        raise BuildError(
+            "collapse_selection: the selection is connected by link(s) "
+            f"filed on another hierarchy level (ID {ids}), so the boundary "
+            "cannot be rebuilt; nothing was changed.")
+
+    # The rewiring is validated BEFORE anything is committed: if the
+    # boundary halves would not rebuild, or the result would leave a block
+    # outside without an input, the model is restored and the call fails.
+    # The GUI's Collapse Selection does the same pre-flight on a copy
+    # (issue #72).
+    saved_model = copy.deepcopy(rbd)
+    selected_ids: dict[str, list[int]] = {
+        "BLOCK_DATA": [], "NODE_DATA": [], "EVENT_DATA": []}
+    for section, row in chosen:
+        selected_ids[section].append(_as_int_id(row.get("ID")))
+
     label = name or f"Hierarchy_{len(rbd.section('HIERARCHY_DATA').rows) + 1}"
     centre = _container_centre(rbd, parent)
     hid, in_id, out_id = _build_hierarchy(
@@ -2134,6 +2182,21 @@ def collapse_selection(
             inside_link["pID"] = str(hid)
             inside_link["ID"] = fresh_link_id()
             link_sec.rows.append(inside_link)
+
+    from raptor.core.input_rules import refusal_text
+    from raptor.gui.hierarchy_plan import collapse_new_violations
+
+    problems = collapse_new_violations(
+        saved_model, rbd, hid=hid, selected=selected_ids,
+        in_id=in_id, out_id=out_id)
+    if problems:
+        # Nothing is committed: restore every section and raise, so the
+        # caller's workspace still holds the pre-collapse model.
+        rbd.sections.clear()
+        rbd.sections.update(copy.deepcopy(saved_model.sections))
+        raise BuildError(
+            "collapse_selection refused, the model was left unchanged: "
+            + refusal_text(problems))
 
     _fix_link_counts(rbd)
     sync_counts(rbd)

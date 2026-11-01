@@ -185,6 +185,7 @@ WIDEN: dict[tuple[str, str], list[str]] = {
     ("analytical_analysis", "availability"): ["number", "null"],
     ("analytical_analysis", "unavailability"): ["number", "null"],
     ("analytical_analysis", "equation"): ["string", "null"],
+    ("single_point_failures", "next_offset"): ["integer", "null"],
 }
 
 #: Keys that only some element kinds return. `get_element` shares one

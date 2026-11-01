@@ -7,6 +7,7 @@ resolution, workspace info, and concurrent saves.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
@@ -105,6 +106,42 @@ class TestCreateModel:
             ws.create_model(f"M{i}")
         assert len(ws._models) <= 2
         assert len(ws.list_models()) == 5
+
+
+class TestStartupWithUnreadableModel:
+    """One unreadable model must not stop the workspace from starting."""
+
+    def test_bad_model_is_skipped_and_good_models_still_load(
+            self, tmp_path: Path, caplog):
+        root = tmp_path / "workspace"
+        first = Workspace(root)
+        good_id = first.create_model("Good")["model_id"]
+        bad_id = first.create_model("Bad")["model_id"]
+
+        # Reproduce the failure that stopped the MCP server from starting:
+        # a model written by an older build whose link endpoint uses the
+        # long "Hierarchy" token, which the .rbds schema rejects.
+        bad_path = root / "models" / bad_id / "model.rbds"
+        doc = json.loads(bad_path.read_text())
+        assert doc["links"], "a new model should have at least one link"
+        doc["links"][0]["to"] = ["Hierarchy", doc["links"][0]["to"][1]]
+        bad_path.write_text(json.dumps(doc))
+
+        with caplog.at_level(logging.WARNING, logger="raptor.api.workspace"):
+            reopened = Workspace(root)
+
+        # The workspace started, the good model is usable, and the bad one
+        # is still visible in the index (an explicit get() reports why).
+        assert reopened.get(good_id).name == "Good"
+        ids = {m["model_id"] for m in reopened.list_models()}
+        assert {good_id, bad_id} <= ids
+        assert any(
+            "could not load model" in record.getMessage()
+            and bad_id in record.getMessage()
+            for record in caplog.records
+        )
+        with pytest.raises(Exception, match="not a valid .rbds file"):
+            reopened.get(bad_id)
 
 
 class TestRoundTrip:

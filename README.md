@@ -77,7 +77,7 @@ The equations are on the Formulas page, and the tutorial's weak-link chapter wor
 | **Edit while looking at results**    | Results stay on screen while you edit; undo and redo for edits; spread-banded Weak Link, Cost, Capacity, Spares and Importance colourings.                                                                                       |
 | **Block labels and rates**           | Choose what the lines under each block show (mean, standard deviation, rate); keep the derivation of a failure rate in a named, reusable Rate.                                                                                   |
 | **Reports**                          | Results export as PDF, HTML, AsciiDoc, spreadsheet, CSV or JSON (a versioned schema).                                                                                                                                            |
-| **Diagram**                          | Light and dark themes, dockable panels, annotations, mini-map, key tips for every ribbon button, and a diagram renderer for documents (`raptor render`).                                                                          |
+| **Diagram**                          | Light and dark themes, dockable panels, annotations, mini-map, key tips on the commands that have one, and a diagram renderer for documents (`raptor render`).                                                                    |
 | **Safer files**                      | Validation catches the model shapes that crash Raptor 7 on open (a node's declared path count, a stale phase header) before you save them.                                                                                       |
 
 ## Install
@@ -169,7 +169,7 @@ built-in documentation, which the **Help** ribbon tab also opens:
 - **Reference Manual** — field-by-field reference; **F1** jumps to the section for the focused panel or dialog.
 - **Formulas** — every metric, the importance measures and the distribution table as equations, on one page.
 - **Keyboard shortcuts** — [`docs/KEYBOARD_SHORTCUTS.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), also under **Help**. Press **Alt**
-  in the app to show a key tip on every ribbon button.
+  in the app to show the key tips on the commands that have one.
 - **AI assistant** — [`docs/MCP.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) and the book's last chapter.
 - **File format** — [`docs/RBDS_FORMAT.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md) describes the `.rbds` JSON format.
 - **Analytical solver** — [`docs/ANALYTICAL.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md) covers the exact static solver: scope, assumptions, CLI and API.

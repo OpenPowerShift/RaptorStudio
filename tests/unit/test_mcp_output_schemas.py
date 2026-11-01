@@ -73,6 +73,7 @@ def test_results_for_other_models_satisfy_the_schemas_too(tmp_path):
         rec.call("validate_model", model_id=mid)
         rec.call("estimate_runtime", model_id=mid)
         rec.call("single_point_failures", model_id=mid)
+        rec.call("single_point_failures", model_id=mid, limit=1)
         run = (rec.call("simulate", model_id=mid, num_runs=2) or {}).get("run_id")
         if run:
             rec.call("get_report", run_id=run, section="final_results")
