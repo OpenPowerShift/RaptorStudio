@@ -448,7 +448,8 @@ drops them (the GUI warns first).
     "x1": 0.0, "y1": 0.0,     // arrow only: tail
     "x2": 100.0, "y2": 0.0,   // arrow only: head (arrowhead drawn here)
     "text": "Check this branch",
-    "z": 20,                     // stacking band -- see "Z-order" below
+    "z": -50,                 // stacking band -- see "Z-order" below
+                              // (new annotations start behind; 20/40 on top)
     "border_colour": "#5D7080",  // null = draw no border (any kind)
     "border_width": 0,        // 0 = no border; arrow's own default is 2
     "line_style": "solid",    // "solid" | "dash" | "dot" | "dash-dot" |
@@ -491,16 +492,16 @@ front of everything:
 
 | `z` | band | relative to |
 |---|---|---|
-| `-50` | behind | below the grid, links, hierarchy ovals **and** blocks/nodes/events |
-| `20` | middle (default) | above every element, below the drag handles |
+| `-50` | behind (default) | below the grid, links, hierarchy ovals **and** blocks/nodes/events |
+| `20` | middle | above every element, below the drag handles |
 | `40` | front | above every element |
 
-The GUI's *Bring Forward* / *Send Backward* step to the next value
-actually in use on the current hierarchy level (the three bands plus any
-custom value an entry or `update_annotation` carries), so a step always
-lands on a real slot rather than an arbitrary increment. A newly placed
-annotation takes the topmost value in use on its level, so "newest on
-top" holds even after a *Bring to Front*.
+A newly placed annotation starts in the **behind** band so it cannot
+cover the blocks it describes. The GUI's *Bring Forward* / *Send
+Backward* step to the next value actually in use on the current
+hierarchy level (the three bands plus any custom value an entry or
+`update_annotation` carries), so a step always lands on a real slot
+rather than an arbitrary increment.
 
 The value is persisted per annotation and round-trips through undo/redo,
 level changes, save and reload.
@@ -515,8 +516,9 @@ straight into an annotation places it in the wrong spot. The API and the
 MCP `add_annotation`/`update_annotation` tools take either: explicit
 `x`/`y` are scene coordinates by default, or model coordinates (the
 numbers element `x`/`y` use) with `units: "model"`; `w`/`h` are always
-scene pixels (a block is 108 x 46). `adjacent_to="SomeBlock"` places it
-next to an element with no coordinates at all.
+scene pixels (a block is 108 x 46). `adjacent_to="SomeBlock"` (or
+`adjacent_to="Annotation:7"`) places it next to that target with no
+coordinates at all.
 
 **`view_transform`.** `.rbds`-only frozen canvas transform,
 `{scale, origin_x, flip_base, dx_min, dy_min}`. It is written the first
@@ -525,19 +527,61 @@ element positions and annotation geometry stay put between sessions. A
 hand-authored file without it has one derived on open, deterministically,
 from the element positions.
 
-**Anchors.** An annotation placed next to an element (`adjacent_to`, or an
-arrow's `from_`/`to`) carries an `anchor` —
-`{"target": "B1", "ref": "Block:3", "side": "right", "gap": 12}` or
+**Anchors.** An annotation placed next to an element or another
+annotation (`adjacent_to`, or an arrow's `from_`/`to`) carries an
+`anchor` —
+`{"target": "B1", "ref": "Block:3", "location": "right", "gap": 12}` or
 `{"from": "A", "to": "B", "from_ref": "Node:1", "to_ref": "Block:3"}`.
-`ref` is the element's kind and id (names need not be unique; an anchor
-written before `ref` existed is resolved by name). The stored geometry is
-what is drawn; the anchor says what keeps it there: the annotation moves
-with its element when the element is dragged, aligned or laid out, in the
-GUI and through `auto_layout`. In the GUI the Inspector's **Anchor** group
-shows and changes it, and a dashed line joins a selected anchored note to
-its element. Moving the annotation itself by hand (or by coordinates
-through `update_annotation`) removes the anchor; `"anchor": null` removes
-it and leaves the annotation where it is.
+An arrow's two ends are attached independently: an anchor may name only
+`from` (or only `to`), and the other end stays at its own `x`/`y`
+coordinates. An attached end stops at the target's outline (the box, or
+the ellipse of a node, event or ellipse note) on the line towards the
+other end, not at its centre.
+`ref` is the target's kind and id (names need not be unique; an anchor
+written before `ref` existed is resolved by name). The name beside it is
+kept in step with the target: renaming a block, node, event or
+hierarchy (or editing an annotation's text) rewrites it, and Auto Layout
+refreshes it too, so it never goes stale. A target can be any
+block, node, event or hierarchy, or another annotation
+(`Annotation:<id>`; a label is accepted when it is unique). For an
+annotation target the bounding box is its stored `x`/`y`/`w`/`h`, or
+the box spanned by an arrow's two endpoints. `location` is `right`,
+`left`, `above`, `below` or `center`; the default is `above`.
+`center` places the annotation over the target and ignores `gap`.
+
+The stored geometry is what is drawn; the anchor says what keeps it
+there: the annotation moves with its target when the target is dragged,
+aligned or laid out, in the GUI and through `auto_layout`. Anchors can
+chain (a note anchored to a note anchored to a block follows the block);
+a chain that loops back to the annotation is rejected. A whole-model
+Auto Layout (the GUI's, or the MCP tool's) first **makes room**: where
+notes anchored `above`/`below` an element (stacked, and notes on notes,
+each adding its height and gap) would not fit between it and the next
+element in its column, the gap is stretched. The elements on either side
+move apart by the same grid-multiple amount, so the middle of a split
+stays centred; nothing moves closer, and a model that already has room is
+left alone. (A partial MCP layout never moves elements outside its
+scope.) Then a note that would still land on an
+element, a free-standing note or another anchored note is nudged to the
+nearest clear spot: first the same location pushed further out, then the
+other sides. `center` is never nudged, the stored `location` is not
+rewritten (so a later layout starts from it again and gives the same
+answer), and dragging an element in the GUI puts its notes back at their
+stored location without nudging. Link lines are not obstacles. `validate_model`
+warns about an anchor whose target no longer exists (or whose name
+matches several), an empty anchor, and a cycle: such a note stays where
+it is and stops following anything. In the GUI the
+Inspector's **Anchor** group shows and changes the target and location,
+**Pick on canvas…** arms a click-to-anchor mode (click an element or
+another annotation; Esc cancels), and a dashed line joins a selected
+anchored note to its target. Dragging a note by hand keeps its anchor and
+stores how far it went as `dx`/`dy` (scene pixels, added to the place the
+`location` computes), so it keeps following its target from where you put
+it; such a note is never nudged. The Inspector's **Reset position**
+clears the offset and **Break link** removes the anchor. Dragging an
+*arrow* by hand has no single place to offset from, so it still frees it,
+as does setting coordinates through `update_annotation`;
+`"anchor": null` removes the anchor and leaves the annotation where it is.
 
 **Nothing re-lays out a model implicitly.** Saving, opening and exporting
 keep every position as it is. A model whose spacing is finer than Raptor

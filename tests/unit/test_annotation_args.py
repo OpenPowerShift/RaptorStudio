@@ -94,7 +94,7 @@ class TestArrowCoordinates:
     def test_one_endpoint_reference_is_rejected(self, rbd):
         with pytest.raises(BuildError) as exc:
             place_annotation(rbd, kind="arrow", from_=_block_id(rbd))
-        assert "both from_ and to" in str(exc.value)
+        assert "other end" in str(exc.value)
 
     def test_endpoints_and_adjacent_to_are_mutually_exclusive(self, rbd):
         with pytest.raises(BuildError):
@@ -116,9 +116,9 @@ class TestIntegerSelectors:
 
     def test_integer_and_string_selectors_agree(self, rbd):
         a = place_annotation(rbd, kind="text", text="a",
-                             adjacent_to=_block_id(rbd), side="left")
+                             adjacent_to=_block_id(rbd), location="left")
         b = place_annotation(rbd, kind="text", text="b",
-                             adjacent_to=str(_block_id(rbd)), side="left")
+                             adjacent_to=str(_block_id(rbd)), location="left")
         assert a["anchor"]["target"] == b["anchor"]["target"]
         assert a["x"] == b["x"]
 
@@ -157,9 +157,9 @@ class TestUnchangedBehaviour:
                              x=0.0, y=0.0, w=33.0, h=44.0)
         assert (e["w"], e["h"]) == (33.0, 44.0)
 
-    def test_unknown_kind_and_side_still_rejected(self, rbd):
+    def test_unknown_kind_and_location_still_rejected(self, rbd):
         with pytest.raises(BuildError):
             place_annotation(rbd, kind="not-a-kind", text="t", x=1.0, y=1.0)
         with pytest.raises(BuildError):
             place_annotation(rbd, kind="text", text="t", x=1.0, y=1.0,
-                             side="diagonal")
+                             location="diagonal")

@@ -1,0 +1,315 @@
+{
+ "format": "raptor-studio",
+ "version": 2,
+ "meta": {
+  "generator": "RAPTOR Studio 0.8.0"
+ },
+ "system": {
+  "red_cost": 0.0,
+  "lost_cost": 0.0,
+  "flow_generated": 1
+ },
+ "experiment": {
+  "trials": 10,
+  "termination_type": "TimeSim",
+  "term_condition": 500.0,
+  "start_stats": 0.0,
+  "analyses": [],
+  "importance": "none",
+  "recording": {
+   "event_log": true,
+   "ao_plot": false,
+   "capacity_plot": false,
+   "cost_plot": false,
+   "ao_interval": 10.0,
+   "cost_interval": 720.0
+  }
+ },
+ "links": [
+  {
+   "id": 1,
+   "from": [
+    "Node",
+    14
+   ],
+   "to": [
+    "Node",
+    16
+   ]
+  },
+  {
+   "id": 2,
+   "from": [
+    "Node",
+    16
+   ],
+   "to": [
+    "Block",
+    1
+   ]
+  },
+  {
+   "id": 3,
+   "from": [
+    "Node",
+    16
+   ],
+   "to": [
+    "Block",
+    2
+   ]
+  },
+  {
+   "id": 4,
+   "from": [
+    "Block",
+    1
+   ],
+   "to": [
+    "Node",
+    17
+   ]
+  },
+  {
+   "id": 5,
+   "from": [
+    "Block",
+    2
+   ],
+   "to": [
+    "Node",
+    17
+   ]
+  },
+  {
+   "id": 6,
+   "from": [
+    "Node",
+    17
+   ],
+   "to": [
+    "Block",
+    3
+   ]
+  },
+  {
+   "id": 7,
+   "from": [
+    "Block",
+    3
+   ],
+   "to": [
+    "Node",
+    15
+   ]
+  }
+ ],
+ "elements": {
+  "blocks": [
+   {
+    "id": 1,
+    "name": "Pump_A",
+    "parent": 0,
+    "x": 5.0,
+    "y": 91.25,
+    "fail_params": [
+     400.0,
+     0.0,
+     0.0
+    ],
+    "repair_dist": 18,
+    "repair_params": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "eso": 0
+   },
+   {
+    "id": 2,
+    "name": "Pump_B",
+    "parent": 0,
+    "x": 5.0,
+    "y": 93.75,
+    "fail_params": [
+     400.0,
+     0.0,
+     0.0
+    ],
+    "repair_dist": 18,
+    "repair_params": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "eso": 0
+   },
+   {
+    "id": 3,
+    "name": "Boiler",
+    "parent": 0,
+    "x": 10.0,
+    "y": 92.5,
+    "fail_dist": 15,
+    "fail_params": [
+     2.0,
+     900.0,
+     0.0
+    ],
+    "repair_dist": 18,
+    "repair_params": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "eso": 0
+   }
+  ],
+  "nodes": [
+   {
+    "id": 14,
+    "name": "start",
+    "type": 1,
+    "parent": 0,
+    "x": 1.25,
+    "y": 92.5
+   },
+   {
+    "id": 16,
+    "name": "split",
+    "type": 2,
+    "parent": 0,
+    "x": 2.5,
+    "y": 92.5
+   },
+   {
+    "id": 17,
+    "name": "Either_pump",
+    "type": 2,
+    "parent": 0,
+    "x": 7.5,
+    "y": 92.5,
+    "k": 1
+   },
+   {
+    "id": 15,
+    "name": "end",
+    "type": 3,
+    "parent": 0,
+    "x": 12.5,
+    "y": 92.5
+   }
+  ],
+  "events": [],
+  "hierarchies": []
+ },
+ "defaults": {
+  "blocks": {
+   "id": 0,
+   "name": "unnamed",
+   "parent": 0,
+   "x": 0.0,
+   "y": 0.0,
+   "growth_decay_limit": 1.0,
+   "rso": 1,
+   "eso": 1,
+   "pm_spare": true,
+   "pm_refresh": true,
+   "pm_fail_reset": true,
+   "pm_req_defer": true,
+   "at": 3
+  }
+ },
+ "spare_pools": [],
+ "resources": [],
+ "triggers": [],
+ "phases": [],
+ "annotations": [
+  {
+   "kind": "rect",
+   "id": 1,
+   "parent": 0,
+   "x": 172.12,
+   "y": 76.08,
+   "w": 111.77,
+   "h": 40.92,
+   "text": "",
+   "z": -50.0,
+   "border_colour": "#5D7080",
+   "border_width": 1,
+   "fill_colour": null,
+   "text_colour": "#132238",
+   "font_family": "sans-serif",
+   "font_size": 10,
+   "font_bold": false,
+   "font_italic": false,
+   "line_style": "solid",
+   "anchor": {
+    "target": "Pump_A",
+    "ref": "Block:1",
+    "location": "above",
+    "gap": 12.0
+   }
+  },
+  {
+   "kind": "ellipse",
+   "id": 2,
+   "parent": 0,
+   "x": 15.62,
+   "y": -5.89,
+   "w": 120.75,
+   "h": 51.89,
+   "text": "",
+   "z": -50.0,
+   "border_colour": "#5D7080",
+   "border_width": 1,
+   "fill_colour": null,
+   "text_colour": "#132238",
+   "font_family": "sans-serif",
+   "font_size": 10,
+   "font_bold": false,
+   "font_italic": false,
+   "line_style": "solid",
+   "anchor": {
+    "gap": 12.0,
+    "location": "above",
+    "ref": "Node:16",
+    "target": "split"
+   }
+  },
+  {
+   "kind": "ellipse",
+   "id": 3,
+   "parent": 0,
+   "x": 162.63,
+   "y": 12.0,
+   "w": 130.75,
+   "h": 52.08,
+   "text": "",
+   "z": -50.0,
+   "border_colour": "#5D7080",
+   "border_width": 1,
+   "fill_colour": null,
+   "text_colour": "#132238",
+   "font_family": "sans-serif",
+   "font_size": 10,
+   "font_bold": false,
+   "font_italic": false,
+   "line_style": "solid",
+   "anchor": {
+    "target": "Annotation 1",
+    "ref": "Annotation:1",
+    "location": "above",
+    "gap": 12.0
+   }
+  }
+ ],
+ "view_transform": {
+  "scale": 60.8,
+  "origin_x": 1.25,
+  "flip_base": 93.75,
+  "dx_min": 1.25,
+  "dy_min": 1.25
+ },
+ "comments": []
+}

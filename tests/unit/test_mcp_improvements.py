@@ -144,7 +144,7 @@ class TestBuildModelSections:
             phases=[{"name": "Cruise", "params": [100.0, 0.0, 0.0],
                      "mission": 1}],
             annotations=[{"kind": "text", "text": "hot-swap",
-                          "adjacent_to": "B1", "side": "right"}],
+                          "adjacent_to": "B1", "location": "right"}],
         )
         r = build_model("aux", spec)
         assert not r.is_error, _text(r)
@@ -208,14 +208,14 @@ class TestAnnotationTools:
                                              update_annotation,
                                              delete_annotation)
         r = add_annotation(mid, kind="text", text="note",
-                           adjacent_to="B1", side="above")
+                           adjacent_to="B1", location="above")
         assert not r.is_error, _text(r)
         aid = r.structured_content["annotation_id"]
         assert list_annotations(mid).structured_content["count"] == 1
 
         up = update_annotation(mid, aid, {"text": "changed",
                                           "adjacent_to": "B2",
-                                          "side": "below"})
+                                          "location": "below"})
         assert not up.is_error, _text(up)
         assert up.structured_content["summary"]["text"] == "changed"
         assert up.structured_content["summary"]["anchor"]["target"] == "B2"
@@ -403,16 +403,44 @@ class TestAnnotationEdgeCases:
         d = delete_annotation(mid, 999)
         assert d.structured_content["error"]["code"] == "not_found"
 
-    def test_lone_side_keeps_existing_anchor(self, tmp_path):
+    def test_lone_location_keeps_existing_anchor(self, tmp_path):
         mid = self._model(tmp_path)
         from raptor.mcp.tools_model import add_annotation, update_annotation
         aid = add_annotation(mid, kind="text", text="n",
-                             adjacent_to="B1", side="right") \
+                             adjacent_to="B1", location="right") \
             .structured_content["annotation_id"]
-        s = update_annotation(mid, aid, {"side": "left"}) \
+        s = update_annotation(mid, aid, {"location": "left"}) \
             .structured_content["summary"]
         assert s["anchor"]["target"] == "B1"
-        assert s["anchor"]["side"] == "left"
+        assert s["anchor"]["location"] == "left"
+
+    def test_location_defaults_to_above(self, tmp_path):
+        mid = self._model(tmp_path)
+        from raptor.mcp.tools_model import add_annotation
+        r = add_annotation(mid, kind="text", text="n", adjacent_to="B1")
+        assert not r.is_error, _text(r)
+        assert r.structured_content["summary"]["anchor"]["location"] == "above"
+
+    def test_center_location_is_offered(self, tmp_path):
+        mid = self._model(tmp_path)
+        from raptor.mcp.tools_model import add_annotation
+        r = add_annotation(mid, kind="text", text="over",
+                           adjacent_to="B1", location="center")
+        assert not r.is_error, _text(r)
+        assert r.structured_content["summary"]["anchor"]["location"] == "center"
+
+    def test_an_annotation_can_anchor_to_another_annotation(self, tmp_path):
+        mid = self._model(tmp_path)
+        from raptor.mcp.tools_model import add_annotation
+        first = add_annotation(mid, kind="ellipse", text="zone",
+                               adjacent_to="B1", location="right") \
+            .structured_content["annotation_id"]
+        second = add_annotation(mid, kind="text", text="label",
+                                adjacent_to=f"Annotation:{first}",
+                                location="center")
+        assert not second.is_error, _text(second)
+        assert second.structured_content["summary"]["anchor"]["ref"] == \
+            f"Annotation:{first}"
 
     def test_change_kind_without_placement_is_rejected(self, tmp_path):
         mid = self._model(tmp_path)
@@ -427,7 +455,7 @@ class TestAnnotationEdgeCases:
         mid = self._model(tmp_path)
         from raptor.mcp.tools_model import add_annotation, list_annotations
         for kind in ("rect", "ellipse"):
-            r = add_annotation(mid, kind=kind, adjacent_to="B1", side="right")
+            r = add_annotation(mid, kind=kind, adjacent_to="B1", location="right")
             assert not r.is_error, _text(r)
         assert list_annotations(mid).structured_content["count"] == 2
 
@@ -448,7 +476,7 @@ class TestAnnotationEdgeCases:
         # arrow -> box: an explicit adjacent_to must override from_/to
         s = update_annotation(mid, aid, {"kind": "text",
                                          "adjacent_to": "B1",
-                                         "side": "left"}) \
+                                         "location": "left"}) \
             .structured_content["summary"]
         assert s["kind"] == "text"
         assert s["anchor"]["target"] == "B1"

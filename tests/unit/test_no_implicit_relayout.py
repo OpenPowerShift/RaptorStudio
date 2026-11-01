@@ -38,7 +38,7 @@ def crowded(tmp_path):
 def test_registering_and_saving_keep_hand_placed_positions(crowded):
     ws, mid, xs = crowded
     assert _xs(ws.get(mid).rbd) == xs
-    add_annotation(ws, mid, kind="text", text="note", adjacent_to="B2", side="above")
+    add_annotation(ws, mid, kind="text", text="note", adjacent_to="B2", location="above")
     assert _xs(ws.get(mid).rbd) == xs
     reread = ws._load_any(str(ws.get(mid).path))
     assert _xs(reread) == xs
@@ -76,7 +76,7 @@ def test_mcp_auto_layout_moves_anchored_annotations_and_keeps_free_ones(tmp_path
     from raptor.mcp.tools_model import auto_layout
     ws = context.workspace()
     mid = ws.register_model(build.build_from_spec(SPEC, auto_layout=False), name="m")["model_id"]
-    note = add_annotation(ws, mid, kind="text", text="n", adjacent_to="B2", side="above")
+    note = add_annotation(ws, mid, kind="text", text="n", adjacent_to="B2", location="above")
     free = add_annotation(ws, mid, kind="rect", x=10.0, y=10.0, w=40.0, h=20.0)
     before = {a["id"]: (a["x"], a["y"]) for a in ws.get(mid).rbd.annotations}
     data = auto_layout(mid).structured_content
@@ -126,3 +126,108 @@ def test_an_anchor_records_the_element_id(crowded):
     add_annotation(ws, mid, kind="text", text="n", adjacent_to="B1")
     anchor = list_annotations(ws, mid)["annotations"][0]["anchor"]
     assert anchor["ref"].startswith("Block:") and anchor["target"] == "B1"
+
+
+def test_real_auto_layout_moves_a_chain_consistently_and_is_stable(tmp_path):
+    """End to end through the MCP tool: a block note, a note anchored to
+    that note and an arrow between two blocks end up clear of every
+    element and of each other, the arrow on its targets, a second layout changes nothing, and a rename afterwards keeps the
+    stored names in step."""
+    from raptor.api.annotations import _anchor_for, refresh_anchor_names
+    from raptor.mcp.server import mcp
+    mcp._raptor_args = type("A", (), {"workspace": str(tmp_path)})()
+    mcp._raptor_ws = None
+    from raptor.mcp import context
+    from raptor.mcp.tools_model import auto_layout
+    ws = context.workspace()
+    mid = ws.register_model(build.build_from_spec(SPEC, auto_layout=False), name="m")["model_id"]
+    first = add_annotation(ws, mid, kind="text", text="first", adjacent_to="B2",
+                           location="above")
+    second = add_annotation(ws, mid, kind="text", text="second",
+                            adjacent_to=f"Annotation:{first['annotation_id']}",
+                            location="below")
+    arrow = add_annotation(ws, mid, kind="arrow", from_="B0", to="B3")
+    rbd = ws.get(mid).rbd
+
+    def by_id(i):
+        return next(a for a in rbd.annotations if a["id"] == i)
+
+    def check():
+        from raptor.api.annotations import _element_boxes
+        boxes = {}
+        for aid in (first["annotation_id"], second["annotation_id"]):
+            note = by_id(aid)
+            boxes[aid] = (note["x"], note["y"], note["x"] + note["w"], note["y"] + note["h"])
+            own = note["anchor"]["ref"]
+            for _parent, ref, l, t, r, btm in _element_boxes(rbd):
+                if ref == own:
+                    continue
+                assert not (boxes[aid][0] < r and boxes[aid][2] > l
+                            and boxes[aid][1] < btm and boxes[aid][3] > t), \
+                    f"note {aid} overlaps {ref}"
+        f, g = boxes[first["annotation_id"]], boxes[second["annotation_id"]]
+        assert not (f[0] < g[2] and f[2] > g[0] and f[1] < g[3] and f[3] > g[1])
+        a = by_id(arrow["annotation_id"])
+        tail = _anchor_for(rbd, a["anchor"]["from_ref"])
+        head = _anchor_for(rbd, a["anchor"]["to_ref"])
+        # The arrow stops at each target's outline, not at its centre.
+        from raptor.core.annotations import arrow_points
+        want = arrow_points(a, tail, head)
+        assert (a["x1"], a["y1"], a["x2"], a["y2"]) == pytest.approx(
+            (want["x1"], want["y1"], want["x2"], want["y2"]))
+        assert (a["x1"], a["y1"]) != (round(tail["cx"], 2), round(tail["cy"], 2))
+
+    assert auto_layout(mid).structured_content["moved"]
+    check()
+    snapshot = [(a["id"], a.get("x"), a.get("y"), a.get("x2"), a.get("y2"))
+                for a in rbd.annotations]
+    auto_layout(mid)
+    check()
+    assert snapshot == [(a["id"], a.get("x"), a.get("y"), a.get("x2"), a.get("y2"))
+                        for a in rbd.annotations]
+
+    row = next(r for r in rbd.section("BLOCK_DATA").rows if r["blockName"] == "B2")
+    row["blockName"] = "B2_renamed"
+    refresh_anchor_names(rbd)
+    assert by_id(first["annotation_id"])["anchor"]["target"] == "B2_renamed"
+    auto_layout(mid)
+    check()
+
+
+def test_mcp_auto_layout_makes_room_for_notes_between_stacked_blocks(tmp_path):
+    """Two blocks in a 2-of-2 split, two chained notes above the lower one:
+    after Auto Layout both notes sit clear of the block above, not on it."""
+    from raptor.api.annotations import _element_boxes
+    from raptor.mcp.server import mcp
+    mcp._raptor_args = type("A", (), {"workspace": str(tmp_path)})()
+    mcp._raptor_ws = None
+    from raptor.mcp import context
+    from raptor.mcp.tools_model import auto_layout
+    spec = {"blocks": [{"name": "A", "x": 2.0, "y": 80.0}, {"name": "B", "x": 2.0, "y": 70.0}],
+            "nodes": [{"name": "s", "type": 1, "x": 1.0, "y": 75.0},
+                      {"name": "j", "type": 2, "n": 2, "k": 2, "x": 3.0, "y": 75.0},
+                      {"name": "e", "type": 3, "x": 4.0, "y": 75.0}],
+            "links": [{"from": "s", "to": "A"}, {"from": "s", "to": "B"},
+                      {"from": "A", "to": "j"}, {"from": "B", "to": "j"},
+                      {"from": "j", "to": "e"}]}
+    ws = context.workspace()
+    mid = ws.register_model(build.build_from_spec(spec, auto_layout=False), name="m")["model_id"]
+    rbd = ws.get(mid).rbd
+    auto_layout(mid)                      # decide which block is lower
+    ys = {r["blockName"]: float(r["yPos"]) for r in rbd.section("BLOCK_DATA").rows if r["ID"] != "0"}
+    lower = min(ys, key=ys.get)
+    one = add_annotation(ws, mid, kind="text", text="one", adjacent_to=lower, location="above")
+    add_annotation(ws, mid, kind="text", text="two", location="above",
+                         adjacent_to=f"Annotation:{one['annotation_id']}")
+    # Squeeze them together again, then lay out with the notes in place.
+    for r in rbd.section("BLOCK_DATA").rows:
+        if r["ID"] != "0":
+            r["yPos"] = "81.250000" if r["blockName"] != lower else "78.750000"
+    data = auto_layout(mid).structured_content
+    assert data["moved"]
+    for note in rbd.annotations:
+        for _p, ref, l, t, r, b in _element_boxes(rbd):
+            if ref == note["anchor"]["ref"]:
+                continue
+            assert not (note["x"] < r and note["x"] + note["w"] > l
+                        and note["y"] < b and note["y"] + note["h"] > t), (note["text"], ref)

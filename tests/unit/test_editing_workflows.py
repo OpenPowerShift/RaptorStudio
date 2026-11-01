@@ -1252,6 +1252,10 @@ def test_send_to_back_places_the_note_behind_a_block(qapp):
     block.setSelected(False)      # deselected -> the z=0 band
     assert block.zValue() == 0
 
+    # It starts behind; come to the front first so "Send to Back" is the
+    # move being tested rather than a no-op.
+    assert item.zValue() == ANNO_Z_BEHIND
+    assert v.set_annotation_order("front")
     assert v.set_annotation_order("back")
     assert item.zValue() == ANNO_Z_BEHIND
     assert item.zValue() < block.zValue()
@@ -1277,11 +1281,10 @@ def test_bring_to_front_places_the_note_above_everything(qapp):
     assert item.zValue() > max(tops)
 
 
-def test_bring_to_front_then_new_note_lands_on_top(qapp):
-    """A new annotation used to always get the fixed middle-band
-    default, so drawing one after a Bring to Front silently filed it
-    UNDER the note that had just been sent to the front."""
-    from raptor.gui.ui.diagram import ANNO_Z_FRONT
+def test_a_new_note_starts_behind_even_after_a_bring_to_front(qapp):
+    """A note starts in the behind band (so it cannot cover the blocks it
+    describes), even when another note has been sent to the front."""
+    from raptor.gui.ui.diagram import ANNO_Z_BEHIND, ANNO_Z_FRONT
     v = DiagramView()
     v.load_rbd(load_rbd(os.path.join(GOLD, "TwoBlockRedundancy",
                                      "input.rbd")))
@@ -1293,10 +1296,10 @@ def test_bring_to_front_then_new_note_lands_on_top(qapp):
     _place_shape(v, 400, 400)
     newest = [i for i in v._anno_items.values() if i is not first][0]
     assert first.zValue() == ANNO_Z_FRONT
-    assert newest.zValue() == ANNO_Z_FRONT
+    assert newest.zValue() == ANNO_Z_BEHIND
     order = v._scene.items()
-    assert order.index(newest) < order.index(first), \
-        "the newly drawn note must sit on top"
+    assert order.index(newest) > order.index(first), \
+        "the newly drawn note must sit behind the diagram"
 
 
 def test_bring_forward_and_send_backward_step_through_the_bands(qapp):
@@ -1309,8 +1312,11 @@ def test_bring_forward_and_send_backward_step_through_the_bands(qapp):
     item = next(iter(v._anno_items.values()))
     v._scene.clearSelection()
     item.setSelected(True)
-    assert item.zValue() == ANNO_Z_MIDDLE
+    assert item.zValue() == ANNO_Z_BEHIND
     # forward walks up the bands and reports None once at the top
+    assert v.annotation_order_target("forward") == ANNO_Z_MIDDLE
+    v.set_annotation_order("forward")
+    assert item.zValue() == ANNO_Z_MIDDLE
     assert v.annotation_order_target("forward") == ANNO_Z_FRONT
     v.set_annotation_order("forward")
     assert item.zValue() == ANNO_Z_FRONT
@@ -1323,9 +1329,6 @@ def test_bring_forward_and_send_backward_step_through_the_bands(qapp):
     v.set_annotation_order("backward")
     assert item.zValue() == ANNO_Z_BEHIND
     assert v.annotation_order_target("backward") is None
-    assert v.annotation_order_target("forward") == ANNO_Z_MIDDLE
-    v.set_annotation_order("forward")
-    assert item.zValue() == ANNO_Z_MIDDLE
 
 
 def test_single_step_lands_on_a_value_actually_in_use(qapp):
@@ -1335,6 +1338,8 @@ def test_single_step_lands_on_a_value_actually_in_use(qapp):
     v = DiagramView()
     v.load_rbd(load_rbd(os.path.join(GOLD, "TwoBlockRedundancy",
                                      "input.rbd")))
+    from raptor.gui.ui.diagram import (ANNO_Z_BEHIND, ANNO_Z_FRONT,
+                                      ANNO_Z_MIDDLE)
     _place_shape(v, 100, 100)
     first = next(iter(v._anno_items.values()))
     _place_shape(v, 400, 400)
@@ -1345,14 +1350,18 @@ def test_single_step_lands_on_a_value_actually_in_use(qapp):
     v._sync_anno_z(second)
     v._scene.clearSelection()
     first.setSelected(True)
+    assert first.zValue() == ANNO_Z_BEHIND
+    assert v.annotation_order_target("forward") == ANNO_Z_MIDDLE
+    assert v.set_annotation_order("forward")
+    assert first.zValue() == ANNO_Z_MIDDLE
     assert v.annotation_order_target("forward") == 30.0
     assert v.set_annotation_order("forward")
     assert first.zValue() == 30.0
-    assert v.annotation_order_target("forward") == 40.0
+    assert v.annotation_order_target("forward") == ANNO_Z_FRONT
 
 
 def test_z_order_change_is_one_undo_step_with_a_readable_label(qapp):
-    from raptor.gui.ui.diagram import ANNO_Z_BEHIND
+    from raptor.gui.ui.diagram import ANNO_Z_BEHIND, ANNO_Z_FRONT
     v = DiagramView()
     v.load_rbd(load_rbd(os.path.join(GOLD, "TwoBlockRedundancy",
                                      "input.rbd")))
@@ -1363,15 +1372,16 @@ def test_z_order_change_is_one_undo_step_with_a_readable_label(qapp):
     for it in items:
         it.setSelected(True)
     before = {aid: it.zValue() for aid, it in v._anno_items.items()}
+    assert all(z == ANNO_Z_BEHIND for z in before.values())
     n0 = v._stack.count()
 
-    assert v.set_annotation_order("back")
+    assert v.set_annotation_order("front")
 
     assert v._stack.count() == n0 + 1, "a multi-note move is ONE undo step"
-    assert v._stack.undoText() == "Send to Back", \
+    assert v._stack.undoText() == "Bring to Front", \
         "the history must name the move, not the generic edit"
     for it in items:
-        assert it.zValue() == ANNO_Z_BEHIND
+        assert it.zValue() == ANNO_Z_FRONT
     v._stack.undo()
     for aid, it in v._anno_items.items():
         assert it.zValue() == before[aid]
@@ -1559,11 +1569,18 @@ def test_context_menu_items_are_disabled_when_inapplicable(qapp):
     v._scene.clearSelection()
     item.setSelected(True)
     rclick(item.scenePos().x() + 20, item.scenePos().y() + 20)
+    at_back = seen.pop()
+    assert at_back["Bring to Front"] and at_back["Bring Forward"]
+    assert not at_back["Send Backward"] and not at_back["Send to Back"]
+    # nothing in the buffer yet
+    assert not at_back["Paste Here (at pointer)"]
+
+    # in the middle both directions are available
+    v.set_annotation_order("forward")
+    rclick(item.scenePos().x() + 20, item.scenePos().y() + 20)
     mid = seen.pop()
     assert mid["Bring to Front"] and mid["Bring Forward"]
     assert mid["Send Backward"] and mid["Send to Back"]
-    # nothing in the buffer yet
-    assert not mid["Paste Here (at pointer)"]
 
     # at the front: nothing further forward exists, so both are off
     v.set_annotation_order("front")

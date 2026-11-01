@@ -41,6 +41,7 @@ from raptor.gui.ui.diagram_items import (  # noqa: I001
 from raptor.core.annotations import (  # noqa: F401  (re-exported)
     ANNO_DEFAULTS,
     ANNO_Z_BANDS,
+    ANNO_Z_DEFAULT,
     ANNO_Z_BEHIND,
     ANNO_Z_FRONT,
     ANNO_Z_MIDDLE,
@@ -782,7 +783,7 @@ class AnnoCmd(_ViewCmd):
             return None
         item = cls(int(a.get("id", 0)), int(a.get("parent", 0)), a,
                    self._v, *_anno_ctor_args(a))
-        item.setZValue(float(a.get("z", ANNO_Z_MIDDLE)))
+        item.setZValue(float(a.get("z", ANNO_Z_DEFAULT)))
         return item
 
     def redo(self):
@@ -824,7 +825,12 @@ def apply_anno_state(v, aid: int, state: dict) -> None:
     what `AnnoEditCmd` does, shared with the anchor-following code."""
     for _i, a in enumerate(v.annotations):
         if int(a.get("id", 0)) == aid:
+            text_changed = a.get("text") != state.get("text")
             a.clear(); a.update(state)
+            if text_changed and getattr(v, "_rbd_ref", None) is not None:
+                # Anchors to this note store its label beside the id.
+                from raptor.api.annotations import refresh_anchor_names
+                refresh_anchor_names(v._rbd_ref)
             break
     item = getattr(v, "_anno_items", {}).get(aid)
     if item is not None:
@@ -862,7 +868,7 @@ def apply_anno_state(v, aid: int, state: dict) -> None:
         sp = item.scenePos()
         item.setPos(float(state.get("x", sp.x())),
                     float(state.get("y", sp.y())))
-        item.setZValue(float(state.get("z", ANNO_Z_MIDDLE)))
+        item.setZValue(float(state.get("z", ANNO_Z_DEFAULT)))
     refresh = getattr(v, "_refresh_anchor_leader", None)
     if refresh is not None:
         refresh()

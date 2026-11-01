@@ -285,10 +285,16 @@ class AddAnnotationInput(BaseModel):
     kind: str = Field(default="text", description="'text', 'rect', 'ellipse' or 'arrow'")
     text: str = Field(default="")
     adjacent_to: str | None = Field(
-        default=None, description="Element name/id to place next to (no coordinates)"
+        default=None,
+        description=("Element name/id, or Annotation:<id>/label, to place next "
+                     "to (no coordinates)"),
     )
-    side: str = Field(default="right", description="'right', 'left', 'above' or 'below'")
-    gap: float = Field(default=12.0, description="Gap from the anchor")
+    location: str = Field(
+        default="above",
+        description="'right', 'left', 'above', 'below' or 'center'",
+    )
+    gap: float = Field(default=12.0,
+                       description="Gap from the anchor (ignored by 'center')")
     x: float | None = Field(default=None, description="Explicit scene x (top-left)")
     y: float | None = Field(default=None, description="Explicit scene y (top-left)")
     w: float | None = None
@@ -315,7 +321,8 @@ class UpdateAnnotationInput(BaseModel):
     model_id: str
     annotation_id: int
     patch: dict[str, Any] = Field(
-        description="Any style/text/geometry field, or a re-anchor (adjacent_to/side/gap)",
+        description=("Any style/text/geometry field, or a re-anchor "
+                     "(adjacent_to/location/gap)"),
     )
 
 

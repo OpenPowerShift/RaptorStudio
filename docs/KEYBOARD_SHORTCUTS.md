@@ -54,8 +54,27 @@ icon again for the next one. That stops every later click from dropping
 another shape.
 
 - **Esc** or **right-click** cancels a placement in progress (the first
-  corner, or an arrow's tail) and puts nothing on the canvas.
+  corner, or an arrow's tail) and puts nothing on the canvas. Esc also
+  cancels *Pick on canvas…* anchoring from the Inspector.
 - Right-click *anywhere* else on the canvas opens the context menu.
+
+## Anchoring annotations
+Select an annotation and use the Inspector's **Anchor** group: pick a
+target, a **Location** (Right, Left, Above, Below or Centre) and a gap.
+**Pick on canvas…** then a click on an element or another annotation sets
+the target; Esc cancels. Anchored annotations follow their target, and
+chains are allowed.
+
+Drag an anchored note wherever you like: it keeps following its target
+from there. **Reset position** returns it to its Location and **Break
+link** frees it. Auto Layout leaves room for notes above or below a
+block (it widens the gap between stacked blocks) and nudges a note that
+would still land on something.
+
+An arrow's two ends attach separately. Each has its own **Pick…** (click
+an element or annotation) and **Remove** (frees that end where it is). An
+attached end follows its target and stops at the target's edge, not its
+centre. Dragging an anchored arrow by hand frees it.
 
 To make your own look the default, right-click a shape you have styled
 and choose **Set as Default for New Rectangles** (or Ellipses / Text
