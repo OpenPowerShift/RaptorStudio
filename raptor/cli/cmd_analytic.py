@@ -58,6 +58,16 @@ def add_parser(sub: Any) -> None:
     p.add_argument("--standby", choices=("active", "absent"), default=None,
                    help="cold-standby paths: treat as fully in service, or "
                         "as if they did not exist")
+    p.add_argument("--max-variables", type=int, default=None, metavar="N",
+                   help="raise the BDD variable limit (default: solver "
+                        "setting) when a large model is still tractable")
+    p.add_argument("--max-bdd-nodes", type=int, default=None, metavar="N",
+                   help="raise the BDD node limit (default: solver setting) "
+                        "for a large but structurally simple model")
+    p.add_argument("--progress", choices=("auto", "bar", "json", "none"),
+                   default="auto",
+                   help="progress on stderr: BDD construction and the "
+                        "importance pass (auto = bar only on a terminal)")
     p.add_argument("-f", "--format", choices=("text", "json", "csv"),
                    default="text")
     p.set_defaults(func=analytic_command)
@@ -101,9 +111,40 @@ def _summary_csv(result: dict[str, Any]) -> str:
     return out.getvalue()
 
 
+def _progress_callback(mode: str):
+    if mode == "none" or (mode == "auto" and not sys.stderr.isatty()):
+        return None
+    import json as _json
+
+    last = {"stage": ""}
+
+    def cb(stage: str, done: int, total: int) -> None:
+        if mode == "json":
+            eprint(_json.dumps({"event": "progress", "stage": stage,
+                                "done": done, "total": total}))
+            return
+        if stage != last["stage"]:
+            if last["stage"]:
+                sys.stderr.write("\n")
+            last["stage"] = stage
+        total_text = f"/{total}" if total else ""
+        sys.stderr.write(f"\r{stage} {done}{total_text}")
+        if total and done >= total:
+            sys.stderr.write("\n")
+            last["stage"] = ""
+        sys.stderr.flush()
+    return cb
+
+
 def analytic_command(args: Any) -> int:
     from raptor.api.analytical import analyse
     from raptor.core.analytical.errors import AnalyticalError
+    progress = _progress_callback(args.progress)
+    limits: dict[str, int] = {}
+    if args.max_variables is not None:
+        limits["max_variables"] = args.max_variables
+    if args.max_bdd_nodes is not None:
+        limits["max_bdd_nodes"] = args.max_bdd_nodes
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         try:
@@ -121,6 +162,8 @@ def analytic_command(args: Any) -> int:
                         if x.strip()],
                 phase=args.phase,
                 standby=args.standby,
+                progress=progress,
+                **limits,
             )
         except AnalyticalError as exc:
             raise CliError(str(exc), X.INVALID) from exc

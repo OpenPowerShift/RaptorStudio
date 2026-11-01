@@ -3,9 +3,11 @@ from __future__ import annotations
 
 from typing import Literal
 
+from mcp.server.mcpserver import Context
 from mcp.types import CallToolResult
 
 from raptor.mcp import context
+from raptor.mcp.jobs import run_job
 from raptor.mcp.result import READ_ONLY, guarded, markdown_table, ok
 from raptor.mcp.server import mcp
 
@@ -56,7 +58,7 @@ def _markdown(result: dict) -> str:  # noqa: C901
 
 @mcp.tool(annotations=READ_ONLY("Analytical analysis"))
 @guarded
-def analytical_analysis(
+async def analytical_analysis(
     model_id: str,
     mode: Literal["reliability", "availability"] = "reliability",
     at: float | None = None,
@@ -69,6 +71,9 @@ def analytical_analysis(
     ignore: list[Literal["repairs", "pm", "spares", "resources"]] | None = None,
     phase: int | None = None,
     standby: Literal["active", "absent"] | None = None,
+    max_variables: int | None = None,
+    max_bdd_nodes: int | None = None,
+    ctx: Context | None = None,
 ) -> CallToolResult:
     """Solve the static subset of a model exactly.
 
@@ -84,14 +89,33 @@ def analytical_analysis(
     reliability of a further mission of that length after `at`.
     `ignore_repairs` (same as `ignore=["repairs"]`) gives the first-failure
     reliability of a repairable model.
+
+    The default solver limits are 5,000 blocks/events and 1,000,000 BDD
+    nodes. `max_variables` and `max_bdd_nodes` override them for a large but
+    tractable model. Raising a limit does not guarantee a solution: the BDD
+    can still exceed it, and the solver refuses rather than approximate.
+
+    A long solve sends MCP progress notifications about once a second while
+    the BDD and importance measures are built.
     """
     from raptor.api.analytical import analyse
 
-    result = analyse(
-        context.workspace(), model_id,
-        mode=mode, at=at, times=times, bx=bx, tau=tau,
-        importance=importance, equation=equation,
-        ignore_repairs=ignore_repairs, ignore=ignore or (), phase=phase,
-        standby=standby,
-    )
+    limits: dict[str, int] = {}
+    if max_variables is not None:
+        limits["max_variables"] = max_variables
+    if max_bdd_nodes is not None:
+        limits["max_bdd_nodes"] = max_bdd_nodes
+
+    def work(abort, progress):
+        return analyse(
+            context.workspace(), model_id,
+            mode=mode, at=at, times=times, bx=bx, tau=tau,
+            importance=importance, equation=equation,
+            ignore_repairs=ignore_repairs, ignore=ignore or (), phase=phase,
+            standby=standby,
+            progress=lambda _stage, done, total: progress(done, total),
+            **limits,
+        )
+
+    result = await run_job(ctx, work, label="Analysing")
     return ok(result, markdown=_markdown(result))

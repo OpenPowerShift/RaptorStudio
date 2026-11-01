@@ -93,6 +93,8 @@
    "ignore",
    "ignore_repairs",
    "importance",
+   "max_bdd_nodes",
+   "max_variables",
    "mode",
    "model_id",
    "phase",

@@ -10,7 +10,7 @@ from raptor.api.analytical import SCHEMA, analyse
 from raptor.api.workspace import Workspace
 from raptor.cli import exitcodes as X
 from raptor.cli.main import main
-from raptor.core.analytical.errors import NotApplicable
+from raptor.core.analytical.errors import BddTooLarge, NotApplicable
 
 REPO = Path(__file__).resolve().parents[2]
 MODELS = REPO / "new_docs" / "models"
@@ -122,3 +122,45 @@ def test_api_rejects_out_of_range_bx(workspace):
     model_id = _open(workspace, "Lantern1")
     with pytest.raises(ValueError, match=r"\[0, 100\]"):
         analyse(workspace, model_id, bx=[101.0])
+
+
+def test_progress_reports_build_and_importance(workspace):
+    model_id = _open(workspace, "Lantern1")
+    events = []
+    result = analyse(workspace, model_id,
+                     progress=lambda stage, done, total: events.append(
+                         (stage, done, total)))
+    assert result["importance"]
+    stages = {stage for stage, _, _ in events}
+    assert "Building BDD" in stages or any(
+        stage.startswith("Building BDD") for stage in stages)
+    assert "Evaluating results" in stages
+    assert "Computing importance" in stages
+    assert any(stage.startswith("Building BDD") and total
+               for stage, _, total in events)
+
+
+def test_importance_false_still_returns_the_key(workspace):
+    model_id = _open(workspace, "Lantern1")
+    result = analyse(workspace, model_id, importance=False)
+    assert result["importance"] == []
+
+
+def test_solver_limits_can_be_lowered_or_raised(workspace):
+    model_id = _open(workspace, "Lantern1")
+    with pytest.raises(NotApplicable, match="at most 1"):
+        analyse(workspace, model_id, max_variables=1)
+    with pytest.raises(BddTooLarge, match="2 nodes"):
+        analyse(workspace, model_id, max_bdd_nodes=2)
+
+
+def test_cli_progress_json(capsys):
+    code = main(["analytic", str(MODELS / "Lantern1.rbds"),
+                 "--progress", "json"])
+    captured = capsys.readouterr()
+    assert code == X.OK
+    progress = [line for line in captured.err.splitlines()
+                if '"event": "progress"' in line]
+    assert progress
+    assert '"stage": "Building BDD' in progress[0] or any(
+        '"stage": "Building BDD' in line for line in progress)

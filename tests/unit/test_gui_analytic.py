@@ -279,3 +279,16 @@ def test_derived_dialog_copies_and_exports(qapp, tmp_path):
     assert dialog.export_xlsx(str(tmp_path / "d.xlsx")) is not None
     assert (tmp_path / "d.xlsx").stat().st_size > 0
     dialog.close()
+
+
+def test_analytic_dialog_shows_determinate_progress(qapp):
+    _win, dialog = _dialog(qapp, "Lantern1")
+    dialog._busy = True
+    dialog._token = 7
+    dialog._on_progress(7, "Building BDD", 25, 100)
+    assert dialog._progress.maximum() == 100
+    assert dialog._progress.value() == 25
+    assert "Building BDD" in dialog._progress_label.text()
+    dialog._on_progress(6, "stale", 90, 100)
+    assert dialog._progress.value() == 25
+    dialog.close()

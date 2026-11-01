@@ -20,7 +20,7 @@ make the diagram exponential in the worst case; the solver raises
 from __future__ import annotations
 
 import sys
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 
 from .errors import BddTooLarge
@@ -31,10 +31,13 @@ TRUE = 1
 #: A variable never has this value; used only for ordering comparisons.
 _NO_VAR = 1 << 60
 
-#: Default cap. A 122-block real model is ~12k nodes; 250k is generous for
+#: Default cap. A 122-block real model is ~12k nodes; 1M is generous for
 #: large practical diagrams and small enough to fail before exhausting
-#: memory.
-MAX_BDD_NODES = 250_000
+#: memory. A deeper investigation can raise it per call.
+MAX_BDD_NODES = 1_000_000
+
+#: How often the optional progress callback hears about new BDD nodes.
+_PROGRESS_EVERY = 8_192
 
 
 @contextmanager
@@ -42,7 +45,7 @@ def recursion_headroom(limit: int = 20_000) -> Iterator[None]:
     """Raise Python's recursion limit while a diagram is built or walked.
 
     Building and evaluating a BDD recurses once per variable level, and the
-    network walk once per block in a chain; a 750-block series chain needs
+    network walk once per block in a chain; a 5,000-block series chain needs
     more than the default 1000 frames. The variable cap keeps the real depth
     far below ``limit``.
     """
@@ -57,10 +60,12 @@ def recursion_headroom(limit: int = 20_000) -> Iterator[None]:
 class BDD:
     """Reduced ordered BDD over integer variables ``0..n-1``."""
 
-    def __init__(self, max_nodes: int = MAX_BDD_NODES) -> None:
+    def __init__(self, max_nodes: int = MAX_BDD_NODES,
+                 progress: Callable[[int], None] | None = None) -> None:
         if max_nodes < 2:
             raise ValueError("max_nodes must be at least 2")
         self.max_nodes = max_nodes
+        self._progress = progress
         #: index 0 = FALSE, 1 = TRUE, then (variable, low, high).
         self.nodes: list[tuple[int, int, int] | None] = [None, None]
         self._unique: dict[tuple[int, int, int], int] = {}
@@ -89,11 +94,14 @@ class BDD:
         if len(self.nodes) >= self.max_nodes:
             raise BddTooLarge(
                 f"the analytical BDD exceeded {self.max_nodes:,} nodes; "
-                "this model is outside the practical static subset")
+                "this model is outside the practical static subset. Solve "
+                "its hierarchies separately, or raise the BDD limit.")
         node = len(self.nodes)
         self.nodes.append(key)
         self._unique[key] = node
         self._var_of[node] = var
+        if self._progress is not None and node % _PROGRESS_EVERY == 0:
+            self._progress(node)
         return node
 
     def variable(self, var: int) -> int:

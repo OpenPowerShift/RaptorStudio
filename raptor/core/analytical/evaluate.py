@@ -6,6 +6,7 @@ turns these values into JSON-safe dictionaries.
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from .bdd import FALSE, TRUE
@@ -193,13 +194,19 @@ def conditional_reliability(build: BuildResult, t: float,
     return min(1.0, max(0.0, value))
 
 
-def importance(build: BuildResult, at: float = 0.0) -> list[ImportanceRow]:
+def importance(build: BuildResult, at: float = 0.0,
+               progress: Callable[[str, int, int], None] | None = None,
+               ) -> list[ImportanceRow]:
     """Exact Birnbaum/RAW/RRW/VF/criticality for every variable."""
     probabilities = build.probabilities(at)
     base = build.bdd.probability(build.root, probabilities)
     unavailability = 1.0 - base
     rows: list[ImportanceRow] = []
-    for info in build.variables:
+    total = len(build.variables)
+    every = max(1, total // 100)
+    for index, info in enumerate(build.variables):
+        if progress is not None and index % every == 0:
+            progress("Computing importance", index, total)
         if info.variable is None:
             continue
         variable = info.variable
@@ -230,6 +237,8 @@ def importance(build: BuildResult, at: float = 0.0) -> list[ImportanceRow]:
             vesely_fussell=vf,
             criticality=criticality,
         ))
+    if progress is not None:
+        progress("Computing importance", total, total)
     rows.sort(key=lambda row: (row.criticality is None,
                                -(row.criticality or 0.0),
                                row.name.lower()))

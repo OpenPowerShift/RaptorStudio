@@ -7,14 +7,16 @@ or survival modules directly. Results are JSON-safe (undefined values are
 from __future__ import annotations
 
 import math
-from collections.abc import Collection, Sequence
+from collections.abc import Callable, Collection, Sequence
 from typing import Any
 
 from raptor.api.workspace import Workspace
 from raptor.core.analytical import build as build_analytical
 from raptor.core.analytical import recursion_headroom
 from raptor.core.analytical import evaluate
+from raptor.core.analytical.bdd import MAX_BDD_NODES
 from raptor.core.analytical.errors import AnalyticalError, BddTooLarge, NotApplicable
+from raptor.core.analytical.network import MAX_VARIABLES
 from raptor.core.engine.load import load_model
 
 SCHEMA = "raptor-analytic/1"
@@ -51,8 +53,15 @@ def analyse(  # noqa: C901, PLR0912
     ignore: Collection[str] = (),
     phase: int | None = None,
     standby: str | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
+    max_variables: int = MAX_VARIABLES,
+    max_bdd_nodes: int = MAX_BDD_NODES,
 ) -> dict[str, Any]:
     """Run the static solver for one model handle.
+
+    ``progress(stage, done, total)`` is optional and may be called from a
+    worker thread. ``max_variables`` and ``max_bdd_nodes`` override the
+    solver defaults for this call.
 
     Raises `NotApplicable` when the model is outside the solver's assumptions;
     callers should show that message, not a traceback.
@@ -65,7 +74,8 @@ def analyse(  # noqa: C901, PLR0912
         mode=mode, at=at, times=times, bx=bx, tau=tau,
         importance=importance, equation=equation,
         ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
-        standby=standby,
+        standby=standby, progress=progress,
+        max_variables=max_variables, max_bdd_nodes=max_bdd_nodes,
     )
 
 
@@ -84,6 +94,9 @@ def analyse_rbd(
     ignore: Collection[str] = (),
     phase: int | None = None,
     standby: str | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
+    max_variables: int = MAX_VARIABLES,
+    max_bdd_nodes: int = MAX_BDD_NODES,
 ) -> dict[str, Any]:
     """Analyse an in-memory ``RbdFile`` (the GUI's open model)."""
     try:
@@ -92,7 +105,8 @@ def analyse_rbd(
                 rbd, name, mode=mode, at=at, times=times, bx=bx, tau=tau,
                 importance=importance, equation=equation,
                 ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
-                standby=standby)
+                standby=standby, progress=progress,
+                max_variables=max_variables, max_bdd_nodes=max_bdd_nodes)
     except RecursionError as exc:
         raise NotApplicable(
             "the diagram is nested too deeply for the analytical solver; "
@@ -114,6 +128,9 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
     ignore: Collection[str] = (),
     phase: int | None = None,
     standby: str | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
+    max_variables: int = MAX_VARIABLES,
+    max_bdd_nodes: int = MAX_BDD_NODES,
 ) -> dict[str, Any]:
     if mode not in ("reliability", "availability"):
         raise ValueError("mode must be 'reliability' or 'availability'")
@@ -149,9 +166,11 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
         raise NotApplicable(f"cannot load the model for analysis: {exc}") from exc
 
     try:
-        built = build_analytical(model, mode=mode,
-                                 ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
-                standby=standby)
+        built = build_analytical(
+            model, mode=mode,
+            ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
+            standby=standby, progress=progress,
+            max_variables=max_variables, max_bdd_nodes=max_bdd_nodes)
     except NotApplicable:
         raise
     except (OverflowError, ZeroDivisionError, ValueError) as exc:
@@ -188,6 +207,8 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
         "scope": _scope_dict(model, built.scope),
     }
 
+    if progress is not None:
+        progress("Evaluating results", 0, 1)
     if mode == "reliability":
         reliability = evaluate.system_probability(built, at)
         result["reliability"] = _num(reliability)
@@ -198,6 +219,8 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
         availability = evaluate.availability(built)
         result["availability"] = _num(availability)
         result["unavailability"] = _num(1.0 - availability)
+    if progress is not None:
+        progress("Evaluating results", 1, 1)
 
     requested_bx = list(bx) if bx is not None else [10.0]
     if mode == "reliability" and requested_bx:
@@ -233,8 +256,14 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
     result["components"] = _components(built, at)
 
     if importance:
-        rows = evaluate.importance(built, 0.0 if mode == "availability" else at)
+        rows = evaluate.importance(
+            built, 0.0 if mode == "availability" else at,
+            progress=progress)
         result["importance"] = [_importance_row(row) for row in rows]
+    else:
+        # The MCP output schema requires the key; an empty list is the
+        # honest value when importance was not requested.
+        result["importance"] = []
 
     if equation:
         text = evaluate.equation(built)

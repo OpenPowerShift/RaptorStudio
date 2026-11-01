@@ -12,7 +12,7 @@ result would not prove anything.
 from __future__ import annotations
 
 import math
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 
 from raptor.core.engine.load import SimulationModel
@@ -20,7 +20,7 @@ from raptor.core.model import ActiveStatus, RBDBlock, RBDEvent
 from raptor.core.rng import Distribution as RngDistribution
 
 from . import survival
-from .bdd import BDD, FALSE, TRUE
+from .bdd import BDD, FALSE, MAX_BDD_NODES, TRUE
 from .errors import NotApplicable
 
 #: Engine values that mean "no spare constraint".
@@ -29,8 +29,13 @@ _NONE_SPARING = "NONE"
 
 #: The BDD probability walk is recursive; keep well inside Python's default
 #: recursion limit. Practical models are far smaller; this is a refusal, not
-#: an approximation.
-MAX_VARIABLES = 750
+#: an approximation. A caller that knows its model can raise it explicitly.
+MAX_VARIABLES = 5_000
+
+#: ``progress(stage, done, total)``, matching the simulation engine's set-up
+#: callback. The analytical solver reports graph/BDD construction and the
+#: importance pass.
+ProgressCallback = Callable[[str, int, int], None]
 
 
 IGNORABLE = ("repairs", "pm", "spares", "resources")
@@ -207,29 +212,53 @@ class BuildResult:
 def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, PLR0912, PLR0915
           ignore_repairs: bool = False, ignore: Collection[str] = (),
           phase: int | None = None,
-          standby: str | None = None) -> BuildResult:
+          standby: str | None = None,
+          progress: ProgressCallback | None = None,
+          max_variables: int = MAX_VARIABLES,
+          max_bdd_nodes: int = MAX_BDD_NODES) -> BuildResult:
     """Build the success BDD for ``model``.
 
     Raises `NotApplicable` when the model uses a construct the static solver
     cannot represent. The first offending element is named in the message.
+
+    ``progress(stage, done, total)`` reports graph-node and BDD-node
+    construction. ``max_variables`` and ``max_bdd_nodes`` override the
+    module defaults for one call; both are hard refusals, never
+    approximations.
     """
     if mode not in ("reliability", "availability"):
         raise ValueError(f"unknown analytical mode {mode!r}")
+    if max_variables < 1:
+        raise ValueError("max_variables must be at least 1")
+    if max_bdd_nodes < 2:
+        raise ValueError("max_bdd_nodes must be at least 2")
     scope = _scope(model, mode, ignore_repairs, ignore, phase, standby)
+    if progress is not None:
+        progress("Preparing model", 0, 1)
     _gate(model, mode=mode, scope=scope)
+    if progress is not None:
+        progress("Preparing model", 1, 1)
 
     start = _one_node(model, 1, "Start")
     end = _one_node(model, 3, "End")
     incoming, block_in = _index_links(model)
 
     # Variable order is first encounter on a depth-first walk from Start.
-    order = _variable_order(model, start)
-    if len(order) > MAX_VARIABLES:
+    order = _variable_order(model, start, max_variables=max_variables)
+    if len(order) > max_variables:
         raise NotApplicable(
-            f"the static solver supports at most {MAX_VARIABLES} blocks/"
-            f"events; this model has {len(order)}. Use simulation.")
+            f"the static solver supports at most {max_variables} blocks/"
+            f"events; this model has {len(order)}. Use simulation or raise "
+            "the variable limit.")
 
-    bdd = BDD()
+    total_nodes = max(1, len(model.nodes_by_id))
+    done = [0]
+
+    def bdd_progress(count: int) -> None:
+        if progress is not None:
+            progress(f"Building BDD ({count:,} nodes)", done[0], total_nodes)
+
+    bdd = BDD(max_nodes=max_bdd_nodes, progress=bdd_progress)
     # Reverse the first-encounter order for BDD indices. A series chain then
     # adds each new variable BELOW the existing diagram, which is linear;
     # adding it above would rebuild the whole chain (quadratic nodes).
@@ -292,9 +321,15 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
                 out = bdd.threshold([branch_condition(link) for link in links], k)
         visiting.remove(node_id)
         node_memo[node_id] = out
+        done[0] += 1
+        if progress is not None:
+            progress(f"Building BDD ({bdd.node_count:,} nodes)",
+                     done[0], total_nodes)
         return out
 
     root = node_condition(end)
+    if progress is not None:
+        progress("Building BDD", total_nodes, total_nodes)
 
     infos: list[BlockInfo] = []
     for key in order:
@@ -615,7 +650,8 @@ def _link_target(link) -> tuple[str, int]:
 
 
 def _variable_order(model: SimulationModel,  # noqa: C901
-                    start: int) -> list[tuple[str, int]]:
+                    start: int, *,
+                    max_variables: int = MAX_VARIABLES) -> list[tuple[str, int]]:
     """Blocks/events in depth-first first-encounter order."""
     outgoing: dict[int, list] = {}
     outputs: dict[tuple[str, int], list] = {}
@@ -639,9 +675,9 @@ def _variable_order(model: SimulationModel,  # noqa: C901
             if key not in seen_elements:
                 seen_elements.add(key)
                 order.append(key)
-                if len(order) > MAX_VARIABLES:
+                if len(order) > max_variables:
                     raise NotApplicable(
-                        f"the static solver supports at most {MAX_VARIABLES} "
+                        f"the static solver supports at most {max_variables} "
                         f"blocks/events; this model exceeds that")
             for out in outputs.get(key, []):
                 follow(out)

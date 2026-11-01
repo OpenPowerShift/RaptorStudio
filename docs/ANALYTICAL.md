@@ -142,8 +142,28 @@ on that; other start conditions, and a non-zero amount already consumed,
 are refused in reliability mode. Start age does not affect steady-state
 availability.
 
-Resource bounds: at most 750 blocks/events, 250,000 BDD nodes, 250 curve times and 20 BX percentages. These
-are refusals, not approximations.
+### Progress and limits
+
+The application shows a determinate progress bar while the BDD is built and
+while importance measures are calculated. It reports the graph nodes visited
+and the current BDD node count, so a long build is visible rather than an
+indefinite spinner.
+
+On the command line, `--progress auto` draws a bar on a terminal,
+`--progress json` writes one JSON event per line to stderr, and
+`--progress none` is silent. Progress never goes to stdout, so `-f json`
+stays parseable.
+
+Resource bounds: 5,000 blocks/events and 1,000,000 BDD nodes by default.
+Raise them per call with `raptor analytic --max-variables N` and
+`--max-bdd-nodes N`, or in the application under Settings ▸ Limits. Raising
+a limit does not make an intractable diagram tractable: the BDD can grow
+exponentially, and the solver refuses rather than approximate. For a large
+model with repeated hierarchy blocks, solve the series submodels separately
+and combine them; the result is exact for the decomposition.
+
+The solver also caps curve times and BX percentages. These are refusals, not
+approximations.
 
 ## The application window
 

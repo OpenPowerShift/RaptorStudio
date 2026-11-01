@@ -23,13 +23,15 @@ from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog,
     QDoubleSpinBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout,
     QHeaderView, QLabel, QLineEdit, QPlainTextEdit, QProgressBar,
-    QPushButton, QSizePolicy, QStackedWidget, QTableWidget,
+    QPushButton, QSizePolicy, QSpinBox, QStackedWidget, QTableWidget,
     QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget)
 
 from raptor.api.analytical import analyse_rbd, scope_options
 from raptor.api.analytical_text import fmt as _fmt_full
 from raptor.api.analytical_text import scope_sentence, summary_text
+from raptor.core.analytical.bdd import MAX_BDD_NODES
 from raptor.core.analytical.errors import AnalyticalError
+from raptor.core.analytical.network import MAX_VARIABLES
 from raptor.gui.ui import msgbox
 from raptor.gui.resources.design_tokens import (
     RADIUS, SPACING, TYPE, ThemeManager, active_colour)
@@ -118,15 +120,20 @@ class _NumItem(QTableWidgetItem):
 
 
 def _solve(token: int, rbd: Any, name: str, options: dict[str, Any],
-           inbox: queue.Queue) -> None:
+           inbox: queue.Queue, progress_inbox: queue.Queue) -> None:
     """Worker-thread body: solve and post ``(token, result, error)``.
 
     The result goes through a plain thread-safe queue that the dialog polls,
     so no Qt object is ever touched (or destroyed) off the GUI thread, even
-    if the dialog is closed while this is still running.
+    if the dialog is closed while this is still running. Progress uses a
+    second queue so a result and a progress update can never be confused.
     """
+    def progress(stage: str, done: int, total: int) -> None:
+        progress_inbox.put((token, stage, done, total))
+
     try:
-        inbox.put((token, analyse_rbd(rbd, name, **options), None))
+        inbox.put((token, analyse_rbd(rbd, name, progress=progress, **options),
+                   None))
     except AnalyticalError as exc:
         inbox.put((token, None, ("refused", str(exc))))
     except ValueError as exc:
@@ -222,6 +229,7 @@ class AnalyticDialog(QDialog):
         self._shown_rbd_id: int | None = None
         self._result: dict[str, Any] | None = None
         self._inbox: queue.Queue = queue.Queue()
+        self._progress_inbox: queue.Queue = queue.Queue()
         self._poll = QTimer(self)
         self._poll.setInterval(30)
         self._poll.timeout.connect(self._drain)
@@ -253,7 +261,10 @@ class AnalyticDialog(QDialog):
             "diagram): a compact exact map of which combinations of working "
             "and failed elements keep the system up. It is a calculation "
             "aid, not a simulation, and its size is not the number of "
-            "blocks.")
+            "blocks.\n"
+            f"Current limits: {MAX_VARIABLES:,} variables and "
+            f"{MAX_BDD_NODES:,} BDD nodes. Raise them only when the model is "
+            "known to be tractable; a larger BDD can take a long time.")
         self._intro.setObjectName("SectionNote")
         self._intro.setWordWrap(True)
         root.addWidget(self._intro)
@@ -407,6 +418,33 @@ class AnalyticDialog(QDialog):
         self._standby.addItem("Treat as absent", "absent")
         form.addRow("Standby:", self._standby)
 
+        limits = QHBoxLayout()
+        limits.setContentsMargins(0, 0, 0, 0)
+        self._max_variables = QSpinBox()
+        self._max_variables.setRange(1, 1_000_000)
+        self._max_variables.setValue(MAX_VARIABLES)
+        self._max_variables.setSingleStep(250)
+        self._max_variables.setAccessibleName("Maximum variables")
+        self._max_variables.setToolTip(
+            "Largest number of blocks/events the solver may put in the BDD.")
+        self._max_bdd_nodes = QSpinBox()
+        self._max_bdd_nodes.setRange(2, 100_000_000)
+        self._max_bdd_nodes.setValue(MAX_BDD_NODES)
+        self._max_bdd_nodes.setSingleStep(100_000)
+        self._max_bdd_nodes.setAccessibleName("Maximum BDD nodes")
+        self._max_bdd_nodes.setToolTip(
+            "Hard cap on BDD size. Raising it risks a long solve and high "
+            "memory use; the progress bar shows BDD growth.")
+        limits.addWidget(self._max_variables)
+        limits.addWidget(QLabel("variables"))
+        limits.addSpacing(SPACING["md"])
+        limits.addWidget(self._max_bdd_nodes)
+        limits.addWidget(QLabel("BDD nodes"))
+        limits.addStretch(1)
+        limits_host = QWidget()
+        limits_host.setLayout(limits)
+        form.addRow("Limits:", limits_host)
+
         self._form = form
         self._reliability_rows = (self._at, self._times, self._bx)
         self._mode.currentIndexChanged.connect(self._mode_changed)
@@ -416,7 +454,9 @@ class AnalyticDialog(QDialog):
                        self._ignore_pm.toggled, self._ignore_spares.toggled,
                        self._ignore_resources.toggled,
                        self._phase.currentIndexChanged,
-                       self._standby.currentIndexChanged):
+                       self._standby.currentIndexChanged,
+                       self._max_variables.valueChanged,
+                       self._max_bdd_nodes.valueChanged):
             signal.connect(self._settings_changed)
         for line in (self._times, self._bx):
             line.returnPressed.connect(self.compute)
@@ -430,12 +470,17 @@ class AnalyticDialog(QDialog):
         self._compute.clicked.connect(self.compute)
         self._progress = QProgressBar()
         self._progress.setRange(0, 0)
-        self._progress.setTextVisible(False)
-        self._progress.setFixedWidth(120)
+        self._progress.setTextVisible(True)
+        self._progress.setFixedWidth(180)
         self._progress.setAccessibleName("Computing")
         self._progress.hide()
+        self._progress_label = QLabel("")
+        self._progress_label.setObjectName("SectionNote")
+        self._progress_label.setMinimumWidth(220)
+        self._progress_label.hide()
         row.addWidget(self._compute)
         row.addWidget(self._progress)
+        row.addWidget(self._progress_label)
         row.addStretch(1)
         return row
 
@@ -653,6 +698,8 @@ class AnalyticDialog(QDialog):
             "phase": self._phase.currentData(),
             "standby": (self._standby.currentData()
                         if self._has_standby else None),
+            "max_variables": self._max_variables.value(),
+            "max_bdd_nodes": self._max_bdd_nodes.value(),
         }
 
     def _ignored(self, reliability: bool) -> list[str]:
@@ -682,7 +729,8 @@ class AnalyticDialog(QDialog):
         threading.Thread(
             target=_solve, daemon=True,
             args=(self._token, copy.deepcopy(self._win._rbd),
-                  self._model_name(), options, self._inbox)).start()
+                  self._model_name(), options, self._inbox,
+                  self._progress_inbox)).start()
 
     def wait_for_result(self) -> None:
         """Block until the running solve has been delivered (for scripts
@@ -697,20 +745,47 @@ class AnalyticDialog(QDialog):
         self._busy = busy
         self._compute.setEnabled(not busy)
         self._progress.setVisible(busy)
+        self._progress_label.setVisible(busy)
         if busy:
+            self._progress.setRange(0, 0)
+            self._progress.setValue(0)
+            self._progress_label.setText("Starting…")
             self._banner.setText("Computing…")
             self._poll.start()
         else:
             self._poll.stop()
+            self._progress_label.setText("")
 
     def _drain(self) -> None:
-        """Deliver finished solves (runs on the GUI thread)."""
+        """Deliver progress and finished solves (runs on the GUI thread)."""
+        while True:
+            try:
+                token, stage, done, total = \
+                    self._progress_inbox.get_nowait()
+            except queue.Empty:
+                break
+            self._on_progress(token, stage, done, total)
         while True:
             try:
                 token, result, error = self._inbox.get_nowait()
             except queue.Empty:
                 return
             self._on_done(token, result, error)
+
+    def _on_progress(self, token: int, stage: str, done: int,
+                     total: int) -> None:
+        if token != self._token or not self._busy:
+            return
+        total = max(0, int(total))
+        if total:
+            self._progress.setRange(0, total)
+            self._progress.setValue(min(max(0, int(done)), total))
+            self._progress.setFormat("%v / %m")
+            self._progress_label.setText(
+                f"{stage} — {done:,} of {total:,}")
+        else:
+            self._progress.setRange(0, 0)
+            self._progress_label.setText(f"{stage} — {done:,}")
 
     def _on_done(self, token: int, result: Any, error: Any) -> None:
         if token != self._token:
