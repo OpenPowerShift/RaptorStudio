@@ -230,7 +230,7 @@ current value).
 |Single-Point Failures |List every component that alone can fail the system — series elements; export as a text file |
 |Domains… |Domain of each node — which elements' failures can propagate to it |
 |Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
-|Availability  Criticality… |Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The legacy report text is unchanged. |
+|Availability  Criticality… |Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The report text is unchanged. |
 |===
 
 ==== Show on Canvas
