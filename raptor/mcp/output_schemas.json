@@ -1240,7 +1240,10 @@
     "type": "number"
    },
    "next_offset": {
-    "type": "null"
+    "type": [
+     "integer",
+     "null"
+    ]
    },
    "offset": {
     "type": "integer"

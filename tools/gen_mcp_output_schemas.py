@@ -172,6 +172,7 @@ WIDEN: dict[tuple[str, str], list[str]] = {
     ("get_table", "next_offset"): ["integer", "null"],
     ("list_models", "next_offset"): ["integer", "null"],
     ("read_doc", "next_offset"): ["integer", "null"],
+    ("single_point_failures", "next_offset"): ["integer", "null"],
 }
 
 #: Keys that only some element kinds return. `get_element` shares one
