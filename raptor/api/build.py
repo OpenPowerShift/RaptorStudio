@@ -388,8 +388,11 @@ def resolve_element(rbd: RbdFile,
                 raise ElementNotFound(
                     f"No {kind} with ID {rest} in {section}") from None
             return section, row
-        # Named auxiliary rows (`Pool:PumpPool`, `Resource:Crew`, ...).
-        if section in _NAMED_ONLY_SECTIONS:
+        # Named rows (`Pool:PumpPool`, `Resource:Crew`, ...), and the
+        # `Kind:name` form for every section that has a name column. The
+        # bare-name path below has always accepted names; the explicit
+        # kind should too, so `Node:Pump A` does not fail as "not an id".
+        if section in _NAMED_ONLY_SECTIONS or section in _NAME_COLS:
             return section, _resolve_name(rbd, section, rest)
         raise BuildError(f"{kind}:{rest} is not an id; use an integer id")
     for sec_name in ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA",
