@@ -245,3 +245,22 @@ def test_results_hash_ignores_layout_but_not_engineering():
 
     row["FParam1"] = "12345.000000"
     assert model_results_hash(rbd) != base_results
+
+
+# ---------------------------------------------------------------------------
+# Issue #73: analysis names were silently dropped unless exactly lowercase.
+# ---------------------------------------------------------------------------
+
+def test_analysis_names_are_case_and_separator_insensitive():
+    from raptor.core import run_experiment as rx
+    assert rx.normalise({"analyses": ["Capacity"]})["analyses"] == ["capacity"]
+    assert rx.normalise({"analyses": ["Weak Link", "COST"]})["analyses"] == ["weak", "cost"]
+    assert rx.normalise({"analyses": ["weak_link"]})["analyses"] == ["weak"]
+    assert rx.normalise({"analyses": ["capacity", "capacity"]})["analyses"] == ["capacity"]
+
+
+def test_unknown_analysis_names_are_reported_but_a_stale_file_still_normalises():
+    from raptor.core import run_experiment as rx
+    assert rx.unknown_analyses(["Capacity", "Reliability", 3]) == ["Reliability", 3]
+    assert rx.unknown_analyses("capacity") == []
+    assert rx.normalise({"analyses": ["Reliability"]})["analyses"] == []

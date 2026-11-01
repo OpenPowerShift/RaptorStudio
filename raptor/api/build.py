@@ -1139,6 +1139,19 @@ def build_from_spec(spec: dict[str, Any],
     if exp_spec is not None:
         if not isinstance(exp_spec, dict):
             raise BuildError("spec['experiment'] must be an object")
+        if "analyses" in exp_spec:
+            given = exp_spec["analyses"]
+            if not isinstance(given, list):
+                raise BuildError(
+                    "spec['experiment']['analyses'] must be a list drawn "
+                    f"from {list(run_experiment.ANALYSES)}")
+            unknown = run_experiment.unknown_analyses(given)
+            if unknown:
+                raise BuildError(
+                    f"unknown analysis name(s) {unknown!r} in "
+                    "spec['experiment']['analyses']; use "
+                    f"{list(run_experiment.ANALYSES)} (any case; "
+                    "'weak_link' is accepted for 'weak')")
         experiment = run_experiment.normalise(exp_spec)
         if "analyses" not in exp_spec:
             # The system dict's weak/cost/capacity flags are the defaults.
