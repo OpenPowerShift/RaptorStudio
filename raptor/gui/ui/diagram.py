@@ -1270,8 +1270,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._stack.push(AnnoCmd(self, entry, add=True))
         item = self._anno_items.get(aid)
         if kind == "text" and item is not None:
-            item.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
-            item.setFocus()
+            item.enter_edit()
         return item
 
     def _begin_annotation_arrow(self, tail: QPointF, head: QPointF):
@@ -1863,8 +1862,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         item's middle."""
         if getattr(item, "kind", None) != "text":
             return
-        item.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
-        item.setFocus()
+        item.enter_edit()
 
     def _duplicate_selected_annotations(self) -> int:
         """Copy-paste the selected annotations, offset down-right so the
@@ -4866,6 +4864,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 focus.textInteractionFlags() & Qt.TextEditorInteraction:
             super().keyPressEvent(event)
             return
+        if event.key() == Qt.Key.Key_F2:
+            # Explicit text-edit entry, matching every other text control
+            # in the app. Only a single text annotation has an unambiguous
+            # F2 target.
+            notes = [it for it in self._scene.selectedItems()
+                     if isinstance(it, _AnnoText)]
+            if len(notes) == 1:
+                self._edit_annotation_text(notes[0])
+                event.accept()
+                return
         if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
             if not self._scene.selectedItems() and \
                     not getattr(self, "_delete_armed", False):
