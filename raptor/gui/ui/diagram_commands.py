@@ -908,14 +908,19 @@ class CollapseCmd(_ViewCmd):
     the Hier oval (`Node->Hier` / `Hier->Node` rows on the parent
     level). One undo step restores the exact prior state -- these row
     edits have no finer-grained command of their own, so the command
-    snapshots everything it touches."""
+    snapshots everything it touches.
+
+    The row edit itself lives in `hierarchy_plan.apply_collapse_plan` /
+    `revert_collapse_plan` so the pre-flight validation in
+    `DiagramView.collapse_selection` applies exactly the edit this command
+    will, and `collapse_selection` refuses before pushing when the result
+    would not validate."""
 
     def __init__(self, view, hrows, parent_moves, link_ops,
                  moved_annotations=None):
         super().__init__(view, "Collapse into hierarchy")
-        # [(anno_id, old_parent)] — selected annotations follow in
+        # [(anno_id, old_parent, new_parent)] -- selected annotations follow in
         self.moved_annotations = list(moved_annotations or [])
-        self._old_level = getattr(view, "_current_parent", 0)
         # [hier_row, in_row, out_row] -- fresh rows to add.
         self.hrows = [dict(r) for r in hrows]
         # [(section_name, element_id, old_parent_value)]
@@ -923,71 +928,21 @@ class CollapseCmd(_ViewCmd):
         # [("del", old_link_row, original_index) | ("add", new_link_row, -1)]
         self.link_ops = [(op, dict(r), i) for op, r, i in link_ops]
 
-    @staticmethod
-    def _row_by_id(section, oid: int):
-        for r in section.rows:
-            if _safe_int(r.get("ID")) == oid:
-                return r
-        return None
-
     def _apply(self, forward: bool):
+        from raptor.gui.hierarchy_plan import (apply_collapse_plan,
+                                               revert_collapse_plan)
         v = self._v
         rbd = v._rbd_ref
-        hier_section = rbd.sections["HIERARCHY_DATA"]
-        node_section = rbd.sections["NODE_DATA"]
-        link_section = rbd.sections["LINK_DATA"]
-        hid = _safe_int(self.hrows[0].get("ID"))
         if forward:
-            hier_section.rows.append(dict(self.hrows[0]))
-            node_section.rows.extend(dict(r) for r in self.hrows[1:])
-            for section, oid, _old in self.parent_moves:
-                row = self._row_by_id(rbd.sections[section], oid)
-                if row is not None:
-                    row[_PARENT_COLS[section]] = str(hid)
-            # Order matters: deletions before additions (a split reuses
-            # the original link's ID for its outside half).
-            for op, row, _idx in sorted(self.link_ops,
-                                        key=lambda o: (o[0] != "del",
-                                                       o[2])):
-                if op == "del":
-                    link_section.rows[:] = [
-                        r for r in link_section.rows
-                        if _safe_int(r.get("ID")) != _safe_int(row["ID"])]
-                else:
-                    link_section.rows.append(dict(row))
-            for aid, _np in self.moved_annotations:
-                for a in getattr(v, "annotations", []):
-                    if int(a.get("id", 0)) == aid:
-                        a["parent"] = hid
-                        break
+            apply_collapse_plan(
+                rbd, hrows=self.hrows, parent_moves=self.parent_moves,
+                link_ops=self.link_ops,
+                moved_annotations=self.moved_annotations)
         else:
-            dead_h = {_safe_int(r.get("ID")) for r in self.hrows[:1]}
-            dead_n = {_safe_int(r.get("ID")) for r in self.hrows[1:]}
-            hier_section.rows[:] = [r for r in hier_section.rows
-                            if _safe_int(r.get("ID")) not in dead_h]
-            node_section.rows[:] = [r for r in node_section.rows
-                            if _safe_int(r.get("ID")) not in dead_n]
-            for section, oid, old_parent in self.parent_moves:
-                row = self._row_by_id(rbd.sections[section], oid)
-                if row is not None:
-                    row[_PARENT_COLS[section]] = str(old_parent)
-            # undo: restore annotation parent levels
-            for aid, _np in self.moved_annotations:
-                for a in getattr(v, "annotations", []):
-                    if int(a.get("id", 0)) == aid:
-                        a["parent"] = self._old_level
-                        break
-            added_ids = {_safe_int(r["ID"]) for op, r, _ in self.link_ops
-                         if op == "add"}
-            keep = [r for r in link_section.rows
-                    if _safe_int(r.get("ID")) not in added_ids]
-            # Splice replaced rows back at their original positions so
-            # the undone file matches the pre-collapse byte order.
-            for _op, row, idx in sorted(
-                    (o for o in self.link_ops if o[0] == "del"),
-                    key=lambda o: o[2]):
-                keep.insert(min(idx, len(keep)), dict(row))
-            link_section.rows[:] = keep
+            revert_collapse_plan(
+                rbd, hrows=self.hrows, parent_moves=self.parent_moves,
+                link_ops=self.link_ops,
+                moved_annotations=self.moved_annotations)
         v._rebuild_scene()
 
     def redo(self):

@@ -230,6 +230,9 @@ class CollapsePlan:
     parent_moves: list[tuple[str, int, str]] = field(default_factory=list)
     #: ("del", row, index) / ("add", new row, -1), in application order
     link_ops: list[tuple[str, dict, int]] = field(default_factory=list)
+    #: links touching the selection that belong to another level, so the
+    #: rewire cannot reach them. Any entry makes the collapse refuse.
+    unrebuildable: list[dict] = field(default_factory=list)
 
 
 def _parent_moves(rbd: Any, selected: dict[str, list[int]]) -> list:
@@ -296,15 +299,151 @@ def plan_collapse(rbd: Any, *, hid: int, in_id: int, out_id: int,
         return str(counter[0])
 
     for idx, row in enumerate(list(link_section.rows)):
-        if _int(row.get("pID")) != parent:
-            continue
         f_in = _int(row.get("FromID")) in by_ref.get(row.get("FromType"),
                                                      ())
         t_in = _int(row.get("ToID")) in by_ref.get(row.get("ToType"), ())
-        if f_in or t_in:
-            plan.link_ops.extend(_collapse_link(row, idx, f_in, t_in, hid,
-                                                in_id, out_id, fresh_id))
+        if not (f_in or t_in):
+            continue
+        if _int(row.get("pID")) != parent:
+            # A link that touches the selection but is filed on another
+            # level cannot be split here: leaving it alone would strand
+            # half the edge inside the new hierarchy. Refuse instead.
+            plan.unrebuildable.append(row)
+            continue
+        plan.link_ops.extend(_collapse_link(row, idx, f_in, t_in, hid,
+                                            in_id, out_id, fresh_id))
     return plan
+
+
+#: (selected section, Raptor 7's kind title) -- the names violations use.
+_SELECTED_KINDS = (("BLOCK_DATA", "block", "Block"),
+                   ("NODE_DATA", "node", "Node"),
+                   ("EVENT_DATA", "event", "Event"))
+
+
+def _row_by_id(section: Any, oid: int) -> dict | None:
+    for r in section.rows:
+        if _int(r.get("ID")) == oid:
+            return r
+    return None
+
+
+def apply_collapse_plan(rbd: Any, *, hrows: list[dict],
+                        parent_moves: list[tuple[str, int, str]],
+                        link_ops: list[tuple[str, dict, int]],
+                        moved_annotations: Collection[tuple[int, Any, Any]] = (),
+                        ) -> None:
+    """Write a collapse plan into *rbd*, in place.
+
+    The one owner of the forward edit: the undo command and the pre-flight
+    validation both go through here, so what was checked and what is
+    applied cannot drift apart.  `hrows` is `[hier_row, in_row, out_row]`;
+    `moved_annotations` is `(id, old_parent, new_parent)` triples (the
+    new parent is the hierarchy id either way; the old one is only needed
+    by `revert_collapse_plan`).
+    """
+    hier_section = rbd.sections["HIERARCHY_DATA"]
+    node_section = rbd.sections["NODE_DATA"]
+    link_section = rbd.sections["LINK_DATA"]
+    hid = _int(hrows[0].get("ID"))
+    hier_section.rows.append(dict(hrows[0]))
+    node_section.rows.extend(dict(r) for r in hrows[1:])
+    for section, oid, _old in parent_moves:
+        row = _row_by_id(rbd.sections[section], oid)
+        if row is not None:
+            row[PARENT_COLS[section]] = str(hid)
+    dead = {_int(r.get("ID")) for op, r, _idx in link_ops if op == "del"}
+    adds = [dict(r) for op, r, _idx in link_ops if op == "add"]
+    rows = link_section.rows
+    rows[:] = [r for r in rows if _int(r.get("ID")) not in dead]
+    rows.extend(adds)
+    for aid, _old_parent, _new_parent in moved_annotations:
+        for a in getattr(rbd, "annotations", None) or []:
+            if int(a.get("id", 0)) == aid:
+                a["parent"] = hid
+                break
+
+
+def revert_collapse_plan(rbd: Any, *, hrows: list[dict],
+                         parent_moves: list[tuple[str, int, str]],
+                         link_ops: list[tuple[str, dict, int]],
+                         moved_annotations: Collection[tuple[int, Any, Any]] = (),
+                         ) -> None:
+    """Undo `apply_collapse_plan`: the exact inverse, including the byte
+    order of the link rows that were split."""
+    hier_section = rbd.sections["HIERARCHY_DATA"]
+    node_section = rbd.sections["NODE_DATA"]
+    link_section = rbd.sections["LINK_DATA"]
+    dead_h = {_int(r.get("ID")) for r in hrows[:1]}
+    dead_n = {_int(r.get("ID")) for r in hrows[1:]}
+    hier_section.rows[:] = [r for r in hier_section.rows
+                            if _int(r.get("ID")) not in dead_h]
+    node_section.rows[:] = [r for r in node_section.rows
+                            if _int(r.get("ID")) not in dead_n]
+    for section, oid, old_parent in parent_moves:
+        row = _row_by_id(rbd.sections[section], oid)
+        if row is not None:
+            row[PARENT_COLS[section]] = str(old_parent)
+    for aid, old_parent, _new_parent in moved_annotations:
+        for a in getattr(rbd, "annotations", None) or []:
+            if int(a.get("id", 0)) == aid:
+                a["parent"] = old_parent
+                break
+    added_ids = {_int(r.get("ID")) for op, r, _idx in link_ops if op == "add"}
+    keep = [r for r in link_section.rows
+            if _int(r.get("ID")) not in added_ids]
+    # Splice replaced rows back at their original positions so the undone
+    # file matches the pre-collapse byte order.
+    for _op, row, idx in sorted(
+            (o for o in link_ops if o[0] == "del"), key=lambda o: o[2]):
+        keep.insert(min(idx, len(keep)), dict(row))
+    link_section.rows[:] = keep
+
+
+def collapse_new_violations(before: Any, after: Any, *, hid: int,
+                            selected: dict[str, list[int]],
+                            in_id: int | None = None,
+                            out_id: int | None = None) -> list:
+    """Rule violations the collapse would introduce, or `[]` when it is safe.
+
+    Unlike `input_rules.new_violations` this INCLUDES the run-time
+    connectivity rules (`run.block_from` / `run.block_to` / ...): an edit
+    gate that skips them let a collapse orphan the block after the new
+    hierarchy (issue #72).  The collapse is applied to a copy and compared
+    with the live model, so a problem the model already had does not block
+    an unrelated collapse.
+
+    A selection with only one boundary side is still collapsible: the new
+    hierarchy then inherits the selection's own missing side, so the
+    hierarchy's and its markers' matching "connects from/to nothing"
+    violations are excused.  A hierarchy that loses a side the selection
+    HAD is not excused -- that is the damage this guard exists to catch.
+    """
+    from raptor.core.input_rules import check
+
+    old = {v.key for v in check(before)}
+
+    def had(direction: str) -> bool:
+        return any((f"run.{kind}_{direction}", f"{title} {oid}") in old
+                   for sec, kind, title in _SELECTED_KINDS
+                   for oid in selected.get(sec, ()))
+
+    # Which side the collapsing selection was already missing: the new
+    # hierarchy may inherit exactly that defect, no more.
+    missing_in = had("from")
+    missing_out = had("to")
+    excused: set[tuple[str, str]] = set()
+    if missing_in:
+        # No incoming boundary: the oval and its In marker have no input.
+        excused |= {("run.hier_from", f"Hier {hid}"),
+                    ("run.node_to", f"Node {in_id}")}
+    if missing_out:
+        # No outgoing boundary: the oval and its Out marker have no output.
+        excused |= {("run.hier_to", f"Hier {hid}"),
+                    ("run.node_from", f"Node {out_id}")}
+
+    return [v for v in check(after)
+            if v.key not in old and v.key not in excused]
 
 
 # -- import an .rbd as a hierarchy --------------------------------------

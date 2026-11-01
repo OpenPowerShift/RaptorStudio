@@ -3658,10 +3658,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _on_collapse_selection(self):
         if self._rbd is None:
             return
-        hid = self._diagram_dock.view.collapse_selection()
+        view = self._diagram_dock.view
+        hid = view.collapse_selection()
         if hid is None:
-            self._statusbar.showMessage(
-                "Collapse: select at least one block, node, or event first")
+            # A refusal (a boundary that cannot be rebuilt, or a selection a
+            # hierarchy cannot hold) has already shown its own message; only
+            # an empty selection needs this hint.
+            if not any(view.selected_elements()[:3]):
+                self._statusbar.showMessage(
+                    "Collapse: select at least one block, node, or event first")
         else:
             self._explorer.refresh()
             self._refresh_goto_combo()
