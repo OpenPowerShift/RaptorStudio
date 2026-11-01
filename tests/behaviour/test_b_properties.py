@@ -353,8 +353,9 @@ def test_a_different_seed_produces_a_different_event_log(spec, seed) -> None:
     (the Lehmer recurrence, seeded from `stream_seed`)
     """
     runs = [run(spec, seed=seed + offset) for offset in range(3)]
-    if not any(event.time > 0.0 for one in runs for event in one.events):
-        return  # nothing stochastic happened; the seed had nothing to change
+    if not any(event.new in ("Failed", "Repaired")
+               for one in runs for event in one.events):
+        return  # no failure happened; the seed had nothing to change
     logs = [tuple(one.log) for one in runs]
     assert len(set(logs)) > 1, (
         "three different seeds all produced the same log despite the model "
