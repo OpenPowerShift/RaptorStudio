@@ -1185,11 +1185,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                           link.connect_from_id, link.connect_t_ref,
                           link.connect_to_id)
                 link_item = _LinkItem(from_item, to_item,
-                                      link_num=link.object_num)
+                                      link_num=link.object_num,
+                                      defer_route=True)
                 self._links.append(link_item)
                 self._scene.addItem(link_item)
         # Ports depend on an element's other links, so recompute every
-        # route once the whole topology exists (see _rebuild_link_items).
+        # route once the whole topology exists. The deferred constructor
+        # keeps the scene-wide link index from being rebuilt after every
+        # insertion; the first `_update_route` below builds it once, and
+        # the rest of the batch reuses it.
         for link_item in self._links:
             link_item._update_route()
 

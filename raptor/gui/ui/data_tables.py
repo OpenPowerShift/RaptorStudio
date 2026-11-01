@@ -265,6 +265,10 @@ class DataTablesDock(QWidget):
         #: hidden Data Tables tab is filled when it is first shown instead
         #: of during Open.
         self._refresh_pending = False
+        #: Tabs left to fill when only the visible grid is built. Opening a
+        #: flat 1,500- or 3,800-block model otherwise spends tens of seconds
+        #: building cell widgets in tabs nobody is looking at.
+        self._dirty_tables: set[QTableWidget] = set()
         self._tabs = QTabWidget()
         self._tabs.setDocumentMode(True)
 
@@ -516,7 +520,7 @@ class DataTablesDock(QWidget):
         self._native_units = self._units
         self._apply_time_headers()
 
-    def set_view(self, view):
+    def set_view(self, view, *, defer_large: bool = False):
         self._view = view
         # Display-unit override for this grid's own time-dimensioned
         # cells: Failure/Repair Param columns and PM Frequency.
@@ -531,6 +535,19 @@ class DataTablesDock(QWidget):
                 pass
             self._display_unit = getattr(view._rbd_ref, "display_unit",
                                          None)
+        if defer_large and self._large_model() and self.window().isVisible():
+            # The model itself is open and usable; the grids can paint
+            # themselves once the event loop reaches this dock. Otherwise a
+            # 3,800-block model spent most of its Open time building cell
+            # widgets behind the busy indicator. A dock that is already on
+            # screen still needs one deferred fill: a hidden/tabbed dock
+            # waits for its own show or paint.
+            self._refresh_pending = True
+            if not self.visibleRegion().isEmpty():
+                QTimer.singleShot(0, self._populate_if_pending)
+            else:
+                self.update()
+            return
         self.refresh(force=False)
 
     def set_display_unit(self, unit: str | None):
@@ -651,24 +668,30 @@ class DataTablesDock(QWidget):
             self._triggers_table, self._phases_table,
             self._sparing_table, self._pm_table,
         ]
+        # A flat 1,500- or 3,800-block model has nine grids, most of them
+        # hidden behind a tab. Filling all of them made Open spend tens of
+        # seconds building widgets no one could see. Build the visible grid
+        # now and mark the rest for their first tab change.
+        lazy = self._large_model() and isinstance(current, QTableWidget)
+        if lazy:
+            self._dirty_tables = set(_all_tables) - {current}
+            fill = [current]
+        else:
+            self._dirty_tables.clear()
+            fill = list(_all_tables)
         sort_state = {
             t: self._sort_choice.get(
                 t, (-1, t.horizontalHeader().sortIndicatorOrder()))
-            for t in _all_tables}
-        for t in _all_tables:
+            for t in fill}
+        for t in fill:
             t.setSortingEnabled(False)
-        self._populate_blocks()
-        self._populate_nodes()
-        self._populate_events()
-        self._populate_sparing()
-        self._populate_pm()
-        for table in self._keyed:
-            self._populate_keyed(table)
-        for t in _all_tables:
+        for t in fill:
+            self._populate_table(t)
+        for t in fill:
             self._label_cell_widgets(t)
         self._sort_restoring = True
         try:
-            for t in _all_tables:
+            for t in fill:
                 # Restore the user's sort, not a fixed ID order.
                 # Refreshing after every model edit used to clear the
                 # indicator and snap a sorted grid back to populate order.
@@ -689,11 +712,39 @@ class DataTablesDock(QWidget):
                     current.selectRow(row)
                     current.verticalScrollBar().setValue(keep_scroll)
                     break
-        for table in _all_tables:
+        for table in fill:
             self._ensure_header_widths(table)
             self._sync_row_headers(table)
             self._update_empty_state(table)
         self._update_scope_note()
+
+    def _large_model(self) -> bool:
+        """True when filling every grid at once would visibly stall Open."""
+        view = self._view
+        if view is None:
+            return False
+        try:
+            return (len(getattr(view, "blocks", {}) or {})
+                    + len(getattr(view, "nodes", {}) or {})
+                    + len(getattr(view, "events", {}) or {})) > 400
+        except TypeError:
+            return False
+
+    def _populate_table(self, table: QTableWidget) -> None:
+        """Fill one grid, so a tab can be built on first use."""
+        self._dirty_tables.discard(table)
+        if table is self._blocks_table:
+            self._populate_blocks()
+        elif table is self._nodes_table:
+            self._populate_nodes()
+        elif table is self._events_table:
+            self._populate_events()
+        elif table is self._sparing_table:
+            self._populate_sparing()
+        elif table is self._pm_table:
+            self._populate_pm()
+        elif table in self._keyed:
+            self._populate_keyed(table)
 
     def _update_empty_state(self, table: QTableWidget) -> None:
         """Explain an empty grid instead of showing a blank pane."""
@@ -1633,9 +1684,27 @@ class DataTablesDock(QWidget):
         table.blockSignals(False)
 
     def _on_tab_changed(self, index: int):
-        keyed = any(self._tabs.widget(index) is t for t in self._keyed)
+        table = self._tabs.widget(index)
+        keyed = any(table is t for t in self._keyed)
         self._add_row_btn.setVisible(keyed)
         self._del_row_btn.setVisible(keyed)
+        if (isinstance(table, QTableWidget)
+                and table in self._dirty_tables and self._view is not None):
+            self._dirty_tables.discard(table)
+            table.setSortingEnabled(False)
+            self._populate_table(table)
+            self._label_cell_widgets(table)
+            section, order = self._sort_choice.get(
+                table, (-1, Qt.SortOrder.AscendingOrder))
+            self._sort_restoring = True
+            try:
+                table.horizontalHeader().setSortIndicator(section, order)
+                table.setSortingEnabled(True)
+            finally:
+                self._sort_restoring = False
+            self._ensure_header_widths(table)
+            self._sync_row_headers(table)
+            self._update_empty_state(table)
 
     _KEYED_TEMPLATES = {
         "SPARE_POOL_DATA": {"PoolName": "Pool", "RSO": "1", "Stock": "1",

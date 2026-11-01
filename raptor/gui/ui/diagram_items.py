@@ -927,7 +927,7 @@ class _LinkItem(QGraphicsPathItem):
     side. `line()` is the drawn segment between the two ports."""
 
     def __init__(self, from_item: QGraphicsItem, to_item: QGraphicsItem,
-                 link_num: int | None = None):
+                 link_num: int | None = None, *, defer_route: bool = False):
         super().__init__()
         self._from = from_item
         self._to = to_item
@@ -942,7 +942,14 @@ class _LinkItem(QGraphicsPathItem):
         _apply_hover_cursor(self)
         self.setZValue(-1)
         self.retheme(COLOUR)
-        self._update_route()
+        # A whole-level rebuild creates thousands of links back to back.
+        # Routing each one in the constructor made `_links_at` rebuild the
+        # scene-wide link index after every single insertion (the generation
+        # counter had just changed), so opening a 5,000-link model was
+        # quadratic and took minutes. The batch caller builds the index once
+        # after the last link and then routes them all.
+        if not defer_route:
+            self._update_route()
 
     def line(self) -> QLineF:
         """The segment between the two ports -- the drawn geometry."""

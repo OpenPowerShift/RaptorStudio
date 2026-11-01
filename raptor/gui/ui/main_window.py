@@ -3931,7 +3931,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._ensure_validation_timer()
         self._sync_analysis_checkboxes()
         self._explorer.set_view(v)
-        self._data_tables.set_view(v)
+        self._data_tables.set_view(v, defer_large=True)
         # The Data Tables dock's own Failure/Repair Mean/Std Dev/PM
         # Frequency columns are sim-time quantities, so they carry the
         # model's configured unit (results.py's equivalent columns
