@@ -82,7 +82,7 @@ The model gate is a feature. A fast wrong answer is worse than a refusal.
 
 ```text
 raptor/core/analytical/
-    __init__.py       public surface: build(), solve()
+    __init__.py       public surface: build(), evaluate, survival
     bdd.py            reduced ordered BDD: apply, not, threshold, restrict,
                       probability, node count, size cap
     survival.py       R_i(t), f_i(t), support/quantile for every supported
