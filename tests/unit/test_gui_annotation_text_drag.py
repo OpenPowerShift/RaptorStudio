@@ -12,6 +12,7 @@ tested. All Qt tests are offscreen, as the rest of this suite is.
 """
 from __future__ import annotations
 
+import gc
 import os
 import pathlib
 
@@ -51,6 +52,9 @@ def _dispose(qapp, v):
     v.deleteLater()
     qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     qapp.processEvents()
+    # Collect here, while this test still owns the thread, rather than
+    # leaving a text-item/scene cycle for a later test's teardown.
+    gc.collect()
 
 
 @pytest.fixture
