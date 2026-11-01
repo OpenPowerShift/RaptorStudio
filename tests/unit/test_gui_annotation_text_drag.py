@@ -37,6 +37,22 @@ def qapp():
     return QApplication.instance() or QApplication([])
 
 
+def _dispose(qapp, v):
+    """Tear the canvas down in Qt's own order.
+
+    A bare `DiagramView` is a top-level widget but not a QMainWindow, so
+    the suite's `_reap()` does not own it. Leaving it for the cycle
+    collector lets a later worker's `gc.collect()` destroy a scene and its
+    undo commands at an arbitrary point -- the same late-teardown crash
+    `_clear_orphan_undo_stacks()` exists to avoid.
+    """
+    v._stack.clear()
+    v.close()
+    v.deleteLater()
+    qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    qapp.processEvents()
+
+
 @pytest.fixture
 def view(qapp):
     v = DiagramView()
@@ -46,7 +62,7 @@ def view(qapp):
     v.show()
     qapp.processEvents()
     yield v
-    v.close()
+    _dispose(qapp, v)
 
 
 def _text_item(v, x=200, y=200):
@@ -261,4 +277,4 @@ def test_a_dragged_anchored_note_records_its_offset_and_undo_restores(qapp):
         assert (restored["x"], restored["y"]) == (before["x"], before["y"])
         assert "dx" not in restored["anchor"] and "dy" not in restored["anchor"]
     finally:
-        v.close()
+        _dispose(qapp, v)
