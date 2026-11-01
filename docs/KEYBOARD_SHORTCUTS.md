@@ -94,12 +94,14 @@ sessions.
 | Esc | Stop a running batch |
 
 ## Key tips
-Press **Alt** to show each ribbon button's shortcut letter, then
-Alt + that letter to run it. Press Alt again (or any other key) to hide
-the tips. With the Simulate ribbon carrying only the verbs, this is the
-keyboard route to everything else — including opening the **Run** panel
-(View ▸ Panels ▸ Run Panel), where the trial count, run length,
-analyses and recording live.
+Not every ribbon button has a shortcut letter. Press **Alt** to show the
+letters that do exist — **File (E)**, Open (O), Save (V), New (W),
+Copy View (Y), Project Settings (C), Issues (L), Run (R), Step (S),
+Next Time (N), Finish (F), Restart (X), Pause (A), Stop (P), Jump (J)
+and Animate (M) — then Alt + that letter to run it. A button with no
+letter keeps its plain label and is reached with its own shortcut (see
+above) or the mouse. Press Alt again (or any other key) to hide the
+tips. The **Run** panel is under View ▸ Panels ▸ Run Panel.
 
 ## Help
 | Shortcut | Action |
