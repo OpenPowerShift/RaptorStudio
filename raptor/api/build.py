@@ -18,6 +18,7 @@ provenance recorded in ``RbdFile.formulas``.
 """
 from __future__ import annotations
 
+import copy
 import math
 import re
 from typing import Any
@@ -2065,6 +2066,31 @@ def collapse_selection(
     if problem:
         raise BuildError(problem)
 
+    # A link that touches the selection but is filed on another level
+    # cannot be split here: leaving it alone would strand half the edge
+    # inside the new hierarchy. Refuse before touching the model.
+    stray = [link for link in rbd.section("LINK_DATA").rows
+             if _as_int_id(link.get("pID")) != parent
+             and ((link.get("FromType", ""), str(link.get("FromID", ""))) in keys
+                  or (link.get("ToType", ""), str(link.get("ToID", ""))) in keys)]
+    if stray:
+        ids = ", ".join(str(link.get("ID")) for link in stray)
+        raise BuildError(
+            "collapse_selection: the selection is connected by link(s) "
+            f"filed on another hierarchy level (ID {ids}), so the boundary "
+            "cannot be rebuilt; nothing was changed.")
+
+    # The rewiring is validated BEFORE anything is committed: if the
+    # boundary halves would not rebuild, or the result would leave a block
+    # outside without an input, the model is restored and the call fails.
+    # The GUI's Collapse Selection does the same pre-flight on a copy
+    # (issue #72).
+    saved_model = copy.deepcopy(rbd)
+    selected_ids: dict[str, list[int]] = {
+        "BLOCK_DATA": [], "NODE_DATA": [], "EVENT_DATA": []}
+    for section, row in chosen:
+        selected_ids[section].append(_as_int_id(row.get("ID")))
+
     label = name or f"Hierarchy_{len(rbd.section('HIERARCHY_DATA').rows) + 1}"
     centre = _container_centre(rbd, parent)
     hid, in_id, out_id = _build_hierarchy(
@@ -2127,6 +2153,21 @@ def collapse_selection(
             inside_link["pID"] = str(hid)
             inside_link["ID"] = fresh_link_id()
             link_sec.rows.append(inside_link)
+
+    from raptor.core.input_rules import refusal_text
+    from raptor.gui.hierarchy_plan import collapse_new_violations
+
+    problems = collapse_new_violations(
+        saved_model, rbd, hid=hid, selected=selected_ids,
+        in_id=in_id, out_id=out_id)
+    if problems:
+        # Nothing is committed: restore every section and raise, so the
+        # caller's workspace still holds the pre-collapse model.
+        rbd.sections.clear()
+        rbd.sections.update(copy.deepcopy(saved_model.sections))
+        raise BuildError(
+            "collapse_selection refused, the model was left unchanged: "
+            + refusal_text(problems))
 
     _fix_link_counts(rbd)
     sync_counts(rbd)

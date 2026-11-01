@@ -12,6 +12,7 @@ from __future__ import annotations
 from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QFrame
+import copy
 import os
 from collections.abc import Callable
 from typing import Any
@@ -41,7 +42,9 @@ from raptor.core.annotations import (
 from raptor.gui import row_ops
 from raptor.gui.clipboard_plan import count_elements, plan_copy, plan_paste
 from raptor.gui.ui.diagram_items import links_affected_by_moving
-from raptor.gui.hierarchy_plan import (plan_collapse, plan_dissolve,
+from raptor.gui.hierarchy_plan import (apply_collapse_plan,
+                                       collapse_new_violations,
+                                       plan_collapse, plan_dissolve,
                                        plan_import)
 from raptor.gui.model_edit import (BLOCK_COST_FIELDS, DEPENDENCY_BADGE,
                                    PM_OPTION_ATTRS, SUBLABELS, EditedFields,
@@ -3076,12 +3079,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         return row_ops.ensure_section(self._rbd_ref, "HIERARCHY_DATA")
 
     def _build_hierarchy_rows(self, name: str, model_x: float,
-                              model_y: float):
-        """Fresh (hier_row, in_row, out_row) for the current level."""
+                              model_y: float, rbd=None):
+        """Fresh (hier_row, in_row, out_row) for the current level.
+
+        `rbd` defaults to the live model. Collapse passes a throwaway copy
+        so id allocation and the section it may create stay off the real
+        model until the whole edit has been validated."""
         parent = self._current_parent
         h = self.hiers.get(parent)
         return row_ops.build_hierarchy_rows(
-            self._rbd_ref, name=name, x=model_x, y=model_y, parent=parent,
+            rbd if rbd is not None else self._rbd_ref,
+            name=name, x=model_x, y=model_y, parent=parent,
             parent_level=h.level if h is not None else None,
             used_ids=(set(self.blocks) | set(self.nodes) | set(self.events)
                       | set(self.hiers)),
@@ -3175,7 +3183,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         on this level. Internal links move into it;
         boundary links are replaced by Hier-referencing ones (the real
         file convention: `Node -> Hier` / `Hier -> Node` rows on the
-        parent level, `pID` = parent). Returns the new hier id."""
+        parent level, `pID` = parent). Returns the new hier id.
+
+        The edit is built and validated on a copy first, then pushed as ONE
+        undo command. A collapse whose boundary cannot be rebuilt, or whose
+        result would add a rule violation (including the run-time
+        connectivity rules), is refused atomically with a message: the live
+        model, the undo stack and the annotations are left untouched."""
         if self._rbd_ref is None:
             return None
         sel_b = [bid for bid, it in self._block_items.items()
@@ -3214,32 +3228,66 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         cx = sum(p[0] for p in points) / len(points)
         cy = sum(p[1] for p in points) / len(points)
         mx, my = self.scene_to_model(QPointF(cx, cy))
-        hier_row, in_row, out_row = self._build_hierarchy_rows(name, mx, my)
-        hid = _safe_int(hier_row["ID"])
 
+        # Build the whole edit against a throwaway copy of the model --
+        # including the hierarchy rows (whose builder may create
+        # HIERARCHY_DATA) -- and refuse before touching the live model
+        # when the result would not validate. This is what keeps a failed
+        # rewire from leaving the block after the new hierarchy with no
+        # input (issue #72) and keeps the collapse one atomic undo step.
+        preview = copy.deepcopy(self._rbd_ref)
+        hier_row, in_row, out_row = self._build_hierarchy_rows(
+            name, mx, my, rbd=preview)
+        hid = _safe_int(hier_row["ID"])
         plan = plan_collapse(
-            self._rbd_ref, hid=hid, in_id=_safe_int(hier_row["in"]),
+            preview, hid=hid, in_id=_safe_int(hier_row["in"]),
             out_id=_safe_int(hier_row["out"]), parent=self._current_parent,
             blocks=sel_b, nodes=sel_n, events=sel_e)
         parent_moves, link_ops = plan.parent_moves, plan.link_ops
+        if plan.unrebuildable:
+            from raptor.gui.ui import msgbox
+            link_ids = ", ".join(
+                str(_safe_int(r.get("ID"))) for r in plan.unrebuildable)
+            msgbox.warning(
+                self, "Collapse Selection",
+                "The collapse was not applied: the selection is connected "
+                f"by link(s) filed on another hierarchy level (ID {link_ids}), "
+                "so the boundary cannot be rebuilt. Nothing was changed.")
+            return None
         # Selected annotations at this level follow into the hierarchy
-        # -- their parent level becomes the new hier id.
+        # -- their parent level becomes the new hier id. The old parent
+        # is recorded for undo; nothing is written here.
         moved_annos = []
         for a in getattr(self, "annotations", []):
             if int(a.get("parent", 0)) == self._current_parent:
                 it = self._anno_items.get(int(a.get("id", 0)))
                 if it is not None and it.isSelected():
-                    moved_annos.append((int(a.get("id", 0)),
-                                        int(a.get("parent", 0))))
+                    old_parent = int(a.get("parent", 0))
+                    moved_annos.append((int(a.get("id", 0)), old_parent, hid))
+        selected: dict[str, list[int]] = {
+            "BLOCK_DATA": sel_b, "NODE_DATA": sel_n, "EVENT_DATA": sel_e}
+        apply_collapse_plan(
+            preview, hrows=[hier_row, in_row, out_row],
+            parent_moves=parent_moves, link_ops=link_ops,
+            moved_annotations=moved_annos)
+        problems = collapse_new_violations(
+            self._rbd_ref, preview, hid=hid, selected=selected,
+            in_id=_safe_int(hier_row["in"]),
+            out_id=_safe_int(hier_row["out"]))
+        if problems:
+            from raptor.core.input_rules import refusal_text
+            from raptor.gui.ui import msgbox
+            msgbox.warning(
+                self, "Collapse Selection",
+                "The collapse was not applied: it would leave the model "
+                "invalid, so nothing was changed.\n\n"
+                + refusal_text(problems)
+                + "\n\nInclude the node where the paths split and the node "
+                  "where they join so the boundary can be rebuilt.")
+            return None
         self._stack.push(CollapseCmd(self, [hier_row, in_row, out_row],
                                      parent_moves, link_ops,
                                      moved_annotations=moved_annos))
-        # apply annotation re-parent after the command (command rebuilds
-        # the scene); entries live in self.annotations
-        for aid, _old_parent in moved_annos:
-            for a in getattr(self, "annotations", []):
-                if int(a.get("id", 0)) == aid:
-                    a["parent"] = hid
         return hid
 
     def _insert_node(self, row: dict) -> int:
