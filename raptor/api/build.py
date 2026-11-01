@@ -1139,6 +1139,12 @@ def build_from_spec(spec: dict[str, Any],
         if not isinstance(exp_spec, dict):
             raise BuildError("spec['experiment'] must be an object")
         experiment = run_experiment.normalise(exp_spec)
+        if "analyses" not in exp_spec:
+            # The system dict's weak/cost/capacity flags are the defaults.
+            # An experiment that does not choose analyses must not reset them
+            # to empty (that silently disabled capacity analysis).
+            experiment["analyses"] = run_experiment.from_system_row(
+                source_row)["analyses"]
         for column, value in run_experiment.to_system_row(experiment):
             source_row[column] = value
         rbd.experiment = experiment
