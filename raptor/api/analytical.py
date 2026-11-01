@@ -102,7 +102,7 @@ def analyse_rbd(  # noqa: C901, PLR0912, PLR0915
             first = problems[0]
             raise NotApplicable(
                 f"the model has {len(problems)} validation error(s); "
-                f"first: {first.element}: {first.message}")
+                f"first: {first.message}")
         model = load_model(rbd)
     except NotApplicable:
         raise
@@ -194,6 +194,10 @@ def analyse_rbd(  # noqa: C901, PLR0912, PLR0915
     if equation:
         text = evaluate.equation(built)
         result["equation"] = text
+        if text is None:
+            result.setdefault("warnings", []).append(
+                "the equation has too many paths or characters to display; "
+                "use the numeric result or a coarser model")
 
     return _safe(result)
 

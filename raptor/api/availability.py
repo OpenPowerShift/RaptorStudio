@@ -142,7 +142,9 @@ def criticality_rows(workspace: Workspace, run_id: str) -> list[dict[str, Any]]:
                 continue
             entry = acc.setdefault(bid, {
                 "id": bid,
-                "name": str(value.get("name", "")),
+                "name": "".join(
+                    ch for ch in str(value.get("name", ""))
+                    if ch.isprintable())[:256],
                 "parent_id": value.get("parent_id", 0),
                 "samples": 0,
                 "failure": [],

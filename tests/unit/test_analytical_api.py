@@ -38,7 +38,7 @@ def test_api_result_shape_and_json_safety(workspace):
     assert len(result["times"]) == 3
     assert result["components"]
     assert result["importance"]
-    assert result["equation"].startswith("(R_Battery_Pack")
+    assert result["equation"].startswith("(R_")
     # No NaN or Infinity anywhere.
     json.dumps(result, allow_nan=False)
 

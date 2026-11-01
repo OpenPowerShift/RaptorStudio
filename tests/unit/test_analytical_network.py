@@ -23,7 +23,7 @@ def _model(name: str):
 
 def test_lantern_series_matches_closed_form():
     built = build(_model("Lantern1"), mode="reliability")
-    assert built.node_count == 8
+    assert built.node_count == 7
     t = 48.0
     expected = (
         survival.sf(int(Distribution.WEIBULL), [1.5, 60.0, 0.0], t)
@@ -34,8 +34,10 @@ def test_lantern_series_matches_closed_form():
     assert evaluate.system_probability(built, 0.0) == 1.0
     assert evaluate.mttf(built) == pytest.approx(43.142601, rel=1e-6)
     assert evaluate.bx_life(built, 10.0) == pytest.approx(9.153885, rel=1e-6)
-    assert evaluate.equation(built) == (
-        "(R_Battery_Pack * R_Switch * R_LED_Panel)")
+    equation = evaluate.equation(built)
+    assert equation is not None
+    assert set(equation.strip("()").split(" * ")) == {
+        "R_Battery_Pack", "R_Switch", "R_LED_Panel"}
 
 
 def test_drone_k_of_n_matches_closed_form():

@@ -188,7 +188,10 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
             f"events; this model has {len(order)}. Use simulation.")
 
     bdd = BDD()
-    var_index = {key: i for i, key in enumerate(order)}
+    # Reverse the first-encounter order for BDD indices. A series chain then
+    # adds each new variable BELOW the existing diagram, which is linear;
+    # adding it above would rebuild the whole chain (quadratic nodes).
+    var_index = {key: len(order) - 1 - i for i, key in enumerate(order)}
     x = {key: bdd.variable(i) for key, i in var_index.items()}
 
     node_memo: dict[int, int] = {}
