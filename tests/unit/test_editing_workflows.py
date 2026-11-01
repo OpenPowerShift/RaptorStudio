@@ -2275,3 +2275,46 @@ def test_rebuilding_the_canvas_with_a_selected_annotation_does_not_touch_deleted
     assert v._anno_items == {}
     v.load_rbd(load_rbd(os.path.join(GOLD, "TwoBlockRedundancy", "input.rbd")))
     assert all(target is None for target in seen)
+
+
+def test_contrast_prompts_from_several_windows_run_one_at_a_time(qapp):
+    """Toggling the theme makes every open model window ask about hard-
+    to-see annotations. A second prompt raised while the first is still
+    open used to nest another modal and could land behind a different
+    window, leaving the app looking frozen. They are now queued
+    application-wide and run strictly one after another."""
+    from raptor.gui.ui.main_window import MainWindow
+    log = []
+
+    class FakeWin:
+        def __init__(self, name, others=()):
+            self.name, self.others = name, list(others)
+
+        def _ask_contrast_fix(self, n):
+            log.append(("open", self.name, n))
+            # While this prompt is "open", the other windows' views
+            # fire their own signals (the nested-exec situation).
+            for w in self.others:
+                MainWindow._on_annotations_may_be_invisible(w, 2)
+            log.append(("close", self.name, n))
+
+    b = FakeWin("b")
+    a = FakeWin("a", [b])
+    assert MainWindow._contrast_queue == [] and not MainWindow._contrast_busy
+    MainWindow._on_annotations_may_be_invisible(a, 1)
+    assert log == [("open", "a", 1), ("close", "a", 1),
+                   ("open", "b", 2), ("close", "b", 2)]
+    assert MainWindow._contrast_queue == []
+    assert not MainWindow._contrast_busy
+
+
+def test_contrast_prompt_survives_a_window_closed_while_queued(qapp):
+    from raptor.gui.ui.main_window import MainWindow
+
+    class Dead:
+        def _ask_contrast_fix(self, n):
+            raise RuntimeError("Internal C++ object already deleted")
+
+    MainWindow._on_annotations_may_be_invisible(Dead(), 1)
+    assert not MainWindow._contrast_busy
+    assert MainWindow._contrast_queue == []
