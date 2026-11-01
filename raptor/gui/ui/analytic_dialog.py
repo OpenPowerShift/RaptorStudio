@@ -19,12 +19,12 @@ from raptor.api.analytical import analyse_rbd
 from raptor.core.analytical.errors import AnalyticalError
 
 
-def _run_length(rbd: Any) -> float:
-    """The model's mission time, or 0 when it is not time-terminated."""
+def _run_length(rbd: Any) -> float | None:
+    """The model's TimeSim horizon, or None for a non-time-terminated model."""
     try:
         row = rbd.sections["SYSTEM_DATA"].rows[0]
         if str(row.get("TerminationType", "TimeSim")) != "TimeSim":
-            return 0.0
+            return None
         value = float(row.get("TermCondition", 0.0))
         return value if value > 0.0 else 1.0
     except Exception:
@@ -89,7 +89,8 @@ class AnalyticDialog(QDialog):
         self._at = QDoubleSpinBox()
         self._at.setRange(0.0, 1e12)
         self._at.setDecimals(6)
-        self._at.setValue(_run_length(self._win._rbd))
+        horizon = _run_length(self._win._rbd)
+        self._at.setValue(horizon if horizon is not None else 1.0)
         self._at.setToolTip(
             "Mission time in the model's native units. Availability mode "
             "ignores it.")
@@ -303,7 +304,8 @@ def open_analytic_dialog(win) -> AnalyticDialog:
     if dialog is None:
         dialog = AnalyticDialog(win)
         win._analytic_dialog = dialog
-    dialog._at.setValue(_run_length(win._rbd))
+    horizon = _run_length(win._rbd)
+    dialog._at.setValue(horizon if horizon is not None else 1.0)
     dialog.show()
     dialog.raise_()
     dialog.activateWindow()
