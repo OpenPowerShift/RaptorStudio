@@ -47,6 +47,14 @@ def _dispose(qapp, v):
     undo commands at an arbitrary point -- the same late-teardown crash
     `_clear_orphan_undo_stacks()` exists to avoid.
     """
+    # Commit any open text edit while the view is still whole: deleting a
+    # scene with a focused QGraphicsTextItem can deliver focusOut during
+    # destruction, and `_finish_edit` would then push an undo command onto
+    # a stack whose view is already going away.
+    for item in list(getattr(v, "_anno_items", {}).values()):
+        end_edit = getattr(item, "end_edit", None)
+        if end_edit is not None:
+            end_edit()
     v._stack.clear()
     v.close()
     v.deleteLater()
