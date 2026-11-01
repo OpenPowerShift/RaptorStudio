@@ -12,6 +12,7 @@ from raptor.gui.ui.qtcompat import req
 from raptor.gui.ui import msgbox
 from raptor.bundled import candidate_roots
 import logging
+import math
 import os
 import platform
 import re
@@ -7747,6 +7748,38 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             f"Weak Link bands spread by quartile: Green ≥ {q3:.6g} "
             f"({green} blocks), Red < {q1:.6g} ({red} blocks)", 8000)
 
+    def _weak_flat_band_hint(self, values, gy: float, yr: float,
+                             metric_name: str) -> str | None:
+        """Status hint when every Weak Link value lands in ONE band.
+
+        A highly reliable model puts every block above the Green
+        threshold, so the overlay paints one flat colour and ranks
+        nothing; the same is true of a model entirely inside the Yellow
+        band or entirely below Red. The user's thresholds are NOT
+        rewritten -- Spread is the user's call, and this only points at
+        it. Returns None when the values do span more than one band.
+        """
+        finite = [v for v in values if math.isfinite(v)]
+        if not finite:
+            return None
+        hi, lo = max(gy, yr), min(gy, yr)
+        bands = {"Green" if v >= hi else
+                 "Yellow" if v >= lo else "Red" for v in finite}
+        if len(bands) != 1:
+            return None
+        band = bands.pop()
+        if band == "Green":
+            return (f"All {metric_name} values are above the Green "
+                    f"threshold (lowest {min(finite):.6g}) — press Spread "
+                    f"to band this run")
+        if band == "Red":
+            return (f"Every {metric_name} value is below the Red threshold "
+                    f"(highest {max(finite):.6g}) — press Spread to band "
+                    f"this run")
+        return (f"Every {metric_name} value is in the Yellow band "
+                f"({min(finite):.6g}–{max(finite):.6g}) — press Spread to "
+                f"band this run")
+
     def _toggle_weak_colors(self):
         # Explicit `setChecked` throughout (never relying on Qt's own
         # auto-toggle-on-click) -- several existing call sites invoke
@@ -7783,9 +7816,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         all_values = [*metric.values(), *node_metric.values(),
                       *event_metric.values(), *hier_metric.values()]
         worst = min(all_values) if all_values else 1.0
-        self._statusbar.showMessage(
-            f"Weak Link colouring on ({metric_name}) — lowest value "
-            f"{worst:.6g} (Green ≥ {gy:.6g} ≥ Yellow ≥ {yr:.6g} > Red)")
+        # A flat all-Green (or all-Red/all-Yellow) canvas ranks nothing.
+        # Say so ONCE, here on activation -- never on a repaint or a
+        # selection, which do not pass through this handler -- and leave
+        # the bands and Spread itself untouched.
+        hint = self._weak_flat_band_hint(all_values, gy, yr, metric_name)
+        if hint is not None:
+            self._statusbar.showMessage(hint, 12000)
+        else:
+            self._statusbar.showMessage(
+                f"Weak Link colouring on ({metric_name}) — lowest value "
+                f"{worst:.6g} (Green ≥ {gy:.6g} ≥ Yellow ≥ {yr:.6g} > Red)")
         self._update_overlay_chip()
 
     def _update_overlay_chip(self) -> None:
