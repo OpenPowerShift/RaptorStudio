@@ -2394,11 +2394,39 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         for rethemer in (self._dock_titlebar_rethemers or []):
             rethemer()
 
+    #: Contrast prompts waiting their turn, shared by every model window.
+    #: A theme change makes each open window ask; nesting one modal
+    #: `exec()` inside another left a prompt behind a different window
+    #: and the foreground window looked frozen. They run one at a time.
+    _contrast_queue: list[tuple[MainWindow, int]] = []
+    _contrast_busy: bool = False
+
     def _on_annotations_may_be_invisible(self, count: int) -> None:
         """The view has already run the contrast check (`DiagramView.
         find_low_contrast_annotations`); this asks before touching
-        anything the user deliberately coloured."""
+        anything the user deliberately coloured. With several model
+        windows open the prompts are sequenced, each raised above its
+        own window before it is shown."""
+        MainWindow._contrast_queue.append((self, count))
+        if MainWindow._contrast_busy:
+            return
+        MainWindow._contrast_busy = True
+        try:
+            while MainWindow._contrast_queue:
+                win, n = MainWindow._contrast_queue.pop(0)
+                try:
+                    win._ask_contrast_fix(n)
+                except RuntimeError:
+                    pass  # window was closed while it waited
+        finally:
+            MainWindow._contrast_busy = False
+
+    def _ask_contrast_fix(self, count: int) -> None:
         from raptor.gui.ui.dialogs import question_box
+        # Bring this window forward so the modal opens on top of it,
+        # never behind another model window.
+        self.raise_()
+        self.activateWindow()
         plural = "s" if count != 1 else ""
         if question_box(
                 self, "Annotations may be hard to see",
