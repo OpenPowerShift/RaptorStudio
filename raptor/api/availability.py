@@ -27,8 +27,6 @@ def availability_at(run: dict[str, Any], t: float) -> float | None:
     if not math.isfinite(t):
         raise ValueError("time must be a finite number")
     t = float(t)
-    if not math.isfinite(t):
-        raise ValueError("time must be a finite number")
     if t < 0.0:
         raise ValueError("time must be non-negative")
     timeline = run.get("color_timeline")

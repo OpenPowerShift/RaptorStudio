@@ -11,6 +11,7 @@ result would not prove anything.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from raptor.core.engine.load import SimulationModel
@@ -18,7 +19,7 @@ from raptor.core.model import ActiveStatus, RBDBlock, RBDEvent
 from raptor.core.rng import Distribution as RngDistribution
 
 from . import survival
-from .bdd import BDD, TRUE
+from .bdd import BDD, FALSE, TRUE
 from .errors import NotApplicable
 
 #: Engine values that mean "no spare constraint".
@@ -147,17 +148,24 @@ class BuildResult:
             return [info.availability for info in self._ordered()]
         return [info.reliability(t) for info in self._ordered()]
 
-    def derivatives(self, t: float) -> list[float]:
-        """dp_i/dt for reliability mode (events and perfect blocks are 0)."""
+    def derivatives(self, t: float) -> list[float] | None:
+        """dp_i/dt for reliability mode, or ``None`` if any is undefined.
+
+        Events and perfect blocks have zero slope. A block's density is
+        undefined at an atom of its life distribution (a Fixed life, or an
+        Empirical knot); the system density is then undefined too.
+        """
         if self.mode != "reliability":
             return [0.0] * len(self.variables)
         out: list[float] = []
         for info in self._ordered():
             if info.perfect or info.event_success is not None:
                 out.append(0.0)
-            else:
-                density = info.density(t)
-                out.append(0.0 if density is None else -density)
+                continue
+            density = info.density(t)
+            if density is None:
+                return None
+            out.append(-density)
         return out
 
     def _ordered(self) -> list[BlockInfo]:
@@ -181,7 +189,7 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
     incoming, block_in = _index_links(model)
 
     # Variable order is first encounter on a depth-first walk from Start.
-    order = _variable_order(model, start, block_in)
+    order = _variable_order(model, start)
     if len(order) > MAX_VARIABLES:
         raise NotApplicable(
             f"the static solver supports at most {MAX_VARIABLES} blocks/"
@@ -203,22 +211,19 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
             raise NotApplicable(
                 f"{kind} {ident} has no input link; the analytical solver "
                 "needs a single Start-to-End path")
-        source_kind, source_id = _link_source(link)
-        if source_kind == "RBDNode":
-            return node_condition(source_id)
-        if source_kind in ("RBDBlock", "RBDEvent"):
-            return bdd.And(input_condition(source_kind, source_id),
-                           x[(source_kind, source_id)])
-        raise NotApplicable(
-            f"link {link.object_num} has an unresolved {source_kind} source")
+        return branch_condition(link)
 
     def branch_condition(link) -> int:
+        """The condition under which ``link`` carries a Start-to-End signal."""
         source_kind, source_id = _link_source(link)
         if source_kind == "RBDNode":
             return node_condition(source_id)
         if source_kind in ("RBDBlock", "RBDEvent"):
-            return bdd.And(input_condition(source_kind, source_id),
-                           x[(source_kind, source_id)])
+            variable = x.get((source_kind, source_id))
+            if variable is None:
+                # Not reachable from Start, so it can never carry a signal.
+                return FALSE
+            return bdd.And(input_condition(source_kind, source_id), variable)
         raise NotApplicable(
             f"link {link.object_num} has an unresolved {source_kind} source")
 
@@ -262,9 +267,6 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
         warnings.append(
             "capacity analysis is ignored: success is the End node being up, "
             "not a flow target")
-    shared = _shared_stream_warning(model)
-    if shared:
-        warnings.append(shared)
     if mode == "availability":
         non_repairable = [info for info in infos
                           if not info.repairable and not info.perfect]
@@ -523,10 +525,9 @@ def _link_target(link) -> tuple[str, int]:
     return kind, ident
 
 
-def _variable_order(model: SimulationModel, start: int,  # noqa: C901
-                    block_in: dict[tuple[str, int], object]) -> list[tuple[str, int]]:
+def _variable_order(model: SimulationModel,  # noqa: C901
+                    start: int) -> list[tuple[str, int]]:
     """Blocks/events in depth-first first-encounter order."""
-    del block_in  # kept in the signature for the caller's readability
     outgoing: dict[int, list] = {}
     outputs: dict[tuple[str, int], list] = {}
     for link in model.links_by_id.values():
@@ -570,29 +571,10 @@ def _variable_order(model: SimulationModel, start: int,  # noqa: C901
     return order
 
 
-def _shared_stream_warning(model: SimulationModel) -> str | None:
-    """Warn when the simulation's streams are shared across elements.
-
-    The solver assumes independence; Raptor's numbers >= 200 select one shared
-    system stream, so two elements on the same stream are correlated in a
-    simulation even though the solver treats them as independent.
-    """
-    users: dict[int, set[tuple[str, int]]] = {}
-    for block in model.blocks_by_id.values():
-        for stream in (block.fail_stream, block.repair_stream):
-            if stream >= 200:
-                users.setdefault(stream, set()).add(("block", block.id))
-    for event in model.events_by_id.values():
-        if event.fail_stream >= 200:
-            users.setdefault(event.fail_stream, set()).add(
-                ("event", event.id))
-    shared = sorted(stream for stream, elements in users.items()
-                    if len(elements) > 1)
-    if not shared:
-        return None
-    streams = ", ".join(str(stream) for stream in shared)
-    return (f"shared random stream(s) {streams} are used by more than one "
-            "element; the analytical solver assumes independent components")
+def _mean_or_inf(code: int, params: list[float]) -> float:
+    """A mean time, or infinity when the distribution has no finite mean."""
+    value = survival.mean(code, params)
+    return math.inf if value is None else value
 
 
 def _block_info(block: RBDBlock, variable: int, *, mode: str) -> BlockInfo:
@@ -606,9 +588,9 @@ def _block_info(block: RBDBlock, variable: int, *, mode: str) -> BlockInfo:
     mean_post = 0.0
     if repairable:
         if block.pre_dist not in (int(RngDistribution.NONE),):
-            mean_pre = survival.mean(block.pre_dist, block.pre_params) or 0.0
+            mean_pre = _mean_or_inf(block.pre_dist, block.pre_params)
         if block.post_dist not in (int(RngDistribution.NONE),):
-            mean_post = survival.mean(block.post_dist, block.post_params) or 0.0
+            mean_post = _mean_or_inf(block.post_dist, block.post_params)
     return BlockInfo(
         id=block.id,
         name=block.name,

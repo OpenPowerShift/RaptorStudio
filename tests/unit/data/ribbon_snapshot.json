@@ -388,7 +388,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Availability & Criticality\u2026",
-   "tooltip": "Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The legacy report text is unchanged.\n\nUnavailable: there are no results to clear \u2014 run the model first"
+   "tooltip": "Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The report text is unchanged.\n\nUnavailable: there are no results to clear \u2014 run the model first"
   },
   "_diff_action": {
    "checkable": false,

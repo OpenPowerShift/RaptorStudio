@@ -94,6 +94,7 @@
    "importance",
    "mode",
    "model_id",
+   "tau",
    "times"
   ],
   "required": [

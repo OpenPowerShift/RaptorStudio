@@ -126,8 +126,18 @@ def _gammp(a: float, x: float) -> float:
 
 
 def _gammq(a: float, x: float) -> float:
-    """Regularized upper incomplete gamma Q(a, x) = 1 - P(a, x)."""
-    return min(1.0, max(0.0, 1.0 - _gammp(a, x)))
+    """Regularized upper incomplete gamma Q(a, x) = 1 - P(a, x).
+
+    The upper tail is computed directly (not as ``1 - P``) so a very small
+    survival probability keeps its relative precision.
+    """
+    if a <= 0.0 or not math.isfinite(a):
+        raise UnsupportedDistribution(f"gamma shape must be positive, got {a!r}")
+    if x <= 0.0:
+        return 1.0
+    if x < a + 1.0:
+        return min(1.0, max(0.0, 1.0 - _gamma_series(a, x)))
+    return min(1.0, max(0.0, _gamma_cf(a, x)))
 
 
 def _betacf(a: float, b: float, x: float) -> float:
@@ -165,6 +175,15 @@ def _betacf(a: float, b: float, x: float) -> float:
         if abs(delta - 1.0) < 1e-15:
             break
     return h
+
+
+def _betai_upper(a: float, b: float, x: float) -> float:
+    """``1 - I_x(a, b)`` without cancellation, via ``I_{1-x}(b, a)``."""
+    if x <= 0.0:
+        return 1.0
+    if x >= 1.0:
+        return 0.0
+    return _betai(b, a, 1.0 - x)
 
 
 def _betai(a: float, b: float, x: float) -> float:
@@ -272,7 +291,7 @@ def _sf(code: int, params: Sequence[float], t: float) -> float:  # noqa: C901, P
             return 1.0
         if t >= 1.0:
             return 0.0
-        return 1.0 - _betai(a, b, t)
+        return _betai_upper(a, b, t)
     if code == int(Distribution.UNIFORM_REAL):
         q = _need(p, 2, code)
         low, high = q[0], q[1]
@@ -323,7 +342,7 @@ def _sf(code: int, params: Sequence[float], t: float) -> float:  # noqa: C901, P
         if t <= 0.0:
             return 1.0
         ratio = t / (scale + t)
-        return 1.0 - _betai(shape1, shape2, ratio)
+        return _betai_upper(shape1, shape2, ratio)
     if code == int(Distribution.EXTREME_VALUE):
         q = _need(p, 2, code)
         scale = _positive(q[0], "Extreme value scale")
@@ -332,7 +351,9 @@ def _sf(code: int, params: Sequence[float], t: float) -> float:  # noqa: C901, P
         # X = loc - scale*ln(E), E~Exp(1): P(X > t) = P(E < e^z)
         # = 1 - exp(-e^z). This is the Gumbel-minimum survival, not the
         # Gumbel-maximum exp(-e^z) form.
-        return 1.0 - math.exp(-math.exp(z))
+        if z > 700.0:   # e^z overflows; the survival probability is 1
+            return 1.0
+        return -math.expm1(-math.exp(z))
     if code == int(Distribution.LAPLACE):
         q = _need(p, 2, code)
         scale = _positive(q[0], "Laplace scale")
@@ -399,8 +420,10 @@ def _pdf(code: int, params: Sequence[float], t: float) -> float | None:  # noqa:
     """Density at ``t``; ``None`` for a point mass or a discrete law."""
     code = int(code)
     p = [float(v) for v in params]
-    if code in (int(Distribution.FIXED), int(Distribution.BERNOULLI),
-                int(Distribution.NONE)):
+    if code == int(Distribution.FIXED):
+        # A point mass has no density at its atom and zero density elsewhere.
+        return None if t == _need(p, 1, code)[0] else 0.0
+    if code in (int(Distribution.BERNOULLI), int(Distribution.NONE)):
         return None
     if code == int(Distribution.EXPONENTIAL):
         q = _need(p, 2, code)
@@ -472,13 +495,13 @@ def _pdf(code: int, params: Sequence[float], t: float) -> float | None:  # noqa:
         q = _need(p, 2, code)
         low, high = q[0], q[1]
         if high <= low:
-            return None
+            return None if t == low else 0.0
         return 1.0 / (high - low) if low < t < high else 0.0
     if code == int(Distribution.TRIANGULAR):
         q = _need(p, 3, code)
         low, mode, high = q[0], q[1], q[2]
         if high <= low:
-            return None
+            return None if t == low else 0.0
         if t < low or t > high:
             return 0.0
         if mode == low:
@@ -633,7 +656,7 @@ def support(code: int, params: Sequence[float]) -> tuple[float, float | None]:
     if code == int(Distribution.FIXED):
         value = _need(p, 1, code)[0]
         return value, value
-    if code in (int(Distribution.BETA),):
+    if code == int(Distribution.BETA):
         return 0.0, 1.0
     if code == int(Distribution.UNIFORM_REAL):
         q = _need(p, 2, code)
@@ -646,8 +669,6 @@ def support(code: int, params: Sequence[float]) -> tuple[float, float | None]:
         if not values:
             raise UnsupportedDistribution("Empirical distribution has no values")
         return values[0], values[-1]
-    if code in (int(Distribution.EXPONENTIAL), int(Distribution.WEIBULL),
-                int(Distribution.GAMMA), int(Distribution.ERLANG),
-                int(Distribution.LOGNORMAL), int(Distribution.PEARSON5)):
-        return 0.0, None
+    # Every other supported law has an unbounded upper tail. The lower bound
+    # is reported as 0 for convenience; callers only use the upper bound.
     return 0.0, None

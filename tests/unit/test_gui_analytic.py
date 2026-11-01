@@ -26,40 +26,122 @@ def qapp():
     return QApplication.instance() or QApplication([])
 
 
-def test_analytic_dialog_computes_reliability(qapp):
+def _dialog(qapp, name, *, current_file=None):
     class Win(QWidget):
-        _rbd = load_rbds(os.path.join(MODELS, "Lantern1.rbds"))
+        _rbd = load_rbds(os.path.join(MODELS, f"{name}.rbds"))
+        _current_file = current_file
 
-    dialog = AnalyticDialog(Win())
-    text = dialog._output.toPlainText()
-    assert "reliability:" in text
-    assert "MTTF:" in text
-    assert "Importance:" in text
-    assert "Not applicable" not in text
+    win = Win()
+    dialog = AnalyticDialog(win)
+    dialog.wait_for_result()
+    return win, dialog
+
+
+def _card_texts(dialog):
+    from PySide6.QtWidgets import QLabel
+    return [label.text() for label in dialog._summary_page.findChildren(QLabel)
+            if label.objectName() == "MetricValue"]
+
+
+def test_analytic_dialog_computes_reliability(qapp):
+    _win, dialog = _dialog(qapp, "Lantern1")
+    assert dialog._pages.currentIndex() == 1
+    assert dialog._result["reliability"] == pytest.approx(0.38460369, rel=1e-6)
+    assert any(text.startswith("0.384604") for text in _card_texts(dialog))
+    # Per-element table: every element, sorted by criticality, N/A last.
+    table = dialog._elements
+    assert table.rowCount() == 3
+    assert table.item(0, 0).text() == "Battery_Pack"
+    assert dialog._tabs.isTabVisible(dialog._tab_curve)
+    assert not dialog._tabs.isTabVisible(dialog._tab_equation)
+    assert dialog._copy.isEnabled()
     dialog.close()
 
 
 def test_analytic_dialog_switches_to_availability(qapp):
-    class Win(QWidget):
-        _rbd = load_rbds(os.path.join(MODELS, "Vendo1.rbds"))
-
-    dialog = AnalyticDialog(Win())
+    _win, dialog = _dialog(qapp, "Vendo1")
     dialog._mode.setCurrentIndex(1)
     dialog.compute()
-    text = dialog._output.toPlainText()
-    assert "availability:" in text
-    assert "0.970" in text
+    dialog.wait_for_result()
+    assert dialog._result["mode"] == "availability"
+    assert dialog._result["availability"] == pytest.approx(0.9706853, rel=1e-6)
+    assert any(text.startswith("0.970685") for text in _card_texts(dialog))
+    # Reliability-only settings are hidden, and so is the curve tab.
+    assert dialog._times.isHidden() or not dialog._times.isVisibleTo(dialog)
+    assert not dialog._tabs.isTabVisible(dialog._tab_curve)
+    assert dialog._elements.horizontalHeaderItem(3).text() == "MTTR"
     dialog.close()
 
 
 def test_analytic_dialog_refuses_phases_without_a_traceback(qapp):
-    class Win(QWidget):
-        _rbd = load_rbds(os.path.join(MODELS, "AirlinerMission.rbds"))
+    _win, dialog = _dialog(qapp, "AirlinerMission")
+    assert dialog._pages.currentIndex() == 0
+    assert "outside the static solver" in dialog._notice_title.text()
+    assert "hased models" in dialog._notice_body.text()
+    assert not dialog._copy.isEnabled()
+    dialog.close()
 
+
+def test_analytic_dialog_explains_a_bad_setting(qapp):
+    _win, dialog = _dialog(qapp, "Lantern1")
+    dialog._bx.setText("ten")
+    dialog.compute()
+    dialog.wait_for_result()
+    assert dialog._pages.currentIndex() == 0
+    assert "numbers" in dialog._notice_body.text()
+    dialog._bx.setText("120")
+    dialog.compute()
+    dialog.wait_for_result()
+    assert "BX percentage" in dialog._notice_body.text()
+    dialog.close()
+
+
+def test_analytic_dialog_flags_stale_settings(qapp):
+    _win, dialog = _dialog(qapp, "Lantern1")
+    dialog._bx.setText("5")
+    assert "press Compute" in dialog._banner.text()
+    dialog.compute()
+    dialog.wait_for_result()
+    assert list(dialog._result["bx"]) == ["5"]
+    assert "press Compute" not in dialog._banner.text()
+    dialog.close()
+
+
+def test_analytic_dialog_equation_tab_and_copy(qapp):
+    _win, dialog = _dialog(qapp, "Lantern1")
+    dialog._equation.setChecked(True)
+    dialog.compute()
+    dialog.wait_for_result()
+    assert dialog._tabs.isTabVisible(dialog._tab_equation)
+    assert "R_Switch" in dialog._equation_view.toPlainText()
+    dialog._copy_result()
+    assert "Battery_Pack" in QApplication.clipboard().text()
+    dialog.close()
+
+
+def test_analytic_dialog_non_time_terminated_asks_for_a_mission_time(qapp):
+    class Win(QWidget):
+        _rbd = load_rbds(os.path.join(MODELS, "Lantern1.rbds"))
+
+    Win._rbd.sections["SYSTEM_DATA"].rows[0]["TerminationType"] = "FailSim"
     dialog = AnalyticDialog(Win())
-    text = dialog._output.toPlainText()
-    assert "Not applicable" in text
-    assert "phased" in text
+    dialog.wait_for_result()
+    assert dialog._pages.currentIndex() == 0
+    assert "mission time" in dialog._notice_title.text().lower()
+    dialog._at.setValue(48.0)
+    dialog.compute()
+    dialog.wait_for_result()
+    assert dialog._pages.currentIndex() == 1
+    dialog.close()
+
+
+def test_analytic_dialog_does_not_change_the_model(qapp):
+    win, dialog = _dialog(qapp, "Vendo1")
+    from raptor.core.fileio.rbds import render_rbds
+    before = render_rbds(win._rbd)
+    dialog.compute()
+    dialog.wait_for_result()
+    assert render_rbds(win._rbd) == before
     dialog.close()
 
 

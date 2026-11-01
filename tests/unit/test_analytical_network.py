@@ -117,9 +117,10 @@ def test_availability_of_non_repairable_series_is_zero():
     assert evaluate.availability(built) == 0.0
 
 
-def test_shared_stream_warning_is_reported():
+def test_shared_random_stream_is_not_a_warning():
+    """Independence is documented, not warned about on every default model."""
     built = build(_model("Vendo1"), mode="availability")
-    assert any("shared random stream" in warning for warning in built.warnings)
+    assert not any("stream" in warning for warning in built.warnings)
 
 
 def test_non_repairable_availability_explains_the_zero():

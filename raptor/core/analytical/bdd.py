@@ -19,7 +19,9 @@ make the diagram exponential in the worst case; the solver raises
 """
 from __future__ import annotations
 
-from collections.abc import Sequence
+import sys
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 
 from .errors import BddTooLarge
 
@@ -29,10 +31,27 @@ TRUE = 1
 #: A variable never has this value; used only for ordering comparisons.
 _NO_VAR = 1 << 60
 
-#: Default cap. A 122-block real model is ~12k nodes; 2M is generous enough
-#: for large practical diagrams and small enough to fail before exhausting
+#: Default cap. A 122-block real model is ~12k nodes; 250k is generous for
+#: large practical diagrams and small enough to fail before exhausting
 #: memory.
 MAX_BDD_NODES = 250_000
+
+
+@contextmanager
+def recursion_headroom(limit: int = 20_000) -> Iterator[None]:
+    """Raise Python's recursion limit while a diagram is built or walked.
+
+    Building and evaluating a BDD recurses once per variable level, and the
+    network walk once per block in a chain; a 750-block series chain needs
+    more than the default 1000 frames. The variable cap keeps the real depth
+    far below ``limit``.
+    """
+    previous = sys.getrecursionlimit()
+    sys.setrecursionlimit(max(previous, limit))
+    try:
+        yield
+    finally:
+        sys.setrecursionlimit(previous)
 
 
 class BDD:
@@ -191,9 +210,8 @@ class BDD:
             for j in range(n + 1):
                 if exact[j] == FALSE:
                     continue
-                if exact[j] != FALSE:
-                    nxt[j] = self.Or(nxt[j], self.And(exact[j], neg))
-                if j + 1 <= n:
+                nxt[j] = self.Or(nxt[j], self.And(exact[j], neg))
+                if j < n:
                     nxt[j + 1] = self.Or(nxt[j + 1],
                                          self.And(exact[j], branch))
             exact = nxt

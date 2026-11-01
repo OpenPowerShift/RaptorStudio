@@ -12,6 +12,7 @@ from typing import Any
 
 from raptor.api.workspace import Workspace
 from raptor.core.analytical import build as build_analytical
+from raptor.core.analytical import recursion_headroom
 from raptor.core.analytical import evaluate
 from raptor.core.analytical.errors import AnalyticalError, BddTooLarge, NotApplicable
 from raptor.core.engine.load import load_model
@@ -24,13 +25,15 @@ def _safe_text(value: object) -> str:
     return text if len(text) <= 256 else text[:253] + "..."
 
 
-def _finite(value: float | None, label: str) -> float | None:
-    if value is None:
-        return None
-    value = float(value)
-    if not math.isfinite(value):
+def _finite_number(value: float, label: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
         raise ValueError(f"{label} must be a finite number")
-    return value
+    return number
+
+
+def _finite(value: float | None, label: str) -> float | None:
+    return None if value is None else _finite_number(value, label)
 
 
 def analyse(  # noqa: C901, PLR0912
@@ -62,7 +65,7 @@ def analyse(  # noqa: C901, PLR0912
     )
 
 
-def analyse_rbd(  # noqa: C901, PLR0912, PLR0915
+def analyse_rbd(
     rbd,
     name: str = "model",
     *,
@@ -76,6 +79,31 @@ def analyse_rbd(  # noqa: C901, PLR0912, PLR0915
     ignore_repairs: bool = False,
 ) -> dict[str, Any]:
     """Analyse an in-memory ``RbdFile`` (the GUI's open model)."""
+    try:
+        with recursion_headroom():
+            return _analyse_rbd(
+                rbd, name, mode=mode, at=at, times=times, bx=bx, tau=tau,
+                importance=importance, equation=equation,
+                ignore_repairs=ignore_repairs)
+    except RecursionError as exc:
+        raise NotApplicable(
+            "the diagram is nested too deeply for the analytical solver; "
+            "use simulation") from exc
+
+
+def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
+    rbd,
+    name: str = "model",
+    *,
+    mode: str = "reliability",
+    at: float | None = None,
+    times: Sequence[float] | None = None,
+    bx: Sequence[float] | None = None,
+    tau: float | None = None,
+    importance: bool = True,
+    equation: bool = False,
+    ignore_repairs: bool = False,
+) -> dict[str, Any]:
     if mode not in ("reliability", "availability"):
         raise ValueError("mode must be 'reliability' or 'availability'")
     at = _finite(at, "mission time")
@@ -83,14 +111,14 @@ def analyse_rbd(  # noqa: C901, PLR0912, PLR0915
     if times is not None:
         if len(times) > 250:
             raise ValueError("at most 250 curve times are accepted")
-        times = [_finite(point, "time") for point in times]
+        times = [_finite_number(point, "time") for point in times]
     if bx is not None:
         if len(bx) > 20:
             raise ValueError("at most 20 BX percentages are accepted")
         checked: list[float] = []
         for percent in bx:
-            number = _finite(percent, "BX percentage")
-            if number is None or not 0.0 <= number <= 100.0:
+            number = _finite_number(percent, "BX percentage")
+            if not 0.0 <= number <= 100.0:
                 raise ValueError("BX percentage must be in [0, 100]")
             checked.append(number)
         bx = checked
@@ -124,17 +152,17 @@ def analyse_rbd(  # noqa: C901, PLR0912, PLR0915
         else:
             at = built.horizon
     if at is None:
-        raise NotApplicable(
-            "the model has no time-terminated run length; pass --at T "
-            "to name the mission time")
+        raise ValueError(
+            "the model is not time-terminated, so there is no default "
+            "mission time; give the mission time (at)")
     if at < 0.0:
         raise ValueError("at must be non-negative")
 
     units = ""
     try:
         units = str(rbd.sections["SYSTEM_DATA"].rows[0].get("units", "")).strip()
-    except Exception:
-        pass
+    except (KeyError, IndexError, AttributeError):
+        pass   # a model with no SYSTEM_DATA row simply has no units
     result: dict[str, Any] = {
         "schema": SCHEMA,
         "units": units,
@@ -165,7 +193,11 @@ def analyse_rbd(  # noqa: C901, PLR0912, PLR0915
             for percent in requested_bx
         }
 
-    if times:
+    if times and mode == "availability":
+        result["warnings"].append(
+            "curve times are ignored in availability mode: the steady-state "
+            "availability does not depend on time")
+    elif times:
         points: list[dict[str, Any]] = []
         for point in times:
             if point < 0.0:
@@ -195,7 +227,7 @@ def analyse_rbd(  # noqa: C901, PLR0912, PLR0915
         text = evaluate.equation(built)
         result["equation"] = text
         if text is None:
-            result.setdefault("warnings", []).append(
+            result["warnings"].append(
                 "the equation has too many paths or characters to display; "
                 "use the numeric result or a coarser model")
 

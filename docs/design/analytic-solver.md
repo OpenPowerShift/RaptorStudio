@@ -208,8 +208,10 @@ correctly gives `A_ss = 0`.
 `network.build()` returns a `BuildResult` with the BDD plus:
 
 - `mode`: reliability or availability;
-- `warnings`: shared random streams, capacity analysis ignored, events
-  ignored, unreachable elements, approximate means;
+- `warnings`: capacity analysis ignored, unreachable elements, start
+  failures ignored, non-repairable blocks in availability mode. (Shared
+  random streams are deliberately not a warning: independence is an
+  assumption stated in the docs.);
 - `errors`: unsupported shape.
 
 Reliability mode requires:
@@ -229,9 +231,9 @@ Availability mode requires:
   success criterion;
 - pre/post logistic delays are allowed only when their distributions are
   non-random or their means are finite; they are added to MTTR;
-- a warning when two or more blocks share a random stream (`>= 200`),
-  because the simulation is then correlated while the solver assumes
-  independence.
+- no warning about shared random streams: draws from one stream are still
+  independent, and independence is documented as an assumption of the
+  solver (see `docs/ANALYTICAL.md`, "Independence").
 
 Hierarchies are always supported. Any model that fails the gate gets a
 message naming the first offending element and field.
@@ -388,8 +390,8 @@ Phase 1–3 is the user-testable "analytic solver". Phase 4–5 are the
   node cap, clear refusal, special-case OR/AND, first-encounter variable
   order.
 - **Steady-state assumptions.** Independence and perfect repair are
-  strong. Mitigation: gate, warnings, shared-stream detection, and an
-  explicit "this is not the finite-horizon simulation number" note.
+  strong. Mitigation: gate, warnings, the documented independence
+  assumption, and an explicit "this is not the finite-horizon simulation number" note.
 - **Expectation creep.** Users will ask for PM, spares and crews in the
   analytical mode. Mitigation: scope statement in every result and in the
   manual; those stay simulation-only.

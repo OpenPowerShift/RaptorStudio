@@ -110,12 +110,6 @@ def test_availability_time_is_not_echoed(workspace):
     assert result["time"] is None
 
 
-def test_single_block_does_not_warn_about_shared_streams(workspace):
-    model_id = _open(workspace, "Toaster_Fixed")
-    result = analyse(workspace, model_id, at=10.0)
-    assert not any("shared random stream" in w for w in result["warnings"])
-
-
 def test_api_caps_curve_and_bx_lists(workspace):
     model_id = _open(workspace, "Lantern1")
     with pytest.raises(ValueError, match="250"):

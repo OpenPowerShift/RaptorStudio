@@ -47,15 +47,20 @@ def availability(build: BuildResult) -> float:
 
 
 def pdf(build: BuildResult, t: float) -> float | None:
-    """System density ``f_sys(t)`` for a reliability-mode build."""
+    """System density ``f_sys(t)`` for a reliability-mode build.
+
+    ``None`` where a block's own density is undefined (an atom of a Fixed or
+    Empirical life distribution).
+    """
     if build.mode != "reliability":
         raise NotApplicable("pdf() needs a reliability-mode build")
-    probabilities = build.probabilities(t)
     derivatives = build.derivatives(t)
-    value, slope = build.bdd.probability_and_derivative(
-        build.root, probabilities, derivatives)
-    del value
-    return -slope
+    if derivatives is None:
+        return None
+    _, slope = build.bdd.probability_and_derivative(
+        build.root, build.probabilities(t), derivatives)
+    # ``0.0 - slope`` rather than ``-slope`` so a zero slope is 0, not -0.
+    return 0.0 - slope
 
 
 def hazard(build: BuildResult, t: float) -> float | None:
@@ -123,24 +128,7 @@ def bx_life(build: BuildResult, percent: float) -> float | None:  # noqa: C901, 
     if target >= 1.0:
         return 0.0
     if target <= 0.0:
-        # B100 is the upper end of the support. It is defined only when every
-        # variable has a finite support; an unbounded law never reaches zero
-        # at a finite time.
-        finite_upper = 0.0
-        found = False
-        for info in build.variables:
-            if info.perfect:
-                continue
-            _, high = survival.support(info.fail_code, info.fail_params)
-            if high is None:
-                return None
-            if info.duty_cycle <= 0.0:
-                return None
-            calendar_high = max(0.0, (high - info.start_age)
-                                / info.duty_cycle)
-            finite_upper = max(finite_upper, calendar_high)
-            found = True
-        return finite_upper if found else None
+        return _certain_failure_time(build)
     if system_probability(build, 0.0) <= target:
         return 0.0
     upper = _upper_bound(build, target)
@@ -157,6 +145,35 @@ def bx_life(build: BuildResult, percent: float) -> float | None:  # noqa: C901, 
         if high - low <= max(1e-12, high * 1e-12):
             break
     return (low + high) / 2.0
+
+
+def _death_time(info) -> float:
+    """Calendar time by which this element has certainly failed (or inf)."""
+    if info.perfect:
+        return math.inf
+    if info.event_success is not None:
+        return 0.0 if info.event_success <= 0.0 else math.inf
+    _, high = survival.support(info.fail_code, info.fail_params)
+    if high is None or info.duty_cycle <= 0.0:
+        return math.inf
+    return max(0.0, (high - info.start_age) / info.duty_cycle)
+
+
+def _certain_failure_time(build: BuildResult) -> float | None:
+    """The earliest time at which ``R_sys`` is exactly zero, or ``None``.
+
+    ``R_sys(t) = 0`` as soon as the elements that are certainly dead by ``t``
+    (their finite support has ended) cut every Start-to-End path, while every
+    other element is given the benefit of surviving. A series chain therefore
+    reaches zero at its *earliest* finite support end, a parallel group at its
+    latest; an unbounded life distribution never forces failure by itself.
+    """
+    deaths = [_death_time(info) for info in build.variables]
+    for moment in sorted({d for d in deaths if math.isfinite(d)}):
+        alive = [0.0 if d <= moment else 1.0 for d in deaths]
+        if build.bdd.probability(build.root, alive) <= 0.0:
+            return moment
+    return None
 
 
 def conditional_reliability(build: BuildResult, t: float,

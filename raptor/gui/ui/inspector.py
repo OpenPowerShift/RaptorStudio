@@ -1796,16 +1796,11 @@ class InspectorDock(QWidget):
         duty_spin.valueChanged.connect(
             lambda v, bid=block_id:
                 self.block_duty_cycle_changed.emit(bid, v))
-        duty_spin.setKeyboardTracking(False)
-        duty_spin.valueChanged.connect(
-            lambda v, bid=block_id:
-                self.block_duty_cycle_changed.emit(bid, v))
         fl.addRow("Duty cycle:", duty_spin)
 
         restore_spin = QDoubleSpinBox()
         restore_spin.setRange(0.0, 1.0)
         restore_spin.setDecimals(6)
-        restore_spin.setSingleStep(0.05)
         restore_spin.setValue(float(block.restoration_factor))
         restore_spin.setAccessibleName("Restoration factor")
         restore_spin.setToolTip(
@@ -1813,10 +1808,7 @@ class InspectorDock(QWidget):
             "(age kept), 1 = as good as new (age reset to 0). 0.7 leaves "
             "30% of the age.")
         restore_spin.setSingleStep(0.05)
-        restore_spin.setKeyboardTracking(False)
-        restore_spin.valueChanged.connect(
-            lambda v, bid=block_id:
-                self.block_restoration_factor_changed.emit(bid, v))
+        restore_spin.setSingleStep(0.05)
         restore_spin.setKeyboardTracking(False)
         restore_spin.valueChanged.connect(
             lambda v, bid=block_id:

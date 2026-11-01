@@ -9,7 +9,7 @@ See `docs/design/analytic-solver.md` for the scope and assumptions.
 """
 from __future__ import annotations
 
-from .bdd import BDD
+from .bdd import BDD, recursion_headroom
 from .errors import AnalyticalError, BddTooLarge, NotApplicable, UnsupportedDistribution
 from .network import BlockInfo, BuildResult, build
 from . import evaluate, survival
@@ -24,5 +24,6 @@ __all__ = [
     "UnsupportedDistribution",
     "build",
     "evaluate",
+    "recursion_headroom",
     "survival",
 ]

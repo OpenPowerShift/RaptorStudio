@@ -6,6 +6,7 @@ import io
 import sys
 from typing import Any
 
+from raptor.api.analytical_text import summary_text
 from raptor.cli import exitcodes as X
 from raptor.cli.common import (
     eprint, emit_json, open_model, workspace_for)
@@ -61,88 +62,6 @@ def _floats(text: str | None) -> list[float]:
         raise CliError(f"bad number list {text!r}", X.USAGE) from exc
 
 
-def _fmt(value: float | None, digits: int = 9) -> str:
-    if value is None:
-        return "N/A"
-    if value == 0.0:
-        return "0"
-    return f"{value:.{digits}g}"
-
-
-def _summary_text(result: dict[str, Any]) -> str:  # noqa: C901, PLR0912
-    lines = [
-        f"Analytical analysis: {result['model']} ({result['mode']})",
-        f"BDD nodes: {result['bdd_nodes']}",
-        "",
-    ]
-    unit = result.get("units") or ""
-    suffix = f" {unit}" if unit else ""
-    if result["mode"] == "reliability":
-        lines.extend([
-            f"time:          {_fmt(result['time'])}{suffix}",
-            f"reliability:   {_fmt(result.get('reliability'))}",
-            f"pdf:           {_fmt(result.get('pdf'))}",
-            f"hazard:        {_fmt(result.get('hazard'))}",
-            f"MTTF:          {_fmt(result.get('mttf'))}{suffix}",
-        ])
-        bx = result.get("bx") or {}
-        if bx:
-            lines.append("BX life:       " + ", ".join(
-                f"B{key}={_fmt(value)}{suffix}" for key, value in bx.items()))
-    else:
-        lines.extend([
-            f"availability:  {_fmt(result.get('availability'))}",
-            f"unavailability: {_fmt(result.get('unavailability'))}",
-        ])
-    if "conditional" in result:
-        conditional = result["conditional"]
-        lines.append(
-            f"conditional:   R({_fmt(conditional['age'])} + "
-            f"{_fmt(conditional['tau'])}) = "
-            f"{_fmt(conditional['reliability'])}")
-    if result.get("equation"):
-        lines.extend(["", "Equation:", result["equation"]])
-    if result.get("assumptions"):
-        lines.extend(["", "Assumptions:"])
-        lines.extend(f"  - {item}" for item in result["assumptions"])
-    if result.get("warnings"):
-        lines.extend(["", "Warnings:"])
-        lines.extend(f"  - {warning}" for warning in result["warnings"])
-    components = result.get("components") or []
-    if result["mode"] == "availability" and components:
-        lines.extend(["", "Components:"])
-        header = ("name", "availability", "MTTF", "MTTR")
-        rows = [[row["name"], _fmt(row.get("availability")),
-                 _fmt(row.get("mttf")), _fmt(row.get("mttr"))]
-                for row in components]
-        widths = [max(len(header[i]), *(len(row[i]) for row in rows))
-                  for i in range(len(header))]
-        lines.append("  " + "  ".join(
-            header[i].ljust(widths[i]) for i in range(len(header))))
-        for row in rows:
-            lines.append("  " + "  ".join(
-                row[i].ljust(widths[i]) for i in range(len(header))))
-    importance = result.get("importance") or []
-    if importance:
-        lines.extend(["", "Importance:"])
-        header = ("name", "birnbaum", "raw", "rrw", "VF", "criticality")
-        rows = [[row["name"], _fmt(row.get("birnbaum")), _fmt(row.get("raw")),
-                 _fmt(row.get("rrw")), _fmt(row.get("vesely_fussell")),
-                 _fmt(row.get("criticality"))] for row in importance]
-        widths = [max(len(header[i]), *(len(row[i]) for row in rows))
-                  for i in range(len(header))]
-        lines.append("  " + "  ".join(
-            header[i].ljust(widths[i]) for i in range(len(header))))
-        for row in rows:
-            lines.append("  " + "  ".join(
-                row[i].ljust(widths[i]) for i in range(len(header))))
-    if result.get("times"):
-        lines.extend(["", "Curve:"])
-        for point in result["times"]:
-            lines.append(f"  t={_fmt(point['time'])}  {_fmt(point['value'])}")
-    return "\n".join(lines)
-
-
 def _summary_csv(result: dict[str, Any]) -> str:
     out = io.StringIO()
     writer = csv.writer(out)
@@ -155,6 +74,12 @@ def _summary_csv(result: dict[str, Any]) -> str:
         writer.writerow(["bx", key, value])
     for item in result.get("assumptions") or []:
         writer.writerow(["assumption", "", item])
+    if "conditional" in result:
+        conditional = result["conditional"]
+        writer.writerow(["conditional", f"tau={conditional['tau']}",
+                         conditional["reliability"]])
+    for point in result.get("times") or []:
+        writer.writerow(["curve", point["time"], point["value"]])
     for row in result.get("components") or []:
         writer.writerow(["component", row["name"],
                          row.get("availability", row.get("reliability"))])
@@ -192,7 +117,7 @@ def analytic_command(args: Any) -> int:
     elif args.format == "csv":
         sys.stdout.write(_summary_csv(result))
     else:
-        print(_summary_text(result))
+        print(summary_text(result))
     if args.format != "text" and result.get("warnings"):
         for warning in result["warnings"]:
             eprint(f"warning: {warning}")

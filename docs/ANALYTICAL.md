@@ -10,6 +10,19 @@ command line, through the MCP tool `analytical_analysis`, and through
 The solver is not a replacement for simulation. It answers a smaller
 question and says so when the model is outside its assumptions.
 
+## Independence
+
+The solver treats every block and event as **statistically independent** of
+every other. Each element is evaluated from its own distribution alone. In
+particular the random-number stream a block draws from has no effect on the
+answer: two blocks that share a stream number are still independent in
+this analysis, and a simulation using separate streams or shared ones
+converges to the same value. Dependence that is modelled in the diagram
+itself (dependencies, standby, shared spares or crews) is refused, not
+approximated. If real components share a common cause (so their failures are positively
+associated), the independent answer is optimistic for parallel structures and
+pessimistic for series ones.
+
 ## Two modes
 
 ### Reliability: non-repairable, time-dependent
@@ -27,7 +40,8 @@ Returns:
 - conditional reliability for a second mission (`--tau`);
 - exact Birnbaum, RAW, RRW, Vesely–Fussell and criticality importance;
 - the path-product equation (`--equation`);
-- a curve with `--times`.
+- a curve with `--times`; the application plots one from 0 to the mission
+  time when none is given.
 
 Every block must be non-repairable (`Repair Dist = None`). If the model has
 repair distributions, the command refuses by default. `--ignore-repairs`
@@ -51,6 +65,10 @@ A_i = MTTF_i / (MTTF_i + MTTR_i)
 This is exact, not an approximation. The same BDD supplies the system
 availability and exact availability importance. The result includes each
 component's MTTF and MTTR.
+
+Curve times, BX life and conditional reliability are reliability-mode
+quantities; in availability mode the steady-state value does not depend on
+time, so curve times are ignored with a warning.
 
 The steady-state result is not the finite-horizon number a simulation
 reports. Use simulation when you need the startup transient, PM, crews,
@@ -89,22 +107,54 @@ availability.
 Resource bounds: at most 750 blocks/events, 250,000 BDD nodes, 250 curve times and 20 BX percentages. These
 are refusals, not approximations.
 
+## The application window
+
+**Results ▸ Analytical…** solves on a background thread, so the window stays
+responsive on a large diagram. Choose the mode, mission time (it defaults to
+the model's run length, and a model that is not time-terminated asks for
+one), optional curve times, BX percentages and which extras to include, then
+press **Compute**. Changing a setting after a result leaves the old result in
+place with a "press Compute" note rather than silently recomputing.
+
+The result has these tabs:
+
+- **Summary**: the headline figures, one card each, with the exact value in
+  the tooltip;
+- **Elements**: one row per block or event with its reliability (or
+  availability), MTTF and, in availability mode, MTTR, plus the importance
+  measures. Click a header to sort; the default order is by criticality;
+- **Curve**: a plot of `R(t)` with the values beside it (reliability mode);
+- **Equation**: the exact sum of path products, when requested;
+- **Assumptions**: what the answer rests on, with any warnings first.
+
+A model outside the solver's subset shows the reason, naming the first
+offending element, in place of the tabs. The window never changes the model.
+**Copy** puts the full-precision plain-text result on the clipboard.
+
 ## Reading the result
 
 - `reliability` is the probability that the system has not failed by `--at`.
 - `pdf` and `hazard` are the system density and failure rate at `--at`.
-  A Fixed distribution is a point mass, so its density is undefined; the
-  hazard can be `N/A` there.
+  A Fixed distribution is a point mass: its density is zero away from the
+  atom and undefined exactly on it, so the system `pdf` and `hazard` are
+  `N/A` when `--at` falls exactly on a Fixed block's life (or an Empirical
+  distribution's knot).
 - `MTTF` is `integral R(t) dt` from zero to infinity. If the tail does not
   decay (an infinite mean), the result is `N/A`, not a made-up number.
-- `BX` is the time at which reliability reaches `1 - X/100`.
+- `BX` is the time at which reliability reaches `1 - X/100`. `B100` is the
+  earliest time at which reliability is exactly zero. It exists only when the
+  elements whose life distributions have a finite upper end cut every
+  Start-to-End path: a series chain reaches zero at its *earliest* such end,
+  a parallel group at its *latest*, and a model with no such cut (for
+  example one made only of Weibull blocks) has no B100, reported as `N/A`.
 - Importance columns:
   - Birnbaum: how far the system moves if this element's probability moves;
   - RAW: how much worse the system is with the element dead;
   - RRW: how much better it could be if the element never failed;
-  - Vesely–Fussell: the share of current unavailability associated with the
-    element;
-  - criticality: the unavailability removable by making the element perfect.
+  - Vesely–Fussell: the share of the system's unavailability that
+    disappears if the element is made perfect;
+  - criticality: the probability that the element is failed and critical,
+    given that the system has failed.
 
 Ratios are `N/A` when the system has no unavailability to divide by, or when
 the denominator of that particular ratio is zero (RRW when making the element

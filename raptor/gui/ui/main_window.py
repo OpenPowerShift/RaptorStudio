@@ -4050,7 +4050,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 "cannot be stored in the .rbd format and will be "
                 "DROPPED. Printouts from this file will fall back to the "
                 "file's own name. Save as .rbds to keep it.")
-        block_sec = self._rbd.sections.get("BLOCK_DATA")
+        block_sec = req(self._rbd).sections.get("BLOCK_DATA")
         age_blocks = 0
         for row in (block_sec.rows if block_sec is not None else []):
             try:
