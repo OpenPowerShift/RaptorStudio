@@ -28,18 +28,16 @@ classifiers = [
 ]
 
 # The installable product IS the GUI app: PySide6 is a runtime
-# dependency, not a dev-only extra. WebEngine (the in-app help viewer)
-# ships inside PySide6-Essentials. weasyprint makes the PDF report (Export
-# PDF and Print); on Linux/macOS it needs system Pango (see README).
+# dependency, not a dev-only extra. weasyprint makes the PDF report
+# (Export PDF and Print); on Linux/macOS it needs system Pango (see
+# README).
 #
-# PINNED (2026-09-13, user report: help opened in the browser): the
-# sub-packages MUST all carry the SAME version -- an Essentials-only
-# dependency let PySide6-Essentials drift to 6.11.2 while
-# PySide6/Addons stayed 6.11.1, and the mismatched Qt libraries broke
-# the QtWebEngine import (undefined symbol) so the in-app help viewer
-# silently fell back to the system browser. The full `PySide6`
-# meta-package installs all sub-packages from ONE version; the exact
-# patch pin keeps a partial upgrade from ever recurring. NOT optional.
+# PINNED: the PySide6 sub-packages MUST all carry the SAME version --
+# a partial upgrade (e.g. Essentials at 6.11.2 while Addons stayed
+# 6.11.1) leaves mismatched Qt libraries that fail at import time. The
+# full `PySide6` meta-package installs all sub-packages from ONE version;
+# the exact patch pin keeps a partial upgrade from ever recurring. NOT
+# optional.
 dependencies = [
     "PySide6==6.11.1",
     "weasyprint>=61",

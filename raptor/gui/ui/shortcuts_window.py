@@ -3,7 +3,7 @@ window of the app's own, in the current theme.
 
 Qt renders the Markdown itself (GitHub tables included); this adds what
 its renderer leaves plain -- ruled tables with a header row -- and the
-theme's colours. A plain QTextBrowser, not the WebEngine help viewer: the
+theme's colours. It uses a plain QTextBrowser, like the help viewer: the
 page is one short document, and it opens instantly.
 """
 from __future__ import annotations

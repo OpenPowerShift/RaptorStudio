@@ -97,8 +97,7 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=["weasyprint"],
-    # Qt modules the app does not use; keep QtWebEngine's deps
-    # (QtQuick/QtQml/QtWebChannel/QtNetwork/QtPositioning/QtOpenGL).
+    # Qt modules the app does not use.
     excludes=[
         "PySide6.Qt3DAnimation", "PySide6.Qt3DCore", "PySide6.Qt3DExtras",
         "PySide6.Qt3DInput", "PySide6.Qt3DLogic", "PySide6.Qt3DRender",

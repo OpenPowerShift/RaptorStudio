@@ -62,10 +62,12 @@ Its "UI Reference" section is generated from the live GUI:
     .venv/bin/python new_docs/tools/gen_help_reference.py   # regenerate the UI tables
 
 The app's **Help** ribbon tab opens `book.html` (User Guide) and
-`manual.html` (Reference Manual) **inside the app** (QtWebEngine
+`manual.html` (Reference Manual) **inside the app** (Qt `QTextBrowser`
 viewer: Ctrl+F find, in-app cross-links between book and manual,
-external links go to the system browser). `opsmodel::Name[]` links in
-either doc open the companion model in RAPTOR Studio. F1 jumps into
+external links go to the system browser). It deliberately avoids
+QtWebEngine: loading Chromium for static local docs crashed the whole
+application on some systems (GitHub issue #75). `opsmodel::Name[]` links
+in either doc open the companion model in RAPTOR Studio. F1 jumps into
 the in-app viewer at the section for the focused dock or dialog.
 
 ## What every chapter must satisfy

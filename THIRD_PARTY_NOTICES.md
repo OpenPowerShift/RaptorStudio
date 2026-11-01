@@ -11,8 +11,7 @@ texts in `third_party_licenses/GNU/` (the Qt for Python wheels carry no licence 
 
 | Component | Licence | Used for | Source |
 |---|---|---|---|
-| Qt 6 and Qt for Python (PySide6, shiboken6) | LGPL-3.0-only | The application window, diagram and in-app help (Qt WebEngine) | https://download.qt.io/official_releases/ and https://code.qt.io/cgit/pyside/pyside-setup.git |
-| Qt WebEngine (Chromium) | LGPL-3.0-only; Chromium's own components under their listed licences | The in-app help viewer | https://code.qt.io/cgit/qt/qtwebengine.git |
+| Qt 6 and Qt for Python (PySide6, shiboken6) | LGPL-3.0-only | The application window, diagram and in-app help (QTextBrowser) | https://download.qt.io/official_releases/ and https://code.qt.io/cgit/pyside/pyside-setup.git |
 | WeasyPrint | BSD-3-Clause | PDF export and printing | https://github.com/Kozea/WeasyPrint |
 | pydyf, tinycss2, cssselect2, webencodings | BSD-3-Clause | WeasyPrint dependencies | https://github.com/Kozea |
 | tinyhtml5 | MIT | WeasyPrint dependency | https://github.com/CourtBouillon/tinyhtml5 |

@@ -170,10 +170,10 @@ class _TooltipKeeper(QObject):
     rests on the same widget.
 
     Polls QToolTip's static state rather than installing an
-    application-wide event filter: an app-wide filter that receives
-    events from QtWebEngine's internal objects crashes inside PySide's
-    QObject wrapper resolution. Polling needs no filter and covers both
-    static widget tooltips and item-view tooltips resolved from the
+    application-wide event filter: such a filter crashed inside PySide's
+    QObject wrapper resolution on some widget backends (seen with the
+    former QtWebEngine help view). Polling needs no filter and covers
+    both static widget tooltips and item-view tooltips resolved from the
     model's Qt.ToolTipRole."""
 
     def __init__(self, parent=None):
@@ -436,9 +436,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # QShortcut does not compose in Qt), delivered to whichever widget
         # has focus -- usually the canvas, not the window. So while the
         # tips show, an application-wide filter catches it (installed then
-        # and removed after: a PERMANENT app-wide filter was taken out to
-        # avoid a WebEngine crash). The window filtering itself, as it did,
-        # never saw the key: the tips showed and no letter did anything.
+        # and removed after: a PERMANENT app-wide filter was taken out
+        # after a crash with the former WebEngine help view). The window
+        # filtering itself, as it did, never saw the key: the tips showed
+        # and no letter did anything.
         self._key_tip_filter = _KeyTipFilter(self)
 
         self._tooltip_keeper = _TooltipKeeper(self)
@@ -888,14 +889,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def _open_doc(self, name: str, anchor: str | None = None) -> None:
         """Open a bundled HTML doc (book / manual) in the in-app help
-        viewer (QtWebEngine) with find-in-page, in-app cross-links and
-        opsmodel:// links handled natively. Falls back to the system
-        browser when QtWebEngine is unavailable or the doc is missing."""
+        viewer (Qt text browser) with find-in-page, in-app cross-links
+        and opsmodel:// links handled natively. Falls back to the system
+        browser when the viewer cannot be imported or the doc is missing."""
         try:
             from raptor.gui.ui import help_viewer
         except ImportError:
             help_viewer = None  # type: ignore[assignment]
-        if help_viewer is not None and help_viewer.WEBENGINE_OK:
+        if help_viewer is not None:
             path = help_viewer._resolve_doc(name)
             if path is not None:
                 self._show_help_viewer(name, anchor)
@@ -905,9 +906,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 QDesktopServices.openUrl(QUrl.fromLocalFile(path))
                 self._statusbar.showMessage(f"Opened {name}")
                 return
-        # Non-modal on purpose: a modal dialog pumping events after
-        # WebEngine has spun up can crash, so a status note and a
-        # non-blocking box avoid that path.
+        # Non-modal on purpose: a modal box here would block the window
+        # just to report missing documentation, so a status note and a
+        # non-blocking box are friendlier.
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Icon.Warning)
         msg.setWindowTitle("Documentation not found")
@@ -921,8 +922,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def _show_help_viewer(self, name: str, anchor: str | None = None):
         """Show (or reuse) the shared in-app help viewer window."""
-        from raptor.gui.ui.help_viewer import HelpViewer, _register_ops_scheme
-        _register_ops_scheme()
+        from raptor.gui.ui.help_viewer import HelpViewer
         if getattr(self, "_help_viewer", None) is None:
             self._help_viewer = HelpViewer(
                 parent=None, open_model=self.open_model_from_help,
