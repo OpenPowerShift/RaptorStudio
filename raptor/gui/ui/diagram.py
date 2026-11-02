@@ -116,6 +116,7 @@ from raptor.gui.ui.diagram_items import (  # noqa: F401
     _NUDGE_DIRS,
     _NodeItem,
     _apply_hover_cursor,
+    set_flow_direction,
     _arrow,
     _blend,
     _hover_cursor_for,
@@ -703,6 +704,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             pass
         # A phase choice belongs to the previous model.
         self._label_phase = -1
+        # A hand-drawn diagram keeps the neighbour inference; Auto Layout
+        # sets an explicit axis on the level it lays out.
+        set_flow_direction("auto")
         self._stack.clear()   # undo history belongs to the previous file
         # result visuals belong to the previous model too (a new run
         # re-populates them); traversal within a model keeps them
@@ -6567,6 +6571,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             except (TypeError, ValueError):
                 configured = 0
             max_columns = configured if configured > 0 else None
+        set_flow_direction(direction)
         # Bipartite adjacency, ref-aware: ('Node', 3) and ('Block', 3)
         # are different elements -- keying by bare id let a layering walk
         # jump between kinds. Members = this level's blocks/nodes/hier

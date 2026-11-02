@@ -246,7 +246,7 @@
     "Ctrl+L"
    ],
    "text": "Auto Layout",
-   "tooltip": "Rearrange by graph flow (columns left-to-right). Selections are laid out alone. (Ctrl+L)\n\nUnavailable: open or create a model first"
+   "tooltip": "Rearrange the current hierarchy by graph flow. Direction and column wrap are in the Layout group. (Ctrl+L)\n\nUnavailable: open or create a model first"
   },
   "_block_defaults_action": {
    "checkable": false,
@@ -2009,6 +2009,30 @@
        "text": "Auto Layout"
       },
       {
+       "children": [
+        "QComboBox",
+        "QFrame",
+        "QLabel",
+        "QListView",
+        "QScrollBar",
+        "QScrollBar",
+        "QWidget",
+        "QWidget"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "children": [
+        "QLabel",
+        "QSpinBox"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
        "kind": "action",
        "large": false,
        "text": "Snap to Grid"
@@ -2540,30 +2564,6 @@
         "QScrollBar",
         "QWidget",
         "QWidget"
-       ],
-       "class": "QWidget",
-       "kind": "widget",
-       "large": false
-      },
-      {
-       "children": [
-        "QComboBox",
-        "QFrame",
-        "QLabel",
-        "QListView",
-        "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
-       ],
-       "class": "QWidget",
-       "kind": "widget",
-       "large": false
-      },
-      {
-       "children": [
-        "QLabel",
-        "QSpinBox"
        ],
        "class": "QWidget",
        "kind": "widget",

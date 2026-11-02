@@ -876,6 +876,28 @@ class _NodeItem(QGraphicsEllipseItem):
                 self._on_moved(self._node_id, self)
         return super().itemChange(change, value)
 
+#: Preferred page-flow direction for port selection. Auto Layout sets it
+#: from its chosen direction; LR is the historical default.
+_FLOW = {"direction": "auto"}
+FLOW_DIRECTIONS = ("auto", "LR", "RL", "TB", "BT")
+
+
+def set_flow_direction(direction: str) -> None:
+    """Set the page-flow axis used by link port selection.
+
+    "auto" keeps the historical neighbour inference, which is what a
+    hand-drawn diagram needs. Auto Layout sets an explicit LR/RL/TB/BT."""
+    if direction not in FLOW_DIRECTIONS:
+        raise ValueError(f"unknown flow direction {direction!r}")
+    if _FLOW["direction"] != direction:
+        _FLOW["direction"] = direction
+        _LINK_GEN[0] += 1
+
+
+def flow_direction() -> str:
+    return _FLOW["direction"]
+
+
 #: Bumped whenever a link item is created or enters/leaves a scene, so the
 #: per-scene link index below knows when it is stale.
 _LINK_GEN = [0]
@@ -1200,6 +1222,12 @@ class _LinkItem(QGraphicsPathItem):
         bias = (_LinkItem._NODE_HORIZONTAL_BIAS
                 if isinstance(item, _NodeItem)
                 else _LinkItem._HORIZONTAL_BIAS)
+        if flow_direction() in ("TB", "BT"):
+            # A vertical page flow prefers top/bottom ports; only a
+            # clearly horizontal connection takes a side port.
+            if abs(dy) >= bias * abs(dx):
+                return "bottom" if dy >= 0 else "top"
+            return "right" if dx >= 0 else "left"
         if abs(dx) >= bias * abs(dy):
             return "right" if dx >= 0 else "left"
         return "bottom" if dy >= 0 else "top"
@@ -1300,13 +1328,19 @@ class _LinkItem(QGraphicsPathItem):
         Such an element takes its ports on the left/right (enter left,
         exit right) even when some inputs arrive from below, which is what
         keeps a join/split visually balanced."""
-        # The answer depends on the item's LINKS, so a plain cache went
-        # stale whenever a link was constructed after an earlier route
-        # (`_LinkItem.__init__` routes immediately): the first link made
-        # the element look like a pure vertical chain and every later
-        # route reused that answer. Key it on the scene's link-generation
-        # counter, which is bumped on every link construction and every
-        # link entering/leaving a scene.
+        direction = flow_direction()
+        if direction in ("LR", "RL"):
+            return True
+        if direction in ("TB", "BT"):
+            return False
+        # Auto: infer from the item's neighbours. The answer depends on the
+        # item's LINKS, so a plain cache went stale whenever a link was
+        # constructed after an earlier route (`_LinkItem.__init__` routes
+        # immediately): the first link made the element look like a pure
+        # vertical chain and every later route reused that answer. Key it
+        # on the scene's link-generation counter, which is bumped on every
+        # link construction, every link entering/leaving a scene, and a
+        # flow-direction change.
         gen = _LINK_GEN[0]
         if getattr(item, "_route_horizontal_gen", None) == gen \
                 and getattr(item, "_route_horizontal", None) is not None:
@@ -1362,6 +1396,11 @@ class _LinkItem(QGraphicsPathItem):
             if side == entry and side in ("left", "right"):
                 c = _LinkItem._true_centre(item)
                 return "bottom" if toward.y() >= c.y() else "top"
+        elif flow_direction() in ("TB", "BT"):
+            entry = _LinkItem._entry_side(item)
+            if side == entry and side in ("top", "bottom"):
+                c = _LinkItem._true_centre(item)
+                return "right" if toward.x() >= c.x() else "left"
         return side
 
     @staticmethod
@@ -1382,10 +1421,19 @@ class _LinkItem(QGraphicsPathItem):
         c = _LinkItem._true_centre(item)
         incoming, outgoing = _links_at(item)
         total = 0.0
-        for it in incoming:
-            total += c.x() - _LinkItem._true_centre(it._from).x()
-        for it in outgoing:
-            total += _LinkItem._true_centre(it._to).x() - c.x()
+        if flow_direction() in ("TB", "BT"):
+            for it in incoming:
+                total += c.y() - _LinkItem._true_centre(it._from).y()
+            for it in outgoing:
+                total += _LinkItem._true_centre(it._to).y() - c.y()
+            # Scene y is down-positive, so TB is +1 and BT is -1.
+            if flow_direction() == "BT":
+                total = -total
+        else:
+            for it in incoming:
+                total += c.x() - _LinkItem._true_centre(it._from).x()
+            for it in outgoing:
+                total += _LinkItem._true_centre(it._to).x() - c.x()
         result = -1 if total < 0 else 1
         item._route_flow_sign = result
         item._route_flow_sign_gen = gen
@@ -1422,6 +1470,12 @@ class _LinkItem(QGraphicsPathItem):
                     return "left"
             elif side in ("left", "bottom"):     # right-to-left: mirror
                 return "right"
+        elif flow_direction() in ("TB", "BT"):
+            if cls._flow_sign(item) > 0:         # top-to-bottom
+                if side in ("bottom", "right"):
+                    return "top"
+            elif side in ("top", "left"):        # bottom-to-top: mirror
+                return "bottom"
         return side
 
     @staticmethod
@@ -1444,6 +1498,8 @@ class _LinkItem(QGraphicsPathItem):
             result = None
         elif _LinkItem._flow_horizontal(item):
             result = "left" if _LinkItem._flow_sign(item) > 0 else "right"
+        elif flow_direction() in ("TB", "BT"):
+            result = "top" if _LinkItem._flow_sign(item) > 0 else "bottom"
         else:
             result = _LinkItem._majority_side(counts)
         item._route_entry_side = result

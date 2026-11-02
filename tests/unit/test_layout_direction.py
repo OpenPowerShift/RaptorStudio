@@ -88,9 +88,8 @@ def test_vertical_flow_is_monotonic_within_each_band():
     pos = layout_container_positions(members, edges, [("node", 0)],
                                      pins={("node", 9)}, direction="TB",
                                      max_columns=4)
-    # With an explicit column limit every band keeps the requested flow
-    # direction, so layers 0..3 and 4..7 both run down the page; only the
-    # cross position changes at the band hand-over.
+    # A short vertical band keeps the requested flow direction; the
+    # horizontal case is the one that snakes into a Z/S (see the LR test).
     band_one = [pos[("node", i)][1] for i in range(4)]
     band_two = [pos[("node", i)][1] for i in range(4, 8)]
     assert band_one == sorted(band_one, reverse=True)
@@ -140,3 +139,49 @@ def test_max_columns_must_be_positive():
     with pytest.raises(ValueError):
         layout_container_positions([("node", 0)], [], [("node", 0)],
                                    max_columns=0)
+
+
+def test_top_to_bottom_layout_routes_ports_vertically():
+    """A TB layout must use top/bottom ports, not the LR left/right ports."""
+    from PySide6.QtWidgets import QApplication
+    from raptor.api.build import build_from_spec
+    from raptor.gui.ui.diagram import DiagramView
+    from raptor.gui.ui.diagram_items import (
+        BLOCK_H, BLOCK_W, flow_direction, set_flow_direction)
+    QApplication.instance() or QApplication([])
+    rbd = build_from_spec({
+        "name": "TB", "blocks": [{"name": "A"}, {"name": "B"}],
+        "nodes": [{"id": 1, "name": "Start", "type": "start"},
+                  {"id": 2, "name": "End", "type": "end"}],
+        "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "B"},
+                  {"from": "B", "to": "End"}],
+        "system": {"term_condition": 100, "num_runs": 1},
+    }, auto_layout=False)
+    view = DiagramView()
+    view.load_rbd(rbd)
+    try:
+        view.auto_layout(direction="TB")
+        assert flow_direction() == "TB"
+        blocks = set(id(it) for it in view._block_items.values())
+        for link in view._links:
+            if id(link._from) not in blocks or id(link._to) not in blocks:
+                continue
+            local = link._from.mapFromScene(link._p0)
+            assert abs(local.x() - BLOCK_W / 2) < 1.0, local
+            assert local.y() > BLOCK_H * 0.5, local
+    finally:
+        set_flow_direction("auto")
+
+
+def test_lr_max_columns_snakes_into_a_z_bend():
+    members, edges = _chain(10)
+    pos = layout_container_positions(members, edges, [("node", 0)],
+                                     pins={("node", 9)}, direction="LR",
+                                     max_columns=4)
+    band_one = [pos[("node", i)][0] for i in range(4)]
+    band_two = [pos[("node", i)][0] for i in range(4, 8)]
+    assert band_one == sorted(band_one)
+    assert band_two == sorted(band_two, reverse=True)
+    # The hand-over is the short vertical link of the Z, not a jump back
+    # across the page.
+    assert abs(pos[("node", 3)][0] - pos[("node", 4)][0]) <= 5.0
