@@ -529,6 +529,8 @@ class _BlockItem(QGraphicsRectItem):
         w = max(BLOCK_W, ceil(max(needed, BLOCK_W) / 2.0) * 2.0)
         if self.rect().width() != w:
             self.setRect(-(w - BLOCK_W) / 2, 0, w, BLOCK_H)
+            # Routing caches the block's centre; the rect just changed.
+            self._route_centre = None
 
     def _adjust_label(self):
         self._fit_name()
@@ -1025,9 +1027,15 @@ class _LinkItem(QGraphicsPathItem):
         the shape rect rather than `sceneBoundingRect()` for a node,
         whose capacity-gauge/dependency-badge padding skews the box
         centre off the circle."""
+        cached = getattr(item, "_route_centre", None)
+        if cached is not None:
+            return cached
         if isinstance(item, _BlockItem):
-            return item.mapToScene(item.rect().center())
-        return item.scenePos()
+            centre = item.mapToScene(item.rect().center())
+        else:
+            centre = item.scenePos()
+        item._route_centre = centre
+        return centre
 
     @staticmethod
     def _half_extents(item):
@@ -1176,6 +1184,9 @@ class _LinkItem(QGraphicsPathItem):
         Such an element takes its ports on the left/right (enter left,
         exit right) even when some inputs arrive from below, which is what
         keeps a join/split visually balanced."""
+        cached = getattr(item, "_route_horizontal", None)
+        if cached is not None:
+            return cached
         if item.scene() is None:
             return True
         c = _LinkItem._true_centre(item)
@@ -1185,8 +1196,11 @@ class _LinkItem(QGraphicsPathItem):
             oc = _LinkItem._true_centre(other)
             dx, dy = oc.x() - c.x(), oc.y() - c.y()
             if abs(dx) >= _LinkItem._HORIZONTAL_BIAS * abs(dy):
+                item._route_horizontal = True
                 return True
-        return _LinkItem._runs_across(item, c, incoming, outgoing)
+        result = _LinkItem._runs_across(item, c, incoming, outgoing)
+        item._route_horizontal = result
+        return result
 
     @staticmethod
     def _runs_across(item, c: QPointF, incoming, outgoing) -> bool:

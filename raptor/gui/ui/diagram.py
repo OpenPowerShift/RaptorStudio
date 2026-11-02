@@ -551,8 +551,19 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Re-route only the links this move can change. It used to re-route
         # every link in the diagram on every drag step, each one scanning
         # the whole scene.
-        for link in (links_affected_by_moving(item) if item is not None
-                     else self._links):
+        affected = (links_affected_by_moving(item) if item is not None
+                    else self._links)
+        # Port-side and centre decisions are cached during a batch rebuild
+        # (entering a hierarchy). A move invalidates them for every endpoint
+        # of every link whose route can change.
+        for link in affected:
+            for end in (link._from, link._to):
+                end._route_centre = None
+                end._route_horizontal = None
+        if item is not None:
+            item._route_centre = None
+            item._route_horizontal = None
+        for link in affected:
             link._update_route()
         if self._loading:
             return
@@ -622,6 +633,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Units for the canvas labels, read once: the per-block label
         # formatter must not re-parse SYSTEM_DATA on every refresh.
         self._label_units = ""
+        self._label_mode_cache = None
         try:
             from raptor.core.fileio.typed import system_config_from_row
             self._label_units = system_config_from_row(
@@ -701,10 +713,25 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._set_level(0)
 
     def _set_level(self, parent_id: int):
-        self._loading = True
-        self._current_parent = parent_id
-        self._rebuild_scene()
-        self._loading = False
+        # A large level still pays for item construction even after the
+        # parser and routing caches. Say what is happening and put the wait
+        # cursor up before doing it; otherwise the window looks frozen for
+        # several seconds.
+        sink = getattr(self, "status_message_sink", None)
+        target = self.hiers.get(parent_id)
+        label = ("Home" if not parent_id
+                 else getattr(target, "name", None) or f"hierarchy {parent_id}")
+        if sink is not None:
+            sink(f"Opening {label}…")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        QApplication.processEvents()
+        try:
+            self._loading = True
+            self._current_parent = parent_id
+            self._rebuild_scene()
+        finally:
+            self._loading = False
+            QApplication.restoreOverrideCursor()
         # Live element colours survive traversal: a run in progress
         # re-paints the freshly built items from the cached live state
         # immediately, so entering a hierarchy mid-run shows its
@@ -1030,14 +1057,27 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         def on_level(parent: int) -> bool:
             return parent == cur
 
+        def row_parent(row, col: str = "ParentId") -> int:
+            """The raw row's parent, without parsing the whole element."""
+            try:
+                return int(float(row.get(col, 0) or 0))
+            except (TypeError, ValueError):
+                return 0
+
+        # Filter raw rows by parent BEFORE block_from_row/node_from_row.
+        # The old rebuild parsed every row in the model and then discarded
+        # the hidden levels: on a model with thousands of elements that is
+        # most of the cost of entering or leaving a hierarchy.
         visible_blocks: dict[int, RBDBlock] = {}
         if "BLOCK_DATA" in req(rbd).sections:
             for row in req(rbd).sections["BLOCK_DATA"].rows:
+                if row_parent(row) != cur:
+                    continue
                 try:
                     block = block_from_row(row)
                 except (ValueError, KeyError):
                     continue
-                if block.id == 0 or not on_level(block.parent_id):
+                if block.id == 0:
                     continue
                 if ("block", block.id) in prev_pos:
                     block.x_position, block.y_position = \
@@ -1062,6 +1102,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             rows = req(rbd).sections["NODE_DATA"].rows
             log.debug("_rebuild_scene: scanning %d node rows", len(rows))
             for row in rows:
+                if row_parent(row, "parent") != cur:
+                    continue
                 try:
                     node = node_from_row(row)
                 except (ValueError, KeyError):
@@ -1086,14 +1128,27 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Dependency badges need both dicts fully populated (a block's
         # badge may point at a node target and vice versa), so this runs
         # once after both loops above, not inline in either.
-        self._global_name_index = self._build_global_name_index()
-        self._apply_dependency_badges()
+        # The whole-model name index is only needed when at least one
+        # visible block/node actually carries a dependency badge. Building
+        # it unconditionally parsed every block/node/event a SECOND time on
+        # every level change, even though most models have no dependencies.
+        needs_name_index = any(
+            getattr(b, "dependency_num", 0) for b in self.blocks.values()
+        ) or any(
+            getattr(n, "dependency_num", 0) for n in self.nodes.values()
+        )
+        self._global_name_index = (
+            self._build_global_name_index() if needs_name_index else {})
+        if needs_name_index:
+            self._apply_dependency_badges()
 
         if "EVENT_DATA" in req(rbd).sections:
             from raptor.core.fileio.typed import event_from_row
             rows = req(rbd).sections["EVENT_DATA"].rows
             log.debug("_rebuild_scene: scanning %d event rows", len(rows))
             for row in rows:
+                if row_parent(row) != cur:
+                    continue
                 try:
                     event = event_from_row(row)
                 except (ValueError, KeyError):
@@ -1168,7 +1223,29 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if "LINK_DATA" in req(rbd).sections:
             rows = req(rbd).sections["LINK_DATA"].rows
             log.debug("_rebuild_scene: scanning %d link rows", len(rows))
+            visible_keys = (
+                {("Block", i) for i in self._block_items}
+                | {("Node", i) for i in self._node_items}
+                | {("Event", i) for i in self._event_items}
+                | {("Hier", i) for i in getattr(self, "_hier_items", {})}
+            )
+
+            def endpoint(row, side: str):
+                try:
+                    kind = str(row.get(f"{side}Type", "")).replace(
+                        "RBD", "", 1)
+                    return kind, int(float(row.get(f"{side}ID", 0)))
+                except (TypeError, ValueError):
+                    return None
+
             for row in rows:
+                # A link can only be drawn when both ends are on this
+                # level. Parsing every link in the file and then dropping
+                # the hidden ones was a large part of the traversal cost.
+                ends = (endpoint(row, "From"), endpoint(row, "To"))
+                if None in ends or ends[0] not in visible_keys \
+                        or ends[1] not in visible_keys:
+                    continue
                 try:
                     link = link_from_row(row)
                 except (ValueError, KeyError):
@@ -2715,20 +2792,24 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._stack.push(ParamsCmd(self, f"event {field}", eid,
                                    current, value))
 
+    def _block_label_mode(self) -> str:
+        """The label mode, read once per rebuild/refresh, not per block."""
+        mode = getattr(self, "_label_mode_cache", None)
+        if mode is None:
+            mode = str(app_settings.get("appearance/block_labels",
+                                        block_labels.DEFAULT_MODE))
+            self._label_mode_cache = mode
+        return mode
+
     def _apply_block_labels(self, item, block):
         """Write a block's current label mode, phase and units onto its
         canvas item. The three item-creation/refresh call sites all go
         through here so a mode or phase change cannot leave one path
         showing stale numbers."""
-        mode = str(app_settings.get("appearance/block_labels",
-                                    block_labels.DEFAULT_MODE))
-        item.set_sublabel(
-            block_labels.sublabel(block, mode=mode,
-                                  phase=self._label_phase,
-                                  units=self._label_units),
-            block_labels.tooltip(block, mode=mode,
-                                 phase=self._label_phase,
-                                 units=self._label_units))
+        lines, tip = block_labels.describe(
+            block, mode=self._block_label_mode(),
+            phase=self._label_phase, units=self._label_units)
+        item.set_sublabel(lines, tip)
 
     def set_label_phase(self, phase: int) -> None:
         """Show a phase's law in the block labels (-1 = the model's own)."""
@@ -2740,6 +2821,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def refresh_block_labels(self) -> None:
         """Re-apply the label setting to every visible block (mode/phase)."""
+        self._label_mode_cache = None
         self._refresh_block_sublabels()
 
     def _refresh_block_sublabels(self, block_id: int | None = None):
@@ -3463,6 +3545,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 event.connect_into_num = _safe_int(r.get("In"))
                 event.connect_out_of_num = _safe_int(r.get("Out"))
 
+    def _clear_route_caches(self) -> None:
+        """Drop cached centres/port-side decisions after a topology edit."""
+        for table in (self._block_items, self._node_items,
+                      self._event_items, getattr(self, "_hier_items", {})):
+            for item in table.values():
+                item._route_centre = None
+                item._route_horizontal = None
+
     def _insert_link(self, row: dict) -> int:
         from raptor.core.fileio.typed import link_from_row
         num = _safe_int(row.get("ID"))
@@ -3477,6 +3567,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._links.append(li)
             self._scene.addItem(li)
             # A new link can change its endpoints' entry/exit sides.
+            self._clear_route_caches()
             for existing in self._links:
                 existing._update_route()
         self._recount_link_ends()
@@ -4010,6 +4101,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # fixes its outgoing side), so recompute every route once they
         # all exist rather than leaving the earlier ones with a partial
         # picture of the topology.
+        self._clear_route_caches()
         for li in self._links:
             li._update_route()
 
