@@ -11,6 +11,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QWidget
 
+from raptor.core.fileio.rbd import load_rbd
 from raptor.core.fileio.rbds import load_rbds, save_rbds
 from raptor.core.fileio.typed import block_from_row
 from raptor.gui.ui.analytic_dialog import AnalyticDialog
@@ -237,6 +238,48 @@ def test_scope_controls_appear_only_when_the_model_has_them(qapp):
     phased.close()
 
 
+def test_dependency_control_appears_only_when_the_model_has_them(qapp):
+    _win, plain = _dialog(qapp, "Lantern1")
+    assert not plain._form.isRowVisible(plain._dependencies)
+    assert plain._dependencies.currentData() is None
+    plain.close()
+
+    _win, dependent = _dialog(qapp, "EspressoDep1")
+    assert dependent._form.isRowVisible(dependent._dependencies)
+    assert dependent._dependencies.currentData() is None
+    assert dependent._result is None            # refused until a choice
+    assert "choose a Dependencies treatment" in dependent._notice_body.text()
+
+    dependent._dependencies.setCurrentIndex(2)  # down
+    dependent.compute()
+    dependent.wait_for_result()
+    assert dependent._result["scope"]["dependencies"] == "down"
+    assert "dependency treated as down" in dependent._scope_note.text()
+
+    # Opening another model must not carry the previous choice over.
+    dependent._fill_scope_controls(load_rbds(os.path.join(MODELS,
+                                                          "Lantern1.rbds")))
+    assert dependent._dependencies.currentIndex() == 0
+    assert not dependent._form.isRowVisible(dependent._dependencies)
+    dependent.close()
+
+
+def test_dependency_up_is_offered_and_changes_the_answer(qapp):
+    _win, dialog = _dialog(qapp, "EspressoDep1")
+    dialog._ignore.setChecked(True)
+    dialog._dependencies.setCurrentIndex(1)     # up
+    dialog.compute()
+    dialog.wait_for_result()
+    up = dialog._result["reliability"]
+
+    dialog._dependencies.setCurrentIndex(2)     # down
+    dialog.compute()
+    dialog.wait_for_result()
+    down = dialog._result["reliability"]
+    assert up > down
+    dialog.close()
+
+
 def test_bx_card_says_what_the_percentage_means(qapp):
     from PySide6.QtWidgets import QLabel
     _win, dialog = _dialog(qapp, "Lantern1")
@@ -301,3 +344,48 @@ def test_bdd_limit_is_comma_grouped_and_updates_the_header(qapp):
     assert dialog._max_bdd_nodes.text().replace("\u202f", ",").replace(",", "") \
         .isdigit() or "1,250,000" in dialog._max_bdd_nodes.text()
     dialog.close()
+
+
+def test_hierarchy_combo_lists_and_solves_one_hierarchy(qapp):
+    class Win(QWidget):
+        _rbd = load_rbd(os.path.join(REPO, "tests", "golden",
+                                     "HierarchyExample", "input.rbd"))
+
+    dialog = AnalyticDialog(Win())
+    dialog.wait_for_result()
+    labels = [dialog._hierarchy.itemText(i)
+              for i in range(dialog._hierarchy.count())]
+    assert any("500path" in label for label in labels)
+    index = next(i for i in range(dialog._hierarchy.count())
+                 if "500path" in dialog._hierarchy.itemText(i))
+    dialog._hierarchy.setCurrentIndex(index)
+    dialog._dependencies.setCurrentText("Treat as up")
+    dialog._ignore.setChecked(True)
+    dialog._ignore_pm.setChecked(True)
+    dialog._ignore_spares.setChecked(True)
+    dialog._ignore_resources.setChecked(True)
+    dialog.compute()
+    dialog.wait_for_result()
+    assert dialog._result is not None
+    assert dialog._result["hierarchy"] == "500path"
+    dialog.close()
+
+
+def test_cancel_stops_a_worker_before_it_reports_a_result(qapp, monkeypatch):
+    import queue
+    import threading
+    from raptor.gui.ui import analytic_dialog as module
+
+    def slow_solve(*_args, progress=None, **_kwargs):
+        progress("Building BDD", 1, 10)
+        return {}
+
+    monkeypatch.setattr(module, "analyse_rbd", slow_solve)
+    inbox: queue.Queue = queue.Queue()
+    progress: queue.Queue = queue.Queue()
+    cancelled = threading.Event()
+    cancelled.set()
+    module._solve(1, object(), "model", {}, inbox, progress, cancelled)
+    token, result, error = inbox.get_nowait()
+    assert token == 1 and result is None
+    assert error[0] == "cancelled"

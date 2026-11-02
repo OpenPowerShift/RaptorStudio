@@ -61,6 +61,10 @@ def add_parser(sub: Any) -> None:
     p.add_argument("--standby", choices=("active", "absent"), default=None,
                    help="cold-standby paths: treat as fully in service, or "
                         "as if they did not exist")
+    p.add_argument("--dependencies", choices=("up", "down"), default=None,
+                   help="treat every dependency as up (analyse the dependent "
+                        "element's own law) or down (remove it from the "
+                        "success path)")
     p.add_argument("--max-variables", type=int, default=None, metavar="N",
                    help="raise the BDD variable limit (default: solver "
                         "setting) when a large model is still tractable")
@@ -166,6 +170,7 @@ def analytic_command(args: Any) -> int:
                         if x.strip()],
                 phase=args.phase,
                 standby=args.standby,
+                dependencies=args.dependencies,
                 progress=progress,
                 **limits,
             )

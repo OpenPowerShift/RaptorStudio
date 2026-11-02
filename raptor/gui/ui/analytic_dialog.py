@@ -236,6 +236,7 @@ class AnalyticDialog(QDialog):
         self._rerun = False     # settings changed while a solve was running
         self._cancel_ev = threading.Event()
         self._has_standby = False   # the open model has cold-standby nodes
+        self._has_dependencies = False
         self._shown_rbd_id: int | None = None
         self._result: dict[str, Any] | None = None
         self._inbox: queue.Queue = queue.Queue()
@@ -442,6 +443,17 @@ class AnalyticDialog(QDialog):
         self._standby.addItem("Treat as absent", "absent")
         form.addRow("Standby:", self._standby)
 
+        self._dependencies = QComboBox()
+        self._dependencies.setAccessibleName("Dependency treatment")
+        self._dependencies.setToolTip(
+            "A dependent element is normally refused. Choose whether every "
+            "dependency is up (analyse the dependent element's own law as "
+            "independent) or down (remove it from the success path).")
+        self._dependencies.addItem("Not chosen (the model is refused)", None)
+        self._dependencies.addItem("Treat as up", "up")
+        self._dependencies.addItem("Treat as down", "down")
+        form.addRow("Dependencies:", self._dependencies)
+
         self._hierarchy = QComboBox()
         self._hierarchy.setAccessibleName("Hierarchy to analyse")
         self._hierarchy.setToolTip(
@@ -490,6 +502,7 @@ class AnalyticDialog(QDialog):
                        self._ignore_resources.toggled,
                        self._phase.currentIndexChanged,
                        self._standby.currentIndexChanged,
+                       self._dependencies.currentIndexChanged,
                        self._hierarchy.currentIndexChanged,
                        self._max_variables.valueChanged,
                        self._max_bdd_nodes.valueChanged):
@@ -668,13 +681,16 @@ class AnalyticDialog(QDialog):
             self.compute()
 
     def _fill_scope_controls(self, rbd: Any) -> None:
-        """Show the phase and standby choices only when the model has them."""
+        """Show the phase, standby and dependency choices only when the
+        model has them."""
         try:
             offered = scope_options(rbd)
         except Exception:  # noqa: BLE001 - the solve will explain a bad model
-            offered = {"phases": [], "has_standby": False}
+            offered = {"phases": [], "has_standby": False,
+                       "has_dependencies": False}
         phases = offered["phases"]
-        for widget in (self._phase, self._standby, self._hierarchy):
+        for widget in (self._phase, self._standby, self._dependencies,
+                       self._hierarchy):
             widget.blockSignals(True)
         self._phase.clear()
         if phases:
@@ -686,12 +702,18 @@ class AnalyticDialog(QDialog):
         self._hierarchy.addItem("Whole model", None)
         for h in offered.get("hierarchies") or []:
             self._hierarchy.addItem(f"{h['name']} ({h['id']})", h["id"])
-        self._hierarchy.setCurrentIndex(0)
-        for widget in (self._phase, self._standby, self._hierarchy):
+        # A choice made for the previous model must not leak into this one.
+        for widget in (self._phase, self._standby, self._dependencies,
+                       self._hierarchy):
+            widget.setCurrentIndex(0)
+        for widget in (self._phase, self._standby, self._dependencies,
+                       self._hierarchy):
             widget.blockSignals(False)
         self._form.setRowVisible(self._phase, bool(phases))
         self._has_standby = bool(offered["has_standby"])
         self._form.setRowVisible(self._standby, self._has_standby)
+        self._has_dependencies = bool(offered.get("has_dependencies"))
+        self._form.setRowVisible(self._dependencies, self._has_dependencies)
         self._has_hierarchies = bool(offered.get("hierarchies"))
         self._form.setRowVisible(self._hierarchy, self._has_hierarchies)
 
@@ -749,6 +771,8 @@ class AnalyticDialog(QDialog):
             "phase": self._phase.currentData(),
             "standby": (self._standby.currentData()
                         if self._has_standby else None),
+            "dependencies": (self._dependencies.currentData()
+                             if self._has_dependencies else None),
             "hierarchy": (self._hierarchy.currentData()
                           if getattr(self, "_has_hierarchies", False)
                           else None),
@@ -854,6 +878,8 @@ class AnalyticDialog(QDialog):
     def _on_done(self, token: int, result: Any, error: Any) -> None:
         if token != self._token:
             return          # a superseded solve
+        if error is None and self._cancel_ev.is_set():
+            result, error = None, ("cancelled", "Cancelled")
         self._set_busy(False)
         if self._rerun:
             self._rerun = False
@@ -882,6 +908,7 @@ class AnalyticDialog(QDialog):
                 "resource": "tick Ignore ▸ Resources",
                 "has phases": "choose a Phase",
                 "cold standby": "choose a Standby treatment",
+                "dependency": "choose a Dependencies treatment",
             }
             lowered = message.lower()
             advice = [tip for key, tip in tips.items() if key in lowered]

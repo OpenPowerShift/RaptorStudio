@@ -95,6 +95,41 @@ def test_cli_ignore_repairs(capsys):
     assert payload["assumptions"]
 
 
+def test_cli_dependency_choice(capsys):
+    code = main(["analytic", str(MODELS / "EspressoDep1.rbds"),
+                 "--at", "100", "--ignore", "repairs",
+                 "--dependencies", "down", "-f", "json"])
+    captured = capsys.readouterr()
+    assert code == X.OK, captured.err
+    payload = json.loads(captured.out)
+    assert payload["scope"]["dependencies"] == "down"
+    assert any("dependencies are treated as down" in note
+               for note in payload["assumptions"])
+
+
+def test_cli_text_shows_the_dependency_treatment(capsys):
+    code = main(["analytic", str(MODELS / "EspressoDep1.rbds"),
+                 "--at", "100", "--ignore", "repairs",
+                 "--dependencies", "up"])
+    captured = capsys.readouterr()
+    assert code == X.OK, captured.err
+    assert "Dependencies treated as: up" in captured.out
+
+
+def test_cli_refuses_a_dependency_without_a_choice(capsys):
+    code = main(["analytic", str(MODELS / "EspressoDep1.rbds"),
+                 "--at", "100", "--ignore", "repairs"])
+    captured = capsys.readouterr()
+    assert code == X.INVALID
+    assert "Choose whether dependencies" in captured.err
+
+
+def test_api_rejects_an_unknown_dependency_choice(workspace):
+    model_id = _open(workspace, "EspressoDep1")
+    with pytest.raises(ValueError, match="dependencies must be one of"):
+        analyse(workspace, model_id, at=100.0, dependencies="sideways")
+
+
 def test_api_rejects_non_finite_arguments(workspace):
     model_id = _open(workspace, "Lantern1")
     for kwargs in ({"at": float("nan")}, {"at": float("inf")},
@@ -173,3 +208,25 @@ def test_bdd_limit_cannot_exceed_the_hard_cap():
     with pytest.raises(ValueError, match="hard cap"):
         analyse_rbd(load_rbd("tests/golden/TwoBlockRedundancy/input.rbd"),
                     max_bdd_nodes=MAX_BDD_NODES + 1)
+
+
+def test_one_hierarchy_can_be_solved_as_a_standalone_model():
+    from raptor.api.analytical import analyse_rbd, scope_options
+    from raptor.core.fileio.rbd import load_rbd
+    rbd = load_rbd(str(REPO / "tests/golden/HierarchyExample/input.rbd"))
+    offered = scope_options(rbd)
+    assert {"id": 23, "name": "500path"} in offered["hierarchies"]
+    result = analyse_rbd(
+        rbd, hierarchy=23, dependencies="up", ignore_repairs=True,
+        ignore=("pm", "spares", "resources"), importance=False)
+    assert result["hierarchy"] == "500path"
+    assert result["scope"]["hierarchy"] == "500path"
+    assert 0.0 < result["reliability"] < 1.0
+
+
+def test_an_unknown_hierarchy_is_refused_with_a_message():
+    from raptor.api.analytical import analyse_rbd
+    from raptor.core.fileio.rbd import load_rbd
+    rbd = load_rbd(str(REPO / "tests/golden/HierarchyExample/input.rbd"))
+    with pytest.raises(NotApplicable, match="hierarchy"):
+        analyse_rbd(rbd, hierarchy="no-such-hierarchy")

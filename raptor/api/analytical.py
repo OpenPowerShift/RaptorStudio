@@ -16,7 +16,13 @@ from raptor.core.analytical import recursion_headroom
 from raptor.core.analytical import evaluate
 from raptor.core.analytical.bdd import MAX_BDD_NODES
 from raptor.core.analytical.errors import AnalyticalError, BddTooLarge, NotApplicable
-from raptor.core.analytical.network import MAX_VARIABLES
+from raptor.core.analytical.network import (
+    DEPENDENCY_MODES,
+    MAX_VARIABLES,
+    STANDBY_MODES,
+    has_dependency,
+    has_node_dependency,
+)
 from raptor.core.engine.load import load_model
 
 SCHEMA = "raptor-analytic/1"
@@ -54,6 +60,7 @@ def analyse(  # noqa: C901, PLR0912
     ignore: Collection[str] = (),
     phase: int | None = None,
     standby: str | None = None,
+    dependencies: str | None = None,
     progress: Callable[[str, int, int], None] | None = None,
     max_variables: int = MAX_VARIABLES,
     max_bdd_nodes: int = MAX_BDD_NODES,
@@ -75,7 +82,8 @@ def analyse(  # noqa: C901, PLR0912
         mode=mode, hierarchy=hierarchy, at=at, times=times, bx=bx, tau=tau,
         importance=importance, equation=equation,
         ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
-        standby=standby, progress=progress,
+        standby=standby, dependencies=dependencies,
+        progress=progress,
         max_variables=max_variables, max_bdd_nodes=max_bdd_nodes,
     )
 
@@ -96,6 +104,7 @@ def analyse_rbd(
     ignore: Collection[str] = (),
     phase: int | None = None,
     standby: str | None = None,
+    dependencies: str | None = None,
     progress: Callable[[str, int, int], None] | None = None,
     max_variables: int = MAX_VARIABLES,
     max_bdd_nodes: int = MAX_BDD_NODES,
@@ -118,7 +127,8 @@ def analyse_rbd(
                 rbd, name, mode=mode, at=at, times=times, bx=bx, tau=tau,
                 importance=importance, equation=equation,
                 ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
-                standby=standby, progress=progress,
+                standby=standby, dependencies=dependencies,
+                progress=progress,
                 max_variables=max_variables, max_bdd_nodes=max_bdd_nodes)
         if hierarchy is not None:
             result.setdefault("scope", {})["hierarchy"] = record.hierarchy
@@ -145,12 +155,21 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
     ignore: Collection[str] = (),
     phase: int | None = None,
     standby: str | None = None,
+    dependencies: str | None = None,
     progress: Callable[[str, int, int], None] | None = None,
     max_variables: int = MAX_VARIABLES,
     max_bdd_nodes: int = MAX_BDD_NODES,
 ) -> dict[str, Any]:
     if mode not in ("reliability", "availability"):
         raise ValueError("mode must be 'reliability' or 'availability'")
+    # Choice arguments are the caller's input, not a property of the model:
+    # reject a bad value as ValueError before `build()` wraps model-time
+    # evaluation errors as NotApplicable.
+    if standby is not None and standby not in STANDBY_MODES:
+        raise ValueError(f"standby must be one of {list(STANDBY_MODES)}")
+    if dependencies is not None and dependencies not in DEPENDENCY_MODES:
+        raise ValueError(
+            f"dependencies must be one of {list(DEPENDENCY_MODES)}")
     at = _finite(at, "mission time")
     tau = _finite(tau, "tau")
     if int(max_bdd_nodes) > MAX_BDD_NODES:
@@ -190,7 +209,8 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
         built = build_analytical(
             model, mode=mode,
             ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
-            standby=standby, progress=progress,
+            standby=standby, dependencies=dependencies,
+            progress=progress,
             max_variables=max_variables, max_bdd_nodes=max_bdd_nodes)
     except NotApplicable:
         raise
@@ -305,18 +325,26 @@ def _scope_dict(model, scope) -> dict[str, Any]:
         "phase_name": (model.phases[phase - 1].phase_name
                        if phase is not None else None),
         "standby": scope.standby,
+        "dependencies": scope.dependencies,
     }
 
 
 def scope_options(rbd) -> dict[str, Any]:
     """What the model offers to ignore or choose: phase names, whether it has
-    cold-standby nodes. Lets a front end show only the controls that apply."""
+    cold-standby nodes or dependencies. Lets a front end show only the
+    controls that apply."""
     model = load_model(rbd)
     return {
         "phases": [phase.phase_name or f"Phase {i}"
                    for i, phase in enumerate(model.phases, start=1)],
         "has_standby": any(node.cold_standby or node.cold_links
                            for node in model.nodes_by_id.values()),
+        "has_dependencies": (
+            any(has_dependency(block)
+                for block in model.blocks_by_id.values())
+            or any(has_node_dependency(node)
+                   for node in model.nodes_by_id.values())
+        ),
         "hierarchies": [
             {"id": int(float(row["ID"])),
              "name": str(row.get("hierarchyName") or row["ID"])}
