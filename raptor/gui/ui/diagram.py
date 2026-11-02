@@ -274,13 +274,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: `_on_dep_hover`, never persisted.
         self._dep_hover_line: QGraphicsLineItem | None = None
         #: (kind, id) -> name across the whole model, all hierarchy
-        #: levels -- rebuilt in `_rebuild_scene` so a dependency badge's
-        #: target name resolves even when the target lives on a
-        #: different level than the one currently on screen (a raw-row
-        #: scan across the whole file, same pattern `locate_element`
-        #: uses -- cached per rebuild
-        #: rather than per badge since a level can have many blocks).
-        self._global_name_index: dict[tuple[str, int], str] = {}
+        #: levels, for a dependency badge's target name even when the
+        #: target lives on a different level than the one on screen. The
+        #: whole-file scan is expensive, so it is lazy: `_rebuild_scene`
+        #: leaves this None when the visible level has no dependencies,
+        #: and `_name_index()` fills it on first use (a dependency added
+        #: live through the Inspector, for instance).
+        self._global_name_index: dict[tuple[str, int], str] | None = None
         #: Block Defaults -- MainWindow seeds these from
         #: QSettings; add_block applies them to every new block. Factory
         #: defaults per Raptor 7 text: Exponential failure
@@ -385,6 +385,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Live model objects
         self.blocks: dict[int, RBDBlock] = {}
         self.nodes: dict[int, RBDNode] = {}
+        # Level-scoped parsed links: only links whose BOTH endpoints are on
+        # the level currently shown (`_rebuild_scene` filters raw rows before
+        # parsing). Consumers that need the whole model must read
+        # LINK_DATA, not this list.
         self.links: list[Link] = []
         self.events: dict[int, Any] = {}
         self._event_items: dict[int, _EventItem] = {}
@@ -723,14 +727,24 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                  else getattr(target, "name", None) or f"hierarchy {parent_id}")
         if sink is not None:
             sink(f"Opening {label}…")
+        previous_loading = self._loading
+        previous_parent = self._current_parent
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        QApplication.processEvents()
         try:
+            # Inside the try: `processEvents` can dispatch a repaint or a
+            # queued slot that raises through the wait-cursor setup.
+            QApplication.processEvents()
             self._loading = True
             self._current_parent = parent_id
             self._rebuild_scene()
+        except BaseException:
+            # A half-built scene belongs to `parent_id`, not the level we
+            # came from; leaving the pointer moved would make `go_up`
+            # navigate from a level whose items are not on screen.
+            self._current_parent = previous_parent
+            raise
         finally:
-            self._loading = False
+            self._loading = previous_loading
             QApplication.restoreOverrideCursor()
         # Live element colours survive traversal: a run in progress
         # re-paints the freshly built items from the cached live state
@@ -901,6 +915,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 index[(kind, obj.id)] = name_of(obj)
         return index
 
+    def _name_index(self) -> dict[tuple[str, int], str]:
+        """The whole-model (kind, id) -> name map, built on first use.
+
+        `_rebuild_scene` only pays for this scan when the visible level
+        actually has a dependency badge; a dependency added later (an
+        Inspector edit, an undo) must not render as "Block #12", so the
+        first lookup builds it."""
+        if self._global_name_index is None:
+            self._global_name_index = self._build_global_name_index()
+        return self._global_name_index
+
     def _dependency_visual(self, dependency_num: int, dep_type: str) -> dict | None:
         """Badge descriptor for a block/node's own master-element
         dependency fields (`dependency_num`/`dep_type` -- see
@@ -925,7 +950,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if spec is None or dependency_num <= 0:
             return None
         kind = spec[0]
-        name = self._global_name_index.get((kind, dependency_num))
+        name = self._name_index().get((kind, dependency_num))
         label = name or f"{kind} #{dependency_num}"
         same_level_items = (self._block_items if kind == "block"
                             else self._node_items)
@@ -942,8 +967,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def _apply_dependency_badges(self):
         """(Re)apply every block/node's dependency badge for the
         currently displayed level -- `self.blocks`/`self.nodes` are
-        level-scoped, `self._global_name_index` is whole-model (built
-        just before this is called)."""
+        level-scoped, while the name index is whole-model and built on
+        first use by `_name_index()`."""
         for bid, block in self.blocks.items():
             item: Any
             item = self._block_items.get(bid)
@@ -1061,7 +1086,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             """The raw row's parent, without parsing the whole element."""
             try:
                 return int(float(row.get(col, 0) or 0))
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 return 0
 
         # Filter raw rows by parent BEFORE block_from_row/node_from_row.
@@ -1138,7 +1163,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             getattr(n, "dependency_num", 0) for n in self.nodes.values()
         )
         self._global_name_index = (
-            self._build_global_name_index() if needs_name_index else {})
+            self._build_global_name_index() if needs_name_index else None)
         if needs_name_index:
             self._apply_dependency_badges()
 
@@ -1235,7 +1260,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     kind = str(row.get(f"{side}Type", "")).replace(
                         "RBD", "", 1)
                     return kind, int(float(row.get(f"{side}ID", 0)))
-                except (TypeError, ValueError):
+                except (TypeError, ValueError, OverflowError):
                     return None
 
             for row in rows:
@@ -2829,13 +2854,27 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         `block_id=None` refreshes every block (after load/retheme)."""
         targets = ([block_id] if block_id is not None
                    else list(self._block_items))
+        resized: list[Any] = []
         for bid in targets:
             item = self._block_items.get(bid)
             block = self.blocks.get(bid)
             if item is None or block is None:
                 continue
+            width = item.rect().width()
             self._apply_block_labels(item, block)
             item._adjust_label()
+            # A longer label widens the box; the link ports were computed
+            # against the old width and would now sit inside the block.
+            if item.rect().width() != width:
+                resized.append(item)
+        if resized and not self._loading:
+            self._clear_route_caches()
+            affected: dict[int, Any] = {}
+            for item in resized:
+                for link in links_affected_by_moving(item):
+                    affected[id(link)] = link
+            for link in affected.values():
+                link._update_route()
 
     def _block_row_by_id(self, bid: int):
         return self._editor.block_row(bid)
@@ -3483,7 +3522,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         section = self._rbd_ref.sections.get("LINK_DATA")
         if section is None:
             return None
-        nums = [link.object_num for link in self.links]
+        # Allocate against EVERY link row, not `self.links`: that list is
+        # level-scoped now (only links with both ends on the visible
+        # level), so a new link at home could otherwise reuse the id of a
+        # hidden-level link and write a duplicate LINK_DATA id.
+        nums = [_safe_int(r.get("ID")) for r in section.rows]
         num = max(nums) + 1 if nums else 1
         row = dict(section.rows[0]) if section.rows else {
             "ID": "0", "FromType": "Node", "FromID": "0", "ToType": "Block",
@@ -3927,8 +3970,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 reset_entries.append((section, oid, old[0], old[1]))
                 name = getattr(obj, "name", None) or r.get(
                     "blockName", r.get("Name", r.get("eventName", oid)))
-                target_name = ((getattr(self, "_global_name_index", {})
-                                 or {}).get(
+                target_name = (self._name_index().get(
                     ("block" if dep in dead_blocks
                      else "node" if dep in dead_nodes else "event", dep))
                     or f"#{dep}")
