@@ -103,6 +103,21 @@ golden/snapshot refreshes.
 - Minimap 200 ms poll hashed every item (~108 ms/tick); now uses a layout
   generation counter (~0.014 ms/tick).
 
+## Latest profiling round (9,000-block chain, auto-laid-out)
+
+- Load, unprofiled: **6.53 s**, LOD off at fit zoom (labels hidden).
+- Before the lazy-label/cursor work the same profiled load was **16.9 s**;
+  after it is **9.8 s profiled** (~42% reduction).
+- Current top costs: `_BlockItem.__init__` **4.46 s**, `block_from_row`
+  **1.53 s**, `_update_route` **1.28 s**, `_apply_scene_layout` **0.73 s**.
+- Changes: sub-labels are created only when LOD actually shows labels;
+  per-item hover cursors are installed on hover rather than on every
+  item; initial `setPos` suspends snap/change notifications; route side
+  caches are generation-safe.
+- Next biggest win if more is needed: **block-item construction**
+  (QGraphicsTextItem/QFont/itemChange), then row parsing and straight-link
+  routing. A level cache would make repeat visits near-instant.
+
 ## Residual risks / limitations
 
 - 10,000-item **load/rebuild** is still linear and measured at roughly
