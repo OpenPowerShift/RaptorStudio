@@ -1076,6 +1076,39 @@ class _LinkItem(QGraphicsPathItem):
         """The segment between the two ports -- the drawn geometry."""
         return QLineF(self._p0, self._p3)
 
+    def nearest_point(self, scene_pos: QPointF) -> QPointF:
+        """The closest point on the link's drawn path to `scene_pos`.
+
+        Used to seed a routing point exactly on the line, not wherever the
+        right-click landed. Polyline segments are enough for straight,
+        angled and right-angle links; curve control points only make the
+        answer slightly conservative.
+        """
+        path = self.path()
+        if path.elementCount() == 0:
+            return scene_pos
+        if path.elementCount() == 1:
+            e = path.elementAt(0)
+            return QPointF(e.x, e.y)
+        best = scene_pos
+        best_d = float("inf")
+        for i in range(1, path.elementCount()):
+            a, b = path.elementAt(i - 1), path.elementAt(i)
+            ax, ay, bx, by = a.x, a.y, b.x, b.y
+            dx, dy = bx - ax, by - ay
+            denom = dx * dx + dy * dy
+            if denom <= 1e-12:
+                px, py = ax, ay
+            else:
+                t = ((scene_pos.x() - ax) * dx
+                     + (scene_pos.y() - ay) * dy) / denom
+                t = max(0.0, min(1.0, t))
+                px, py = ax + t * dx, ay + t * dy
+            d = (scene_pos.x() - px) ** 2 + (scene_pos.y() - py) ** 2
+            if d < best_d:
+                best_d, best = d, QPointF(px, py)
+        return best
+
     def add_grip(self, grip) -> None:
         """Attach a draggable routing point and redraw through it."""
         if grip not in self._grips:
@@ -1746,6 +1779,11 @@ class _RouteGripItem(QGraphicsEllipseItem):
             self.setParentItem(link)
 
     def itemChange(self, change, value):
+        if (change == QGraphicsItem.GraphicsItemChange.ItemPositionChange
+                and not getattr(self, "_initialising", False)):
+            snap = _snap_of(self)
+            return QPointF(_snapped_x(value.x(), snap),
+                           _snapped_y(value.y(), snap))
         if (change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged
                 and not getattr(self, "_initialising", False)):
             link = getattr(self, "_link", None)

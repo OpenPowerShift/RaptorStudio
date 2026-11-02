@@ -3799,13 +3799,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # coordinates. Without this conversion the point was drawn far off
         # the canvas -- selecting the menu entry appeared to do nothing.
         scene_x, scene_y = self._vt.to_scene(model_x, model_y)
+        point = link.nearest_point(QPointF(scene_x, scene_y))
         entry = {
             "kind": "route_grip",
             "id": self._next_anno_id(),
             "parent": self._current_parent,
             "link": link_id,
-            "x": round(scene_x, 2),
-            "y": round(scene_y, 2),
+            "x": round(point.x(), 2),
+            "y": round(point.y(), 2),
             # Added, not yet dragged: the existing link path is unchanged.
             "active": False,
         }

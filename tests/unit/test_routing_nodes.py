@@ -95,6 +95,29 @@ def test_context_menu_adds_a_grip_without_touching_the_model(qapp):
     assert v._rbd_ref.link_grips[-1]["link"] == link_id
 
 
+def test_new_grip_starts_exactly_on_the_drawn_link(qapp):
+    v = _open_shown_view(qapp)
+    link = v._links[0]
+    away = link.line().center() + QPointF(18.0, 25.0)
+    mx, my = v._vt.to_model(away.x(), away.y())
+    grip = v.insert_routing_node(link._link_num, mx, my)
+    assert grip is not None
+    nearest = link.nearest_point(grip.scenePos())
+    assert (grip.scenePos() - nearest).manhattanLength() == pytest.approx(0.0)
+
+
+def test_moving_a_grip_snaps_to_the_canvas_grid(qapp):
+    v = _open_shown_view(qapp)
+    link = v._links[0]
+    grip = v.insert_routing_node(link._link_num, 1.25, 92.5)
+    v._snap_state["x"], v._snap_state["y"] = 20.0, 10.0
+    grip.setPos(QPointF(23.0, 47.0))
+    assert (grip.pos().x(), grip.pos().y()) == (20.0, 50.0)
+    v._snap_state["x"] = v._snap_state["y"] = 0.0
+    grip.setPos(QPointF(23.0, 47.0))
+    assert (grip.pos().x(), grip.pos().y()) == (23.0, 47.0)
+
+
 def test_menu_style_model_coordinates_place_the_grip_on_the_link(qapp):
     v = _open_shown_view(qapp)
     link = v._links[0]
