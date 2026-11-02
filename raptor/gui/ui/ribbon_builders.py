@@ -583,9 +583,10 @@ class RibbonBuilders(_Base):
                 self._layout_direction_combo.currentData()))
 
         self._layout_columns_spin = QSpinBox()
-        self._layout_columns_spin.setAccessibleName("Layout max band")
+        self._layout_columns_spin.setAccessibleName("Layout max series elements per band")
         self._layout_columns_spin.setToolTip(
-            "Wrap the flow into another band after this many positions; "
+            "Maximum number of series elements per band (elements one "
+            "after another; parallel branches share a position). "
             "0 = fit Raptor's canvas width.")
         self._layout_columns_spin.setRange(0, 64)
         self._layout_columns_spin.setSpecialValueText("Auto")

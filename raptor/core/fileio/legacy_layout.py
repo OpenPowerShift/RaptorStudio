@@ -254,8 +254,10 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     minimum gaps into model units.
 
     `direction` is `"LR"`, `"RL"`, `"TB"` or `"BT"`. `max_columns` wraps a
-    flow into another band after that many columns, instead of waiting for
-    Raptor's canvas width."""
+    flow into another band after that many series elements, instead of
+    waiting for Raptor's canvas width. Entry and pin markers (Start/End,
+    a hierarchy's In/Out) do not count: they are endpoints, not part of
+    the constrained series path."""
     if deadline is None:
         deadline = time.monotonic() + refine_budget_s()
     if direction not in ("LR", "RL", "TB", "BT"):
@@ -412,6 +414,12 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         return max(NODE_PITCH if narrow else LAYER_PITCH,
                    a + b + gap_px / px_per_unit)
 
+    # `max_columns` counts series elements, not literal grid columns: a
+    # column of parallel branches is one position on the series path, and
+    # Start/End/In/Out markers are endpoints rather than elements.
+    band_exclude = set(entries) | set(pins)
+    counted_columns = {col_of[k] for k in member_set
+                       if k not in band_exclude}
     col_band: dict = {}
     col_local: dict = {}
     local = 0.0
@@ -421,8 +429,11 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     for c in range(max(col_of.values()) + 1):
         if prev is not None:
             pitch = flow_pitch(prev, c)
+            # A marker-only column (Start/End/In/Out) never starts a new
+            # band: it belongs with the series elements around it.
             wrap = (max_columns is not None
-                    and columns_in_band >= max_columns)
+                    and columns_in_band >= max_columns
+                    and c in counted_columns)
             if not wrap and local + pitch > limit + 1e-9:
                 wrap = True
             if wrap:
@@ -433,7 +444,8 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                 local += pitch
         col_band[c] = band
         col_local[c] = local
-        columns_in_band += 1
+        if c in counted_columns:
+            columns_in_band += 1
         prev = c
     wrapped = band > 0
     n_bands = band + 1

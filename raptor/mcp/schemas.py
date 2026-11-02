@@ -146,7 +146,8 @@ class AutoLayoutInput(BaseModel):
         default="LR", description="LR, RL, TB or BT flow direction")
     max_columns: StrictInt | None = Field(
         default=None, ge=1,
-        description="Wrap after this many columns; None = fit the canvas")
+        description="Wrap after this many series elements (parallel "
+                    "branches share one); None = fit the canvas")
 
 
 # ── Model features ───────────────────────────────────────────

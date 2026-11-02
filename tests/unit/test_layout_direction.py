@@ -90,13 +90,13 @@ def test_vertical_flow_is_monotonic_within_each_band():
                                      max_columns=4)
     # A short vertical band keeps the requested flow direction; the
     # horizontal case is the one that snakes into a Z/S (see the LR test).
-    band_one = [pos[("node", i)][1] for i in range(4)]
-    band_two = [pos[("node", i)][1] for i in range(4, 8)]
+    band_one = [pos[("node", i)][1] for i in range(5)]
+    band_two = [pos[("node", i)][1] for i in range(5, 10)]
     assert band_one == sorted(band_one, reverse=True)
     assert band_two == sorted(band_two, reverse=True)
-    assert pos[("node", 3)][0] != pos[("node", 4)][0]
+    assert pos[("node", 4)][0] != pos[("node", 5)][0]
     # The hand-over returns to the top of the next band, one row away.
-    assert abs(pos[("node", 3)][1] - pos[("node", 4)][1]) <= 5.0
+    assert abs(pos[("node", 4)][1] - pos[("node", 5)][1]) <= 5.0
 
 
 def test_a_narrow_node_chain_still_wraps_without_duplicates():
@@ -132,6 +132,27 @@ def test_cyclic_flow_terminates_and_cannot_create_duplicates():
                                      direction="TB", max_columns=2)
     assert len(pos) == len(members)
     assert len(set(pos.values())) == len(members)
+
+
+def test_max_columns_counts_series_elements_not_parallel_branches():
+    """Parallel branches are one series position, not two counted columns."""
+    members = [("node", 1), ("block", 2), ("block", 3), ("block", 4),
+               ("block", 5), ("node", 6)]
+    edges = [(("node", 1), ("block", 2)),
+             (("block", 2), ("block", 3)),
+             (("block", 2), ("block", 4)),
+             (("block", 3), ("block", 5)),
+             (("block", 4), ("block", 5)),
+             (("block", 5), ("node", 6))]
+    pos = layout_container_positions(members, edges, [("node", 1)],
+                                     pins={("node", 6)}, direction="LR",
+                                     max_columns=2)
+    # B and C are the same series position and share a column.
+    assert pos[("block", 3)][0] == pos[("block", 4)][0]
+    # A and the B/C pair fill the two counted positions; D wraps to the
+    # next band's leading edge.
+    assert pos[("block", 5)][1] != pos[("block", 3)][1]
+    assert pos[("block", 5)][0] < pos[("block", 2)][0]
 
 
 def test_max_columns_must_be_positive():
