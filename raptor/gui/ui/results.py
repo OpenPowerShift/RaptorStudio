@@ -22,6 +22,8 @@ checked-in models under `tests/data/models/` exercise the result shapes.
 """
 from __future__ import annotations
 
+import itertools
+import os
 import re
 
 from raptor.gui.ui.qtcompat import req
@@ -2858,6 +2860,17 @@ class ResultsDock(QWidget):
             return
         try:
             if source is not None and hasattr(source, "export_to"):
+                if hasattr(source, "path") and not os.path.exists(source.path):
+                    # A new run closed this batch's temp stream while its
+                    # results were still on screen. Say so instead of an
+                    # "OSError errno 2" dialog; Export Tables still has the
+                    # constructed tables.
+                    msgbox.warning(
+                        self, "Export Failed",
+                        "The full report for these results is no longer "
+                        "available (a new run has started). The on-screen "
+                        "preview is kept.")
+                    return
                 source.export_to(path)
             elif source is not None:
                 # Write in chunks; a list-backed report may still be huge
@@ -2952,6 +2965,10 @@ class ResultsDock(QWidget):
             card.set_value("—")
         for view in self._raw_views.values():
             view.clear()
+        # The raw tabs' backing sources belong to the cleared result set;
+        # leaving them here let Save Raw Report export a previous batch
+        # from an empty-looking dock (and kept its stream alive).
+        self._raw_sources = {}
         if hasattr(self, "_ao_plot"):
             self._ao_plot.set_data([])
             self._ao_plot.set_cap_data([])
@@ -2987,7 +3004,13 @@ class ResultsDock(QWidget):
         # travels with the results like the manifest does.
         self._importance = importance
         self._final_lines = final_results_lines
-        self._eor_lines = list(end_of_run_lines or [])
+        # Keep the caller's object, not a copy: it may be a disk-backed
+        # `ResultStream` holding an O(runs x elements) End-of-Run report.
+        # `list(...)` here would pull the whole report back into RAM and
+        # undo the streaming this dock is built to accept. Readers that
+        # genuinely need every line (Export Tables) materialise it
+        # themselves, on demand.
+        self._eor_lines = end_of_run_lines if end_of_run_lines is not None else []
         # Ao-sink rows from the engine (Raptor 7 availability graphs)
         # and capacity-sink rows (Raptor 7 flow plot); empty when the caller
         # didn't request sampling or the model lacks the analysis. May be
@@ -3589,35 +3612,43 @@ class ResultsDock(QWidget):
     # Raw
     # ------------------------------------------------------------------
 
+    def _raw_preview_lines(self, src, max_lines: int | None = None,
+                           max_bytes: int | None = None
+                           ) -> tuple[list[str], int]:
+        """(bounded head, total rows) for a raw source.
+
+        `src` is a plain list or a disk-backed ResultStream. Only the head
+        is ever read: the full report is O(runs x elements) and joining it
+        is what used to crash the dock on a large batch.
+        """
+        if src is None:
+            return [], 0
+        max_lines = self._RAW_PREVIEW_LINES if max_lines is None else max_lines
+        max_bytes = self._RAW_PREVIEW_BYTES if max_bytes is None else max_bytes
+        total = len(src)
+        if total == 0 or max_lines <= 0 or max_bytes <= 0:
+            return [], total
+        if hasattr(src, "read_preview"):
+            return src.read_preview(max_lines, max_bytes), total
+        shown: list[str] = []
+        used = 0
+        for line in itertools.islice(src, max_lines):
+            shown.append(line)
+            used += len(line) + 1
+            if used >= max_bytes:
+                break
+        return shown, total
+
     def _raw_preview(self, src) -> tuple[str, int, int]:
         """(preview text, total rows, shown rows) for a raw source.
 
-        `src` is a plain list or a disk-backed ResultStream. Only a bounded
-        slice is ever joined: the full report is O(runs x elements) and the
-        old unconditional ``"\\n".join(...)`` plus
-        ``QPlainTextEdit.setPlainText`` was the crash path on a large batch.
+        A truncation note is appended only when something was actually
+        left out, so a byte cap that lands exactly on the last line does
+        not print "the first N of N".
         """
-        import itertools
-
-        if src is None:
-            return "", 0, 0
-        max_lines = self._RAW_PREVIEW_LINES
-        max_bytes = self._RAW_PREVIEW_BYTES
-        total = len(src)
-        truncated_by_bytes = False
-        if hasattr(src, "read_preview"):
-            shown = src.read_preview(max_lines, max_bytes)
-        else:
-            shown = []
-            used = 0
-            for line in itertools.islice(src, max_lines):
-                shown.append(line)
-                used += len(line) + 1
-                if used >= max_bytes:
-                    truncated_by_bytes = True
-                    break
+        shown, total = self._raw_preview_lines(src)
         text = "\n".join(shown)
-        if total > len(shown) or truncated_by_bytes:
+        if len(shown) < total:
             text += (
                 f"\n\n--- Showing the first {len(shown):,} of {total:,} "
                 "line(s). Save Raw Report writes the full file. ---")
@@ -3631,6 +3662,23 @@ class ResultsDock(QWidget):
         for name, src in self._raw_sources.items():
             text, _total, _shown = self._raw_preview(src)
             self._raw_views[name].setPlainText(text)
+
+    def raw_report_lines(self, name: str,
+                         max_lines: int | None = None) -> tuple[list[str], int]:
+        """(bounded lines, total lines) for a printable raw report.
+
+        `collect_raw_report_sections` uses this so a printed report shows
+        the real total, not the dock's preview cap, and never materialises
+        a multi-million-line End-of-Run report just to lay out the first
+        page and a half of it.
+        """
+        src = self._raw_sources.get(name)
+        if src is None:
+            view = self._raw_views.get(name)
+            text = view.toPlainText() if view is not None else ""
+            lines = text.splitlines()
+            return (lines, len(lines)) if text.strip() else ([], 0)
+        return self._raw_preview_lines(src, max_lines)
 
     # ------------------------------------------------------------------
     # Theming
