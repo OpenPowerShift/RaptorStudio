@@ -127,6 +127,44 @@ def test_grip_add_and_remove_are_one_undo_step_each(qapp):
     assert len(v._rbd_ref.link_grips) == 1
 
 
+def test_click_selects_a_grip_and_delete_keeps_the_link(qapp):
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+
+    v = _open_shown_view(qapp)
+    link = v._links[0]
+    links_before = [dict(r) for r in _link_rows(v)]
+    nodes_before = [dict(r) for r in _node_rows(v)]
+    grip = v.insert_routing_node(link._link_num, 5.0, 50.0)
+    QTest.mouseClick(v.viewport(), Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.NoModifier,
+                     v.mapFromScene(grip.scenePos()))
+    qapp.processEvents()
+    assert grip.isSelected()
+    v.delete_selected()
+    qapp.processEvents()
+    assert link.grip_items() == []
+    assert link in v._links
+    assert _link_rows(v) == links_before
+    assert _node_rows(v) == nodes_before
+
+
+def test_right_click_grip_offers_delete_and_keeps_the_link(qapp):
+    v = _open_shown_view(qapp)
+    link = v._links[0]
+    links_before = [dict(r) for r in _link_rows(v)]
+    grip = v.insert_routing_node(link._link_num, 5.0, 50.0)
+    status = []
+    v.status_message_sink = status.append
+    texts = [text for text, _ in _right_click_menu(
+        v, grip.scenePos(), chosen_prefix="Delete routing point")]
+    assert "Delete routing point" in texts
+    assert link.grip_items() == []
+    assert link in v._links
+    assert _link_rows(v) == links_before
+    assert status == ["Routing point removed"]
+
+
 def test_delete_selected_removes_a_grip_and_can_be_undone(qapp):
     v = _view()
     link = v._links[0]
