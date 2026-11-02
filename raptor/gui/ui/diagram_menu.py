@@ -252,7 +252,7 @@ class ContextMenuMixin:
             # a preview/partially built item may carry None; offering the
             # action there would only fail after the user chose it.
             if isinstance(getattr(clicked, "_link_num", None), int):
-                routing_act = menu.addAction("Insert routing node here…")
+                routing_act = menu.addAction("Add routing point here…")
                 menu.addSeparator()
         # Cut/Copy/Paste in the conventional order, with "Paste Here"
         # last of the three and renamed: it drops the copy on THIS exact
@@ -318,18 +318,9 @@ class ContextMenuMixin:
         if routing_act is not None and chosen is routing_act:
             if self.insert_routing_node(
                     getattr(clicked, "_link_num", None), mx, my) is None:
-                if self._link_targets_cold_node(
-                        self._rbd_ref,
-                        self._link_row_by_id(
-                            getattr(clicked, "_link_num", None)) or {}):
-                    _view_status(
-                        self, "Routing nodes are not available on a "
-                        "cold-standby link")
-                else:
-                    _view_status(
-                        self, "Cannot insert a routing node on that link")
+                _view_status(self, "Cannot add a routing point on that link")
             else:
-                _view_status(self, "Routing node inserted")
+                _view_status(self, "Routing point added")
         elif chosen is paste_act:
             self.paste(at_model=(mx, my))
         elif chosen is out_act:

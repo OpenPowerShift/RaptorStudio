@@ -94,7 +94,7 @@ from raptor.gui.ui.diagram_commands import (  # noqa: F401
     PhaseCmd,
     ReParentCmd,
     RenameCmd,
-    SplitLinkCmd,
+    RouteGripCmd,
     RowCellCmd,
     StreamCmd,
     TableCellCmd,
@@ -113,6 +113,7 @@ from raptor.gui.ui.diagram_items import (  # noqa: F401
     _GridBackground,
     _HierItem,
     _LinkItem,
+    _RouteGripItem,
     _NUDGE_DIRS,
     _NodeItem,
     _apply_hover_cursor,
@@ -329,6 +330,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: Failure Effects View is open: a plain click on a block or event acts.
         self._fev_view_open = False
         self._anno_items: dict[int, Any] = {}
+        #: link file id -> the GUI-only dog-leg grips drawn on that link.
+        #: Never part of the model; persisted as `.rbds` annotations.
+        self._route_grips: dict[int, list] = {}
         self._anno_seq = 1
         #: kind -> prop dict, the user's saved "style for new <Kind>s"
         #: (set from an existing annotation's context menu). Seeded from
@@ -564,6 +568,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._event_items.clear()
         self._hier_items.clear()
         self._links.clear()
+        self._route_grips = {}
         self.blocks.clear()
         self.nodes.clear()
         self.events.clear()
@@ -1417,6 +1422,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             item.setZValue(float(a.get("z", ANNO_Z_DEFAULT)))
             self._scene.addItem(item)
             self._anno_items[int(a.get("id", 0))] = item
+
+        # GUI-only routing grips ride in the annotation layer (so `.rbds`
+        # round-trips them) but are not annotation items.
+        self._route_grips = {}
+        for entry in getattr(self._rbd_ref, "link_grips", []):
+            link_id = _safe_int(entry.get("link"))
+            link = next((item for item in self._links
+                         if item._link_num == link_id), None)
+            if link is None:
+                continue
+            grip = _RouteGripItem(
+                link, QPointF(float(entry.get("x", 0.0)),
+                              float(entry.get("y", 0.0))),
+                entry_id=int(entry.get("id", 0)))
+            grip.setParentItem(link)
+            link.add_grip(grip)
+            self._route_grips.setdefault(link_id, []).append(grip)
 
         self._loading = False
         self.reset_zoom()   # frame the model on open (zoom stays free)
@@ -3737,199 +3759,83 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._stack.push(AddCmd(self, "link", [row]))
         return num
 
-    #: Link endpoint token -> section, for deriving a link's own level
-    #: (`_PARENT_COLS` supplies that section's parent column).
-    _LINK_ENDPOINT_SECTIONS = {
-        "Block": "BLOCK_DATA", "Node": "NODE_DATA",
-        "Event": "EVENT_DATA", "Hier": "HIERARCHY_DATA",
-    }
-
-    #: Raptor 7's input rule for a type-2 node's name.
-    _ROUTING_NAME_MAX = 20
-
     @staticmethod
     def _capacity_analysis_enabled(rbd: RbdFile | None) -> bool:
         section = rbd.sections.get("SYSTEM_DATA") if rbd is not None else None
         row = section.rows[0] if section is not None and section.rows else None
         return bool(row) and cell_truthy(row.get("capacityAnalysis"))
 
-    def _link_row_by_id(self, link_num) -> dict | None:
-        """The LINK_DATA row for a positive id, or None (no row/garbage)."""
-        rbd = self._rbd_ref
-        if rbd is None or isinstance(link_num, bool):
+    def insert_routing_node(self, link_num: int, model_x: float,
+                            model_y: float, name: str | None = None):
+        """Add a draggable routing point (dog-leg) to a link.
+
+        This is drawing only: the link still connects the same two
+        elements, and the point has no `NODE_DATA` row, no properties and
+        no effect on EFPA, capacity flow or dependencies. One undo step.
+        Returns the grip item, or None when the link is not on screen.
+        """
+        del name                      # kept for the context-menu call site
+        if self._rbd_ref is None or isinstance(link_num, bool):
             return None
         try:
             link_id = int(link_num)
-        except (TypeError, ValueError, OverflowError):
-            return None
-        if isinstance(link_num, float) and not link_num.is_integer():
-            return None
-        section = rbd.sections.get("LINK_DATA")
-        if link_id <= 0 or section is None:
-            return None
-        return next((r for r in section.rows
-                     if _safe_int(r.get("ID")) == link_id), None)
-
-    @staticmethod
-    def _link_targets_cold_node(rbd: RbdFile, row: dict) -> bool:
-        """Whether this link is a cold-standby switchover link.
-
-        Its ColdPri/AProb/AutoTime/ManTime are read only for a link into
-        a `Cold` node, and the switchover logic keys off that link's
-        source. Splitting it would move the switchover onto a link from a
-        routing node, changing which path/priority the standby logic
-        sees, so such links are refused."""
-        if rbd is None:
-            return False
-        kind = str(row.get("ToType", "")).replace("RBD", "", 1)
-        oid = _safe_int(row.get("ToID"))
-        if kind != "Node" or oid is None or oid <= 0:
-            return False
-        section = rbd.sections.get("NODE_DATA")
-        if section is None:
-            return False
-        target = next((r for r in section.rows
-                       if _safe_int(r.get("ID")) == oid), None)
-        return target is not None and cell_truthy(target.get("Cold"))
-
-    def _link_shared_parent(self, rbd: RbdFile, row: dict) -> int | None:
-        """The hierarchy level both ends of a LINK_DATA row live on, or
-        None when the row is malformed or genuinely crosses a boundary.
-
-        The routing node must live on the link's own level, not the level
-        currently on screen: the API can ask to split a link from another
-        level, and the context menu's link could outlive a level change.
-        A link whose ends are in different containers has no single
-        correct level for a pass-through node, so it is refused rather
-        than corrupting the model with a stranded node."""
-        levels: list[int] = []
-        for side in ("From", "To"):
-            kind = str(row.get(f"{side}Type", "")).replace("RBD", "", 1)
-            section = self._LINK_ENDPOINT_SECTIONS.get(kind)
-            oid = _safe_int(row.get(f"{side}ID"))
-            sec = rbd.sections.get(section) if section is not None else None
-            if section is None or sec is None or oid is None or oid <= 0:
-                return None
-            target = next((r for r in sec.rows
-                           if _safe_int(r.get("ID")) == oid), None)
-            if target is None:
-                return None
-            level = _safe_int(target.get(_PARENT_COLS[section], "0"))
-            if level is None or level < 0:
-                return None
-            levels.append(level)
-        if levels[0] != levels[1]:
-            return None
-        return levels[0]
-
-    @classmethod
-    def _routing_node_label(cls, name: str | None, nid: int,
-                            used: set[str]) -> str:
-        """A one-token, ≤20-character, non-reserved node name that is
-        unique among NODE_DATA names.
-
-        Raptor 7 refuses blank/reserved names and anything over 20
-        characters (``input_rules._check_node``); sanitising up front
-        keeps a hostile or pasted name from making the edit gate pop a
-        refusal dialog, and keeps the name from injecting a row/column or
-        a ``/___SECTION___`` header into the legacy file."""
-        raw = "" if name is None else str(name).strip()
-        fallback = (f"route_{nid}"[:cls._ROUTING_NAME_MAX].rstrip("_")
-                    or "route")
-        base = row_ops.sanitize_name(raw or fallback)
-        base = base[:cls._ROUTING_NAME_MAX].rstrip("_") or fallback
-        n = 0
-        while True:
-            suffix = "" if n == 0 else f"_{n}"
-            head = base[:max(1, cls._ROUTING_NAME_MAX - len(suffix))]
-            label = head.rstrip("_") + suffix
-            if (label.lower() not in used
-                    and label.lower() not in ("start", "end")):
-                return label
-            n += 1
-
-    def insert_routing_node(self, link_num: int, model_x: float,
-                            model_y: float, name: str | None = None):
-        """Split ``link_num`` into A -> routing node -> B.
-
-        The node is an ordinary type-2 pass-through (`k=1`, unrestricted
-        flow, no weak-link row), so the reliability model is unchanged and
-        the result round-trips through both file formats. One undo step.
-        Returns the new node id, or None when the link cannot be split
-        (unknown/malformed row, ends on different hierarchy levels, or
-        feeds a cold-standby node).
-
-        The node is transparent (`fullflow=1`, `divFlow=1`), so a capacity
-        analysis keeps the same flow path. Cold standby is still refused:
-        switchover keys off the link's source, so a link from a routing
-        node is not equivalent to one from the original block even though
-        the node itself never fails."""
-        rbd = self._rbd_ref
-        if rbd is None or isinstance(link_num, bool):
-            return None
-        node_section = rbd.sections.get("NODE_DATA")
-        # `_link_row_by_id` rejects a zero/negative/garbage id (and so a
-        # row whose own ID cell is unreadable, which `_safe_int` maps to
-        # -1 rather than a real selector).
-        link_row = self._link_row_by_id(link_num)
-        if node_section is None or link_row is None:
-            return None
-        link_id = _safe_int(link_row.get("ID"))
-        if link_id is None or link_id <= 0:
-            return None
-        if self._link_targets_cold_node(rbd, link_row):
-            return None
-        level = self._link_shared_parent(rbd, link_row)
-        if level is None:
-            return None
-        try:
             model_x, model_y = float(model_x), float(model_y)
         except (TypeError, ValueError, OverflowError):
             return None
-        if not (math.isfinite(model_x) and math.isfinite(model_y)):
+        if link_id <= 0 or not (math.isfinite(model_x)
+                                and math.isfinite(model_y)):
             return None
-        nid = self._next_id("NODE_DATA", "ID", self.nodes)
-        used_names = {str(r.get("Name", "")).lower()
-                      for r in node_section.rows}
-        label = self._routing_node_label(name, nid, used_names)
-        base = self._template_row("NODE_DATA", "ID") or {
-            "Name": "", "ID": "0", "xPos": "0", "yPos": "0",
-            "parent": "0", "Type": "2", "k": "1", "n": "1", "Out": "1",
-            "Cold": "0", "PR": "0", "Autos": "0", "k*": "0",
-            "Phases": "0", "depNum": "0", "depType": "None",
-            "divFlow": "1", "fullflow": "1", "repCap": "1", "repNA": "0",
+        link = next((item for item in self._links
+                     if item._link_num == link_id), None)
+        if link is None:
+            return None
+        entry = {
+            "kind": "route_grip",
+            "id": self._next_anno_id(),
+            "parent": self._current_parent,
+            "link": link_id,
+            "x": round(model_x, 2),
+            "y": round(model_y, 2),
         }
-        node_row = dict(base)
-        node_row.update({
-            # Every behavioural column is set explicitly: the template is
-            # an arbitrary real row (the ID=0 default when present, else
-            # the first row -- often a Start/End marker), so inheriting a
-            # marker's flags would make the new node behave differently
-            # depending on which row happened to come first.
-            "Name": label, "ID": str(nid), "Type": "2", "k": "1",
-            "n": "1", "Out": "1", "parent": str(level),
-            "xPos": f"{model_x:.6f}", "yPos": f"{model_y:.6f}",
-            "Cold": "0", "PR": "0", "Autos": "0", "k*": "0",
-            "Phases": "0", "depNum": "0", "depType": "None",
-            "divFlow": "1", "fullflow": "1", "repCap": "1", "repNA": "0",
-        })
-        new_id = self._next_id("LINK_DATA", "ID", {})
-        if new_id <= 0:
-            return None
-        new_link_row = dict(link_row)
-        new_link_row.update({
-            "ID": str(new_id), "FromType": "Node", "FromID": str(nid),
-            "pID": str(level),
-        })
-        stack = self._stack
-        stack.beginMacro("Insert routing node")
-        try:
-            stack.push(AddCmd(self, "node", [node_row]))
-            stack.push(SplitLinkCmd(self, link_id, nid, new_link_row,
-                                    level=level))
-        finally:
-            stack.endMacro()
-        return nid
+        self._stack.push(RouteGripCmd(self, entry, add=True))
+        grips = self._route_grips.get(link_id) or []
+        return grips[-1] if grips else None
+
+    def _apply_route_grip(self, entry: dict, add: bool) -> None:
+        """Create or remove one GUI-only link grip (undo/redo body)."""
+        aid = int(entry.get("id", 0))
+        link_id = int(entry.get("link", 0))
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        if add:
+            if not any(int(a.get("id", 0)) == aid
+                       for a in getattr(rbd, "link_grips", [])):
+                rbd.link_grips.append(dict(entry))
+            link = next((item for item in self._links
+                         if item._link_num == link_id), None)
+            if link is None:
+                return
+            grip = _RouteGripItem(
+                link, QPointF(float(entry.get("x", 0.0)),
+                              float(entry.get("y", 0.0))), entry_id=aid)
+            grip.setParentItem(link)
+            link.add_grip(grip)
+            self._route_grips.setdefault(link_id, []).append(grip)
+        else:
+            rbd.link_grips = [a for a in getattr(rbd, "link_grips", [])
+                              if int(a.get("id", 0)) != aid]
+            grips = self._route_grips.get(link_id, [])
+            grip = next((g for g in grips if g._entry_id == aid), None)
+            if grip is not None:
+                link = grip._link
+                if link is not None and isValid(link):
+                    link.remove_grip(grip)
+                grips.remove(grip)
+                if isValid(grip):
+                    self._scene.removeItem(grip)
+            if not grips:
+                self._route_grips.pop(link_id, None)
 
     def _recount_link_ends(self) -> None:
         """Recompute In/Out and node n from the actual link rows.
@@ -4263,6 +4169,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # to be deleted only when NO block/node/event was also selected,
         # so a mixed selection silently left the notes behind while the
         # context menu said "Delete N selected".
+        # GUI-only routing grips first: they are layout state, not model
+        # rows, and the annotation deletion path below does not know them.
+        for grips in list(getattr(self, "_route_grips", {}).values()):
+            for grip in list(grips):
+                if not isValid(grip) or not grip.isSelected():
+                    continue
+                entry = next((a for a in getattr(self._rbd_ref, "link_grips", [])
+                              if int(a.get("id", 0)) == grip._entry_id), None)
+                if entry is not None:
+                    self._stack.push(RouteGripCmd(self, entry, add=False))
         sel_annos = {int(aid) for aid, it in
                      getattr(self, "_anno_items", {}).items()
                      if it.isSelected()}

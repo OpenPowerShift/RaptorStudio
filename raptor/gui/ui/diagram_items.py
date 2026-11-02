@@ -1055,6 +1055,9 @@ class _LinkItem(QGraphicsPathItem):
         self._p0 = QPointF()
         self._p3 = QPointF()
         self._head = QPolygonF()
+        #: GUI-only dog-leg points dragged onto this link. They never enter
+        #: the model: the link still connects the same two elements.
+        self._grips: list[_RouteGripItem] = []
         _LINK_GEN[0] += 1
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setAcceptHoverEvents(True)
@@ -1073,6 +1076,20 @@ class _LinkItem(QGraphicsPathItem):
         """The segment between the two ports -- the drawn geometry."""
         return QLineF(self._p0, self._p3)
 
+    def add_grip(self, grip) -> None:
+        """Attach a draggable routing point and redraw through it."""
+        if grip not in self._grips:
+            self._grips.append(grip)
+        self._update_route()
+
+    def remove_grip(self, grip) -> None:
+        if grip in self._grips:
+            self._grips.remove(grip)
+        self._update_route()
+
+    def grip_items(self) -> list:
+        return [g for g in self._grips if isValid(g)]
+
     def shape(self):
         """Wide (10px) hit area along the line -- the bare 2.5px stroke
         was practically impossible to click for selection."""
@@ -1087,7 +1104,7 @@ class _LinkItem(QGraphicsPathItem):
         base = super().boundingRect()
         return base.adjusted(-12, -12, 12, 12)
 
-    def _update_route(self):
+    def _update_route(self):  # noqa: C901, PLR0912
         from_item, to_item = self._from, self._to
         # Every incoming link to an element shares its one entry port, and
         # every outgoing link shares its one exit port (opposite the
@@ -1129,7 +1146,12 @@ class _LinkItem(QGraphicsPathItem):
             if not changed:
                 break
         route = None
+        grips = [g.pos() for g in self._grips if isValid(g)]
         mode = _ROUTING["mode"]
+        if grips:
+            # A dragged routing point is a deliberate dog-leg: draw through
+            # it rather than letting the orthogonal router paper over it.
+            mode = "straight"
         if mode != "straight" and from_item is not to_item \
                 and self.scene() is not None:
             a, b = (p0.x(), p0.y()), (p3.x(), p3.y())
@@ -1147,7 +1169,13 @@ class _LinkItem(QGraphicsPathItem):
         self.prepareGeometryChange()
         self._p0, self._p3 = p0, p3
         path = QPainterPath(p0)
-        if route is None:               # straight, or the router gave up
+        if grips:
+            tip_from = p0
+            for point in grips:
+                path.lineTo(point)
+                tip_from = point
+            path.lineTo(p3)
+        elif route is None:             # straight, or the router gave up
             tip_from = p0
             path.lineTo(p3)
         else:
@@ -1606,6 +1634,52 @@ class _LinkItem(QGraphicsPathItem):
         painter.setBrush(QBrush(pen.color()))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawPolygon(self._head)
+
+class _RouteGripItem(QGraphicsEllipseItem):
+    """A draggable dog-leg point on a link.
+
+    Deliberately *not* a model node: it has no id in `NODE_DATA`, no
+    properties dialog and no effect on EFPA, capacity or dependency
+    resolution. It is stored only as a `.rbds` annotation so the drawing
+    can round-trip; a legacy `.rbd` save drops it with the rest of the
+    annotation layer.
+    """
+
+    RADIUS = 4.0
+
+    def __init__(self, link: _LinkItem, point: QPointF, *, entry_id: int):
+        r = self.RADIUS
+        super().__init__(-r, -r, 2 * r, 2 * r)
+        self._link = link
+        self._entry_id = int(entry_id)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
+        self.setZValue(6)
+        self.setCursor(Qt.CursorShape.SizeAllCursor)
+        self.setToolTip("Drag to route this link")
+        self.setBrush(QBrush(QColor(COLOUR["surface"])))
+        self.setPen(QPen(QColor(COLOUR["accent"]), 1.5))
+        self.setPos(point)
+        if self.parentItem() is None:
+            self.setParentItem(link)
+
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
+            link = getattr(self, "_link", None)
+            if link is not None and isValid(link):
+                link._update_route()
+                scene = link.scene()
+                view = scene.views()[0] if scene is not None and scene.views() else None
+                if view is not None and view._rbd_ref is not None:
+                    for entry in getattr(view._rbd_ref, "link_grips", []):
+                        if int(entry.get("id", 0)) == self._entry_id:
+                            entry["x"] = round(self.pos().x(), 2)
+                            entry["y"] = round(self.pos().y(), 2)
+                            break
+                    view._user_arranged = True
+        return super().itemChange(change, value)
+
 
 class _EventItem(QGraphicsPolygonItem):
     """An RBDEvent, drawn as a hexagon (the manual's own event symbol)

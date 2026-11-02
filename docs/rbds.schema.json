@@ -2348,6 +2348,32 @@
     }
    }
   },
+  "link_grips": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "link",
+     "x",
+     "y"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "link": {
+      "type": "integer"
+     },
+     "x": {
+      "type": "number"
+     },
+     "y": {
+      "type": "number"
+     }
+    }
+   }
+  },
   "rates": {
    "type": "array",
    "items": {

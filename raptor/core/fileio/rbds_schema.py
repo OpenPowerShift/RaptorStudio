@@ -210,6 +210,16 @@ def build_schema() -> dict[str, Any]:
             **{jkey: {"type": "array", "items": _aux(rbds._SECTION_KEY[jkey])}
                for jkey in ("spare_pools", "resources", "triggers", "phases")},
             "annotations": {"type": "array", "items": annotation},
+            "link_grips": {"type": "array", "items": {
+                "type": "object",
+                "required": ["link", "x", "y"],
+                "additionalProperties": False,
+                "properties": {
+                    "id": {"type": "integer"},
+                    "link": {"type": "integer"},
+                    "x": {"type": "number"},
+                    "y": {"type": "number"},
+                }}},
             "rates": {"type": "array", "items": {"type": "object", "required": ["name"],
                       "properties": {"name": {"type": "string"}, "expr": {"type": "string"},
                                      "value": {"type": "number"},

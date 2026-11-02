@@ -103,51 +103,6 @@ def resolve_defer_trigger(rbd_file: RbdFile, choice: str) -> str:
     return rows[0].get("TriggerName", "") if rows else ""
 
 
-def _collapse_route_nodes(
-    nodes_by_id: dict[int, RBDNode], links_by_id: dict[int, Link],
-) -> None:
-    """Contract GUI-only routing junctions out of the computation model.
-
-    A routing junction is a `NODE_DATA` row marked `route_only` (see
-    `RBDNode.route_only`). It exists only so the canvas can draw, move and
-    save a dog-leg point in the middle of a link; it must be invisible to
-    EFPA, capacity flow and dependency resolution, exactly as if the link
-    had never been split. Each junction has one incoming and one outgoing
-    link, so joining them is lossless: the incoming link takes the outgoing
-    link's target and the junction plus the second link disappear from the
-    run model. The `.rbd` rows are untouched, so the GUI can still show the
-    junction and it round-trips through save/reload.
-
-    The loop handles a chain of junctions (a split link that was split
-    again) and stops early on a malformed junction with zero or several
-    links on one side, leaving it as an ordinary pass-through node instead
-    of guessing a rewiring.
-    """
-    while True:
-        incoming: dict[int, list[Link]] = {}
-        outgoing: dict[int, list[Link]] = {}
-        for link in links_by_id.values():
-            if str(link.connect_t_ref).replace("RBD", "") == "Node":
-                incoming.setdefault(link.connect_to_id, []).append(link)
-            if str(link.connect_f_ref).replace("RBD", "") == "Node":
-                outgoing.setdefault(link.connect_from_id, []).append(link)
-        for node in list(nodes_by_id.values()):
-            if not node.route_only:
-                continue
-            before = incoming.get(node.id, [])
-            after = outgoing.get(node.id, [])
-            if len(before) != 1 or len(after) != 1:
-                continue
-            first, second = before[0], after[0]
-            first.connect_t_ref = second.connect_t_ref
-            first.connect_to_id = second.connect_to_id
-            links_by_id.pop(second.object_num, None)
-            nodes_by_id.pop(node.id, None)
-            break
-        else:
-            return
-
-
 def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
                progress: Callable[[str, int, int], None] | None = None) -> SimulationModel:
     """Load a parsed `.rbd` file's `BLOCK_DATA`/`EVENT_DATA`/`NODE_DATA`/
@@ -208,8 +163,6 @@ def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
         link.object_num = new_id
         links_by_id[link.object_num] = link
 
-
-    _collapse_route_nodes(nodes_by_id, links_by_id)
     build_efpa_graph(nodes_by_id, blocks_by_id, events_by_id, hiers_by_id, links_by_id,
                      progress=progress)
 
