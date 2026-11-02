@@ -583,9 +583,9 @@ class RibbonBuilders(_Base):
                 self._layout_direction_combo.currentData()))
 
         self._layout_columns_spin = QSpinBox()
-        self._layout_columns_spin.setAccessibleName("Layout max columns")
+        self._layout_columns_spin.setAccessibleName("Layout max band")
         self._layout_columns_spin.setToolTip(
-            "Wrap the flow into another band after this many columns; "
+            "Wrap the flow into another band after this many positions; "
             "0 = fit Raptor's canvas width.")
         self._layout_columns_spin.setRange(0, 64)
         self._layout_columns_spin.setSpecialValueText("Auto")
@@ -598,7 +598,7 @@ class RibbonBuilders(_Base):
 
         group.add_widget(_labeled_box("Layout", self._layout_direction_combo,
                                       label_width=76))
-        group.add_widget(_labeled_box("Max cols", self._layout_columns_spin,
+        group.add_widget(_labeled_box("Max band", self._layout_columns_spin,
                                       label_width=76))
 
     def _build_block_labels_settings(self, group) -> None:

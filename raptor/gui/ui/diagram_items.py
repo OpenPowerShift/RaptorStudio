@@ -1087,7 +1087,7 @@ class _LinkItem(QGraphicsPathItem):
         base = super().boundingRect()
         return base.adjusted(-12, -12, 12, 12)
 
-    def _update_route(self):
+    def _update_route(self):  # noqa: C901
         from_item, to_item = self._from, self._to
         # Every incoming link to an element shares its one entry port, and
         # every outgoing link shares its one exit port (opposite the
@@ -1147,7 +1147,14 @@ class _LinkItem(QGraphicsPathItem):
         self.prepareGeometryChange()
         self._p0, self._p3 = p0, p3
         path = QPainterPath(p0)
-        if route is None:               # straight, or the router gave up
+        handover = (self._handover_points(p0, p3)
+                    if route is None else None)
+        if handover:
+            tip_from = handover[-1]
+            for point in handover[1:]:
+                path.lineTo(point)
+            path.lineTo(p3)
+        elif route is None:             # straight, or the router gave up
             tip_from = p0
             path.lineTo(p3)
         else:
@@ -1157,6 +1164,40 @@ class _LinkItem(QGraphicsPathItem):
         self._head = arrow_head_points(tip_from.x(), tip_from.y(),
                                        p3.x(), p3.y(), arrow_head_len(1.0))
         self.setPath(path)
+
+    @staticmethod
+    def _handover_points(p0: QPointF, p3: QPointF) -> list[QPointF] | None:
+        """Side lane for a wrapped band whose next element is upstream.
+
+        Keeping every element on the page-flow axis means a band hand-over
+        starts above its source (TB) or left of it (LR). A straight line
+        would run backwards through the source block; this returns a short
+        Z/S detour that leaves on the downstream side, crosses the band
+        gap, and approaches the next element's upstream port.
+        """
+        direction = flow_direction()
+        gap = 14.0
+        if direction == "TB" and p3.y() < p0.y() - 1.0:
+            lane = max(p0.x(), p3.x()) + gap
+            return [p0, QPointF(lane, p0.y()),
+                    QPointF(lane, p3.y() - gap),
+                    QPointF(p3.x(), p3.y() - gap)]
+        if direction == "BT" and p3.y() > p0.y() + 1.0:
+            lane = max(p0.x(), p3.x()) + gap
+            return [p0, QPointF(lane, p0.y()),
+                    QPointF(lane, p3.y() + gap),
+                    QPointF(p3.x(), p3.y() + gap)]
+        if direction == "LR" and p3.x() < p0.x() - 1.0:
+            lane = max(p0.y(), p3.y()) + gap
+            return [p0, QPointF(p0.x(), lane),
+                    QPointF(p3.x() - gap, lane),
+                    QPointF(p3.x() - gap, p3.y())]
+        if direction == "RL" and p3.x() > p0.x() + 1.0:
+            lane = max(p0.y(), p3.y()) + gap
+            return [p0, QPointF(p0.x(), lane),
+                    QPointF(p3.x() + gap, lane),
+                    QPointF(p3.x() + gap, p3.y())]
+        return None
 
     @staticmethod
     def _true_centre(item) -> QPointF:
@@ -1440,7 +1481,7 @@ class _LinkItem(QGraphicsPathItem):
         return result
 
     @classmethod
-    def _entry_side_for(cls, item, toward: QPointF) -> str:
+    def _entry_side_for(cls, item, toward: QPointF) -> str:  # noqa: C901
         """The side an INCOMING link from `toward` should use.
 
         `_side` is the pure geometric answer; this adds the one rule that
@@ -1463,6 +1504,15 @@ class _LinkItem(QGraphicsPathItem):
         through the body, and if that path used the raw `_side` it would
         silently undo this rule in exactly the case the rule exists for.
         """
+        direction = flow_direction()
+        if direction in ("TB", "BT"):
+            # A fixed page flow is a constraint, not a hint: every element
+            # enters on its upstream edge. Using the item-local sign here
+            # made a band hand-over (target placed above its source) enter
+            # from the bottom, which reads as a backwards arrow.
+            return "top" if direction == "TB" else "bottom"
+        if direction in ("LR", "RL"):
+            return "left" if direction == "LR" else "right"
         side = cls._side(item, toward)
         if cls._flow_horizontal(item):
             if cls._flow_sign(item) > 0:
@@ -1494,8 +1544,13 @@ class _LinkItem(QGraphicsPathItem):
         for it in _links_at(item)[0]:
             s = _LinkItem._side(item, _LinkItem._true_centre(it._from))
             counts[s] = counts.get(s, 0) + 1
+        direction = flow_direction()
         if not counts:
             result = None
+        elif direction in ("TB", "BT"):
+            result = "top" if direction == "TB" else "bottom"
+        elif direction in ("LR", "RL"):
+            result = "left" if direction == "LR" else "right"
         elif _LinkItem._flow_horizontal(item):
             result = "left" if _LinkItem._flow_sign(item) > 0 else "right"
         elif flow_direction() in ("TB", "BT"):
@@ -1509,25 +1564,33 @@ class _LinkItem(QGraphicsPathItem):
     @staticmethod
     def _exit_side(item) -> str:
         """The single side *all* of `item`'s outgoing links leave from.
-        On a left-to-right element that's the right side; otherwise the
-        side opposite its entry so the flow passes through rather than
-        doubling back. A source with no incoming links faces its targets
-        as a group."""
+
+        With an explicit page flow this is the downstream edge (bottom for
+        TB, right for LR, and their mirrors), so a wrapped band never
+        reverses the arrow direction. In auto mode it follows the entry
+        side, or the majority target side for a source with no inputs.
+        """
         gen = _LINK_GEN[0]
         cached = getattr(item, "_route_exit_side", None)
         if cached is not None and getattr(item, "_route_exit_side_gen", None) == gen:
             return cached
-        entry = _LinkItem._entry_side(item)
-        if _LinkItem._flow_horizontal(item):
-            result = "right" if _LinkItem._flow_sign(item) > 0 else "left"
-        elif entry is not None:
-            result = _LinkItem._OPPOSITE[entry]
+        direction = flow_direction()
+        if direction in ("TB", "BT"):
+            result = "bottom" if direction == "TB" else "top"
+        elif direction in ("LR", "RL"):
+            result = "right" if direction == "LR" else "left"
         else:
-            counts: dict[str, int] = {}
-            for it in _links_at(item)[1]:
-                s = _LinkItem._side(item, _LinkItem._true_centre(it._to))
-                counts[s] = counts.get(s, 0) + 1
-            result = _LinkItem._majority_side(counts) or "right"
+            entry = _LinkItem._entry_side(item)
+            if _LinkItem._flow_horizontal(item):
+                result = "right" if _LinkItem._flow_sign(item) > 0 else "left"
+            elif entry is not None:
+                result = _LinkItem._OPPOSITE[entry]
+            else:
+                counts: dict[str, int] = {}
+                for it in _links_at(item)[1]:
+                    s = _LinkItem._side(item, _LinkItem._true_centre(it._to))
+                    counts[s] = counts.get(s, 0) + 1
+                result = _LinkItem._majority_side(counts) or "right"
         item._route_exit_side = result
         item._route_exit_side_gen = gen
         return result

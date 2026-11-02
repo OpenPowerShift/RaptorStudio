@@ -352,7 +352,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     def cross_step(keys) -> float:
         widest = max((raw_box(k)[cross_i] for k in keys), default=0.0)
         return max(ROW_PITCH,
-                   (2.0 * widest + 52.0) / px_per_unit)
+                   (2.0 * widest + 42.0) / px_per_unit)
 
     col_of: dict = {}
     row_off: dict = {}
@@ -408,7 +408,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         # the two never charge different gaps for the same columns.
         narrow = (max(a, b) * px_per_unit
                   <= NODE_NARROW_HALF_PX + 1e-9)
-        gap_px = 40.0 if narrow else 52.0
+        gap_px = 30.0 if narrow else 42.0
         return max(NODE_PITCH if narrow else LAYER_PITCH,
                    a + b + gap_px / px_per_unit)
 
@@ -458,7 +458,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                           + cross_half[b] + gap)
         return offsets
 
-    band_gap = max(ROW_PITCH, 40.0 / px_per_unit)
+    band_gap = max(ROW_PITCH, 30.0 / px_per_unit)
     band_offset = _band_offsets(band_gap)
     cross_span = band_offset[-1] + cross_half[-1] + cross_half[0]
     if cross_span > available + 1e-9 and n_bands > 1:
