@@ -13,6 +13,7 @@ from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QFrame
 import copy
+import math
 import os
 from collections.abc import Callable
 from typing import Any
@@ -51,6 +52,7 @@ from raptor.gui.model_edit import (BLOCK_COST_FIELDS, DEPENDENCY_BADGE,
                                    ModelEditor, _pos)
 from raptor.core.fileio.typed import (
     block_from_row, node_from_row, link_from_row, hier_from_row,
+    cell_truthy,
 )
 from raptor.core.model import RBDBlock, RBDHier, RBDNode, Link
 from raptor.gui.resources.design_tokens import (
@@ -3423,6 +3425,117 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._stack.push(AddCmd(self, "link", [row]))
         return num
 
+    #: Link endpoint token -> section, for deriving a link's own level
+    #: (`_PARENT_COLS` supplies that section's parent column).
+    _LINK_ENDPOINT_SECTIONS = {
+        "Block": "BLOCK_DATA", "Node": "NODE_DATA",
+        "Event": "EVENT_DATA", "Hier": "HIERARCHY_DATA",
+    }
+
+    #: Raptor 7's input rule for a type-2 node's name.
+    _ROUTING_NAME_MAX = 20
+
+    @staticmethod
+    def _capacity_analysis_enabled(rbd: RbdFile | None) -> bool:
+        section = rbd.sections.get("SYSTEM_DATA") if rbd is not None else None
+        row = section.rows[0] if section is not None and section.rows else None
+        return bool(row) and cell_truthy(row.get("capacityAnalysis"))
+
+    def _link_row_by_id(self, link_num) -> dict | None:
+        """The LINK_DATA row for a positive id, or None (no row/garbage)."""
+        rbd = self._rbd_ref
+        if rbd is None or isinstance(link_num, bool):
+            return None
+        try:
+            link_id = int(link_num)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if isinstance(link_num, float) and not link_num.is_integer():
+            return None
+        section = rbd.sections.get("LINK_DATA")
+        if link_id <= 0 or section is None:
+            return None
+        return next((r for r in section.rows
+                     if _safe_int(r.get("ID")) == link_id), None)
+
+    @staticmethod
+    def _link_targets_cold_node(rbd: RbdFile, row: dict) -> bool:
+        """Whether this link is a cold-standby switchover link.
+
+        Its ColdPri/AProb/AutoTime/ManTime are read only for a link into
+        a `Cold` node, and the switchover logic keys off that link's
+        source. Splitting it would move the switchover onto a link from a
+        routing node, changing which path/priority the standby logic
+        sees, so such links are refused."""
+        if rbd is None:
+            return False
+        kind = str(row.get("ToType", "")).replace("RBD", "", 1)
+        oid = _safe_int(row.get("ToID"))
+        if kind != "Node" or oid is None or oid <= 0:
+            return False
+        section = rbd.sections.get("NODE_DATA")
+        if section is None:
+            return False
+        target = next((r for r in section.rows
+                       if _safe_int(r.get("ID")) == oid), None)
+        return target is not None and cell_truthy(target.get("Cold"))
+
+    def _link_shared_parent(self, rbd: RbdFile, row: dict) -> int | None:
+        """The hierarchy level both ends of a LINK_DATA row live on, or
+        None when the row is malformed or genuinely crosses a boundary.
+
+        The routing node must live on the link's own level, not the level
+        currently on screen: the API can ask to split a link from another
+        level, and the context menu's link could outlive a level change.
+        A link whose ends are in different containers has no single
+        correct level for a pass-through node, so it is refused rather
+        than corrupting the model with a stranded node."""
+        levels: list[int] = []
+        for side in ("From", "To"):
+            kind = str(row.get(f"{side}Type", "")).replace("RBD", "", 1)
+            section = self._LINK_ENDPOINT_SECTIONS.get(kind)
+            oid = _safe_int(row.get(f"{side}ID"))
+            sec = rbd.sections.get(section) if section is not None else None
+            if section is None or sec is None or oid is None or oid <= 0:
+                return None
+            target = next((r for r in sec.rows
+                           if _safe_int(r.get("ID")) == oid), None)
+            if target is None:
+                return None
+            level = _safe_int(target.get(_PARENT_COLS[section], "0"))
+            if level is None or level < 0:
+                return None
+            levels.append(level)
+        if levels[0] != levels[1]:
+            return None
+        return levels[0]
+
+    @classmethod
+    def _routing_node_label(cls, name: str | None, nid: int,
+                            used: set[str]) -> str:
+        """A one-token, ≤20-character, non-reserved node name that is
+        unique among NODE_DATA names.
+
+        Raptor 7 refuses blank/reserved names and anything over 20
+        characters (``input_rules._check_node``); sanitising up front
+        keeps a hostile or pasted name from making the edit gate pop a
+        refusal dialog, and keeps the name from injecting a row/column or
+        a ``/___SECTION___`` header into the legacy file."""
+        raw = "" if name is None else str(name).strip()
+        fallback = (f"route_{nid}"[:cls._ROUTING_NAME_MAX].rstrip("_")
+                    or "route")
+        base = row_ops.sanitize_name(raw or fallback)
+        base = base[:cls._ROUTING_NAME_MAX].rstrip("_") or fallback
+        n = 0
+        while True:
+            suffix = "" if n == 0 else f"_{n}"
+            head = base[:max(1, cls._ROUTING_NAME_MAX - len(suffix))]
+            label = head.rstrip("_") + suffix
+            if (label.lower() not in used
+                    and label.lower() not in ("start", "end")):
+                return label
+            n += 1
+
     def insert_routing_node(self, link_num: int, model_x: float,
                             model_y: float, name: str | None = None):
         """Split ``link_num`` into A -> routing node -> B.
@@ -3430,23 +3543,45 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         The node is an ordinary type-2 pass-through (`k=1`, unrestricted
         flow, no weak-link row), so the reliability model is unchanged and
         the result round-trips through both file formats. One undo step.
-        """
+        Returns the new node id, or None when the link cannot be split
+        (unknown/malformed row, ends on different hierarchy levels, feeds
+        a cold-standby node, or the model uses capacity analysis).
+
+        Those last two are refused rather than silently changing results:
+        a capacity model re-indexes its flow paths around the extra EFPA
+        vertex, and cold-standby switchover keys off the link's source, so
+        a link from a routing node is not equivalent to one from the
+        original block even though the node itself never fails."""
         rbd = self._rbd_ref
-        if rbd is None:
+        if rbd is None or isinstance(link_num, bool):
             return None
-        link_section = rbd.sections.get("LINK_DATA")
-        if link_section is None:
+        if self._capacity_analysis_enabled(rbd):
             return None
-        link_row = next((r for r in link_section.rows
-                         if _safe_int(r.get("ID")) == link_num), None)
-        if link_row is None:
+        node_section = rbd.sections.get("NODE_DATA")
+        # `_link_row_by_id` rejects a zero/negative/garbage id (and so a
+        # row whose own ID cell is unreadable, which `_safe_int` maps to
+        # -1 rather than a real selector).
+        link_row = self._link_row_by_id(link_num)
+        if node_section is None or link_row is None:
+            return None
+        link_id = _safe_int(link_row.get("ID"))
+        if link_id is None or link_id <= 0:
+            return None
+        if self._link_targets_cold_node(rbd, link_row):
+            return None
+        level = self._link_shared_parent(rbd, link_row)
+        if level is None:
+            return None
+        try:
+            model_x, model_y = float(model_x), float(model_y)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if not (math.isfinite(model_x) and math.isfinite(model_y)):
             return None
         nid = self._next_id("NODE_DATA", "ID", self.nodes)
         used_names = {str(r.get("Name", "")).lower()
-                      for r in rbd.sections.get("NODE_DATA").rows}
-        label = self._sanitize_name(name or f"route_{nid}")
-        while label.lower() in used_names:
-            label += "_"
+                      for r in node_section.rows}
+        label = self._routing_node_label(name, nid, used_names)
         base = self._template_row("NODE_DATA", "ID") or {
             "Name": "", "ID": "0", "xPos": "0", "yPos": "0",
             "parent": "0", "Type": "2", "k": "1", "n": "1", "Out": "1",
@@ -3456,21 +3591,32 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         }
         node_row = dict(base)
         node_row.update({
+            # Every behavioural column is set explicitly: the template is
+            # an arbitrary real row (the ID=0 default when present, else
+            # the first row -- often a Start/End marker), so inheriting a
+            # marker's flags would make the new node behave differently
+            # depending on which row happened to come first.
             "Name": label, "ID": str(nid), "Type": "2", "k": "1",
-            "n": "1", "Out": "1", "parent": str(self._current_parent),
+            "n": "1", "Out": "1", "parent": str(level),
             "xPos": f"{model_x:.6f}", "yPos": f"{model_y:.6f}",
-            "fullflow": "1", "divFlow": "1", "repNA": "0",
+            "Cold": "0", "PR": "0", "Autos": "0", "k*": "0",
+            "Phases": "0", "depNum": "0", "depType": "None",
+            "divFlow": "1", "fullflow": "1", "repCap": "0", "repNA": "0",
         })
         new_id = self._next_id("LINK_DATA", "ID", {})
+        if new_id <= 0:
+            return None
         new_link_row = dict(link_row)
         new_link_row.update({
             "ID": str(new_id), "FromType": "Node", "FromID": str(nid),
+            "pID": str(level),
         })
         stack = self._stack
         stack.beginMacro("Insert routing node")
         try:
             stack.push(AddCmd(self, "node", [node_row]))
-            stack.push(SplitLinkCmd(self, link_num, nid, new_link_row))
+            stack.push(SplitLinkCmd(self, link_id, nid, new_link_row,
+                                    level=level))
         finally:
             stack.endMacro()
         return nid
