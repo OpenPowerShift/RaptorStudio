@@ -318,11 +318,7 @@ class ContextMenuMixin:
         if routing_act is not None and chosen is routing_act:
             if self.insert_routing_node(
                     getattr(clicked, "_link_num", None), mx, my) is None:
-                if self._capacity_analysis_enabled(self._rbd_ref):
-                    _view_status(
-                        self, "Routing nodes are not available in a "
-                        "capacity-analysis model")
-                elif self._link_targets_cold_node(
+                if self._link_targets_cold_node(
                         self._rbd_ref,
                         self._link_row_by_id(
                             getattr(clicked, "_link_num", None)) or {}):

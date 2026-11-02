@@ -590,6 +590,12 @@ class RBDNode(RBDBasic):
     priority_return: bool = False
     check_autos_first: bool = False
     report_node_anal: bool = False
+    #: GUI-only routing junction. It is stored as a NODE_DATA row so the
+    #: canvas can draw, move and save it, but `engine.load.load_model`
+    #: contracts it out of the computation graph: it is transparent to
+    #: EFPA, capacity flow and dependency resolution. Marked by the otherwise
+    #: unused `repCap` column (Raptor 7's own comment: "not used").
+    route_only: bool = False
     full_flow: bool = False
     any_path: bool = False
     higher_cold: bool = False
