@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 
 
 # ── Workspace & lifecycle ────────────────────────────────────
@@ -144,7 +144,7 @@ class AutoLayoutInput(BaseModel):
         default=False, description="Lay out every hierarchy level, not just home")
     direction: Literal["LR", "RL", "TB", "BT"] = Field(
         default="LR", description="LR, RL, TB or BT flow direction")
-    max_columns: int | None = Field(
+    max_columns: StrictInt | None = Field(
         default=None, ge=1,
         description="Wrap after this many columns; None = fit the canvas")
 

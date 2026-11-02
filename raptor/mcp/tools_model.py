@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import Field
+from pydantic import Field, StrictInt
 
 from mcp.types import CallToolResult
 
@@ -1415,7 +1415,7 @@ def auto_layout(model_id: str,
                 selectors: list[str] | None = None,
                 all_levels: bool = False,
                 direction: Literal["LR", "RL", "TB", "BT"] = "LR",
-                max_columns: int | None = None) -> CallToolResult:
+                max_columns: StrictInt | None = None) -> CallToolResult:
     """Re-arrange a model's diagram onto the shared layered grid.
 
     Runs the same engine the GUI's Auto Layout button and .rbd save
@@ -1461,13 +1461,6 @@ def auto_layout(model_id: str,
     """
     _validate_layout_args(direction, max_columns)
     context.require_write()
-    if max_columns is not None and (
-            isinstance(max_columns, bool)
-            or not isinstance(max_columns, int)
-            or max_columns < 1):
-        raise ValueError(
-            f"max_columns must be a positive integer or None; got "
-            f"{max_columns!r}")
     ws = context.workspace()
     handle = ws.get(model_id)
     scope, allowed = _layout_scope(handle.rbd, hierarchy, selectors,
