@@ -59,6 +59,10 @@ golden/snapshot refreshes.
 - Model names with control characters are refused; spaces/tag-like text are
   accepted as plain labels (rendering paths must HTML-escape them, which the
   report renderer does).
+- Workspace symlink escaping: a workspace-relative symlink pointing outside
+  the workspace is refused by `open_model` (`not_found`).
+- `save_model_as` refuses `../`, absolute paths, and writes into managed
+  `models/` with `permission_denied`/`invalid_argument`/`precondition_failed`.
 - Existing MCP hardening/security suites: **215 passed**, plus **157** for
   data/diff/get-element/resources/tables/run/review-fix tools.
 
