@@ -149,16 +149,25 @@ class _FevCascade(_Cascade):
 class FevSession:
     """One Failure Effects View session over a model."""
 
-    def __init__(self, rbd_file: RbdFile) -> None:
+    def __init__(self, rbd_file: RbdFile, *, progress=None) -> None:
         self._rbd_file = rbd_file
-        self.model, ctx = build_engine_ctx(rbd_file, num_runs=1)
+        self.model, ctx = build_engine_ctx(rbd_file, num_runs=1,
+                                           progress=progress)
         self.ctx = ctx
         self.logs: list[str] = []
         self.criticality = 1.0
         #: `FevDepGroup`: the hatched blocks, in the order they were marked.
         self.fev_dep_group: list[RBDBlock] = []
         self.phase_number = 1
+        #: Current-state capacity result (None = not computed since the last
+        #: action). Several UI reads of one state -- the status bar and the
+        #: System Status window -- must not run `analyze_capacity` twice.
+        self._capacity_cache: dict[str, Any] | None = None
+        if progress is not None:
+            progress("Preparing the view", 0, 1)
         self._build()
+        if progress is not None:
+            progress("Preparing the view", 1, 1)
 
     # ---- construction ---------------------------------------------------
 
@@ -177,6 +186,7 @@ class FevSession:
 
     def _start_state(self) -> None:
         """`StartFEVmode` / `RefreshAllFEV`: everything operating, phase 1."""
+        self._capacity_cache = None
         model, cascade, ctx = self.model, self.cascade, self.ctx
         cascade.reset_for_new_run()
         # `DetermineMaxCapacity` on the all-up network, as kickoff does at a
@@ -336,6 +346,7 @@ class FevSession:
 
     def click_block(self, block_id: int) -> FevDelta:
         """A left click on a block."""
+        self._capacity_cache = None
         b = self.model.blocks_by_id[block_id]
         if b.run_state.fev_induced_by_dependency:
             self._cycle_hatched(b)
@@ -392,6 +403,7 @@ class FevSession:
             b.ignore_dep = False
 
     def click_event(self, event_id: int) -> FevDelta:
+        self._capacity_cache = None
         e = self.model.events_by_id[event_id]
         self._unhatch_all()
         if e.op_status == EventStatus.SUCCESS:
@@ -411,6 +423,7 @@ class FevSession:
             raise EngineInvariantError("goto_phase on a model with no phases")
         if not 1 <= new_phase <= len(self.model.phases):
             raise ValueError(f"phase {new_phase} is not in 1..{len(self.model.phases)}")
+        self._capacity_cache = None
         self._fev_phase_change(new_phase)
         self._analyze()
         return self._delta(f"phase {new_phase}", None)
@@ -429,6 +442,7 @@ class FevSession:
         """The small eraser (`RefreshPhase`): clear hatching, then every
         Repairing / PM block runs again and every failed event succeeds. The phase
         stays."""
+        self._capacity_cache = None
         self._unhatch_all()
         for b in self.model.blocks_by_id.values():
             if b.op_status in (BlockStatus.REPAIRING, BlockStatus.PM):
@@ -559,6 +573,8 @@ class FevSession:
         m = self.model
         if not m.capacity_analysis:
             return None
+        if self._capacity_cache is not None:
+            return self._capacity_cache
         state = CapacityState()
         reset_capacity(state, m.nodes_by_id)
         state.flowing_at_max_cap = self._flowing_at_max_cap
@@ -571,7 +587,7 @@ class FevSession:
             flowing_at_max_cap=state.flowing_at_max_cap)
         delivered = state.node_flow[start.id]
         generated = m.flow_generated
-        return {
+        self._capacity_cache = {
             "flow_generated": generated,
             "delivered": delivered,
             "lost": generated - delivered,
@@ -582,6 +598,7 @@ class FevSession:
                        "capacity": state.node_capacity.get(n.id, 0)}
                       for n in m.cap_node_group if n.id != start.id],
         }
+        return self._capacity_cache
 
     # ---- inspection (tests, UI) ----------------------------------------
 

@@ -77,27 +77,55 @@ class FevMixin:
             self._invalidate_step_session()
         from raptor.core.engine.errors import UnrunnableModel
         from raptor.core.engine.fev import FevSession
+        # Building the engine model is the long pole on a large model. It
+        # runs on the GUI thread (the engine is single-threaded by design),
+        # so report its own progress and pump the event loop between slices;
+        # otherwise the window is a white rectangle that looks hung for as
+        # long as the build takes.
+        progress = _FevProgress(self)  # type: ignore[arg-type]
         QApplication.setOverrideCursor(_wait_cursor_shape())
         try:
-            session = FevSession(self._model_for_engine())
+            session = FevSession(self._model_for_engine(), progress=progress.report)
         except UnrunnableModel as exc:
             QApplication.restoreOverrideCursor()
+            progress.close()
             msgbox.warning(self, "Failure Effects", str(exc))
             return False
         except Exception as exc:      # noqa: BLE001 - shown to the user, not swallowed
             QApplication.restoreOverrideCursor()
+            progress.close()
             msgbox.critical(
                 self, "Failure Effects",
                 f"Failure Effects View could not start:\n{exc}")
             return False
         QApplication.restoreOverrideCursor()
-        self._fev = session
-        self._set_fev_check(True)
-        if not self._diagram_dock.isVisible():
-            self._diagram_dock.show()
-        self._diagram_dock.view.set_fev_view_open(True)
-        self._refresh_commands()
-        self._fev_refresh("Failure Effects View — click a block to fail or restore it")
+        progress.report("Colouring the diagram", 0, 1)
+        try:
+            self._fev = session
+            self._set_fev_check(True)
+            if not self._diagram_dock.isVisible():
+                self._diagram_dock.show()
+            self._diagram_dock.view.set_fev_view_open(True)
+            self._refresh_commands()
+            # Applying a new colour to every visible item is a bulk paint,
+            # not an animation. Freeze the canvas while it happens so the
+            # progress dialog's event pumps do not repaint the whole scene
+            # once per slice; one repaint follows when the state is final.
+            view = self._diagram_dock.view
+            view.setUpdatesEnabled(False)
+            try:
+                self._fev_refresh(
+                    "Failure Effects View — click a block to fail or restore it",
+                    progress=progress.report)
+            finally:
+                view.setUpdatesEnabled(True)
+                view.viewport().update()
+                # The first paint after the bulk update is the expensive
+                # one: do it while the progress window still explains the
+                # wait, not after it has vanished.
+                QApplication.processEvents()
+        finally:
+            progress.close()
         return True
 
     def _leave_fev(self) -> None:
@@ -117,11 +145,14 @@ class FevMixin:
 
     # ---- drawing -------------------------------------------------------------
 
-    def _fev_refresh(self, message: str = "") -> None:
+    def _fev_refresh(self, message: str = "", *, progress=None) -> None:
         s = self._fev
         if s is None:
             return
-        self._diagram_dock.view.update_live_states(s.blocks, model=s.model, phase=s.phase_number if s.phased else None)
+        self._diagram_dock.view.update_live_states(
+            s.model.blocks_by_id, model=s.model,
+            phase=s.phase_number if s.phased else None,
+            progress=progress)
         self._update_system_swatch(s.system_color, force=True)
         text = f"{message} — " if message else ""
         text += f"System {s.system_color.value}"
@@ -391,6 +422,96 @@ class FevMixin:
             self._fev_log_write_action.setEnabled(False)
             self._fev_log_close_action.setEnabled(False)
         self._statusbar.showMessage("Interactive Log closed", 4000)
+
+
+class _FevProgress:
+    """A determinate "Preparing Failure Effects View" indicator.
+
+    The engine build runs on the GUI thread; its progress callback is the
+    only chance to repaint. Keep the dialog out of the way for the common
+    sub-second build, and show it only once the work has actually outlived
+    a brief threshold. Event pumping is throttled: each pump also lets the
+    window paint, and pumping on every slice made a large level slower than
+    the work it was reporting.
+    """
+
+    #: Do not flash a modal window for the usual fast model.
+    SHOW_AFTER = 1.0
+
+    def __init__(self, parent: QWidget) -> None:
+        import time
+        self._parent = parent
+        self._started = time.monotonic()
+        self._dialog: Any = None
+        self._closed = False
+        self._last = -1
+        self._last_pump = 0.0
+
+    def _ensure_dialog(self):
+        if self._dialog is not None:
+            return self._dialog
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QProgressDialog
+        dlg = QProgressDialog(self._parent)
+        dlg.setWindowTitle("Failure Effects View")
+        dlg.setLabelText("Preparing Failure Effects View…")
+        dlg.setRange(0, 100)
+        dlg.setValue(0)
+        dlg.setCancelButton(None)
+        dlg.setMinimumDuration(0)
+        dlg.setAutoClose(False)
+        dlg.setAutoReset(False)
+        dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
+        dlg.setMinimumWidth(420)
+        self._dialog = dlg
+        return dlg
+
+    def report(self, stage: str, done: int, total: int) -> None:
+        if self._closed:
+            return
+        import time
+        done = max(0, int(done))
+        total = max(0, int(total))
+        if stage == "Reading blocks":
+            value = 1 + int(54 * (done / total if total else 1.0))
+        elif stage == "Analysing paths":
+            value = 55 + int(35 * (done / total if total else 1.0))
+        elif stage == "Preparing the view":
+            value = 90 + int(5 * (done / total if total else 1.0))
+        elif stage == "Colouring the diagram":
+            value = 96 + int(4 * (done / total if total else 1.0))
+        else:
+            value = None
+        now = time.monotonic()
+        if now - self._started < self.SHOW_AFTER:
+            return
+        dlg = self._ensure_dialog()
+        first_show = not dlg.isVisible()
+        if first_show:
+            dlg.show()
+        if value is not None:
+            value = max(value, self._last)
+            self._last = value
+            dlg.setValue(value)
+        dlg.setLabelText(
+            f"{stage} — {done:,} of {total:,}" if total > 1 else stage)
+        # Repainting this dialog is not free (and each pump also lets the
+        # window paint). Twice a second is enough to read as live; pumping
+        # on every 64-item slice made a large flat level slower.
+        if first_show or now - self._last_pump >= 0.5:
+            self._last_pump = now
+            QApplication.processEvents()
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        dlg = self._dialog
+        self._dialog = None
+        if dlg is not None:
+            dlg.close()
+            dlg.deleteLater()
+            QApplication.processEvents()
 
 
 def _wait_cursor_shape():

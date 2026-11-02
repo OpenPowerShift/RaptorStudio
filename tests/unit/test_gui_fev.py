@@ -54,6 +54,40 @@ def test_it_opens_without_a_run_and_closes(win):
     assert win._run_action.isEnabled()
 
 
+def test_the_entry_progress_bar_reports_determinate_work(win, monkeypatch):
+    """A slow engine build must show a real percentage, not a frozen window.
+    The dialog is created only after the short build threshold so a normal
+    model does not flash a modal panel."""
+    from raptor.gui.ui.fev_mixin import _FevProgress
+
+    progress = _FevProgress(win)
+    progress.report("Reading blocks", 50, 100)       # still under threshold
+    assert progress._dialog is None
+    monkeypatch.setattr("time.monotonic", lambda: progress._started + 1.0)
+    progress.report("Reading blocks", 50, 100)
+    assert progress._dialog is not None
+    assert progress._dialog.value() == 28           # 1 + 54 * 0.5
+    progress.report("Analysing paths", 100, 100)
+    assert progress._dialog.value() == 90           # 55 + 35
+    progress.close()
+    assert progress._dialog is None
+
+
+def test_the_canvas_reports_colouring_progress(win):
+    """Preparing the view paints every visible item; a large level must be
+    able to keep its progress window alive while that happens."""
+    win._fev_view_action.setChecked(True)
+    seen = []
+    view = win._diagram_dock.view
+    view.update_live_states(
+        win._fev.model.blocks_by_id, model=win._fev.model,
+        progress=lambda stage, done, total:
+        seen.append((stage, done, total)))
+    assert seen
+    assert seen[-1][0] == "Colouring the diagram"
+    assert seen[-1][1] == seen[-1][2]
+
+
 def test_a_click_fails_a_block_and_the_canvas_follows(win):
     win._fev_view_action.setChecked(True)
     win._on_fev_phase_next()
@@ -122,7 +156,7 @@ def test_a_model_fev_cannot_start_is_reported_not_crashed(win, monkeypatch):
     shown = []
     monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: shown.append(a[2]))
 
-    def boom(_rbd):
+    def boom(_rbd, **_kwargs):
         raise UnrunnableModel([ModelProblem("model", "nope")])
     monkeypatch.setattr("raptor.core.engine.fev.FevSession", boom)
     win._fev_view_action.setChecked(True)
