@@ -662,7 +662,7 @@ class DataTablesDock(QWidget):
                 keep_key = item.text() if item is not None else None
         # Sorting OFF while rows are being inserted (an active sort
         # indicator + insertRow = scattered rows); back on after.
-        _all_tables = [
+        _all_tables: list[QTableWidget] = [
             self._blocks_table, self._nodes_table, self._events_table,
             self._spares_table, self._resources_table,
             self._triggers_table, self._phases_table,
@@ -672,8 +672,8 @@ class DataTablesDock(QWidget):
         # hidden behind a tab. Filling all of them made Open spend tens of
         # seconds building widgets no one could see. Build the visible grid
         # now and mark the rest for their first tab change.
-        lazy = self._large_model() and isinstance(current, QTableWidget)
-        if lazy:
+        fill: list[QTableWidget]
+        if self._large_model() and isinstance(current, QTableWidget):
             self._dirty_tables = set(_all_tables) - {current}
             fill = [current]
         else:
