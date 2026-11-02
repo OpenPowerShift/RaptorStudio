@@ -591,9 +591,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             for end in (link._from, link._to):
                 end._route_centre = None
                 end._route_horizontal = None
+                end._route_flow_sign = None
+                end._route_entry_side = None
+                end._route_exit_side = None
         if item is not None:
             item._route_centre = None
             item._route_horizontal = None
+            item._route_flow_sign = None
+            item._route_entry_side = None
+            item._route_exit_side = None
         for link in affected:
             link._update_route()
         if self._loading:
@@ -688,6 +694,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # formatter must not re-parse SYSTEM_DATA on every refresh.
         self._label_units = ""
         self._label_mode_cache = None
+        self._deferred_sublabels = False
         try:
             from raptor.core.fileio.typed import system_config_from_row
             self._label_units = system_config_from_row(
@@ -1124,6 +1131,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # load_rbd clears the map (belongs to one file).
         prev_pos = self._pos_overrides
         self.clear_model()
+        # Large levels are usually shown fit-to-window, where LOD hides
+        # labels. Build names only; one refresh after the fit fills the
+        # sub-labels if the final zoom actually shows them.
+        self._deferred_sublabels = True
 
         cur = self._current_parent
         log.debug("_rebuild_scene: level=%s", cur)
@@ -1171,7 +1182,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                               self._tx(block.x_position), self._ty(block.y_position),
                               on_moved=self._item_moved,
                               on_dep_hover=self._on_dep_hover)
-            self._apply_block_labels(item, block)
+            if self._deferred_sublabels:
+                item.setToolTip(block.name)
+            else:
+                self._apply_block_labels(item, block)
             item.set_phased(block.uses_phasing)
             self._scene.addItem(item)
             self._block_items[bid] = item
@@ -3015,6 +3029,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def refresh_block_labels(self) -> None:
         """Re-apply the label setting to every visible block (mode/phase)."""
         self._label_mode_cache = None
+        self._deferred_sublabels = False
         self._refresh_block_sublabels()
 
     def _refresh_block_sublabels(self, block_id: int | None = None):
@@ -3962,6 +3977,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             for item in table.values():
                 item._route_centre = None
                 item._route_horizontal = None
+                item._route_flow_sign = None
+                item._route_entry_side = None
+                item._route_exit_side = None
 
     def _insert_link(self, row: dict) -> int:
         from raptor.core.fileio.typed import link_from_row
@@ -6282,6 +6300,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         self._lod_mode = mode
         self._lod_labels_visible = (mode == "near")
+        if mode == "near" and getattr(self, "_deferred_sublabels", False):
+            self._deferred_sublabels = False
+            self._refresh_block_sublabels()
 
         show_all = (mode == "near")
         for coll in (getattr(self, "_block_items", {}),

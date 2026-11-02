@@ -249,25 +249,26 @@ class _BlockItem(QGraphicsRectItem):
         # ordering.
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setAcceptHoverEvents(True)
-        # Cursor over elements: hand = "grabbable" in select mode; with
-        # the Connect tool armed the cross says "click to link from/to
-        # here".
-        _apply_hover_cursor(self)
+        # Initial placement must not run the drag-snap or notify the
+        # view: 9,000 blocks at load paid itemChange cost for positions
+        # that were already exactly where the file says.
+        self._suspend_changes = True
         self.setPos(cx - w / 2, cy - h / 2)
+        self._suspend_changes = False
 
         self._label = QGraphicsTextItem(name, self)
         font = QFont("sans-serif", 10)
         font.setBold(True)
         self._label.setFont(font)
         # At-a-glance labels under the name (means, spread or rate -- see
-        # `block_labels`), drawn small so the name stays dominant.
-        self._sub = QGraphicsTextItem("", self)
-        sub_font = QFont("sans-serif", 7)
-        self._sub.setFont(sub_font)
+        # `block_labels`), drawn small so the name stays dominant. Built
+        # lazily: a fit-to-window large level hides labels, and creating a
+        # QGraphicsTextItem + QTextDocument for every block was several
+        # seconds of pure construction.
+        self._sub = None
         # QTextDocument's default ~4px margin is what created the
         # "gap the height of the name" between title and F/R.
         self._label.document().setDocumentMargin(0)
-        self._sub.document().setDocumentMargin(0)
         # Weak Link analysis value, drawn under the box (Raptor 7's
         # BlockAoText). Hidden unless the Weak Link overlay is on.
         self._anal_label = QGraphicsTextItem("", self)
@@ -295,7 +296,7 @@ class _BlockItem(QGraphicsRectItem):
         # when the same colour came back (Weak Link off and on again).
         self._live_colour = None
         self._label.setDefaultTextColor(QColor(c["text"]))
-        if hasattr(self, "_sub"):
+        if self._sub is not None:
             self._sub.setDefaultTextColor(QColor(c["text_secondary"])
                                           if "text_secondary" in c
                                           else QColor(c["muted"]))
@@ -308,6 +309,15 @@ class _BlockItem(QGraphicsRectItem):
         model's units, so this is drawing only -- an empty list is the
         'off' mode and draws nothing.
         """
+        if self._sub is None:
+            if not lines:
+                self.setToolTip(tooltip)
+                return
+            self._sub = QGraphicsTextItem("", self)
+            self._sub.setFont(QFont("sans-serif", 7))
+            self._sub.document().setDocumentMargin(0)
+            self._sub.setDefaultTextColor(
+                QColor(COLOUR.get("text_secondary", COLOUR["muted"])))
         self._sub.setHtml(sublabel_html(lines))
         self._sub.setToolTip(tooltip)
         self._adjust_label()
@@ -351,7 +361,8 @@ class _BlockItem(QGraphicsRectItem):
         # light and dark themes.
         text = readable_text_colour(colour.name())
         self._label.setDefaultTextColor(text)
-        self._sub.setDefaultTextColor(text)
+        if self._sub is not None:
+            self._sub.setDefaultTextColor(text)
         if tooltip:
             self.setToolTip(tooltip)
 
@@ -435,6 +446,7 @@ class _BlockItem(QGraphicsRectItem):
         return super().boundingRect().adjusted(-m, -m, m, m)
 
     def hoverEnterEvent(self, event):
+        _apply_hover_cursor(self)
         if self._dep_badge is not None and self._on_dep_hover:
             self._on_dep_hover(self, True)
         super().hoverEnterEvent(event)
@@ -523,7 +535,7 @@ class _BlockItem(QGraphicsRectItem):
             self._label.setPlainText(shown)
         self._label.setToolTip(name if shown != name else "")
         sub_w = 0.0
-        if hasattr(self, "_sub") and self._sub.toPlainText():
+        if self._sub is not None and self._sub.toPlainText():
             sub_w = self._sub.boundingRect().width()
         needed = max(fm.horizontalAdvance(shown), sub_w) + 2 * _BLOCK_NAME_PAD
         # Round to a whole even pixel: the label is centred, and a
@@ -537,7 +549,7 @@ class _BlockItem(QGraphicsRectItem):
     def _adjust_label(self):
         self._fit_name()
         tm = self._label.boundingRect()
-        if hasattr(self, "_sub") and self._sub.toPlainText():
+        if self._sub is not None and self._sub.toPlainText():
             # Name at top; F/R tucked directly beneath.
             self._label.setPos((BLOCK_W - tm.width()) / 2, 2)
             sm = self._sub.boundingRect()
@@ -548,6 +560,8 @@ class _BlockItem(QGraphicsRectItem):
                                (BLOCK_H - tm.height()) / 2 - 2)
 
     def itemChange(self, change, value):
+        if getattr(self, "_suspend_changes", False):
+            return super().itemChange(change, value)
         if change == QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
             self._selected = bool(value)
             self.setZValue(10 if value else 0)
@@ -591,7 +605,6 @@ class _NodeItem(QGraphicsEllipseItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setAcceptHoverEvents(True)
         # See _BlockItem's identical flag for why this is required.
-        _apply_hover_cursor(self)
         self.setPos(cx, cy)
 
         type_names = {1: "S", 2: label_text or "", 3: "E", 4: "HI", 5: "HO"}
@@ -751,6 +764,7 @@ class _NodeItem(QGraphicsEllipseItem):
         return QRectF(-self._r - d - 2, -d / 2, d, d)
 
     def hoverEnterEvent(self, event):
+        _apply_hover_cursor(self)
         if self._dep_badge is not None and self._on_dep_hover:
             self._on_dep_hover(self, True)
         super().hoverEnterEvent(event)
@@ -1022,7 +1036,6 @@ class _LinkItem(QGraphicsPathItem):
         _LINK_GEN[0] += 1
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setAcceptHoverEvents(True)
-        _apply_hover_cursor(self)
         self.setZValue(-1)
         self.retheme(COLOUR)
         # A whole-level rebuild creates thousands of links back to back.
@@ -1362,6 +1375,10 @@ class _LinkItem(QGraphicsPathItem):
         left-to-right, so an element in a chain that runs the other way
         (after a Flip Horizontal, or a snaking layout) got its input on the
         wrong side and its line cut through its own body."""
+        gen = _LINK_GEN[0]
+        cached = getattr(item, "_route_flow_sign", None)
+        if cached is not None and getattr(item, "_route_flow_sign_gen", None) == gen:
+            return cached
         c = _LinkItem._true_centre(item)
         incoming, outgoing = _links_at(item)
         total = 0.0
@@ -1369,7 +1386,10 @@ class _LinkItem(QGraphicsPathItem):
             total += c.x() - _LinkItem._true_centre(it._from).x()
         for it in outgoing:
             total += _LinkItem._true_centre(it._to).x() - c.x()
-        return -1 if total < 0 else 1
+        result = -1 if total < 0 else 1
+        item._route_flow_sign = result
+        item._route_flow_sign_gen = gen
+        return result
 
     @classmethod
     def _entry_side_for(cls, item, toward: QPointF) -> str:
@@ -1412,15 +1432,23 @@ class _LinkItem(QGraphicsPathItem):
         sources. One port for every input."""
         if item.scene() is None:
             return None
+        gen = _LINK_GEN[0]
+        cached = getattr(item, "_route_entry_side", None)
+        if cached is not None and getattr(item, "_route_entry_side_gen", None) == gen:
+            return cached
         counts: dict[str, int] = {}
         for it in _links_at(item)[0]:
             s = _LinkItem._side(item, _LinkItem._true_centre(it._from))
             counts[s] = counts.get(s, 0) + 1
         if not counts:
-            return None
-        if _LinkItem._flow_horizontal(item):
-            return "left" if _LinkItem._flow_sign(item) > 0 else "right"
-        return _LinkItem._majority_side(counts)
+            result = None
+        elif _LinkItem._flow_horizontal(item):
+            result = "left" if _LinkItem._flow_sign(item) > 0 else "right"
+        else:
+            result = _LinkItem._majority_side(counts)
+        item._route_entry_side = result
+        item._route_entry_side_gen = gen
+        return result
 
     @staticmethod
     def _exit_side(item) -> str:
@@ -1429,16 +1457,24 @@ class _LinkItem(QGraphicsPathItem):
         side opposite its entry so the flow passes through rather than
         doubling back. A source with no incoming links faces its targets
         as a group."""
+        gen = _LINK_GEN[0]
+        cached = getattr(item, "_route_exit_side", None)
+        if cached is not None and getattr(item, "_route_exit_side_gen", None) == gen:
+            return cached
         entry = _LinkItem._entry_side(item)
         if _LinkItem._flow_horizontal(item):
-            return "right" if _LinkItem._flow_sign(item) > 0 else "left"
-        if entry is not None:
-            return _LinkItem._OPPOSITE[entry]
-        counts: dict[str, int] = {}
-        for it in _links_at(item)[1]:
-            s = _LinkItem._side(item, _LinkItem._true_centre(it._to))
-            counts[s] = counts.get(s, 0) + 1
-        return _LinkItem._majority_side(counts) or "right"
+            result = "right" if _LinkItem._flow_sign(item) > 0 else "left"
+        elif entry is not None:
+            result = _LinkItem._OPPOSITE[entry]
+        else:
+            counts: dict[str, int] = {}
+            for it in _links_at(item)[1]:
+                s = _LinkItem._side(item, _LinkItem._true_centre(it._to))
+                counts[s] = counts.get(s, 0) + 1
+            result = _LinkItem._majority_side(counts) or "right"
+        item._route_exit_side = result
+        item._route_exit_side_gen = gen
+        return result
 
     @staticmethod
     def _anchor_geom(item):
@@ -1537,7 +1573,6 @@ class _EventItem(QGraphicsPolygonItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setAcceptHoverEvents(True)
-        _apply_hover_cursor(self)
         self.setPos(cx, cy)
 
         self._label = QGraphicsTextItem(name, self)
@@ -1721,7 +1756,6 @@ class _HierItem(QGraphicsEllipseItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setAcceptHoverEvents(True)
-        _apply_hover_cursor(self)
         self.setZValue(-1)
         self.setPos(cx, cy)
 
