@@ -363,6 +363,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: write_back_to_rbd (Save/print/autosave), never by merely
         #: changing view. Cleared in load_rbd (belongs to one file).
         self._pos_overrides: dict[tuple[str, int], tuple[float, float]] = {}
+        #: Elements moved since the last coalesced settle. A drag updates
+        #: only these on the settle; `sync_model_positions()` used to walk
+        #: every element and every row for a one-block move.
+        self._dirty_moves: set[tuple[str, int]] = set()
         #: Viewport-pixel anchor recorded at press, and whether the
         #: drag has moved far enough past it to count as a real drag
         #: yet -- see `mouseMoveEvent`'s own comment for why.
@@ -572,6 +576,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             link._update_route()
         if self._loading:
             return
+        if item is not None:
+            for kind, table in (("block", self._block_items),
+                                ("node", self._node_items),
+                                ("event", self._event_items),
+                                ("hier", self._hier_items)):
+                if table.get(obj_id) is item:
+                    self._dirty_moves.add((kind, obj_id))
+                    break
         # Leading edge + trailing edge. `layout_changed` deliberately
         # skips the whole-model path `model_changed` takes (validation,
         # Inspector/Explorer/Data Tables rebuild, results re-hash): a
@@ -599,8 +611,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def _on_moved_settled(self):
         """Motion paused: send the notification the coalesced steps owe."""
         # The rows take the new positions once the motion settles (not on
-        # every mouse step); they lagged until the next full write-back.
-        self.sync_model_positions()
+        # every mouse step); only the elements this gesture moved need a
+        # pass on a large level.
+        only = set(self._dirty_moves)
+        self._dirty_moves.clear()
+        self.sync_model_positions(only=only or None)
         if self._moved_pending:
             self._moved_pending = False
             self.layout_changed.emit()
@@ -665,6 +680,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # file's entries (same numeric ids are routine -- every model
         # starts its ids at 1) would teleport the new model's elements.
         self._pos_overrides = {}
+        self._dirty_moves.clear()
         self.hiers = {}
         if "HIERARCHY_DATA" in rbd.sections:
             for row in rbd.sections["HIERARCHY_DATA"].rows:
@@ -2199,12 +2215,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 self.model_changed.emit()
         return n
 
-    def sync_model_positions(self):
+    def sync_model_positions(self, only: set[tuple[str, int]] | None = None):
         """Typed objects <- scene items for every movable kind, and the
         matching `_pos_overrides` entries (the position overlay's own
         source -- bulk movers that place items directly without MoveCmd
         (auto layout / align / distribute) must record here or their
-        arrangement is lost on the next level change)."""
+        arrangement is lost on the next level change).
+
+        `only` limits the pass to the elements a drag actually moved. A
+        one-block move on a 10,000-element level used to walk every item
+        and every file row just to record one coordinate.
+        """
         # Blocks are positioned by their top-left, the other kinds by
         # their centre; both are scene pixels and both go through the one
         # transform.
@@ -2216,6 +2237,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             ("hier", self._hier_items, self.hiers, (0.0, 0.0)),
         ):
             for oid, item in items.items():
+                if only is not None and (kind, oid) not in only:
+                    continue
                 obj = by_id.get(oid)
                 if obj is None:
                     continue
@@ -2225,9 +2248,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 obj.x_position = mx
                 obj.y_position = my
                 self._pos_overrides[(kind, oid)] = (mx, my)
-        self._write_positions_to_rows()
+        self._write_positions_to_rows(only)
 
-    def _write_positions_to_rows(self) -> None:
+    def _write_positions_to_rows(self,
+                                 only: set[tuple[str, int]] | None = None) -> None:
         """The rows take the canvas positions as they are recorded. A bulk
         move (Align, Distribute, Flip, their Undo) left the rows at the old
         place until the next full write-back, so anything reading the rows
@@ -2245,6 +2269,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 continue
             for row in sec.rows:
                 oid = _safe_int(row.get("ID"))
+                if only is not None and (kind, oid) not in only:
+                    continue
                 xy = self._pos_overrides.get((kind, oid))
                 if xy is None or oid not in live[kind]:
                     continue
