@@ -658,47 +658,131 @@ class SplitLinkCmd(_ViewCmd):
     this command owns the two link rows and their live typed objects.
     """
 
-    def __init__(self, view, link_id, node_id, new_link_row):
+    @staticmethod
+    def _id(value, what: str) -> int:
+        """Ids are positive integers; `_safe_int`'s -1 sentinel must not
+        become a selector that matches every malformed row."""
+        if isinstance(value, bool):
+            raise ValueError(
+                f"SplitLinkCmd: {what} id must be a positive integer: "
+                f"{value!r}")
+        try:
+            oid = int(value)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(
+                f"SplitLinkCmd: {what} id is not an integer: {value!r}"
+            ) from exc
+        if oid <= 0 or (isinstance(value, float) and not value.is_integer()):
+            raise ValueError(
+                f"SplitLinkCmd: {what} id must be a positive integer: "
+                f"{value!r}")
+        return oid
+
+    def __init__(self, view, link_id, node_id, new_link_row, level=None):
         super().__init__(view, "Insert routing node")
-        self.link_id = int(link_id)
-        self.node_id = int(node_id)
+        self.link_id = self._id(link_id, "link")
+        self.node_id = self._id(node_id, "node")
         self.new_link_row = dict(new_link_row)
+        self.new_link_id = self._id(self.new_link_row.get("ID"), "new link")
+        #: Owning hierarchy level (0 = home); None means "unknown, assume
+        #: the visible level". Links on another level are edited in the
+        #: file only -- `self.nodes`/`self.links` are level-scoped, and
+        #: resolving a foreign id against them would draw a phantom link
+        #: between unrelated elements that happen to share the id.
+        self.level = None if level is None else int(level)
         self.old_to: tuple[str, str] | None = None
+        #: The exact Link object this command appended, so undo removes
+        #: that one and never every row/link that happens to share its id.
+        self._added_link = None
 
     def _row(self):
-        sec = self._v._rbd_ref.sections["LINK_DATA"]
+        sec = self._v._rbd_ref.sections.get("LINK_DATA")
+        if sec is None:
+            return None
         return next((r for r in sec.rows
                      if _safe_int(r.get("ID")) == self.link_id), None)
 
     def redo(self):
         v = self._v
+        sec = v._rbd_ref.sections.get("LINK_DATA")
         row = self._row()
-        if row is None:
+        if sec is None or row is None:
             self._done()
             return
+        # A row that is not ours already owns the new id (only reachable
+        # through a direct, non-undoable row edit). Refuse rather than
+        # corrupt a live link or delete it on undo.
+        if any(r is not self.new_link_row
+               and not self._is_our_link_row(r)
+               and _safe_int(r.get("ID")) == self.new_link_id
+               for r in sec.rows):
+            self._done()
+            return
+        # Drop a stale COPY of our own row (DeleteCmd.undo restores rows
+        # as copies) so redo cannot end up with two rows for one link.
+        sec.rows[:] = [r for r in sec.rows
+                       if r is self.new_link_row
+                       or not self._is_our_link_row(r)]
         self.old_to = (str(row.get("ToType", "")), str(row.get("ToID", "")))
         row["ToType"] = "Node"
         row["ToID"] = str(self.node_id)
-        v._rbd_ref.sections["LINK_DATA"].rows.append(self.new_link_row)
-        v.resync_link(self.link_id)
-        v._insert_link(self.new_link_row)
-        v._rebuild_link_items()
+        if not any(r is self.new_link_row for r in sec.rows):
+            sec.rows.append(self.new_link_row)
+        in_view = self.level is None or self.level == v._current_parent
+        if in_view:
+            v.resync_link(self.link_id)
+            # Drop any stale live copy of this id (a partial earlier redo)
+            # before `_insert_link`, which appends unconditionally.
+            v.links[:] = [link for link in v.links
+                          if link.object_num != self.new_link_id]
+            v._insert_link(self.new_link_row)
+            self._added_link = (
+                v.links[-1] if v.links
+                and v.links[-1].object_num == self.new_link_id else None)
+            v._rebuild_link_items()
         v._recount_link_ends()
         self._done()
 
+    def _is_our_link_row(self, row: dict) -> bool:
+        """This command's own new row.
+
+        After DeleteCmd.undo restores the row from a COPY, identity is
+        gone: identify it by id + "starts at our node" instead. The extra
+        endpoint check keeps an unrelated row that merely re-used the id
+        (only possible through a non-undoable direct edit) safe."""
+        return (_safe_int(row.get("ID")) == self.new_link_id
+                and str(row.get("FromType", "")).replace("RBD", "", 1)
+                == "Node"
+                and _safe_int(row.get("FromID")) == self.node_id)
+
     def undo(self):
         v = self._v
-        sec = v._rbd_ref.sections["LINK_DATA"]
-        new_id = _safe_int(self.new_link_row.get("ID"))
-        sec.rows[:] = [r for r in sec.rows
-                       if _safe_int(r.get("ID")) != new_id]
+        sec = v._rbd_ref.sections.get("LINK_DATA")
+        if sec is not None:
+            sec.rows[:] = [r for r in sec.rows
+                           if r is not self.new_link_row
+                           and not self._is_our_link_row(r)]
         row = self._row()
         if row is not None and self.old_to is not None:
             row["ToType"], row["ToID"] = self.old_to
-        v.links[:] = [link for link in v.links
-                      if link.object_num != new_id]
-        v.resync_link(self.link_id)
-        v._rebuild_link_items()
+        in_view = self.level is None or self.level == v._current_parent
+        if in_view:
+            # Remove the live Link object only while no row still owns the
+            # id; otherwise a re-used id would take an unrelated link with
+            # it. Normally the row is gone by now and every live object
+            # with this id is ours (including a copy re-created by
+            # DeleteCmd.undo).
+            id_still_owned = sec is not None and any(
+                _safe_int(r.get("ID")) == self.new_link_id for r in sec.rows)
+            if id_still_owned and self._added_link is not None:
+                v.links[:] = [link for link in v.links
+                              if link is not self._added_link]
+            else:
+                v.links[:] = [link for link in v.links
+                              if link.object_num != self.new_link_id]
+            self._added_link = None
+            v.resync_link(self.link_id)
+            v._rebuild_link_items()
         v._recount_link_ends()
         self._done()
 

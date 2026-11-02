@@ -248,8 +248,12 @@ class ContextMenuMixin:
         mx, my = self.scene_to_model(scene_pos)
         routing_act = None
         if isinstance(clicked, _LinkItem):
-            routing_act = menu.addAction("Insert routing node here…")
-            menu.addSeparator()
+            # Link items created by the loader always carry a real id, but
+            # a preview/partially built item may carry None; offering the
+            # action there would only fail after the user chose it.
+            if isinstance(getattr(clicked, "_link_num", None), int):
+                routing_act = menu.addAction("Insert routing node here…")
+                menu.addSeparator()
         # Cut/Copy/Paste in the conventional order, with "Paste Here"
         # last of the three and renamed: it drops the copy on THIS exact
         # spot, which is why the old first-positioned "Paste here" read
@@ -305,8 +309,31 @@ class ContextMenuMixin:
             menu.addSeparator()
             dep_action = menu.addAction("Focus on Dependency")
         chosen = self._exec_menu(menu, event)
+        if chosen is None:
+            # Dismissed. Several optional actions below are None when not
+            # offered, so an unguarded `chosen is action` chain would run
+            # one of them (`None is None`) just because the user clicked
+            # away.
+            return
         if routing_act is not None and chosen is routing_act:
-            self.insert_routing_node(clicked._link_num, mx, my)
+            if self.insert_routing_node(
+                    getattr(clicked, "_link_num", None), mx, my) is None:
+                if self._capacity_analysis_enabled(self._rbd_ref):
+                    _view_status(
+                        self, "Routing nodes are not available in a "
+                        "capacity-analysis model")
+                elif self._link_targets_cold_node(
+                        self._rbd_ref,
+                        self._link_row_by_id(
+                            getattr(clicked, "_link_num", None)) or {}):
+                    _view_status(
+                        self, "Routing nodes are not available on a "
+                        "cold-standby link")
+                else:
+                    _view_status(
+                        self, "Cannot insert a routing node on that link")
+            else:
+                _view_status(self, "Routing node inserted")
         elif chosen is paste_act:
             self.paste(at_model=(mx, my))
         elif chosen is out_act:

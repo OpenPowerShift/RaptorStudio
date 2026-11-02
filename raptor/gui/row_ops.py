@@ -8,6 +8,8 @@ bookkeeping. These are the helpers for that, formerly methods on
 """
 from __future__ import annotations
 
+import re
+import unicodedata
 from collections.abc import Collection
 from typing import Any
 
@@ -74,9 +76,51 @@ def template_row(rbd: Any, section_name: str, id_col: str) -> dict | None:
     return dict(section.rows[0])
 
 
+#: Unicode categories no legacy `.rbd` line can hold: controls (includes
+#: newline/tab), format characters (zero-width joiners, bidi overrides)
+#: and separators other than the ordinary space, which is handled by
+#: `str.isspace` below.
+_UNSAFE_NAME_CATEGORIES = frozenset({"Cc", "Cf", "Zs", "Zl", "Zp"})
+
+#: `EndOf<NodeData>` (or any `EndOf...Data`) is a section terminator to
+#: `parse_rbd`; a name that starts with one would swallow the rest of the
+#: table. `EndOfLife`, without the `Data` suffix, is safe and left alone.
+_END_MARKER_LIKE = re.compile(r"^EndOf\w+Data")
+
+
 def sanitize_name(name: str) -> str:
-    """Names are whitespace-delimited tokens in the file."""
-    return "_".join(name.split()) or "unnamed"
+    """One row token for a user-supplied name.
+
+    Names are whitespace-delimited tokens in the legacy file, and a
+    control/invisible character is just as dangerous there: a newline or
+    carriage return starts a new row, a tab shifts every later column,
+    and a leading ``/`` would be read as a ``/___SECTION___`` header
+    (injection into the section stream). Everything unsafe becomes a
+    single underscore; the rest of the name is kept.
+    """
+    out: list[str] = []
+    replaced = False       # last character was an unsafe-char replacement
+    for ch in str(name):
+        unsafe = (ch.isspace()
+                  or unicodedata.category(ch) in _UNSAFE_NAME_CATEGORIES
+                  or 0xD800 <= ord(ch) <= 0xDFFF)
+        if unsafe:
+            if out and not replaced:
+                out.append("_")
+                replaced = True
+        else:
+            out.append(ch)
+            replaced = False
+    if replaced:
+        out.pop()          # a trailing run leaves no separator behind
+    text = "".join(out)
+    # Element names are the first column of their row. A leading "/" is a
+    # /___SECTION___ header, and "EndOf..." is how the reader terminates
+    # the section (any name starting with `EndOf<NodeData>` etc. would
+    # swallow the rest of the table); neither may start a name.
+    if text.startswith("/") or _END_MARKER_LIKE.match(text):
+        text = "_" + text
+    return text or "unnamed"
 
 
 def next_id(rbd: Any, section_name: str, id_col: str,
