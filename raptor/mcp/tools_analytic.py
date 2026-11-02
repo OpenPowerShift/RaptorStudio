@@ -61,6 +61,7 @@ def _markdown(result: dict) -> str:  # noqa: C901
 async def analytical_analysis(
     model_id: str,
     mode: Literal["reliability", "availability"] = "reliability",
+    hierarchy: str | int | None = None,
     at: float | None = None,
     times: list[float] | None = None,
     bx: list[float] | None = None,
@@ -83,7 +84,8 @@ async def analytical_analysis(
     `A_i = MTTF_i / (MTTF_i + MTTR_i)` and exact availability importance.
 
     The solver supports series, parallel, mixed, k-of-n, bridge networks and
-    hierarchies. It refuses PM, spares, resources, dependencies, standby,
+    hierarchies. `hierarchy` analyses one hierarchy as a standalone port
+    extension: its In node becomes Start and its Out node End. It refuses PM, spares, resources, dependencies, standby,
     phases and non-Bernoulli events; use `simulate` for those. `at` defaults
     to the model's time-terminated run length. `tau` adds the conditional
     reliability of a further mission of that length after `at`.
@@ -109,7 +111,7 @@ async def analytical_analysis(
     def work(abort, progress):
         return analyse(
             context.workspace(), model_id,
-            mode=mode, at=at, times=times, bx=bx, tau=tau,
+            mode=mode, hierarchy=hierarchy, at=at, times=times, bx=bx, tau=tau,
             importance=importance, equation=equation,
             ignore_repairs=ignore_repairs, ignore=ignore or (), phase=phase,
             standby=standby,
