@@ -10,17 +10,41 @@ merged here.
 
 | Branch | Work | Final reviewed commit |
 | --- | --- | --- |
-| `fix/batch-results-large` | cap/stream End-of-Run, report stages, GUI population stages, weak-metric precompute | `1b9eedbc` |
+| `fix/batch-results-large` | cap/stream End-of-Run, report stages, GUI population stages, weak-metric precompute, smooth results progress | `629410c5` |
 | `perf/hierarchy-navigation` | parse only the visible level, lazy name index, label/link batch work, route caches | `bf381dbf` |
 | `feat/layout-size-aware` | size-aware column pitches, exact GUI extents, scale agreement | `19a416e9` |
-| `feat/layout-direction` | orthogonal link styles, LR/RL/TB/BT, max-column wrapping, MCP options | `70e29e63` |
-| `feat/routing-nodes` | insert a pass-through routing node into a link, undo/redo, save round-trip | `33f8cb6a` |
+| `feat/layout-direction` | orthogonal link styles, LR/RL/TB/BT, max-column wrapping, MCP options, visible Auto Layout, size-aware layout | `630d430f` |
+| `feat/routing-nodes` | GUI-only transparent routing junctions in links, undo/redo, save round-trip | `d2190c36` |
 | `feat/analytic-dependency-state` | analytical solver `dependencies=up/down` | `44cf5f59` |
+| `fix/analytic-bdd-limit` | 2,000,000-node BDD cap, grouped limits, dynamic explanatory text | `a6038621` |
+| `feat/analytic-hierarchy-scope` | solve one hierarchy as a port extension, Cancel button, dependencies + 2M BDD merged | `0f3af8a5` |
 | `perf/gui-large-models` | selective drag sync, row index, minimap/selection hot spots | `e6273e0c` |
 
 Integration-only fixes: menu `None` action guard, dependency-link down,
 invalid saved direction fallback, strict `max_columns`, generated docs,
 golden/snapshot refreshes.
+
+## Latest integration round (2M BDD / hierarchy / transparent routing)
+
+- Merged the four newest workstreams above into `test/large-model-work`
+  (`e94faf0d`, `c1153a74`, `776914c2`, `ddd75f95`).
+- Targeted affected suite: **458 passed** (routing, layout, results,
+  analytical API/BDD/dependencies/network, capacity, file IO, MCP snapshot,
+  CLI man pages) in 81 s.
+- Hierarchy-scoped solve on the user's
+  `ProjectX_BESS_Hierarchical.rbds`, hierarchy `Unit 1.1`, availability,
+  `dependencies=up`, PM/spares/resources ignored: **applicable**, 21
+  components, 110 BDD nodes, availability `0.9997188184`; exits 0.
+- The same model solved whole at the 2,000,000-node cap is refused with
+  exit 3 and *"the analytical BDD exceeded 2,000,000 nodes … Solve its
+  hierarchies separately"* — a clean refusal, not a crash.
+- Routing junctions are now **transparent to EFPA and capacity**: marked by
+  the unused `repCap` column, contracted out of the run model in
+  `engine.load.load_model`. Capacity1 simulation results are bit-identical
+  before and after inserting one, while the junction still draws, moves and
+  round-trips through save/reload.
+- Verified `raptor analytic --hierarchy` CLI output and regenerated
+  `docs/man/raptor-analytic.1` plus bash/zsh/fish completions.
 
 ## Automated tests run
 
@@ -142,8 +166,8 @@ golden/snapshot refreshes.
 ## Commands
 
 ```bash
-# Integration branch
-git checkout integration/large-model-work
+# Temporary integration branch for user testing
+git checkout test/large-model-work
 
 # Broad affected suite (sequential; suitable for this machine)
 .venv/bin/python -m pytest tests/unit/test_results_large.py \
