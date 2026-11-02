@@ -3795,13 +3795,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                      if item._link_num == link_id), None)
         if link is None:
             return None
+        # The context menu passes model units; the grip lives in scene
+        # coordinates. Without this conversion the point was drawn far off
+        # the canvas -- selecting the menu entry appeared to do nothing.
+        scene_x, scene_y = self._vt.to_scene(model_x, model_y)
         entry = {
             "kind": "route_grip",
             "id": self._next_anno_id(),
             "parent": self._current_parent,
             "link": link_id,
-            "x": round(model_x, 2),
-            "y": round(model_y, 2),
+            "x": round(scene_x, 2),
+            "y": round(scene_y, 2),
             # Added, not yet dragged: the existing link path is unchanged.
             "active": False,
         }
