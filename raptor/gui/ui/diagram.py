@@ -366,6 +366,19 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: only these on the settle; `sync_model_positions()` used to walk
         #: every element and every row for a one-block move.
         self._dirty_moves: set[tuple[str, int]] = set()
+        #: Set when a move was signalled by an item that is not a movable
+        #: element (so its id is unknown): the settle then takes the full
+        #: pass rather than trust an empty dirty set.
+        self._dirty_moves_unknown = False
+        #: Bumped whenever an item's scene position changes or the level is
+        #: rebuilt. The minimap polls a signature several times a second;
+        #: hashing every item's position there was O(n) on an idle canvas.
+        self._layout_generation = 0
+        #: id -> file row lookup for `_write_positions_to_rows(only=...)`,
+        #: keyed per section on the row list's identity, length and first/
+        #: last row; a row addition, removal or replacement invalidates
+        #: its entry (see `_row_for`).
+        self._row_index_cache: dict[str, tuple[tuple, dict[int, dict]]] = {}
         #: Viewport-pixel anchor recorded at press, and whether the
         #: drag has moved far enough past it to count as a real drag
         #: yet -- see `mouseMoveEvent`'s own comment for why.
@@ -530,6 +543,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # into the new one (its id would name something else, or nothing).
         self._anchor_pick_for = None
         self._hidden_following = []
+        self._layout_generation += 1
+        self._row_index_cache.clear()
+        # Ids from the level that is going away must not reach the next
+        # settle: same numeric ids name different elements on a new level.
+        self._dirty_moves.clear()
+        self._dirty_moves_unknown = False
         self._scene.clear()
         self._block_items.clear()
         self._node_items.clear()
@@ -560,14 +579,21 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             link._update_route()
         if self._loading:
             return
-        if item is not None:
-            for kind, table in (("block", self._block_items),
-                                ("node", self._node_items),
-                                ("event", self._event_items),
-                                ("hier", self._hier_items)):
-                if table.get(obj_id) is item:
-                    self._dirty_moves.add((kind, obj_id))
-                    break
+        self._layout_generation += 1
+        # Which kind moved is a property of the item's class (O(1)); the
+        # old form probed four id->item dicts on every mouse step. An item
+        # whose kind cannot be told (not a movable element) forces the
+        # settle's full pass instead of silently losing its coordinates.
+        if isinstance(item, _BlockItem):
+            self._dirty_moves.add(("block", obj_id))
+        elif isinstance(item, _NodeItem):
+            self._dirty_moves.add(("node", obj_id))
+        elif isinstance(item, _EventItem):
+            self._dirty_moves.add(("event", obj_id))
+        elif isinstance(item, _HierItem):
+            self._dirty_moves.add(("hier", obj_id))
+        else:
+            self._dirty_moves_unknown = True
         # Leading edge + trailing edge. `layout_changed` deliberately
         # skips the whole-model path `model_changed` takes (validation,
         # Inspector/Explorer/Data Tables rebuild, results re-hash): a
@@ -596,10 +622,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         """Motion paused: send the notification the coalesced steps owe."""
         # The rows take the new positions once the motion settles (not on
         # every mouse step); only the elements this gesture moved need a
-        # pass on a large level.
+        # pass on a large level. An empty set means the gesture moved
+        # nothing (a click that only armed the timer): no sync at all, in
+        # particular not the full O(n) walk an `or None` fallback would do.
         only = set(self._dirty_moves)
+        unknown = self._dirty_moves_unknown
         self._dirty_moves.clear()
-        self.sync_model_positions(only=only or None)
+        self._dirty_moves_unknown = False
+        if only or unknown:
+            self.sync_model_positions(only=only or None)
         if self._moved_pending:
             self._moved_pending = False
             self.layout_changed.emit()
@@ -664,6 +695,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # starts its ids at 1) would teleport the new model's elements.
         self._pos_overrides = {}
         self._dirty_moves.clear()
+        self._dirty_moves_unknown = False
+        self._row_index_cache.clear()
         self.hiers = {}
         if "HIERARCHY_DATA" in rbd.sections:
             for row in rbd.sections["HIERARCHY_DATA"].rows:
@@ -2112,6 +2145,36 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 self.model_changed.emit()
         return n
 
+    def _keys_of_items(self, items) -> set[tuple[str, int]] | None:
+        """(kind, id) keys for `items`, or None when any item is not a
+        movable element (an annotation, or a wrapper Qt has deleted).
+
+        Used to keep bulk placements (Align/Flip/Distribute and their
+        Undo) from taking the whole-level sync they used to, while still
+        falling back to it for the kinds this map cannot name."""
+        keys: set[tuple[str, int]] = set()
+        for it in items:
+            try:
+                if isinstance(it, _BlockItem):
+                    keys.add(("block", it._block_id))
+                elif isinstance(it, _NodeItem):
+                    keys.add(("node", it._node_id))
+                elif isinstance(it, _EventItem):
+                    keys.add(("event", it._event_id))
+                elif isinstance(it, _HierItem):
+                    keys.add(("hier", it._hier_id))
+                else:
+                    return None
+            except RuntimeError:      # deleted C++ object
+                return None
+        return keys
+
+    def _sync_items(self, items) -> None:
+        """Record the canvas positions of just `items` (see
+        `_keys_of_items`; falls back to the full pass when a kind is not
+        understood)."""
+        self.sync_model_positions(only=self._keys_of_items(items))
+
     def sync_model_positions(self, only: set[tuple[str, int]] | None = None):
         """Typed objects <- scene items for every movable kind, and the
         matching `_pos_overrides` entries (the position overlay's own
@@ -2126,26 +2189,80 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Blocks are positioned by their top-left, the other kinds by
         # their centre; both are scene pixels and both go through the one
         # transform.
-        for kind, items, by_id, half in (
-            ("block", self._block_items, self.blocks,
-             (BLOCK_W / 2, BLOCK_H / 2)),
-            ("node", self._node_items, self.nodes, (0.0, 0.0)),
-            ("event", self._event_items, self.events, (0.0, 0.0)),
-            ("hier", self._hier_items, self.hiers, (0.0, 0.0)),
-        ):
-            for oid, item in items.items():
-                if only is not None and (kind, oid) not in only:
-                    continue
-                obj = by_id.get(oid)
-                if obj is None:
-                    continue
-                sp = item.scenePos()
-                mx, my = self._vt.to_model(sp.x() + half[0],
-                                           sp.y() + half[1])
-                obj.x_position = mx
-                obj.y_position = my
-                self._pos_overrides[(kind, oid)] = (mx, my)
+        tables: dict[str, tuple[Any, Any, tuple[float, float]]] = {
+            "block": (self._block_items, self.blocks,
+                      (BLOCK_W / 2, BLOCK_H / 2)),
+            "node": (self._node_items, self.nodes, (0.0, 0.0)),
+            "event": (self._event_items, self.events, (0.0, 0.0)),
+            "hier": (self._hier_items, self.hiers, (0.0, 0.0)),
+        }
+        if only is None:
+            work = ((kind, oid, item)
+                    for kind, (items, _by_id, _half) in tables.items()
+                    for oid, item in items.items())
+        else:
+            # The selective pass exists so a one-element move is O(1):
+            # iterate the ids that moved, not every item on the level.
+            work = ((kind, oid, tables[kind][0][oid])
+                    for kind, oid in only if kind in tables
+                    and oid in tables[kind][0])
+        for kind, oid, item in work:
+            by_id, half = tables[kind][1], tables[kind][2]
+            obj = by_id.get(oid)
+            if obj is None:
+                continue
+            sp = item.scenePos()
+            mx, my = self._vt.to_model(sp.x() + half[0],
+                                       sp.y() + half[1])
+            obj.x_position = mx
+            obj.y_position = my
+            self._pos_overrides[(kind, oid)] = (mx, my)
         self._write_positions_to_rows(only)
+
+    def _row_for(self, section_name: str, oid: int) -> dict | None:
+        """The file row for `oid` in one section, via a cached id index.
+
+        A selective write-back used to scan every row to find one: O(n) per
+        drag settle on a 10,000-element level. The cache is keyed on the
+        row list's identity, its length and the identity of its first and
+        last row -- enough to catch every append, removal and wholesale
+        row replacement (the phase-edit restore deep-copies the list's
+        rows in place, keeping list identity and length). A lookup that
+        disagrees with the cached row's id rebuilds the index once and
+        then falls back to a scan."""
+        rbd = self._rbd_ref
+        if rbd is None:
+            return None
+        sec = rbd.sections.get(section_name)
+        if sec is None:
+            return None
+
+        def build() -> dict[int, dict]:
+            key = (id(sec.rows), len(sec.rows),
+                   id(sec.rows[0]) if sec.rows else 0,
+                   id(sec.rows[-1]) if sec.rows else 0)
+            cached = self._row_index_cache.get(section_name)
+            if cached is not None and cached[0] == key:
+                return cached[1]
+            index: dict[int, dict] = {}
+            for row in sec.rows:
+                rid = _safe_int(row.get("ID"))
+                if rid >= 0:
+                    index.setdefault(rid, row)
+            self._row_index_cache[section_name] = (key, index)
+            return index
+
+        row = build().get(oid)
+        if row is not None and _safe_int(row.get("ID")) == oid:
+            return row
+        self._row_index_cache.pop(section_name, None)
+        row = build().get(oid)
+        if row is not None and _safe_int(row.get("ID")) == oid:
+            return row
+        # A genuinely misspelt/stale index (or no such row): one scan is
+        # correct, and the rebuilt index makes the next lookup cheap.
+        return next((r for r in sec.rows
+                     if _safe_int(r.get("ID")) == oid), None)
 
     def _write_positions_to_rows(self,
                                  only: set[tuple[str, int]] | None = None) -> None:
@@ -2158,16 +2275,28 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         sections = {"block": "BLOCK_DATA", "node": "NODE_DATA",
                     "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}
-        live = {"block": self._block_items, "node": self._node_items,
-                "event": self._event_items, "hier": self._hier_items}
+        live: dict[str, dict[int, Any]] = {
+            "block": self._block_items, "node": self._node_items,
+            "event": self._event_items, "hier": self._hier_items}
+        if only is not None:
+            for kind, oid in only:
+                section = sections.get(kind)
+                if section is None:
+                    continue
+                xy = self._pos_overrides.get((kind, oid))
+                if xy is None or oid not in live[kind]:
+                    continue
+                row = self._row_for(section, oid)
+                if row is None:
+                    continue
+                row["xPos"], row["yPos"] = _pos(xy[0]), _pos(xy[1])
+            return
         for kind, section in sections.items():
             sec = rbd.sections.get(section)
             if sec is None:
                 continue
             for row in sec.rows:
                 oid = _safe_int(row.get("ID"))
-                if only is not None and (kind, oid) not in only:
-                    continue
                 xy = self._pos_overrides.get((kind, oid))
                 if xy is None or oid not in live[kind]:
                     continue
@@ -2937,7 +3066,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # write-back does, so the row is not given a stale x/y.
         kind = self._editor.kind_of(what)
         if kind in ("block", "node") and self._rbd_ref is not None:
-            self.sync_model_positions()
+            # Only the edited element can have an unsynced canvas position
+            # here. The full pass walked every item and row on the level,
+            # which made each Inspector/Data Tables edit O(n).
+            self.sync_model_positions(only={(kind, oid)})
         self._editor.write_element(self._rbd_ref, kind, oid)
         for refresh in refreshes:
             if refresh.what == SUBLABELS:
@@ -4781,12 +4913,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         """Wrap a completed bulk placement (align/distribute/auto-layout)
         in an undo command. `old_positions` is [(item, old QPointF)]."""
         new_positions = [(it, it.pos()) for it, _ in old_positions]
+        keys = self._keys_of_items([it for it, _ in old_positions])
         stack = getattr(self, "_stack", None)
         if stack is not None:
             stack.push(BulkGeometryCmd(self, text, old_positions,
-                                       new_positions))
+                                       new_positions, keys=keys))
         else:
-            self.sync_model_positions()
+            self.sync_model_positions(only=keys)
             self.layout_changed.emit()
 
     def _anno_state(self, aid: int) -> dict | None:
@@ -4836,9 +4969,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._move_by(it, dx, dy)
         # _move_by places items directly (no MoveCmd) -- sync the typed
         # objects or the position overlay reverts the alignment on the
-        # next level change (same rule auto_layout obeys below). The
-        # placement is wrapped in an undo command.
-        self.sync_model_positions()
+        # next level change (same rule auto_layout obeys below). Only the
+        # selection moved: a full pass here was O(level) for aligning two
+        # blocks. The placement is wrapped in an undo command.
+        self._sync_items(sel)
         self._push_bulk_geometry("Align", old_positions)
 
     def flip_selected(self, axis: str) -> bool:
@@ -4880,7 +5014,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._snap_state.update(snap)
         # Placed directly (no MoveCmd): sync the typed objects or the
         # position overlay reverts the flip on the next level change.
-        self.sync_model_positions()
+        self._sync_items(sel)
         self._push_bulk_geometry(
             "Flip Horizontal" if horiz else "Flip Vertical", old_positions)
         return True
@@ -4917,7 +5051,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 self._move_by(it, delta if horiz else 0,
                              0 if horiz else delta)
             cursor += (hi - lo) + gap
-        self.sync_model_positions()   # see align_selected's comment
+        self._sync_items(sel)         # see align_selected's comment
         self._push_bulk_geometry("Distribute", old_positions)
 
 
@@ -5988,18 +6122,33 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         elements an element-wise command such as Mass Edit acts on. The
         ID=0 defaults block and the Start/End/In/Out markers are not
         elements the user edits."""
-        # Skip items that no longer exist. Entering or leaving a hierarchy
-        # rebuilds the scene while selection-changed signals are still being
-        # delivered, and the item maps briefly hold wrappers of items Qt has
-        # already deleted -- touching one raises RuntimeError.
-        def selected(items):
-            return [(oid, it) for oid, it in items.items()
-                    if isValid(it) and it.isSelected()]
-        blocks = [bid for bid, _it in selected(self._block_items) if bid != 0]
-        nodes = [nid for nid, _it in selected(self._node_items)
-                 if nid in self.nodes and self.nodes[nid].type_node == 2]
-        events = [eid for eid, _it in selected(self._event_items)]
-        hiers = [hid for hid, _it in selected(self._hier_items)]
+        # Walk the scene's selection (O(selected)), not every id->item map
+        # on the level (O(n)): this runs twice per click -- from
+        # `block_selected` and again from `selection_changed` -- so on a
+        # 10,000-element level the map walks cost tens of milliseconds per
+        # click. Asking the scene also skips wrappers Qt has already
+        # deleted (entering/leaving a hierarchy rebuilds the scene while
+        # selection-changed signals are still being delivered).
+        blocks: list[int] = []
+        nodes: list[int] = []
+        events: list[int] = []
+        hiers: list[int] = []
+        try:
+            items = self._scene.selectedItems()
+        except RuntimeError:          # scene torn down during shutdown
+            return [], [], [], []
+        for it in items:
+            if isinstance(it, _BlockItem):
+                if it._block_id != 0:
+                    blocks.append(it._block_id)
+            elif isinstance(it, _NodeItem):
+                node = self.nodes.get(it._node_id)
+                if node is not None and node.type_node == 2:
+                    nodes.append(it._node_id)
+            elif isinstance(it, _EventItem):
+                events.append(it._event_id)
+            elif isinstance(it, _HierItem):
+                hiers.append(it._hier_id)
         return blocks, nodes, events, hiers
 
     def hierarchy_count(self) -> int:
@@ -6452,17 +6601,30 @@ class _MinimapView(QGraphicsView):
 
     def _scene_signature(self) -> tuple:
         """Cheap fingerprint of what the overview shows: how many elements
-        and links there are, and where the elements are."""
+        and links there are, and (via the view's layout generation) where
+        the elements are.
+
+        This polled every 200 ms, so hashing every element's position made
+        an idle 10,000-element canvas do 50,000 hash-and-round operations a
+        second for a picture that had not changed. The generation counter
+        is bumped by the view whenever an item moves or the level is
+        rebuilt, which is exactly what the fingerprint has to notice."""
         mv = self._main_view
-        acc, n = 0, 0
+        n = (len(mv._block_items) + len(mv._node_items)
+             + len(mv._event_items) + len(getattr(mv, "_hier_items", {})))
+        gen = getattr(mv, "_layout_generation", None)
+        if gen is not None:
+            return (n, gen, len(mv._links))
+        # No generation counter (a caller with a plain view): fall back to
+        # the positional fingerprint.
+        acc = 0
         for items in (mv._block_items, mv._node_items, mv._event_items,
-                      mv._hier_items):
+                      getattr(mv, "_hier_items", {})):
             for it in items.values():
                 if isValid(it):
                     p = it.pos()
                     acc = (acc * 31 + hash((round(p.x(), 1),
                                             round(p.y(), 1)))) & 0xFFFFFFFF
-                    n += 1
         return (n, acc, len(mv._links))
 
     def _notice_changes(self) -> None:
