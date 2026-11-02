@@ -305,7 +305,7 @@ class ContextMenuMixin:
             menu.addSeparator()
             dep_action = menu.addAction("Focus on Dependency")
         chosen = self._exec_menu(menu, event)
-        if chosen is routing_act:
+        if routing_act is not None and chosen is routing_act:
             self.insert_routing_node(clicked._link_num, mx, my)
         elif chosen is paste_act:
             self.paste(at_model=(mx, my))
