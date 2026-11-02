@@ -6237,8 +6237,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         level is laid out every time; the selection is kept."""
         if direction is None:
             direction = str(app_settings.get("layout/direction", "LR"))
+        if direction not in ("LR", "RL", "TB", "BT"):
+            direction = "LR"
         if max_columns is None:
-            configured = int(app_settings.get("layout/max_columns", 0) or 0)
+            try:
+                configured = int(app_settings.get("layout/max_columns", 0)
+                                 or 0)
+            except (TypeError, ValueError):
+                configured = 0
             max_columns = configured if configured > 0 else None
         # Bipartite adjacency, ref-aware: ('Node', 3) and ('Block', 3)
         # are different elements -- keying by bare id let a layering walk
