@@ -15,6 +15,14 @@ _GLYPH = 0.62
 #: Extra horizontal room around a label (the item's own padding).
 _PAD = 10.0
 
+#: The model-units-per-pixel scale the headless layout paths size their
+#: columns at. The GUI measures exact Qt extents and divides by this same
+#: reference, NOT by the view's current scale: a layout pass must produce
+#: the same model-unit pitches every time, or re-running Auto Layout would
+#: feed a shrinking scale back into the next pass and ratchet the diagram.
+#: The transform itself is then derived from the drawn extents.
+REFERENCE_SCALE = 64.0
+
 #: Name column per section.
 NAME_COLUMNS = {
     "BLOCK_DATA": "blockName",

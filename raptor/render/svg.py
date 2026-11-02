@@ -181,7 +181,8 @@ def _frame(boxes: list[tuple[float, float, float, float]],
     return x0, y0, max(x1 - x0, 1.0), max(y1 - y0, 1.0)
 
 
-def _routed(src: _Shape, dst: _Shape, shapes: list[_Shape], router: Router, mode: str,
+def _routed(src: _Shape, dst: _Shape, boxes: list[tuple[float, float, float, float]],
+            router: Router, mode: str,
             targets: list[_Shape], sources: list[_Shape]):
     """A right-angled route from `src` to `dst`, or None (draw it straight).
     Leaves along the page flow: sideways when the target is more across than
@@ -201,7 +202,6 @@ def _routed(src: _Shape, dst: _Shape, shapes: list[_Shape], router: Router, mode
 
     if mode == "angled":
         return angled(port(src, out_side), out_side, port(dst, in_side), in_side)
-    boxes = [s.bounds() for s in shapes if s is not src and s is not dst]
     p0, p3 = port(src, out_side), port(dst, in_side)
     hint = fan_hint(out_side, in_side, p0, p3,
                     [t.bounds() for t in targets], [s.bounds() for s in sources])
@@ -218,10 +218,14 @@ def _links_svg(links: list[tuple[_Shape, _Shape]], shapes: list[_Shape],
     for s, d in links:
         fans_out.setdefault(id(s), []).append(d)
         fans_in.setdefault(id(d), []).append(s)
+    # One obstacle snapshot for the whole render: rebuilding it per link
+    # made a large drawing's routing quadratic before the router's own
+    # time budget could even start.
+    boxes = [s.bounds() for s in shapes] if routing != "straight" else []
     out: list[str] = []
     routed = 0
     for src, dst in links:
-        route = (_routed(src, dst, shapes, router, routing,
+        route = (_routed(src, dst, boxes, router, routing,
                          fans_out[id(src)], fans_in[id(dst)])
                  if routing != "straight" else None)
         if route is not None:

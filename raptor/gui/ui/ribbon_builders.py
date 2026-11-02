@@ -562,42 +562,6 @@ class RibbonBuilders(_Base):
             view.reroute_links()
 
     def _build_layout_settings(self, group) -> None:
-        """View > Appearance: default Auto Layout flow direction and wrap."""
-        from raptor.gui.ui import settings as app_settings
-
-        direction = QComboBox()
-        direction.setAccessibleName("Auto Layout direction")
-        direction.setToolTip(
-            "Auto Layout flow direction. Left-to-right is the page flow "
-            "the orthogonal link router is tuned for; other directions "
-            "transpose the same layered grid.")
-        for key, label in (("LR", "Left to right"), ("RL", "Right to left"),
-                           ("TB", "Top to bottom"), ("BT", "Bottom to top")):
-            direction.addItem(label, key)
-        direction.setCurrentIndex(max(direction.findData(
-            str(app_settings.get("layout/direction", "LR"))), 0))
-        direction.currentIndexChanged.connect(
-            lambda _i: app_settings.set_value(
-                "layout/direction", direction.currentData()))
-
-        columns = QComboBox()
-        columns.setAccessibleName("Auto Layout maximum columns")
-        columns.setToolTip(
-            "Wrap Auto Layout into another band after this many flow "
-            "columns. Auto waits for the canvas width.")
-        for value, label in ((0, "Auto"), (4, "4"), (6, "6"), (8, "8"),
-                             (12, "12"), (16, "16")):
-            columns.addItem(label, value)
-        current = int(app_settings.get("layout/max_columns", 0) or 0)
-        columns.setCurrentIndex(max(columns.findData(current), 0))
-        columns.currentIndexChanged.connect(
-            lambda _i: app_settings.set_value(
-                "layout/max_columns", int(columns.currentData() or 0)))
-        for text, widget in (("Direction", direction),
-                             ("Max columns", columns)):
-            group.add_widget(_labeled_box(text, widget, label_width=82))
-
-    def _build_layout_settings(self, group) -> None:
         """View > Appearance: Auto Layout direction and column limit."""
         from raptor.gui.ui import settings as app_settings
 

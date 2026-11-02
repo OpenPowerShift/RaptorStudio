@@ -329,32 +329,48 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     for L in sorted(by_layer):
         col_base[L] = L + extra
         extra += -(-len(by_layer[L]) // ROW_CHUNK) - 1
-    # Rows hang from one centre line, lowered when the tallest chunk would
-    # otherwise pass the top of Raptor's canvas (Y_MAX). Centred on
-    # ROW_CENTRE, 7 or more rows reached y = 100 and beyond.
-    n_max = min(ROW_CHUNK, max(len(ks) for ks in by_layer.values()))
-    half = (n_max - 1) / 2.0 * ROW_PITCH
-    centre = min(ROW_CENTRE, Y_MAX - half)
+
+    # The flow axis runs along the direction of reading (x for LR/RL, y
+    # for TB/BT); the cross axis is the one rows spread on. Everything
+    # below is computed in those two axes and only turned into scene
+    # coordinates at the very end, so a top-to-bottom layout wraps and
+    # spaces by the same rules as a left-to-right one.
+    from .view_transform import NODE_NARROW_HALF_PX
+
+    horizontal = direction in ("LR", "RL")
+    flow_i = 0 if horizontal else 1
+    cross_i = 1 - flow_i
+
+    def raw_box(k) -> tuple[float, float]:
+        """Drawn half-extents without the clearance margin."""
+        return boxes[k][0] - _CLEAR, boxes[k][1] - _CLEAR
+
+    # Rows spread along the cross axis. The pitch is charged on the
+    # elements' DRAWN cross extent: a long name makes a block wide, and in
+    # a TB layout blocks sit side by side, so a fixed 2.5-unit row pitch
+    # would overlap them.
+    def cross_step(keys) -> float:
+        widest = max((raw_box(k)[cross_i] for k in keys), default=0.0)
+        return max(ROW_PITCH,
+                   (2.0 * widest + 52.0) / px_per_unit)
 
     col_of: dict = {}
-    pos: dict = {}
+    row_off: dict = {}
 
     def place_layer(L, ordered):
         """Put a layer's elements, in `ordered` order, into its chunk
-        columns, each chunk centred on the centre line."""
+        columns, each chunk centred on the cross axis."""
         for chunk, start in enumerate(range(0, len(ordered), ROW_CHUNK)):
             group = ordered[start:start + ROW_CHUNK]
             n = len(group)
+            step = cross_step(group)
+            c = col_base[L] + chunk
             for i, k in enumerate(group):
-                col_of[k] = col_base[L] + chunk
-                pos[k] = [col_of[k],
-                          centre + (i - (n - 1) / 2.0) * ROW_PITCH]
+                col_of[k] = c
+                row_off[k] = (i - (n - 1) / 2.0) * step
 
     for L in sorted(by_layer):
         place_layer(L, sorted(by_layer[L]))
-    node_only: dict = {}
-    for k, c in col_of.items():
-        node_only[c] = node_only.get(c, True) and kind_of(k) == "node"
 
     # The barycenter sweeps that used to follow here never reordered a
     # row: they computed an order and then wrote rows back by loop index,
@@ -363,71 +379,162 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # their neighbours would move every layout; the rows keep that same
     # id order.
 
-    # Columns to x. A level wider than Raptor's canvas wraps into bands
-    # stacked downward, alternating direction (left to right, then right
-    # to left) so the link from one band's last column to the next band's
-    # first stays short and vertical instead of crossing the whole band.
-    # Actual half-widths per column, in model units. The fixed `_HALF`
-    # boxes include a clearance margin and made two hierarchy ovals look
-    # wider than their 2.5-unit pitch even when the drawn ovals clear each
-    # other; that false overlap is what zig-zagged a straight chain.
-    col_hw: dict = {}
+    # Extent of each column along the flow axis, in model units. The
+    # fixed `_HALF` boxes include a clearance margin and made two
+    # hierarchy ovals look wider than their 2.5-unit pitch even when the
+    # drawn ovals clear each other; that false overlap is what zig-zagged
+    # a straight chain.
+    col_flow: dict = {}
     for k, c in col_of.items():
-        col_hw[c] = max(col_hw.get(c, 0.0), boxes[k][0] - _CLEAR)
-    col_x: dict = {}
+        col_flow[c] = max(col_flow.get(c, 0.0), raw_box(k)[flow_i])
+
+    # Columns to flow coordinates. A level wider than the available flow
+    # span (or than `max_columns`) wraps into bands on the cross axis.
+    # Automatic (canvas-width) wrapping alternates direction so the link
+    # from a full band's last column to the next band's first stays short;
+    # an explicit `max_columns` keeps the requested flow direction (see
+    # `snake` below).
+    flow_lo, flow_hi = ((FIRST_X, X_MAX) if horizontal
+                        else (Y_MIN + FIRST_X, Y_MAX - FIRST_X))
+    limit = flow_hi - flow_lo
+
+    def flow_pitch(c0: int, c1: int) -> float:
+        a, b = col_flow.get(c0, 0.0), col_flow.get(c1, 0.0)
+        # Narrow (a plain node with a short label) is measured in pixels:
+        # comparing model units against the 18 px node radius charged a
+        # 120x scene's node columns as narrow and put them 1.25 units
+        # apart, which the transform then had to inflate the scale for.
+        # The transform's `_column_pitch_scale` uses the same limit, so
+        # the two never charge different gaps for the same columns.
+        narrow = (max(a, b) * px_per_unit
+                  <= NODE_NARROW_HALF_PX + 1e-9)
+        gap_px = 40.0 if narrow else 52.0
+        return max(NODE_PITCH if narrow else LAYER_PITCH,
+                   a + b + gap_px / px_per_unit)
+
     col_band: dict = {}
-    limit = X_MAX - FIRST_X
+    col_local: dict = {}
     local = 0.0
     band = 0
     prev = None
     columns_in_band = 0
     for c in range(max(col_of.values()) + 1):
         if prev is not None:
-            if max_columns is not None and columns_in_band >= max_columns:
+            pitch = flow_pitch(prev, c)
+            wrap = (max_columns is not None
+                    and columns_in_band >= max_columns)
+            if not wrap and local + pitch > limit + 1e-9:
+                wrap = True
+            if wrap:
                 band += 1
                 local = 0.0
                 columns_in_band = 0
-            both_nodes = (node_only.get(prev, True)
-                          and node_only.get(c, True)
-                          and max(col_hw.get(prev, 0.0),
-                                  col_hw.get(c, 0.0)) <= 18.0)
-            # Keep the scene's minimum gap in pixels, converted to model
-            # units at this scene scale.
-            gap_px = 40.0 if both_nodes else 52.0
-            width_pitch = (col_hw.get(prev, 0.0) + col_hw.get(c, 0.0)
-                           + gap_px / px_per_unit)
-            local += max(NODE_PITCH if both_nodes else LAYER_PITCH,
-                         width_pitch)
-            if local > limit + 1e-9:
-                band += 1
-                local = 0.0
-                columns_in_band = 0
-        columns_in_band += 1
-        col_x[c] = FIRST_X + local if band % 2 == 0 else X_MAX - local
+            else:
+                local += pitch
         col_band[c] = band
+        col_local[c] = local
+        columns_in_band += 1
         prev = c
     wrapped = band > 0
-    band_h = 2.0 * half + 2.0 * ROW_PITCH
-    centre_of = {k: centre - col_band[col_of[k]] * band_h for k in pos}
-    for k in pos:
-        pos[k] = [col_x[col_of[k]],
-                  pos[k][1] - col_band[col_of[k]] * band_h]
-    band_lo = min(_BAND_LO, centre - half)
-    band_hi = _BAND_HI
+    n_bands = band + 1
 
-    # in/out markers sit exactly on the centre line (the level's in and
-    # out nodes are centre aligned)
+    # Cross extent of each band, from the drawn elements in it.
+    cross_half = [0.0] * n_bands
+    for k in member_set:
+        b = col_band[col_of[k]]
+        cross_half[b] = max(cross_half[b],
+                            abs(row_off[k]) + raw_box(k)[cross_i])
+    # A blank ROW_PITCH between bands, at least: bands hold separate
+    # groups of elements and must read as such. When that does not fit
+    # the cross axis, tighten to the one-grid-line minimum (still clear:
+    # the bands' own half-extents are already counted) before giving up.
+    cross_lo, cross_hi = (Y_MIN, Y_MAX) if horizontal else (FIRST_X, X_MAX)
+    available = cross_hi - cross_lo
+
+    def _band_offsets(gap: float) -> list[float]:
+        offsets = [0.0] * n_bands
+        for b in range(1, n_bands):
+            offsets[b] = (offsets[b - 1] + cross_half[b - 1]
+                          + cross_half[b] + gap)
+        return offsets
+
+    band_gap = max(ROW_PITCH, 40.0 / px_per_unit)
+    band_offset = _band_offsets(band_gap)
+    cross_span = band_offset[-1] + cross_half[-1] + cross_half[0]
+    if cross_span > available + 1e-9 and n_bands > 1:
+        tighter = _band_offsets(GRID)
+        tighter_span = tighter[-1] + cross_half[-1] + cross_half[0]
+        if tighter_span < cross_span:
+            band_gap, band_offset, cross_span = GRID, tighter, tighter_span
+
+    if horizontal:
+        # Bands stack downward from a top centre line. Raise/lower that
+        # line so the whole stack fits the canvas; when it cannot, the
+        # pass is reported as outside_world rather than silently drawn
+        # off the edge.
+        cross_upper = cross_hi - cross_half[0]
+        cross_lower = cross_lo + cross_span - cross_half[0]
+        centre = min(ROW_CENTRE, cross_upper)
+        if centre < cross_lower:
+            centre = cross_lower
+        fits = cross_lower <= cross_upper
+        band_centre = [centre - band_offset[b] for b in range(n_bands)]
+    else:
+        # Bands sit side by side, centred across the canvas width.
+        margin = (available - cross_span) / 2.0
+        band_centre = [cross_lo + margin + cross_half[0] + band_offset[b]
+                       for b in range(n_bands)]
+        fits = margin >= -(1e-9)
+
+    # Alternating (serpentine) bands keep the link from one band's last
+    # column to the next band's first short only when each band spans the
+    # flow axis. An explicit `max_columns` makes bands deliberately short,
+    # so there the flow keeps the requested direction in every band and
+    # only the cross position changes; the band hand-over then returns to
+    # the flow origin, one row away, instead of jumping to the far edge.
+    snake = max_columns is None
+    centre_of = {k: band_centre[col_band[col_of[k]]] for k in col_of}
+    pos: dict = {}
+    for k in member_set:
+        c = col_of[k]
+        b = col_band[c]
+        local = col_local[c]
+        forward = b % 2 == 0 or not snake
+        if horizontal:
+            x = flow_lo + local if forward else flow_hi - local
+            y = centre_of[k] + row_off[k]
+            if direction == "RL":
+                x = X_MAX + FIRST_X - x
+        else:
+            y = flow_hi - local if forward else flow_lo + local
+            if direction == "BT":
+                y = flow_lo + flow_hi - y
+            x = centre_of[k] + row_off[k]
+        pos[k] = [x, y]
+
+    # in/out markers sit exactly on their band's centre line (the level's
+    # in and out nodes are centre aligned)
     for k in list(entries) + list(pins):
-        if k in pos:
+        if k not in pos:
+            continue
+        if horizontal:
             pos[k][1] = centre_of[k]
+        else:
+            pos[k][0] = centre_of[k]
 
-    if min(y for _x, y in pos.values()) < Y_MIN - 1e-9:
-        # Too many bands for the canvas height: the level cannot be drawn
-        # inside Raptor's canvas at this pitch.
+    xs = [xy[0] for xy in pos.values()]
+    ys = [xy[1] for xy in pos.values()]
+    if (not fits or min(xs) < FIRST_X - 1e-9 or max(xs) > X_MAX + 1e-9
+            or min(ys) < Y_MIN - 1e-9 or max(ys) > Y_MAX + 1e-9):
+        # Too many bands for the canvas: the level cannot be drawn inside
+        # Raptor's 150 x 100 canvas at this pitch. Nothing can fix that
+        # without overlapping elements, so report it for the caller/log.
         if report is not None:
             report["outside_world"] = report.get("outside_world", 0) + 1
         log.warning("layout: %d elements do not fit Raptor's 150 x 100 "
                     "canvas", len(pos))
+    band_lo = min(_BAND_LO, min(ys))
+    band_hi = max(_BAND_HI, max(ys))
 
     # --- greedy collision refine -----------------------------------
     edge_list = [(a, b) for a in member_set for b in succ.get(a, ())]
@@ -514,7 +621,17 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         hard_state[0] = hard
         return s
 
-    cur = score()
+    # The refine candidates move columns along x and rows along y, which
+    # only describes an LR/RL layout. A TB/BT layout is the same grid
+    # rotated, so it is placed already clear and the search is skipped.
+    #
+    # Only score when the search can actually run: `score()` walks every
+    # edge (and the edge-edge crossing scan is quadratic in the edge
+    # count), so scoring a 3,000-element fan that is too large/wrapped to
+    # refine anyway cost most of a minute for nothing.
+    refine_eligible = (horizontal and not wrapped
+                       and len(member_set) <= _REFINE_MAX_ELEMENTS)
+    cur = score() if refine_eligible else 0.0
     # A layered layout with no hard fault (no overlap, no edge through a
     # block, no crossing, everything in band) needs no greedy search: the
     # search can only trade aesthetic tiny terms, at O(n) score calls per
@@ -534,7 +651,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
             raise _OutOfTime
 
     best = None
-    if hard_state[0] and not wrapped and len(member_set) <= _REFINE_MAX_ELEMENTS:
+    if refine_eligible and hard_state[0]:
         try:
             for _pass in range(8 if len(member_set) > 150 else 25):
                 best = None          # (score, apply_fn)
@@ -615,30 +732,9 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                 report["refine_cut_short"] = report.get("refine_cut_short", 0) + 1
             log.info("layout refine stopped at its %.0f s budget",
                      refine_budget_s())
-    # snap everything to the grid
-    out = {k: [_snap(x), _snap(y)] for k, (x, y) in pos.items()}
-    if direction == "RL":
-        for xy in out.values():
-            xy[0] = _snap(X_MAX + FIRST_X - xy[0])
-    elif direction in ("TB", "BT"):
-        # Transpose: the flow runs down the page and the former rows
-        # spread across it. Compress the flow axis to the canvas height;
-        # row spacing is small enough to fit the canvas width in practice.
-        xs = [xy[0] for xy in out.values()]
-        ys = [xy[1] for xy in out.values()]
-        flow_lo, flow_hi = min(xs), max(xs)
-        span = max(flow_hi - flow_lo, 1.0)
-        row_mid = (min(ys) + max(ys)) / 2.0
-        cx = (FIRST_X + X_MAX) / 2.0
-        top, bottom = Y_MAX - FIRST_X, Y_MIN + FIRST_X
-        for xy in out.values():
-            frac = (xy[0] - flow_lo) / span
-            ny = (top - frac * (top - bottom)
-                  if direction == "TB"
-                  else bottom + frac * (top - bottom))
-            xy[0] = _snap(cx + (xy[1] - row_mid))
-            xy[1] = _snap(ny)
-    return {k: (x, y) for k, (x, y) in out.items()}
+    # snap everything to the grid (direction is already applied: flow and
+    # cross axes were laid out along the requested orientation above)
+    return {k: (_snap(x), _snap(y)) for k, (x, y) in pos.items()}
 
 
 def _grid_rows(lo, hi):
@@ -803,12 +899,15 @@ def _place_container(children: dict[str, list], links, entries, outs,
             continue
         col = element_size.NAME_COLUMNS.get(section, "")
         sizes[key] = (
-            element_size.model_half_width(section, row.get(col, ""), 64.0),
-            element_size.model_half_height(section, row.get(col, ""), 64.0),
+            element_size.model_half_width(
+                section, row.get(col, ""), element_size.REFERENCE_SCALE),
+            element_size.model_half_height(
+                section, row.get(col, ""), element_size.REFERENCE_SCALE),
         )
     pos = layout_container_positions(members.keys(), edges,
                                      entries, pins=outs, deadline=deadline,
-                                     report=report, sizes=sizes, scale=64.0,
+                                     report=report, sizes=sizes,
+                                     scale=element_size.REFERENCE_SCALE,
                                      direction=direction,
                                      max_columns=max_columns)
     for k, (x, y) in pos.items():

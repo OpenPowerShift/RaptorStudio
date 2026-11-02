@@ -1286,6 +1286,25 @@ _LAYOUT_SECTIONS = ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA",
                     "HIERARCHY_DATA")
 
 
+def _layout_rows(rbd: Any, matches) -> set[tuple[str, str]]:
+    """Every content row for which ``matches(section, id, parent)`` holds.
+
+    Parent columns differ per section (`ParentId`, `parent`, `Parent`); the
+    hierarchy level an element belongs to is the one thing all four carry,
+    so the lookup normalises them here instead of at every call site.
+    """
+    allowed: set[tuple[str, str]] = set()
+    for sec in _LAYOUT_SECTIONS:
+        for r in rbd.section(sec).rows:
+            eid = str(r.get("ID"))
+            if eid == "0":
+                continue
+            parent = str(r.get("ParentId", r.get("parent", "0")))
+            if matches(sec, eid, parent):
+                allowed.add((sec, eid))
+    return allowed
+
+
 def _layout_scope(rbd: Any, hierarchy: str | int | None,
                   selectors: list[str] | None,
                   all_levels: bool = False) -> tuple[str, set[tuple[str, str]] | None]:
@@ -1304,16 +1323,10 @@ def _layout_scope(rbd: Any, hierarchy: str | int | None,
         if section != "HIERARCHY_DATA":
             raise ValueError(f"{hierarchy!r} is not a hierarchy")
         hid = str(row["ID"])
-        allowed: set[tuple[str, str]] = set()
-        for sec in _LAYOUT_SECTIONS:
-            for r in rbd.section(sec).rows:
-                if str(r.get("ID")) == "0":
-                    continue
-                parent = r.get("ParentId", r.get("parent", "0"))
-                eid = str(r.get("ID"))
-                if str(parent) == hid or (
-                        sec == "HIERARCHY_DATA" and eid == hid):
-                    allowed.add((sec, eid))
+        allowed = _layout_rows(
+            rbd,
+            lambda sec, eid, parent: parent == hid
+            or (sec == "HIERARCHY_DATA" and eid == hid))
         return f"hierarchy {row.get('hierarchyName', hid)!r}", allowed
 
     if selectors:
@@ -1326,16 +1339,26 @@ def _layout_scope(rbd: Any, hierarchy: str | int | None,
         return "model", None
     # Default: the home level only, matching the GUI. A whole-model rewrite
     # from a no-argument call was too destructive on a large model.
-    allowed = set()
-    for sec in _LAYOUT_SECTIONS:
-        for r in rbd.section(sec).rows:
-            eid = str(r.get("ID"))
-            if eid == "0":
-                continue
-            parent = r.get("ParentId", r.get("parent", "0"))
-            if str(parent) == "0":
-                allowed.add((sec, eid))
-    return "home level", allowed
+    return "home level", _layout_rows(rbd, lambda _sec, _eid, parent:
+                                      parent == "0")
+
+
+def _validate_layout_args(direction: str, max_columns: int | None) -> None:
+    """Reject a bad direction / column limit before any layout work.
+
+    The MCP SDK enforces the signature's Literal/enum for a real client,
+    but the tool is also callable in-process (tests, the assistant bridge)
+    where Python does not check the annotation. Failing here keeps the
+    error at the tool boundary instead of inside a half-laid-out copy.
+    """
+    if direction not in ("LR", "RL", "TB", "BT"):
+        raise ValueError("direction must be one of 'LR', 'RL', 'TB', 'BT'; "
+                         f"got {direction!r}")
+    if max_columns is not None and (
+            isinstance(max_columns, bool) or not isinstance(max_columns, int)
+            or max_columns < 1):
+        raise ValueError("max_columns must be a positive integer or None; "
+                         f"got {max_columns!r}")
 
 
 def _layout_coords(rbd: Any) -> dict[tuple[str, str], tuple[Any, Any]]:
@@ -1391,7 +1414,7 @@ def auto_layout(model_id: str,
                 hierarchy: str | int | None = None,
                 selectors: list[str] | None = None,
                 all_levels: bool = False,
-                direction: str = "LR",
+                direction: Literal["LR", "RL", "TB", "BT"] = "LR",
                 max_columns: int | None = None) -> CallToolResult:
     """Re-arrange a model's diagram onto the shared layered grid.
 
@@ -1436,6 +1459,7 @@ def auto_layout(model_id: str,
     Returns {moved, model_id, scope, elements_moved, annotations_moved,
     refine_cut_short}.
     """
+    _validate_layout_args(direction, max_columns)
     context.require_write()
     ws = context.workspace()
     handle = ws.get(model_id)

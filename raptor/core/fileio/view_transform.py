@@ -29,6 +29,11 @@ NODE_R = 18
 MIN_ELEMENT_GAP = 52
 #: Between two NODES a link needs room for its arrowhead only.
 NODE_GAP = 40
+#: Largest drawn half-width that still counts as a plain node column for
+#: pitch purposes. A node symbol is 18 px, but its name label can be a
+#: little wider without needing the full block gap; the layout engine uses
+#: this same limit (in pixels) so the two never disagree.
+NODE_NARROW_HALF_PX = 30.0
 LEGACY_SCALE = 8.0
 
 #: Half the taller of a block and a node -- the radius an element in a
@@ -145,7 +150,8 @@ def _column_pitch_scale(rbd: Any) -> float:
     for cols in _levels_by_kind(rbd).values():
         for a, b in itertools.pairwise(sorted(cols)):
             ha, hb = cols[a], cols[b]
-            gap = NODE_GAP if max(ha, hb) <= NODE_R else MIN_ELEMENT_GAP
+            gap = (NODE_GAP if max(ha, hb) <= NODE_NARROW_HALF_PX
+                   else MIN_ELEMENT_GAP)
             needed = max(needed, (ha + hb + gap) / (b - a))
     return needed
 
