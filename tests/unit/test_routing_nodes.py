@@ -106,6 +106,28 @@ def test_new_grip_starts_exactly_on_the_drawn_link(qapp):
     assert (grip.scenePos() - nearest).manhattanLength() == pytest.approx(0.0)
 
 
+def test_adding_a_grip_preserves_the_routes_in_every_link_style(qapp):
+    from raptor.gui.ui.diagram_items import set_link_routing
+
+    def points(link):
+        return [(link.path().elementAt(i).x, link.path().elementAt(i).y)
+                for i in range(link.path().elementCount())]
+
+    try:
+        for mode in ("straight", "angled", "orthogonal"):
+            set_link_routing(mode)
+            v = _view()
+            v.reroute_links()
+            link = v._links[0]
+            before = points(link)
+            scene = link.line().center() + QPointF(20.0, 15.0)
+            mx, my = v._vt.to_model(scene.x(), scene.y())
+            assert v.insert_routing_node(link._link_num, mx, my)
+            assert points(link) == before, mode
+    finally:
+        set_link_routing("straight")
+
+
 def test_moving_a_grip_snaps_to_the_canvas_grid(qapp):
     v = _open_shown_view(qapp)
     link = v._links[0]

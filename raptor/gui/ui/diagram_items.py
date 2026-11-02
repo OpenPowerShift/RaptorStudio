@@ -1110,10 +1110,17 @@ class _LinkItem(QGraphicsPathItem):
         return best
 
     def add_grip(self, grip) -> None:
-        """Attach a draggable routing point and redraw through it."""
+        """Attach a draggable routing point.
+
+        A newly added point is inactive until dragged, so the link keeps
+        its exact existing path -- re-routing here could pick a slightly
+        different (but valid) orthogonal route. Only an active point
+        changes the drawing.
+        """
         if grip not in self._grips:
             self._grips.append(grip)
-        self._update_route()
+        if getattr(grip, "_active", True):
+            self._update_route()
 
     def remove_grip(self, grip) -> None:
         if grip in self._grips:
