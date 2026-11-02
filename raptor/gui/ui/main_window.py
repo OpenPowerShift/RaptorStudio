@@ -7077,21 +7077,50 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         except Exception:
             pass
 
+    #: How much of the results-population bar each stage represents. The
+    #: stage counts are not equal work: detail tables and graphs dominate.
+    _RESULT_STAGE_PCT = {
+        "overview": 5,
+        "detail tables": 35,
+        "level filter": 40,
+        "graphs": 70,
+        "raw report": 85,
+        "event log": 100,
+    }
+
     def _results_stage_progress(self, label: str, done: int, total: int) -> None:
-        """Report a ResultsDock population stage and paint it.
+        """Advance one results-population stage without flickering.
 
         `set_results` builds tables, graphs and the raw preview on the GUI
-        thread. On a large batch that tail used to give no feedback at all.
+        thread. The old code called `showMessage` and `processEvents()` for
+        every stage; a fast batch therefore repainted the status text six
+        times in quick succession, which read as flicker. Drive the thin
+        progress bar monotonically instead, and repaint the message at most
+        once every `_STAGE_PUMP_SECONDS`.
+
         The re-entrancy guard keeps `processEvents()` from landing back in
         `_bg_poll_tick` (or another results population) while the dock is
         half-built; user input is excluded so a Run/Close click cannot
         either. The click is not lost -- it is delivered once population
         returns.
         """
-        self._statusbar.showMessage(
-            f"Processing results — {label} ({done}/{total})")
-        QApplication.processEvents(
-            QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+        pct = self._RESULT_STAGE_PCT.get(label)
+        if pct is None:
+            pct = 100 * int(done) // max(int(total), 1)
+        pct = max(int(pct), int(getattr(self, "_results_stage_pct", 0)))
+        pct = min(pct, 100)
+        self._results_stage_pct = pct
+        self._run_progress.setVisible(True)
+        self._run_progress.setValue(pct)
+        self._run_progress_label.setVisible(True)
+        self._run_progress_label.setText(f"{pct}%")
+        now = time.monotonic()
+        if pct >= 100 or now - getattr(self, "_last_results_pump", 0.0) >= \
+                self._STAGE_PUMP_SECONDS:
+            self._last_results_pump = now
+            self._statusbar.showMessage(f"Processing results — {label}…")
+            QApplication.processEvents(
+                QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
 
     #: Minimum gap between event-loop pumps from the per-run report-stage
     #: callback. The runner calls it once per run during the End-of-Run
@@ -7100,15 +7129,30 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     _STAGE_PUMP_SECONDS = 0.05
 
     def _set_results_with_progress(self, *args, **kwargs):
-        """Call ResultsDock.set_results with stage feedback, guarded."""
+        """Call ResultsDock.set_results with smooth stage feedback, guarded."""
         if getattr(self, "_results_populating", False):
             return
         self._results_populating = True
+        self._results_stage_pct = 0
+        self._last_results_pump = 0.0
+        self._run_progress.setRange(0, 100)
+        self._run_progress.setValue(0)
+        self._run_progress_label.setText("0%")
+        self._run_progress.setVisible(True)
+        self._run_progress_label.setVisible(True)
+        self._statusbar.showMessage("Processing results…")
+        QApplication.processEvents(
+            QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
         try:
             kwargs.setdefault("progress", self._results_stage_progress)
             self._results.set_results(*args, **kwargs)
         finally:
             self._results_populating = False
+            self._results_stage_pct = 0
+            self._run_progress.setValue(100)
+            self._run_progress_label.setText("100%")
+            self._run_progress.setVisible(False)
+            self._run_progress_label.setVisible(False)
 
     def _report_stage_progress(self, done: int, total: int, label: str) -> None:
         """Worker/poll-facing report-stage callback (no Qt widgets).
