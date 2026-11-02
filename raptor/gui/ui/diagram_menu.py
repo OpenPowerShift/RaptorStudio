@@ -10,6 +10,7 @@ from raptor.gui.ui.diagram_items import (
     _HierItem,
     _LinkItem,
     _NodeItem,
+    _RouteGripItem,
     _view_status,
 )
 from raptor.gui.ui.diagram_annotations import (
@@ -52,6 +53,16 @@ class ContextMenuMixin:
             event.accept()
             return
         scene_pos = self.mapToScene(event.position().toPoint())
+        grip = next((it for it in self._scene.items(scene_pos)
+                     if isinstance(it, _RouteGripItem)), None)
+        if grip is not None:
+            menu = QMenu(self)
+            delete_act = menu.addAction("Delete routing point")
+            chosen = self._exec_menu(menu, event)
+            if chosen is delete_act:
+                self.delete_route_grip(grip)
+            event.accept()
+            return
         sel_count = len([it for it in self._scene.selectedItems()
                          if it.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable])
         align_menu = None

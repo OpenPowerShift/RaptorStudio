@@ -3801,6 +3801,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         grips = self._route_grips.get(link_id) or []
         return grips[-1] if grips else None
 
+    def delete_route_grip(self, grip) -> None:
+        """Delete one clicked routing point; the link itself is untouched."""
+        if grip is None or self._rbd_ref is None:
+            return
+        entry = next((a for a in getattr(self._rbd_ref, "link_grips", [])
+                      if int(a.get("id", 0)) == grip._entry_id), None)
+        if entry is None:
+            return
+        self._stack.push(RouteGripCmd(self, entry, add=False))
+        _view_status(self, "Routing point removed")
+
     def _apply_route_grip(self, entry: dict, add: bool) -> None:
         """Create or remove one GUI-only link grip (undo/redo body)."""
         aid = int(entry.get("id", 0))
