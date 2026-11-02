@@ -520,6 +520,16 @@
    "text": "Go To Phase\u2026",
    "tooltip": "Failure Effects View: choose a phase from the list and go straight to it.\n\nUnavailable: open Failure Effects View first"
   },
+  "_fev_inspector_toggle_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Failure Effects",
+   "tooltip": "Show the Failure Effects panel \u2014 the live system state, failures, effects and capacity while Failure Effects View is open\n\nUnavailable: open Failure Effects View first"
+  },
   "_fev_log_action": {
    "checkable": false,
    "checked": false,
@@ -1476,6 +1486,7 @@
    "_fev_erase_phase_action": false,
    "_fev_fail_action": false,
    "_fev_goto_phase_action": false,
+   "_fev_inspector_toggle_action": false,
    "_fev_log_action": false,
    "_fev_log_close_action": false,
    "_fev_log_open_action": true,
@@ -1614,6 +1625,7 @@
    "_fev_erase_phase_action": false,
    "_fev_fail_action": true,
    "_fev_goto_phase_action": false,
+   "_fev_inspector_toggle_action": false,
    "_fev_log_action": false,
    "_fev_log_close_action": false,
    "_fev_log_open_action": true,
@@ -1752,6 +1764,7 @@
    "_fev_erase_phase_action": false,
    "_fev_fail_action": false,
    "_fev_goto_phase_action": false,
+   "_fev_inspector_toggle_action": false,
    "_fev_log_action": false,
    "_fev_log_close_action": false,
    "_fev_log_open_action": true,
@@ -2518,6 +2531,11 @@
        "kind": "action",
        "large": false,
        "text": "Inspector"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Failure Effects"
       },
       {
        "kind": "action",

@@ -1039,6 +1039,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
         icon="inspector_dock_icon:text",
         checkable=True),
     CommandSpec(
+        id="view.fev_inspector_toggle",
+        attr="_fev_inspector_toggle_action",
+        text="Failure Effects",
+        icon="fev_panel_icon:accent",
+        tooltip=(
+            "Show the Failure Effects panel — the live system state, failures, "
+            "effects and capacity while Failure Effects View is open"),
+        checkable=True,
+        enabled=False,
+        enabled_when="fev_active"),
+    CommandSpec(
         id="view.results_toggle",
         attr="_results_toggle_action",
         text="Results",
@@ -1273,6 +1284,7 @@ LAYOUT: tuple[Page, ...] = (
                       Btn("arrange.zoom_hierarchy")), priority=4),
        Group("Panels", (Btn("view.explorer_toggle"),
                         Btn("view.inspector_toggle"),
+                        Btn("view.fev_inspector_toggle"),
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),

@@ -18,10 +18,10 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QHBoxLayout, QHeaderView, QLabel,
-    QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QMenu, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from raptor.core.engine.fmeca import fmeca_lists
+from raptor.core.engine.fmeca import fmeca_entries
 from raptor.core.engine.system_status import SystemColor
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 
@@ -39,6 +39,9 @@ _SYSTEM_HELP = {
     SystemColor.YELLOW: "The system is degraded: enough is working to stay up",
     SystemColor.RED: "The system is fully down",
 }
+
+#: One visible table row plus the exact element it can navigate to.
+_Row = tuple[str, str, str, str, tuple[str, int] | None]
 
 #: (list key, category, state, detail) in the order Raptor 7 reports them.
 _FAILURE_LISTS = (
@@ -73,12 +76,16 @@ class FevInspectorDock(QWidget):
     #: A row (or the summary text) was copied. The owning window may use
     #: this for a status-bar message; tests use it as a seam.
     copied = Signal(str)
+    #: "Go to element": the owning window navigates its canvas to this exact
+    #: element id (names are not unique, so a name lookup is not enough).
+    locate_requested = Signal(str, int)
 
     def __init__(self, parent: QWidget | None = None, *,
                  summary_provider: Callable[[], str] | None = None) -> None:
         super().__init__(parent)
         self._summary_provider = summary_provider
         self._rows: list[tuple[str, str, str, str]] = []
+        self._row_locators: list[tuple[str, int] | None] = []
         self._session: Any = None
         self._build()
 
@@ -102,18 +109,23 @@ class FevInspectorDock(QWidget):
         header.addWidget(self._headline, 1)
         outer.addLayout(header)
 
-        self._table = QTableWidget(0, len(_HEADERS))
-        self._table.setHorizontalHeaderLabels(list(_HEADERS))
-        self._table.setEditTriggers(
-            QAbstractItemView.EditTrigger.NoEditTriggers)
-        self._table.setSelectionBehavior(
+        self._table = self._build_table()
+        outer.addWidget(self._table, 1)
+        outer.addLayout(self._build_buttons())
+        self._sync_copy_buttons()
+
+    def _build_table(self) -> QTableWidget:
+        table = QTableWidget(0, len(_HEADERS))
+        table.setHorizontalHeaderLabels(list(_HEADERS))
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
-        self._table.setSelectionMode(
+        table.setSelectionMode(
             QAbstractItemView.SelectionMode.ExtendedSelection)
-        self._table.setAlternatingRowColors(True)
-        self._table.setWordWrap(False)
-        self._table.verticalHeader().setVisible(False)
-        header_view = self._table.horizontalHeader()
+        table.setAlternatingRowColors(True)
+        table.setWordWrap(False)
+        table.verticalHeader().setVisible(False)
+        header_view = table.horizontalHeader()
         header_view.setStretchLastSection(True)
         # Interactive columns with a sensible start width, NOT
         # ResizeToContents: the latter remeasures every cell after every
@@ -125,11 +137,14 @@ class FevInspectorDock(QWidget):
             1, QHeaderView.ResizeMode.Stretch)
         header_view.setSectionResizeMode(
             2, QHeaderView.ResizeMode.Interactive)
-        self._table.setColumnWidth(0, 104)
-        self._table.setColumnWidth(2, 104)
-        self._table.itemSelectionChanged.connect(self._sync_copy_buttons)
-        outer.addWidget(self._table, 1)
+        table.setColumnWidth(0, 104)
+        table.setColumnWidth(2, 104)
+        table.itemSelectionChanged.connect(self._sync_copy_buttons)
+        table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        table.customContextMenuRequested.connect(self._show_context_menu)
+        return table
 
+    def _build_buttons(self) -> QHBoxLayout:
         buttons = QHBoxLayout()
         self._copy_selected = QPushButton("Copy selected")
         self._copy_selected.setToolTip(
@@ -151,9 +166,7 @@ class FevInspectorDock(QWidget):
         self._copy_note = QLabel("")
         self._copy_note.setObjectName("SectionNote")
         buttons.addWidget(self._copy_note)
-        outer.addLayout(buttons)
-
-        self._sync_copy_buttons()
+        return buttons
 
     # ---- data -----------------------------------------------------------
 
@@ -167,74 +180,93 @@ class FevInspectorDock(QWidget):
             return
         colour = self._session.system_color
         self._set_badge(colour, _SYSTEM_WORD.get(colour, colour.value))
-        self._populate(self._rows)
+        self._populate(self._rows, self._row_locators)
 
     def update_session(self, session: Any, *,
                        show_criticality: bool = False,
                        capacity: dict[str, Any] | None = None) -> None:
         """Rebuild the table from a `FevSession`'s current state."""
         self._session = session
-        lists = fmeca_lists(session)
-        rows: list[tuple[str, str, str, str]] = []
-
-        # -- system ---------------------------------------------------
+        entries = fmeca_entries(session)
+        lists = {key: [name for name, _kind, _id in values]
+                 for key, values in entries.items()}
         colour = session.system_color
         word = _SYSTEM_WORD.get(colour, colour.value)
-        rows.append(_section("SYSTEM"))
-        rows.append(("System", "Status", word, _SYSTEM_HELP.get(colour, "")))
+        rows = [
+            (*_section("SYSTEM"), None),
+            *self._system_rows(session, colour, word, show_criticality),
+            (*_section("FAILURES"), None),
+            *self._failure_rows(entries),
+            (*_section("EFFECTS"), None),
+            *self._effect_rows(entries),
+            (*_section("CAPACITY"), None),
+            *self._capacity_rows(capacity),
+        ]
+        self._headline.setText(self._headline_text(session, lists))
+        self._set_badge(colour, word)
+        self._populate([row[:4] for row in rows],
+                       [row[4] for row in rows])
+
+    @staticmethod
+    def _system_rows(session: Any, colour: SystemColor, word: str,
+                     show_criticality: bool) -> list[_Row]:
+        rows: list[_Row] = [
+            ("System", "Status", word, _SYSTEM_HELP.get(colour, ""), None)]
         if session.phased:
             phase = session.model.phases[session.phase_number - 1]
             rows.append(("System", "Phase",
                          f"{session.phase_number} of {len(session.model.phases)}",
-                         phase.phase_name))
+                         phase.phase_name, None))
         if show_criticality:
             rows.append(("System", "Criticality",
                          _criticality_text(session, colour),
-                         "Only shown when the developer option is enabled"))
+                         "Only shown when the developer option is enabled",
+                         None))
+        return rows
 
-        # -- failures -------------------------------------------------
-        rows.append(_section("FAILURES"))
-        failure_rows: list[tuple[str, str, str, str]] = []
+    @staticmethod
+    def _failure_rows(entries: dict[str, list[tuple[str, str, int]]]) -> list[_Row]:
+        rows: list[_Row] = []
         for key, category, state, detail in _FAILURE_LISTS:
-            for name in lists.get(key, []):
-                failure_rows.append(
-                    ("Failures", name, state, f"{detail} — {category}"))
-        rows.extend(failure_rows or [
-            ("Failures", "None", "", "No failed, induced, idle, PM, cut or "
-                                      "linked elements")])
+            for name, kind, oid in entries.get(key, []):
+                rows.append(("Failures", name, state,
+                             f"{detail} — {category}", (kind, oid)))
+        return rows or [
+            ("Failures", "None", "",
+             "No failed, induced, idle, PM, cut or linked elements", None)]
 
-        # -- effects --------------------------------------------------
-        rows.append(_section("EFFECTS"))
-        effect_rows: list[tuple[str, str, str, str]] = []
+    @staticmethod
+    def _effect_rows(entries: dict[str, list[tuple[str, str, int]]]) -> list[_Row]:
+        rows: list[_Row] = []
         for key, category, state, detail in _EFFECT_LISTS:
-            for name in lists.get(key, []):
-                effect_rows.append(
-                    ("Effects", name, state, f"{detail} — {category}"))
-        rows.extend(effect_rows or [
-            ("Effects", "None", "", "No down or degraded nodes/subsystems")])
+            for name, kind, oid in entries.get(key, []):
+                rows.append(("Effects", name, state,
+                             f"{detail} — {category}", (kind, oid)))
+        return rows or [
+            ("Effects", "None", "", "No down or degraded nodes/subsystems",
+             None)]
 
-        # -- capacity -------------------------------------------------
-        rows.append(_section("CAPACITY"))
-        if capacity is not None:
-            percent = capacity.get("delivered_fraction")
-            rows.append(("Capacity", "Delivered flow",
-                         str(capacity.get("delivered", "—")),
-                         f"of {capacity.get('flow_generated', '—')}"
-                         + (f" ({percent:.1%})" if percent is not None else "")))
-            rows.append(("Capacity", "Lost flow",
-                         str(capacity.get("lost", "—")), ""))
-            rows.append(("Capacity", "System capacity",
-                         str(capacity.get("system_capacity", "—")), ""))
-            for node in capacity.get("nodes", ()):
-                rows.append(("Capacity", str(node.get("name", "")),
-                             str(node.get("flow", "")),
-                             f"capacity {node.get('capacity', '')}"))
-        else:
-            rows.append(("Capacity", "Not analysed", "", "Capacity analysis is off"))
-
-        self._headline.setText(self._headline_text(session, lists))
-        self._set_badge(colour, word)
-        self._populate(rows)
+    @staticmethod
+    def _capacity_rows(capacity: dict[str, Any] | None) -> list[_Row]:
+        if capacity is None:
+            return [("Capacity", "Not analysed", "",
+                     "Capacity analysis is off", None)]
+        percent = capacity.get("delivered_fraction")
+        rows: list[_Row] = [
+            ("Capacity", "Delivered flow", str(capacity.get("delivered", "—")),
+             f"of {capacity.get('flow_generated', '—')}"
+             + (f" ({percent:.1%})" if percent is not None else ""), None),
+            ("Capacity", "Lost flow", str(capacity.get("lost", "—")), "", None),
+            ("Capacity", "System capacity",
+             str(capacity.get("system_capacity", "—")), "", None),
+        ]
+        for node in capacity.get("nodes", ()):
+            nid = node.get("id")
+            rows.append(("Capacity", str(node.get("name", "")),
+                         str(node.get("flow", "")),
+                         f"capacity {node.get('capacity', '')}",
+                         ("node", int(nid)) if nid is not None else None))
+        return rows
 
     @staticmethod
     def _headline_text(session: Any, lists: dict[str, list[str]]) -> str:
@@ -266,9 +298,11 @@ class FevInspectorDock(QWidget):
             f"QLabel {{ background: {background}; color: white; "
             "font-weight: 700; border-radius: 4px; padding: 3px 8px; }")
 
-    def _populate(self, rows: list[tuple[str, str, str, str]]) -> None:
+    def _populate(self, rows: list[tuple[str, str, str, str]],
+                  locators: list[tuple[str, int] | None]) -> None:
         """Replace the table in one pass (a rejected click redraws it too)."""
         self._rows = rows
+        self._row_locators = locators
         table = self._table
         table.setUpdatesEnabled(False)
         try:
@@ -309,6 +343,39 @@ class FevInspectorDock(QWidget):
         finally:
             table.setUpdatesEnabled(True)
         self._sync_copy_buttons()
+
+    # ---- context menu ---------------------------------------------------
+
+    def _show_context_menu(self, pos) -> None:
+        """Right-click a row: locate its element, or copy the table."""
+        index = self._table.indexAt(pos)
+        if not index.isValid():
+            return
+        row = index.row()
+        self._table.selectRow(row)
+        locator = (self._row_locators[row]
+                   if 0 <= row < len(self._row_locators) else None)
+        menu = QMenu(self)
+        goto = menu.addAction("Go to element")
+        goto.setToolTip("Select this element on the canvas, entering its "
+                        "hierarchy level if necessary")
+        goto.setEnabled(locator is not None)
+        goto.triggered.connect(
+            lambda _checked=False, target=locator: self._go_to(target))
+        menu.addSeparator()
+        menu.addAction("Copy selected", self.copy_selected)
+        menu.addAction("Copy all", self.copy_all)
+        menu.addAction("Copy summary", self.copy_summary)
+        self._exec_menu(menu, self._table.viewport().mapToGlobal(pos))
+
+    def _exec_menu(self, menu: QMenu, global_pos) -> None:
+        """A seam: `QMenu.exec` cannot be stubbed, so tests replace this."""
+        menu.exec(global_pos)
+
+    def _go_to(self, locator: tuple[str, int] | None) -> None:
+        if locator is None:
+            return
+        self.locate_requested.emit(locator[0], locator[1])
 
     # ---- clipboard ------------------------------------------------------
 

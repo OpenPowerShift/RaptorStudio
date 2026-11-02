@@ -278,6 +278,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Explorer |Explorer |
 |Inspector |Inspector |
+|Failure Effects |Show the Failure Effects panel — the live system state, failures, effects and capacity while Failure Effects View is open |
 |Results |Results |
 |Run Panel |Show the Run panel — trials, termination, analyses and recording for the next run |
 |Data Tables |Show the Data Tables panel — every block/node in an editable grid |

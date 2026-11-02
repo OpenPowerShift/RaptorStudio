@@ -1714,6 +1714,20 @@ def fev_icon(colour: str) -> QIcon:
     return _icon("fev", colour, draw)
 
 
+def fev_panel_icon(colour: str) -> QIcon:
+    """The Failure Effects panel: a status table with a live state dot."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c)
+        p.drawRect(QRectF(5, 6, 38, 34))
+        p.drawLine(5, 15, 43, 15)
+        p.drawLine(20, 15, 20, 40)
+        p.drawLine(31, 15, 31, 40)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(QPointF(39, 10), 3, 3)
+    return _icon("fevpanel", colour, draw)
+
+
 def fail_icon(colour: str) -> QIcon:
     """Fail a block: a lightning bolt striking a block."""
     def draw(p: QPainter, c: QColor):
