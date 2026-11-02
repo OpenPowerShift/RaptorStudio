@@ -20,7 +20,13 @@ merged here.
 | `feat/analytic-hierarchy-scope` | solve one hierarchy as a port extension, Cancel button, dependencies + 2M BDD merged | `0f3af8a5` |
 | `fix/analytic-polish` | grouped BDD counts, GUI Cancel integration test, movable junction test | `646fbef6` |
 | `feat/link-grip` | replace model routing nodes with GUI-only link drag points | `fb4d8285` |
-| `fix/layout-bands` | page-flow port constraints, band Z/S handover, tighter spacing, "Max band" wording | `ff96914f` |
+| `fix/layout-bands` | page-flow port constraints, band Z/S handover, tighter spacing, "Max band" wording, spacing factor, selection-scoped layout | `e9ee2195` |
+| `fix/band-routing` | hand-over routed down the leading band corner with stubs | `59ec72ae` |
+| `fix/grip-delete` | click/right-click delete of a routing point, link left intact | `1b3758c7` |
+| `fix/grip-idle` | new routing point idle until dragged; Auto Layout clears them | `91463138` |
+| `fix/max-band-help` | Max band counts series elements, not marker columns | `3a4a2740` |
+| `fix/worker-thread-safety` | no QAction reads or cyclic GC on the simulation worker | `754f5724` |
+| `feat/multi-drag` | drag a multi-selection as one item; arrow nudge already did | `6cd22d08` |
 | `fix/analytic-review` | hierarchy labels/exports, explicit boundary errors, limit bounds, MCP schema | `f3f92914` |
 | `perf/gui-large-models` | selective drag sync, row index, minimap/selection hot spots | `e6273e0c` |
 
@@ -28,7 +34,26 @@ Integration-only fixes: menu `None` action guard, dependency-link down,
 invalid saved direction fallback, strict `max_columns`, generated docs,
 golden/snapshot refreshes.
 
-## Latest user-testing round (link grips, bands, hierarchy labels)
+## Latest user-testing round (multi-drag, spacing, selection layout)
+
+- A multi-selection now drags as one block: the item under the cursor
+  supplies the snapped delta, every other selected element and note follows
+  it; arrow-key nudge already moved the whole selection.
+- Auto Layout has a `spacing` factor (nominal 1.0) in the GUI, MCP, layout
+  engine and legacy normalizer. GUI: Arrange ▸ Layout ▸ Spacing; MCP:
+  `auto_layout(..., spacing=...)`.
+- Auto Layout with a selection lays out only that group in isolation and
+  translates it back to its old bounding-box centre; neighbours do not move.
+  MCP gets the same behaviour through `selectors`.
+- `Max band` now counts **series elements**, not marker columns: Start/End
+  and hierarchy In/Out do not use up the limit, and parallel branches share
+  one series position.
+- Band hand-over routes down the leading corner (left for LR, right for RL,
+  top for TB, bottom for BT) with short exit/entry stubs.
+- Combined focused suite: **108 passed** (multi-drag, selection layout,
+  layout direction/sizes, MCP layout/snapshot/schema, routing, GUI results).
+
+## Previous user-testing round (link grips, bands, hierarchy labels)
 
 - Routing points are now **GUI-only drag points**: no `NODE_DATA` row, no
   properties, no `repCap` marker, and no EFPA/capacity/dependency effect.
