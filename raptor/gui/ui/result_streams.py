@@ -36,6 +36,10 @@ class ResultStream:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             if header:
                 f.write(header + "\n")
+                # `len()` is the number of rows readers will see; the
+                # header is one of them (the Engine's header-once checks
+                # use truthiness, not this count).
+                self.count = 1
 
     # -- engine-facing list interface -----------------------------------
     def append(self, row: str) -> None:

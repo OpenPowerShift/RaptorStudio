@@ -748,7 +748,10 @@ def run_simulation_with_reports(
 
     `report_progress(done, total, label)`: optional progress hook for the
     report-building phase, which runs after all replications and used to
-    give the GUI no feedback at all."""
+    give the GUI no feedback at all. `done` counts completed runs (it is
+    1/1 for a zero-run batch), plus a final `Final results report` call.
+    Called on the caller's thread, so a GUI that runs this in a worker
+    must only record plain data (as its own poll renders it)."""
     if count_draws and metadata_sink is None:
         metadata_sink = {}
     report_data: list[RunReportData] = report_sink if report_sink is not None else []
@@ -802,6 +805,9 @@ def run_simulation_with_reports(
 
     _emit([f"End_Of_Run Report for {rbd_file.file_name}  {report_date}", ""])
     total_steps = max(len(report_data), 1)
+    # The per-run progress is for completed runs only: a zero-run batch
+    # (stopped before the first run, or num_runs=0) has nothing to count,
+    # so it reports only the final-results step.
     for step, run_data in enumerate(report_data, 1):
         _emit(build_end_of_run_report(run_data, model.blocks_by_id))
         if report_progress is not None:

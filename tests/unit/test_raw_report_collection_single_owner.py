@@ -49,14 +49,15 @@ class TestCollection:
     def test_a_view_becomes_a_titled_section(self):
         got = collect_raw_report_sections(
             _win({"End of Run": _View("line one\nline two")}))
-        assert got == [("Raw Report — End of Run", ["line one", "line two"])]
+        assert [(t, lines) for t, lines, _n in got] == [
+            ("Raw Report — End of Run", ["line one", "line two"])]
 
     def test_several_views_keep_their_order(self):
         got = collect_raw_report_sections(_win({
             "End of Run": _View("a"),
             "Final Results": _View("b"),
         }))
-        assert [t for t, _ in got] == ["Raw Report — End of Run",
+        assert [t for t, _l, _n in got] == ["Raw Report — End of Run",
                                        "Raw Report — Final Results"]
 
     def test_the_interim_view_is_injected(self):
@@ -64,14 +65,14 @@ class TestCollection:
         so it has to be added explicitly."""
         got = collect_raw_report_sections(
             _win({"End of Run": _View("a")}, interim=_View("interim")))
-        assert "Raw Report — Interim Cost" in [t for t, _ in got]
+        assert "Raw Report — Interim Cost" in [t for t, _l, _n in got]
 
     def test_an_empty_view_is_dropped(self):
         got = collect_raw_report_sections(_win({
             "End of Run": _View("a"),
             "Final Results": _View("   \n  "),      # whitespace only
         }))
-        assert [t for t, _ in got] == ["Raw Report — End of Run"]
+        assert [t for t, _l, _n in got] == ["Raw Report — End of Run"]
 
     def test_the_text_is_not_reflowed(self):
         """Byte-exact engine output: a long line stays one line."""

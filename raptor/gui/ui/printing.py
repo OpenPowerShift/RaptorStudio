@@ -51,22 +51,39 @@ def _apply_print_title_block(win, name: str, revision: str,
     win._mark_dirty()
 
 
-def collect_raw_report_sections(win) -> list[tuple[str, list[str]]]:
-    """`(title, lines)` for each non-empty raw report view -- End of Run,
-    Final Results, Interim Cost. The text is the engine's report output as
-    written, not reflowed. The one collector: the PDF report takes its raw
-    reports from here. It reads `win._results` privates; that is the
-    contract between the Results dock and the report.
+def collect_raw_report_sections(win) -> list[tuple[str, list[str], int]]:
+    """`(title, lines, total_lines)` for each non-empty raw report view --
+    End of Run, Final Results, Interim Cost. The text is the engine's
+    report output as written, not reflowed. The one collector: the PDF
+    report takes its raw reports from here. It reads `win._results`
+    privates; that is the contract between the Results dock and the
+    report.
+
+    `lines` is bounded by the dock's own preview guard (the End-of-Run
+    report is O(runs x elements)); `total_lines` is the report's real
+    length, so the report's "first N of M lines" note is honest. A Results
+    dock that predates `raw_report_lines` (tests use a stub) falls back to
+    its view text, which then IS the whole section.
     """
     out = []
-    views = dict(getattr(win._results, "_raw_views", {}) or {})
-    interim = getattr(win._results, "_interim_cost_view", None)
+    # No point reading past what the report itself lays out.
+    from raptor.api.report_html import RAW_LINES
+    results = win._results
+    views = dict(getattr(results, "_raw_views", {}) or {})
+    interim = getattr(results, "_interim_cost_view", None)
     if interim is not None:
         views["Interim Cost"] = interim
+    getter = getattr(results, "raw_report_lines", None)
     for name, view in views.items():
+        if name != "Interim Cost" and getter is not None:
+            lines, total = getter(name, max_lines=RAW_LINES)
+            if lines:
+                out.append((f"Raw Report — {name}", lines, total))
+            continue
         text = view.toPlainText()
         if text.strip():
-            out.append((f"Raw Report — {name}", text.splitlines()))
+            lines = text.splitlines()
+            out.append((f"Raw Report — {name}", lines, len(lines)))
     return out
 
 

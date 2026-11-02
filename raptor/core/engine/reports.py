@@ -1462,12 +1462,22 @@ def _build_fr_weak_section(all_run_data: list[RunReportData]) -> list[str]:
         out = [title, ""]
         state_keys = _NODE_STATE_KEYS if label == "Node" else _BLOCK_STATE_KEYS
         # One metric computation per (element, run). The four output tables
-        # used to call `metrics()` again for every column, which is the
-        # O(4 x runs x elements) cost on a large final report.
-        computed = {
-            k: [(metrics(v, ma), v["name"]) for v, ma in items[k]]
-            for k in keys
-        }
+        # used to call `metrics()` again for every column -- the state table
+        # once per state key -- so a large final report paid about eleven
+        # calls per element-run. Keep only the three table values and each
+        # element's state means: holding every (element, run) state dict
+        # here would add another O(runs x elements) live object graph, the
+        # very cost this report is being kept away from.
+        computed: dict = {}
+        state_means: dict = {}
+        for k in keys:
+            rows = items[k]
+            ms = [metrics(v, ma) for v, ma in rows]
+            computed[k] = [((m[0], m[1], m[2]), rows[i][0]["name"])
+                           for i, m in enumerate(ms)]
+            state_means[k] = {
+                sk: _fr_mean(m[3][sk] for m in ms) for sk in state_keys}
+            del ms
         for _idx, (sub, col) in enumerate((("Availability_Data", 0),
                                           ("Dependability_Data", 1),
                                           ("Reliability_Data", 2))):
@@ -1492,9 +1502,9 @@ def _build_fr_weak_section(all_run_data: list[RunReportData]) -> list[str]:
         for k in keys:
             rows_data = computed[k]
             row = _pad(rows_data[0][1], 20)
+            means = state_means[k]
             for sk in state_keys:
-                row += real_to_sn(
-                    _fr_mean(m[3][sk] for m, _name in rows_data), 12, 6, 1)
+                row += real_to_sn(means[sk], 12, 6, 1)
             out.append(row)
         return out
 

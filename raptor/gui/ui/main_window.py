@@ -19,7 +19,8 @@ import re
 import time
 from typing import Any, cast
 from pathlib import Path
-from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal)
+from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal,
+                            QEventLoop)
 from PySide6.QtGui import (QCursor, QKeySequence, QPainter, QColor, QPixmap, QDesktopServices,
                            QShortcut)
 from PySide6.QtCore import QRectF
@@ -4332,6 +4333,20 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             s.close()
         self._active_report_streams = []
 
+    @staticmethod
+    def _discard_report_streams(streams) -> None:
+        """Close a batch's streams that never became the active set (the
+        run failed before `_remember_report_streams`). Without this their
+        temp files are orphaned: every batch opens an End-of-Run stream,
+        so a failed run would leak one file per attempt."""
+        for s in (streams or {}).values():
+            if s is None:
+                continue
+            try:
+                s.close()
+            except Exception:       # noqa: BLE001 - cleanup must not mask
+                pass
+
     # -- window geometry ----------------------------------------------
     #
     # The window used to open at a hard-coded 1600x1000 every time: larger
@@ -4933,6 +4948,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Synchronous/blocking: the engine runs on the GUI thread, and
         # the progress/event callbacks below pump the event loop so the
         # window stays responsive and Stop can land mid-run.
+        if getattr(self, "_results_populating", False):
+            # The previous batch's results are still being built and the
+            # population stages pump the event loop (paint feedback).
+            # Starting a run now would clear the dock under its own
+            # half-built tables. The click is queued, not lost.
+            self._statusbar.showMessage(
+                "Still rendering the previous results — try again in a "
+                "moment.", 5000)
+            return
         if self._rbd is None:
             return
         # A spin box commits on editingFinished, which F5 does not cause.
@@ -5251,6 +5275,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._run_progress_label.setVisible(False)
             self._clear_run_eta()
             self._hide_phase_labels()
+            self._discard_report_streams(streams)
             msgbox.warning(
                 self, "Unsupported Model Feature",
                 f"This model uses a feature the simulation engine doesn't support yet:\n\n{e}",
@@ -5268,6 +5293,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._run_progress_label.setVisible(False)
             self._clear_run_eta()
             self._hide_phase_labels()
+            self._discard_report_streams(streams)
             msgbox.critical(self, "Simulation Failed", f"The run failed:\n\n{e}")
             self._statusbar.showMessage("Run failed")
             return
@@ -7055,11 +7081,20 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         thread. On a large batch that tail used to give no feedback at all.
         The re-entrancy guard keeps `processEvents()` from landing back in
         `_bg_poll_tick` (or another results population) while the dock is
-        half-built.
+        half-built; user input is excluded so a Run/Close click cannot
+        either. The click is not lost -- it is delivered once population
+        returns.
         """
         self._statusbar.showMessage(
             f"Processing results — {label} ({done}/{total})")
-        QApplication.processEvents()
+        QApplication.processEvents(
+            QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+
+    #: Minimum gap between event-loop pumps from the per-run report-stage
+    #: callback. The runner calls it once per run during the End-of-Run
+    #: build; pumping the loop thousands of times would make a large
+    #: batch's report phase slower than the report itself.
+    _STAGE_PUMP_SECONDS = 0.05
 
     def _set_results_with_progress(self, *args, **kwargs):
         """Call ResultsDock.set_results with stage feedback, guarded."""
@@ -7073,10 +7108,23 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._results_populating = False
 
     def _report_stage_progress(self, done: int, total: int, label: str) -> None:
-        """Worker/poll-facing report-stage callback (no Qt widgets)."""
+        """Worker/poll-facing report-stage callback (no Qt widgets).
+
+        Runs on whichever thread built the reports -- on the GUI thread in
+        the synchronous path, where it also paints (throttled). The
+        background path passes a plain-data recorder instead, and the poll
+        renders it.
+        """
+        total = max(int(total), 1)
+        done = int(done)
         self._statusbar.showMessage(
-            f"Processing results — {label} {done}/{max(total, 1)}")
-        QApplication.processEvents()
+            f"Processing results — {label} {done}/{total}")
+        now = time.monotonic()
+        if done >= total or now - getattr(self, "_last_stage_pump", 0.0) >= \
+                self._STAGE_PUMP_SECONDS:
+            self._last_stage_pump = now
+            QApplication.processEvents(
+                QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
 
     def _present_results(self):
         """After a run: switch the ribbon to the Results tab, surface
@@ -8234,6 +8282,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         state["workers_now"] = state["workers"]
 
         def worker():
+            # Held outside the try so a failure before the batch is
+            # remembered can close this batch's temp streams (every batch
+            # now opens an End-of-Run stream, even with no Files & Reports
+            # boxes ticked).
+            streams: dict = {}
             try:
                 report_data: list = []
                 report_notes: list[str] = []
@@ -8399,6 +8452,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             except Exception as e:
                 import traceback
                 traceback.print_exc()
+                self._discard_report_streams(streams)
                 state["error"] = "".join(
                     traceback.format_exception_only(type(e), e)).strip() \
                     + "\n" + traceback.format_exc(limit=8)
