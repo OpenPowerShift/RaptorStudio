@@ -2,6 +2,7 @@ complete -c raptor -f
 complete -c raptor -n '__fish_use_subcommand' -a analytic
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l at
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l bx
+complete -c raptor -n '__fish_seen_subcommand_from analytic' -l dependencies
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l equation
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l format
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l help
