@@ -358,6 +358,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         from raptor.gui.ui.rule_gate import RuleGatedStack
         self._stack: Any = RuleGatedStack(self, QUndoStack(self))
         self._drag_start: list = []
+        #: The item under the press and its start position, used to carry
+        #: the rest of a multi-selection by the same delta Qt moves it.
+        self._drag_primary = None
+        self._drag_primary_start: QPointF | None = None
+        self._drag_last_delta: tuple[float, float] = (0.0, 0.0)
         #: Position overrides, keyed (kind, id) in model units.
         #: The typed blocks/nodes/events dicts are level-scoped (rebuilt
         #: from rows on every enter/leave), so they cannot carry a moved
@@ -5116,6 +5121,19 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     if state is not None:
                         self._drag_start.append(("anno", aid, state))
             hit = self.itemAt(event.position().toPoint())
+            primary = self._element_at(
+                self.mapToScene(event.position().toPoint()))
+            if primary is None and isinstance(hit, _AnnotationBase):
+                primary = hit
+            if (primary is not None and primary.isSelected()
+                    and primary.flags()
+                    & QGraphicsItem.GraphicsItemFlag.ItemIsMovable):
+                self._drag_primary = primary
+                self._drag_primary_start = primary.scenePos()
+                self._drag_last_delta = (0.0, 0.0)
+            else:
+                self._drag_primary = None
+                self._drag_primary_start = None
             # Arm the direction-aware band only when the press did NOT
             # land on something movable -- otherwise Qt is starting an
             # item move, not a rubber band, and `_band_anchor` must
@@ -5153,9 +5171,52 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         return sel
 
     @staticmethod
-    @staticmethod
     def _move_by(item, dx, dy):
         item.setPos(item.pos() + QPointF(dx, dy))
+
+    def _move_group_with_primary(self) -> None:
+        """Carry every other selected item by the primary item's drag delta.
+
+        Qt's own item drag moves only the item under the cursor. A
+        multi-selection should move as one block, so the remaining
+        selected elements follow the primary's snapped delta; annotations
+        use `_shift_annotation` because an arrow has two endpoints.
+        """
+        primary = self._drag_primary
+        start = self._drag_primary_start
+        if primary is None or start is None or len(self._drag_start) < 2:
+            return
+        if not isValid(primary) or not primary.isSelected():
+            return
+        now = primary.scenePos()
+        delta = (now.x() - start.x(), now.y() - start.y())
+        ldx = delta[0] - self._drag_last_delta[0]
+        ldy = delta[1] - self._drag_last_delta[1]
+        if abs(ldx) < 1e-9 and abs(ldy) < 1e-9:
+            return
+        self._drag_last_delta = delta
+        saved = (self._snap_state["x"], self._snap_state["y"])
+        # The primary already snapped. Re-snapping each follower on its own
+        # would change their offsets, so apply the same unsnapped delta.
+        self._snap_state["x"] = self._snap_state["y"] = 0.0
+        try:
+            tables = {
+                "block": self._block_items,
+                "node": self._node_items,
+                "event": self._event_items,
+                "hier": getattr(self, "_hier_items", {}),
+                "anno": getattr(self, "_anno_items", {}),
+            }
+            for kind, oid, _start in self._drag_start:
+                item = tables.get(kind, {}).get(oid)
+                if item is None or item is primary or not isValid(item):
+                    continue
+                if kind == "anno":
+                    _shift_annotation(item, ldx, ldy)
+                else:
+                    item.setPos(item.pos() + QPointF(ldx, ldy))
+        finally:
+            self._snap_state["x"], self._snap_state["y"] = saved
 
     def _layout_state(self) -> tuple[dict, dict | None]:
         """This level's element positions in model units (from the typed
@@ -5649,6 +5710,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 return
             self._drag_armed = True
         super().mouseMoveEvent(event)
+        if self._drag_primary is not None and self._drag_armed:
+            self._move_group_with_primary()
         # Direction-aware rubber band. Qt's built-in
         # `RubberBandDrag` crossed-selects in BOTH directions: dragging
         # a box around five blocks picked up anything it grazed, so it
@@ -5740,6 +5803,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                         or abs(now[1] - start[1]) > 0.5):
                     moves.append((kind, oid, tuple(start), now))
             drag_start, self._drag_start = self._drag_start, []
+            self._drag_primary = None
+            self._drag_primary_start = None
+            self._drag_last_delta = (0.0, 0.0)
             if anno_edits:
                 moved_keys = {(k, i) for k, i, _o, _n in moves}
                 # An annotation that is itself a target can move in
