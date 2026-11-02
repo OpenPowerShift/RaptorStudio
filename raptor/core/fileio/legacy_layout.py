@@ -224,7 +224,10 @@ _CENTRAL_W = {"node": 1.0}
 
 def layout_container_positions(members, edges, entries, pins=frozenset(),
                                base=None, *, deadline: float | None = None,
-                               report: dict | None = None):
+                               report: dict | None = None,
+                               sizes=None, scale: float | None = None,
+                               direction: str = "LR",
+                               max_columns: int | None = None):
     """Layered layout for ONE container, collision-refined.
 
     members: iterable of hashable keys ("kind", id); edges: (a, b)
@@ -240,9 +243,25 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     `deadline` is a `time.monotonic()` value after which the collision
     refine stops (default: `refine_budget_s()` from now). If it stops early
     and `report` is given, `report["refine_cut_short"]` is incremented, so a
-    caller can say the layout is not fully refined."""
+    caller can say the layout is not fully refined.
+
+    `sizes` optionally maps a member key to its actual `(half_width,
+    half_height)` in MODEL units (the GUI passes exact font metrics, the
+    API passes the shared estimate). Columns are then pitched by those
+    widths instead of the fixed `_HALF` boxes; a long name or a wide
+    hierarchy oval can no longer overlap its neighbour. `scale` is the
+    scene's pixels-per-model-unit, used only to convert the scene pixel
+    minimum gaps into model units.
+
+    `direction` is `"LR"`, `"RL"`, `"TB"` or `"BT"`. `max_columns` wraps a
+    flow into another band after that many columns, instead of waiting for
+    Raptor's canvas width."""
     if deadline is None:
         deadline = time.monotonic() + refine_budget_s()
+    if direction not in ("LR", "RL", "TB", "BT"):
+        raise ValueError(f"unknown layout direction {direction!r}")
+    if max_columns is not None and max_columns < 1:
+        raise ValueError("max_columns must be at least 1")
     member_set = sorted(set(members))      # deterministic order (ids are unique)
     if not member_set:
         return {}
@@ -279,7 +298,17 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # elements, is the whole cost of the layout pass.  Resolve each
     # element's kind and collision box ONCE instead of on every visit.
     kinds = {k: kind_of(k) for k in member_set}
-    boxes = {k: _half(kinds[k]) for k in member_set}
+    px_per_unit = float(scale) if scale and scale > 0 else 64.0
+    size_map = sizes or {}
+
+    def _box(k) -> tuple[float, float]:
+        size = size_map.get(k)
+        if size is None:
+            return _half(kinds[k])
+        hw, hh = size
+        return float(hw) + _CLEAR, float(hh) + _CLEAR
+
+    boxes = {k: _box(k) for k in member_set}
     near_boxes = {k: (boxes[k][0] + 0.75, boxes[k][1] + 0.75) for k in member_set}
 
     # Column index per element, then each column's x. Two neighbouring
@@ -338,19 +367,42 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # stacked downward, alternating direction (left to right, then right
     # to left) so the link from one band's last column to the next band's
     # first stays short and vertical instead of crossing the whole band.
+    # Actual half-widths per column, in model units. The fixed `_HALF`
+    # boxes include a clearance margin and made two hierarchy ovals look
+    # wider than their 2.5-unit pitch even when the drawn ovals clear each
+    # other; that false overlap is what zig-zagged a straight chain.
+    col_hw: dict = {}
+    for k, c in col_of.items():
+        col_hw[c] = max(col_hw.get(c, 0.0), boxes[k][0] - _CLEAR)
     col_x: dict = {}
     col_band: dict = {}
     limit = X_MAX - FIRST_X
     local = 0.0
     band = 0
     prev = None
+    columns_in_band = 0
     for c in range(max(col_of.values()) + 1):
         if prev is not None:
-            both_nodes = node_only.get(prev, True) and node_only.get(c, True)
-            local += NODE_PITCH if both_nodes else LAYER_PITCH
+            if max_columns is not None and columns_in_band >= max_columns:
+                band += 1
+                local = 0.0
+                columns_in_band = 0
+            both_nodes = (node_only.get(prev, True)
+                          and node_only.get(c, True)
+                          and max(col_hw.get(prev, 0.0),
+                                  col_hw.get(c, 0.0)) <= 18.0)
+            # Keep the scene's minimum gap in pixels, converted to model
+            # units at this scene scale.
+            gap_px = 40.0 if both_nodes else 52.0
+            width_pitch = (col_hw.get(prev, 0.0) + col_hw.get(c, 0.0)
+                           + gap_px / px_per_unit)
+            local += max(NODE_PITCH if both_nodes else LAYER_PITCH,
+                         width_pitch)
             if local > limit + 1e-9:
                 band += 1
                 local = 0.0
+                columns_in_band = 0
+        columns_in_band += 1
         col_x[c] = FIRST_X + local if band % 2 == 0 else X_MAX - local
         col_band[c] = band
         prev = c
@@ -564,7 +616,29 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
             log.info("layout refine stopped at its %.0f s budget",
                      refine_budget_s())
     # snap everything to the grid
-    return {k: (_snap(x), _snap(y)) for k, (x, y) in pos.items()}
+    out = {k: [_snap(x), _snap(y)] for k, (x, y) in pos.items()}
+    if direction == "RL":
+        for xy in out.values():
+            xy[0] = _snap(X_MAX + FIRST_X - xy[0])
+    elif direction in ("TB", "BT"):
+        # Transpose: the flow runs down the page and the former rows
+        # spread across it. Compress the flow axis to the canvas height;
+        # row spacing is small enough to fit the canvas width in practice.
+        xs = [xy[0] for xy in out.values()]
+        ys = [xy[1] for xy in out.values()]
+        flow_lo, flow_hi = min(xs), max(xs)
+        span = max(flow_hi - flow_lo, 1.0)
+        row_mid = (min(ys) + max(ys)) / 2.0
+        cx = (FIRST_X + X_MAX) / 2.0
+        top, bottom = Y_MAX - FIRST_X, Y_MIN + FIRST_X
+        for xy in out.values():
+            frac = (xy[0] - flow_lo) / span
+            ny = (top - frac * (top - bottom)
+                  if direction == "TB"
+                  else bottom + frac * (top - bottom))
+            xy[0] = _snap(cx + (xy[1] - row_mid))
+            xy[1] = _snap(ny)
+    return {k: (x, y) for k, (x, y) in out.items()}
 
 
 def _grid_rows(lo, hi):
@@ -699,7 +773,9 @@ def _link_endpoints(f):
 
 def _place_container(children: dict[str, list], links, entries, outs,
                      id_of, deadline: float | None = None,
-                     report: dict | None = None) -> None:
+                     report: dict | None = None, *,
+                     direction: str = "LR",
+                     max_columns: int | None = None) -> None:
     """Layered layout for one container; writes snapped positions back
     into the rows. `outs` (extra pinned keys, e.g. the container's own
     out node) may not move during collision refinement."""
@@ -714,9 +790,27 @@ def _place_container(children: dict[str, list], links, entries, outs,
         a, b = (fk, fid), (tk, tid)
         if a in members and b in members and a != b:
             edges.append((a, b))
+    from . import element_size
+
+    section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                  "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}
+    # The headless layout uses the shared estimate at the legacy reference
+    # scale. The GUI overrides this with exact QFontMetricsF extents.
+    sizes = {}
+    for key, row in members.items():
+        section = section_of.get(key[0])
+        if section is None:
+            continue
+        col = element_size.NAME_COLUMNS.get(section, "")
+        sizes[key] = (
+            element_size.model_half_width(section, row.get(col, ""), 64.0),
+            element_size.model_half_height(section, row.get(col, ""), 64.0),
+        )
     pos = layout_container_positions(members.keys(), edges,
                                      entries, pins=outs, deadline=deadline,
-                                     report=report)
+                                     report=report, sizes=sizes, scale=64.0,
+                                     direction=direction,
+                                     max_columns=max_columns)
     for k, (x, y) in pos.items():
         members[k]["xPos"] = f"{x:.6f}"
         members[k]["yPos"] = f"{y:.6f}"
@@ -910,7 +1004,9 @@ def cap_legacy_names(f) -> int:
 
 
 def normalize_legacy_layout(f, force: bool = False,
-                            report: dict | None = None) -> bool:
+                            report: dict | None = None, *,
+                            direction: str = "LR",
+                            max_columns: int | None = None) -> bool:
     """Re-layout an off-grid model onto the legacy grid (in place).
     Returns True when anything was moved. `force` skips the gate (an
     explicit Auto Layout pass over every container).
@@ -969,7 +1065,8 @@ def normalize_legacy_layout(f, force: bool = False,
             entries = [("node", inh)] if inh else []
             outs = {("node", outh)} if outh else set()
         _place_container(children, links, entries, outs, id_of, deadline,
-                         report)
+                         report, direction=direction,
+                         max_columns=max_columns)
 
     # events follow their parent element's movement delta
     moved: dict[int, tuple[float, float]] = {}

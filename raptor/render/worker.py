@@ -120,6 +120,9 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--theme", default="light", choices=("light", "dark"))
     p.add_argument("--max-px", type=int, default=1600,
                    help="long-edge cap in pixels (default 1600)")
+    p.add_argument("--routing", default="straight",
+                   choices=("straight", "angled", "orthogonal"),
+                   help="link style (default straight)")
     p.add_argument("--no-annotations", action="store_true",
                    help="do not draw .rbds annotations")
     return p.parse_args(argv)
@@ -159,6 +162,7 @@ def _read_job(argv: list[str]) -> dict[str, Any]:
         "theme": args.theme,
         "max_px": args.max_px,
         "include_annotations": not args.no_annotations,
+        "routing": args.routing,
     }
 
 
@@ -405,6 +409,10 @@ def run_job(job: dict[str, Any]) -> dict[str, Any]:
         raise WorkerError(
             f"max_px too large: {max_px}; the limit is {MAX_RENDER_PX}")
     include_annotations = bool(job.get("include_annotations", True))
+    routing = str(job.get("routing", "straight") or "straight")
+    from raptor.core.routing import ROUTING_MODES
+    if routing not in ROUTING_MODES:
+        raise WorkerError(f"unknown routing: {routing!r} (expected one of {ROUTING_MODES})")
     highlight = job.get("highlight") or []
     if isinstance(highlight, str):
         highlight = [s.strip() for s in highlight.split(",") if s.strip()]
@@ -441,6 +449,10 @@ def run_job(job: dict[str, Any]) -> dict[str, Any]:
     # level-of-detail) before the scene is built, so a big model rendered
     # at a small fit scale is not exported with its text hidden.
     view.set_lod_enabled(False)
+    # The canvas's link style is a process-wide setting; a render sets it
+    # for this job only (the worker is a throw-away process).
+    from raptor.gui.ui.diagram_items import set_link_routing
+    set_link_routing(routing)
     view.load_rbd(rbd)
     app.processEvents()
 
