@@ -101,6 +101,56 @@ def test_leaving_fev_hides_the_inspector_and_restores_the_inspector_dock(win):
     win._fev_view_action.setChecked(False)
     assert not win._fev_inspector_dock.isVisible()
     assert win._inspector_dock.isVisible()
+    assert not win._fev_inspector_toggle_action.isEnabled()
+
+
+def test_right_click_on_a_row_can_go_to_the_element(win, monkeypatch):
+    win._fev_view_action.setChecked(True)
+    inspector = win._fev_inspector
+    row = next(i for i, values in enumerate(_inspector_rows(win))
+               if values[0] == "Failures" and values[1] == "SolarP_500W")
+    captured = []
+    monkeypatch.setattr(inspector, "_exec_menu",
+                        lambda menu, pos: captured.append(menu))
+    item = inspector._table.item(row, 0)
+    inspector._show_context_menu(
+        inspector._table.visualItemRect(item).center())
+    menu = captured[0]
+    actions = {action.text(): action for action in menu.actions()
+               if action.text()}
+    assert actions["Go to element"].isEnabled()
+    seen = []
+    inspector.locate_requested.connect(
+        lambda kind, oid: seen.append((kind, oid)))
+    actions["Go to element"].trigger()
+    assert seen == [("block", win._fev.block_by_name("SolarP_500W").id)]
+
+
+def test_go_to_element_enters_the_hierarchy_and_selects_the_block(win):
+    win._fev_view_action.setChecked(True)
+    block = win._fev.block_by_name("SolarP_500W")
+    win._on_fev_element_locate("block", block.id)
+    view = win._diagram_dock.view
+    assert view._current_parent != 0
+    assert block.id in view._block_items
+    assert any(getattr(item, "_block_id", None) == block.id
+               for item in view._scene.selectedItems())
+
+
+def test_the_view_panels_toggle_controls_the_fev_inspector(win):
+    """View > Panels has the same checkable entry as every other dock; it
+    only makes sense while the Failure Effects View is enabled."""
+    action = win._fev_inspector_toggle_action
+    assert not action.isEnabled() and not action.isChecked()
+    win._fev_view_action.setChecked(True)
+    assert action.isEnabled() and action.isChecked()
+    action.setChecked(False)
+    assert not win._fev_inspector_dock.isVisible()
+    assert action.isEnabled()          # can be brought back while FEV is open
+    action.setChecked(True)
+    assert win._fev_inspector_dock.isVisible()
+    win._fev_view_action.setChecked(False)
+    assert not action.isEnabled() and not action.isChecked()
 
 
 def test_it_opens_without_a_run_and_closes(win):

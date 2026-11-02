@@ -1027,13 +1027,18 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             anchor = self._HELP_ANCHORS["Simulate"]
         self._open_doc("manual.html", anchor)
 
-    def _setup_dock_toggle(self, action, dock):
+    def _setup_dock_toggle(self, action, dock, *, manage_enabled: bool = True):
         """Checkable ribbon action <-> dock visibility, both directions.
         LEFT/RIGHT docks with a rotated stub (`self._dock_stubs`) don't
         close: unchecking collapses them to the rotated "Model"/
         "Inspector" word, and clicking the stub or re-checking restores
         them. Floated docks still close for real -- a stub in a floating
-        window makes no sense."""
+        window makes no sense.
+
+        `manage_enabled=False` leaves the action's enabled state to the
+        command table's own predicate. The Failure Effects panel uses this:
+        it is only enabled while Failure Effects View is open, but it must
+        stay clickable after the user hides it during that mode."""
         content = dock.widget()
 
         def is_open():
@@ -1058,8 +1063,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # `new_docs/tools/gen_help_reference.py` reads these live,
             # and a state-dependent tooltip would document whichever
             # dock state the generator happened to be looking at.
-            recoverable = dock in (self._dock_stubs or {})
-            action.setEnabled(open_ or not recoverable)
+            if manage_enabled:
+                recoverable = dock in (self._dock_stubs or {})
+                action.setEnabled(open_ or not recoverable)
             action.blockSignals(False)
 
         if self._dock_state_sync is None:
@@ -1497,7 +1503,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Wider than the default so all Inspector details show by
         # default -- 300px was not enough for the 7-tab strip without
         # its scroll arrows.
-        dock_right.setMinimumSize(340, 0)
+        dock_right.setMinimumSize(340, 1)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_right)
         self._inspector_dock = dock_right
 
@@ -1508,9 +1514,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         from raptor.gui.ui.fev_inspector import FevInspectorDock
         self._fev_inspector = FevInspectorDock(
             summary_provider=self._fev_text)
+        self._fev_inspector.locate_requested.connect(
+            self._on_fev_element_locate)
         fev_dock = QDockWidget("Failure Effects", self)
         fev_dock.setWidget(self._fev_inspector)
-        fev_dock.setMinimumSize(340, 0)
+        fev_dock.setMinimumSize(340, 1)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, fev_dock)
         self.tabifyDockWidget(dock_right, fev_dock)
         fev_dock.hide()
@@ -1642,6 +1650,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # buttons in both directions.
         self._setup_dock_toggle(self._explorer_toggle_action, dock_left)
         self._setup_dock_toggle(self._inspector_toggle_action, dock_right)
+        self._setup_dock_toggle(self._fev_inspector_toggle_action, fev_dock,
+                                manage_enabled=False)
         self._setup_dock_toggle(self._results_toggle_action, dock_bottom)
         self._setup_dock_toggle(self._data_tables_action, dock_tables)
         self._sync_dock_tab_bars()
@@ -1678,7 +1688,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # one bottom stub since they're tabified into one physical slot
         # -- minimizing either one collapses both.
         self._make_dock_minimizable([dock_left], "left")
-        self._make_dock_minimizable([dock_right, fev_dock], "right")
+        self._make_dock_minimizable([dock_right], "right")
         self._make_dock_minimizable(
             [dock_bottom, dock_tables, self._run_dock], "bottom",
             restore_max=lambda: self._max_bottom_dock_height())
@@ -1975,6 +1985,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if not v.locate_element(kind, name):
             self._statusbar.showMessage(
                 f"Couldn't find {kind} '{name}' in the model", 6000)
+
+    def _on_fev_element_locate(self, kind: str, element_id: int) -> None:
+        """The Failure Effects table's "Go to element" action."""
+        if not self._diagram_dock.view.locate_id(kind, element_id):
+            self._statusbar.showMessage(
+                f"Couldn't find {kind} id {element_id} on the canvas", 6000)
 
     def keyPressEvent(self, event):
         # Esc is handled by the `_esc_shortcut` above (WindowShortcut --
@@ -6728,7 +6744,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         real height instead.
         """
         try:
-            dock.setMinimumSize(int(width), max(0, dock.minimumHeight()))
+            dock.setMinimumSize(int(width), max(1, dock.minimumHeight()))
         except RuntimeError:
             pass          # C++ object already torn down (window closing)
 
