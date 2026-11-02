@@ -627,6 +627,58 @@ class ReParentCmd(_ViewCmd):
         self._apply(False)
         self._done()
 
+class SplitLinkCmd(_ViewCmd):
+    """Insert a routing node into a link: A -> B becomes A -> node -> B.
+
+    The node itself is created by the surrounding undo macro's `AddCmd`;
+    this command owns the two link rows and their live typed objects.
+    """
+
+    def __init__(self, view, link_id, node_id, new_link_row):
+        super().__init__(view, "Insert routing node")
+        self.link_id = int(link_id)
+        self.node_id = int(node_id)
+        self.new_link_row = dict(new_link_row)
+        self.old_to: tuple[str, str] | None = None
+
+    def _row(self):
+        sec = self._v._rbd_ref.sections["LINK_DATA"]
+        return next((r for r in sec.rows
+                     if _safe_int(r.get("ID")) == self.link_id), None)
+
+    def redo(self):
+        v = self._v
+        row = self._row()
+        if row is None:
+            self._done()
+            return
+        self.old_to = (str(row.get("ToType", "")), str(row.get("ToID", "")))
+        row["ToType"] = "Node"
+        row["ToID"] = str(self.node_id)
+        v._rbd_ref.sections["LINK_DATA"].rows.append(self.new_link_row)
+        v.resync_link(self.link_id)
+        v._insert_link(self.new_link_row)
+        v._rebuild_link_items()
+        v._recount_link_ends()
+        self._done()
+
+    def undo(self):
+        v = self._v
+        sec = v._rbd_ref.sections["LINK_DATA"]
+        new_id = _safe_int(self.new_link_row.get("ID"))
+        sec.rows[:] = [r for r in sec.rows
+                       if _safe_int(r.get("ID")) != new_id]
+        row = self._row()
+        if row is not None and self.old_to is not None:
+            row["ToType"], row["ToID"] = self.old_to
+        v.links[:] = [link for link in v.links
+                      if link.object_num != new_id]
+        v.resync_link(self.link_id)
+        v._rebuild_link_items()
+        v._recount_link_ends()
+        self._done()
+
+
 class TableCellCmd(_ViewCmd):
     """Single-cell edit in a name-keyed row (spare/resource pools,
     triggers -- sections with no ID column)."""

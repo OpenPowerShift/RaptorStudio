@@ -246,6 +246,10 @@ class ContextMenuMixin:
         n_sel = len(self._scene.selectedItems())
         n_annos = len(self._selected_annotation_ids())
         mx, my = self.scene_to_model(scene_pos)
+        routing_act = None
+        if isinstance(clicked, _LinkItem):
+            routing_act = menu.addAction("Insert routing node here…")
+            menu.addSeparator()
         # Cut/Copy/Paste in the conventional order, with "Paste Here"
         # last of the three and renamed: it drops the copy on THIS exact
         # spot, which is why the old first-positioned "Paste here" read
@@ -301,7 +305,9 @@ class ContextMenuMixin:
             menu.addSeparator()
             dep_action = menu.addAction("Focus on Dependency")
         chosen = self._exec_menu(menu, event)
-        if chosen is paste_act:
+        if chosen is routing_act:
+            self.insert_routing_node(clicked._link_num, mx, my)
+        elif chosen is paste_act:
             self.paste(at_model=(mx, my))
         elif chosen is out_act:
             self._move_selection_to_parent()

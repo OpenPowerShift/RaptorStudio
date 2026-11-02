@@ -91,6 +91,7 @@ from raptor.gui.ui.diagram_commands import (  # noqa: F401
     PhaseCmd,
     ReParentCmd,
     RenameCmd,
+    SplitLinkCmd,
     RowCellCmd,
     StreamCmd,
     TableCellCmd,
@@ -3553,6 +3554,58 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         row["ToID"] = str(to_id)
         self._stack.push(AddCmd(self, "link", [row]))
         return num
+
+    def insert_routing_node(self, link_num: int, model_x: float,
+                            model_y: float, name: str | None = None):
+        """Split ``link_num`` into A -> routing node -> B.
+
+        The node is an ordinary type-2 pass-through (`k=1`, unrestricted
+        flow, no weak-link row), so the reliability model is unchanged and
+        the result round-trips through both file formats. One undo step.
+        """
+        rbd = self._rbd_ref
+        if rbd is None:
+            return None
+        link_section = rbd.sections.get("LINK_DATA")
+        if link_section is None:
+            return None
+        link_row = next((r for r in link_section.rows
+                         if _safe_int(r.get("ID")) == link_num), None)
+        if link_row is None:
+            return None
+        nid = self._next_id("NODE_DATA", "ID", self.nodes)
+        used_names = {str(r.get("Name", "")).lower()
+                      for r in rbd.sections.get("NODE_DATA").rows}
+        label = self._sanitize_name(name or f"route_{nid}")
+        while label.lower() in used_names:
+            label += "_"
+        base = self._template_row("NODE_DATA", "ID") or {
+            "Name": "", "ID": "0", "xPos": "0", "yPos": "0",
+            "parent": "0", "Type": "2", "k": "1", "n": "1", "Out": "1",
+            "Cold": "0", "PR": "0", "Autos": "0", "k*": "0",
+            "Phases": "0", "depNum": "0", "depType": "None",
+            "divFlow": "1", "fullflow": "1", "repCap": "0", "repNA": "0",
+        }
+        node_row = dict(base)
+        node_row.update({
+            "Name": label, "ID": str(nid), "Type": "2", "k": "1",
+            "n": "1", "Out": "1", "parent": str(self._current_parent),
+            "xPos": f"{model_x:.6f}", "yPos": f"{model_y:.6f}",
+            "fullflow": "1", "divFlow": "1", "repNA": "0",
+        })
+        new_id = self._next_id("LINK_DATA", "ID", {})
+        new_link_row = dict(link_row)
+        new_link_row.update({
+            "ID": str(new_id), "FromType": "Node", "FromID": str(nid),
+        })
+        stack = self._stack
+        stack.beginMacro("Insert routing node")
+        try:
+            stack.push(AddCmd(self, "node", [node_row]))
+            stack.push(SplitLinkCmd(self, link_num, nid, new_link_row))
+        finally:
+            stack.endMacro()
+        return nid
 
     def _recount_link_ends(self) -> None:
         """Recompute In/Out and node n from the actual link rows.
