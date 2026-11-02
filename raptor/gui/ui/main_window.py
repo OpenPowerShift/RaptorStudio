@@ -1501,6 +1501,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_right)
         self._inspector_dock = dock_right
 
+        # Failure Effects inspector: the structured state beside the canvas
+        # while Failure Effects View is enabled. It shares the Inspector's
+        # tab group, so no new width is reserved for a mode the user is
+        # usually not in, and raises itself only for that mode.
+        from raptor.gui.ui.fev_inspector import FevInspectorDock
+        self._fev_inspector = FevInspectorDock(
+            summary_provider=self._fev_text)
+        fev_dock = QDockWidget("Failure Effects", self)
+        fev_dock.setWidget(self._fev_inspector)
+        fev_dock.setMinimumSize(340, 0)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, fev_dock)
+        self.tabifyDockWidget(dock_right, fev_dock)
+        fev_dock.hide()
+        self._fev_inspector_dock = fev_dock
+
         # Live Log dock: while stepping / live-running, the right dock
         # shows the streaming event log (like the Results Event Log)
         # instead of the Inspector; the Inspector returns after.
@@ -1633,7 +1648,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Floating/re-docking can create a fresh QTabBar whose default
         # elide mode is ElideRight, so tabs show "Data Tab...". Re-apply
         # the no-elide rule whenever the dock placement changes.
-        for d in (dock_left, dock_right, self._live_log_dock,
+        for d in (dock_left, dock_right, fev_dock, self._live_log_dock,
                   dock_bottom, dock_tables, self._run_dock):
             d.dockLocationChanged.connect(
                 lambda _area: QTimer.singleShot(0, self._sync_dock_tab_bars))
@@ -1654,6 +1669,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
         # `saveState()` keys each dock by object name; without one Qt drops it from the saved layout.
         for dock, name in ((dock_left, "ExplorerDock"), (dock_right, "InspectorDock"),
+                           (fev_dock, "FevInspectorDock"),
                            (self._live_log_dock, "LiveLogDock"), (dock_bottom, "ResultsDock"),
                            (dock_tables, "DataTablesDock"), (self._run_dock, "RunPanelDock")):
             dock.setObjectName(name)
@@ -1662,7 +1678,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # one bottom stub since they're tabified into one physical slot
         # -- minimizing either one collapses both.
         self._make_dock_minimizable([dock_left], "left")
-        self._make_dock_minimizable([dock_right], "right")
+        self._make_dock_minimizable([dock_right, fev_dock], "right")
         self._make_dock_minimizable(
             [dock_bottom, dock_tables, self._run_dock], "bottom",
             restore_max=lambda: self._max_bottom_dock_height())
@@ -2405,6 +2421,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._apply_action_icons()
         for rethemer in (self._dock_titlebar_rethemers or []):
             rethemer()
+        fev_inspector = getattr(self, "_fev_inspector", None)
+        if fev_inspector is not None:
+            fev_inspector.refresh_theme()
 
     #: Contrast prompts waiting their turn, shared by every model window.
     #: A theme change makes each open window ask; nesting one modal

@@ -40,6 +40,69 @@ def _id(win, name):
     return win._fev.block_by_name(name).id
 
 
+def _inspector_rows(win):
+    return win._fev_inspector._rows
+
+
+def test_the_fev_inspector_shows_the_structured_state(win):
+    win._fev_view_action.setChecked(True)
+    assert win._fev_inspector_dock.isVisible()
+    rows = _inspector_rows(win)
+    assert rows[0] == ("SYSTEM", "", "", "")
+    assert any(category == "System" and element == "Phase"
+               and state == "1 of 5"
+               for category, element, state, _detail in rows)
+    win._on_fev_phase_next()
+    rows = _inspector_rows(win)
+    assert any(category == "System" and element == "Phase"
+               and state == "2 of 5"
+               for category, element, state, _detail in rows)
+    assert ("FAILURES", "", "", "") in rows
+    assert ("EFFECTS", "", "", "") in rows
+    assert ("CAPACITY", "", "", "") in rows
+
+    # A click updates the table in place: Thermal is failed, and the
+    # effects/capacity sections follow the new state.
+    win._on_fev_target_clicked(_id(win, "Thermal"), "click")
+    rows = _inspector_rows(win)
+    assert any(category == "Failures" and element == "Thermal"
+               and state == "Repairing"
+               for category, element, state, _detail in rows)
+    assert any(category == "Failures" and element == "Attitude"
+               for category, element, _state, _detail in rows)
+
+
+def test_the_fev_inspector_copy_buttons_copy_tsv_and_the_summary(win):
+    from PySide6.QtWidgets import QApplication
+
+    win._fev_view_action.setChecked(True)
+    inspector = win._fev_inspector
+    inspector.copy_all()
+    copied = QApplication.clipboard().text()
+    assert copied.startswith("Category\tElement\tState\tDetail")
+    assert "SYSTEM" in copied and "FAILURES" in copied
+
+    row = next(i for i, values in enumerate(_inspector_rows(win))
+               if values[1] == "Status")
+    inspector._table.selectRow(row)
+    inspector.copy_selected()
+    selected = QApplication.clipboard().text()
+    assert selected.startswith("Category\tElement\tState\tDetail")
+    assert "System\tStatus\t" in selected
+    assert "FAILURES" not in selected
+
+    inspector.copy_summary()
+    assert "FAILURES" in QApplication.clipboard().text()
+
+
+def test_leaving_fev_hides_the_inspector_and_restores_the_inspector_dock(win):
+    win._fev_view_action.setChecked(True)
+    assert win._fev_inspector_dock.isVisible()
+    win._fev_view_action.setChecked(False)
+    assert not win._fev_inspector_dock.isVisible()
+    assert win._inspector_dock.isVisible()
+
+
 def test_it_opens_without_a_run_and_closes(win):
     assert win._fev is None
     win._fev_view_action.setChecked(True)
