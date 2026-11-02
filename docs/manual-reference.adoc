@@ -291,7 +291,9 @@ current value).
 |Control |What it does |Shortcut / value
 |Dark Theme |Toggle light/dark theme |
 |Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options |
+|Layout max columns |Wrap the flow into another band after this many columns; 0 = fit Raptor's canvas width. |number, now 0
 |Link style |How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved. |choice, now Straight
+|Layout direction |Auto Layout flow: left-to-right (default), right-to-left, top-to-bottom or bottom-to-top. |choice, now Left → right
 |Block labels |What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing |choice, now Mean
 |Show phase on block labels |Which phase's law the block labels describe. 'Model' shows the model's own unphased data; a phase shows that phase's stress-adjusted failure time, or that the block is cut. Disabled when the model has no phases. |choice, now Model
 |===
