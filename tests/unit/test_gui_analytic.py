@@ -237,6 +237,48 @@ def test_scope_controls_appear_only_when_the_model_has_them(qapp):
     phased.close()
 
 
+def test_dependency_control_appears_only_when_the_model_has_them(qapp):
+    _win, plain = _dialog(qapp, "Lantern1")
+    assert not plain._form.isRowVisible(plain._dependencies)
+    assert plain._dependencies.currentData() is None
+    plain.close()
+
+    _win, dependent = _dialog(qapp, "EspressoDep1")
+    assert dependent._form.isRowVisible(dependent._dependencies)
+    assert dependent._dependencies.currentData() is None
+    assert dependent._result is None            # refused until a choice
+    assert "choose a Dependencies treatment" in dependent._notice_body.text()
+
+    dependent._dependencies.setCurrentIndex(2)  # down
+    dependent.compute()
+    dependent.wait_for_result()
+    assert dependent._result["scope"]["dependencies"] == "down"
+    assert "dependency treated as down" in dependent._scope_note.text()
+
+    # Opening another model must not carry the previous choice over.
+    dependent._fill_scope_controls(load_rbds(os.path.join(MODELS,
+                                                          "Lantern1.rbds")))
+    assert dependent._dependencies.currentIndex() == 0
+    assert not dependent._form.isRowVisible(dependent._dependencies)
+    dependent.close()
+
+
+def test_dependency_up_is_offered_and_changes_the_answer(qapp):
+    _win, dialog = _dialog(qapp, "EspressoDep1")
+    dialog._ignore.setChecked(True)
+    dialog._dependencies.setCurrentIndex(1)     # up
+    dialog.compute()
+    dialog.wait_for_result()
+    up = dialog._result["reliability"]
+
+    dialog._dependencies.setCurrentIndex(2)     # down
+    dialog.compute()
+    dialog.wait_for_result()
+    down = dialog._result["reliability"]
+    assert up > down
+    dialog.close()
+
+
 def test_bx_card_says_what_the_percentage_means(qapp):
     from PySide6.QtWidgets import QLabel
     _win, dialog = _dialog(qapp, "Lantern1")

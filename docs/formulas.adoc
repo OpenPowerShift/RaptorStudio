@@ -523,8 +523,10 @@ the probability that element stem:[i] is failed and critical, given that the
 system has failed. Neither is a partition of downtime: overlapping failures
 mean a column need not sum to one.
 
-The solver refuses PM, spares, resources, dependencies, standby, phases and
-non-Bernoulli events; those remain simulation-only. See
+The solver refuses PM, spares, resources and non-Bernoulli events, and
+refuses dependencies, standby or phases until you choose how to treat them
+(`dependencies=up|down`, `standby=active|absent`, `phase=N`); those are
+otherwise simulation-only. See
 link:https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md[the analytical solver guide] for the exact scope and the
 applicability messages.
 

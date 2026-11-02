@@ -16,7 +16,13 @@ from raptor.core.analytical import recursion_headroom
 from raptor.core.analytical import evaluate
 from raptor.core.analytical.bdd import MAX_BDD_NODES
 from raptor.core.analytical.errors import AnalyticalError, BddTooLarge, NotApplicable
-from raptor.core.analytical.network import MAX_VARIABLES
+from raptor.core.analytical.network import (
+    DEPENDENCY_MODES,
+    MAX_VARIABLES,
+    STANDBY_MODES,
+    has_dependency,
+    has_node_dependency,
+)
 from raptor.core.engine.load import load_model
 
 SCHEMA = "raptor-analytic/1"
@@ -109,7 +115,7 @@ def analyse_rbd(
                 importance=importance, equation=equation,
                 ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
                 standby=standby, dependencies=dependencies,
-        progress=progress,
+                progress=progress,
                 max_variables=max_variables, max_bdd_nodes=max_bdd_nodes)
     except RecursionError as exc:
         raise NotApplicable(
@@ -139,6 +145,14 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
 ) -> dict[str, Any]:
     if mode not in ("reliability", "availability"):
         raise ValueError("mode must be 'reliability' or 'availability'")
+    # Choice arguments are the caller's input, not a property of the model:
+    # reject a bad value as ValueError before `build()` wraps model-time
+    # evaluation errors as NotApplicable.
+    if standby is not None and standby not in STANDBY_MODES:
+        raise ValueError(f"standby must be one of {list(STANDBY_MODES)}")
+    if dependencies is not None and dependencies not in DEPENDENCY_MODES:
+        raise ValueError(
+            f"dependencies must be one of {list(DEPENDENCY_MODES)}")
     at = _finite(at, "mission time")
     tau = _finite(tau, "tau")
     if times is not None:
@@ -296,7 +310,8 @@ def _scope_dict(model, scope) -> dict[str, Any]:
 
 def scope_options(rbd) -> dict[str, Any]:
     """What the model offers to ignore or choose: phase names, whether it has
-    cold-standby nodes. Lets a front end show only the controls that apply."""
+    cold-standby nodes or dependencies. Lets a front end show only the
+    controls that apply."""
     model = load_model(rbd)
     return {
         "phases": [phase.phase_name or f"Phase {i}"
@@ -304,10 +319,10 @@ def scope_options(rbd) -> dict[str, Any]:
         "has_standby": any(node.cold_standby or node.cold_links
                            for node in model.nodes_by_id.values()),
         "has_dependencies": (
-            any(getattr(b, "dependency_num", 0)
-                for b in model.blocks_by_id.values())
-            or any(getattr(n, "dependency_num", 0)
-                   for n in model.nodes_by_id.values())
+            any(has_dependency(block)
+                for block in model.blocks_by_id.values())
+            or any(has_node_dependency(node)
+                   for node in model.nodes_by_id.values())
         ),
     }
 
