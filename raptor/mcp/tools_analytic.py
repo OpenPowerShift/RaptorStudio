@@ -19,6 +19,10 @@ def _scope_choice(value: object) -> str | None:
 
 def _markdown(result: dict) -> str:  # noqa: C901, PLR0912
     lines = [f"**{result['model']} — {result['mode']}**", ""]
+    if result.get("hierarchy"):
+        lines.append(f"- Scope: hierarchy {result['hierarchy']} as a "
+                     "standalone port extension")
+        lines.append("")
     scope = result.get("scope") or {}
     choices = []
     if scope.get("phase") is not None:

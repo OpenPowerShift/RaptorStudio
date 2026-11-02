@@ -89,10 +89,13 @@ def _floats(text: str | None) -> list[float]:
         raise CliError(f"bad number list {text!r}", X.USAGE) from exc
 
 
-def _summary_csv(result: dict[str, Any]) -> str:
+def _summary_csv(result: dict[str, Any]) -> str:  # noqa: C901
     out = io.StringIO()
     writer = csv.writer(out)
     writer.writerow(["section", "name", "value"])
+    writer.writerow(["summary", "model", result.get("model")])
+    if result.get("hierarchy"):
+        writer.writerow(["summary", "hierarchy", result["hierarchy"]])
     for key in ("time", "reliability", "pdf", "hazard", "mttf",
                 "availability", "unavailability", "bdd_nodes"):
         if key in result and result[key] is not None:

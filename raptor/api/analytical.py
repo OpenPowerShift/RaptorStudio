@@ -115,11 +115,18 @@ def analyse_rbd(
     node becomes Start, its Out node becomes End, and everything outside is
     dropped (see `raptor.api.isolate`)."""
     if hierarchy is not None:
-        from raptor.api.isolate import IsolationError, extract
-        try:
-            rbd, record = extract(rbd, hierarchy)
-        except IsolationError as exc:
-            raise NotApplicable(str(exc)) from exc
+        from raptor.api.isolate import extract
+        # Pass the dependency choice into extraction: an outside dependency
+        # must be dropped for `down`, not silently rewritten as "up" before
+        # the solver sees it. `IsolationError` is a ValueError, so the CLI
+        # reports a bad selector as a usage error and the GUI as a setting.
+        # `up` is the optimistic extraction default. `down` cannot be
+        # represented after extraction has already removed an outside
+        # dependency, so refuse the boundary crossing instead of silently
+        # returning the `up` answer.
+        treatments = ({"deps": "refuse"} if dependencies == "down"
+                      else {"deps": "up"} if dependencies == "up" else None)
+        rbd, record = extract(rbd, hierarchy, treatments)
         name = f"{name}:{record.hierarchy}"
     try:
         with recursion_headroom():
@@ -172,6 +179,10 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
             f"dependencies must be one of {list(DEPENDENCY_MODES)}")
     at = _finite(at, "mission time")
     tau = _finite(tau, "tau")
+    if int(max_variables) < 1:
+        raise ValueError("max_variables must be at least 1")
+    if int(max_bdd_nodes) < 2:
+        raise ValueError("max_bdd_nodes must be at least 2")
     if int(max_bdd_nodes) > MAX_BDD_NODES:
         raise ValueError(
             f"max_bdd_nodes cannot exceed the hard cap "

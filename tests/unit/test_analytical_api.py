@@ -237,5 +237,46 @@ def test_an_unknown_hierarchy_is_refused_with_a_message():
     from raptor.api.analytical import analyse_rbd
     from raptor.core.fileio.rbd import load_rbd
     rbd = load_rbd(str(REPO / "tests/golden/HierarchyExample/input.rbd"))
-    with pytest.raises(NotApplicable, match="hierarchy"):
+    with pytest.raises(ValueError, match="hierarchy"):
         analyse_rbd(rbd, hierarchy="no-such-hierarchy")
+
+
+def test_hierarchy_scope_is_named_in_text_and_csv(capsys):
+    from raptor.api.analytical import analyse_rbd
+    from raptor.api.analytical_text import summary_text
+    from raptor.core.fileio.rbd import load_rbd
+    rbd = load_rbd(str(REPO / "tests/golden/HierarchyExample/input.rbd"))
+    result = analyse_rbd(rbd, hierarchy=23, dependencies="up",
+                         ignore_repairs=True,
+                         ignore=("pm", "spares", "resources"),
+                         importance=False)
+    text = summary_text(result)
+    assert "Hierarchy analysed: 500path" in text
+    code = main(["analytic", str(REPO / "tests/golden/HierarchyExample/input.rbd"),
+                 "--hierarchy", "500path", "--dependencies", "up",
+                 "--ignore", "pm,repairs,spares,resources",
+                 "--no-importance", "-f", "csv"])
+    out = capsys.readouterr().out
+    assert code == X.OK
+    assert "hierarchy,500path" in out
+
+
+def test_cross_boundary_dependencies_refuse_the_down_choice():
+    from raptor.api.analytical import analyse_rbd
+    from raptor.core.fileio.rbd import load_rbd
+    rbd = load_rbd(str(REPO / "tests/golden/LadL7HierFull/input.rbd"))
+    common = dict(hierarchy="H3", ignore_repairs=True,
+                  ignore=("pm", "spares", "resources"), importance=False)
+    assert analyse_rbd(rbd, dependencies="up", **common)["reliability"] > 0
+    with pytest.raises(ValueError, match="boundary"):
+        analyse_rbd(rbd, dependencies="down", **common)
+
+
+def test_bad_hierarchy_and_limit_are_usage_errors(capsys):
+    model = str(REPO / "tests/golden/HierarchyExample/input.rbd")
+    assert main(["analytic", model, "--hierarchy", "NoSuchHierarchy"]) == X.USAGE
+    err = capsys.readouterr().err
+    assert "no hierarchy" in err
+    assert main(["analytic", model, "--max-bdd-nodes", "1"]) == X.USAGE
+    err = capsys.readouterr().err
+    assert "at least 2" in err

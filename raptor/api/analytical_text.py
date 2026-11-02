@@ -20,6 +20,10 @@ def scope_sentence(scope: dict[str, Any] | None) -> str:
     if not scope:
         return ""
     parts = []
+    if scope.get("hierarchy"):
+        parts.append(
+            f"hierarchy {scope['hierarchy']} solved as a standalone port "
+            "extension (its In node becomes Start and its Out node End)")
     if scope.get("phase") is not None:
         name = f" ({scope['phase_name']})" if scope.get("phase_name") else ""
         parts.append(f"Phase {scope['phase']}{name} analysed as if the "
@@ -48,6 +52,9 @@ def _scope_lines(scope: dict[str, Any] | None) -> list[str]:
     if not scope:
         return []
     out = []
+    if scope.get("hierarchy"):
+        out.append("Hierarchy analysed: "
+                   f"{scope['hierarchy']} (standalone port extension)")
     if scope.get("phase") is not None:
         out.append(f"Phase analysed: {scope['phase']}"
                    + (f" ({scope['phase_name']})"

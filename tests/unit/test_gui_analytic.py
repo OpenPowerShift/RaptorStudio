@@ -369,6 +369,8 @@ def test_hierarchy_combo_lists_and_solves_one_hierarchy(qapp):
     dialog.wait_for_result()
     assert dialog._result is not None
     assert dialog._result["hierarchy"] == "500path"
+    assert "500path" in dialog._scope_note.text()
+    assert "hierarchy 500path" in dialog._banner.text()
     dialog.close()
 
 
