@@ -95,6 +95,19 @@ def test_context_menu_adds_a_grip_without_touching_the_model(qapp):
     assert v._rbd_ref.link_grips[-1]["link"] == link_id
 
 
+def test_menu_style_model_coordinates_place_the_grip_on_the_link(qapp):
+    v = _open_shown_view(qapp)
+    link = v._links[0]
+    scene = link.line().center()
+    mx, my = v._vt.to_model(scene.x(), scene.y())
+    grip = v.insert_routing_node(link._link_num, mx, my)
+    assert grip is not None
+    assert grip.scenePos().x() == pytest.approx(scene.x())
+    assert grip.scenePos().y() == pytest.approx(scene.y())
+    assert v.viewport().rect().contains(
+        v.mapFromScene(grip.scenePos()))
+
+
 def test_new_grip_leaves_the_link_path_unchanged_until_dragged(qapp):
     v = _view()
     link = v._links[0]
