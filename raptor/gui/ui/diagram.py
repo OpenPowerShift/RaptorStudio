@@ -6107,11 +6107,26 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 GUI_REFINE_BUDGET_S, layout_container_positions,
                 refine_budget, LAYER_PITCH, ROW_PITCH,
             )
+            section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                          "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}
+            sizes = {}
+            render_extents = {}
+            scale = max(float(self._scale), 1e-9)
+            for key, item in members.items():
+                rect = item.sceneBoundingRect()
+                hw = max(rect.width() / 2.0 / scale, 0.1)
+                hh = max(rect.height() / 2.0 / scale, 0.1)
+                sizes[key] = (hw, hh)
+                section = section_of.get(key[0])
+                if section is not None:
+                    render_extents[(section, str(key[1]))] = (
+                        rect.width() / 2.0, rect.height() / 2.0)
             # This blocks the UI thread: the shorter GUI budget, not the
             # engine's default.
             with refine_budget(GUI_REFINE_BUDGET_S):
-                pos = layout_container_positions(members.keys(), edges,
-                                                 starts, pins=pins)
+                pos = layout_container_positions(
+                    members.keys(), edges, starts, pins=pins,
+                    sizes=sizes, scale=scale)
             for k, (mx, my) in pos.items():
                 if k not in moving:
                     continue
@@ -6122,8 +6137,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                                 sy - BLOCK_H / 2)      # top-left
                 else:
                     item.setPos(sx, sy)                # centred
-                x_step = LAYER_PITCH
-            y_step = ROW_PITCH
+            # Grid pitch = the smallest resulting column/row gap, so the
+            # drawn grid follows the size-aware pitches rather than the
+            # fixed constants.
+            xs = sorted({round(mx, 6) for mx, _my in pos.values()})
+            ys = sorted({round(my, 6) for _mx, my in pos.values()})
+            def _gap(values, fallback):
+                gaps = [b - a for a, b in zip(values, values[1:])
+                        if b - a > 1e-6]
+                return min(gaps) if gaps else fallback
+            x_step = _gap(xs, LAYER_PITCH)
+            y_step = _gap(ys, ROW_PITCH)
         finally:
             self._loading = False
         for link in self._links:
@@ -6174,6 +6198,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self.write_back_to_rbd(rbd)
             old_transform = dict(rbd.view_transform) if rbd.view_transform else None
             rbd.view_transform = None
+            # Exact drawn extents for this layout. `view_transform.derive`
+            # uses them for the scale; without this it would reserve the
+            # fixed 108 px block and let a 216 px name overlap.
+            rbd._render_extents = render_extents
             self._compute_model_transform(rbd)
             # Annotations go with the diagram: anchored ones next to their
             # element again, the others at the same place in the model.

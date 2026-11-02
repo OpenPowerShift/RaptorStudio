@@ -224,7 +224,8 @@ _CENTRAL_W = {"node": 1.0}
 
 def layout_container_positions(members, edges, entries, pins=frozenset(),
                                base=None, *, deadline: float | None = None,
-                               report: dict | None = None):
+                               report: dict | None = None,
+                               sizes=None, scale: float | None = None):
     """Layered layout for ONE container, collision-refined.
 
     members: iterable of hashable keys ("kind", id); edges: (a, b)
@@ -240,7 +241,15 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     `deadline` is a `time.monotonic()` value after which the collision
     refine stops (default: `refine_budget_s()` from now). If it stops early
     and `report` is given, `report["refine_cut_short"]` is incremented, so a
-    caller can say the layout is not fully refined."""
+    caller can say the layout is not fully refined.
+
+    `sizes` optionally maps a member key to its actual `(half_width,
+    half_height)` in MODEL units (the GUI passes exact font metrics, the
+    API passes the shared estimate). Columns are then pitched by those
+    widths instead of the fixed `_HALF` boxes; a long name or a wide
+    hierarchy oval can no longer overlap its neighbour. `scale` is the
+    scene's pixels-per-model-unit, used only to convert the scene pixel
+    minimum gaps into model units."""
     if deadline is None:
         deadline = time.monotonic() + refine_budget_s()
     member_set = sorted(set(members))      # deterministic order (ids are unique)
@@ -279,7 +288,17 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # elements, is the whole cost of the layout pass.  Resolve each
     # element's kind and collision box ONCE instead of on every visit.
     kinds = {k: kind_of(k) for k in member_set}
-    boxes = {k: _half(kinds[k]) for k in member_set}
+    px_per_unit = float(scale) if scale and scale > 0 else 64.0
+    size_map = sizes or {}
+
+    def _box(k) -> tuple[float, float]:
+        size = size_map.get(k)
+        if size is None:
+            return _half(kinds[k])
+        hw, hh = size
+        return float(hw) + _CLEAR, float(hh) + _CLEAR
+
+    boxes = {k: _box(k) for k in member_set}
     near_boxes = {k: (boxes[k][0] + 0.75, boxes[k][1] + 0.75) for k in member_set}
 
     # Column index per element, then each column's x. Two neighbouring
@@ -338,6 +357,13 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # stacked downward, alternating direction (left to right, then right
     # to left) so the link from one band's last column to the next band's
     # first stays short and vertical instead of crossing the whole band.
+    # Actual half-widths per column, in model units. The fixed `_HALF`
+    # boxes include a clearance margin and made two hierarchy ovals look
+    # wider than their 2.5-unit pitch even when the drawn ovals clear each
+    # other; that false overlap is what zig-zagged a straight chain.
+    col_hw: dict = {}
+    for k, c in col_of.items():
+        col_hw[c] = max(col_hw.get(c, 0.0), boxes[k][0] - _CLEAR)
     col_x: dict = {}
     col_band: dict = {}
     limit = X_MAX - FIRST_X
@@ -346,8 +372,17 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     prev = None
     for c in range(max(col_of.values()) + 1):
         if prev is not None:
-            both_nodes = node_only.get(prev, True) and node_only.get(c, True)
-            local += NODE_PITCH if both_nodes else LAYER_PITCH
+            both_nodes = (node_only.get(prev, True)
+                          and node_only.get(c, True)
+                          and max(col_hw.get(prev, 0.0),
+                                  col_hw.get(c, 0.0)) <= 18.0)
+            # Keep the scene's minimum gap in pixels, converted to model
+            # units at this scene scale.
+            gap_px = 40.0 if both_nodes else 52.0
+            width_pitch = (col_hw.get(prev, 0.0) + col_hw.get(c, 0.0)
+                           + gap_px / px_per_unit)
+            local += max(NODE_PITCH if both_nodes else LAYER_PITCH,
+                         width_pitch)
             if local > limit + 1e-9:
                 band += 1
                 local = 0.0
@@ -714,9 +749,25 @@ def _place_container(children: dict[str, list], links, entries, outs,
         a, b = (fk, fid), (tk, tid)
         if a in members and b in members and a != b:
             edges.append((a, b))
+    from . import element_size
+
+    section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                  "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}
+    # The headless layout uses the shared estimate at the legacy reference
+    # scale. The GUI overrides this with exact QFontMetricsF extents.
+    sizes = {}
+    for key, row in members.items():
+        section = section_of.get(key[0])
+        if section is None:
+            continue
+        col = element_size.NAME_COLUMNS.get(section, "")
+        sizes[key] = (
+            element_size.model_half_width(section, row.get(col, ""), 64.0),
+            element_size.model_half_height(section, row.get(col, ""), 64.0),
+        )
     pos = layout_container_positions(members.keys(), edges,
                                      entries, pins=outs, deadline=deadline,
-                                     report=report)
+                                     report=report, sizes=sizes, scale=64.0)
     for k, (x, y) in pos.items():
         members[k]["xPos"] = f"{x:.6f}"
         members[k]["yPos"] = f"{y:.6f}"

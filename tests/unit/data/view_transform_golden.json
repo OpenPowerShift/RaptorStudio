@@ -511,6 +511,38 @@
    128.0
   ]
  },
+ "DeferPhaseTrigProbe": {
+  "stored": {
+   "dx_min": 1.25,
+   "dy_min": 1.25,
+   "flip_base": 93.75,
+   "origin_x": 1.25,
+   "scale": 128.0
+  },
+  "view": [
+   1.25,
+   93.75,
+   1.25,
+   1.25,
+   128.0
+  ]
+ },
+ "DeferTrigProbe": {
+  "stored": {
+   "dx_min": 8.75,
+   "dy_min": 31.25,
+   "flip_base": 91.25,
+   "origin_x": 1.25,
+   "scale": 14.171428571
+  },
+  "view": [
+   1.25,
+   91.25,
+   8.75,
+   31.25,
+   14.171428571
+  ]
+ },
  "DepBlockDoneProbe": {
   "stored": {
    "dx_min": 2.5,
@@ -991,6 +1023,70 @@
    14.171428571
   ]
  },
+ "FevHierarchyExample": {
+  "stored": {
+   "dx_min": 1.25,
+   "dy_min": 1.25,
+   "flip_base": 93.75,
+   "origin_x": 1.25,
+   "scale": 99.2
+  },
+  "view": [
+   1.25,
+   93.75,
+   1.25,
+   1.25,
+   99.2
+  ]
+ },
+ "FevPhasing3": {
+  "stored": {
+   "dx_min": 1.25,
+   "dy_min": 1.25,
+   "flip_base": 93.75,
+   "origin_x": 1.25,
+   "scale": 128.0
+  },
+  "view": [
+   1.25,
+   93.75,
+   1.25,
+   1.25,
+   128.0
+  ]
+ },
+ "FevSpaceStation": {
+  "stored": {
+   "dx_min": 0.0,
+   "dy_min": 1.25,
+   "flip_base": 92.5,
+   "origin_x": 1.25,
+   "scale": 64.0
+  },
+  "view": [
+   1.25,
+   92.5,
+   0.0,
+   1.25,
+   64.0
+  ]
+ },
+ "FevStandbyStressProbe": {
+  "stored": {
+   "dx_min": 1.25,
+   "dy_min": 1.25,
+   "flip_base": 93.75,
+   "origin_x": 1.25,
+   "scale": 99.2
+  },
+  "view": [
+   1.25,
+   93.75,
+   1.25,
+   1.25,
+   99.2
+  ]
+ },
  "FiniteSparePool": {
   "stored": {
    "dx_min": 8.75,
@@ -1117,6 +1213,70 @@
    1.25,
    1.25,
    99.2
+  ]
+ },
+ "IsolateCold": {
+  "stored": {
+   "dx_min": 2.5,
+   "dy_min": 1.25,
+   "flip_base": 96.25,
+   "origin_x": 1.25,
+   "scale": 49.6
+  },
+  "view": [
+   1.25,
+   96.25,
+   2.5,
+   1.25,
+   49.6
+  ]
+ },
+ "IsolateDeps": {
+  "stored": {
+   "dx_min": 2.5,
+   "dy_min": 2.5,
+   "flip_base": 95.0,
+   "origin_x": 1.25,
+   "scale": 49.6
+  },
+  "view": [
+   1.25,
+   95.0,
+   2.5,
+   2.5,
+   49.6
+  ]
+ },
+ "IsolatePlain": {
+  "stored": {
+   "dx_min": 0.0,
+   "dy_min": 0.0,
+   "flip_base": 93.75,
+   "origin_x": 1.25,
+   "scale": 64.0
+  },
+  "view": [
+   1.25,
+   93.75,
+   0.0,
+   0.0,
+   64.0
+  ]
+ },
+ "IsolateShare": {
+  "stored": {
+   "dx_min": 2.5,
+   "dy_min": 2.5,
+   "flip_base": 95.0,
+   "origin_x": 1.25,
+   "scale": 49.6
+  },
+  "view": [
+   1.25,
+   95.0,
+   2.5,
+   2.5,
+   49.6
   ]
  },
  "LadL1Busy": {
@@ -1631,6 +1791,22 @@
    64.0
   ]
  },
+ "NegDrawProbe": {
+  "stored": {
+   "dx_min": 8.75,
+   "dy_min": 31.25,
+   "flip_base": 91.25,
+   "origin_x": 1.25,
+   "scale": 14.171428571
+  },
+  "view": [
+   1.25,
+   91.25,
+   8.75,
+   31.25,
+   14.171428571
+  ]
+ },
  "NestedHierarchyCost": {
   "stored": {
    "dx_min": 1.25,
@@ -1840,6 +2016,22 @@
   ]
  },
  "PhaseFailTieProbe": {
+  "stored": {
+   "dx_min": 1.25,
+   "dy_min": 1.25,
+   "flip_base": 93.75,
+   "origin_x": 1.25,
+   "scale": 128.0
+  },
+  "view": [
+   1.25,
+   93.75,
+   1.25,
+   1.25,
+   128.0
+  ]
+ },
+ "PhaseIns3": {
   "stored": {
    "dx_min": 1.25,
    "dy_min": 1.25,
@@ -2399,6 +2591,22 @@
    60.0
   ]
  },
+ "SpfEventUnphasedProbe": {
+  "stored": {
+   "dx_min": 8.75,
+   "dy_min": 0.0,
+   "flip_base": 91.25,
+   "origin_x": 1.25,
+   "scale": 14.171428571
+  },
+  "view": [
+   1.25,
+   91.25,
+   8.75,
+   0.0,
+   14.171428571
+  ]
+ },
  "StartupFailuresProbe": {
   "stored": {
    "dx_min": 1.25,
@@ -2541,6 +2749,38 @@
    1.25,
    1.25,
    128.0
+  ]
+ },
+ "ZeroFailFailSimProbe": {
+  "stored": {
+   "dx_min": 8.75,
+   "dy_min": 1.25,
+   "flip_base": 91.25,
+   "origin_x": 1.25,
+   "scale": 60.0
+  },
+  "view": [
+   1.25,
+   91.25,
+   8.75,
+   1.25,
+   60.0
+  ]
+ },
+ "ZeroFailTimeProbe": {
+  "stored": {
+   "dx_min": 8.75,
+   "dy_min": 1.25,
+   "flip_base": 91.25,
+   "origin_x": 1.25,
+   "scale": 60.0
+  },
+  "view": [
+   1.25,
+   91.25,
+   8.75,
+   1.25,
+   60.0
   ]
  },
  "ZeroWaitReasonsProbe": {

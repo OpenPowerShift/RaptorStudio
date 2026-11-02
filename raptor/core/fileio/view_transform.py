@@ -151,8 +151,19 @@ def _column_pitch_scale(rbd: Any) -> float:
 
 
 def _levels_by_kind(rbd: Any) -> dict[int, dict[float, float]]:
-    """Per level, per column x: the widest element's half-width there."""
+    """Per level, per column x: the widest element's half-width there.
+
+    Widths come from the shared Qt-free estimate, or from exact
+    `QFontMetricsF` extents when the GUI has written `_render_extents`
+    (a transient map keyed `(section, id)`). The old fixed 54/18 px
+    numbers made a long block's 216 px box overlap its neighbour.
+    """
     out: dict[int, dict[float, float]] = {}
+    # Exact drawn extents, when the GUI has just laid the level out. The
+    # default stays the fixed canvas size: changing every file's load-time
+    # scale would shrink every existing diagram merely because its names
+    # are longer than 14 characters.
+    exact = getattr(rbd, "_render_extents", None) or {}
     for name in _SECTIONS:
         sec = rbd.sections.get(name)
         if not sec:
@@ -160,14 +171,18 @@ def _levels_by_kind(rbd: Any) -> dict[int, dict[float, float]]:
         hw = float(NODE_R) if name == "NODE_DATA" else BLOCK_W / 2.0
         for r in sec.rows:
             try:
-                if int(float(r.get("ID", 0))) == 0:
+                ident = int(float(r.get("ID", 0)))
+                if ident == 0:
                     continue
                 x = float(r["xPos"])
                 parent = int(float(r.get(_PARENT_COL[name], 0) or 0))
             except (TypeError, ValueError, KeyError):
                 continue
+            width = exact.get((name, str(ident)), hw)
+            if isinstance(width, (tuple, list)):
+                width = width[0]
             cols = out.setdefault(parent, {})
-            cols[x] = max(cols.get(x, 0.0), hw)
+            cols[x] = max(cols.get(x, 0.0), float(width))
     return out
 
 
