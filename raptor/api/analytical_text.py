@@ -28,6 +28,8 @@ def scope_sentence(scope: dict[str, Any] | None) -> str:
         parts.append("standby paths treated as " + (
             "fully in service" if scope["standby"] == "active"
             else "absent"))
+    if scope.get("dependencies"):
+        parts.append("dependencies treated as " + scope["dependencies"])
     if scope.get("ignore"):
         names = {"repairs": "repairs", "pm": "preventive maintenance",
                  "spares": "spares", "resources": "resources"}
@@ -53,6 +55,8 @@ def _scope_lines(scope: dict[str, Any] | None) -> list[str]:
         out.append("Standby treated as: " + (
             "fully in service" if scope["standby"] == "active"
             else "absent"))
+    if scope.get("dependencies"):
+        out.append("Dependencies treated as: " + scope["dependencies"])
     return out + [""] if out else out
 
 

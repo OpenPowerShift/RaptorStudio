@@ -226,6 +226,7 @@ class AnalyticDialog(QDialog):
         self._busy = False
         self._rerun = False     # settings changed while a solve was running
         self._has_standby = False   # the open model has cold-standby nodes
+        self._has_dependencies = False
         self._shown_rbd_id: int | None = None
         self._result: dict[str, Any] | None = None
         self._inbox: queue.Queue = queue.Queue()
@@ -418,6 +419,17 @@ class AnalyticDialog(QDialog):
         self._standby.addItem("Treat as absent", "absent")
         form.addRow("Standby:", self._standby)
 
+        self._dependencies = QComboBox()
+        self._dependencies.setAccessibleName("Dependency treatment")
+        self._dependencies.setToolTip(
+            "A dependent element is normally refused. Choose whether every "
+            "dependency is up (analyse the dependent element's own law as "
+            "independent) or down (remove it from the success path).")
+        self._dependencies.addItem("Not chosen (the model is refused)", None)
+        self._dependencies.addItem("Treat as up", "up")
+        self._dependencies.addItem("Treat as down", "down")
+        form.addRow("Dependencies:", self._dependencies)
+
         limits = QHBoxLayout()
         limits.setContentsMargins(0, 0, 0, 0)
         self._max_variables = QSpinBox()
@@ -455,6 +467,7 @@ class AnalyticDialog(QDialog):
                        self._ignore_resources.toggled,
                        self._phase.currentIndexChanged,
                        self._standby.currentIndexChanged,
+                       self._dependencies.currentIndexChanged,
                        self._max_variables.valueChanged,
                        self._max_bdd_nodes.valueChanged):
             signal.connect(self._settings_changed)
@@ -643,6 +656,8 @@ class AnalyticDialog(QDialog):
         self._form.setRowVisible(self._phase, bool(phases))
         self._has_standby = bool(offered["has_standby"])
         self._form.setRowVisible(self._standby, self._has_standby)
+        self._has_dependencies = bool(offered.get("has_dependencies"))
+        self._form.setRowVisible(self._dependencies, self._has_dependencies)
 
     def _model_name(self) -> str:
         path = getattr(self._win, "_current_file", None)
@@ -698,6 +713,8 @@ class AnalyticDialog(QDialog):
             "phase": self._phase.currentData(),
             "standby": (self._standby.currentData()
                         if self._has_standby else None),
+            "dependencies": (self._dependencies.currentData()
+                             if self._has_dependencies else None),
             "max_variables": self._max_variables.value(),
             "max_bdd_nodes": self._max_bdd_nodes.value(),
         }
