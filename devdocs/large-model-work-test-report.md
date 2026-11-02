@@ -48,6 +48,9 @@ golden/snapshot refreshes.
   `dependencies=up`/`down`. Invalid enum values are rejected by the MCP
   protocol validator; numeric `max_columns=0` returns a structured
   `invalid_argument` error.
+- MCP large-model smoke: 500-block series `build_model` 0.6 s; LR and
+  TB/8 auto-layout ~0.5 s; straight and orthogonal 800 px renders ~2.2 s
+  and ~2.5 s. Output is correctly marked not legible at that scale.
 
 ## Security checks
 
