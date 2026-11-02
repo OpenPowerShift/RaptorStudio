@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from argparse import Namespace
 
+import pytest
+
 from raptor.api import build
 from raptor.api.workspace import Workspace
 from raptor.cli.runopts import apply_run_options
@@ -60,6 +62,22 @@ def test_the_run_options_themselves_still_apply(tmp_path):
     apply_run_options(ws, mid, Namespace(runs=7, length=500.0))
     row = ws.get(mid).rbd.sections["SYSTEM_DATA"].rows[0]
     assert float(row["NumRuns"]) == 7
+
+
+def test_analysis_option_accepts_the_same_spellings_as_a_model(tmp_path):
+    """Issue #73: one owner of the analysis names, so the CLI accepts
+    exactly what `build_model` and a `.rbds` read accept."""
+    ws, mid = _crammed_workspace(str(tmp_path))
+    apply_run_options(ws, mid, Namespace(analysis="Capacity,WeakLink"))
+    assert ws.get(mid).rbd.experiment["analyses"] == ["weak", "capacity"]
+
+
+def test_analysis_option_reports_an_unknown_name(tmp_path):
+    from raptor.cli.exitcodes import CliError
+
+    ws, mid = _crammed_workspace(str(tmp_path))
+    with pytest.raises(CliError, match="unknown analysis"):
+        apply_run_options(ws, mid, Namespace(analysis="capacity,foo"))
 
 
 def test_a_deliberate_save_leaves_a_crammed_layout_alone_too(tmp_path):

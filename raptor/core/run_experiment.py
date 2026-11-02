@@ -88,6 +88,32 @@ RECORDING_REQUIRES = {
 #: had drifted into two different severities, not just two phrasings).
 STATS_START_WARNING = ("statistics start is not before the run length")
 
+#: The canonical analysis names, in the order the run panel offers them and
+#: the order a saved file lists them. These are the spellings written to a
+#: `.rbds` file; nothing else is.
+ANALYSES: tuple[str, ...] = ("weak", "cost", "capacity")
+
+#: Other spellings accepted for each canonical name, keyed by the spelling
+#: reduced to lower-case letters and digits only. A hand-written spec or a
+#: `.rbds` from another tool says "Capacity", "CapacityAnalysis" or
+#: "weak_link"; filtering on exact lower-case names dropped all three
+#: without a word, so a model ran with the analysis switched off (issue
+#: #73). Reading those spellings is the tolerant half; the half that
+#: matters just as much is that a name that is still unknown after this
+#: is REPORTED (`unknown_analyses`), never silently dropped.
+_ANALYSIS_ALIASES: dict[str, str] = {
+    "weak": "weak",
+    "weaklink": "weak",
+    "weaklinks": "weak",
+    "weakanalysis": "weak",
+    "weaklinkanalysis": "weak",
+    "cost": "cost",
+    "costs": "cost",
+    "costanalysis": "cost",
+    "capacity": "capacity",
+    "capacityanalysis": "capacity",
+}
+
 #: Importance-measure modes (IEC 61078 Annex D, estimated by re-simulation).
 #: Owned here, next to the rest of the experiment, because this module is the
 #: Qt-free home both the panel and `raptor.api.importance` can import.
@@ -269,36 +295,58 @@ def defaults() -> dict:
     return _copy(RUN_DEFAULTS)
 
 
-#: The analyses an experiment can ask for, in their stored order.
-ANALYSES = ("weak", "cost", "capacity")
-
-#: Spellings people (and generated specs) use, folded to the stored names.
-#: Compared with case, spaces, hyphens and underscores removed, so
-#: ``"Capacity"``, ``"weak_link"`` and ``"Weak Link"`` all resolve.
-_ANALYSIS_ALIASES = {
-    "weak": "weak", "weaklink": "weak", "weakanalysis": "weak",
-    "weaklinkanalysis": "weak",
-    "cost": "cost", "costs": "cost", "costanalysis": "cost",
-    "capacity": "capacity", "capacityanalysis": "capacity",
-}
-
-
 def canonical_analysis(name: Any) -> str | None:
     """The stored name (``weak``/``cost``/``capacity``) for a spelling of an
-    analysis, or None when it names no analysis."""
+    analysis, or None when it names no analysis.
+
+    Case, spaces, hyphens and underscores do not matter: "Capacity",
+    "capacity_analysis" and "Capacity Analysis" all name ``capacity``."""
     if not isinstance(name, str):
         return None
     key = "".join(ch for ch in name.lower() if ch not in " _-")
     return _ANALYSIS_ALIASES.get(key)
 
 
+def analyses_from(values: Any) -> list[str]:
+    """The canonical analyses named by *values*, in stored order.
+
+    Unknown spellings are left out here -- this keeps ``normalise``
+    tolerant of a stale file. They are not LOST: callers with a place to
+    report them use `unknown_analyses`, which is what keeps a name from
+    vanishing silently (issue #73)."""
+    if not isinstance(values, list):
+        return []
+    wanted = {canonical_analysis(v) for v in values}
+    return [name for name in ANALYSES if name in wanted]
+
+
 def unknown_analyses(raw: Any) -> list[Any]:
-    """Entries of an `analyses` list that name no analysis. `normalise`
-    drops these (a stale file must still open); an authored spec should
-    refuse them instead (`build_from_spec` does)."""
+    """Entries of an `analyses` list that name no analysis, in order and
+    de-duplicated. `normalise` drops these (a stale file must still open);
+    an authored spec refuses them and a `.rbds` check reports them, via
+    `analyses_problem`."""
     if not isinstance(raw, list):
         return []
-    return [a for a in raw if canonical_analysis(a) is None]
+    out: list[Any] = []
+    for a in raw:
+        if canonical_analysis(a) is None and a not in out:
+            out.append(a)
+    return out
+
+
+def analyses_problem(values: Any) -> str | None:
+    """A clear message about unknown analysis names, or ``None``.
+
+    One string, so the build and the `.rbds` check cannot drift apart in
+    wording or in which names they accept. It names the valid names
+    because the usual cause is a misspelling or an older spelling."""
+    unknown = unknown_analyses(values)
+    if not unknown:
+        return None
+    named = ", ".join(f"`{u}`" for u in unknown)
+    valid = ", ".join(f"`{name}`" for name in ANALYSES)
+    plural = "name" if len(unknown) == 1 else "names"
+    return f"unknown analysis {plural} {named}; valid names are {valid}"
 
 
 def normalise(raw: dict | None) -> dict:
@@ -333,8 +381,9 @@ def normalise(raw: dict | None) -> dict:
 
     analyses = src.get("analyses")
     if isinstance(analyses, list):
-        wanted = {canonical_analysis(a) for a in analyses}
-        out["analyses"] = [a for a in ANALYSES if a in wanted]
+        # Case-insensitive and alias-aware (issue #73); see
+        # `analyses_problem` for the report an unknown name must produce.
+        out["analyses"] = analyses_from(analyses)
 
     mode = str(src.get("importance", out["importance"])).strip().lower()
     if mode in IMPORTANCE_MODES:

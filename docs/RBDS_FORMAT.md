@@ -418,6 +418,15 @@ The run settings live here and nowhere else:
 RRW and Vesely–Fussell, `risk` gives RAW and `both` adds Birnbaum. It costs one
 extra batch per block (two for `both`), so it defaults to `none`.
 
+`analyses` names are case-insensitive and the friendly spellings are
+accepted (`Capacity`, `CapacityAnalysis`, `Capacity Analysis`,
+`weak_link`, `WeakLink`, `CostAnalysis`). A spelling that still names no
+analysis is an error, not a silent drop: `.rbds` reads report it as
+`experiment.analyses: unknown analysis name ...; valid names are weak,
+cost, capacity`, and `build_model` refuses the spec with the same message.
+The canonical names above are what gets written; a file never stores a
+friendly spelling.
+
 A file without `experiment` (written before it existed) takes its run
 settings from the system row's `NumRuns`, `TerminationType`,
 `TermCondition`, `StartStats` and analysis columns in `system.legacy`;

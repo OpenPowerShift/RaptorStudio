@@ -7,12 +7,18 @@ validates with `jsonschema` and turns its errors into findings that name the
 element and the field.
 
 A finding is an **error** when the file cannot be read as written (a field
-of the wrong type, an element without an id, an unknown distribution name):
-the load stops with a message naming the element and the field. It is a
-**warning** when a key is unknown: the reader keeps it and writes it back,
-but nothing uses it, so a misspelt field would otherwise be silently
-ignored. Keys starting with ``x_`` are an extension namespace and never
-warned about.
+of the wrong type, an element without an id, an unknown distribution or
+analysis name): the load stops with a message naming the element and the
+field. It is a **warning** when a key is unknown: the reader keeps it and
+writes it back, but nothing uses it, so a misspelt field would otherwise be
+silently ignored. Keys starting with ``x_`` are an extension namespace and
+never warned about.
+
+An unknown analysis name is an error because the reader cannot keep it --
+``run_experiment.normalise`` drops it and the system's analysis flag goes
+off, which used to happen without a word and ran the model without the
+analysis the file asked for (issue #73). Case and the friendly spellings
+(``Capacity``, ``CapacityAnalysis``, ``weak_link``) are accepted.
 """
 from __future__ import annotations
 
@@ -22,6 +28,7 @@ from typing import Any
 
 from raptor.core.annotations import ANNO_LOCATIONS
 from raptor.core.fileio import rbds
+from raptor.core.run_experiment import analyses_problem
 
 SCHEMA_ID = "urn:raptor-studio:rbds"
 _EXTENSION = "^x_"
@@ -290,8 +297,9 @@ def _message(error: Any) -> str:
 
 
 def check_document(doc: Any) -> list[Finding]:
-    """Every schema finding for a parsed `.rbds` document, plus the check a
-    schema cannot express (a distribution name that does not exist).
+    """Every schema finding for a parsed `.rbds` document, plus the checks a
+    schema cannot express: a distribution name that does not exist, and an
+    analysis name no spelling of which names a real analysis.
 
     An `additionalProperties` failure is a warning per unknown key (the
     reader keeps and rewrites it, but nothing uses it), naming the nearest
@@ -320,7 +328,23 @@ def check_document(doc: Any) -> list[Finding]:
                     rbds.dist_code(value)
                 except ValueError as exc:
                     out.append(Finding("error", f"{path}.{key}", str(exc)))
+    # The analysis list is the same shape of check: the schema can only say
+    # "an array", but a spelling that names no analysis turns the analysis
+    # OFF when the file is read (`run_experiment.normalise`), so accepting
+    # it here would let the model run without it.
+    out.extend(_analysis_findings(doc))
     return out
+
+
+def _analysis_findings(doc: Any) -> list[Finding]:
+    """An error for every analysis name no spelling of which is real."""
+    experiment = doc.get("experiment")
+    if not isinstance(experiment, dict):
+        return []
+    problem = analyses_problem(experiment.get("analyses"))
+    if not problem:
+        return []
+    return [Finding("error", "experiment.analyses", problem)]
 
 
 def _element_objects(doc: dict):

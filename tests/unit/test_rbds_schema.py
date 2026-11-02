@@ -105,6 +105,34 @@ def test_an_unknown_distribution_name_is_an_error():
         parse_rbds(json.dumps(doc))
 
 
+def test_capitalised_and_friendly_analysis_names_are_read_as_canonical():
+    """Issue #73: "Capacity" used to be dropped on load -- the model opened
+    with capacity off and nothing said so. Case and the friendly spellings
+    are now accepted, and the canonical names are what get written back."""
+    doc = _doc()
+    doc["experiment"]["analyses"] = ["Capacity", "WeakLink", "CostAnalysis"]
+    assert check_document(doc) == []
+    rbd = parse_rbds(json.dumps(doc))
+    assert rbd.experiment["analyses"] == ["weak", "cost", "capacity"]
+    row = rbd.section("SYSTEM_DATA").rows[0]
+    for column in ("weakAnalysis", "costAnalysis", "capacityAnalysis"):
+        assert row[column] == "1", column
+    again = json.loads(render_rbds(rbd))
+    assert again["experiment"]["analyses"] == ["weak", "cost", "capacity"]
+
+
+def test_an_unknown_analysis_name_stops_the_load_naming_the_valid_names():
+    doc = _doc()
+    doc["experiment"]["analyses"] = ["Capacity", "foo"]
+    with pytest.raises(RbdsFormatError) as err:
+        parse_rbds(json.dumps(doc))
+    message = str(err.value)
+    assert "experiment.analyses" in message
+    assert "`foo`" in message
+    for name in ("weak", "cost", "capacity"):
+        assert f"`{name}`" in message
+
+
 def test_an_unknown_key_is_a_warning_with_a_suggestion_and_is_kept():
     doc = _doc()
     doc["elements"]["blocks"][0]["fial_dist"] = 15

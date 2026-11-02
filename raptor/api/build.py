@@ -1150,13 +1150,12 @@ def build_from_spec(spec: dict[str, Any],
                 raise BuildError(
                     "spec['experiment']['analyses'] must be a list drawn "
                     f"from {list(run_experiment.ANALYSES)}")
-            unknown = run_experiment.unknown_analyses(given)
-            if unknown:
-                raise BuildError(
-                    f"unknown analysis name(s) {unknown!r} in "
-                    "spec['experiment']['analyses']; use "
-                    f"{list(run_experiment.ANALYSES)} (any case; "
-                    "'weak_link' is accepted for 'weak')")
+            # normalise() is tolerant and drops an unknown name, leaving the
+            # analysis flag off; a spec is authored fresh, so refuse it here
+            # with the same wording the `.rbds` check uses (issue #73).
+            problem = run_experiment.analyses_problem(given)
+            if problem:
+                raise BuildError(f"spec['experiment']['analyses']: {problem}")
         experiment = run_experiment.normalise(exp_spec)
         if "analyses" not in exp_spec:
             # The system dict's weak/cost/capacity flags are the defaults.

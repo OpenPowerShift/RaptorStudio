@@ -869,6 +869,49 @@ class TestConfigureSystemMirrorsTheExperiment:
         assert run_experiment.normalise(rbd.experiment)["trials"] == 200
 
 
+class TestExperimentAnalyses:
+    """Issue #73: an analysis name the exact lower-case filter did not know
+    used to be dropped with no message. The model was saved with
+    `analyses: []`, the system's analysis flag was turned off, and the run
+    happened without the analysis the spec asked for."""
+
+    @staticmethod
+    def _spec(analyses):
+        spec = k_of_n(2, 3)
+        spec["experiment"] = {"analyses": analyses}
+        return spec
+
+    def test_capitalised_and_friendly_names_enable_the_analysis(self):
+        rbd = build_from_spec(self._spec(["Capacity", "WeakLink"]))
+        assert rbd.experiment["analyses"] == ["weak", "capacity"]
+        row = rbd.section("SYSTEM_DATA").rows[0]
+        assert row["weakAnalysis"] == "1"
+        assert row["capacityAnalysis"] == "1"
+        assert row["costAnalysis"] == "0"
+
+    def test_the_file_stores_the_canonical_names_only(self):
+        """Reading a friendly spelling must not write it back: the saved
+        file keeps the documented lower-case names."""
+        import json
+
+        from raptor.core.fileio import rbds as rbds_file
+        rbd = build_from_spec(self._spec(["CapacityAnalysis", "COST"]))
+        text = rbds_file.render_rbds(rbd)
+        doc = json.loads(text)
+        assert doc["experiment"]["analyses"] == ["cost", "capacity"]
+        back = rbds_file.parse_rbds(text)
+        assert back.experiment["analyses"] == ["cost", "capacity"]
+        assert back.section("SYSTEM_DATA").rows[0]["capacityAnalysis"] == "1"
+
+    def test_an_unknown_name_fails_the_build_naming_the_valid_names(self):
+        with pytest.raises(BuildError) as err:
+            build_from_spec(self._spec(["capacity", "foo"]))
+        message = str(err.value)
+        assert "`foo`" in message
+        for name in ("weak", "cost", "capacity"):
+            assert f"`{name}`" in message
+
+
 class TestConfigureSystem:
     def test_full_system_config(self, workspace, motor_model):
         result = configure_system(
