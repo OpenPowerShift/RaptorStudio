@@ -13,6 +13,7 @@ from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QFrame
 import copy
+import itertools
 import math
 import os
 from collections.abc import Callable
@@ -42,7 +43,7 @@ from raptor.core.annotations import (
 )
 from raptor.gui import row_ops
 from raptor.gui.clipboard_plan import count_elements, plan_copy, plan_paste
-from raptor.gui.ui.diagram_items import links_affected_by_moving
+from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 from raptor.gui.hierarchy_plan import (apply_collapse_plan,
                                        collapse_new_violations,
                                        plan_collapse, plan_dissolve,
@@ -1348,8 +1349,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # keeps the scene-wide link index from being rebuilt after every
         # insertion; the first `_update_route` below builds it once, and
         # the rest of the batch reuses it.
-        for link_item in self._links:
-            link_item._update_route()
+        with routing_batch(self._scene):
+            for link_item in self._links:
+                link_item._update_route()
 
         # K-of-N badges: a Regular node shows its k/n requirement inside
         # the circle (e.g. "1/2"), matching the real canvas's own labels.
@@ -3005,9 +3007,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def reroute_links(self) -> None:
         """Redraw every link (after the routing style changes). Layout only:
         no element moves and the model is not marked changed."""
-        for it in list(self.scene().items()):
-            if isinstance(it, _LinkItem):
-                it._update_route()
+        with routing_batch(self.scene()):
+            for it in list(self.scene().items()):
+                if isinstance(it, _LinkItem):
+                    it._update_route()
 
     def refresh_block_labels(self) -> None:
         """Re-apply the label setting to every visible block (mode/phase)."""
@@ -3975,8 +3978,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._scene.addItem(li)
             # A new link can change its endpoints' entry/exit sides.
             self._clear_route_caches()
-            for existing in self._links:
-                existing._update_route()
+            with routing_batch(self._scene):
+                for existing in self._links:
+                    existing._update_route()
         self._recount_link_ends()
         return num
 
@@ -4508,8 +4512,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # all exist rather than leaving the earlier ones with a partial
         # picture of the topology.
         self._clear_route_caches()
-        for li in self._links:
-            li._update_route()
+        with routing_batch(self._scene):
+            for li in self._links:
+                li._update_route()
 
     def scene_to_model(self, scene_pos: QPointF) -> tuple[float, float]:
         return self._vt.to_model(scene_pos.x(), scene_pos.y())
@@ -6636,13 +6641,18 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             )
             section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
                           "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}
+            from raptor.core.fileio.element_size import REFERENCE_SCALE
             sizes = {}
             render_extents = {}
-            scale = max(float(self._scale), 1e-9)
             for key, item in members.items():
                 rect = item.sceneBoundingRect()
-                hw = max(rect.width() / 2.0 / scale, 0.1)
-                hh = max(rect.height() / 2.0 / scale, 0.1)
+                # Exact Qt extents, converted at the FIXED reference scale.
+                # Dividing by the current view scale would feed this pass's
+                # output back into the next pass and ratchet the diagram:
+                # the first pass, run at a stale/degenerate scale, pitches
+                # columns differently from every later one.
+                hw = max(rect.width() / 2.0 / REFERENCE_SCALE, 0.1)
+                hh = max(rect.height() / 2.0 / REFERENCE_SCALE, 0.1)
                 sizes[key] = (hw, hh)
                 section = section_of.get(key[0])
                 if section is not None:
@@ -6653,7 +6663,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             with refine_budget(GUI_REFINE_BUDGET_S):
                 pos = layout_container_positions(
                     members.keys(), edges, starts, pins=pins,
-                    sizes=sizes, scale=scale, direction=direction,
+                    sizes=sizes, scale=REFERENCE_SCALE, direction=direction,
                     max_columns=max_columns)
             for k, (mx, my) in pos.items():
                 if k not in moving:
@@ -6671,15 +6681,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             xs = sorted({round(mx, 6) for mx, _my in pos.values()})
             ys = sorted({round(my, 6) for _mx, my in pos.values()})
             def _gap(values, fallback):
-                gaps = [b - a for a, b in zip(values, values[1:])
+                gaps = [b - a for a, b in itertools.pairwise(values)
                         if b - a > 1e-6]
                 return min(gaps) if gaps else fallback
             x_step = _gap(xs, LAYER_PITCH)
             y_step = _gap(ys, ROW_PITCH)
         finally:
             self._loading = False
-        for link in self._links:
-            link._update_route()
+        with routing_batch(self._scene):
+            for link in self._links:
+                link._update_route()
         self._user_arranged = True
         # sync only (not write_back): the position overlay reads the
         # typed objects on level rebuilds, so traversal keeps the

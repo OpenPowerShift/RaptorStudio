@@ -142,10 +142,11 @@ class AutoLayoutInput(BaseModel):
     model_id: str = Field(description="Model to re-arrange on the layered grid")
     all_levels: bool = Field(
         default=False, description="Lay out every hierarchy level, not just home")
-    direction: str = Field(
+    direction: Literal["LR", "RL", "TB", "BT"] = Field(
         default="LR", description="LR, RL, TB or BT flow direction")
     max_columns: int | None = Field(
-        default=None, description="Wrap after this many columns; None = auto")
+        default=None, ge=1,
+        description="Wrap after this many columns; None = fit the canvas")
 
 
 # ── Model features ───────────────────────────────────────────

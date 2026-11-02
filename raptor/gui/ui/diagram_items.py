@@ -1,6 +1,7 @@
 """The canvas items: blocks, nodes, links, events and hierarchy ovals, the
 grid background, LOD and snap helpers."""
 from __future__ import annotations
+import contextlib
 from collections.abc import Callable, Mapping
 from typing import Any
 from math import (ceil, floor)
@@ -918,10 +919,38 @@ def _element_box(item) -> tuple[float, float, float, float]:
     return (c.x() - hw, c.y() - hh, c.x() + hw, c.y() + hh)
 
 
+#: Scenes a batch re-route is running over, with one snapshot of every
+#: element box for the duration. Without it each link in the batch built
+#: the same O(elements) obstacle list, so re-routing a 3,000-link drawing
+#: was quadratic. A batch never moves an element, so the snapshot holds.
+_ROUTE_BATCH: list[tuple[object, list]] = []
+
+
+@contextlib.contextmanager
+def routing_batch(scene):
+    """Route a burst of links against one obstacle snapshot."""
+    if scene is None or _ROUTING["mode"] != "orthogonal":
+        yield
+        return
+    items = [it for it in scene.items()
+             if isinstance(it, (_BlockItem, _NodeItem, _EventItem, _HierItem))
+             and isValid(it)]
+    _ROUTE_BATCH.append((scene, [_element_box(it) for it in items]))
+    try:
+        yield
+    finally:
+        _ROUTE_BATCH.pop()
+
+
 def _element_boxes(scene, skip) -> list:
-    """Scene boxes (left, top, right, bottom) of every element except those
-    in `skip` -- what an orthogonal link has to keep clear of. The element
-    list is cached per scene with the link index; positions are read live."""
+    """Scene boxes (left, top, right, bottom) of every element, minus the
+    ones in `skip` -- what an orthogonal link has to keep clear of. The
+    element list is cached per scene with the link index; positions are
+    read live. The two linked elements need no filtering from a batch
+    snapshot: `Router._search` drops any box containing a port."""
+    for batch_scene, boxes in reversed(_ROUTE_BATCH):
+        if batch_scene is scene:
+            return boxes
     cache = getattr(scene, "_element_cache", None)
     if cache is None or cache[0] != _LINK_GEN[0]:
         cache = (_LINK_GEN[0], [it for it in scene.items()
