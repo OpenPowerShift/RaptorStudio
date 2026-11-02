@@ -34,6 +34,8 @@ golden/snapshot refreshes.
 - Per-workstream reviews also ran their own targeted/full subsets:
   report/golden fidelity, GUI workflows, file IO, rbds schema, MCP, SVG.
 - Report behaviour suite: **25 passed**.
+- CLI/man-page suite: **7 passed** after regenerating `raptor-analytic.1`
+  and completions for the new `--dependencies` option.
 - `ruff check raptor tests`: clean after the layout review.
 
 ## Manual smoke checks
