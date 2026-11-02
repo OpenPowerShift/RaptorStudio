@@ -49,6 +49,19 @@ golden/snapshot refreshes.
   protocol validator; numeric `max_columns=0` returns a structured
   `invalid_argument` error.
 
+## Security checks
+
+- MCP path boundary: absolute paths and `../` paths refused; only workspace-relative paths accepted.
+- Untrusted selectors (`../../etc/passwd`, missing ids, unknown names) return `not_found` and leave the model unchanged.
+- Bad layout options: `max_columns=0/-1` return structured `invalid_argument`;
+  `max_columns=True` and unknown enum values are rejected by the MCP
+  protocol validator before the tool runs.
+- Model names with control characters are refused; spaces/tag-like text are
+  accepted as plain labels (rendering paths must HTML-escape them, which the
+  report renderer does).
+- Existing MCP hardening/security suites: **215 passed**, plus **157** for
+  data/diff/get-element/resources/tables/run/review-fix tools.
+
 ## Findings fixed during review
 
 - Results dock re-materialised the full stream via `list(...)`; now keeps
