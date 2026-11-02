@@ -1778,6 +1778,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         for bar in bars:
             if bar.objectName() == "qt_tabwidget_tabbar":
                 continue
+            # The ribbon's page strip has a tab titled "Results" too, and
+            # matching by title alone put the Results dock glyph on that
+            # page tab while every other page stayed text-only.
+            if bar is getattr(getattr(self, "_ribbon", None), "tab_bar", None):
+                continue
             for index in range(bar.count()):
                 for dock in docks:
                     if dock is not None and dock.windowTitle() == \

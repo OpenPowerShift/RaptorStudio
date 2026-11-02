@@ -46,6 +46,29 @@ def test_every_dock_has_its_ribbon_icon(qapp):
         win.close()
 
 
+def test_ribbon_page_tabs_stay_text_only(qapp):
+    """Dock icons must not leak onto the ribbon's File/Model/... strip.
+
+    The Results dock and the Results ribbon page share a title, and a
+    title-only match in `_sync_dock_tab_icons` put the dock glyph on the
+    page tab.
+    """
+    from raptor.gui.ui.main_window import MainWindow
+
+    win = MainWindow()
+    win.resize(1500, 900)
+    win.show()
+    qapp.processEvents()
+    try:
+        win._apply_dock_icons()
+        qapp.processEvents()
+        bar = win._ribbon.tab_bar
+        for index in range(bar.count()):
+            assert bar.tabIcon(index).isNull(), bar.tabText(index)
+    finally:
+        win.close()
+
+
 def test_every_dock_tab_shows_an_icon(qapp):
     from PySide6.QtWidgets import QTabBar
     from raptor.gui.ui.main_window import MainWindow
