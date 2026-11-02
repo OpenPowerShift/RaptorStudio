@@ -270,6 +270,18 @@ def test_new_link_id_does_not_reuse_a_hidden_links_id(qapp):
     # The new link is visible, the hidden rows are untouched.
     assert created in {link.object_num for link in view.links}
     assert hidden_ids & {link.object_num for link in view.links} == set()
+    # Undo/redo go through `_remove_ids` / `_insert_link`, which must keep
+    # the same id and rebuild the canvas item and its route.
+    view._stack.undo()
+    assert created not in {int(float(r["ID"])) for r in rows}
+    assert created not in {link.object_num for link in view.links}
+    view._stack.redo()
+    assert created in {int(float(r["ID"])) for r in rows}
+    li = next((x for x in view._links if x._link_num == created), None)
+    assert li is not None
+    assert li._from is view._node_items[5]
+    assert li._to is view._node_items[6]
+    assert li.path().elementCount() == 2
 
 
 # ---------------------------------------------------------------------------
@@ -327,13 +339,13 @@ def test_moving_a_block_reroutes_its_links(qapp):
 def test_a_wider_label_reroutes_the_links_off_the_old_edge(qapp, monkeypatch):
     view = DiagramView()
     view.load_rbd(_dup_model())
-    block = view.blocks[1]
-    block.fail_values = [123456789.0, 0.0, 0.0]
-    block.repair_values = [123456789.0, 0.0, 0.0]
-    monkeypatch.setattr(app_settings, "get",
-                        lambda key, default=None:
-                        "spread" if key == "appearance/block_labels"
-                        else default)
+    original = diagram_mod.block_labels.describe
+
+    def wide_label(block, **kwargs):
+        _lines, tip = original(block, **kwargs)
+        return ["MTTF " + "9" * 40], tip      # definitely wider than one block
+
+    monkeypatch.setattr(diagram_mod.block_labels, "describe", wide_label)
     view.refresh_block_labels()
     item = view._block_items[1]
     assert item.rect().width() > BLOCK_W
