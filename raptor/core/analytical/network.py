@@ -40,6 +40,7 @@ ProgressCallback = Callable[[str, int, int], None]
 
 IGNORABLE = ("repairs", "pm", "spares", "resources")
 STANDBY_MODES = ("active", "absent")
+DEPENDENCY_MODES = ("up", "down")
 
 
 @dataclass(frozen=True)
@@ -50,11 +51,18 @@ class Scope:
     refusing the model (see `IGNORABLE`). ``phase`` is the 1-based phase to
     analyse as if the system stayed in it. ``standby`` says how to treat
     cold-standby paths: ``"active"`` (in service) or ``"absent"``.
+    ``dependencies`` says how to treat dependent elements: ``"up"`` ignores
+    the dependency and analyses the element's own law, ``"down"`` removes it
+    from the success path.
     """
 
     ignore: frozenset[str] = frozenset()
     phase: int | None = None
     standby: str | None = None
+    #: How to treat dependencies: None refuses them, "up" treats a
+    #: dependent element as an independent element in its own right, and
+    #: "down" forces it out of the success path.
+    dependencies: str | None = None
 
 
 @dataclass
@@ -213,6 +221,7 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
           ignore_repairs: bool = False, ignore: Collection[str] = (),
           phase: int | None = None,
           standby: str | None = None,
+          dependencies: str | None = None,
           progress: ProgressCallback | None = None,
           max_variables: int = MAX_VARIABLES,
           max_bdd_nodes: int = MAX_BDD_NODES) -> BuildResult:
@@ -232,7 +241,8 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
         raise ValueError("max_variables must be at least 1")
     if max_bdd_nodes < 2:
         raise ValueError("max_bdd_nodes must be at least 2")
-    scope = _scope(model, mode, ignore_repairs, ignore, phase, standby)
+    scope = _scope(model, mode, ignore_repairs, ignore, phase, standby,
+                   dependencies)
     if progress is not None:
         progress("Preparing model", 0, 1)
     _gate(model, mode=mode, scope=scope)
@@ -301,6 +311,17 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
                 "needs an acyclic RBD")
         visiting.add(node_id)
         node = model.nodes_by_id[node_id]
+        if _has_dep(node) and scope.dependencies == "down":
+            # The caller asked to force every dependent element down: a
+            # dependent junction cannot carry a success path.
+            out = FALSE
+            visiting.remove(node_id)
+            node_memo[node_id] = out
+            done[0] += 1
+            if progress is not None:
+                progress(f"Building BDD ({bdd.node_count:,} nodes)",
+                         done[0], total_nodes)
+            return out
         if node.type_node == 1:
             out = TRUE
         else:
@@ -436,10 +457,11 @@ def _gate(model: SimulationModel, *, mode: str, scope: Scope) -> None:  # noqa: 
         _gate_block(block, mode=mode, scope=scope)
     cold_links: set[int] = set()
     for node in model.nodes_by_id.values():
-        if _has_dep(node):
+        if _has_dep(node) and scope.dependencies is None:
             raise NotApplicable(
                 f"node {node.id} {node.node_name!r} has a dependency; the "
-                "analytical solver covers plain success paths")
+                "analytical solver covers plain success paths. Choose "
+                "whether dependencies are up or down")
         if node.cold_standby or node.cold_links:
             if scope.standby is None:
                 raise NotApplicable(
@@ -455,10 +477,12 @@ def _gate(model: SimulationModel, *, mode: str, scope: Scope) -> None:  # noqa: 
         _gate_event(event, scope)
     for link in model.links_by_id.values():
         if (link.switch_status or link.sb_link) \
-                and link.object_num not in cold_links:
+                and link.object_num not in cold_links \
+                and scope.dependencies is None:
             raise NotApplicable(
                 f"link {link.object_num} is a standby/dependency link; the "
-                "analytical solver covers plain success paths")
+                "analytical solver covers plain success paths. Choose "
+                "whether dependencies are up or down")
 
 
 def _phase_of(item, scope: Scope) -> tuple[str, float] | None:
@@ -484,13 +508,18 @@ def _gate_block(block: RBDBlock, *, mode: str, scope: Scope) -> None:  # noqa: C
         raise NotApplicable(
             f"{name} has phase type {phase[0]!r}, which the analytical "
             "solver does not understand")
-    if _has_dep(block) and not (block.cold_dep and scope.standby):
-        raise NotApplicable(f"{name} has a dependency")
+    if (_has_dep(block) and scope.dependencies is None
+            and not (block.cold_dep and scope.standby)):
+        raise NotApplicable(
+            f"{name} has a dependency. Choose whether dependencies are up "
+            "or down")
     if (block.uses_pm or block.pm_triggered) and "pm" not in scope.ignore:
         raise NotApplicable(f"{name} uses preventive maintenance")
-    if block.cold_dep and not scope.standby:
+    if (block.cold_dep and not scope.standby
+            and scope.dependencies is None):
         raise NotApplicable(f"{name} uses cold standby")
-    if block.sb_stress not in (0.0, 1.0) and not scope.standby:
+    if (block.sb_stress not in (0.0, 1.0) and not scope.standby
+            and scope.dependencies is None):
         raise NotApplicable(
             f"{name} has standby stress {block.sb_stress!r}; standby stress "
             "is outside the analytical solver")
@@ -704,7 +733,8 @@ def _mean_or_inf(code: int, params: list[float]) -> float:
 
 def _scope(model: SimulationModel, mode: str, ignore_repairs: bool,
            ignore: Collection[str], phase: int | None,
-           standby: str | None) -> Scope:
+           standby: str | None,
+           dependencies: str | None = None) -> Scope:
     chosen = {str(item).lower() for item in ignore}
     if ignore_repairs:
         chosen.add("repairs")
@@ -716,13 +746,16 @@ def _scope(model: SimulationModel, mode: str, ignore_repairs: bool,
         chosen.discard("repairs")   # availability is defined by repairs
     if standby is not None and standby not in STANDBY_MODES:
         raise ValueError(f"standby must be one of {list(STANDBY_MODES)}")
+    if dependencies is not None and dependencies not in DEPENDENCY_MODES:
+        raise ValueError(
+            f"dependencies must be one of {list(DEPENDENCY_MODES)}")
     if phase is not None:
         if not model.phases:
             raise NotApplicable("the model has no phases to choose from")
         if not 1 <= phase <= len(model.phases):
             raise ValueError(
                 f"phase must be between 1 and {len(model.phases)}")
-    return Scope(frozenset(chosen), phase, standby)
+    return Scope(frozenset(chosen), phase, standby, dependencies)
 
 
 def _node_k(node, scope: Scope, inputs: int) -> int:
@@ -778,6 +811,16 @@ def _scope_notes(model: SimulationModel, scope: Scope, mode: str,
         notes.append(
             f"standby paths are treated as absent ({count} element(s) "
             "removed); switching is ignored")
+    if scope.dependencies == "up":
+        notes.append(
+            "dependencies are treated as up: a dependent element is analysed "
+            "as an independent element with its own failure law")
+    elif scope.dependencies == "down":
+        count = sum(1 for info in infos
+                    if "dependency forced down" in info.state)
+        notes.append(
+            f"dependencies are treated as down ({count} dependent "
+            "element(s) removed from the success path)")
     return notes
 
 
@@ -800,6 +843,12 @@ def _block_info(block: RBDBlock, variable: int, *, mode: str,
             if duty <= 0.0:
                 perfect = True
                 state = "does not age in this phase"
+    if _has_dep(block):
+        if scope.dependencies == "down":
+            forced_down = True
+            state = "dependency forced down"
+        elif scope.dependencies == "up":
+            state = "dependency ignored (element treated as independent)"
     repairable = block.repair_distro != int(RngDistribution.NONE)
     mean_fail = None if perfect else survival.mean(block.fail_distro,
                                                    block.fail_values)

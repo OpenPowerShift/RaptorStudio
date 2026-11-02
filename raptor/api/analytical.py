@@ -53,6 +53,7 @@ def analyse(  # noqa: C901, PLR0912
     ignore: Collection[str] = (),
     phase: int | None = None,
     standby: str | None = None,
+    dependencies: str | None = None,
     progress: Callable[[str, int, int], None] | None = None,
     max_variables: int = MAX_VARIABLES,
     max_bdd_nodes: int = MAX_BDD_NODES,
@@ -74,7 +75,8 @@ def analyse(  # noqa: C901, PLR0912
         mode=mode, at=at, times=times, bx=bx, tau=tau,
         importance=importance, equation=equation,
         ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
-        standby=standby, progress=progress,
+        standby=standby, dependencies=dependencies,
+        progress=progress,
         max_variables=max_variables, max_bdd_nodes=max_bdd_nodes,
     )
 
@@ -94,6 +96,7 @@ def analyse_rbd(
     ignore: Collection[str] = (),
     phase: int | None = None,
     standby: str | None = None,
+    dependencies: str | None = None,
     progress: Callable[[str, int, int], None] | None = None,
     max_variables: int = MAX_VARIABLES,
     max_bdd_nodes: int = MAX_BDD_NODES,
@@ -105,7 +108,8 @@ def analyse_rbd(
                 rbd, name, mode=mode, at=at, times=times, bx=bx, tau=tau,
                 importance=importance, equation=equation,
                 ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
-                standby=standby, progress=progress,
+                standby=standby, dependencies=dependencies,
+        progress=progress,
                 max_variables=max_variables, max_bdd_nodes=max_bdd_nodes)
     except RecursionError as exc:
         raise NotApplicable(
@@ -128,6 +132,7 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
     ignore: Collection[str] = (),
     phase: int | None = None,
     standby: str | None = None,
+    dependencies: str | None = None,
     progress: Callable[[str, int, int], None] | None = None,
     max_variables: int = MAX_VARIABLES,
     max_bdd_nodes: int = MAX_BDD_NODES,
@@ -169,7 +174,8 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
         built = build_analytical(
             model, mode=mode,
             ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
-            standby=standby, progress=progress,
+            standby=standby, dependencies=dependencies,
+            progress=progress,
             max_variables=max_variables, max_bdd_nodes=max_bdd_nodes)
     except NotApplicable:
         raise
@@ -284,6 +290,7 @@ def _scope_dict(model, scope) -> dict[str, Any]:
         "phase_name": (model.phases[phase - 1].phase_name
                        if phase is not None else None),
         "standby": scope.standby,
+        "dependencies": scope.dependencies,
     }
 
 
@@ -296,6 +303,12 @@ def scope_options(rbd) -> dict[str, Any]:
                    for i, phase in enumerate(model.phases, start=1)],
         "has_standby": any(node.cold_standby or node.cold_links
                            for node in model.nodes_by_id.values()),
+        "has_dependencies": (
+            any(getattr(b, "dependency_num", 0)
+                for b in model.blocks_by_id.values())
+            or any(getattr(n, "dependency_num", 0)
+                   for n in model.nodes_by_id.values())
+        ),
     }
 
 
