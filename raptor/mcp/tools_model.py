@@ -1376,7 +1376,8 @@ def _apply_layout_positions(rbd: Any,
                             allowed: set[tuple[str, str]] | None,
                             report: dict | None = None, *,
                             direction: str = "LR",
-                            max_columns: int | None = None) -> int:
+                            max_columns: int | None = None,
+                            spacing: float = 1.0) -> int:
     """Lay the whole model out on a copy and adopt the in-scope positions.
 
     A partial run of the layout engine does not know where its neighbours
@@ -1388,7 +1389,8 @@ def _apply_layout_positions(rbd: Any,
 
     trial = copy.deepcopy(rbd)
     normalize_legacy_layout(trial, force=True, report=report,
-                            direction=direction, max_columns=max_columns)
+                            direction=direction, max_columns=max_columns,
+                            spacing=spacing)
     before, after = _layout_coords(rbd), _layout_coords(trial)
     applied = 0
     rows_by_section = {
@@ -1408,6 +1410,82 @@ def _apply_layout_positions(rbd: Any,
     return applied
 
 
+def _apply_layout_selection(rbd: Any,  # noqa: C901
+                           selected: set[tuple[str, str]],
+                           report: dict | None = None, *,
+                           direction: str = "LR",
+                           max_columns: int | None = None,
+                           spacing: float = 1.0) -> int:
+    """Lay out only `selected` rows, centred on their old bounding box."""
+    import time
+    from raptor.core.fileio import element_size
+    from raptor.core.fileio.legacy_layout import (
+        _link_endpoints, layout_container_positions, refine_budget_s,
+    )
+    kind_of = {"BLOCK_DATA": "block", "NODE_DATA": "node",
+               "EVENT_DATA": "event", "HIERARCHY_DATA": "hier"}
+    members: dict[tuple[str, int], dict] = {}
+    for sec, eid in selected:
+        kind = kind_of.get(sec)
+        if kind is None:
+            continue
+        row = next((r for r in rbd.section(sec).rows
+                    if str(r.get("ID")) == eid), None)
+        if row is not None:
+            members[(kind, int(float(eid)))] = row
+    if not members:
+        return 0
+    edges = []
+    allowed_keys = set(members)
+    for fk, fid, tk, tid in _link_endpoints(rbd):
+        a, b = (fk, fid), (tk, tid)
+        if a in allowed_keys and b in allowed_keys and a != b:
+            edges.append((a, b))
+    predecessors = {b for _a, b in edges}
+    entries = [k for k in members if k not in predecessors]
+    if not entries:
+        entries = [sorted(members)[0]]
+    sizes = {}
+    section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                  "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}
+    for key, row in members.items():
+        sec = section_of[key[0]]
+        col = element_size.NAME_COLUMNS.get(sec, "")
+        sizes[key] = (
+            element_size.model_half_width(
+                sec, row.get(col, ""), element_size.REFERENCE_SCALE),
+            element_size.model_half_height(
+                sec, row.get(col, ""), element_size.REFERENCE_SCALE),
+        )
+    deadline = time.monotonic() + refine_budget_s()
+    pos = layout_container_positions(
+        members.keys(), edges, entries, pins=set(), deadline=deadline,
+        report=report, sizes=sizes, scale=element_size.REFERENCE_SCALE,
+        direction=direction, max_columns=max_columns, spacing=spacing)
+    old = []
+    for row in members.values():
+        try:
+            old.append((float(row.get("xPos", 0.0)),
+                        float(row.get("yPos", 0.0))))
+        except (TypeError, ValueError):
+            old.append((0.0, 0.0))
+    old_cx = (min(x for x, _ in old) + max(x for x, _ in old)) / 2.0
+    old_cy = (min(y for _, y in old) + max(y for _, y in old)) / 2.0
+    new_cx = (min(x for x, _ in pos.values())
+              + max(x for x, _ in pos.values())) / 2.0
+    new_cy = (min(y for _, y in pos.values())
+              + max(y for _, y in pos.values())) / 2.0
+    dx, dy = old_cx - new_cx, old_cy - new_cy
+    applied = 0
+    for key, (x, y) in pos.items():
+        row = members[key]
+        nx, ny = x + dx, y + dy
+        if (row.get("xPos"), row.get("yPos")) != (f"{nx:.6f}", f"{ny:.6f}"):
+            row["xPos"], row["yPos"] = f"{nx:.6f}", f"{ny:.6f}"
+            applied += 1
+    return applied
+
+
 @mcp.tool(annotations=EDIT("Auto layout"))
 @guarded
 def auto_layout(model_id: str,
@@ -1415,7 +1493,8 @@ def auto_layout(model_id: str,
                 selectors: list[str] | None = None,
                 all_levels: bool = False,
                 direction: Literal["LR", "RL", "TB", "BT"] = "LR",
-                max_columns: StrictInt | None = None) -> CallToolResult:
+                max_columns: StrictInt | None = None,
+                spacing: float = 1.0) -> CallToolResult:
     """Re-arrange a model's diagram onto the shared layered grid.
 
     Runs the same engine the GUI's Auto Layout button and .rbd save
@@ -1428,10 +1507,10 @@ def auto_layout(model_id: str,
 
     - `hierarchy`: a hierarchy name or id — only that level's elements
       are repositioned; every other level keeps its coordinates.
-    - `selectors`: names / `Kind:id` of the elements to move. The layout
-      is still computed for the whole level (a subset laid out in
-      isolation does not line up with its neighbours), but only the named
-      elements adopt the new positions.
+    - `selectors`: names / `Kind:id` of the elements to move. Those
+      elements are laid out in isolation and translated so their group
+      centre stays where it was; neighbours outside the selection are
+      untouched.
 
     With neither, the home level is laid out (matching the GUI); pass
     `all_levels=True` for every level. `build_model` already lays out by
@@ -1439,7 +1518,8 @@ def auto_layout(model_id: str,
 
     `direction` is LR/RL/TB/BT; `max_columns` wraps the flow after that
     many series elements (parallel branches share one position) into a new
-    band instead of waiting for the canvas width. Use the existing
+    band instead of waiting for the canvas width. `spacing` scales every
+    gap (1 = nominal, lower compacts, higher opens it up). Use the existing
     View > Link style `orthogonal` setting (or `render_diagram`) for
     right-angle links.
 
@@ -1461,6 +1541,12 @@ def auto_layout(model_id: str,
     refine_cut_short}.
     """
     _validate_layout_args(direction, max_columns)
+    try:
+        spacing = float(spacing)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("spacing must be a positive number") from None
+    if not spacing > 0.0:
+        raise ValueError("spacing must be a positive number")
     context.require_write()
     ws = context.workspace()
     handle = ws.get(model_id)
@@ -1469,9 +1555,14 @@ def auto_layout(model_id: str,
     report: dict = {}
     from raptor.api.annotations import ensure_view_transform, follow_layout
     old_transform = ensure_view_transform(handle.rbd)
-    applied = _apply_layout_positions(
-        handle.rbd, allowed, report, direction=direction,
-        max_columns=max_columns)
+    if selectors:
+        applied = _apply_layout_selection(
+            handle.rbd, allowed or set(), report, direction=direction,
+            max_columns=max_columns, spacing=spacing)
+    else:
+        applied = _apply_layout_positions(
+            handle.rbd, allowed, report, direction=direction,
+            max_columns=max_columns, spacing=spacing)
     # Annotations go with the diagram: anchored ones are placed next to
     # their element again, the others keep their place in the model.
     if applied and allowed is None:

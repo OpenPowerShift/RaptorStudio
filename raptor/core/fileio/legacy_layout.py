@@ -34,6 +34,7 @@ from __future__ import annotations
 import contextlib
 import contextvars
 import logging
+import math
 import itertools
 import time
 from bisect import bisect_left, bisect_right
@@ -227,7 +228,8 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                                report: dict | None = None,
                                sizes=None, scale: float | None = None,
                                direction: str = "LR",
-                               max_columns: int | None = None):
+                               max_columns: int | None = None,
+                               spacing: float = 1.0):
     """Layered layout for ONE container, collision-refined.
 
     members: iterable of hashable keys ("kind", id); edges: (a, b)
@@ -257,13 +259,25 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     flow into another band after that many series elements, instead of
     waiting for Raptor's canvas width. Entry and pin markers (Start/End,
     a hierarchy's In/Out) do not count: they are endpoints, not part of
-    the constrained series path."""
+    the constrained series path.
+
+    `spacing` scales every inter-element gap and band gap. 1.0 is the
+    nominal drawing; smaller values compact, larger values open it up."""
     if deadline is None:
         deadline = time.monotonic() + refine_budget_s()
     if direction not in ("LR", "RL", "TB", "BT"):
         raise ValueError(f"unknown layout direction {direction!r}")
     if max_columns is not None and max_columns < 1:
         raise ValueError("max_columns must be at least 1")
+    try:
+        spacing = float(spacing)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("spacing must be a positive number") from None
+    if not math.isfinite(spacing) or spacing <= 0.0:
+        raise ValueError("spacing must be a positive number")
+    row_pitch = ROW_PITCH * spacing
+    layer_pitch = LAYER_PITCH * spacing
+    node_pitch = NODE_PITCH * spacing
     member_set = sorted(set(members))      # deterministic order (ids are unique)
     if not member_set:
         return {}
@@ -353,8 +367,8 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # would overlap them.
     def cross_step(keys) -> float:
         widest = max((raw_box(k)[cross_i] for k in keys), default=0.0)
-        return max(ROW_PITCH,
-                   (2.0 * widest + 42.0) / px_per_unit)
+        return max(row_pitch,
+                   (2.0 * widest + 42.0 * spacing) / px_per_unit)
 
     col_of: dict = {}
     row_off: dict = {}
@@ -410,8 +424,8 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         # the two never charge different gaps for the same columns.
         narrow = (max(a, b) * px_per_unit
                   <= NODE_NARROW_HALF_PX + 1e-9)
-        gap_px = 30.0 if narrow else 42.0
-        return max(NODE_PITCH if narrow else LAYER_PITCH,
+        gap_px = (30.0 if narrow else 42.0) * spacing
+        return max(node_pitch if narrow else layer_pitch,
                    a + b + gap_px / px_per_unit)
 
     # `max_columns` counts series elements, not literal grid columns: a
@@ -470,7 +484,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                           + cross_half[b] + gap)
         return offsets
 
-    band_gap = max(ROW_PITCH, 30.0 / px_per_unit)
+    band_gap = max(row_pitch, 30.0 * spacing / px_per_unit)
     band_offset = _band_offsets(band_gap)
     cross_span = band_offset[-1] + cross_half[-1] + cross_half[0]
     if cross_span > available + 1e-9 and n_bands > 1:
@@ -712,7 +726,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                         continue
                     col_ys = [pos[o][1] for o in columns[x] if o != k]
                     for gy in _grid_rows(band_lo, band_hi):
-                        if any(abs(gy - oy) < ROW_PITCH - 1e-6 for oy in col_ys):
+                        if any(abs(gy - oy) < row_pitch - 1e-6 for oy in col_ys):
                             continue
                         tick()
                         old = y
@@ -725,7 +739,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                 for k, (x, _y) in list(pos.items()):
                     if kind_of(k) != "block" or k in pins:
                         continue
-                    for nx in (x - LAYER_PITCH, x + LAYER_PITCH):
+                    for nx in (x - layer_pitch, x + layer_pitch):
                         if not (FIRST_X <= nx <= X_MAX):
                             continue
                         if any(ox == nx for o, (ox, _) in pos.items() if o != k):
@@ -899,7 +913,8 @@ def _place_container(children: dict[str, list], links, entries, outs,
                      id_of, deadline: float | None = None,
                      report: dict | None = None, *,
                      direction: str = "LR",
-                     max_columns: int | None = None) -> None:
+                     max_columns: int | None = None,
+                     spacing: float = 1.0) -> None:
     """Layered layout for one container; writes snapped positions back
     into the rows. `outs` (extra pinned keys, e.g. the container's own
     out node) may not move during collision refinement."""
@@ -937,7 +952,8 @@ def _place_container(children: dict[str, list], links, entries, outs,
                                      report=report, sizes=sizes,
                                      scale=element_size.REFERENCE_SCALE,
                                      direction=direction,
-                                     max_columns=max_columns)
+                                     max_columns=max_columns,
+                                     spacing=spacing)
     for k, (x, y) in pos.items():
         members[k]["xPos"] = f"{x:.6f}"
         members[k]["yPos"] = f"{y:.6f}"
@@ -1133,7 +1149,8 @@ def cap_legacy_names(f) -> int:
 def normalize_legacy_layout(f, force: bool = False,
                             report: dict | None = None, *,
                             direction: str = "LR",
-                            max_columns: int | None = None) -> bool:
+                            max_columns: int | None = None,
+                            spacing: float = 1.0) -> bool:
     """Re-layout an off-grid model onto the legacy grid (in place).
     Returns True when anything was moved. `force` skips the gate (an
     explicit Auto Layout pass over every container).
@@ -1193,7 +1210,7 @@ def normalize_legacy_layout(f, force: bool = False,
             outs = {("node", outh)} if outh else set()
         _place_container(children, links, entries, outs, id_of, deadline,
                          report, direction=direction,
-                         max_columns=max_columns)
+                         max_columns=max_columns, spacing=spacing)
 
     # events follow their parent element's movement delta
     moved: dict[int, tuple[float, float]] = {}

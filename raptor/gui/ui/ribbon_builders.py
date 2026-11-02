@@ -602,6 +602,23 @@ class RibbonBuilders(_Base):
         group.add_widget(_labeled_box("Max band", self._layout_columns_spin,
                                       label_width=76))
 
+        self._layout_spacing_spin = QDoubleSpinBox()
+        self._layout_spacing_spin.setAccessibleName("Auto Layout spacing")
+        self._layout_spacing_spin.setToolTip(
+            "Gap scale for Auto Layout: 1 = nominal, lower = more compact, "
+            "higher = more open.")
+        self._layout_spacing_spin.setRange(0.25, 3.0)
+        self._layout_spacing_spin.setSingleStep(0.05)
+        self._layout_spacing_spin.setDecimals(2)
+        self._layout_spacing_spin.setValue(float(
+            app_settings.get("layout/spacing", 1.0) or 1.0))
+        self._layout_spacing_spin.setFixedWidth(72)
+        self._layout_spacing_spin.valueChanged.connect(
+            lambda value: app_settings.set_value("layout/spacing",
+                                                 float(value)))
+        group.add_widget(_labeled_box("Spacing", self._layout_spacing_spin,
+                                      label_width=76))
+
     def _build_block_labels_settings(self, group) -> None:
         """View > Appearance: what the canvas writes under a block name,
         and which phase's law it describes.

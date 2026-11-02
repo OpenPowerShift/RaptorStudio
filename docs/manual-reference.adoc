@@ -292,6 +292,7 @@ current value).
 |Dark Theme |Toggle light/dark theme |
 |Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options |
 |Layout max band |Maximum number of series elements per band (parallel branches share one position); 0 = fit Raptor's canvas width. |number, now 0
+|Layout spacing |Gap scale for Auto Layout: 1 = nominal, lower = more compact, higher = more open. |number, now 1.00
 |Link style |How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved. |choice, now Straight
 |Layout direction |Auto Layout flow: left-to-right (default), right-to-left, top-to-bottom or bottom-to-top. |choice, now Left → right
 |Block labels |What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing |choice, now Mean

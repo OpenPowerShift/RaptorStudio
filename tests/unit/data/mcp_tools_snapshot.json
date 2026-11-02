@@ -115,7 +115,8 @@
    "hierarchy",
    "max_columns",
    "model_id",
-   "selectors"
+   "selectors",
+   "spacing"
   ],
   "required": [
    "model_id"

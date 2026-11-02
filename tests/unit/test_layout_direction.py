@@ -155,6 +155,30 @@ def test_max_columns_counts_series_elements_not_parallel_branches():
     assert pos[("block", 5)][0] < pos[("block", 2)][0]
 
 
+def test_spacing_factor_scales_gaps_without_reordering():
+    members, edges = _chain(6)
+    tight = layout_container_positions(members, edges, [("node", 0)],
+                                       pins={("node", 5)}, direction="LR",
+                                       spacing=0.5)
+    nominal = layout_container_positions(members, edges, [("node", 0)],
+                                         pins={("node", 5)}, direction="LR",
+                                         spacing=1.0)
+    open_ = layout_container_positions(members, edges, [("node", 0)],
+                                       pins={("node", 5)}, direction="LR",
+                                       spacing=2.0)
+    tight_span = tight[("node", 5)][0] - tight[("node", 0)][0]
+    nominal_span = nominal[("node", 5)][0] - nominal[("node", 0)][0]
+    open_span = open_[("node", 5)][0] - open_[("node", 0)][0]
+    assert tight_span <= nominal_span < open_span
+
+
+def test_spacing_must_be_positive():
+    import pytest
+    with pytest.raises(ValueError, match="spacing"):
+        layout_container_positions([("node", 0)], [], [("node", 0)],
+                                   spacing=0)
+
+
 def test_max_columns_must_be_positive():
     import pytest
     with pytest.raises(ValueError):
