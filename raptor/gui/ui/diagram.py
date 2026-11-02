@@ -3857,6 +3857,74 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             if not grips:
                 self._route_grips.pop(link_id, None)
 
+    def _auto_layout_selection(self, selected, members, edges, *,
+                               direction: str,
+                               max_columns: int | None,
+                               spacing: float) -> None:
+        """Lay out only the selected elements, centred on their old bbox.
+
+        The subset is laid out in isolation -- a selected chain becomes
+        the same tidy chain the full pass would draw -- then translated so
+        the group's bounding-box centre stays where it was. Edges to
+        elements outside the selection are ignored for layering; they do
+        not disappear from the model.
+        """
+        from raptor.core.fileio.legacy_layout import (
+            GUI_REFINE_BUDGET_S, layout_container_positions, refine_budget,
+        )
+        from raptor.core.fileio.element_size import REFERENCE_SCALE
+
+        selected = set(selected)
+        inner = [(a, b) for a, b in edges if a in selected and b in selected]
+        predecessors = {b for _a, b in inner}
+        entries = [k for k in selected if k not in predecessors]
+        if not entries:
+            entries = [sorted(selected)[0]]
+        sizes = {}
+        for key in sorted(selected):
+            rect = members[key].sceneBoundingRect()
+            sizes[key] = (max(rect.width() / 2.0 / REFERENCE_SCALE, 0.1),
+                          max(rect.height() / 2.0 / REFERENCE_SCALE, 0.1))
+        with refine_budget(GUI_REFINE_BUDGET_S):
+            new_pos = layout_container_positions(
+                selected, inner, entries, pins=set(), sizes=sizes,
+                scale=REFERENCE_SCALE, direction=direction,
+                max_columns=max_columns, spacing=spacing)
+        old_pts = []
+        for key in selected:
+            centre = _LinkItem._true_centre(members[key])
+            old_pts.append(self._vt.to_model(centre.x(), centre.y()))
+        old_x = [p[0] for p in old_pts]
+        old_y = [p[1] for p in old_pts]
+        new_x = [p[0] for p in new_pos.values()]
+        new_y = [p[1] for p in new_pos.values()]
+        dx = (min(old_x) + max(old_x)) / 2.0 - (min(new_x) + max(new_x)) / 2.0
+        dy = (min(old_y) + max(old_y)) / 2.0 - (min(new_y) + max(new_y)) / 2.0
+
+        before = self._layout_state()
+        self._loading = True
+        saved_snap = (self._snap_state["x"], self._snap_state["y"])
+        self._snap_state["x"] = self._snap_state["y"] = 0.0
+        try:
+            for key, (mx, my) in new_pos.items():
+                item = members[key]
+                sx, sy = self._vt.to_scene(mx + dx, my + dy)
+                if isinstance(item, _BlockItem):
+                    item.setPos(sx - BLOCK_W / 2, sy - BLOCK_H / 2)
+                else:
+                    item.setPos(sx, sy)
+        finally:
+            self._snap_state["x"], self._snap_state["y"] = saved_snap
+            self._loading = False
+        self.sync_model_positions()
+        self._user_arranged = True
+        stack = getattr(self, "_stack", None)
+        if stack is not None:
+            stack.push(LayoutCmd(self, "Auto Layout selection", before,
+                                 self._layout_state()))
+        else:
+            self.layout_changed.emit()
+
     def _recount_link_ends(self) -> None:
         """Recompute In/Out and node n from the actual link rows.
 
@@ -6543,18 +6611,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             item.set_dsi(dsi.get(hid))
 
     def auto_layout(self, direction: str | None = None,
-                    max_columns: int | None = None):
+                    max_columns: int | None = None,
+                    spacing: float | None = None):
         """Rearrange the whole level by graph topology: columns follow the
         longest-path layer from the Start node(s) (left = upstream), rows
         spread evenly within each column. Marks the model dirty via
         `model_changed` -- positions are real edits, written back on Save.
 
-        A selection is NOT a scope. It used to be: only the selected
-        elements moved, to where a full layout would put them, while their
-        neighbours stayed put -- so selecting one block of a straight chain
-        and pressing Auto Layout lifted it off the line ("wonky"), and the
-        re-selection afterwards made the next press partial too. The whole
-        level is laid out every time; the selection is kept."""
+        With a selection, only the selected elements are laid out -- in
+        isolation -- and translated so the group keeps its old centre;
+        neighbours are untouched. With no selection, the whole level is
+        laid out. The selection is kept either way."""
         if direction is None:
             direction = str(app_settings.get("layout/direction", "LR"))
         if direction not in ("LR", "RL", "TB", "BT"):
@@ -6566,6 +6633,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             except (TypeError, ValueError):
                 configured = 0
             max_columns = configured if configured > 0 else None
+        if spacing is None:
+            try:
+                spacing = float(app_settings.get("layout/spacing", 1.0) or 1.0)
+            except (TypeError, ValueError):
+                spacing = 1.0
+        spacing = float(spacing)
+        if not math.isfinite(spacing) or spacing <= 0.0:
+            spacing = 1.0
         set_flow_direction(direction)
         # Bipartite adjacency, ref-aware: ('Node', 3) and ('Block', 3)
         # are different elements -- keying by bare id let a layering walk
@@ -6599,6 +6674,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                  link.connect_to_id)
             if a in members and b in members:
                 edges.append((a, b))
+
+        selected = {k for k, it in members.items() if it.isSelected()}
+        if selected and len(selected) < len(members):
+            return self._auto_layout_selection(
+                selected, members, edges, direction=direction,
+                max_columns=max_columns, spacing=spacing)
 
         # Seed from the current level's entry point: home uses its Start
         # markers; inside a hierarchy the flow enters through that
@@ -6694,7 +6775,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 pos = layout_container_positions(
                     members.keys(), edges, starts, pins=pins,
                     sizes=sizes, scale=REFERENCE_SCALE, direction=direction,
-                    max_columns=max_columns)
+                    max_columns=max_columns, spacing=spacing)
             for k, (mx, my) in pos.items():
                 if k not in moving:
                     continue

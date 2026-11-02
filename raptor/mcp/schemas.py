@@ -148,6 +148,10 @@ class AutoLayoutInput(BaseModel):
         default=None, ge=1,
         description="Wrap after this many series elements (parallel "
                     "branches share one); None = fit the canvas")
+    spacing: float = Field(
+        default=1.0, gt=0,
+        description="Gap scale: 1 = nominal, lower = more compact, "
+                    "higher = more open")
 
 
 # ── Model features ───────────────────────────────────────────

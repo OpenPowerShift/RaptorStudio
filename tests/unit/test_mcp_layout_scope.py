@@ -119,6 +119,34 @@ def test_bad_layout_arguments_are_rejected_without_changing_the_model(
     assert after == before
 
 
+def test_selectors_lay_out_only_that_group_around_its_centre():
+    from raptor.mcp.tools_model import auto_layout, build_model
+    spec = {
+        "system": {"term_condition": 100, "num_runs": 1},
+        "blocks": [{"id": i, "name": f"B{i}"} for i in range(1, 5)],
+        "nodes": [{"id": 10, "name": "Start", "type": "start"},
+                  {"id": 11, "name": "End", "type": "end"}],
+        "links": ([{"from": "Start", "to": "B1"}]
+                  + [{"from": f"B{i}", "to": f"B{i + 1}"} for i in range(1, 4)]
+                  + [{"from": "B4", "to": "End"}]),
+    }
+    model_id = _sc(build_model("sel", spec=spec))["model_id"]
+    rbd = _rows(model_id)
+    ids = [str(r.get("ID")) for r in rbd.section("BLOCK_DATA").rows
+           if str(r.get("ID")) != "0"]
+    a, b = ids[0], ids[1]
+    untouched = ids[2]
+    before_a, before_b = _xy(rbd, a), _xy(rbd, b)
+    before_untouched = _xy(rbd, untouched)
+    out = _sc(auto_layout(model_id, selectors=[f"Block:{a}",
+                                               f"Block:{b}"],
+                          direction="TB", spacing=2.0))
+    assert out["scope"] == "2 selected element(s)"
+    assert (float(before_a[0]) + float(before_b[0])) / 2.0 == pytest.approx(
+        (float(_xy(rbd, a)[0]) + float(_xy(rbd, b)[0])) / 2.0)
+    assert _xy(rbd, untouched) == before_untouched
+
+
 @pytest.mark.parametrize("kwargs", [
     {"selectors": ["../../etc/passwd"]},
     {"selectors": ["Block:999999"]},
@@ -149,7 +177,10 @@ def test_auto_layout_input_schema_documents_the_same_limits():
     assert default.direction == "LR"
     assert default.all_levels is False
     assert default.max_columns is None
+    assert default.spacing == 1.0
     with pytest.raises(ValidationError):
         AutoLayoutInput(model_id="m_1", direction="sideways")
     with pytest.raises(ValidationError):
         AutoLayoutInput(model_id="m_1", max_columns=0)
+    with pytest.raises(ValidationError):
+        AutoLayoutInput(model_id="m_1", spacing=0)
