@@ -1461,6 +1461,13 @@ def auto_layout(model_id: str,
     """
     _validate_layout_args(direction, max_columns)
     context.require_write()
+    if max_columns is not None and (
+            isinstance(max_columns, bool)
+            or not isinstance(max_columns, int)
+            or max_columns < 1):
+        raise ValueError(
+            f"max_columns must be a positive integer or None; got "
+            f"{max_columns!r}")
     ws = context.workspace()
     handle = ws.get(model_id)
     scope, allowed = _layout_scope(handle.rbd, hierarchy, selectors,
