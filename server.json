@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "raptor-studio-mcp",
-      "version": "0.8.0",
+      "version": "0.9.0",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
