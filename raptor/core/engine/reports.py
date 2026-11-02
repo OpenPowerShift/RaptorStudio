@@ -1461,6 +1461,13 @@ def _build_fr_weak_section(all_run_data: list[RunReportData]) -> list[str]:
         keys = sorted(items, key=lambda k: items[k][0][0]["name"].lower())
         out = [title, ""]
         state_keys = _NODE_STATE_KEYS if label == "Node" else _BLOCK_STATE_KEYS
+        # One metric computation per (element, run). The four output tables
+        # used to call `metrics()` again for every column, which is the
+        # O(4 x runs x elements) cost on a large final report.
+        computed = {
+            k: [(metrics(v, ma), v["name"]) for v, ma in items[k]]
+            for k in keys
+        }
         for _idx, (sub, col) in enumerate((("Availability_Data", 0),
                                           ("Dependability_Data", 1),
                                           ("Reliability_Data", 2))):
@@ -1471,9 +1478,9 @@ def _build_fr_weak_section(all_run_data: list[RunReportData]) -> list[str]:
                        + _pad(tag + "Min", 14) + _pad(tag + "Mean", 14)
                        + _pad(tag + "Max", 14) + _pad(tag + "StdDev", 14) + tag + "SEM")
             for k in keys:
-                rows = items[k]
+                rows_data = computed[k]
                 out.append(_fr_weak_stat_row(
-                    rows[0][0]["name"], [metrics(v, ma)[col] for v, ma in rows]))
+                    rows_data[0][1], [m[col] for m, _name in rows_data]))
             out.append("")
         out.append("State_Data")
         if label == "Node":
@@ -1483,11 +1490,11 @@ def _build_fr_weak_section(all_run_data: list[RunReportData]) -> list[str]:
             out.append("Block                   %Running    %Standby       %Idle"
                        "  %Repairing    %RepHold         %PM     %PMHold       %Done")
         for k in keys:
-            rows = items[k]
-            row = _pad(rows[0][0]["name"], 20)
+            rows_data = computed[k]
+            row = _pad(rows_data[0][1], 20)
             for sk in state_keys:
                 row += real_to_sn(
-                    _fr_mean(metrics(v, ma)[3][sk] for v, ma in rows), 12, 6, 1)
+                    _fr_mean(m[3][sk] for m, _name in rows_data), 12, 6, 1)
             out.append(row)
         return out
 

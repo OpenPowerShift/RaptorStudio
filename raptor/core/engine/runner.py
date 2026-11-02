@@ -723,6 +723,8 @@ def run_simulation_with_reports(
     cumulative_time_mesh: float = 0.0,
     keep_partial_logs: bool = False,
     setup_progress=None,
+    end_of_run_sink=None,
+    report_progress=None,
 ) -> tuple[list[list[str]], list[str], list[str]]:
     """Public entry point: same event logs as `run_simulation`, plus
     the `End_Of_Run`/`Final_Results_Report` text (`reports.
@@ -737,7 +739,16 @@ def run_simulation_with_reports(
     `sim_details_path`: forwarded to `run_simulation` (the `/sd` draw log).
 
     `count_draws`: the Final Results report gets Raptor 7's `Random draws: N` line
-    (printed there only under the master switch; see `dev_options.random_draw_count`)."""
+    (printed there only under the master switch; see `dev_options.random_draw_count`).
+
+    `end_of_run_sink`: optional list-like writer (`extend`) for the per-run
+    End_Of_Run text. When given, the returned End_Of_Run list is empty and
+    the sink owns the data; this is how the GUI keeps an O(runs x elements)
+    report off the heap.
+
+    `report_progress(done, total, label)`: optional progress hook for the
+    report-building phase, which runs after all replications and used to
+    give the GUI no feedback at all."""
     if count_draws and metadata_sink is None:
         metadata_sink = {}
     report_data: list[RunReportData] = report_sink if report_sink is not None else []
@@ -773,9 +784,30 @@ def run_simulation_with_reports(
     # "  "+Date header line, written once before the per-run blocks (unlike
     # Final_Results, which gets its own header from
     # `build_final_results_report`).
-    end_of_run_lines: list[str] = [f"End_Of_Run Report for {rbd_file.file_name}  {report_date}", ""]
-    for run_data in report_data:
-        end_of_run_lines.extend(build_end_of_run_report(run_data, model.blocks_by_id))
+    #
+    # `end_of_run_sink` lets a GUI write the per-run report straight to a
+    # disk-backed stream. The report is O(runs x elements); keeping every
+    # line in a Python list and then joining it into one string is what
+    # crashed the Results dock on a large batch.
+    end_of_run_lines: list[str] = []
+    sink = end_of_run_sink
+
+    def _emit(lines) -> None:
+        if not lines:
+            return
+        if sink is not None and hasattr(sink, "extend"):
+            sink.extend(lines)
+        else:
+            end_of_run_lines.extend(lines)
+
+    _emit([f"End_Of_Run Report for {rbd_file.file_name}  {report_date}", ""])
+    total_steps = max(len(report_data), 1)
+    for step, run_data in enumerate(report_data, 1):
+        _emit(build_end_of_run_report(run_data, model.blocks_by_id))
+        if report_progress is not None:
+            report_progress(step, total_steps, "End-of-Run report")
+    if report_progress is not None:
+        report_progress(total_steps, total_steps, "Final results report")
     final_results_lines = build_final_results_report(
         report_data, model.blocks_by_id, rbd_file.file_name, model.run_length, report_date,
         termination_type=model.termination_type, notes_sink=notes_sink,

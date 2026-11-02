@@ -2476,6 +2476,12 @@ class ResultsDock(QWidget):
     #: Live per-run refresh guard for the Capacity plot (same rationale,
     #: applied to the per-progress-tick re-parse).
     _LIVE_CAP_REFRESH_ROWS = 50_000
+    #: Raw Report preview guards. The End-of-Run report is O(runs x
+    #: elements); joining all of it and handing it to QPlainTextEdit is
+    #: what crashed the GUI on a large batch. The full report stays in its
+    #: ResultStream (or list) for Save Raw Report.
+    _RAW_PREVIEW_LINES = 20_000
+    _RAW_PREVIEW_BYTES = 4_000_000
 
     @staticmethod
     def _stream_lines(src) -> list[str]:
@@ -2705,6 +2711,11 @@ class ResultsDock(QWidget):
 
         raw_tabs = QTabWidget()
         raw_tabs.setDocumentMode(True)
+        #: Full backing sources for the raw tabs (list or ResultStream).
+        #: The view shows only a bounded preview; Save Raw Report writes
+        #: the source, so a huge End-of-Run report is never materialised
+        #: in the widget.
+        self._raw_sources: dict[str, object] = {}
         self._raw_views: dict[str, QPlainTextEdit] = {}
         for name in ("End of Run", "Final Results"):
             view = QPlainTextEdit()
@@ -2834,8 +2845,11 @@ class ResultsDock(QWidget):
             return
         name = self._raw_tabs.tabText(idx)
         view = self._raw_tabs.widget(idx)
+        source = getattr(self, "_raw_sources", {}).get(name)
         text = cast(QPlainTextEdit, view).toPlainText() if view is not None else ""
-        if not text.strip():
+        if source is None and not text.strip():
+            return
+        if source is not None and len(source) == 0:
             return
         default = name.replace(" ", "_").lower() + ".txt"
         path, _f = fdg.getSaveFileName(
@@ -2843,8 +2857,20 @@ class ResultsDock(QWidget):
         if not path:
             return
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(text)
+            if source is not None and hasattr(source, "export_to"):
+                source.export_to(path)
+            elif source is not None:
+                # Write in chunks; a list-backed report may still be huge
+                # and joining it into one string is the bug this avoids.
+                # Match `"\n".join(lines)` exactly (no trailing newline).
+                with open(path, "w", encoding="utf-8") as f:
+                    for i, line in enumerate(source):
+                        if i:
+                            f.write("\n")
+                        f.write(line)
+            else:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(text)
         except OSError as e:
             msgbox.critical(self, "Export Failed",
                                  f"Could not write {path}:\n{e}")
@@ -2944,7 +2970,8 @@ class ResultsDock(QWidget):
                     cap_lines: list[str] | None = None,
                     cost_lines: list[str] | None = None,
                     manifest: dict | None = None,
-                    importance: dict | None = None):
+                    importance: dict | None = None,
+                    progress=None):
         # The run manifest travels WITH the results, so a result set can
         # say what it is without trusting a model file that may since
         # have been edited. It also means changing a run setting (trial
@@ -2994,10 +3021,19 @@ class ResultsDock(QWidget):
         # to every TIME quantity shown; percentages and counts never get it.
         self._units = (units or "").strip()
 
+        def stage(label: str, done: int, total: int) -> None:
+            if progress is not None:
+                progress(label, done, total)
+
+        stage("overview", 1, 6)
         self._populate_overview()
+        stage("detail tables", 2, 6)
         self._populate_details(final_results_lines)
+        stage("level filter", 3, 6)
         self._apply_level_filter()
+        stage("graphs", 4, 6)
         self._update_graphs()
+        stage("raw report", 5, 6)
         self._populate_raw(end_of_run_lines, final_results_lines)
         # Interim Cost tab only earns its place when there IS interim
         # cost text (models without cost analysis stay uncluttered).
@@ -3029,6 +3065,7 @@ class ResultsDock(QWidget):
 
         self._placeholder.hide()
         self._tabs.show()
+        stage("event log", 6, 6)
         if event_logs:
             self._run_selector.setCurrentIndex(0)
             self._show_selected_run(0)
@@ -3552,9 +3589,48 @@ class ResultsDock(QWidget):
     # Raw
     # ------------------------------------------------------------------
 
+    def _raw_preview(self, src) -> tuple[str, int, int]:
+        """(preview text, total rows, shown rows) for a raw source.
+
+        `src` is a plain list or a disk-backed ResultStream. Only a bounded
+        slice is ever joined: the full report is O(runs x elements) and the
+        old unconditional ``"\\n".join(...)`` plus
+        ``QPlainTextEdit.setPlainText`` was the crash path on a large batch.
+        """
+        import itertools
+
+        if src is None:
+            return "", 0, 0
+        max_lines = self._RAW_PREVIEW_LINES
+        max_bytes = self._RAW_PREVIEW_BYTES
+        total = len(src)
+        truncated_by_bytes = False
+        if hasattr(src, "read_preview"):
+            shown = src.read_preview(max_lines, max_bytes)
+        else:
+            shown = []
+            used = 0
+            for line in itertools.islice(src, max_lines):
+                shown.append(line)
+                used += len(line) + 1
+                if used >= max_bytes:
+                    truncated_by_bytes = True
+                    break
+        text = "\n".join(shown)
+        if total > len(shown) or truncated_by_bytes:
+            text += (
+                f"\n\n--- Showing the first {len(shown):,} of {total:,} "
+                "line(s). Save Raw Report writes the full file. ---")
+        return text, total, len(shown)
+
     def _populate_raw(self, end_of_run_lines, final_results_lines):
-        self._raw_views["End of Run"].setPlainText("\n".join(end_of_run_lines))
-        self._raw_views["Final Results"].setPlainText("\n".join(final_results_lines))
+        self._raw_sources = {
+            "End of Run": end_of_run_lines,
+            "Final Results": final_results_lines,
+        }
+        for name, src in self._raw_sources.items():
+            text, _total, _shown = self._raw_preview(src)
+            self._raw_views[name].setPlainText(text)
 
     # ------------------------------------------------------------------
     # Theming
