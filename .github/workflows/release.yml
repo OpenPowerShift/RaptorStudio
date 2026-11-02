@@ -455,6 +455,10 @@ jobs:
           printf '#!/bin/sh\nexec "$(dirname "$0")/../lib/raptor-studio/raptor-studio" "$@"\n' \
             > AppDir/usr/bin/raptor-studio
           chmod +x AppDir/usr/bin/raptor-studio
+          # Recent appimagetool builds refuse an AppDir without AppRun.
+          printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexec "$HERE/usr/lib/raptor-studio/raptor-studio" "$@"\n' \
+            > AppDir/AppRun
+          chmod +x AppDir/AppRun
           cp installer/linux/raptor-studio.desktop \
              AppDir/raptor-studio.desktop
           cp raptor/gui/resources/raptor_icon.png AppDir/raptor-studio.png
