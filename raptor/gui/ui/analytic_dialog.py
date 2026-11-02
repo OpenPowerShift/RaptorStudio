@@ -637,21 +637,25 @@ class AnalyticDialog(QDialog):
             self.compute()
 
     def _fill_scope_controls(self, rbd: Any) -> None:
-        """Show the phase and standby choices only when the model has them."""
+        """Show the phase, standby and dependency choices only when the
+        model has them."""
         try:
             offered = scope_options(rbd)
         except Exception:  # noqa: BLE001 - the solve will explain a bad model
-            offered = {"phases": [], "has_standby": False}
+            offered = {"phases": [], "has_standby": False,
+                       "has_dependencies": False}
         phases = offered["phases"]
-        for widget in (self._phase, self._standby):
+        for widget in (self._phase, self._standby, self._dependencies):
             widget.blockSignals(True)
         self._phase.clear()
         if phases:
             self._phase.addItem("Choose a phase…", None)
             for number, name in enumerate(phases, 1):
                 self._phase.addItem(f"{number}. {name}", number)
-        self._standby.setCurrentIndex(0)
-        for widget in (self._phase, self._standby):
+        # A choice made for the previous model must not leak into this one.
+        for widget in (self._phase, self._standby, self._dependencies):
+            widget.setCurrentIndex(0)
+        for widget in (self._phase, self._standby, self._dependencies):
             widget.blockSignals(False)
         self._form.setRowVisible(self._phase, bool(phases))
         self._has_standby = bool(offered["has_standby"])
@@ -829,6 +833,7 @@ class AnalyticDialog(QDialog):
                 "resource": "tick Ignore ▸ Resources",
                 "has phases": "choose a Phase",
                 "cold standby": "choose a Standby treatment",
+                "dependency": "choose a Dependencies treatment",
             }
             lowered = message.lower()
             advice = [tip for key, tip in tips.items() if key in lowered]

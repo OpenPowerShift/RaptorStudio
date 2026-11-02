@@ -9481,8 +9481,14 @@ with parameter names and valid ranges.</p>
   mixed, k-of-n, bridge networks and hierarchies. <code>mode="reliability"</code> is
   non-repairable <code>R(t)</code> with PDF, hazard, MTTF, BX life and exact importance;
   <code>mode="availability"</code> is steady-state availability with independent,
-  perfectly repaired components. Refuses PM, spares, resources, dependencies,
-  standby, phases and non-Bernoulli events, naming the first offender.</p></td>
+  perfectly repaired components. Refuses PM, spares, resources and
+  non-Bernoulli events, and refuses dependencies, standby or phases until a
+  treatment is given: `dependencies="up"</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">"down"`, `standby="active"</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">"absent"`
+  or <code>phase=N</code>. Names the first offender.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>describe_metrics</code></p></td>
@@ -9500,8 +9506,9 @@ with parameter names and valid ranges.</p>
   non-repairable; <code>mode="availability"</code> is steady-state availability with
   independent, perfectly repaired components. Returns R(t)/A(t), MTTF,
   BX life, conditional reliability, exact Birnbaum/RAW/RRW/Vesely–Fussell
-  and criticality. Refuses PM, spares, resources, dependencies, standby,
-  phases and non-Bernoulli events; use <code>simulate</code> for those.</p></td>
+  and criticality. Refuses PM, spares, resources and non-Bernoulli events,
+  and refuses dependencies, standby or phases until a treatment is given;
+  use <code>simulate</code> for the behaviours it still cannot represent.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>estimate_runtime</code></p></td>
