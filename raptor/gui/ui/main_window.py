@@ -7032,6 +7032,31 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         except Exception:
             pass
 
+    def _auto_layout(self):
+        """Run Auto Layout with visible busy feedback.
+
+        The layout itself is fast, but the annotations-follow pass used to
+        scan every element for every element (quadratic) and the canvas
+        rebuild is on the UI thread. Without this the app simply froze for
+        seconds after Ctrl+L, especially from a small hierarchy inside a
+        large model.
+        """
+        view = getattr(getattr(self, "_diagram_dock", None), "view", None)
+        if view is None:
+            return
+        hier = view.hiers.get(getattr(view, "_current_parent", 0))
+        label = ("Home" if not getattr(view, "_current_parent", 0)
+                 else getattr(hier, "name", None) or "hierarchy")
+        self._statusbar.showMessage(f"Auto Layout — {label}…")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        QApplication.processEvents(
+            QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+        try:
+            view.auto_layout()
+        finally:
+            QApplication.restoreOverrideCursor()
+            self._statusbar.showMessage(f"Auto Layout — {label} done", 4000)
+
     def _present_results(self):
         """After a run: switch the ribbon to the Results tab, surface
         the dock and expand it -- results are what the user came for."""

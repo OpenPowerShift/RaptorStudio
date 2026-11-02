@@ -216,6 +216,16 @@ def _anchor_for(rbd, ref: str | int) -> dict[str, Any]:
             raise BuildError(
                 f"annotation {ref!r} has no usable geometry") from None
         return geometry
+    return _anchor_from_row(rbd, section, row)
+
+
+def _anchor_from_row(rbd, section: str, row: dict[str, Any]) -> dict[str, Any]:
+    """The geometry half of `_anchor_for`, when the row is already known.
+
+    `_element_records` walks every row; calling `_anchor_for` there meant a
+    fresh linear `get_row` scan per element, i.e. O(N^2) for a 5,000-block
+    model. Auto Layout on a four-node hierarchy took ~9 s because of it.
+    """
     try:
         x = float(row.get("xPos", 0) or 0)
         y = float(row.get("yPos", 0) or 0)
@@ -230,7 +240,7 @@ def _anchor_for(rbd, ref: str | int) -> dict[str, Any]:
     elif section == "HIERARCHY_DATA":
         kind, half, pkey = "Hierarchy", _HIER_HALF, "Parent"
     else:  # pragma: no cover - resolve_element only returns these sections
-        raise BuildError(f"cannot anchor an annotation to {ref!r}")
+        raise BuildError(f"cannot anchor an annotation to {section}")
     try:
         parent = int(float(row.get(pkey, 0) or 0))
     except (TypeError, ValueError):
@@ -441,7 +451,7 @@ def _element_records(rbd) -> list[dict[str, Any]]:
                 continue
             ref = f"{prefix}:{int(float(row['ID']))}"
             try:
-                a = _anchor_for(rbd, ref)
+                a = _anchor_from_row(rbd, section, row)
             except BuildError:
                 continue
             out.append({"parent": a["parent"], "ref": ref, "section": section,

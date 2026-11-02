@@ -487,13 +487,25 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         fits = margin >= -(1e-9)
 
     # Alternating (serpentine) bands keep the link from one band's last
-    # column to the next band's first short only when each band spans the
-    # flow axis. An explicit `max_columns` makes bands deliberately short,
-    # so there the flow keeps the requested direction in every band and
-    # only the cross position changes; the band hand-over then returns to
-    # the flow origin, one row away, instead of jumping to the far edge.
-    snake = max_columns is None
+    # column to the next band's first short: the flow snakes back, so an
+    # explicit `max_columns` reads as a Z/S rather than jumping across the
+    # page to restart at the original edge.
+    snake = horizontal or max_columns is None
     centre_of = {k: band_centre[col_band[col_of[k]]] for k in col_of}
+    # Horizontal serpentine starts each short band where the previous one
+    # ended, so the hand-over is a short vertical link (the Z/S bend)
+    # rather than a jump back across the page.
+    band_start: dict[int, float] = {0: flow_lo}
+    if horizontal and snake:
+        band_max: dict[int, float] = {}
+        for c, local in col_local.items():
+            b = col_band[c]
+            band_max[b] = max(band_max.get(b, 0.0), local)
+        for b in range(1, n_bands):
+            prev = b - 1
+            start = band_start[prev]
+            span = band_max.get(prev, 0.0)
+            band_start[b] = start + span if prev % 2 == 0 else start - span
     pos: dict = {}
     for k in member_set:
         c = col_of[k]
@@ -501,7 +513,11 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         local = col_local[c]
         forward = b % 2 == 0 or not snake
         if horizontal:
-            x = flow_lo + local if forward else flow_hi - local
+            if snake:
+                x = band_start[b] + local if b % 2 == 0 \
+                    else band_start[b] - local
+            else:
+                x = flow_lo + local
             y = centre_of[k] + row_off[k]
             if direction == "RL":
                 x = X_MAX + FIRST_X - x
