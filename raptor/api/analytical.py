@@ -136,6 +136,10 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
         raise ValueError("mode must be 'reliability' or 'availability'")
     at = _finite(at, "mission time")
     tau = _finite(tau, "tau")
+    if int(max_bdd_nodes) > MAX_BDD_NODES:
+        raise ValueError(
+            f"max_bdd_nodes cannot exceed the hard cap "
+            f"{MAX_BDD_NODES:,}")
     if times is not None:
         if len(times) > 250:
             raise ValueError("at most 250 curve times are accepted")

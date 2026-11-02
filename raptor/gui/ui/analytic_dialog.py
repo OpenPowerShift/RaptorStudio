@@ -252,7 +252,7 @@ class AnalyticDialog(QDialog):
         self._heading = QLabel("Analytical Analysis")
         self._heading.setObjectName("DialogHeading")
         root.addWidget(self._heading)
-        self._intro = QLabel(
+        self._intro_prefix = (
             "Exact answers without sampling, for models inside the static "
             "subset. Reliability mode is non-repairable; availability mode "
             "is the steady state of independent, perfectly repaired "
@@ -262,7 +262,10 @@ class AnalyticDialog(QDialog):
             "and failed elements keep the system up. It is a calculation "
             "aid, not a simulation, and its size is not the number of "
             "blocks.\n"
-            f"Current limits: {MAX_VARIABLES:,} variables and "
+        )
+        self._intro = QLabel(
+            self._intro_prefix
+            + f"Current limits: {MAX_VARIABLES:,} variables and "
             f"{MAX_BDD_NODES:,} BDD nodes. Raise them only when the model is "
             "known to be tractable; a larger BDD can take a long time.")
         self._intro.setObjectName("SectionNote")
@@ -310,6 +313,17 @@ class AnalyticDialog(QDialog):
         footer.addWidget(self._export)
         footer.addWidget(close)
         root.addLayout(footer)
+
+    def _limits_sentence(self) -> str:
+        return (
+            f"Current limits: {self._max_variables.value():,} variables and "
+            f"{self._max_bdd_nodes.value():,} BDD nodes. Raise them only when "
+            "the model is known to be tractable; a larger BDD can take a long "
+            "time.")
+
+    def _refresh_limits_text(self) -> None:
+        if hasattr(self, "_intro"):
+            self._intro.setText(self._intro_prefix + self._limits_sentence())
 
     def _build_settings(self) -> QGroupBox:  # noqa: PLR0915
         box = QGroupBox("Settings")
@@ -424,13 +438,15 @@ class AnalyticDialog(QDialog):
         self._max_variables.setRange(1, 1_000_000)
         self._max_variables.setValue(MAX_VARIABLES)
         self._max_variables.setSingleStep(250)
+        self._max_variables.setGroupSeparatorShown(True)
         self._max_variables.setAccessibleName("Maximum variables")
         self._max_variables.setToolTip(
             "Largest number of blocks/events the solver may put in the BDD.")
         self._max_bdd_nodes = QSpinBox()
-        self._max_bdd_nodes.setRange(2, 100_000_000)
+        self._max_bdd_nodes.setRange(2, MAX_BDD_NODES)
         self._max_bdd_nodes.setValue(MAX_BDD_NODES)
         self._max_bdd_nodes.setSingleStep(100_000)
+        self._max_bdd_nodes.setGroupSeparatorShown(True)
         self._max_bdd_nodes.setAccessibleName("Maximum BDD nodes")
         self._max_bdd_nodes.setToolTip(
             "Hard cap on BDD size. Raising it risks a long solve and high "
@@ -458,6 +474,9 @@ class AnalyticDialog(QDialog):
                        self._max_variables.valueChanged,
                        self._max_bdd_nodes.valueChanged):
             signal.connect(self._settings_changed)
+        self._max_variables.valueChanged.connect(self._refresh_limits_text)
+        self._max_bdd_nodes.valueChanged.connect(self._refresh_limits_text)
+        self._refresh_limits_text()
         for line in (self._times, self._bx):
             line.returnPressed.connect(self.compute)
         return box

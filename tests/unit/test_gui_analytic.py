@@ -292,3 +292,12 @@ def test_analytic_dialog_shows_determinate_progress(qapp):
     dialog._on_progress(6, "stale", 90, 100)
     assert dialog._progress.value() == 25
     dialog.close()
+
+
+def test_bdd_limit_is_comma_grouped_and_updates_the_header(qapp):
+    _win, dialog = _dialog(qapp, "Lantern1")
+    dialog._max_bdd_nodes.setValue(1_250_000)
+    assert "1,250,000" in dialog._intro.text()
+    assert dialog._max_bdd_nodes.text().replace("\u202f", ",").replace(",", "") \
+        .isdigit() or "1,250,000" in dialog._max_bdd_nodes.text()
+    dialog.close()

@@ -90,7 +90,7 @@ async def analytical_analysis(
     `ignore_repairs` (same as `ignore=["repairs"]`) gives the first-failure
     reliability of a repairable model.
 
-    The default solver limits are 5,000 blocks/events and 1,000,000 BDD
+    The default solver limits are 5,000 blocks/events and 2,000,000 BDD
     nodes. `max_variables` and `max_bdd_nodes` override them for a large but
     tractable model. Raising a limit does not guarantee a solution: the BDD
     can still exceed it, and the solver refuses rather than approximate.

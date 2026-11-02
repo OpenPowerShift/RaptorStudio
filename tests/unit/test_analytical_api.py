@@ -164,3 +164,12 @@ def test_cli_progress_json(capsys):
     assert progress
     assert '"stage": "Building BDD' in progress[0] or any(
         '"stage": "Building BDD' in line for line in progress)
+
+
+def test_bdd_limit_cannot_exceed_the_hard_cap():
+    from raptor.api.analytical import analyse_rbd
+    from raptor.core.analytical.bdd import MAX_BDD_NODES
+    from raptor.core.fileio.rbd import load_rbd
+    with pytest.raises(ValueError, match="hard cap"):
+        analyse_rbd(load_rbd("tests/golden/TwoBlockRedundancy/input.rbd"),
+                    max_bdd_nodes=MAX_BDD_NODES + 1)
