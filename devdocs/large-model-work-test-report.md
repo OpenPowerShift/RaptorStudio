@@ -18,11 +18,39 @@ merged here.
 | `feat/analytic-dependency-state` | analytical solver `dependencies=up/down` | `44cf5f59` |
 | `fix/analytic-bdd-limit` | 2,000,000-node BDD cap, grouped limits, dynamic explanatory text | `a6038621` |
 | `feat/analytic-hierarchy-scope` | solve one hierarchy as a port extension, Cancel button, dependencies + 2M BDD merged | `0f3af8a5` |
+| `fix/analytic-polish` | grouped BDD counts, GUI Cancel integration test, movable junction test | `646fbef6` |
+| `feat/link-grip` | replace model routing nodes with GUI-only link drag points | `fb4d8285` |
+| `fix/layout-bands` | page-flow port constraints, band Z/S handover, tighter spacing, "Max band" wording | `ff96914f` |
+| `fix/analytic-review` | hierarchy labels/exports, explicit boundary errors, limit bounds, MCP schema | `f3f92914` |
 | `perf/gui-large-models` | selective drag sync, row index, minimap/selection hot spots | `e6273e0c` |
 
 Integration-only fixes: menu `None` action guard, dependency-link down,
 invalid saved direction fallback, strict `max_columns`, generated docs,
 golden/snapshot refreshes.
+
+## Latest user-testing round (link grips, bands, hierarchy labels)
+
+- Routing points are now **GUI-only drag points**: no `NODE_DATA` row, no
+  properties, no `repCap` marker, and no EFPA/capacity/dependency effect.
+  They persist in `.rbds` as `link_grips`; a legacy `.rbd` save drops them
+  with the rest of the drawing layer. Capacity and simulation results are
+  bit-identical with or without a grip.
+- The Arrange/Layout control is labelled **Max band** (was "Max cols"),
+  with the help text saying "positions" rather than columns/rows.
+- TB/BT layouts now force entry on the upstream edge and exit on the
+  downstream edge for every element; LR/RL likewise use left/right. A
+  wrapped band whose next element is upstream draws a Z/S side lane instead
+  of a backwards straight line. Inter-element/band gaps were tightened.
+- Hierarchy-scoped analytical results now name the hierarchy in the GUI
+  banner/scope note, text summary, CSV/Excel export and MCP markdown. A
+  cross-boundary dependency with `dependencies=down` is refused explicitly
+  (rather than silently returning the `up` answer). Below-minimum solver
+  limits and bad hierarchy selectors are usage errors, and the MCP output
+  schema advertises `hierarchy`.
+- Combined targeted suite: **881 passed** in 99 s.
+- Re-ran `ProjectX_BESS_Hierarchical.rbds` hierarchy `Unit 1.1` after the
+  analytic changes: applicable, 110 BDD nodes, availability
+  `0.9997188184`, exit 0.
 
 ## Latest integration round (2M BDD / hierarchy / transparent routing)
 
