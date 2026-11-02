@@ -1184,9 +1184,17 @@ class _LinkItem(QGraphicsPathItem):
         Such an element takes its ports on the left/right (enter left,
         exit right) even when some inputs arrive from below, which is what
         keeps a join/split visually balanced."""
-        cached = getattr(item, "_route_horizontal", None)
-        if cached is not None:
-            return cached
+        # The answer depends on the item's LINKS, so a plain cache went
+        # stale whenever a link was constructed after an earlier route
+        # (`_LinkItem.__init__` routes immediately): the first link made
+        # the element look like a pure vertical chain and every later
+        # route reused that answer. Key it on the scene's link-generation
+        # counter, which is bumped on every link construction and every
+        # link entering/leaving a scene.
+        gen = _LINK_GEN[0]
+        if getattr(item, "_route_horizontal_gen", None) == gen \
+                and getattr(item, "_route_horizontal", None) is not None:
+            return item._route_horizontal
         if item.scene() is None:
             return True
         c = _LinkItem._true_centre(item)
@@ -1197,9 +1205,11 @@ class _LinkItem(QGraphicsPathItem):
             dx, dy = oc.x() - c.x(), oc.y() - c.y()
             if abs(dx) >= _LinkItem._HORIZONTAL_BIAS * abs(dy):
                 item._route_horizontal = True
+                item._route_horizontal_gen = gen
                 return True
         result = _LinkItem._runs_across(item, c, incoming, outgoing)
         item._route_horizontal = result
+        item._route_horizontal_gen = gen
         return result
 
     @staticmethod

@@ -85,6 +85,32 @@ def test_tooltip_keeps_the_numbers_when_the_label_is_off():
     assert "Failure rate 0.01/h" in tip
 
 
+def test_describe_matches_sublabel_and_tooltip_in_every_mode():
+    """`describe` is the one-pass replacement for calling `sublabel` and
+    `tooltip` separately; the canvas must show exactly what those two
+    would have. The cut-phase check used to run BEFORE the mode check, so
+    "Off" still drew "cut in this phase"."""
+    blocks = [
+        _block(),                                     # exponential
+        _block(15, (2.0, 100.0, 0.0)),                # Weibull
+        _block(17, (0.5,)),                           # Bernoulli: no mean
+        _block(4, (100.0, 0.0, 0.0), phasing=True,    # cut / stress / link
+               kinds=("C", "A", "L"), values=(1.0, 2.0, 3.0)),
+    ]
+    for block in blocks:
+        for mode in ("mean", "spread", "rate", "off", "not-a-mode"):
+            for phase in (-1, 0, 1, 2, 5):
+                for units in ("", "h"):
+                    lines, tip = block_labels.describe(
+                        block, mode=mode, phase=phase, units=units)
+                    assert lines == block_labels.sublabel(
+                        block, mode=mode, phase=phase, units=units), \
+                        f"{mode}/{phase}/{units!r}"
+                    assert tip == block_labels.tooltip(
+                        block, mode=mode, phase=phase, units=units), \
+                        f"{mode}/{phase}/{units!r}"
+
+
 # ---------------------------------------------------------------------------
 # Wired to the canvas
 # ---------------------------------------------------------------------------
