@@ -11,7 +11,8 @@ A mixin rather than a collaborator for the same reason as
 
 Expects on `self`: `_rbd`, `_diagram_dock.view`, `_statusbar`,
 `_fev_view_action`, `_fev_log_*_action`, `_fev_status_dialog`,
-`_fev_status_text`, `_step_session`, `_run_or_step_active()`,
+`_fev_status_text`, `_fev_inspector`, `_fev_inspector_dock`,
+`_inspector_dock`, `_step_session`, `_run_or_step_active()`,
 `_invalidate_step_session()`, `_refresh_commands()`, `_update_system_swatch()`.
 """
 from __future__ import annotations
@@ -99,34 +100,45 @@ class FevMixin:
                 f"Failure Effects View could not start:\n{exc}")
             return False
         QApplication.restoreOverrideCursor()
-        progress.report("Colouring the diagram", 0, 1)
         try:
-            self._fev = session
-            self._set_fev_check(True)
-            if not self._diagram_dock.isVisible():
-                self._diagram_dock.show()
-            self._diagram_dock.view.set_fev_view_open(True)
-            self._refresh_commands()
-            # Applying a new colour to every visible item is a bulk paint,
-            # not an animation. Freeze the canvas while it happens so the
-            # progress dialog's event pumps do not repaint the whole scene
-            # once per slice; one repaint follows when the state is final.
-            view = self._diagram_dock.view
-            view.setUpdatesEnabled(False)
-            try:
-                self._fev_refresh(
-                    "Failure Effects View — click a block to fail or restore it",
-                    progress=progress.report)
-            finally:
-                view.setUpdatesEnabled(True)
-                view.viewport().update()
-                # The first paint after the bulk update is the expensive
-                # one: do it while the progress window still explains the
-                # wait, not after it has vanished.
-                QApplication.processEvents()
+            self._activate_fev(session, progress)
         finally:
             progress.close()
         return True
+
+    def _activate_fev(self, session, progress) -> None:
+        """Put a built session into the window and paint its first state."""
+        progress.report("Colouring the diagram", 0, 1)
+        self._fev = session
+        self._set_fev_check(True)
+        if not self._diagram_dock.isVisible():
+            self._diagram_dock.show()
+        self._diagram_dock.view.set_fev_view_open(True)
+        self._refresh_commands()
+        fev_inspector = getattr(self, "_fev_inspector", None)
+        if fev_inspector is not None:
+            fev_inspector.set_summary_provider(self._fev_text)
+        fev_inspector_dock = getattr(self, "_fev_inspector_dock", None)
+        if fev_inspector_dock is not None:
+            fev_inspector_dock.show()
+            fev_inspector_dock.raise_()
+        # Applying a new colour to every visible item is a bulk paint,
+        # not an animation. Freeze the canvas while it happens so the
+        # progress dialog's event pumps do not repaint the whole scene
+        # once per slice; one repaint follows when the state is final.
+        view = self._diagram_dock.view
+        view.setUpdatesEnabled(False)
+        try:
+            self._fev_refresh(
+                "Failure Effects View — click a block to fail or restore it",
+                progress=progress.report)
+        finally:
+            view.setUpdatesEnabled(True)
+            view.viewport().update()
+            # The first paint after the bulk update is the expensive
+            # one: do it while the progress window still explains the
+            # wait, not after it has vanished.
+            QApplication.processEvents()
 
     def _leave_fev(self) -> None:
         if self._fev is None:
@@ -139,6 +151,14 @@ class FevMixin:
         view.set_fev_view_open(False)
         view.clear_live_states()
         self._update_system_swatch(None)
+        fev_inspector_dock = getattr(self, "_fev_inspector_dock", None)
+        if fev_inspector_dock is not None:
+            fev_inspector_dock.hide()
+        inspector_dock = getattr(self, "_inspector_dock", None)
+        if inspector_dock is not None and inspector_dock.isVisible():
+            # The Failure Effects tab shared the Inspector's slot; put the
+            # normal property editor back in front when the mode ends.
+            inspector_dock.raise_()
         self._set_fev_check(False)
         self._refresh_commands()
         self._statusbar.showMessage("Left Failure Effects View", 4000)
@@ -154,6 +174,12 @@ class FevMixin:
             phase=s.phase_number if s.phased else None,
             progress=progress)
         self._update_system_swatch(s.system_color, force=True)
+        show_criticality = self._fev_show_criticality()
+        flow = s.capacity()
+        fev_inspector = getattr(self, "_fev_inspector", None)
+        if fev_inspector is not None:
+            fev_inspector.update_session(
+                s, show_criticality=show_criticality, capacity=flow)
         text = f"{message} — " if message else ""
         text += f"System {s.system_color.value}"
         if s.phased:
@@ -161,10 +187,9 @@ class FevMixin:
             text += f" — Phase {s.phase_number}/{n} \"{s.model.phases[s.phase_number - 1].phase_name}\""
         if s.fev_dep_group:
             text += f" — {len(s.fev_dep_group)} induced (hatched)"
-        if self._fev_show_criticality():
+        if show_criticality:
             from raptor.core.engine.reports import real_to_str
             text += f" — Criticality = {real_to_str(s.criticality)}"
-        flow = s.capacity()
         if flow is not None:
             # Not in Raptor 7's view: the flow this state delivers, as the
             # CLI's `fev --capacity` and the MCP tools report it.
