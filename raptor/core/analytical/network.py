@@ -289,6 +289,10 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
 
     def branch_condition(link) -> int:
         """The condition under which ``link`` carries a Start-to-End signal."""
+        if scope.dependencies == "down" and (
+                getattr(link, "switch_status", False)
+                or getattr(link, "sb_link", False)):
+            return FALSE
         source_kind, source_id = _link_source(link)
         if source_kind == "RBDNode":
             return node_condition(source_id)
