@@ -1438,7 +1438,7 @@ def auto_layout(model_id: str,
     default (`auto_layout=True`).
 
     `direction` is LR/RL/TB/BT; `max_columns` wraps the flow after that
-    many columns instead of waiting for the canvas width. Use the existing
+    many positions into a new band instead of waiting for the canvas width. Use the existing
     View > Link style `orthogonal` setting (or `render_diagram`) for
     right-angle links.
 

@@ -166,9 +166,83 @@ def test_top_to_bottom_layout_routes_ports_vertically():
         for link in view._links:
             if id(link._from) not in blocks or id(link._to) not in blocks:
                 continue
-            local = link._from.mapFromScene(link._p0)
-            assert abs(local.x() - BLOCK_W / 2) < 1.0, local
-            assert local.y() > BLOCK_H * 0.5, local
+            start = link._from.mapFromScene(link._p0)
+            assert abs(start.x() - BLOCK_W / 2) < 1.0, start
+            assert start.y() > BLOCK_H * 0.5, start
+            end = link._to.mapFromScene(link._p3)
+            assert abs(end.x() - BLOCK_W / 2) < 1.0, end
+            assert abs(end.y()) < 1.0, end
+    finally:
+        set_flow_direction("auto")
+
+
+def test_left_to_right_layout_routes_ports_horizontally():
+    """An LR layout must enter left and leave right, not top/bottom."""
+    from PySide6.QtWidgets import QApplication
+    from raptor.api.build import build_from_spec
+    from raptor.gui.ui.diagram import DiagramView
+    from raptor.gui.ui.diagram_items import (
+        BLOCK_H, BLOCK_W, set_flow_direction)
+    QApplication.instance() or QApplication([])
+    rbd = build_from_spec({
+        "name": "LR", "blocks": [{"name": "A"}, {"name": "B"}],
+        "nodes": [{"id": 1, "name": "Start", "type": "start"},
+                  {"id": 2, "name": "End", "type": "end"}],
+        "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "B"},
+                  {"from": "B", "to": "End"}],
+        "system": {"term_condition": 100, "num_runs": 1},
+    }, auto_layout=False)
+    view = DiagramView()
+    view.load_rbd(rbd)
+    try:
+        view.auto_layout(direction="LR")
+        blocks = {id(it) for it in view._block_items.values()}
+        for link in view._links:
+            if id(link._from) not in blocks or id(link._to) not in blocks:
+                continue
+            start = link._from.mapFromScene(link._p0)
+            assert abs(start.y() - BLOCK_H / 2) < 1.0, start
+            assert abs(start.x() - BLOCK_W) < 1.0, start
+            end = link._to.mapFromScene(link._p3)
+            assert abs(end.y() - BLOCK_H / 2) < 1.0, end
+            assert abs(end.x()) < 1.0, end
+    finally:
+        set_flow_direction("auto")
+
+
+def test_vertical_band_handover_is_a_z_or_s_shape():
+    """A wrapped TB band keeps top entries and detours round the gap."""
+    from PySide6.QtWidgets import QApplication
+    from raptor.api.build import build_from_spec
+    from raptor.gui.ui.diagram import DiagramView
+    from raptor.gui.ui.diagram_items import (
+        BLOCK_W, set_flow_direction)
+    QApplication.instance() or QApplication([])
+    from itertools import pairwise
+    seq = ["Start"] + [f"B{i}" for i in range(6)] + ["End"]
+    rbd = build_from_spec({
+        "name": "TBBand",
+        "blocks": [{"name": f"B{i}"} for i in range(6)],
+        "nodes": [{"id": 1, "name": "Start", "type": "start"},
+                  {"id": 2, "name": "End", "type": "end"}],
+        "links": [{"from": a, "to": b} for a, b in pairwise(seq)],
+        "system": {"term_condition": 100, "num_runs": 1},
+    }, auto_layout=False)
+    view = DiagramView()
+    view.load_rbd(rbd)
+    try:
+        view.auto_layout(direction="TB", max_columns=3)
+        blocks = {id(it) for it in view._block_items.values()}
+        handovers = []
+        for link in view._links:
+            if id(link._from) not in blocks or id(link._to) not in blocks:
+                continue
+            end = link._to.mapFromScene(link._p3)
+            assert abs(end.x() - BLOCK_W / 2) < 1.0, end
+            assert abs(end.y()) < 1.0, end
+            if link.path().elementCount() > 2:
+                handovers.append(link)
+        assert handovers, "wrapped bands should draw a Z/S hand-over"
     finally:
         set_flow_direction("auto")
 
