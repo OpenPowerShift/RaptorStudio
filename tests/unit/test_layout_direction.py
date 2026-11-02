@@ -210,15 +210,60 @@ def test_left_to_right_layout_routes_ports_horizontally():
         set_flow_direction("auto")
 
 
+def test_lr_band_handover_enters_left_at_the_band_corner():
+    """The return line runs down the next band's left edge and enters
+    the first item from the left, with a short exit stub."""
+    from itertools import pairwise
+    from PySide6.QtWidgets import QApplication
+    from raptor.api.build import build_from_spec
+    from raptor.gui.ui.diagram import DiagramView
+    from raptor.gui.ui.diagram_items import (
+        BLOCK_H, BLOCK_W, set_flow_direction)
+    QApplication.instance() or QApplication([])
+    seq = ["Start"] + [f"B{i}" for i in range(8)] + ["End"]
+    rbd = build_from_spec({
+        "name": "LRBand",
+        "blocks": [{"name": f"B{i}"} for i in range(8)],
+        "nodes": [{"id": 1, "name": "Start", "type": "start"},
+                  {"id": 2, "name": "End", "type": "end"}],
+        "links": [{"from": a, "to": b} for a, b in pairwise(seq)],
+        "system": {"term_condition": 100, "num_runs": 1},
+    }, auto_layout=False)
+    view = DiagramView()
+    view.load_rbd(rbd)
+    try:
+        view.auto_layout(direction="LR", max_columns=4)
+        blocks = {id(it) for it in view._block_items.values()}
+        handovers = []
+        for link in view._links:
+            if id(link._from) not in blocks or id(link._to) not in blocks:
+                continue
+            end = link._to.mapFromScene(link._p3)
+            assert abs(end.y() - BLOCK_H / 2) < 1.0, end
+            assert abs(end.x()) < 1.0, end
+            if link.path().elementCount() > 2:
+                handovers.append(link)
+        assert handovers, "a wrapped LR band should draw a Z/S hand-over"
+        for link in handovers:
+            left = link._to.mapToScene(0, 0).x()
+            xs = [link.path().elementAt(i).x
+                  for i in range(link.path().elementCount())]
+            assert min(xs) < left
+            start = link._from.mapFromScene(link._p0)
+            assert abs(start.x() - BLOCK_W) < 1.0, start
+    finally:
+        set_flow_direction("auto")
+
+
 def test_vertical_band_handover_is_a_z_or_s_shape():
     """A wrapped TB band keeps top entries and detours round the gap."""
+    from itertools import pairwise
     from PySide6.QtWidgets import QApplication
     from raptor.api.build import build_from_spec
     from raptor.gui.ui.diagram import DiagramView
     from raptor.gui.ui.diagram_items import (
         BLOCK_W, set_flow_direction)
     QApplication.instance() or QApplication([])
-    from itertools import pairwise
     seq = ["Start"] + [f"B{i}" for i in range(6)] + ["End"]
     rbd = build_from_spec({
         "name": "TBBand",
@@ -245,17 +290,3 @@ def test_vertical_band_handover_is_a_z_or_s_shape():
         assert handovers, "wrapped bands should draw a Z/S hand-over"
     finally:
         set_flow_direction("auto")
-
-
-def test_lr_max_columns_snakes_into_a_z_bend():
-    members, edges = _chain(10)
-    pos = layout_container_positions(members, edges, [("node", 0)],
-                                     pins={("node", 9)}, direction="LR",
-                                     max_columns=4)
-    band_one = [pos[("node", i)][0] for i in range(4)]
-    band_two = [pos[("node", i)][0] for i in range(4, 8)]
-    assert band_one == sorted(band_one)
-    assert band_two == sorted(band_two, reverse=True)
-    # The hand-over is the short vertical link of the Z, not a jump back
-    # across the page.
-    assert abs(pos[("node", 3)][0] - pos[("node", 4)][0]) <= 5.0

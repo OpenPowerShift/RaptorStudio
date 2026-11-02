@@ -1133,7 +1133,11 @@ class _LinkItem(QGraphicsPathItem):
         # the shape (fan-in from more than one direction), fall back to
         # the facing side. Iterate: flipping one end can change whether
         # the other end is crossed.
-        for _ in range(3):
+        # A band hand-over is deliberately routed round the outside; the
+        # straight-line crossing check would flip the exit to a side port
+        # before the hand-over path ever gets drawn.
+        early_handover = self._handover_points(p0, p3)
+        for _ in range(3 if early_handover is None else 0):
             changed = False
             if self._segment_crosses(to_item, p0, p3):
                 entry = self._entry_side_for(to_item, fc)
@@ -1169,7 +1173,7 @@ class _LinkItem(QGraphicsPathItem):
         self.prepareGeometryChange()
         self._p0, self._p3 = p0, p3
         path = QPainterPath(p0)
-        handover = (self._handover_points(p0, p3)
+        handover = (early_handover
                     if route is None and not grips else None)
         if grips:
             tip_from = p0
@@ -1195,36 +1199,41 @@ class _LinkItem(QGraphicsPathItem):
 
     @staticmethod
     def _handover_points(p0: QPointF, p3: QPointF) -> list[QPointF] | None:
-        """Side lane for a wrapped band whose next element is upstream.
+        """Stub + band-corner lane for a wrapped band hand-over.
 
-        Keeping every element on the page-flow axis means a band hand-over
-        starts above its source (TB) or left of it (LR). A straight line
-        would run backwards through the source block; this returns a short
-        Z/S detour that leaves on the downstream side, crosses the band
-        gap, and approaches the next element's upstream port.
+        Every band keeps the page-flow direction, so the next band's first
+        element sits upstream of the previous band's last element. The
+        return line leaves the last element on a short stub, runs through
+        the gap between bands, turns at the next band's leading corner
+        (left for LR, right for RL; top for TB, bottom for BT), and enters
+        the first element on its upstream port.
         """
         direction = flow_direction()
-        gap = 14.0
+        stub = 14.0
         if direction == "TB" and p3.y() < p0.y() - 1.0:
-            lane = max(p0.x(), p3.x()) + gap
-            return [p0, QPointF(lane, p0.y()),
-                    QPointF(lane, p3.y() - gap),
-                    QPointF(p3.x(), p3.y() - gap)]
+            mid_x = (p0.x() + p3.x()) / 2.0
+            return [p0, QPointF(p0.x(), p0.y() + stub),
+                    QPointF(mid_x, p0.y() + stub),
+                    QPointF(mid_x, p3.y() - stub),
+                    QPointF(p3.x(), p3.y() - stub)]
         if direction == "BT" and p3.y() > p0.y() + 1.0:
-            lane = max(p0.x(), p3.x()) + gap
-            return [p0, QPointF(lane, p0.y()),
-                    QPointF(lane, p3.y() + gap),
-                    QPointF(p3.x(), p3.y() + gap)]
+            mid_x = (p0.x() + p3.x()) / 2.0
+            return [p0, QPointF(p0.x(), p0.y() - stub),
+                    QPointF(mid_x, p0.y() - stub),
+                    QPointF(mid_x, p3.y() + stub),
+                    QPointF(p3.x(), p3.y() + stub)]
         if direction == "LR" and p3.x() < p0.x() - 1.0:
-            lane = max(p0.y(), p3.y()) + gap
-            return [p0, QPointF(p0.x(), lane),
-                    QPointF(p3.x() - gap, lane),
-                    QPointF(p3.x() - gap, p3.y())]
+            mid_y = (p0.y() + p3.y()) / 2.0
+            lane = p3.x() - stub
+            return [p0, QPointF(p0.x() + stub, p0.y()),
+                    QPointF(p0.x() + stub, mid_y),
+                    QPointF(lane, mid_y), QPointF(lane, p3.y())]
         if direction == "RL" and p3.x() > p0.x() + 1.0:
-            lane = max(p0.y(), p3.y()) + gap
-            return [p0, QPointF(p0.x(), lane),
-                    QPointF(p3.x() + gap, lane),
-                    QPointF(p3.x() + gap, p3.y())]
+            mid_y = (p0.y() + p3.y()) / 2.0
+            lane = p3.x() + stub
+            return [p0, QPointF(p0.x() - stub, p0.y()),
+                    QPointF(p0.x() - stub, mid_y),
+                    QPointF(lane, mid_y), QPointF(lane, p3.y())]
         return None
 
     @staticmethod

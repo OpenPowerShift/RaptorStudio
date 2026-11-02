@@ -486,11 +486,11 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                        for b in range(n_bands)]
         fits = margin >= -(1e-9)
 
-    # Alternating (serpentine) bands keep the link from one band's last
-    # column to the next band's first short: the flow snakes back, so an
-    # explicit `max_columns` reads as a Z/S rather than jumping across the
-    # page to restart at the original edge.
-    snake = horizontal or max_columns is None
+    # Automatic wrapping alternates bands so the hand-over stays short.
+    # An explicit `max_columns` keeps every band in the requested flow
+    # direction; the link then returns down the leading edge (left for LR,
+    # right for RL) as the deliberate Z/S the user asked for.
+    snake = max_columns is None
     centre_of = {k: band_centre[col_band[col_of[k]]] for k in col_of}
     # Horizontal serpentine starts each short band where the previous one
     # ended, so the hand-over is a short vertical link (the Z/S bend)
