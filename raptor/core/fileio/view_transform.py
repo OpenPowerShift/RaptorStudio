@@ -95,7 +95,7 @@ def collect_positions(rbd: Any) -> tuple[list[float], list[float]]:
             try:
                 if int(float(r.get("ID", 0))) == 0:
                     continue
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 continue
             try:
                 xs.append(float(r["xPos"]))
@@ -124,7 +124,7 @@ def collect_levels(rbd: Any) -> dict[int, tuple[list[float], list[float]]]:
                     continue
                 x, y = float(r["xPos"]), float(r["yPos"])
                 parent = int(float(r.get(_PARENT_COL[name], 0) or 0))
-            except (TypeError, ValueError, KeyError):
+            except (TypeError, ValueError, KeyError, OverflowError):
                 continue
             xs, ys = levels.setdefault(parent, ([], []))
             xs.append(x)
@@ -164,7 +164,7 @@ def _levels_by_kind(rbd: Any) -> dict[int, dict[float, float]]:
                     continue
                 x = float(r["xPos"])
                 parent = int(float(r.get(_PARENT_COL[name], 0) or 0))
-            except (TypeError, ValueError, KeyError):
+            except (TypeError, ValueError, KeyError, OverflowError):
                 continue
             cols = out.setdefault(parent, {})
             cols[x] = max(cols.get(x, 0.0), hw)
