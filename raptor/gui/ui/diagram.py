@@ -1185,11 +1185,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                           link.connect_from_id, link.connect_t_ref,
                           link.connect_to_id)
                 link_item = _LinkItem(from_item, to_item,
-                                      link_num=link.object_num)
+                                      link_num=link.object_num,
+                                      defer_route=True)
                 self._links.append(link_item)
                 self._scene.addItem(link_item)
         # Ports depend on an element's other links, so recompute every
-        # route once the whole topology exists (see _rebuild_link_items).
+        # route once the whole topology exists. The deferred constructor
+        # keeps the scene-wide link index from being rebuilt after every
+        # insertion; the first `_update_route` below builds it once, and
+        # the rest of the batch reuses it.
         for link_item in self._links:
             link_item._update_route()
 
@@ -2375,6 +2379,34 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         self._stack.push(ParamsCmd(self, "block standby stress",
                                    block_id, block.sb_stress, value))
+
+    def set_block_duty_cycle(self, block_id: int, value: float):
+        block = self.blocks.get(block_id)
+        if block is None or block.duty_cycle == value:
+            return
+        self._stack.push(ParamsCmd(self, "block duty cycle", block_id,
+                                   block.duty_cycle, value))
+
+    def set_block_start_age(self, block_id: int, value: float):
+        block = self.blocks.get(block_id)
+        if block is None or block.start_age == value:
+            return
+        self._stack.push(ParamsCmd(self, "block start age", block_id,
+                                   block.start_age, value))
+
+    def set_block_restoration_factor(self, block_id: int, value: float):
+        block = self.blocks.get(block_id)
+        if block is None or block.restoration_factor == value:
+            return
+        self._stack.push(ParamsCmd(self, "block restoration factor",
+                                   block_id, block.restoration_factor, value))
+
+    def set_block_restoration_type(self, block_id: int, value: int):
+        block = self.blocks.get(block_id)
+        if block is None or block.restoration_type == value:
+            return
+        self._stack.push(ParamsCmd(self, "block restoration type",
+                                   block_id, block.restoration_type, value))
 
     def set_block_gd_enabled(self, block_id: int, value: bool):
         """Growth/Decay on/off: off is the `GDType=0` sentinel; on defaults to Linear

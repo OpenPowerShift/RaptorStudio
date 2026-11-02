@@ -1,0 +1,59 @@
+.TH "RAPTOR-ANALYTIC" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-analytic \- Solve the static subset of an RBD exactly: series, parallel, mixed, k\-out\-of\-n and hierarchies. Reliability mode is non\-repairable. Availability mode is steady state, independent components, perfect repair. Models outside that subset are refused with the first offending element.
+.SH SYNOPSIS
+\fBraptor analytic\fR [\-h] [\-\-mode {reliability,availability}] [\-\-at T] [\-\-times T1,T2,...] [\-\-bx X1,X2,...] [\-\-tau T] [\-\-importance] [\-\-no\-importance] [\-\-equation] [\-\-ignore\-repairs] [\-\-ignore LIST] [\-\-phase N] [\-\-standby {active,absent}] [\-\-max\-variables N] [\-\-max\-bdd\-nodes N] [\-\-progress {auto,bar,json,none}] [\-f {text,json,csv}] MODEL
+.SH DESCRIPTION
+Solve the static subset of an RBD exactly: series, parallel, mixed, k\-out\-of\-n and hierarchies. Reliability mode is non\-repairable. Availability mode is steady state, independent components, perfect repair. Models outside that subset are refused with the first offending element.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-mode\fR \fI{reliability|availability}\fR
+reliability (R(t), non\-repairable) or availability (steady state, repairable) (default reliability)
+.TP
+\fB\-\-at\fR \fIT\fR
+mission time for reliability mode (default: the model's run length); ignored in availability mode
+.TP
+\fB\-\-times\fR \fIT1,T2,...\fR
+also evaluate a curve at these times
+.TP
+\fB\-\-bx\fR \fIX1,X2,...\fR
+BX life percentages for reliability mode (default 10); ignored in availability mode
+.TP
+\fB\-\-tau\fR \fIT\fR
+conditional reliability for another mission of T after \-\-at
+.TP
+\fB\-\-importance\fR
+exact Birnbaum/RAW/RRW/VF/criticality (default on)
+.TP
+\fB\-\-no\-importance\fR
+
+.TP
+\fB\-\-equation\fR
+print the path\-product equation
+.TP
+\fB\-\-ignore\-repairs\fR
+reliability mode only: compute first\-failure reliability even when the model has repair distributions
+.TP
+\fB\-\-ignore\fR \fILIST\fR
+comma\-separated simulation\-only features to leave out instead of refusing: repairs (reliability mode), pm, spares, resources
+.TP
+\fB\-\-phase\fR \fIN\fR
+analyse a phased model as if it stayed in phase N (1\-based) the whole time
+.TP
+\fB\-\-standby\fR \fI{active|absent}\fR
+cold\-standby paths: treat as fully in service, or as if they did not exist
+.TP
+\fB\-\-max\-variables\fR \fIN\fR
+raise the BDD variable limit (default: solver setting) when a large model is still tractable
+.TP
+\fB\-\-max\-bdd\-nodes\fR \fIN\fR
+raise the BDD node limit (default: solver setting) for a large but structurally simple model
+.TP
+\fB\-\-progress\fR \fI{auto|bar|json|none}\fR
+progress on stderr: BDD construction and the importance pass (auto = bar only on a terminal)
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json|csv}\fR
+
+.SH SEE ALSO
+\fBraptor\fR(1)

@@ -141,6 +141,10 @@ def combined_stress(block: RBDBlock, current_phase: int = 1) -> float:
     `opStatus=Standby` overrides `PhaseStress` back to 1.0 and sets
     `StandbyStress:=sb_stress`.
 
+    A block's `duty_cycle` scales the combined stress (1.0 is the historical
+    behaviour). A duty of 0.3 therefore consumes 30% of a life per unit of
+    calendar time; it does not change the distribution parameters.
+
     The stress values are local to `Run`, used only to compute that call's
     wait duration; they are not persisted to any object field.
     """
@@ -190,7 +194,7 @@ def combined_stress(block: RBDBlock, current_phase: int = 1) -> float:
     # `BlockRunState.phase_stress` is updated only by `ChangePhases` (the
     # orchestrator's kickoff seed and phase-cascade writes); writing it here
     # would clobber that cache.
-    return phase_stress * standby_stress / gd_stress
+    return phase_stress * standby_stress / gd_stress * block.duty_cycle
 
 
 class _Turn(Enum):
@@ -369,10 +373,14 @@ def get_start_cond(block: RBDBlock, rng_fail: RandomSource, rng_repair: RandomSo
         # "up, some complete" -- the GUI's universal default.
         # Redraw (up to 100 times total, counting the pre-CASE draw above as
         # attempt 1) until a life exceeds the amount already used, then
-        # subtract it.
+        # subtract it. `amount_exhausted` is the Raptor 7 absolute life
+        # already consumed; `start_age` is the same idea for a fleet that
+        # starts mid-life. They add when both are set.
+        initial_age = block.start_age + block.amount_exhausted
         for i in range(100):
-            if time_to_fail > block.amount_exhausted:
-                return StartCond("Running", fail_time_left=time_to_fail - block.amount_exhausted)
+            if time_to_fail > initial_age:
+                return StartCond("Running",
+                                 fail_time_left=time_to_fail - initial_age)
             if i < 99:
                 time_to_fail = rng_fail.draw_number(Distribution(block.fail_distro), block.fail_values)
         return StartCond("Running", fail_time_left=0.000001)  # 
@@ -499,6 +507,15 @@ class FailClock:
     # original generator's unbound locals did.
     #: Source's `OperatingTime`, logged with `Failed` and read by OBPM.
     operating_time: float = field(init=False)
+    #: The current life's raw (unscaled) draw, for restoration-factor
+    #: arithmetic. `None` until the first draw.
+    raw_life: float | None = None
+    #: The age at the last maintenance action, for the Kijima Type I
+    #: restoration calculation.
+    age_at_last_restore: float = 0.0
+    #: The age at which the current life failed; read by the repair path
+    #: when a restoration factor is set.
+    failed_age: float = 0.0
     #: The raw life drawn when the PM race was run (`_pm_race`).
     race_raw_life: float | None = field(init=False)
     #: The combined stress of the current wait.
@@ -1471,6 +1488,61 @@ class BlockProcess:
         # the first post-repair iteration.
         self.initial_fail_time_left = None
 
+    def _restored_age(self, age: float) -> float:
+        """Age left after a maintenance action, per the restoration factor.
+
+        1.0 is as good as new (age 0), 0.0 leaves the age untouched.
+        Type I restores the damage since the previous restoration; Type II
+        restores a fraction of the whole age. The result is always in
+        ``[0, age]`` and becomes the new "last restored" reference.
+        """
+        block = self.block
+        factor = min(1.0, max(0.0, block.restoration_factor))
+        if factor <= 0.0:
+            return age
+        if factor >= 1.0:
+            self.clock.age_at_last_restore = 0.0
+            return 0.0
+        if block.restoration_type == 2:
+            residual = (1.0 - factor) * age
+        else:
+            residual = age - factor * (age - self.clock.age_at_last_restore)
+        residual = min(age, max(0.0, residual))
+        self.clock.age_at_last_restore = residual
+        return residual
+
+    def _remaining_after_restore(self, raw_life: float,
+                                 remaining: float) -> float:
+        """Remaining raw life after a PM restores part of the current age."""
+        age = max(0.0, raw_life - max(0.0, remaining))
+        residual = self._restored_age(age)
+        return max(0.0, raw_life - residual)
+
+    def _conditional_life(self, age: float) -> float:
+        """Draw a full life conditional on surviving to ``age``.
+
+        Rejection is exact for every distribution and uses the same fail
+        stream as the ordinary draw. It is only reached when a restoration
+        factor is non-zero, so the default draw sequence is unchanged.
+        """
+        block = self.block
+        for _ in range(1000):
+            draw = self.rng_fail.draw_number(
+                Distribution(block.fail_distro), block.fail_values)
+            if draw > age:
+                return draw
+        return age + 0.000001
+
+    def _set_restored_life(self, age: float) -> None:
+        """Set the next life to a conditional draw at residual ``age``."""
+        if age <= 0.0:
+            self.clock.fail_time_left = None
+            return
+        raw = self._conditional_life(age)
+        self.clock.raw_life = raw
+        self.clock.fail_time_left = max(0.0, raw - age)
+        self.clock.age_at_last_restore = age
+
     def _draw_life(self) -> float:
         """Draw a new life and race it against the PM clock: source's
         `IF FailTimeLeft=0.0: DrawNumber(...)`
@@ -1513,6 +1585,9 @@ class BlockProcess:
         # one: DepPmNoRefreshProbe's Raptor 7 capture has the block redrawing on
         # leaving a dependency idle, and the PM after that resumed the SAME life.
         self.clock.race_raw_life = raw_fail_draw if self.pm.due else None
+        self.clock.raw_life = raw_fail_draw
+        self.clock.age_at_last_restore = 0.0
+        self.clock.failed_age = 0.0
         return raw_fail_draw
 
     def _idle_wait(self) -> Generator[float | Wait, Wake | None, IdleExit]:
@@ -2138,7 +2213,18 @@ class BlockProcess:
         `DetermineNewState("Block Has Failed")` before `Repair`.
         """
         self._log_failure(sim_time)
+        self.clock.failed_age = self._current_age()
         self._count_failure(sim_time)
+
+    def _current_age(self) -> float:
+        """Life consumed in the current draw, in raw life units."""
+        raw = self.clock.raw_life
+        if raw is None:
+            return 0.0
+        remaining = self.clock.fail_time_left
+        if remaining is None:
+            return max(0.0, raw)
+        return max(0.0, raw - max(0.0, remaining))
 
     def _log_failure(self, sim_time: float) -> None:
         if self.events_file:
@@ -2161,6 +2247,7 @@ class BlockProcess:
         if cascade is None:
             raise EngineInvariantError("a deferred maintenance needs the cascade that owns the trigger")
         trigger = cascade.defer_trigger
+        self.clock.failed_age = self._current_age()
         self._count_failure(sim_time)
         if self.events_file:
             self.logs.append(format_event_log_line(
@@ -3118,6 +3205,23 @@ class BlockProcess:
             # FailTimeLeft (a block Cut/Idle from t=0 that PMs before
             # its first redraw), so the refresh discards it too.
             self.initial_fail_time_left = None
+        elif block.restoration_factor > 0.0 and self.clock.raw_life is not None:
+            # Partial restoration: keep the current life but give back part
+            # of the consumed age. Factor 1.0 falls through to a fresh draw,
+            # exactly like pm_refresh; factor 0.0 is the no-op branch below.
+            remaining: float | None
+            if self.clock.fail_time_left is None and self.clock.race_raw_life is not None:
+                raw = float(self.clock.race_raw_life)
+                remaining = raw - self.clock.wait_duration * self.clock.stress
+            else:
+                raw = float(self.clock.raw_life)
+                remaining = self.clock.fail_time_left
+            if remaining is not None:
+                restored = self._remaining_after_restore(raw, remaining)
+                self.clock.fail_time_left = (
+                    None if restored >= raw else restored)
+                if self.clock.fail_time_left is None:
+                    self.initial_fail_time_left = None
         elif self.clock.fail_time_left is None and self.clock.race_raw_life is not None:
             self.clock.fail_time_left = self.clock.race_raw_life - self.clock.wait_duration * self.clock.stress
         # The parked whole life is spent: left set, the next pass's race would take it, not the remainder.
@@ -3913,6 +4017,14 @@ class BlockProcess:
             if events_file:
                 logs.append(format_event_log_line(sim_time, "Block", block.name, "End_Post-LDT", f"Time={ldt_wait:.6f}"))
 
+        # Restoration factor: after a failure, a partial repair leaves a
+        # residual age and the next life is drawn conditionally on having
+        # survived to it. Factor 0.0 (the default) takes the existing fresh
+        # draw unchanged; factor 1.0 is also the existing fresh draw.
+        if block.restoration_factor > 0.0 and self.clock.failed_age > 0.0:
+            residual = self._restored_age(self.clock.failed_age)
+            self.clock.failed_age = 0.0
+            self._set_restored_life(residual)
         # Port of `Repair`'s `DetermineNewState("Maintenance Completed")`
         # -- see `_apply_maintenance_completed` for the
         # full scope (shared with `PerformPM`'s completion).

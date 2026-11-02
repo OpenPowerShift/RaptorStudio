@@ -155,9 +155,9 @@ def test_metric_definitions_cover_all_summary_fields():
     from raptor.api.metric_definitions import definitions
 
     rows = definitions()
-    # 17 reported for every run, plus 5 for a run with capacity analysis.
-    assert len([r for r in rows if not r.get("analysis")]) == 17
-    assert len(rows) == 22
+    # 25 reported for every run, plus 5 for a run with capacity analysis.
+    assert len([r for r in rows if not r.get("analysis")]) == 25
+    assert len(rows) == 30
     names = {row["metric"] for row in rows}
     assert {"Conditional reliability", "Dependability", "MTBMs", "MMTu",
             "Component failures", "Green %", "Yellow %", "Red %"} <= names

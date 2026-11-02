@@ -245,7 +245,7 @@ def test_the_statistics_reset_announces_itself_at_the_start_stats_time() -> None
 # ---------------------------------------------------------------------------
 
 def test_aggregate_metrics_returns_one_metric_per_named_stat_in_a_fixed_order() -> None:
-    """`aggregate_metrics` returns seventeen metrics, named by the report's
+    """`aggregate_metrics` returns twenty-five metrics, named by the report's
     own field names, in that order.
 
     Why: it is a table lookup over `_METRIC_FIELDS`, not a scan of what a
@@ -256,7 +256,7 @@ def test_aggregate_metrics_returns_one_metric_per_named_stat_in_a_fixed_order() 
 
     Setup: S1, three runs, so every metric has samples to aggregate.
 
-    Expected: exactly these seventeen names, in this order, and the
+    Expected: exactly these twenty-five names, in this order, and the
     Availability metric's five statistics as `(0.9, 0.9, 0.9, 0.0, 0.0)`.
 
     Source: Raptor 7 (the SUMMARY row order the names follow);
@@ -267,6 +267,9 @@ def test_aggregate_metrics_returns_one_metric_per_named_stat_in_a_fixed_order() 
         "Availability", "Reliability", "Conditional_Reliability",
         "Dependability", "MTBDE", "MDT", "MTBM", "MTBMu", "MTBMs", "MMT",
         "MMTu", "MMTs", "System_Failures", "Component_Failures",
+        "MTTFF", "Inherent_Availability", "Achieved_Availability",
+        "Operational_Availability", "MTBF_Total", "MTBE_Total",
+        "Component_CMs", "Component_PMs",
         "Green_Percent", "Yellow_Percent", "Red_Percent",
     ]
     availability = metrics[0]

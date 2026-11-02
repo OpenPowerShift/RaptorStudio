@@ -199,6 +199,35 @@ class RunReportData:
     #: FailSim final-results note.
     out_of_spares: bool = False
 
+    # --- additive availability/criticality data (not in legacy text) ------
+    #: Absolute sim time of the first system failure, or ``None`` if the run
+    #: never went Red. `mttff` is this value, or `ending_sim_time` when the
+    #: run was right-censored (no failure), with `mttff_censored` set.
+    first_system_failure_time: float | None = None
+    mttff: float | None = None
+    mttff_censored: bool = False
+    #: ``(sim_time, colour)`` transitions, starting at ``(0.0, "Green")``.
+    color_timeline: list[tuple[float, str]] = field(default_factory=list)
+    total_time: float = 0.0
+    uptime: float = 0.0
+    downtime: float = 0.0
+    num_component_cms: int = 0
+    num_component_pms: int = 0
+    red_corrective_time: float = 0.0
+    red_pm_time: float = 0.0
+    red_logistics_time: float = 0.0
+    red_done_time: float = 0.0
+    red_other_time: float = 0.0
+    inherent_availability: float | None = None
+    achieved_availability: float | None = None
+    operational_availability: float | None = None
+    mtbf_total: float | None = None
+    mtbe_total: float | None = None
+    #: block id -> {name, parent_id, failure, downtime, cost, downing_event}.
+    #: Shares are exact ratios of the existing accumulators; ``downing_event``
+    #: is None because no per-block downing-event attribution exists.
+    criticality: dict[int, dict] = field(default_factory=dict)
+
 
 @dataclass
 class BlockCostRow:
@@ -303,6 +332,62 @@ class CostRunReport:
     #: zero-accumulator model still fails. Defaults True so callers that
     #: don't set it keep the previous always-print behaviour.
     red_cost_configured: bool = True
+
+
+_DOWNTIME_KEYS = ("repair", "rep_hold", "pm", "pm_hold", "idle", "done")
+
+
+def _criticality_rows(blocks: list[RBDBlock],
+                      block_spares: dict[int, tuple[int, int]],
+                      weak_stats: dict[int, dict],
+                      cost) -> dict[int, dict]:
+    """Exact per-block criticality ratios from the existing accumulators.
+
+    Failure and cost ratios are always available (cost only when cost
+    analysis was on). Downtime is available only when weak-link state times
+    were collected. Downing-event attribution does not exist in the engine,
+    so that column is None rather than a guessed number.
+    """
+    failures = {block.id: max(0, int(block_spares.get(block.id, (0, 0))[0]))
+                for block in blocks}
+    total_failures = sum(failures.values())
+
+    downtime: dict[int, float] = {}
+    if weak_stats:
+        for block in blocks:
+            stats = weak_stats.get(block.id) or {}
+            downtime[block.id] = sum(
+                float(stats.get(key, 0.0) or 0.0) for key in _DOWNTIME_KEYS)
+    total_downtime = sum(downtime.values())
+
+    block_cost: dict[int, float] = {}
+    if cost is not None:
+        for block in blocks:
+            row = cost.blocks.get(block.id)
+            if row is not None:
+                block_cost[block.id] = float(row.total)
+    total_cost = sum(block_cost.values())
+
+    rows: dict[int, dict] = {}
+    for block in blocks:
+        rows[block.id] = {
+            "name": block.name,
+            "parent_id": block.parent_id,
+            "failure": (failures[block.id] / total_failures
+                        if total_failures > 0 else None),
+            "downtime": (downtime.get(block.id, 0.0) / total_downtime
+                         if total_downtime > 0 else None),
+            "cost": (block_cost.get(block.id, 0.0) / total_cost
+                     if total_cost > 0 else None),
+            "downing_event": None,
+        }
+    return rows
+
+
+def _availability_ratio(numerator: float, denominator: float) -> float | None:
+    if denominator <= 0.0:
+        return None
+    return numerator / denominator
 
 
 def build_run_report_data(
@@ -498,6 +583,24 @@ def build_run_report_data(
     conditional_reliability = (float(state.missions_completed) / float(state.missions_began)
                                if state.missions_began > 0 else reliability)
 
+    block_spares = {
+        b.id: (b.run_state.failure_counter - b.run_state.discarded_failures,
+               b.run_state.spares_used) for b in blocks
+    }
+    uptime = green_sum + yellow_sum
+    downtime = red_sum
+    inherent = _availability_ratio(
+        uptime, uptime + state.red_corrective_time)
+    achieved = _availability_ratio(
+        uptime, uptime + state.red_corrective_time + state.red_pm_time)
+    mttff_censored = state.first_system_failure_time is None
+    mttff = (effective_sim_time if mttff_censored
+             else state.first_system_failure_time)
+    mtbf_total = _availability_ratio(total_time, float(comp_fail_count)) \
+        if comp_fail_count > 0 else None
+    mtbe_total = _availability_ratio(total_time, float(state.sys_fail_stat.count)) \
+        if state.sys_fail_stat.count > 0 else None
+
     return RunReportData(
         out_of_spares=out_of_spares,
         run_number=run_number,
@@ -518,9 +621,7 @@ def build_run_report_data(
         mission_red_percent=mission_red_percent,
         sys_fail_stat=state.sys_fail_stat, red_stat=state.red_stat,
         comp_fail_stat=state.comp_fail_stat, comp_repair_stat=state.comp_repair_stat,
-        block_spares={
-            b.id: (b.run_state.failure_counter - b.run_state.discarded_failures, b.run_state.spares_used) for b in blocks
-        },
+        block_spares=block_spares,
         mtbde_suspected=mtbde_suspected, mtbm_suspected=mtbm_suspected,
         mtbmu_suspected=mtbmu_suspected, mtbms_suspected=mtbms_suspected,
         mtbms_agg=mtbms_agg, did_pm=did_pm,
@@ -537,4 +638,25 @@ def build_run_report_data(
         custom_stock=custom_stock or {},
         spare_pool_stock=spare_pool_stock or {},
         resource_stock=resource_stock or {},
+        first_system_failure_time=state.first_system_failure_time,
+        mttff=mttff,
+        mttff_censored=mttff_censored,
+        color_timeline=list(state.color_timeline),
+        total_time=total_time,
+        uptime=uptime,
+        downtime=downtime,
+        num_component_cms=state.comp_repair_stat.count,
+        num_component_pms=state.comp_pm_stat.count,
+        red_corrective_time=state.red_corrective_time,
+        red_pm_time=state.red_pm_time,
+        red_logistics_time=state.red_logistics_time,
+        red_done_time=state.red_done_time,
+        red_other_time=state.red_other_time,
+        inherent_availability=inherent,
+        achieved_availability=achieved,
+        operational_availability=availability,
+        mtbf_total=mtbf_total,
+        mtbe_total=mtbe_total,
+        criticality=_criticality_rows(blocks, block_spares, weak_stats or {},
+                                      cost),
     )

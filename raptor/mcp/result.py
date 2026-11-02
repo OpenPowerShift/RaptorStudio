@@ -36,6 +36,7 @@ from collections.abc import Callable
 from mcp.types import CallToolResult, ImageContent, TextContent, ToolAnnotations
 
 from raptor.api.analyse import AnalysisError
+from raptor.core.analytical.errors import AnalyticalError
 from raptor.api.annotations import AnnotationNotFound
 from raptor.api.build import AmbiguousName, BuildError, ElementNotFound
 from raptor.core.input_rules import InputRuleViolation
@@ -159,6 +160,7 @@ _ANTICIPATED = (
     RunError,
     EstimateError,
     AnalysisError,
+    AnalyticalError,
     RenderError,
     NotImplementedError,
 )
@@ -208,6 +210,10 @@ _CLASSIFY: tuple[tuple[type, str, str | None, bool], ...] = (
     (KeyError, "not_found", None, False),
     (EstimateError, "precondition_failed", None, False),
     (AnalysisError, "precondition_failed", None, False),
+    (AnalyticalError, "precondition_failed",
+     "The model is outside the analytical solver's static subset; use "
+     "simulate for repairs, PM, spares, resources, dependencies, standby "
+     "or phases.", False),
     (ElementNotFound, "not_found",
      "Call describe_model(detail='full') to list element names and ids.", False),
     (AnnotationNotFound, "not_found",

@@ -94,6 +94,109 @@
   ],
   "type": "object"
  },
+ "analytical_analysis": {
+  "properties": {
+   "applicable": {
+    "type": "boolean"
+   },
+   "assumptions": {
+    "type": "array"
+   },
+   "availability": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "bdd_nodes": {
+    "type": "integer"
+   },
+   "bx": {
+    "type": "object"
+   },
+   "components": {
+    "type": "array"
+   },
+   "equation": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "hazard": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "importance": {
+    "type": "array"
+   },
+   "mode": {
+    "type": "string"
+   },
+   "model": {
+    "type": "string"
+   },
+   "mttf": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "pdf": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "reliability": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "schema": {
+    "type": "string"
+   },
+   "scope": {
+    "type": "object"
+   },
+   "time": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "unavailability": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "units": {
+    "type": "string"
+   },
+   "warnings": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "applicable",
+   "assumptions",
+   "bdd_nodes",
+   "components",
+   "importance",
+   "mode",
+   "model",
+   "schema",
+   "scope",
+   "time",
+   "units",
+   "warnings"
+  ],
+  "type": "object"
+ },
  "auto_layout": {
   "properties": {
    "annotations_moved": {

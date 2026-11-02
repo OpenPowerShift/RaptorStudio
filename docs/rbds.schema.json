@@ -216,6 +216,18 @@
        "standby_stress": {
         "type": "number"
        },
+       "duty_cycle": {
+        "type": "number"
+       },
+       "start_age": {
+        "type": "number"
+       },
+       "restoration_factor": {
+        "type": "number"
+       },
+       "restoration_type": {
+        "type": "integer"
+       },
        "growth_decay_type": {
         "type": "integer"
        },
@@ -804,6 +816,18 @@
      },
      "standby_stress": {
       "type": "number"
+     },
+     "duty_cycle": {
+      "type": "number"
+     },
+     "start_age": {
+      "type": "number"
+     },
+     "restoration_factor": {
+      "type": "number"
+     },
+     "restoration_type": {
+      "type": "integer"
      },
      "growth_decay_type": {
       "type": "integer"
@@ -1486,6 +1510,18 @@
       },
       "standby_stress": {
        "type": "number"
+      },
+      "duty_cycle": {
+       "type": "number"
+      },
+      "start_age": {
+       "type": "number"
+      },
+      "restoration_factor": {
+       "type": "number"
+      },
+      "restoration_type": {
+       "type": "integer"
       },
       "growth_decay_type": {
        "type": "integer"

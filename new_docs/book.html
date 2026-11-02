@@ -8572,7 +8572,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>66 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>67 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone reference to every tool,
 option and transport is in <code>docs/MCP.md</code> in the repository.</p>
 </div>
@@ -9096,8 +9096,8 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 65 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
-<code>ping</code>, or 64 when <code>--no-render</code> hides the PNG diagram tool.</p>
+listed below: 67 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+<code>ping</code>, or 66 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
 <p><strong>Ping the server.</strong> Ask the assistant to "ping RAPTOR" or call the <code>ping</code>
@@ -9476,6 +9476,15 @@ with parameter names and valid ranges.</p>
   anywhere (target deleted or renamed ambiguously, empty, or a cycle).</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>analytical_analysis</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Exact static solution for the subset where it exists: series, parallel,
+  mixed, k-of-n, bridge networks and hierarchies. <code>mode="reliability"</code> is
+  non-repairable <code>R(t)</code> with PDF, hazard, MTTF, BX life and exact importance;
+  <code>mode="availability"</code> is steady-state availability with independent,
+  perfectly repaired components. Refuses PM, spares, resources, dependencies,
+  standby, phases and non-Bernoulli events, naming the first offender.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>describe_metrics</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">List the result metrics and their units (availability, reliability,
   dependability, MTBDE/MDT, MTBM variants, MMT variants, failures and
@@ -9483,6 +9492,16 @@ with parameter names and valid ranges.</p>
   min/mean/max, standard deviation and standard error. For the
   definitions, call <code>read_doc('formulas')</code>; this tool does not repeat
   them.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>analytical_analysis</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Exact static solution for the subset where it exists: series, parallel,
+  mixed, k-of-n, bridge networks and hierarchies. <code>mode="reliability"</code> is
+  non-repairable; <code>mode="availability"</code> is steady-state availability with
+  independent, perfectly repaired components. Returns R(t)/A(t), MTTF,
+  BX life, conditional reliability, exact Birnbaum/RAW/RRW/Vesely–Fussell
+  and criticality. Refuses PM, spares, resources, dependencies, standby,
+  phases and non-Bernoulli events; use <code>simulate</code> for those.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>estimate_runtime</code></p></td>
@@ -11697,15 +11716,13 @@ by simulation.</p>
 <div class="sect2">
 <h3 id="_what_raptor_does_not_do">25.2. What RAPTOR does not do</h3>
 <div class="paragraph">
-<p>RAPTOR does not calculate minimal cut/tie sets, Boolean/BDD expressions,
-analytical importance factors, PFD<sub>avg</sub> or the standard&#8217;s analytical failure
-intensities. (It does <em>estimate</em> the Annex D importance measures by
-re-simulation; see below.) It does not represent repeated/common blocks, multi-port
-transfer gates, non-coherent (inverted) blocks, PAND/SEQ gates or a
-common-cause beta factor.</p>
-</div>
-<div class="paragraph">
-<p>Those are possible future work, not application features.</p>
+<p>The simulator does not calculate minimal cut/tie sets, qualitative Boolean/BDD
+expressions, PFD<sub>avg</sub> or the standard&#8217;s analytical failure intensities. It
+does <em>estimate</em> the Annex D importance measures by re-simulation (see below).
+The separate <strong>Results ▸ Analytical…</strong> solver computes exact reliability,
+steady-state availability and importance on its static subset. Neither
+represents repeated/common blocks, multi-port transfer gates, non-coherent
+(inverted) blocks, PAND/SEQ gates or a common-cause beta factor.</p>
 </div>
 </div>
 <div class="sect2">

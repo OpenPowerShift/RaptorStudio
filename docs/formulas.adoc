@@ -107,8 +107,10 @@ different levels, and the system number is *never* just the smallest
 component MTBF.
 
 |Mean Time To Repair (MTTR)
-|stem:["MTTR" = E["repair time"]]
-|Mean of the block's own Repair Dist.
+|stem:["MTTR" = E["repair time"] + E["pre-LDT"] + E["post-LDT"]]
+|Mean total down time for one repair. In availability mode the solver's
+component `mttr` also includes the mean pre- and post-repair logistic
+delays, because those are down time in the same cycle.
 
 |Failure rate (λ)
 |stem:[lambda(t) = f(t) / (R(t))], the hazard function
@@ -122,7 +124,7 @@ quoting one number is a simplification.
 
 Availability says how good the system is. An importance measure says *which
 block* to spend money on. IEC 61078 Annex D defines them as derivatives of the
-system function; RAPTOR Studio has no analytical function to differentiate, so
+system function. The simulator has no analytical function to differentiate, so
 it estimates the same quantities by **re-simulation**: it runs the model once
 with one block made unable to fail, and once with that block dead, and compares
 the results with the ordinary batch.
@@ -397,6 +399,135 @@ law.
   outside the range of the data you gave it — it has no opinion about
   the tail beyond your last observed point.
 
+[[age-features]]
+== Duty cycle, start age and restoration
+
+=== Duty cycle
+
+A block's `duty_cycle` multiplies the effective failure-clock rate:
+
+[stem]
+++++
+lambda_"eff"(t) = "duty" * lambda(t)
+++++
+
+It does not change the distribution parameters. A duty of 0.3 consumes 30%
+of a life per unit of calendar time; 1.5 consumes 50% more per unit, the
+"overload" case. Duty and a phase stress multiplier compound.
+
+=== Start age
+
+A block that starts at age stem:[a] has already survived to stem:[a]. Its
+first failure time is drawn conditionally:
+
+[stem]
+++++
+R_"start"(t) = R(a + t) / R(a)
+++++
+
+The engine implements this by redrawing the first life until it exceeds
+stem:[a], then subtracting stem:[a]. A start age of zero is the historical
+behaviour.
+
+=== Restoration factor
+
+After PM or repair, restoration factor stem:[r] (0 to 1) decides how much
+age remains:
+
+[cols="2,4",options="header"]
+|===
+|Type |Age left after the action
+
+|Kijima Type I |stem:[v = a - r(a - a_"last")]
+|Kijima Type II |stem:[v = (1 - r) a]
+|===
+
+Here stem:[r] is the fraction of age removed: 0 leaves the age untouched,
+1 is as good as new, and 0.7 leaves 30% of the age.
+
+where stem:[a] is the age at the action and stem:[a_"last"] the age after
+the previous restoration. stem:[r=1] is as good as new; stem:[r=0] leaves
+the age untouched. After a repair, the next life is drawn conditionally on
+surviving to the residual age stem:[v], not from a fresh population.
+
+=== Availability classifications
+
+[cols="2,5",options="header"]
+|===
+|Quantity |Formula
+
+|Mean / operational availability |stem:[(G + Y) / (G + Y + "all Red")]
+|Inherent availability |stem:[(G + Y) / (G + Y + "corrective Red")]
+|Achieved availability |stem:[(G + Y) / (G + Y + "corrective Red" + "PM Red")]
+|MTTFF |time of the first system failure; a run with no failure is censored at its end time
+|MTBF (total time) |stem:["total time" / "component failures"]
+|MTBE (total time) |stem:["total time" / "system downing events"]
+|===
+
+The Red-cause buckets are classified when the system enters Red from the
+blocks that are down at that instant: corrective, PM, logistics/dependency,
+done and other. They are report data, not a change to the simulation.
+
+Criticality is the unavailability removable by making a block perfect:
+
+[stem]
+++++
+C_i = I_B(i) (1 - A_i) / (1 - A_sys)
+++++
+
+[[analytical-solver]]
+== Analytical solver (exact, static subset)
+
+The simulator samples. The analytical solver evaluates the same coherent
+success function exactly for the subset where a static answer exists. It is
+reached with `raptor analytic` and described in full in
+link:https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md[the analytical solver guide].
+
+For independent components with up probabilities stem:[p_i], the system
+success function is a Boolean function
+stem:[F(x_1, ..., x_n)] built from the Start-to-End paths and the node
+k-of-n requirements. The system probability is the multilinear BDD
+evaluation
+
+[stem]
+++++
+P_sys = Pr(F(x_1, ..., x_n) = 1)
+++++
+
+- Reliability mode uses stem:[p_i = R_i(t)] and requires non-repairable
+  blocks.
+- Availability mode uses stem:[p_i = A_i = "MTTF"_i / ("MTTF"_i + "MTTR"_i)]
+  at steady state, for independent components with perfect repair.
+
+From the same diagram:
+
+[cols="2,5",options="header"]
+|===
+|Quantity |Formula
+
+|System density |stem:[f_sys(t) = -d P_sys/dt]
+|System hazard |stem:[lambda_sys(t) = f_sys(t) / P_sys(t)]
+|MTTF |stem:["MTTF" = integral_0^inf P_sys(t) dt]
+|BX life |stem:[P_sys(B_X) = 1 - X/100]
+|Conditional reliability |stem:[R_sys(t + tau) / R_sys(t)]
+|Birnbaum importance |stem:[I_B(i) = P_sys (x_i = 1) - P_sys (x_i = 0)]
+|RAW |stem:["RAW"(i) = (1 - P_sys (x_i = 0)) / (1 - P_sys)]
+|RRW |stem:["RRW"(i) = (1 - P_sys) / (1 - P_sys (x_i = 1))]
+|Vesely–Fussell |stem:[I_"VF"(i) = (P_sys (x_i = 1) - P_sys) / (1 - P_sys)]
+|Criticality |stem:[C_i = I_B(i) (1 - p_i) / (1 - P_sys)]
+|===
+
+The Vesely–Fussell column is the share of the system's unavailability that
+disappears when element stem:[i] is made perfect. The criticality column is
+the probability that element stem:[i] is failed and critical, given that the
+system has failed. Neither is a partition of downtime: overlapping failures
+mean a column need not sum to one.
+
+The solver refuses PM, spares, resources, dependencies, standby, phases and
+non-Bernoulli events; those remain simulation-only. See
+link:https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md[the analytical solver guide] for the exact scope and the
+applicability messages.
+
 [[iec61078]]
 == IEC 61078 analytical forms and this simulator
 
@@ -428,20 +559,22 @@ A_s = sum_(r=m)^n binom(n,r) A^r (1-A)^(n-r)
 These are steady-state availability forms. The corresponding reliability
 forms use stem:[R_i(t)] instead of stem:[A_i].
 
-RAPTOR Studio does not evaluate these formulae directly. It simulates
-the same logical structures, so the results converge to them when the
-model matches the assumptions (independent blocks, constant rates,
-enough trials, no truncation).
+The simulator does not evaluate these formulae directly; it samples the same
+logical structures, so the results converge to them when the model matches the
+assumptions (independent blocks, constant rates, enough trials, no
+truncation). The analytical solver evaluates the same formulae exactly on its
+static subset (see <<analytical-solver>>).
 
 The simulator does **not** implement the standard's minimal cut/tie
-sets, Boolean truth tables, Karnaugh maps, BDDs, analytical importance
-factors, criticality and DIM importance, PFD~avg~, Vesely conditional failure intensity, or unconditional failure
+sets, Boolean truth tables, Karnaugh maps, qualitative BDD output, analytical
+importance factors outside the solver, criticality and DIM importance,
+PFD~avg~, Vesely conditional failure intensity, or unconditional failure
 intensity. It also does not represent repeated/common blocks,
 multi-port transfer gates, non-coherent blocks, PAND/SEQ gates or a
 common-cause beta factor. The User Guide appendix states the scope.
 
-The simulator can estimate the Annex D *importance* measures by
-re-simulation -- see <<importance>> and the **Importance** results tab -- it
+The analytical solver computes these quantities exactly on its static subset
+(see <<analytical-solver>>); the simulator estimates them by re-simulation -- see <<importance>> and the **Importance** results tab -- it
 does not compute their analytical derivatives, and it reports an explicit
 sampling error with them.
 

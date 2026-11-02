@@ -30,9 +30,9 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
   times a few runs and tells you how long a full batch will take before you start it.
 - **Runs anywhere.** One installer or `pip install`, on Windows, macOS and Linux.
 - **Scriptable.** Everything the application does is also a command (`raptor run`, `sweep`, `compare`, `diff`,
-  `estimate`, `validate`, `spf`, `fev`, `step`, `extract`, `render` and more) with machine-readable results. It fits in
+  `estimate`, `validate`, `spf`, `fev`, `step`, `extract`, `analytic`, `render` and more) with machine-readable results. It fits in
   a continuous-integration job, a Jupyter notebook or a shell loop.
-- **Usable from an AI assistant.** An MCP server with **65 tools** lets an assistant build, edit, validate, simulate,
+- **Usable from an AI assistant.** An MCP server with **66 tools** (67 including `ping`) lets an assistant build, edit, validate, simulate,
   compare and explain models, run long batches in the background, and draw the diagram. The
   [MCP server reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) covers install, client
   setup and every tool, resource and prompt. The recording below is a real run of those tools (the numbers are the
@@ -71,7 +71,7 @@ The equations are on the Formulas page, and the tutorial's weak-link chapter wor
 | **Run-time estimate**                | Know how long a batch will take before you start it, in the app, on the command line and from an assistant.                                                                                                                      |
 | **Check part of a model**            | Run one hierarchy on its own, with its input assumed available, or save it as a standalone model (`raptor extract`). The results are labelled as isolated.                                                                      |
 | **Parameter sweeps and comparisons** | Vary any field over a list of values, or run two or more models side by side, from the application, the command line or an assistant. **Differences** shows what is different between two models, and runs nothing.              |
-| **AI assistant (MCP)**               | 65 tools to build, edit, run, analyse and explain models, over stdio or authenticated HTTP.                                                                                                                                      |
+| **AI assistant (MCP)**               | 66 tools (67 including `ping`) to build, edit, run, analyse and explain models, over stdio or authenticated HTTP.                                                                                                                                      |
 | **Stepping debugger**                | Step a run event by event, pause on a condition, jump to the next run, and see what each step changed. Failure Effects View and the Single Point Failure file are also available headless.                                       |
 | **Several models at once**           | Each model opens in its own window with its own undo history and results.                                                                                                                                                         |
 | **Edit while looking at results**    | Results stay on screen while you edit; undo and redo for edits; spread-banded Weak Link, Cost, Capacity, Spares and Importance colourings.                                                                                       |
@@ -172,6 +172,7 @@ built-in documentation, which the **Help** ribbon tab also opens:
   in the app to show the key tips on the commands that have one.
 - **AI assistant** — [`docs/MCP.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) and the book's last chapter.
 - **File format** — [`docs/RBDS_FORMAT.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md) describes the `.rbds` JSON format.
+- **Analytical solver** — [`docs/ANALYTICAL.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md) covers the exact static solver: scope, assumptions, CLI and API.
 
 ## IEC 61078
 
@@ -182,8 +183,9 @@ a certified implementation of the standard, and this is a capability statement, 
 
 In short: series, parallel, mixed and m-out-of-n structures, repaired and non-repaired blocks and sub-RBDs are
 supported, and the standard's worked examples are regression-tested against the simulator. The Annex D importance
-measures are **estimated by re-simulation** (see above). Minimal cut/tie sets, Boolean and BDD evaluation, analytical
-availability and PFD<sub>avg</sub>, repeated blocks, non-coherent blocks and PAND/SEQ/CCF gates are **not** implemented.
+measures are **estimated by re-simulation** (see above); the exact analytical solver also computes them on its static
+subset. Minimal cut/tie sets, PFD<sub>avg</sub>, repeated blocks, non-coherent blocks and PAND/SEQ/CCF gates are
+**not** implemented. Boolean/BDD evaluation is internal to the analytical solver, not a separate qualitative output.
 The full clause-by-clause table is in [`docs/IEC61078.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/IEC61078.md); MCP clients can read it with
 `read_doc('iec61078')`.
 
@@ -216,7 +218,7 @@ The docs render with Ruby asciidoctor: `new_docs/tools/render_docs.sh` (see `new
 | `raptor/`               | The application: `core/` engine, `api/`, `cli/`, `gui/`, `mcp/`, `render/`                                                                                        |
 | `tests/`                | `unit/`, `behaviour/`, `integration/` (incl. `sweeps/`), `golden/` (Raptor 7's captured output; large captures gzipped), `fixtures/` (probe models), `ladder/`, `data/` (shared sample models) |
 | `new_docs/`             | User Guide (tutorial book), its models and build tools                                                                                                            |
-| `docs/`                 | Reference manual, [engine design](https://github.com/openpowershift/RaptorStudio/blob/main/docs/engine-design/README.adoc), [MCP server reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md), formulas, [keyboard shortcuts](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), [`.rbds` file format](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md), [IEC 61078](https://github.com/openpowershift/RaptorStudio/blob/main/docs/IEC61078.md) |
+| `docs/`                 | Reference manual, [engine design](https://github.com/openpowershift/RaptorStudio/blob/main/docs/engine-design/README.adoc), [MCP server reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md), [analytical solver](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md), formulas, [keyboard shortcuts](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), [`.rbds` file format](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md), [IEC 61078](https://github.com/openpowershift/RaptorStudio/blob/main/docs/IEC61078.md) |
 | `tools/`                | Developer tools the tests and CI run: engine snapshot, coverage, type gate, doc generators                                                                        |
 | `installer/`            | Packaging (PyInstaller, Inno Setup, deb/AppImage)                                                                                                                 |
 | `packaging/`            | `raptor-studio-mcp`, the small PyPI package the MCP Registry lists                                                                                                |
@@ -230,9 +232,9 @@ Directions under consideration — ideas, not commitments, in no fixed order:
   each edit.
 - **More Raptor 7 parity checks.** Keep comparing results with the original
   on new model shapes and rarely used options.
-- **Further solution methods.** Analytical and fault-tree solvers beside the
-  simulation, for quick answers and cross-checks; minimal cut/tie sets and BDD
-  evaluation; importance of whole hierarchies; common-cause and dynamic gates.
+- **Further solution methods.** Fault-tree solvers, minimal cut/tie sets,
+  importance of whole hierarchies, and common-cause and dynamic gates. The
+  bounded analytical solver for static RBDs is available now.
 - **Richer maintenance and logistics.** Crews, shifts and supply chains that
   the model can express directly.
 - **Uncertainty and sensitivity analysis.** Ask which input matters most, and

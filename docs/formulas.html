@@ -21,8 +21,17 @@
 <li><a href="#dist-means">5. Distribution reference</a></li>
 <li><a href="#rare-events">6. How many trials does a rare event need?</a></li>
 <li><a href="#data-honesty">7. Where the numbers come from — and their honesty limits</a></li>
-<li><a href="#iec61078">8. IEC 61078 analytical forms and this simulator</a></li>
-<li><a href="#_what_a_reliability_block_diagram_cannot_tell_you">9. What a reliability block diagram cannot tell you</a></li>
+<li><a href="#age-features">8. Duty cycle, start age and restoration</a>
+<ul class="sectlevel2">
+<li><a href="#_duty_cycle">8.1. Duty cycle</a></li>
+<li><a href="#_start_age">8.2. Start age</a></li>
+<li><a href="#_restoration_factor">8.3. Restoration factor</a></li>
+<li><a href="#_availability_classifications">8.4. Availability classifications</a></li>
+</ul>
+</li>
+<li><a href="#analytical-solver">9. Analytical solver (exact, static subset)</a></li>
+<li><a href="#iec61078">10. IEC 61078 analytical forms and this simulator</a></li>
+<li><a href="#_what_a_reliability_block_diagram_cannot_tell_you">11. What a reliability block diagram cannot tell you</a></li>
 </ul>
 </div>
 </div>
@@ -181,8 +190,10 @@ component MTBF.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean Time To Repair (MTTR)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">\$"MTTR" = E["repair time"\$]</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Mean of the block&#8217;s own Repair Dist.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"MTTR" = E["repair time"\$ + E["pre-LDT"] + E["post-LDT"]]</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mean total down time for one repair. In availability mode the solver&#8217;s
+component <code>mttr</code> also includes the mean pre- and post-repair logistic
+delays, because those are down time in the same cycle.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Failure rate (λ)</p></td>
@@ -201,7 +212,7 @@ quoting one number is a simplification.</p></td>
 <div class="paragraph">
 <p>Availability says how good the system is. An importance measure says <strong>which
 block</strong> to spend money on. IEC 61078 Annex D defines them as derivatives of the
-system function; RAPTOR Studio has no analytical function to differentiate, so
+system function. The simulator has no analytical function to differentiate, so
 it estimates the same quantities by <strong>re-simulation</strong>: it runs the model once
 with one block made unable to fail, and once with that block dead, and compares
 the results with the ordinary batch.</p>
@@ -592,7 +603,243 @@ the tail beyond your last observed point.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="iec61078">8. IEC 61078 analytical forms and this simulator</h2>
+<h2 id="age-features">8. Duty cycle, start age and restoration</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_duty_cycle">8.1. Duty cycle</h3>
+<div class="paragraph">
+<p>A block&#8217;s <code>duty_cycle</code> multiplies the effective failure-clock rate:</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\$lambda_"eff"(t) = "duty" * lambda(t)\$
+</div>
+</div>
+<div class="paragraph">
+<p>It does not change the distribution parameters. A duty of 0.3 consumes 30%
+of a life per unit of calendar time; 1.5 consumes 50% more per unit, the
+"overload" case. Duty and a phase stress multiplier compound.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_start_age">8.2. Start age</h3>
+<div class="paragraph">
+<p>A block that starts at age \$a\$ has already survived to \$a\$. Its
+first failure time is drawn conditionally:</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\$R_"start"(t) = R(a + t) / R(a)\$
+</div>
+</div>
+<div class="paragraph">
+<p>The engine implements this by redrawing the first life until it exceeds
+\$a\$, then subtracting \$a\$. A start age of zero is the historical
+behaviour.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_restoration_factor">8.3. Restoration factor</h3>
+<div class="paragraph">
+<p>After PM or repair, restoration factor \$r\$ (0 to 1) decides how much
+age remains:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Type</th>
+<th class="tableblock halign-left valign-top">Age left after the action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Kijima Type I</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$v = a - r(a - a_"last")\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Kijima Type II</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$v = (1 - r) a\$</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Here \$r\$ is the fraction of age removed: 0 leaves the age untouched,
+1 is as good as new, and 0.7 leaves 30% of the age.</p>
+</div>
+<div class="paragraph">
+<p>where \$a\$ is the age at the action and \$a_"last"\$ the age after
+the previous restoration. \$r=1\$ is as good as new; \$r=0\$ leaves
+the age untouched. After a repair, the next life is drawn conditionally on
+surviving to the residual age \$v\$, not from a fresh population.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_availability_classifications">8.4. Availability classifications</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 71.4286%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Quantity</th>
+<th class="tableblock halign-left valign-top">Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mean / operational availability</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$(G + Y) / (G + Y + "all Red")\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inherent availability</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$(G + Y) / (G + Y + "corrective Red")\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Achieved availability</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$(G + Y) / (G + Y + "corrective Red" + "PM Red")\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">MTTFF</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">time of the first system failure; a run with no failure is censored at its end time</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">MTBF (total time)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"total time" / "component failures"\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">MTBE (total time)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"total time" / "system downing events"\$</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The Red-cause buckets are classified when the system enters Red from the
+blocks that are down at that instant: corrective, PM, logistics/dependency,
+done and other. They are report data, not a change to the simulation.</p>
+</div>
+<div class="paragraph">
+<p>Criticality is the unavailability removable by making a block perfect:</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\$C_i = I_B(i) (1 - A_i) / (1 - A_sys)\$
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="analytical-solver">9. Analytical solver (exact, static subset)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The simulator samples. The analytical solver evaluates the same coherent
+success function exactly for the subset where a static answer exists. It is
+reached with <code>raptor analytic</code> and described in full in
+<a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md">the analytical solver guide</a>.</p>
+</div>
+<div class="paragraph">
+<p>For independent components with up probabilities \$p_i\$, the system
+success function is a Boolean function
+\$F(x_1, ..., x_n)\$ built from the Start-to-End paths and the node
+k-of-n requirements. The system probability is the multilinear BDD
+evaluation</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\$P_sys = Pr(F(x_1, ..., x_n) = 1)\$
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Reliability mode uses \$p_i = R_i(t)\$ and requires non-repairable
+blocks.</p>
+</li>
+<li>
+<p>Availability mode uses \$p_i = A_i = "MTTF"_i / ("MTTF"_i + "MTTR"_i)\$
+at steady state, for independent components with perfect repair.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>From the same diagram:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 71.4286%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Quantity</th>
+<th class="tableblock halign-left valign-top">Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">System density</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$f_sys(t) = -d P_sys/dt\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">System hazard</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$lambda_sys(t) = f_sys(t) / P_sys(t)\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">MTTF</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"MTTF" = integral_0^inf P_sys(t) dt\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">BX life</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$P_sys(B_X) = 1 - X/100\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Conditional reliability</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$R_sys(t + tau) / R_sys(t)\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Birnbaum importance</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$I_B(i) = P_sys (x_i = 1) - P_sys (x_i = 0)\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RAW</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"RAW"(i) = (1 - P_sys (x_i = 0)) / (1 - P_sys)\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RRW</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"RRW"(i) = (1 - P_sys) / (1 - P_sys (x_i = 1))\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Vesely–Fussell</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$I_"VF"(i) = (P_sys (x_i = 1) - P_sys) / (1 - P_sys)\$</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Criticality</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$C_i = I_B(i) (1 - p_i) / (1 - P_sys)\$</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The Vesely–Fussell column is the share of the system&#8217;s unavailability that
+disappears when element \$i\$ is made perfect. The criticality column is
+the probability that element \$i\$ is failed and critical, given that the
+system has failed. Neither is a partition of downtime: overlapping failures
+mean a column need not sum to one.</p>
+</div>
+<div class="paragraph">
+<p>The solver refuses PM, spares, resources, dependencies, standby, phases and
+non-Bernoulli events; those remain simulation-only. See
+<a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md">the analytical solver guide</a> for the exact scope and the
+applicability messages.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="iec61078">10. IEC 61078 analytical forms and this simulator</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>IEC 61078 collects the closed-form results that apply when blocks are
@@ -627,22 +874,24 @@ down:</p>
 forms use \$R_i(t)\$ instead of \$A_i\$.</p>
 </div>
 <div class="paragraph">
-<p>RAPTOR Studio does not evaluate these formulae directly. It simulates
-the same logical structures, so the results converge to them when the
-model matches the assumptions (independent blocks, constant rates,
-enough trials, no truncation).</p>
+<p>The simulator does not evaluate these formulae directly; it samples the same
+logical structures, so the results converge to them when the model matches the
+assumptions (independent blocks, constant rates, enough trials, no
+truncation). The analytical solver evaluates the same formulae exactly on its
+static subset (see <a href="#analytical-solver">Analytical solver (exact, static subset)</a>).</p>
 </div>
 <div class="paragraph">
 <p>The simulator does <strong>not</strong> implement the standard&#8217;s minimal cut/tie
-sets, Boolean truth tables, Karnaugh maps, BDDs, analytical importance
-factors, criticality and DIM importance, PFD<sub>avg</sub>, Vesely conditional failure intensity, or unconditional failure
+sets, Boolean truth tables, Karnaugh maps, qualitative BDD output, analytical
+importance factors outside the solver, criticality and DIM importance,
+PFD<sub>avg</sub>, Vesely conditional failure intensity, or unconditional failure
 intensity. It also does not represent repeated/common blocks,
 multi-port transfer gates, non-coherent blocks, PAND/SEQ gates or a
 common-cause beta factor. The User Guide appendix states the scope.</p>
 </div>
 <div class="paragraph">
-<p>The simulator can estimate the Annex D <strong>importance</strong> measures by
-re-simulation&#8201;&#8212;&#8201;see <a href="#importance">Importance measures</a> and the <strong>Importance</strong> results tab&#8201;&#8212;&#8201;it
+<p>The analytical solver computes these quantities exactly on its static subset
+(see <a href="#analytical-solver">Analytical solver (exact, static subset)</a>); the simulator estimates them by re-simulation&#8201;&#8212;&#8201;see <a href="#importance">Importance measures</a> and the <strong>Importance</strong> results tab&#8201;&#8212;&#8201;it
 does not compute their analytical derivatives, and it reports an explicit
 sampling error with them.</p>
 </div>
@@ -655,7 +904,7 @@ Raptor 7 prints them; this page is not duplicated into the application.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_what_a_reliability_block_diagram_cannot_tell_you">9. What a reliability block diagram cannot tell you</h2>
+<h2 id="_what_a_reliability_block_diagram_cannot_tell_you">11. What a reliability block diagram cannot tell you</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>

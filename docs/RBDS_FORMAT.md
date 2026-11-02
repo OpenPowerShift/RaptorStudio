@@ -26,7 +26,7 @@ As `.rbds`.
 ```json
 {
   "format": "raptor-studio",
-  "version": 2,
+  "version": 3,
   "meta":       { "generator": "RAPTOR Studio 0.9.0", "file_name": "..." },
   "system":     { ...mission-wide settings (not the run settings)... },
   "experiment": { ...the run settings: trials, termination, analyses... },
@@ -144,6 +144,8 @@ rather than left to auto-assignment.
 | sim_start | int | 3 | how the block starts a run: 1 random state; 2 up, random life used; 3 up, `amount_exhausted` of life used; 4 down, random point in its repair; 5 down, `amount_exhausted` % of the repair done; 6 down, repair just starting |
 | amount_exhausted | float | 0 | life used (start 3) or % of the repair done (start 5) |
 | standby_stress | float | 0 | failure-clock rate while in standby (0 = no ageing, 1 = as running) |
+| duty_cycle | float | 1 | effective operating-time multiplier; 0.3 consumes 30% of a life per unit of calendar time, 1.5 is 50% overload |
+| start_age | float | 0 | age already accumulated at t=0, used by `sim_start` 3 (up, some life used); the first failure draw is conditional on surviving to this age |
 | growth_decay_type, growth_decay_rate, growth_decay_limit | int, float, float | 0, 1, 0.5 | reliability growth/decay model (type 0 = none) |
 
 **Sparing.** `stock`, `new_spares`, `arrive_every`, `rso`, `eso`, `emer_time`, `slo`, `level`, `quantity` and `slo_time` mean what they mean for a spare pool (see "Auxiliary tables"); they apply when `sparing_type` is `Custom`.
@@ -170,7 +172,9 @@ rather than left to auto-assignment.
 | pm_duration_dist, pm_params | int, [f,f,f] | 19, [1,0,0] | how long a PM takes |
 | pm_triggered, pm_trigger | bool, str | false, "none" | PM is started by the named trigger instead of the interval |
 | pm_spare | bool | false | needs a spare to conduct PM |
-| pm_refresh | bool | false | after a PM the block is refreshed like new |
+| pm_refresh | bool | false | after a PM the block is refreshed like new (equivalent to restoration factor 1) |
+| restoration_factor | float | 0 | fraction of accumulated age removed by PM/repair: 0 = none (age kept), 1 = as good as new (age reset); 0.7 leaves 30% of the age |
+| restoration_type | int | 1 | 1 = Kijima Type I (restore damage since the last action), 2 = Kijima Type II (restore a fraction of total age) |
 | pm_mis_defer | bool | false | defer PM until a non-mission phase (phased models) |
 | pm_fail_reset | bool | false | a failure resets the time to the next PM |
 | pm_req_defer | bool | false | defer PM until a spare or the resources are available |
@@ -186,6 +190,11 @@ and `pm_stagger_time` 8,760 h, the first PM comes at 96,360 h of operation.
 `done_fixed`, `pm_hold_cost`, `pm_cost`, `pm_fixed_cost`, `per_spare_cost`
 and `emer_ship_cost` (floats, default 1) are the block's cost-analysis
 rates; `add_done` (bool) always adds the Done cost at run end.
+
+`duty_cycle`, `start_age`, `restoration_factor` and `restoration_type` are
+`.rbds`-only fields. The legacy `.rbd` writer drops them, like annotations:
+there is no Raptor 7 column for them, and adding one would shift every later
+token in its fixed-width block row.
 
 The per-phase states of a phased block (`P 001`, `P 002`, …) are the
 columns still written under `legacy`.
@@ -696,8 +705,11 @@ extension namespace: kept, and never warned about.
   API-named columns out of `legacy` into friendly fields, which a version-1
   reader would have ignored, and it started leaving out fields equal to the
   file's `defaults`, which a version-1 reader would have filled from the
-  wrong row. A reader refuses a `version` newer than its own, saying which
-  RAPTOR Studio saved the file.
+  wrong row. Version 3 added the `.rbds`-only age fields (`duty_cycle`,
+  `start_age`, `restoration_factor`, `restoration_type`), which a version-2
+  reader would reject under its `additionalProperties: false` schema. A
+  reader refuses a `version` newer than its own, saying which RAPTOR Studio
+  saved the file.
 * Writers emit one value per setting and never a value the reader computes
   (see "Element objects").
 
@@ -709,7 +721,7 @@ links. This example is part of the parser's own regression suite and validates c
 ```json
 {
   "format": "raptor-studio",
-  "version": 2,
+  "version": 3,
   "elements": {
     "blocks": [
       {"id": 1, "name": "Fan_A", "fail_dist": "Exponential",

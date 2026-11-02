@@ -85,6 +85,27 @@
    "model_id"
   ]
  },
+ "analytical_analysis": {
+  "params": [
+   "at",
+   "bx",
+   "equation",
+   "ignore",
+   "ignore_repairs",
+   "importance",
+   "max_bdd_nodes",
+   "max_variables",
+   "mode",
+   "model_id",
+   "phase",
+   "standby",
+   "tau",
+   "times"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "auto_layout": {
   "params": [
    "hierarchy",

@@ -64,7 +64,7 @@ class RunResult:
     num_runs: int
     model_name: str = ""
     metrics: list[Metric] = field(default_factory=list)
-    per_run: list[dict[str, float | None]] = field(default_factory=list)
+    per_run: list[dict[str, object]] = field(default_factory=list)
     end_of_run: str = ""
     final_results: str = ""
     wall_seconds: float = 0.0
@@ -144,17 +144,19 @@ def model_hash(rbd: RbdFile) -> str:
     return hashlib.sha256(render_rbds(rbd).encode("utf-8")).hexdigest()[:16]
 
 
-def _rd_to_dict(rd: RunReportData) -> dict[str, float | None]:
+def _rd_to_dict(rd: RunReportData) -> dict[str, object]:
     """Single RunReportData → flat dict (one per run), with the capacity
     figures when the model has capacity analysis."""
     row = _rd_base_dict(rd)
     caps = capacity_values(rd)
     if caps is not None:
         row.update(caps)
+    row["criticality"] = rd.criticality
+    row["color_timeline"] = [[float(t), color] for t, color in rd.color_timeline]
     return row
 
 
-def _rd_base_dict(rd: RunReportData) -> dict[str, float | None]:
+def _rd_base_dict(rd: RunReportData) -> dict[str, object]:
     return {
         "availability": rd.availability,
         "reliability": rd.reliability,
@@ -180,6 +182,23 @@ def _rd_base_dict(rd: RunReportData) -> dict[str, float | None]:
         "green_percent": rd.green_percent,
         "yellow_percent": rd.yellow_percent,
         "red_percent": rd.red_percent,
+        "mttff": rd.mttff,
+        "mttff_censored": rd.mttff_censored,
+        "inherent_availability": rd.inherent_availability,
+        "achieved_availability": rd.achieved_availability,
+        "operational_availability": rd.operational_availability,
+        "mtbf_total": rd.mtbf_total,
+        "mtbe_total": rd.mtbe_total,
+        "num_component_cms": rd.num_component_cms,
+        "num_component_pms": rd.num_component_pms,
+        "total_time": rd.total_time,
+        "uptime": rd.uptime,
+        "downtime": rd.downtime,
+        "red_corrective_time": rd.red_corrective_time,
+        "red_pm_time": rd.red_pm_time,
+        "red_logistics_time": rd.red_logistics_time,
+        "red_done_time": rd.red_done_time,
+        "red_other_time": rd.red_other_time,
     }
 
 

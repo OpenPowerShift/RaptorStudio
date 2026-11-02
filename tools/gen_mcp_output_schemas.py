@@ -73,7 +73,7 @@ class Recorder:
 
 def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     """The scripted tool session. Deterministic, a few seconds."""
-    from raptor.mcp import tools_model, tools_run, tools_metrics, tools_tables, tools_view, tools_svg  # noqa: F401 (registers the tools)
+    from raptor.mcp import tools_model, tools_run, tools_metrics, tools_tables, tools_view, tools_svg, tools_analytic  # noqa: F401 (registers the tools)
     from raptor.mcp.server import mcp
     mcp._raptor_args = type("A", (), {"workspace": str(workspace), "read_only": False})()
     mcp._raptor_ws = None
@@ -98,6 +98,11 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     rec.call("get_element", model_id=m1, selector="Link:1")
     rec.call("update_element", model_id=m1, selector="B1", patch={"fail_params": [90.0, 0.0]})
     rec.call("configure_system", model_id=m1, num_runs=3)
+    rec.call("analytical_analysis", model_id=m1, at=100.0,
+             ignore_repairs=True, equation=True)
+    rec.call("analytical_analysis", model_id=m1, at=100.0,
+             ignore_repairs=True)
+    rec.call("analytical_analysis", model_id=m1, mode="availability")
     rec.call("configure_sparing", model_id=m1, selector="B1", mode="infinite")
     rec.call("configure_maintenance", model_id=m1, selector="B1", pm_freq=50.0)
     rec.call("configure_phases", model_id=m3, phases=[{"name": "P1", "duration_dist": 19, "params": [10.0, 0, 0]}])
@@ -172,6 +177,14 @@ WIDEN: dict[tuple[str, str], list[str]] = {
     ("get_table", "next_offset"): ["integer", "null"],
     ("list_models", "next_offset"): ["integer", "null"],
     ("read_doc", "next_offset"): ["integer", "null"],
+    ("analytical_analysis", "time"): ["number", "null"],
+    ("analytical_analysis", "reliability"): ["number", "null"],
+    ("analytical_analysis", "pdf"): ["number", "null"],
+    ("analytical_analysis", "hazard"): ["number", "null"],
+    ("analytical_analysis", "mttf"): ["number", "null"],
+    ("analytical_analysis", "availability"): ["number", "null"],
+    ("analytical_analysis", "unavailability"): ["number", "null"],
+    ("analytical_analysis", "equation"): ["string", "null"],
     ("single_point_failures", "next_offset"): ["integer", "null"],
 }
 

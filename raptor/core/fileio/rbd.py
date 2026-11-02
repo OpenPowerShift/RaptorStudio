@@ -692,6 +692,8 @@ def _derive_columns(section) -> list[str]:
         for key in row:
             if key in ("FEmp", "REmp"):   # continuation lines, not columns
                 continue
+            if key.startswith("_"):        # rbds-only extension fields
+                continue
             if key not in seen:
                 seen.add(key)
                 cols.append(key)

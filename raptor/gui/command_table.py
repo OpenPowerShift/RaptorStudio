@@ -845,6 +845,29 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_show_domains_dialog",
         enabled_when="model_open"),
     CommandSpec(
+        id="results.derived",
+        attr="_derived_action",
+        text="Availability and Criticality…",
+        icon="detail_view_icon:accent",
+        tooltip=(
+            "Additive run metrics: inherent/achieved/operational "
+            "availability, MTTFF, Red-time causes and per-block failure, "
+            "downtime and cost criticality. The report text is "
+            "unchanged."),
+        handler="_show_derived_dialog",
+        enabled_when="has_results"),
+    CommandSpec(
+        id="results.analytical",
+        attr="_analytical_action",
+        text="Analytical…",
+        icon="list_view_icon:accent",
+        tooltip=(
+            "Exact reliability or steady-state availability for the static "
+            "subset of this model — series, parallel, k-of-n and hierarchies. "
+            "No sampling, no model changes."),
+        handler="_open_analytic_dialog",
+        enabled_when="model_open"),
+    CommandSpec(
         id="results.weak_color",
         attr="_weak_color_action",
         text="Weak Links",
@@ -1229,7 +1252,8 @@ LAYOUT: tuple[Page, ...] = (
        Group("Show", (Btn("results.results_show", True),
                       Btn("results.results_float", True),
                       Btn("results.clear_results"),
-                      Btn("results.spof"), Btn("results.domains"))),
+                      Btn("results.spof"), Btn("results.domains"),
+                      Btn("results.analytical"), Btn("results.derived"))),
        Group("Show on Canvas", (Btn("results.weak_color", True),
                                 Btn("results.capacity_overlay"),
                                 Btn("results.cost_overlay"),
