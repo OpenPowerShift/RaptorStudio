@@ -3856,18 +3856,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         flow, no weak-link row), so the reliability model is unchanged and
         the result round-trips through both file formats. One undo step.
         Returns the new node id, or None when the link cannot be split
-        (unknown/malformed row, ends on different hierarchy levels, feeds
-        a cold-standby node, or the model uses capacity analysis).
+        (unknown/malformed row, ends on different hierarchy levels, or
+        feeds a cold-standby node).
 
-        Those last two are refused rather than silently changing results:
-        a capacity model re-indexes its flow paths around the extra EFPA
-        vertex, and cold-standby switchover keys off the link's source, so
-        a link from a routing node is not equivalent to one from the
-        original block even though the node itself never fails."""
+        The node is transparent (`fullflow=1`, `divFlow=1`), so a capacity
+        analysis keeps the same flow path. Cold standby is still refused:
+        switchover keys off the link's source, so a link from a routing
+        node is not equivalent to one from the original block even though
+        the node itself never fails."""
         rbd = self._rbd_ref
         if rbd is None or isinstance(link_num, bool):
-            return None
-        if self._capacity_analysis_enabled(rbd):
             return None
         node_section = rbd.sections.get("NODE_DATA")
         # `_link_row_by_id` rejects a zero/negative/garbage id (and so a
@@ -3899,7 +3897,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             "parent": "0", "Type": "2", "k": "1", "n": "1", "Out": "1",
             "Cold": "0", "PR": "0", "Autos": "0", "k*": "0",
             "Phases": "0", "depNum": "0", "depType": "None",
-            "divFlow": "1", "fullflow": "1", "repCap": "0", "repNA": "0",
+            "divFlow": "1", "fullflow": "1", "repCap": "1", "repNA": "0",
         }
         node_row = dict(base)
         node_row.update({
@@ -3913,7 +3911,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             "xPos": f"{model_x:.6f}", "yPos": f"{model_y:.6f}",
             "Cold": "0", "PR": "0", "Autos": "0", "k*": "0",
             "Phases": "0", "depNum": "0", "depType": "None",
-            "divFlow": "1", "fullflow": "1", "repCap": "0", "repNA": "0",
+            "divFlow": "1", "fullflow": "1", "repCap": "1", "repNA": "0",
         })
         new_id = self._next_id("LINK_DATA", "ID", {})
         if new_id <= 0:

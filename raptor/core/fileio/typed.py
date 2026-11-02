@@ -394,6 +394,9 @@ def node_from_row(row: dict[str, str]) -> RBDNode:
         # information for this node in the output tables and reports",
         # matching the Raptor 7 dialog.
         report_node_anal=_b(row, "repNA"),
+        # `repCap` is dead in Raptor 7 ("not used"); this app borrows it as
+        # the marker for a GUI-only routing junction. See RBDNode.route_only.
+        route_only=_b(row, "repCap"),
         active_status=ActiveStatus.ACTIVE,
         uses_phasing=uses_phasing,
         phase=node_phase,

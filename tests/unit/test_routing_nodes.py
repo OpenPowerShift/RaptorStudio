@@ -204,17 +204,29 @@ def test_cold_standby_links_are_refused_without_mutation(qapp):
     assert v.insert_routing_node(1, 5, 50)
 
 
-def test_capacity_analysis_models_are_refused_without_mutation(qapp):
-    """An extra EFPA vertex re-indexes the capacity path arrays: the same
-    fixture's flow/availability results change even though the node has no
-    failure, so insertion is refused rather than silently altering them."""
+def test_capacity_analysis_models_allow_a_transparent_routing_node(qapp):
+    """A routing junction is GUI-only: the run model contracts it back to
+    the original link, so capacity results must be bit-identical."""
+    def metrics(rbd):
+        sink = []
+        run_simulation(rbd, num_runs=3, _report_sink=sink,
+                       collect_logs=False, seed=12345, num_workers=1)
+        return [(round(r.availability, 12), round(r.reliability, 12),
+                 r.num_system_failures, r.num_component_failures)
+                for r in sink]
+
+    base = metrics(_view(CAPACITY_FIXTURE)._rbd_ref)
     v = _view(CAPACITY_FIXTURE)
     assert v._capacity_analysis_enabled(v._rbd_ref)
-    before_links = [dict(r) for r in _link_rows(v)]
-    before_nodes = [dict(r) for r in v._rbd_ref.sections["NODE_DATA"].rows]
-    assert v.insert_routing_node(4, 5, 50) is None
-    assert _link_rows(v) == before_links
-    assert v._rbd_ref.sections["NODE_DATA"].rows == before_nodes
+    nid = v.insert_routing_node(4, 5, 50)
+    assert nid is not None
+    assert nid in v.nodes
+    # The row is saved, but the computation model has neither the junction
+    # nor its second link: EFPA sees the original graph.
+    from raptor.core.engine.load import load_model
+    run_model = load_model(v._rbd_ref)
+    assert nid not in run_model.nodes_by_id
+    assert metrics(v._rbd_ref) == base
 
 
 def test_pass_through_node_does_not_change_simulation_metrics(qapp):
@@ -530,15 +542,18 @@ def test_context_menu_action_inserts_and_reports_status(qapp):
     assert status == ["Routing node inserted"]
 
 
-def test_context_menu_explains_a_capacity_refusal(qapp):
+def test_capacity_model_allows_a_routing_node(qapp):
     v = _open_shown_view(qapp, CAPACITY_FIXTURE)
     status = []
     v.status_message_sink = status.append
     nodes = len(v.nodes)
     _right_click_menu(v, v._links[0].line().center(),
                       chosen_prefix="Insert routing node")
-    assert len(v.nodes) == nodes
-    assert status and "capacity-analysis" in status[0]
+    assert len(v.nodes) == nodes + 1
+    assert status == ["Routing node inserted"]
+    new = next(n for n in v.nodes.values() if n.node_name.startswith("route_"))
+    assert new.full_flow == 1 and new.any_path == 1
+    assert new.route_only
 
 
 def test_context_menu_explains_a_cold_standby_refusal(qapp):
