@@ -965,9 +965,12 @@ class AnalyticDialog(QDialog):
         warnings = len(result.get("warnings") or [])
         note = (f"  {warnings} warning(s) on the Assumptions tab."
                 if warnings else "")
-        self._banner.setText(
-            f"Exact static result. The model was not sampled or "
-            f"changed.{note}")
+        hierarchy = result.get("hierarchy")
+        scope = ("Exact static result for hierarchy "
+                 f"{hierarchy} — a standalone port extension."
+                 if hierarchy else
+                 "Exact static result. The model was not sampled or changed.")
+        self._banner.setText(f"{scope}{note}")
 
     def _show_scope(self, result: dict[str, Any]) -> None:
         """Say plainly, above every tab, what this answer assumed."""

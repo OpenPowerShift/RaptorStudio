@@ -129,6 +129,12 @@
      "null"
     ]
    },
+   "hierarchy": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
    "importance": {
     "type": "array"
    },
