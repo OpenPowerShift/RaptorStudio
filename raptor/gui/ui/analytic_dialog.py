@@ -120,7 +120,8 @@ class _NumItem(QTableWidgetItem):
 
 
 def _solve(token: int, rbd: Any, name: str, options: dict[str, Any],
-           inbox: queue.Queue, progress_inbox: queue.Queue) -> None:
+           inbox: queue.Queue, progress_inbox: queue.Queue,
+           cancel_ev: threading.Event) -> None:
     """Worker-thread body: solve and post ``(token, result, error)``.
 
     The result goes through a plain thread-safe queue that the dialog polls,
@@ -129,17 +130,25 @@ def _solve(token: int, rbd: Any, name: str, options: dict[str, Any],
     second queue so a result and a progress update can never be confused.
     """
     def progress(stage: str, done: int, total: int) -> None:
+        if cancel_ev.is_set():
+            raise _AnalyticCancelled()
         progress_inbox.put((token, stage, done, total))
 
     try:
         inbox.put((token, analyse_rbd(rbd, name, progress=progress, **options),
                    None))
+    except _AnalyticCancelled:
+        inbox.put((token, None, ("cancelled", "Cancelled")))
     except AnalyticalError as exc:
         inbox.put((token, None, ("refused", str(exc))))
     except ValueError as exc:
         inbox.put((token, None, ("invalid", str(exc))))
     except Exception as exc:  # noqa: BLE001 - worker boundary
         inbox.put((token, None, ("failed", f"{type(exc).__name__}: {exc}")))
+
+
+class _AnalyticCancelled(Exception):
+    """Raised from the progress callback when the user presses Cancel."""
 
 
 class _CurvePlot(QWidget):
@@ -225,6 +234,7 @@ class AnalyticDialog(QDialog):
         self._token = 0
         self._busy = False
         self._rerun = False     # settings changed while a solve was running
+        self._cancel_ev = threading.Event()
         self._has_standby = False   # the open model has cold-standby nodes
         self._has_dependencies = False
         self._shown_rbd_id: int | None = None
@@ -253,7 +263,7 @@ class AnalyticDialog(QDialog):
         self._heading = QLabel("Analytical Analysis")
         self._heading.setObjectName("DialogHeading")
         root.addWidget(self._heading)
-        self._intro = QLabel(
+        self._intro_prefix = (
             "Exact answers without sampling, for models inside the static "
             "subset. Reliability mode is non-repairable; availability mode "
             "is the steady state of independent, perfectly repaired "
@@ -263,7 +273,10 @@ class AnalyticDialog(QDialog):
             "and failed elements keep the system up. It is a calculation "
             "aid, not a simulation, and its size is not the number of "
             "blocks.\n"
-            f"Current limits: {MAX_VARIABLES:,} variables and "
+        )
+        self._intro = QLabel(
+            self._intro_prefix
+            + f"Current limits: {MAX_VARIABLES:,} variables and "
             f"{MAX_BDD_NODES:,} BDD nodes. Raise them only when the model is "
             "known to be tractable; a larger BDD can take a long time.")
         self._intro.setObjectName("SectionNote")
@@ -311,6 +324,17 @@ class AnalyticDialog(QDialog):
         footer.addWidget(self._export)
         footer.addWidget(close)
         root.addLayout(footer)
+
+    def _limits_sentence(self) -> str:
+        return (
+            f"Current limits: {self._max_variables.value():,} variables and "
+            f"{self._max_bdd_nodes.value():,} BDD nodes. Raise them only when "
+            "the model is known to be tractable; a larger BDD can take a long "
+            "time.")
+
+    def _refresh_limits_text(self) -> None:
+        if hasattr(self, "_intro"):
+            self._intro.setText(self._intro_prefix + self._limits_sentence())
 
     def _build_settings(self) -> QGroupBox:  # noqa: PLR0915
         box = QGroupBox("Settings")
@@ -430,19 +454,30 @@ class AnalyticDialog(QDialog):
         self._dependencies.addItem("Treat as down", "down")
         form.addRow("Dependencies:", self._dependencies)
 
+        self._hierarchy = QComboBox()
+        self._hierarchy.setAccessibleName("Hierarchy to analyse")
+        self._hierarchy.setToolTip(
+            "Analyse the whole model, or one hierarchy as a standalone "
+            "port extension. The hierarchy's In node becomes Start and its "
+            "Out node End; everything outside is dropped.")
+        self._hierarchy.addItem("Whole model", None)
+        form.addRow("Hierarchy:", self._hierarchy)
+
         limits = QHBoxLayout()
         limits.setContentsMargins(0, 0, 0, 0)
         self._max_variables = QSpinBox()
         self._max_variables.setRange(1, 1_000_000)
         self._max_variables.setValue(MAX_VARIABLES)
         self._max_variables.setSingleStep(250)
+        self._max_variables.setGroupSeparatorShown(True)
         self._max_variables.setAccessibleName("Maximum variables")
         self._max_variables.setToolTip(
             "Largest number of blocks/events the solver may put in the BDD.")
         self._max_bdd_nodes = QSpinBox()
-        self._max_bdd_nodes.setRange(2, 100_000_000)
+        self._max_bdd_nodes.setRange(2, MAX_BDD_NODES)
         self._max_bdd_nodes.setValue(MAX_BDD_NODES)
         self._max_bdd_nodes.setSingleStep(100_000)
+        self._max_bdd_nodes.setGroupSeparatorShown(True)
         self._max_bdd_nodes.setAccessibleName("Maximum BDD nodes")
         self._max_bdd_nodes.setToolTip(
             "Hard cap on BDD size. Raising it risks a long solve and high "
@@ -468,9 +503,13 @@ class AnalyticDialog(QDialog):
                        self._phase.currentIndexChanged,
                        self._standby.currentIndexChanged,
                        self._dependencies.currentIndexChanged,
+                       self._hierarchy.currentIndexChanged,
                        self._max_variables.valueChanged,
                        self._max_bdd_nodes.valueChanged):
             signal.connect(self._settings_changed)
+        self._max_variables.valueChanged.connect(self._refresh_limits_text)
+        self._max_bdd_nodes.valueChanged.connect(self._refresh_limits_text)
+        self._refresh_limits_text()
         for line in (self._times, self._bx):
             line.returnPressed.connect(self.compute)
         return box
@@ -491,7 +530,12 @@ class AnalyticDialog(QDialog):
         self._progress_label.setObjectName("SectionNote")
         self._progress_label.setMinimumWidth(220)
         self._progress_label.hide()
+        self._cancel = QPushButton("Cancel")
+        self._cancel.setToolTip("Stop the current analytical solve")
+        self._cancel.clicked.connect(self._cancel_solve)
+        self._cancel.hide()
         row.addWidget(self._compute)
+        row.addWidget(self._cancel)
         row.addWidget(self._progress)
         row.addWidget(self._progress_label)
         row.addStretch(1)
@@ -645,23 +689,33 @@ class AnalyticDialog(QDialog):
             offered = {"phases": [], "has_standby": False,
                        "has_dependencies": False}
         phases = offered["phases"]
-        for widget in (self._phase, self._standby, self._dependencies):
+        for widget in (self._phase, self._standby, self._dependencies,
+                       self._hierarchy):
             widget.blockSignals(True)
         self._phase.clear()
         if phases:
             self._phase.addItem("Choose a phase…", None)
             for number, name in enumerate(phases, 1):
                 self._phase.addItem(f"{number}. {name}", number)
+        self._standby.setCurrentIndex(0)
+        self._hierarchy.clear()
+        self._hierarchy.addItem("Whole model", None)
+        for h in offered.get("hierarchies") or []:
+            self._hierarchy.addItem(f"{h['name']} ({h['id']})", h["id"])
         # A choice made for the previous model must not leak into this one.
-        for widget in (self._phase, self._standby, self._dependencies):
+        for widget in (self._phase, self._standby, self._dependencies,
+                       self._hierarchy):
             widget.setCurrentIndex(0)
-        for widget in (self._phase, self._standby, self._dependencies):
+        for widget in (self._phase, self._standby, self._dependencies,
+                       self._hierarchy):
             widget.blockSignals(False)
         self._form.setRowVisible(self._phase, bool(phases))
         self._has_standby = bool(offered["has_standby"])
         self._form.setRowVisible(self._standby, self._has_standby)
         self._has_dependencies = bool(offered.get("has_dependencies"))
         self._form.setRowVisible(self._dependencies, self._has_dependencies)
+        self._has_hierarchies = bool(offered.get("hierarchies"))
+        self._form.setRowVisible(self._hierarchy, self._has_hierarchies)
 
     def _model_name(self) -> str:
         path = getattr(self._win, "_current_file", None)
@@ -719,6 +773,9 @@ class AnalyticDialog(QDialog):
                         if self._has_standby else None),
             "dependencies": (self._dependencies.currentData()
                              if self._has_dependencies else None),
+            "hierarchy": (self._hierarchy.currentData()
+                          if getattr(self, "_has_hierarchies", False)
+                          else None),
             "max_variables": self._max_variables.value(),
             "max_bdd_nodes": self._max_bdd_nodes.value(),
         }
@@ -746,12 +803,20 @@ class AnalyticDialog(QDialog):
             self._show_notice("Check the settings", str(exc))
             return
         self._token += 1
+        self._cancel_ev.clear()
         self._set_busy(True)
         threading.Thread(
             target=_solve, daemon=True,
             args=(self._token, copy.deepcopy(self._win._rbd),
                   self._model_name(), options, self._inbox,
-                  self._progress_inbox)).start()
+                  self._progress_inbox, self._cancel_ev)).start()
+
+    def _cancel_solve(self) -> None:
+        if not self._busy:
+            return
+        self._cancel_ev.set()
+        self._cancel.setEnabled(False)
+        self._banner.setText("Cancelling…")
 
     def wait_for_result(self) -> None:
         """Block until the running solve has been delivered (for scripts
@@ -765,6 +830,8 @@ class AnalyticDialog(QDialog):
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         self._compute.setEnabled(not busy)
+        self._cancel.setVisible(busy)
+        self._cancel.setEnabled(busy)
         self._progress.setVisible(busy)
         self._progress_label.setVisible(busy)
         if busy:
@@ -811,6 +878,8 @@ class AnalyticDialog(QDialog):
     def _on_done(self, token: int, result: Any, error: Any) -> None:
         if token != self._token:
             return          # a superseded solve
+        if error is None and self._cancel_ev.is_set():
+            result, error = None, ("cancelled", "Cancelled")
         self._set_busy(False)
         if self._rerun:
             self._rerun = False
@@ -820,6 +889,12 @@ class AnalyticDialog(QDialog):
             self._result = None
             self._set_actions(False)
             kind, message = error
+            if kind == "cancelled":
+                self._banner.setText("Cancelled")
+                self._show_notice(
+                    "Analysis cancelled",
+                    "The solve was stopped. The model was not changed.")
+                return
             titles = {
                 "refused": "This model is outside the static solver",
                 "invalid": "Check the settings",

@@ -28,6 +28,9 @@ def add_parser(sub: Any) -> None:
                    default="reliability",
                    help="reliability (R(t), non-repairable) or availability "
                         "(steady state, repairable) (default reliability)")
+    p.add_argument("--hierarchy", default=None, metavar="NAME|ID",
+                   help="analyse one hierarchy as a standalone model; its In "
+                        "node becomes Start and its Out node End")
     p.add_argument("--at", type=float, metavar="T",
                    help="mission time for reliability mode (default: the "
                         "model's run length); ignored in availability mode")
@@ -155,6 +158,7 @@ def analytic_command(args: Any) -> int:
             result = analyse(
                 ws, mid,
                 mode=args.mode,
+                hierarchy=args.hierarchy,
                 at=args.at,
                 times=_floats(args.times),
                 bx=_floats(args.bx),

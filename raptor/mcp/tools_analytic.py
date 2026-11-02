@@ -80,6 +80,7 @@ def _markdown(result: dict) -> str:  # noqa: C901, PLR0912
 async def analytical_analysis(
     model_id: str,
     mode: Literal["reliability", "availability"] = "reliability",
+    hierarchy: str | int | None = None,
     at: float | None = None,
     times: list[float] | None = None,
     bx: list[float] | None = None,
@@ -103,21 +104,23 @@ async def analytical_analysis(
     `A_i = MTTF_i / (MTTF_i + MTTR_i)` and exact availability importance.
 
     The solver supports series, parallel, mixed, k-of-n, bridge networks and
-    hierarchies. It refuses PM, spares, resources and non-Bernoulli events,
-    and refuses standby, phases or dependencies until you say how to treat
-    them; use `simulate` for the behaviours it still cannot represent.
-    `standby="active"` keeps cold-standby paths in service and
-    `standby="absent"` removes them; `phase` analyses a phased model as if
-    it stayed in that phase. `dependencies="up"` analyses each dependent
-    element's own law as if the dependency never blocked it, and
-    `dependencies="down"` removes dependent elements from the success path.
-    Without `dependencies`, a model with dependencies is refused. `at`
-    defaults to the model's time-terminated run length. `tau` adds the
-    conditional reliability of a further mission of that length after `at`.
+    hierarchies. `hierarchy` analyses one hierarchy as a standalone port
+    extension: its In node becomes Start and its Out node End. It refuses
+    PM, spares, resources and non-Bernoulli events, and refuses standby,
+    phases or dependencies until you say how to treat them; use `simulate`
+    for the behaviours it still cannot represent. `standby="active"` keeps
+    cold-standby paths in service and `standby="absent"` removes them;
+    `phase` analyses a phased model as if it stayed in that phase.
+    `dependencies="up"` analyses each dependent element's own law as if the
+    dependency never blocked it, and `dependencies="down"` removes dependent
+    elements from the success path. Without `dependencies`, a model with
+    dependencies is refused. `at` defaults to the model's time-terminated
+    run length. `tau` adds the conditional reliability of a further mission
+    of that length after `at`.
     `ignore_repairs` (same as `ignore=["repairs"]`) gives the first-failure
     reliability of a repairable model.
 
-    The default solver limits are 5,000 blocks/events and 1,000,000 BDD
+    The default solver limits are 5,000 blocks/events and 2,000,000 BDD
     nodes. `max_variables` and `max_bdd_nodes` override them for a large but
     tractable model. Raising a limit does not guarantee a solution: the BDD
     can still exceed it, and the solver refuses rather than approximate.
@@ -136,7 +139,7 @@ async def analytical_analysis(
     def work(abort, progress):
         return analyse(
             context.workspace(), model_id,
-            mode=mode, at=at, times=times, bx=bx, tau=tau,
+            mode=mode, hierarchy=hierarchy, at=at, times=times, bx=bx, tau=tau,
             importance=importance, equation=equation,
             ignore_repairs=ignore_repairs, ignore=ignore or (), phase=phase,
             standby=standby, dependencies=dependencies,

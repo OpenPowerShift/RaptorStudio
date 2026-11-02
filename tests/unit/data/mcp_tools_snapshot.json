@@ -91,6 +91,7 @@
    "bx",
    "dependencies",
    "equation",
+   "hierarchy",
    "ignore",
    "ignore_repairs",
    "importance",

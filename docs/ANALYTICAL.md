@@ -186,7 +186,7 @@ On the command line, `--progress auto` draws a bar on a terminal,
 `--progress none` is silent. Progress never goes to stdout, so `-f json`
 stays parseable.
 
-Resource bounds: 5,000 blocks/events and 1,000,000 BDD nodes by default.
+Resource bounds: 5,000 blocks/events and 2,000,000 BDD nodes by default.
 Raise them per call with `raptor analytic --max-variables N` and
 `--max-bdd-nodes N`, or in the application under Settings ▸ Limits. Raising
 a limit does not make an intractable diagram tractable: the BDD can grow

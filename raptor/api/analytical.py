@@ -49,6 +49,7 @@ def analyse(  # noqa: C901, PLR0912
     model_id: str,
     *,
     mode: str = "reliability",
+    hierarchy: str | int | None = None,
     at: float | None = None,
     times: Sequence[float] | None = None,
     bx: Sequence[float] | None = None,
@@ -78,7 +79,7 @@ def analyse(  # noqa: C901, PLR0912
     handle = workspace.get(model_id)
     return analyse_rbd(
         handle.rbd, handle.name,
-        mode=mode, at=at, times=times, bx=bx, tau=tau,
+        mode=mode, hierarchy=hierarchy, at=at, times=times, bx=bx, tau=tau,
         importance=importance, equation=equation,
         ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
         standby=standby, dependencies=dependencies,
@@ -92,6 +93,7 @@ def analyse_rbd(
     name: str = "model",
     *,
     mode: str = "reliability",
+    hierarchy: str | int | None = None,
     at: float | None = None,
     times: Sequence[float] | None = None,
     bx: Sequence[float] | None = None,
@@ -107,16 +109,31 @@ def analyse_rbd(
     max_variables: int = MAX_VARIABLES,
     max_bdd_nodes: int = MAX_BDD_NODES,
 ) -> dict[str, Any]:
-    """Analyse an in-memory ``RbdFile`` (the GUI's open model)."""
+    """Analyse an in-memory ``RbdFile`` (the GUI's open model).
+
+    ``hierarchy`` makes the analysis a port extension: that hierarchy's In
+    node becomes Start, its Out node becomes End, and everything outside is
+    dropped (see `raptor.api.isolate`)."""
+    if hierarchy is not None:
+        from raptor.api.isolate import IsolationError, extract
+        try:
+            rbd, record = extract(rbd, hierarchy)
+        except IsolationError as exc:
+            raise NotApplicable(str(exc)) from exc
+        name = f"{name}:{record.hierarchy}"
     try:
         with recursion_headroom():
-            return _analyse_rbd(
+            result = _analyse_rbd(
                 rbd, name, mode=mode, at=at, times=times, bx=bx, tau=tau,
                 importance=importance, equation=equation,
                 ignore_repairs=ignore_repairs, ignore=ignore, phase=phase,
                 standby=standby, dependencies=dependencies,
                 progress=progress,
                 max_variables=max_variables, max_bdd_nodes=max_bdd_nodes)
+        if hierarchy is not None:
+            result.setdefault("scope", {})["hierarchy"] = record.hierarchy
+            result["hierarchy"] = record.hierarchy
+        return result
     except RecursionError as exc:
         raise NotApplicable(
             "the diagram is nested too deeply for the analytical solver; "
@@ -155,6 +172,10 @@ def _analyse_rbd(  # noqa: C901, PLR0912, PLR0915
             f"dependencies must be one of {list(DEPENDENCY_MODES)}")
     at = _finite(at, "mission time")
     tau = _finite(tau, "tau")
+    if int(max_bdd_nodes) > MAX_BDD_NODES:
+        raise ValueError(
+            f"max_bdd_nodes cannot exceed the hard cap "
+            f"{MAX_BDD_NODES:,}")
     if times is not None:
         if len(times) > 250:
             raise ValueError("at most 250 curve times are accepted")
@@ -324,6 +345,13 @@ def scope_options(rbd) -> dict[str, Any]:
             or any(has_node_dependency(node)
                    for node in model.nodes_by_id.values())
         ),
+        "hierarchies": [
+            {"id": int(float(row["ID"])),
+             "name": str(row.get("hierarchyName") or row["ID"])}
+            for row in (rbd.sections.get("HIERARCHY_DATA").rows
+                        if rbd.sections.get("HIERARCHY_DATA") else [])
+            if str(row.get("ID", "0")) != "0"
+        ],
     }
 
 
