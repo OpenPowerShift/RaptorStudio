@@ -7,7 +7,7 @@ _raptor() {
     COMPREPLY=( $(compgen -W "analytic compare completion config convert describe diff doctor estimate extract fev get gui help info mcp render report run schema set simulate spf step sweep tables validate --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
   fi
   case "$cmd" in
-    analytic) opts="--at --bx --equation --format --help --ignore-repairs --importance --mode --no-importance --tau --times" ;;
+    analytic) opts="--at --bx --equation --format --help --ignore --ignore-repairs --importance --max-bdd-nodes --max-variables --mode --no-importance --phase --progress --standby --tau --times" ;;
     compare) opts="--analysis --format --help --importance --jobs --length --metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --weak-type" ;;
     completion) opts="--help" ;;
     config) opts="--help" ;;

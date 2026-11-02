@@ -5,10 +5,16 @@ complete -c raptor -n '__fish_seen_subcommand_from analytic' -l bx
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l equation
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l format
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l help
+complete -c raptor -n '__fish_seen_subcommand_from analytic' -l ignore
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l ignore-repairs
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l importance
+complete -c raptor -n '__fish_seen_subcommand_from analytic' -l max-bdd-nodes
+complete -c raptor -n '__fish_seen_subcommand_from analytic' -l max-variables
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l mode
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l no-importance
+complete -c raptor -n '__fish_seen_subcommand_from analytic' -l phase
+complete -c raptor -n '__fish_seen_subcommand_from analytic' -l progress
+complete -c raptor -n '__fish_seen_subcommand_from analytic' -l standby
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l tau
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l times
 complete -c raptor -n '__fish_use_subcommand' -a compare
