@@ -219,6 +219,7 @@ def build_schema() -> dict[str, Any]:
                     "link": {"type": "integer"},
                     "x": {"type": "number"},
                     "y": {"type": "number"},
+                    "active": {"type": "boolean"},
                 }}},
             "rates": {"type": "array", "items": {"type": "object", "required": ["name"],
                       "properties": {"name": {"type": "string"}, "expr": {"type": "string"},

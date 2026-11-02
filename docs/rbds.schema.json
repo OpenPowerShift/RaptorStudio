@@ -2370,6 +2370,9 @@
      },
      "y": {
       "type": "number"
+     },
+     "active": {
+      "type": "boolean"
      }
     }
    }

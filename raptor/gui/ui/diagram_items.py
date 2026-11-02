@@ -1150,7 +1150,8 @@ class _LinkItem(QGraphicsPathItem):
             if not changed:
                 break
         route = None
-        grips = [g.pos() for g in self._grips if isValid(g)]
+        grips = [g.pos() for g in self._grips
+                 if isValid(g) and getattr(g, "_active", True)]
         mode = _ROUTING["mode"]
         if grips:
             # A dragged routing point is a deliberate dog-leg: draw through
@@ -1719,11 +1720,16 @@ class _RouteGripItem(QGraphicsEllipseItem):
 
     RADIUS = 4.0
 
-    def __init__(self, link: _LinkItem, point: QPointF, *, entry_id: int):
+    def __init__(self, link: _LinkItem, point: QPointF, *, entry_id: int,
+                 active: bool = True):
         r = self.RADIUS
         super().__init__(-r, -r, 2 * r, 2 * r)
         self._link = link
         self._entry_id = int(entry_id)
+        #: A freshly inserted point sits on the unchanged link until the
+        #: user actually drags it. Saved points start active so reopening
+        #: a drawing keeps the dog-leg.
+        self._active = bool(active)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
@@ -1732,14 +1738,20 @@ class _RouteGripItem(QGraphicsEllipseItem):
         self.setToolTip("Drag to route this link")
         self.setBrush(QBrush(QColor(COLOUR["surface"])))
         self.setPen(QPen(QColor(COLOUR["accent"]), 1.5))
+        # Construction places the item; that is not a user drag.
+        self._initialising = True
         self.setPos(point)
+        self._initialising = False
         if self.parentItem() is None:
             self.setParentItem(link)
 
     def itemChange(self, change, value):
-        if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
+        if (change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged
+                and not getattr(self, "_initialising", False)):
             link = getattr(self, "_link", None)
             if link is not None and isValid(link):
+                if not self._active:
+                    self._active = True
                 link._update_route()
                 scene = link.scene()
                 view = scene.views()[0] if scene is not None and scene.views() else None
@@ -1748,6 +1760,7 @@ class _RouteGripItem(QGraphicsEllipseItem):
                         if int(entry.get("id", 0)) == self._entry_id:
                             entry["x"] = round(self.pos().x(), 2)
                             entry["y"] = round(self.pos().y(), 2)
+                            entry["active"] = True
                             break
                     view._user_arranged = True
         return super().itemChange(change, value)

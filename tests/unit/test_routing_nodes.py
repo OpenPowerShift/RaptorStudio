@@ -95,6 +95,38 @@ def test_context_menu_adds_a_grip_without_touching_the_model(qapp):
     assert v._rbd_ref.link_grips[-1]["link"] == link_id
 
 
+def test_new_grip_leaves_the_link_path_unchanged_until_dragged(qapp):
+    v = _view()
+    link = v._links[0]
+    before = [(link.path().elementAt(i).x, link.path().elementAt(i).y)
+              for i in range(link.path().elementCount())]
+    grip = v.insert_routing_node(link._link_num, 5.0, 50.0)
+    assert grip is not None
+    assert grip._active is False
+    after = [(link.path().elementAt(i).x, link.path().elementAt(i).y)
+             for i in range(link.path().elementCount())]
+    assert after == before
+    grip.setPos(grip.pos() + QPointF(20.0, 10.0))
+    qapp.processEvents()
+    assert grip._active is True
+    assert link.path().elementCount() > len(before)
+    assert v._rbd_ref.link_grips[0]["active"] is True
+
+
+def test_auto_layout_removes_routing_points_and_undo_restores_them(qapp):
+    v = _view()
+    link = v._links[0]
+    grip = v.insert_routing_node(link._link_num, 5.0, 50.0)
+    grip.setPos(grip.pos() + QPointF(20.0, 10.0))
+    assert v._rbd_ref.link_grips
+    v.auto_layout(direction="LR")
+    assert not v._rbd_ref.link_grips
+    assert not v._route_grips
+    v._stack.undo()
+    assert len(v._rbd_ref.link_grips) == 1
+    assert v._route_grips
+
+
 def test_grip_is_selectable_movable_and_bends_the_link(qapp):
     v = _view()
     link = v._links[0]
@@ -182,6 +214,8 @@ def test_many_grips_route_in_order(qapp):
     link = v._links[0]
     first = v.insert_routing_node(link._link_num, 3.0, 40.0)
     second = v.insert_routing_node(link._link_num, 6.0, 70.0)
+    first.setPos(first.pos() + QPointF(1.0, 1.0))
+    second.setPos(second.pos() + QPointF(1.0, 1.0))
     assert link.grip_items() == [first, second]
     elements = [(link.path().elementAt(i).x, link.path().elementAt(i).y)
                 for i in range(link.path().elementCount())]

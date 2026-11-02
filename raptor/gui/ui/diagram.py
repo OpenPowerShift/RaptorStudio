@@ -1435,7 +1435,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             grip = _RouteGripItem(
                 link, QPointF(float(entry.get("x", 0.0)),
                               float(entry.get("y", 0.0))),
-                entry_id=int(entry.get("id", 0)))
+                entry_id=int(entry.get("id", 0)),
+                active=bool(entry.get("active", True)))
             grip.setParentItem(link)
             link.add_grip(grip)
             self._route_grips.setdefault(link_id, []).append(grip)
@@ -3796,6 +3797,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             "link": link_id,
             "x": round(model_x, 2),
             "y": round(model_y, 2),
+            # Added, not yet dragged: the existing link path is unchanged.
+            "active": False,
         }
         self._stack.push(RouteGripCmd(self, entry, add=True))
         grips = self._route_grips.get(link_id) or []
@@ -3829,7 +3832,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 return
             grip = _RouteGripItem(
                 link, QPointF(float(entry.get("x", 0.0)),
-                              float(entry.get("y", 0.0))), entry_id=aid)
+                              float(entry.get("y", 0.0))), entry_id=aid,
+                active=bool(entry.get("active", True)))
             grip.setParentItem(link)
             link.add_grip(grip)
             self._route_grips.setdefault(link_id, []).append(grip)
@@ -6571,6 +6575,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # scrambles the diagram").
         self.sync_model_positions()
         before = self._layout_state()
+        # A manual dog-leg is tied to the old positions. Keeping it would
+        # leave several points sitting on top of each other after the
+        # rebuild, so Auto Layout removes this level's points and draws
+        # clean routes. They are restored by Undo with the positions.
+        removed_grips = [
+            dict(entry) for entry in getattr(self._rbd_ref, "link_grips", [])
+            if int(entry.get("parent", 0)) == self._current_parent]
+        for entry in removed_grips:
+            self._apply_route_grip(entry, False)
         self._loading = True
         # Disable drag-snap for this bulk placement: setPos() below fires
         # itemChange() same as an interactive drag, and the old snap grid
@@ -6721,8 +6734,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if stack is not None:
             # Pushed AFTER the rebuild: it records model positions, so the
             # rebuild cannot invalidate it. Its first redo is a no-op.
-            stack.push(LayoutCmd(self, "Auto Layout", before,
-                                 self._layout_state()))
+            stack.beginMacro("Auto Layout")
+            try:
+                for entry in removed_grips:
+                    stack.push(RouteGripCmd(self, entry, add=False))
+                stack.push(LayoutCmd(self, "Auto Layout", before,
+                                     self._layout_state()))
+            finally:
+                stack.endMacro()
         else:
             self.layout_changed.emit()
         if selected_keys:
