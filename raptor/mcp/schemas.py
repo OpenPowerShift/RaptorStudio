@@ -152,6 +152,10 @@ class AutoLayoutInput(BaseModel):
         default=1.0, gt=0,
         description="Gap scale: 1 = nominal, lower = more compact, "
                     "higher = more open")
+    label_side: Literal["auto", "left", "right"] = Field(
+        default="auto",
+        description="Side for above/below labels in a TB/BT layout; "
+                    "auto = right for TB, left for BT")
 
 
 # ── Model features ───────────────────────────────────────────

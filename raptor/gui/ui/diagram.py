@@ -6616,7 +6616,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def auto_layout(self, direction: str | None = None,
                     max_columns: int | None = None,
-                    spacing: float | None = None):
+                    spacing: float | None = None,
+                    label_side: str | None = None):
         """Rearrange the whole level by graph topology: columns follow the
         longest-path layer from the Start node(s) (left = upstream), rows
         spread evenly within each column. Marks the model dirty via
@@ -6642,6 +6643,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 spacing = float(app_settings.get("layout/spacing", 1.0) or 1.0)
             except (TypeError, ValueError):
                 spacing = 1.0
+        if label_side is None:
+            label_side = str(app_settings.get("layout/label_side", "auto"))
+        if label_side not in ("left", "right"):
+            label_side = None
         spacing = float(spacing)
         if not math.isfinite(spacing) or spacing <= 0.0:
             spacing = 1.0
@@ -6876,7 +6881,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 obj = room_tables[kinds[section]].get(oid)
                 if obj is not None:
                     obj.x_position, obj.y_position = xy
-            follow_layout(rbd, old_transform)
+            follow_layout(rbd, old_transform, direction=direction,
+                          label_side=label_side)
             self._rebuild_scene()
         # Up/Home (which rebuild from rows) and Save keep the layout
         self._apply_scene_layout()

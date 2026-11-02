@@ -113,6 +113,7 @@
    "all_levels",
    "direction",
    "hierarchy",
+   "label_side",
    "max_columns",
    "model_id",
    "selectors",
