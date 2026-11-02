@@ -9,7 +9,8 @@ from __future__ import annotations
 import pathlib
 
 import pytest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QPointF
+from PySide6.QtWidgets import QApplication, QGraphicsItem
 
 from raptor.api.analytical import analyse_rbd
 from raptor.core.engine.runner import run_simulation
@@ -202,6 +203,21 @@ def test_cold_standby_links_are_refused_without_mutation(qapp):
     assert v._rbd_ref.sections["NODE_DATA"].rows == before_nodes
     # An ordinary link in the same model still splits.
     assert v.insert_routing_node(1, 5, 50)
+
+
+def test_capacity_model_routing_node_is_selectable_and_movable(qapp):
+    v = _view(CAPACITY_FIXTURE)
+    nid = v.insert_routing_node(4, 5, 50)
+    item = v._node_items[nid]
+    assert item.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+    assert item.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
+    item.setSelected(True)
+    assert item in v._scene.selectedItems()
+    before = (item.pos().x(), item.pos().y())
+    item.setPos(before[0] + 25.0, before[1] + 15.0)
+    v.write_back_to_rbd(v._rbd_ref)
+    row = _node_row(v, nid)
+    assert (float(row["xPos"]), float(row["yPos"])) != before
 
 
 def test_capacity_analysis_models_allow_a_transparent_routing_node(qapp):

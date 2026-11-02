@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import time
 
 import pytest
 
@@ -389,3 +390,32 @@ def test_cancel_stops_a_worker_before_it_reports_a_result(qapp, monkeypatch):
     token, result, error = inbox.get_nowait()
     assert token == 1 and result is None
     assert error[0] == "cancelled"
+
+
+def test_cancel_button_stops_a_running_gui_solve(qapp, monkeypatch):
+    import threading
+    from raptor.gui.ui import analytic_dialog as module
+
+    started = threading.Event()
+
+    def slow_solve(*_args, progress=None, **_kwargs):
+        started.set()
+        for step in range(200):
+            progress("Building BDD", step, 200)
+            time.sleep(0.01)
+        return {}
+
+    monkeypatch.setattr(module, "analyse_rbd", slow_solve)
+
+    class Win(QWidget):
+        _rbd = load_rbds(os.path.join(MODELS, "Lantern1.rbds"))
+
+    dialog = AnalyticDialog(Win())
+    assert started.wait(2.0)
+    dialog._cancel_solve()
+    assert dialog._banner.text() == "Cancelling…"
+    dialog.wait_for_result()
+    assert dialog._notice_title.text() == "Analysis cancelled"
+    assert dialog._pages.currentIndex() == 0
+    assert not dialog._cancel.isVisible()
+    dialog.close()

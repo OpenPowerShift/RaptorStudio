@@ -224,6 +224,15 @@ def test_one_hierarchy_can_be_solved_as_a_standalone_model():
     assert 0.0 < result["reliability"] < 1.0
 
 
+def test_bdd_node_count_is_comma_grouped_in_the_summary():
+    from raptor.api.analytical import analyse_rbd
+    from raptor.api.analytical_text import summary_text
+    from raptor.core.fileio.rbds import load_rbds
+    result = analyse_rbd(load_rbds(str(MODELS / "Lantern1.rbds")),
+                         importance=False)
+    assert f"{result['bdd_nodes']:,} BDD nodes" in summary_text(result)
+
+
 def test_an_unknown_hierarchy_is_refused_with_a_message():
     from raptor.api.analytical import analyse_rbd
     from raptor.core.fileio.rbd import load_rbd

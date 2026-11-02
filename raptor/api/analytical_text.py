@@ -90,7 +90,7 @@ def _table(header: tuple[str, ...], rows: list[list[str]]) -> list[str]:
 def summary_text(result: dict[str, Any]) -> str:  # noqa: C901, PLR0912
     lines = [
         f"Analytical analysis: {result['model']} ({result['mode']})",
-        f"Solver size: {result['bdd_nodes']} BDD nodes",
+        f"Solver size: {result['bdd_nodes']:,} BDD nodes",
         BDD_NOTE,
         "",
     ]
