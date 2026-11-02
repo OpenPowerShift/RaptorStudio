@@ -1168,6 +1168,16 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             tb = QHBoxLayout(titlebar)
             tb.setContentsMargins(8, 4, 4, 4)
             tb.setSpacing(2)
+            # The tab bar gets its icon from `windowIcon`; a custom
+            # titlebar has to paint the same one itself so the dock is
+            # recognisable once floated as well.
+            icon_label = QLabel()
+            icon_label.setFixedSize(16, 16)
+            icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon = dock.windowIcon()
+            if not icon.isNull():
+                icon_label.setPixmap(icon.pixmap(16, 16))
+            tb.addWidget(icon_label)
             label = QLabel(dock.windowTitle())
             tb.addWidget(label)
             tb.addStretch(1)
@@ -1229,7 +1239,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             normal_min = (dock.minimumWidth() if edge in ("left", "right")
                           else dock.minimumHeight())
             entries.append({"dock": dock, "content": content,
-                            "titlebar": titlebar, "label": label,
+                            "titlebar": titlebar, "icon_label": icon_label,
+                            "label": label,
                             "min_btn": min_btn, "float_btn": float_btn,
                             "close_btn": close_btn, "stub": stub,
                             "normal_min": normal_min, "minimized": False,
@@ -1248,6 +1259,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 e["titlebar"].setStyleSheet(
                     f"background: {bg}; border-bottom: 1px solid "
                     f"{c['border']};")
+                icon = e["dock"].windowIcon()
+                if not icon.isNull():
+                    e["icon_label"].setPixmap(icon.pixmap(16, 16))
                 e["label"].setStyleSheet(
                     f"font-weight: 600; color: {c['accent'] if collapsed else c['text']};")
                 if e["stub"] is not None:
@@ -1480,6 +1494,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # layout (see _setup_ribbon's own comment on it).
         self._explorer.set_search_widget(self._find_edit)
         dock_left = QDockWidget("Model Explorer", self)
+        self._set_dock_icon(dock_left, "explorer_dock_icon")
         dock_left.setWidget(self._explorer)
         # `setMinimumWidth` is not a standalone setter in Qt: it is routed
         # through `setMinimumSize(w, currentMinimumHeight())`, and a
@@ -1499,6 +1514,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._inspector.set_animate_state_provider(
             lambda: self._live_sim_action.isChecked())
         dock_right = QDockWidget("Inspector", self)
+        self._set_dock_icon(dock_right, "inspector_dock_icon")
         dock_right.setWidget(self._inspector)
         # Wider than the default so all Inspector details show by
         # default -- 300px was not enough for the 7-tab strip without
@@ -1517,6 +1533,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._fev_inspector.locate_requested.connect(
             self._on_fev_element_locate)
         fev_dock = QDockWidget("Failure Effects", self)
+        self._set_dock_icon(fev_dock, "fev_panel_icon", "accent")
         fev_dock.setWidget(self._fev_inspector)
         fev_dock.setMinimumSize(340, 1)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, fev_dock)
@@ -1552,12 +1569,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         lv.addWidget(self._live_log_caption)
         lv.addWidget(self._live_log_tree)
         self._live_log_dock = QDockWidget("Live Log", self)
+        self._set_dock_icon(self._live_log_dock, "log_icon")
         self._live_log_dock.setWidget(live_page)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._live_log_dock)
         self._live_log_dock.hide()
 
         self._results = ResultsDock()
         dock_bottom = QDockWidget("Results", self)
+        self._set_dock_icon(dock_bottom, "results_dock_icon")
         dock_bottom.setWidget(self._results)
         # Low enough that the empty state (a one-line "No results yet"
         # placeholder, or Data Tables before a model is loaded) doesn't
@@ -1585,6 +1604,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._data_tables.validation_failed.connect(
             lambda msg: self._statusbar.showMessage(f"Invalid value — {msg}", 8000))
         dock_tables = QDockWidget("Data Tables", self)
+        self._set_dock_icon(dock_tables, "table_grid_icon")
         dock_tables.setWidget(self._data_tables)
         self._data_tables_dock = dock_tables
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock_tables)
@@ -1603,6 +1623,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # width and reuses the existing splitter.
         from raptor.gui.ui.run_panel import RunPanelDock
         self._run_dock = RunPanelDock(self)
+        self._set_dock_icon(self._run_dock, "run_panel_icon")
         self._run_panel = self._run_dock.panel
         # The stepping debugger's parameters moved to the panel; point the
         # attributes the existing code (and tests) read at the panel's
@@ -1684,6 +1705,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                            (dock_tables, "DataTablesDock"), (self._run_dock, "RunPanelDock")):
             dock.setObjectName(name)
 
+        # A dock's tab and its title bar carry the same glyph as the
+        # ribbon command that opens it, so a tab is recognisable without
+        # reading its text. Set before the custom titlebars are built.
+        self._apply_dock_icons()
+
         # Minimize-to-stub: Data Tables + Results collapse together as
         # one bottom stub since they're tabified into one physical slot
         # -- minimizing either one collapses both.
@@ -1696,6 +1722,59 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # instead of re-tabifying repeatedly (which created orphan tab
         # bars and could leave Data Tables in front).
         self._default_dock_state = self.saveState()
+
+    #: `(dock attribute, icons.py factory, colour token)` for every dock
+    #: that appears in a tab strip or a title bar.
+    _DOCK_ICONS = (
+        ("_explorer_dock", "explorer_dock_icon", "text"),
+        ("_inspector_dock", "inspector_dock_icon", "text"),
+        ("_fev_inspector_dock", "fev_panel_icon", "accent"),
+        ("_live_log_dock", "log_icon", "text"),
+        ("_results_dock", "results_dock_icon", "text"),
+        ("_data_tables_dock", "table_grid_icon", "text"),
+        ("_run_dock", "run_panel_icon", "text"),
+    )
+
+    def _set_dock_icon(self, dock, factory_name: str,
+                       token: str = "text") -> None:
+        """Give one dock the painted glyph of its ribbon command."""
+        from raptor.gui.resources import icons as _ic
+        from raptor.gui.resources.design_tokens import active_colour
+        dock.setWindowIcon(getattr(_ic, factory_name)(active_colour()[token]))
+
+    def _apply_dock_icons(self) -> None:
+        """Give every dock the same glyph as its ribbon command.
+
+        `QDockWidget.setWindowIcon` is what the tabified QTabBar uses for
+        its tab icon; the custom minimize titlebars draw it from the same
+        window icon (see `_make_dock_minimizable`), so both stay in step.
+        The tab bar copies the icon when the dock is tabified, so a theme
+        change also updates the live tabs directly.
+        """
+        for attr, factory_name, token in self._DOCK_ICONS:
+            dock = getattr(self, attr, None)
+            if dock is not None:
+                self._set_dock_icon(dock, factory_name, token)
+        self._sync_dock_tab_icons()
+
+    def _sync_dock_tab_icons(self) -> None:
+        """Push changed window icons into already-built dock tab bars."""
+        from PySide6.QtWidgets import QTabBar
+        docks = [getattr(self, attr, None)
+                 for attr, _factory, _token in self._DOCK_ICONS]
+        try:
+            bars = self.findChildren(QTabBar)
+        except RuntimeError:
+            return
+        for bar in bars:
+            if bar.objectName() == "qt_tabwidget_tabbar":
+                continue
+            for index in range(bar.count()):
+                for dock in docks:
+                    if dock is not None and dock.windowTitle() == \
+                            bar.tabText(index):
+                        bar.setTabIcon(index, dock.windowIcon())
+                        break
 
     def _sync_dock_toggles(self) -> None:
         """Refresh every ribbon dock checkbox from the live dock state."""
@@ -2435,6 +2514,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         c = active_colour()
         self._ribbon._refresh_theme(c)
         self._apply_action_icons()
+        self._apply_dock_icons()
         for rethemer in (self._dock_titlebar_rethemers or []):
             rethemer()
         fev_inspector = getattr(self, "_fev_inspector", None)
