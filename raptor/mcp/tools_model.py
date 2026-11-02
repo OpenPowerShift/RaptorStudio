@@ -1494,7 +1494,8 @@ def auto_layout(model_id: str,
                 all_levels: bool = False,
                 direction: Literal["LR", "RL", "TB", "BT"] = "LR",
                 max_columns: StrictInt | None = None,
-                spacing: float = 1.0) -> CallToolResult:
+                spacing: float = 1.0,
+                label_side: Literal["auto", "left", "right"] = "auto") -> CallToolResult:
     """Re-arrange a model's diagram onto the shared layered grid.
 
     Runs the same engine the GUI's Auto Layout button and .rbd save
@@ -1519,7 +1520,9 @@ def auto_layout(model_id: str,
     `direction` is LR/RL/TB/BT; `max_columns` wraps the flow after that
     many series elements (parallel branches share one position) into a new
     band instead of waiting for the canvas width. `spacing` scales every
-    gap (1 = nominal, lower compacts, higher opens it up). Use the existing
+    gap (1 = nominal, lower compacts, higher opens it up). `label_side`
+    places above/below labels on the left or right when the flow is
+    top-to-bottom (auto = right for TB, left for BT). Use the existing
     View > Link style `orthogonal` setting (or `render_diagram`) for
     right-angle links.
 
@@ -1547,6 +1550,8 @@ def auto_layout(model_id: str,
         raise ValueError("spacing must be a positive number") from None
     if not spacing > 0.0:
         raise ValueError("spacing must be a positive number")
+    if label_side not in ("auto", "left", "right"):
+        raise ValueError("label_side must be auto, left or right")
     context.require_write()
     ws = context.workspace()
     handle = ws.get(model_id)
@@ -1571,7 +1576,10 @@ def auto_layout(model_id: str,
         # stacked elements (they would otherwise sit on a neighbour).
         from raptor.api.annotations import make_room_for_annotations
         applied += len(make_room_for_annotations(handle.rbd))
-    annotations_moved = follow_layout(handle.rbd, old_transform) if applied else 0
+    annotations_moved = follow_layout(
+        handle.rbd, old_transform, direction=direction,
+        label_side=None if label_side == "auto" else label_side,
+    ) if applied else 0
     if applied:
         ws.save(model_id)
     cut = int(report.get("refine_cut_short", 0))

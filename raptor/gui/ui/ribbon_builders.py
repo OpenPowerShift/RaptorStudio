@@ -619,6 +619,27 @@ class RibbonBuilders(_Base):
         group.add_widget(_labeled_box("Spacing", self._layout_spacing_spin,
                                       label_width=76))
 
+        self._layout_label_side_combo = QComboBox()
+        self._layout_label_side_combo.setAccessibleName(
+            "Auto Layout label side")
+        self._layout_label_side_combo.setToolTip(
+            "Where above/below labels go when the flow is top-to-bottom: "
+            "Auto (right for TB, left for BT), Left or Right.")
+        for label, key in (("Auto", "auto"), ("Left", "left"),
+                           ("Right", "right")):
+            self._layout_label_side_combo.addItem(label, key)
+        current_side = str(app_settings.get("layout/label_side", "auto"))
+        self._layout_label_side_combo.setCurrentIndex(max(
+            self._layout_label_side_combo.findData(current_side), 0))
+        self._layout_label_side_combo.setFixedWidth(86)
+        self._layout_label_side_combo.currentIndexChanged.connect(
+            lambda _i: app_settings.set_value(
+                "layout/label_side",
+                self._layout_label_side_combo.currentData()))
+        group.add_widget(_labeled_box("Label side",
+                                      self._layout_label_side_combo,
+                                      label_width=76))
+
     def _build_block_labels_settings(self, group) -> None:
         """View > Appearance: what the canvas writes under a block name,
         and which phase's law it describes.

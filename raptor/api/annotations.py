@@ -317,7 +317,26 @@ def refresh_anchor_names(rbd) -> int:
     return changed
 
 
-def follow_layout(rbd, old_transform: dict | None = None) -> int:
+def layout_anchor_location(location: str, direction: str = "LR",
+                           label_side: str | None = None) -> str:
+    """The side an anchored note should use for the page's flow direction.
+
+    Above/below are perpendicular to a left-to-right flow. A top-to-bottom
+    layout turns them into a left/right side, chosen by `label_side`
+    ("left"/"right"; None = right for TB and left for BT). Explicit
+    left/right notes in a horizontal flow, and explicit above/below notes
+    in a vertical one, are left alone.
+    """
+    if direction in ("TB", "BT") and location in ("above", "below"):
+        if label_side in ("left", "right"):
+            return label_side
+        return "right" if direction == "TB" else "left"
+    return location
+
+
+def follow_layout(rbd, old_transform: dict | None = None, *,
+                  direction: str = "LR",
+                  label_side: str | None = None) -> int:
     """Keep annotations with the diagram after Auto Layout moved elements.
 
     An annotation placed next to an element or another annotation
@@ -376,7 +395,9 @@ def follow_layout(rbd, old_transform: dict | None = None) -> int:
             elif anchor.get("target") is not None:
                 target = _anchor_for(rbd, anchor.get("ref") or anchor["target"])
                 w, h = float(entry.get("w") or 0), float(entry.get("h") or 0)
-                location = str(anchor.get("location", ANNO_DEFAULT_LOCATION))
+                location = layout_anchor_location(
+                    str(anchor.get("location", ANNO_DEFAULT_LOCATION)),
+                    direction, label_side)
                 gap = float(anchor.get("gap", 12.0))
                 dx, dy = anchor_offset(anchor)
                 if dx or dy:
