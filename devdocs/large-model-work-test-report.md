@@ -1,6 +1,6 @@
 # Large-model work — test and review record
 
-Temporary integration branch: `integration/large-model-work`.
+Temporary integration branch: `test/large-model-work`.
 
 This branch rolls up the workstreams below. Each was developed on its own
 branch, then reviewed by a separate agent, and the reviewed commits were
@@ -33,6 +33,7 @@ golden/snapshot refreshes.
   layout size/direction, routing nodes, analytic dependencies, large GUI).
 - Per-workstream reviews also ran their own targeted/full subsets:
   report/golden fidelity, GUI workflows, file IO, rbds schema, MCP, SVG.
+- Report behaviour suite: **25 passed**.
 - `ruff check raptor tests`: clean after the layout review.
 
 ## Manual smoke checks
