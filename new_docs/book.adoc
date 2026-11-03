@@ -28,6 +28,8 @@ include::chapters/ch05-repair.adoc[]
 
 include::chapters/ch06-many-trials.adoc[]
 
+include::chapters/ch-exact.adoc[]
+
 include::chapters/ch-transients.adoc[]
 
 include::chapters/ch07-sparing.adoc[]

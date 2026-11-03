@@ -4748,6 +4748,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # outlive the application.
             if getattr(self, "_help_viewer", None) is not None:
                 self._help_viewer.close()
+            # The Analytical window is a window of its own too: left open,
+            # it kept the application (and its solve) running after the
+            # main window closed. Closing it cancels the solve.
+            analytic = getattr(self, "_analytic_dialog", None)
+            if analytic is not None:
+                analytic.shut_down()
             from raptor.gui import open_models
             open_models.unregister(self)
             event.accept()

@@ -39,7 +39,7 @@ _JOB_SLOTS = threading.BoundedSemaphore(max(1, int(_MAX_JOBS)))
 
 async def run_job[T](
     ctx: Any,
-    work: Callable[[threading.Event, Callable[[int, int | None], None]], T],
+    work: Callable[[threading.Event, Callable[..., None]], T],
     *,
     label: str = "Working",
 ) -> T:
@@ -49,16 +49,19 @@ async def run_job[T](
 
 async def _run_job_locked[T](  # noqa: C901
     ctx: Any,
-    work: Callable[[threading.Event, Callable[[int, int | None], None]], T],
+    work: Callable[[threading.Event, Callable[..., None]], T],
     *,
     label: str = "Working",
 ) -> T:
     abort = threading.Event()
-    state: dict[str, Any] = {"done": 0, "total": None}
+    state: dict[str, Any] = {"done": 0, "total": None, "message": None}
 
-    def progress(done: int, total: int | None) -> None:
+    def progress(done: int, total: int | None,
+                 message: str | None = None) -> None:
         state["done"] = done
         state["total"] = total
+        if message is not None:
+            state["message"] = message
 
     box: dict[str, Any] = {}
 
@@ -89,8 +92,14 @@ async def _run_job_locked[T](  # noqa: C901
                 if ctx is not None and waited >= HEARTBEAT_S:
                     waited = 0.0
                     done, total = state["done"], state["total"]
-                    msg = (f"{label}: {done}/{total}" if total
-                           else f"{label}…")
+                    detail = state["message"]
+                    if detail and total:
+                        msg = f"{label}: {100 * done // total}% · {detail}"
+                    elif detail:
+                        msg = f"{label}: {detail}"
+                    else:
+                        msg = (f"{label}: {done}/{total}" if total
+                               else f"{label}…")
                     try:
                         await ctx.report_progress(done, total, msg)
                     except Exception:  # noqa: BLE001 - progress is best-effort

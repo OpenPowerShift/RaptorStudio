@@ -19,6 +19,7 @@ complete -c raptor -n '__fish_seen_subcommand_from analytic' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l standby
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l tau
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l times
+complete -c raptor -n '__fish_seen_subcommand_from analytic' -l xlsx
 complete -c raptor -n '__fish_use_subcommand' -a compare
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l analysis
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l format

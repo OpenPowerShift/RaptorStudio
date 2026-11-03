@@ -203,5 +203,6 @@ people stop at slightly different counts; both answers sit inside
 You now have the core toolkit: structure (<<ch-first-model>>–<<ch-voting>>),
 failure physics (<<ch-distributions>>), repair economics
 (<<ch-repair>>), and statistical honesty (this chapter). The next
-chapters put that toolkit to work on logistics, standby, maintenance,
-and whole systems.
+chapter, <<ch-exact>>, calculates the lantern's exact answer and uses it
+to check the simulation. The chapters after it put the toolkit to work
+on logistics, standby, maintenance, and whole systems.

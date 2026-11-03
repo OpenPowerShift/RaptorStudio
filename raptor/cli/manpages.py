@@ -26,6 +26,19 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
         ("raptor run pump.rbd -n 100 -f json | jq .summary.Availability",
          "Simulate 100 runs and read one number."),
     ],
+    "analytic": [
+        ("raptor analytic plant.rbds --at 8760",
+         "Exact reliability at one year, with MTTF, B10 life and "
+         "importance."),
+        ("raptor analytic plant.rbds --mode both --ignore repairs,pm "
+         "--xlsx out/",
+         "Reliability and availability with the same settings, both in "
+         "one workbook, out/plant_analytical_reliability_availability.xlsx."),
+        ("raptor analytic plant.rbds --hierarchy Cooling --progress json "
+         "-f json",
+         "One hierarchy on its own; progress as JSON events on stderr, "
+         "the result as JSON on stdout."),
+    ],
     "run": [
         ("raptor run plant.rbd --hierarchy Cooling -n 200",
          "Check one hierarchy on its own (a port extension; the results are labelled isolated)."),

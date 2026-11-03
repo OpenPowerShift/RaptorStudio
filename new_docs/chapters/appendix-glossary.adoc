@@ -7,12 +7,22 @@ Words an engineer uses, in plain form.
 |===
 |Word |Meaning
 
+|Analytical solver
+|The tool that calculates an exact answer from the diagram and the
+failure distributions, with no trials (*Results ▸ Analytical…*). It
+handles a simpler set of models than simulation. Use it to check a
+simulation. See <<ch-exact>>.
+
 |Availability
 |Fraction of time a system works. Answers: "is it selling soda right
 now, on average?"
 
 |Block
 |One part of the model that can fail. Drawn as a box.
+
+|BX life (B10, B50)
+|The time by which X% of systems have failed. B10 = 9 hours means one
+lantern in ten is dead after 9 hours.
 
 |Capacity analysis
 |Simulation that tracks *how much* flow reaches the end, not just

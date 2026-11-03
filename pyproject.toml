@@ -45,6 +45,8 @@ dependencies = [
     "weasyprint>=61",
     # `.rbds` files are checked against docs/rbds.schema.json on every open.
     "jsonschema>=4.18",
+    # The analytical solver evaluates its BDD with vectorised array passes.
+    "numpy>=1.26",
 ]
 
 [project.optional-dependencies]

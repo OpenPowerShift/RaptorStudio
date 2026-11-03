@@ -377,6 +377,30 @@
    "model_id"
   ]
  },
+ "export_analytical": {
+  "params": [
+   "at",
+   "bx",
+   "dependencies",
+   "equation",
+   "folder",
+   "hierarchy",
+   "ignore",
+   "ignore_repairs",
+   "importance",
+   "max_bdd_nodes",
+   "max_variables",
+   "model_id",
+   "modes",
+   "phase",
+   "standby",
+   "tau",
+   "times"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "export_tables": {
   "params": [
    "folder",

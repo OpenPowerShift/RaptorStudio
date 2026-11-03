@@ -2,14 +2,14 @@
 .SH NAME
 raptor\-analytic \- Solve the static subset of an RBD exactly: series, parallel, mixed, k\-out\-of\-n and hierarchies. Reliability mode is non\-repairable. Availability mode is steady state, independent components, perfect repair. Models outside that subset are refused with the first offending element.
 .SH SYNOPSIS
-\fBraptor analytic\fR [\-h] [\-\-mode {reliability,availability}] [\-\-hierarchy NAME|ID] [\-\-at T] [\-\-times T1,T2,...] [\-\-bx X1,X2,...] [\-\-tau T] [\-\-importance] [\-\-no\-importance] [\-\-equation] [\-\-ignore\-repairs] [\-\-ignore LIST] [\-\-phase N] [\-\-standby {active,absent}] [\-\-dependencies {up,down}] [\-\-max\-variables N] [\-\-max\-bdd\-nodes N] [\-\-progress {auto,bar,json,none}] [\-f {text,json,csv}] MODEL
+\fBraptor analytic\fR [\-h] [\-\-mode {reliability,availability,both}] [\-\-hierarchy NAME|ID] [\-\-at T] [\-\-times T1,T2,...] [\-\-bx X1,X2,...] [\-\-tau T] [\-\-importance] [\-\-no\-importance] [\-\-equation] [\-\-ignore\-repairs] [\-\-ignore LIST] [\-\-phase N|all] [\-\-standby {active,absent}] [\-\-dependencies {up,down}] [\-\-max\-variables N] [\-\-max\-bdd\-nodes N] [\-\-progress {auto,bar,json,none}] [\-\-xlsx PATH] [\-f {text,json,csv}] MODEL
 .SH DESCRIPTION
 Solve the static subset of an RBD exactly: series, parallel, mixed, k\-out\-of\-n and hierarchies. Reliability mode is non\-repairable. Availability mode is steady state, independent components, perfect repair. Models outside that subset are refused with the first offending element.
 .SH OPTIONS
 .SS Options
 .TP
-\fB\-\-mode\fR \fI{reliability|availability}\fR
-reliability (R(t), non\-repairable) or availability (steady state, repairable) (default reliability)
+\fB\-\-mode\fR \fI{reliability|availability|both}\fR
+reliability (R(t), non\-repairable), availability (steady state, repairable), or both with the same settings (default reliability)
 .TP
 \fB\-\-hierarchy\fR \fINAME|ID\fR
 analyse one hierarchy as a standalone model; its In node becomes Start and its Out node End
@@ -41,8 +41,8 @@ reliability mode only: compute first\-failure reliability even when the model ha
 \fB\-\-ignore\fR \fILIST\fR
 comma\-separated simulation\-only features to leave out instead of refusing: repairs (reliability mode), pm, spares, resources
 .TP
-\fB\-\-phase\fR \fIN\fR
-analyse a phased model as if it stayed in phase N (1\-based) the whole time
+\fB\-\-phase\fR \fIN|all\fR
+analyse a phased model as if it stayed in phase N (1\-based) the whole time; all solves each phase on its own, one result per phase
 .TP
 \fB\-\-standby\fR \fI{active|absent}\fR
 cold\-standby paths: treat as fully in service, or as if they did not exist
@@ -54,12 +54,37 @@ treat every dependency as up (analyse the dependent element's own law) or down (
 raise the BDD variable limit (default: solver setting) when a large model is still tractable
 .TP
 \fB\-\-max\-bdd\-nodes\fR \fIN\fR
-raise the BDD node limit (default: solver setting) for a large but structurally simple model
+raise the BDD node limit (default 2,000,000, about 0.7 GB); at most half of the free memory at 350 bytes a node
 .TP
 \fB\-\-progress\fR \fI{auto|bar|json|none}\fR
-progress on stderr: BDD construction and the importance pass (auto = bar only on a terminal)
+progress on stderr: one percentage for the whole solve (building the diagram, then the results), with the stage and the time left (auto = bar only on a terminal)
+.TP
+\fB\-\-xlsx\fR \fIPATH\fR
+also write the result as a spreadsheet (one set of sheets per mode and phase with \-\-mode both or \-\-phase all); a folder gets the default name, e.g. MODEL_analytical_reliability.xlsx
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json|csv}\fR
-
+stdout format; with several results (\-\-mode both, \-\-phase all) json is {"results": [...]} and csv has mode and phase columns
+.SH EXAMPLES
+.PP
+Exact reliability at one year, with MTTF, B10 life and importance.
+.RS
+.nf
+\fBraptor analytic plant.rbds \-\-at 8760\fR
+.fi
+.RE
+.PP
+Reliability and availability with the same settings, both in one workbook, out/plant_analytical_reliability_availability.xlsx.
+.RS
+.nf
+\fBraptor analytic plant.rbds \-\-mode both \-\-ignore repairs,pm \-\-xlsx out/\fR
+.fi
+.RE
+.PP
+One hierarchy on its own; progress as JSON events on stderr, the result as JSON on stdout.
+.RS
+.nf
+\fBraptor analytic plant.rbds \-\-hierarchy Cooling \-\-progress json \-f json\fR
+.fi
+.RE
 .SH SEE ALSO
 \fBraptor\fR(1)

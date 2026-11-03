@@ -175,6 +175,66 @@ def test_progress_reports_build_and_importance(workspace):
                for stage, _, total in events)
 
 
+def test_the_pass_total_leaves_room_for_the_stages_to_come(workspace):
+    """BX once used seven times its share of the plan, so the count reached
+    "pass N of about N" before importance began and then sat there."""
+    model_id = _open(workspace, "Lantern1")
+    events = []
+    analyse(workspace, model_id, bx=[10.0, 50.0],
+            progress=lambda stage, done, total: events.append(
+                (stage, done, total)))
+    entry = next(event for event in events
+                 if event[0] == "Computing importance")
+    assert entry[1] < entry[2]
+    assert "Working out BX life" in {stage for stage, _, _ in events}
+
+
+def test_availability_does_not_announce_a_bx_stage(workspace):
+    model_id = _open(workspace, "Lantern1")
+    events = []
+    analyse(workspace, model_id, mode="availability",
+            progress=lambda stage, done, total: events.append(stage))
+    assert not any("BX" in stage for stage in events)
+
+
+def test_progress_is_one_figure_that_never_goes_back(workspace):
+    model_id = _open(workspace, "Lantern1")
+    figures = []
+    analyse(workspace, model_id,
+            progress=lambda stage, done, total: figures.append((done, total))
+            if total else None)
+    assert {total for _, total in figures} == {1000}
+    done = [d for d, _ in figures]
+    assert done == sorted(done) and done[-1] == 1000
+
+
+def test_both_modes_share_settings_and_one_progress_figure(workspace,
+                                                           tmp_path):
+    import zipfile
+
+    from raptor.api.analytical import analyse_modes
+    from raptor.api.analytical_export import export_file_name, export_xlsx
+    model_id = _open(workspace, "Lantern1")
+    figures = []
+    results = analyse_modes(
+        workspace, model_id, ["reliability", "availability"],
+        bx=[10.0], tau=5.0, ignore=["repairs"],
+        progress=lambda stage, done, total: figures.append((stage, done))
+        if total else None)
+    assert [r["mode"] for r in results] == ["reliability", "availability"]
+    assert "conditional" in results[0] and "conditional" not in results[1]
+    done = [d for _, d in figures]
+    assert done == sorted(done)
+    assert any(s.startswith("Availability: ") for s, _ in figures)
+    name = export_file_name("Lantern1", results)
+    assert name == "Lantern1_analytical_reliability_availability.xlsx"
+    path = export_xlsx(results, tmp_path / name)
+    sheets = zipfile.ZipFile(path).read("xl/workbook.xml").decode()
+    assert "Reliability Elements" in sheets and "Availability Elements" in sheets
+    assert export_file_name("Lantern1", results[:1]) == \
+        "Lantern1_analytical_reliability.xlsx"
+
+
 def test_importance_false_still_returns_the_key(workspace):
     model_id = _open(workspace, "Lantern1")
     result = analyse(workspace, model_id, importance=False)
@@ -201,13 +261,109 @@ def test_cli_progress_json(capsys):
         '"stage": "Building BDD' in line for line in progress)
 
 
-def test_bdd_limit_cannot_exceed_the_hard_cap():
+def test_cli_both_modes_json_and_a_workbook(capsys, tmp_path):
+    import zipfile
+    code = main(["analytic", str(MODELS / "Lantern1.rbds"), "--mode", "both",
+                 "--tau", "5", "--xlsx", str(tmp_path), "-f", "json",
+                 "--progress", "json"])
+    captured = capsys.readouterr()
+    assert code == X.OK
+    results = json.loads(captured.out)["results"]
+    assert [r["mode"] for r in results] == ["reliability", "availability"]
+    path = tmp_path / "Lantern1_analytical_reliability_availability.xlsx"
+    assert path.exists() and f"wrote {path}" in captured.err
+    sheets = zipfile.ZipFile(path).read("xl/workbook.xml").decode()
+    assert "Availability Elements" in sheets
+    events = [json.loads(line) for line in captured.err.splitlines()
+              if '"event": "progress"' in line]
+    figures = [e["done"] for e in events if e["total"]]
+    assert figures == sorted(figures) and figures[-1] == 1000
+    assert any(e["stage"].startswith("Availability: ") for e in events)
+
+
+def test_cli_both_modes_csv_has_a_mode_column(capsys):
+    code = main(["analytic", str(MODELS / "Lantern1.rbds"), "--mode", "both",
+                 "-f", "csv", "--progress", "none"])
+    lines = capsys.readouterr().out.splitlines()
+    assert code == X.OK
+    assert lines[0] == "mode,section,name,value"
+    assert lines.count("mode,section,name,value") == 1
+    assert any(line.startswith("availability,summary,availability")
+               for line in lines)
+
+
+def test_cli_xlsx_to_a_file_name(capsys, tmp_path):
+    target = tmp_path / "mine.xlsx"
+    code = main(["analytic", str(MODELS / "Lantern1.rbds"),
+                 "--xlsx", str(target), "--progress", "none"])
+    capsys.readouterr()
+    assert code == X.OK and target.exists()
+
+
+def test_cli_phase_all_gives_one_result_per_phase(capsys, tmp_path):
+    import zipfile
+    code = main(["analytic", str(MODELS / "AirlinerMission.rbds"),
+                 "--phase", "all", "--ignore", "repairs,pm,spares,resources",
+                 "--xlsx", str(tmp_path), "-f", "csv", "--progress", "none"])
+    captured = capsys.readouterr()
+    assert code == X.OK
+    lines = captured.out.splitlines()
+    assert lines[0] == "phase,section,name,value"
+    phases = {line.split(",")[0] for line in lines[1:]
+              if ",summary,reliability," in line}
+    assert phases == {"1", "2", "3", "4", "5"}
+    path = tmp_path / "AirlinerMission_analytical_reliability_all_phases.xlsx"
+    sheets = zipfile.ZipFile(path).read("xl/workbook.xml").decode()
+    assert "Phase 1 Summary" in sheets and "Phase 5 Summary" in sheets
+
+
+def test_phase_all_needs_a_phased_model(workspace):
+    from raptor.api.analytical import analyse_modes
+    model_id = _open(workspace, "Lantern1")
+    with pytest.raises(ValueError, match="phased model"):
+        analyse_modes(workspace, model_id, ["reliability"], phase="all")
+
+
+def test_cli_rejects_a_phase_that_is_not_a_number(capsys):
+    with pytest.raises(SystemExit):
+        main(["analytic", str(MODELS / "Lantern1.rbds"), "--phase", "two"])
+    assert "number or 'all'" in capsys.readouterr().err
+
+
+def test_bdd_limit_cannot_exceed_what_the_machine_allows(monkeypatch):
     from raptor.api.analytical import analyse_rbd
-    from raptor.core.analytical.bdd import MAX_BDD_NODES
+    from raptor.core.analytical import limits
     from raptor.core.fileio.rbd import load_rbd
-    with pytest.raises(ValueError, match="hard cap"):
+    # 4 GB free: half of it at 350 bytes a node is about 6.1M nodes.
+    monkeypatch.setattr(limits, "available_memory", lambda: 4 * 1024 ** 3)
+    allowed = limits.max_bdd_nodes_allowed()
+    assert 6_000_000 < allowed < 6_200_000
+    with pytest.raises(ValueError, match="this machine allows"):
         analyse_rbd(load_rbd("tests/golden/TwoBlockRedundancy/input.rbd"),
-                    max_bdd_nodes=MAX_BDD_NODES + 1)
+                    max_bdd_nodes=allowed + 1)
+    result = analyse_rbd(load_rbd("tests/golden/TwoBlockRedundancy/input.rbd"),
+                         mode="availability", max_bdd_nodes=allowed)
+    assert result["bdd_nodes"] > 0
+
+
+def test_the_ceiling_never_drops_below_the_default(monkeypatch):
+    from raptor.core.analytical import limits
+    monkeypatch.setattr(limits, "available_memory", lambda: 100 * 1024 ** 2)
+    assert limits.max_bdd_nodes_allowed() == limits.DEFAULT_BDD_NODES
+    monkeypatch.setattr(limits, "available_memory", lambda: None)
+    assert limits.max_bdd_nodes_allowed() == 8_000_000
+
+
+def test_a_size_refusal_says_what_was_reached_and_what_to_do():
+    from raptor.core.analytical.bdd import BDD
+    bdd = BDD(max_nodes=40)
+    vs = [bdd.variable(i) for i in range(12)]
+    with pytest.raises(BddTooLarge) as caught:
+        bdd.threshold([bdd.Or(vs[i], vs[(i + 5) % 12]) for i in range(12)], 6)
+    text = str(caught.value)
+    assert "limit of 40 nodes" in text and "allows a limit of up to" in text
+    assert "one hierarchy at a time" in text
+    assert caught.value.limit == 40 and caught.value.allowed >= 2_000_000
 
 
 def test_one_hierarchy_can_be_solved_as_a_standalone_model():

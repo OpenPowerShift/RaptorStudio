@@ -45,6 +45,11 @@ from raptor.gui import cores as _cores
 _cores.available = lambda: 8
 
 w = MainWindow()
+# The "Long simulation" question (a batch over 50,000 run-hours, which a
+# 20-trial year already is) comes back as Cancel under the patched exec
+# above, so the run never started and every "-results" shot said "No
+# results yet". The capture always runs.
+w._confirm_long_batch = lambda num_runs: True
 w.resize(1600, 1000)
 w.show()
 app.processEvents()
@@ -86,6 +91,28 @@ def shot(name):
 def trials(n):
     """The run's trial count (the ribbon's Trials box is a read-out)."""
     w._set_exp_field("trials", n)
+
+
+def run():
+    """Simulate and wait for the results. A run goes to the background and
+    returns at once, so the "-results" shots used to be taken before any
+    result arrived ("No results yet"). One worker: this script has no
+    __main__ guard, and spawned workers would re-run it."""
+    import time
+    chosen = _cores.chosen
+    _cores.chosen = lambda: 1
+    try:
+        w._run_simulation()
+        deadline = time.monotonic() + 300
+        while time.monotonic() < deadline and (
+                getattr(w, "_run_in_progress", False)
+                or getattr(w, "_results_populating", False)):
+            app.processEvents()
+            time.sleep(0.01)
+        for _ in range(5):
+            app.processEvents()
+    finally:
+        _cores.chosen = chosen
 
 
 def tab(attr):
@@ -136,8 +163,7 @@ shot("lantern-loaded")
 
 # 3. run it, results dock
 trials(10)
-w._run_simulation()
-app.processEvents()
+run()
 shot("lantern-results")
 
 # 4. espresso redundancy diagram
@@ -151,8 +177,7 @@ shot("drone-loaded")
 # 6. vendo results with repairs (availability plot)
 load("Vendo1")
 trials(20)
-w._run_simulation()
-app.processEvents()
+run()
 shot("vendo-results")
 
 # 7. data tables dock (Vendo1 still loaded)
@@ -202,8 +227,7 @@ shot("carwash-loaded")
 # 11. ch-transients: naive 200h run's Overview tab (Availability ~0.96).
 load("Laundromat1")
 trials(200)
-w._run_simulation()
-app.processEvents()
+run()
 shot("laundromat-naive")
 
 # 12. ch-capstone-line: the 14-station bottling line, just-loaded diagram.
@@ -212,8 +236,7 @@ shot("prodline-loaded")
 
 # 13. ch-capstone-line: ProdLine1 (after the ops review) run, Overview tab.
 trials(200)
-w._run_simulation()
-app.processEvents()
+run()
 shot("prodline1-results")
 
 # 14. ch-capstone-flight: the reference solution, just-loaded diagram.
@@ -222,8 +245,7 @@ shot("flight1-loaded")
 
 # 15. ch-capstone-flight: Flight1 run, Overview tab (Reliability ~0.82).
 trials(2000)
-w._run_simulation()
-app.processEvents()
+run()
 shot("flight1-results")
 
 # 16. ch-sparing: the taco truck.
@@ -237,8 +259,7 @@ shot("bakery-loaded")
 # 18. ch-preventive: CarCare1 at 20 trials, Overview tab.
 load("CarCare1")
 trials(20)
-w._run_simulation()
-app.processEvents()
+run()
 shot("carcare-results")
 
 # 19-21. ch-hierarchy: the van's home level, then inside each oval.
@@ -330,5 +351,34 @@ app.processEvents()
 sweep.grab().save(os.path.join(IMG, "sweep-dialog.png"), "PNG")
 print("shot sweep-dialog")
 sweep.close()
+
+# 30-32. ch-exact: the analytical solver on Lantern1 (Summary, Elements)
+# and its refusal of WaterTreatment, which has repairs, PM and spares.
+from raptor.gui.ui.analytic_dialog import open_analytic_dialog  # noqa: E402
+
+
+def analytic_shot(name, dialog, tab_index=None):
+    if tab_index is not None:
+        dialog._tabs.setCurrentIndex(tab_index)
+    app.processEvents()
+    dialog.grab().save(os.path.join(IMG, name + ".png"), "PNG")
+    print("shot", name)
+
+
+load("Lantern1")
+exact = open_analytic_dialog(w)
+exact.resize(960, 760)
+exact.compute()
+exact.wait_for_result()
+analytic_shot("exact-summary", exact, 0)
+analytic_shot("exact-elements", exact, 1)
+exact.close()
+load("WaterTreatment")
+exact = open_analytic_dialog(w)
+exact.resize(960, 760)
+exact.compute()
+exact.wait_for_result()
+analytic_shot("exact-refused", exact)
+exact.close()
 
 print("done")

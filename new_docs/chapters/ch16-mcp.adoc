@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *67 tools* (including the `ping` health check), a set of
+The server exposes *68 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone reference to every tool,
 option and transport is in `docs/MCP.md` in the repository.
 
@@ -385,8 +385,8 @@ careful about what it exposes:
 
 . *Check the tool list.* Ask your assistant "What RAPTOR tools do you
   have?" or, in the MCP Inspector, click *Tools*. You should see the tools
-  listed below: 67 including `render_diagram`, `render_diagram_svg` and
-  `ping`, or 66 when `--no-render` hides the PNG diagram tool.
+  listed below: 68 including `render_diagram`, `render_diagram_svg` and
+  `ping`, or 67 when `--no-render` hides the PNG diagram tool.
 
 . *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
   tool manually. It should return `"pong"`.
@@ -688,15 +688,12 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   definitions, call `read_doc('formulas')`; this tool does not repeat
   them.
 
-| `analytical_analysis`
-| Exact static solution for the subset where it exists: series, parallel,
-  mixed, k-of-n, bridge networks and hierarchies. `mode="reliability"` is
-  non-repairable; `mode="availability"` is steady-state availability with
-  independent, perfectly repaired components. Returns R(t)/A(t), MTTF,
-  BX life, conditional reliability, exact Birnbaum/RAW/RRW/Vesely–Fussell
-  and criticality. Refuses PM, spares, resources and non-Bernoulli events,
-  and refuses dependencies, standby or phases until a treatment is given;
-  use `simulate` for the behaviours it still cannot represent.
+| `export_analytical`
+| The same exact solve, written to a spreadsheet in the workspace
+  (`Tables/<model>` by default). `modes=["reliability", "availability"]`
+  puts both in one workbook, a set of sheets each, named
+  `<model>_analytical_reliability_availability.xlsx`. Takes the same
+  settings as `analytical_analysis`.
 
 | `estimate_runtime`
 | Predict wall-clock time from a real pilot at the real horizon. Returns a
