@@ -12,8 +12,31 @@ from raptor.mcp.result import READ_ONLY, guarded, markdown_table, ok
 from raptor.mcp.server import mcp
 
 
-def _markdown(result: dict) -> str:  # noqa: C901
+def _scope_choice(value: object) -> str | None:
+    """A solver scope choice, restricted to the values the solver emits."""
+    return value if value in ("active", "absent", "up", "down") else None
+
+
+def _markdown(result: dict) -> str:  # noqa: C901, PLR0912
     lines = [f"**{result['model']} — {result['mode']}**", ""]
+    if result.get("hierarchy"):
+        lines.append(f"- Scope: hierarchy {result['hierarchy']} as a "
+                     "standalone port extension")
+        lines.append("")
+    scope = result.get("scope") or {}
+    choices = []
+    if scope.get("phase") is not None:
+        choices.append(f"phase {scope['phase']}")
+    standby = _scope_choice(scope.get("standby"))
+    if standby in ("active", "absent"):
+        choices.append("standby paths " + (
+            "fully in service" if standby == "active" else "absent"))
+    dependencies = _scope_choice(scope.get("dependencies"))
+    if dependencies in ("up", "down"):
+        choices.append("dependencies " + dependencies)
+    if choices:
+        lines.append("- Assumptions: " + "; ".join(choices))
+        lines.append("")
     if result["mode"] == "reliability":
         lines.append(f"- Mission time: {result.get('time')}")
         lines.append(f"- Reliability: {result.get('reliability')}")
@@ -61,6 +84,7 @@ def _markdown(result: dict) -> str:  # noqa: C901
 async def analytical_analysis(
     model_id: str,
     mode: Literal["reliability", "availability"] = "reliability",
+    hierarchy: str | int | None = None,
     at: float | None = None,
     times: list[float] | None = None,
     bx: list[float] | None = None,
@@ -71,6 +95,7 @@ async def analytical_analysis(
     ignore: list[Literal["repairs", "pm", "spares", "resources"]] | None = None,
     phase: int | None = None,
     standby: Literal["active", "absent"] | None = None,
+    dependencies: Literal["up", "down"] | None = None,
     max_variables: int | None = None,
     max_bdd_nodes: int | None = None,
     ctx: Context | None = None,
@@ -83,14 +108,23 @@ async def analytical_analysis(
     `A_i = MTTF_i / (MTTF_i + MTTR_i)` and exact availability importance.
 
     The solver supports series, parallel, mixed, k-of-n, bridge networks and
-    hierarchies. It refuses PM, spares, resources, dependencies, standby,
-    phases and non-Bernoulli events; use `simulate` for those. `at` defaults
-    to the model's time-terminated run length. `tau` adds the conditional
-    reliability of a further mission of that length after `at`.
+    hierarchies. `hierarchy` analyses one hierarchy as a standalone port
+    extension: its In node becomes Start and its Out node End. It refuses
+    PM, spares, resources and non-Bernoulli events, and refuses standby,
+    phases or dependencies until you say how to treat them; use `simulate`
+    for the behaviours it still cannot represent. `standby="active"` keeps
+    cold-standby paths in service and `standby="absent"` removes them;
+    `phase` analyses a phased model as if it stayed in that phase.
+    `dependencies="up"` analyses each dependent element's own law as if the
+    dependency never blocked it, and `dependencies="down"` removes dependent
+    elements from the success path. Without `dependencies`, a model with
+    dependencies is refused. `at` defaults to the model's time-terminated
+    run length. `tau` adds the conditional reliability of a further mission
+    of that length after `at`.
     `ignore_repairs` (same as `ignore=["repairs"]`) gives the first-failure
     reliability of a repairable model.
 
-    The default solver limits are 5,000 blocks/events and 1,000,000 BDD
+    The default solver limits are 5,000 blocks/events and 2,000,000 BDD
     nodes. `max_variables` and `max_bdd_nodes` override them for a large but
     tractable model. Raising a limit does not guarantee a solution: the BDD
     can still exceed it, and the solver refuses rather than approximate.
@@ -109,10 +143,10 @@ async def analytical_analysis(
     def work(abort, progress):
         return analyse(
             context.workspace(), model_id,
-            mode=mode, at=at, times=times, bx=bx, tau=tau,
+            mode=mode, hierarchy=hierarchy, at=at, times=times, bx=bx, tau=tau,
             importance=importance, equation=equation,
             ignore_repairs=ignore_repairs, ignore=ignore or (), phase=phase,
-            standby=standby,
+            standby=standby, dependencies=dependencies,
             progress=lambda _stage, done, total: progress(done, total),
             **limits,
         )
