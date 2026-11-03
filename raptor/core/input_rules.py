@@ -604,9 +604,16 @@ def _block_age_features(row: dict, s: _Scope) -> None:
     restore = _num(row, "_RestoreFactor")
     if restore is not None and _out_of(restore, 0.0, 1.0):
         s.add("age.restore", "Restoration factor must be between 0 and 1!")
-    rtype = _int(row, "_RestoreType", 1)
-    if rtype not in (1, 2):
-        s.add("age.restore_type", "Restoration type must be 1 or 2!")
+    rtype = _int(row, "_RestoreType", 0)
+    if rtype not in (0, 1, 2):
+        s.add("age.restore_type",
+              "Restoration type must be 0 (off), 1 (Type I) or 2 (Type II)!")
+    elif rtype == 0 and restore is not None and restore > 0.0:
+        # Off ignores the factor; say so rather than run a model that does
+        # not do what its numbers suggest.
+        s.add("age.restore_off",
+              "Restoration factor is set but restoration is off: choose "
+              "Type I or Type II, or set the factor to 0.")
     age = _num(row, "_StartAge")
     if age is not None and _out_of(age, 0.0, 999999999.0):
         s.add("age.start", "Start age must be between 0 and 999,999,999!")

@@ -26,7 +26,12 @@ FORMAT_ID = "raptor-studio"
 #: element from the built-in template). A version-1 reader would ignore the
 #: new fields and fill the gaps from the wrong row, so it must refuse the
 #: file instead (it does: it rejects any version newer than its own).
-VERSION = 3
+#: 4: `restoration_type` 0 = off is the default, so a restoration factor of 0
+#: with Type I or II means "age kept". Up to version 3 a factor of 0 meant
+#: off and a factor without a type meant Type I; `_restoration_v3` reads
+#: older files that way. A version-3 reader would read a version-4 factor
+#: with the type left out (off) as Type I, so it must refuse the file.
+VERSION = 4
 
 # ---------------------------------------------------------------------------
 # friendly -> legacy column maps (the documented surface)
@@ -928,6 +933,26 @@ def newer_version_message(doc: dict, version: int) -> str:
             f"saved as .rbd, which every version opens.")
 
 
+def _restoration_v3(row: dict) -> None:
+    """Read a version-1..3 block's restoration the way it was written.
+
+    Then a factor of 0 meant "off" whatever the type, and the type defaulted
+    to Type I, so a file left it out. Version 4 has an explicit off (type 0,
+    the new default) and reads a factor of 0 with a type as "age kept".
+    """
+    try:
+        factor = float(row.get("_RestoreFactor", 0.0) or 0.0)
+        rtype = int(float(row.get("_RestoreType", 0) or 0))
+    except (TypeError, ValueError):
+        return
+    if factor <= 0.0:
+        # Off is the default (the template has no such column), so drop
+        # the type rather than write a value equal to the default.
+        row.pop("_RestoreType", None)
+    elif rtype not in (1, 2):
+        row["_RestoreType"] = "1"
+
+
 def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
     """Parse .rbds JSON into the same `RbdFile` structure every other
     subsystem already consumes. `default_name` is the model's name when
@@ -980,6 +1005,9 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
             pid_missing = [r for o, r in zip(objs, rows)
                            if "parent" not in o
                            and "pID" not in (o.get("legacy") or {})]
+        if sec == "BLOCK_DATA" and version <= 3:
+            for row in rows:
+                _restoration_v3(row)
         cols = base.sections[sec].columns if sec in base.sections else []
         sections[sec] = RbdSection(name=sec, columns=cols, rows=rows)
     _derive(sections, pid_missing)

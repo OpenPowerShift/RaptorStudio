@@ -613,7 +613,7 @@ class ModelEditor:
                 row["_StartAge"] = f"{b.start_age:.6f}"
             if "_RestoreFactor" in row or b.restoration_factor != 0.0:
                 row["_RestoreFactor"] = f"{b.restoration_factor:.6f}"
-            if "_RestoreType" in row or b.restoration_type != 1:
+            if "_RestoreType" in row or b.restoration_type != 0:
                 row["_RestoreType"] = str(b.restoration_type)
             row["GDRate"] = f"{b.gd_rate:.6f}"
             row["GDLimit"] = f"{b.gd_limit:.6f}"

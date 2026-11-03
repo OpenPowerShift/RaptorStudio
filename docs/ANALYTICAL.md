@@ -274,11 +274,16 @@ No rebuild is needed. Open an existing model exactly as before:
 
 - a legacy `.rbd` loads with the new age settings at their defaults
   (`duty_cycle = 1`, `start_age = 0`, `restoration_factor = 0`,
-  `restoration_type = 1`);
-- an older `.rbds` (version 1 or 2) loads unchanged; the next save writes
-  version 3, including any non-default age fields;
+  `restoration_type = 0`, which is off);
+- an older `.rbds` (version 1 or 2) loads unchanged;
+- an older `.rbds` (version 3 or earlier) is read as it was written: a
+  restoration factor of 0 is off, and a factor saved without a type is
+  Type I; the next save writes version 4;
 - a model with `PM Refresh` already on keeps its existing as-good-as-new
-  behaviour; restoration factor only matters when it is non-zero.
+  PM; restoration only applies when the restoration type is Type I or
+  Type II;
+- availability mode refuses a block with restoration Type I or II and a
+  factor below 1, because a repair then leaves the block partly worn.
 
 The legacy `.rbd` format has no columns for the age settings. Saving an
 edited model to `.rbd` drops them (the application warns before doing so).

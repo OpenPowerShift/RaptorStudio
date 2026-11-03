@@ -1,8 +1,8 @@
 {
  "format": "raptor-studio",
- "version": 3,
+ "version": 4,
  "meta": {
-  "generator": "RAPTOR Studio 0.8.0"
+  "generator": "RAPTOR Studio 0.9.0"
  },
  "system": {
   "units": "minutes",

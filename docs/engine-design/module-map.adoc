@@ -52,6 +52,7 @@ flowchart TD
 | `raptor/core/engine/cascade_phase.py` | The cascade's phase change: `ConductPhaseChange`, applying a new phase's stress, Cut/Linked state and node paths to every phased block, event and node, in source's order.
 | `raptor/core/engine/cascade_status.py` | The cascade's system status: the deferred end-of-instant `AnalyzeSystem` check, the capacity-only re-analysis, and the end of the simulation (`CallEndSimulation` / `EndSimulation`).
 | `raptor/core/engine/cold_standby.py` | Port of `RBDNodeObj`'s cold-standby switching group: `IdAndSortColds` (link priority sort) and `RunColdLogic` (the K-of-N group-switching engine).
+| `raptor/core/engine/conditional_life.py` | Draw a life conditional on the block having already survived to an age.
 | `raptor/core/engine/costs.py` | A run's cost tables (`Cost Analysis`).
 | `raptor/core/engine/cumulative.py` | The "Cumulative By Trial" file (Avant-garde "Cumulative Params by Trial", `RamInterval`): Raptor 7's header row and `CalculateInterimRams` (a row after every run whose number is a multiple of the interval).
 | `raptor/core/engine/data_files.py` | The four per-run data files of Simulation Options > Files & Reports.

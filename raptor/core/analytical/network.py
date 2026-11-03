@@ -400,10 +400,17 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
     ]
     if mode == "reliability":
         assumptions.append("no repairs: R(t) is the first-failure reliability")
-        assumptions.append(
-            "a block with a duty cycle ages at that fraction of calendar "
-            "time; a block with a start age is treated as having already "
-            "survived to that age, so its reliability is conditional on that")
+        # Only say it when it applies: listing it for every model read as
+        # though the model had duty cycles or start ages it does not have.
+        if any(info.duty_cycle != 1.0 for info in infos):
+            assumptions.append(
+                "a block with a duty cycle ages at that fraction of "
+                "calendar time")
+        if any(info.start_age > 0.0 for info in infos):
+            assumptions.append(
+                "a block with a start age is treated as having already "
+                "survived to that age, so its reliability is conditional "
+                "on that")
     else:
         assumptions.append(
             "steady state, perfect repair, independent alternating-renewal "
@@ -610,11 +617,12 @@ def _gate_block(block: RBDBlock, *, mode: str, scope: Scope) -> None:  # noqa: C
     else:  # availability
         if block.fail_distro == int(RngDistribution.NONE):
             return
-        if block.restoration_factor not in (0.0, 1.0):
+        if block.restoration_type in (1, 2) and block.restoration_factor < 1.0:
             raise NotApplicable(
-                f"{name} has restoration factor "
-                f"{block.restoration_factor!r}; availability mode assumes "
-                "perfect repair (factor 0 or 1)")
+                f"{name} uses a restoration factor of "
+                f"{block.restoration_factor!r}, so a repair leaves it partly "
+                "worn; availability mode assumes every repair is as good as "
+                "new (restoration off, or factor 1)")
         if block.repair_distro == int(RngDistribution.NONE):
             # A non-repairable block is allowed; it is simply down at steady
             # state. A parallel path can still keep the system up.

@@ -425,30 +425,52 @@ first failure time is drawn conditionally:
 R_"start"(t) = R(a + t) / R(a)
 ++++
 
-The engine implements this by redrawing the first life until it exceeds
-stem:[a], then subtracting stem:[a]. A start age of zero is the historical
-behaviour.
+The engine draws the first life until it exceeds stem:[a] (Raptor 7's own
+rule for its amount-exhausted start), then subtracts stem:[a]. When a start
+age is set and 100 draws all fall short, which happens when stem:[a] is deep
+in the life's tail, it draws the life exactly from the conditional
+distribution instead of failing at once. A start age of zero is the
+historical behaviour. The start age also counts as age already used when a
+restoration factor is applied at the first repair or PM.
 
 === Restoration factor
 
-After PM or repair, restoration factor stem:[r] (0 to 1) decides how much
-age remains:
+Restoration decides what a repair, or a PM with PM refresh off, does to the
+block's age. It has a type and a factor.
 
-[cols="2,4",options="header"]
+[cols="1,4",options="header"]
 |===
-|Type |Age left after the action
+|Type |What a repair or PM does
 
-|Kijima Type I |stem:[v = a - r(a - a_"last")]
-|Kijima Type II |stem:[v = (1 - r) a]
+|Off (the default) |Raptor's own behaviour: a repair is as good as new (a
+fresh life); a PM renews the life or resumes it according to PM refresh. The
+factor is not used, and validation refuses a factor with restoration off.
+|Kijima Type I |stem:[v = a - r(a - a_"last")]: removes the share stem:[r]
+of the age added since the previous repair or PM.
+|Kijima Type II |stem:[v = (1 - r) a]: removes the share stem:[r] of the
+whole age.
 |===
 
-Here stem:[r] is the fraction of age removed: 0 leaves the age untouched,
-1 is as good as new, and 0.7 leaves 30% of the age.
+Here stem:[a] is the age at the repair or PM, stem:[a_"last"] the age left
+by the previous one, and stem:[v] the age left now. The factor stem:[r] runs
+from 0 to 1: 0 removes nothing (as bad as old: after a repair the block is
+exactly as worn as just before it failed), 1 removes everything (as good as
+new), and 0.7 removes 70% and leaves 30%. So the result changes smoothly
+from 0 to 1, and a factor of 1 with either type matches Off for repairs.
 
-where stem:[a] is the age at the action and stem:[a_"last"] the age after
-the previous restoration. stem:[r=1] is as good as new; stem:[r=0] leaves
-the age untouched. After a repair, the next life is drawn conditionally on
-surviving to the residual age stem:[v], not from a fresh population.
+After a repair or a PM, the rest of the life is drawn conditionally on
+surviving to the residual age stem:[v], not from a fresh population. The draw
+is exact at any age: a few plain redraws first, then inverse sampling on the
+survival function (closed form for Exponential and Weibull). A PM does not
+simply hand back the restored hours as extra life, so a PM on an Exponential
+(memoryless) block changes nothing, as it should. A factor of 0 at a PM
+resumes the same life, without a new draw.
+
+With PM refresh ticked, a PM is as good as new whatever the restoration
+settings; restoration then applies to repairs only.
+
+Up to `.rbds` version 3 there was no Off: a factor of 0 meant off and a
+factor without a type meant Type I. Older files are read that way.
 
 === Availability classifications
 

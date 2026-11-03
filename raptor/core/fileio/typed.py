@@ -242,7 +242,7 @@ def block_from_row(row: dict[str, str]) -> RBDBlock:
         duty_cycle=_f(row, "_DutyCycle", 1.0),
         start_age=_f(row, "_StartAge", 0.0),
         restoration_factor=_f(row, "_RestoreFactor", 0.0),
-        restoration_type=_i(row, "_RestoreType", 1),
+        restoration_type=_i(row, "_RestoreType", 0),
         gd_type=_i(row, "GDType"),
         gd_rate=_f(row, "GDRate"),
         gd_limit=_f(row, "GDLimit"),

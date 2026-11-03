@@ -2711,18 +2711,40 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                                    block.start_age, value))
 
     def set_block_restoration_factor(self, block_id: int, value: float):
+        """A factor on a block whose restoration is off also turns on Type I
+        (one undo step), as the API does: the factor alone would be ignored,
+        and validation refuses a factor with restoration off."""
         block = self.blocks.get(block_id)
         if block is None or block.restoration_factor == value:
             return
-        self._stack.push(ParamsCmd(self, "block restoration factor",
-                                   block_id, block.restoration_factor, value))
+        self._stack.beginMacro("Restoration factor")
+        try:
+            if value > 0.0 and block.restoration_type not in (1, 2):
+                self._stack.push(ParamsCmd(self, "block restoration type",
+                                           block_id, block.restoration_type, 1))
+            self._stack.push(ParamsCmd(self, "block restoration factor",
+                                       block_id, block.restoration_factor,
+                                       value))
+        finally:
+            self._stack.endMacro()
 
     def set_block_restoration_type(self, block_id: int, value: int):
+        """Turning restoration off also clears the factor (one undo step):
+        off ignores it, and validation refuses a factor with restoration
+        off."""
         block = self.blocks.get(block_id)
         if block is None or block.restoration_type == value:
             return
-        self._stack.push(ParamsCmd(self, "block restoration type",
-                                   block_id, block.restoration_type, value))
+        self._stack.beginMacro("Restoration type")
+        try:
+            if value == 0 and block.restoration_factor != 0.0:
+                self._stack.push(ParamsCmd(self, "block restoration factor",
+                                           block_id, block.restoration_factor,
+                                           0.0))
+            self._stack.push(ParamsCmd(self, "block restoration type",
+                                       block_id, block.restoration_type, value))
+        finally:
+            self._stack.endMacro()
 
     def set_block_gd_enabled(self, block_id: int, value: bool):
         """Growth/Decay on/off: off is the `GDType=0` sentinel; on defaults to Linear

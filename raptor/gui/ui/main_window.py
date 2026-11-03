@@ -4234,7 +4234,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 if (float(row.get("_DutyCycle", 1.0)) != 1.0
                         or float(row.get("_StartAge", 0.0)) != 0.0
                         or float(row.get("_RestoreFactor", 0.0)) != 0.0
-                        or int(float(row.get("_RestoreType", 1))) != 1):
+                        or int(float(row.get("_RestoreType", 0))) != 0):
                     age_blocks += 1
             except (TypeError, ValueError):
                 continue

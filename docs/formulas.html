@@ -633,48 +633,75 @@ first failure time is drawn conditionally:</p>
 </div>
 </div>
 <div class="paragraph">
-<p>The engine implements this by redrawing the first life until it exceeds
-\$a\$, then subtracting \$a\$. A start age of zero is the historical
-behaviour.</p>
+<p>The engine draws the first life until it exceeds \$a\$ (Raptor 7&#8217;s own
+rule for its amount-exhausted start), then subtracts \$a\$. When a start
+age is set and 100 draws all fall short, which happens when \$a\$ is deep
+in the life&#8217;s tail, it draws the life exactly from the conditional
+distribution instead of failing at once. A start age of zero is the
+historical behaviour. The start age also counts as age already used when a
+restoration factor is applied at the first repair or PM.</p>
 </div>
 </div>
 <div class="sect2">
 <h3 id="_restoration_factor">8.3. Restoration factor</h3>
 <div class="paragraph">
-<p>After PM or repair, restoration factor \$r\$ (0 to 1) decides how much
-age remains:</p>
+<p>Restoration decides what a repair, or a PM with PM refresh off, does to the
+block&#8217;s age. It has a type and a factor.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
-<col style="width: 33.3333%;">
-<col style="width: 66.6667%;">
+<col style="width: 20%;">
+<col style="width: 80%;">
 </colgroup>
 <thead>
 <tr>
 <th class="tableblock halign-left valign-top">Type</th>
-<th class="tableblock halign-left valign-top">Age left after the action</th>
+<th class="tableblock halign-left valign-top">What a repair or PM does</th>
 </tr>
 </thead>
 <tbody>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Off (the default)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Raptor&#8217;s own behaviour: a repair is as good as new (a
+fresh life); a PM renews the life or resumes it according to PM refresh. The
+factor is not used, and validation refuses a factor with restoration off.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Kijima Type I</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">\$v = a - r(a - a_"last")\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$v = a - r(a - a_"last")\$: removes the share \$r\$
+of the age added since the previous repair or PM.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Kijima Type II</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">\$v = (1 - r) a\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$v = (1 - r) a\$: removes the share \$r\$ of the
+whole age.</p></td>
 </tr>
 </tbody>
 </table>
 <div class="paragraph">
-<p>Here \$r\$ is the fraction of age removed: 0 leaves the age untouched,
-1 is as good as new, and 0.7 leaves 30% of the age.</p>
+<p>Here \$a\$ is the age at the repair or PM, \$a_"last"\$ the age left
+by the previous one, and \$v\$ the age left now. The factor \$r\$ runs
+from 0 to 1: 0 removes nothing (as bad as old: after a repair the block is
+exactly as worn as just before it failed), 1 removes everything (as good as
+new), and 0.7 removes 70% and leaves 30%. So the result changes smoothly
+from 0 to 1, and a factor of 1 with either type matches Off for repairs.</p>
 </div>
 <div class="paragraph">
-<p>where \$a\$ is the age at the action and \$a_"last"\$ the age after
-the previous restoration. \$r=1\$ is as good as new; \$r=0\$ leaves
-the age untouched. After a repair, the next life is drawn conditionally on
-surviving to the residual age \$v\$, not from a fresh population.</p>
+<p>After a repair or a PM, the rest of the life is drawn conditionally on
+surviving to the residual age \$v\$, not from a fresh population. The draw
+is exact at any age: a few plain redraws first, then inverse sampling on the
+survival function (closed form for Exponential and Weibull). A PM does not
+simply hand back the restored hours as extra life, so a PM on an Exponential
+(memoryless) block changes nothing, as it should. A factor of 0 at a PM
+resumes the same life, without a new draw.</p>
+</div>
+<div class="paragraph">
+<p>With PM refresh ticked, a PM is as good as new whatever the restoration
+settings; restoration then applies to repairs only.</p>
+</div>
+<div class="paragraph">
+<p>Up to <code>.rbds</code> version 3 there was no Off: a factor of 0 meant off and a
+factor without a type meant Type I. Older files are read that way.</p>
 </div>
 </div>
 <div class="sect2">

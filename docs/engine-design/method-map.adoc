@@ -31,7 +31,6 @@ Regenerate with `python tools/gen_engine_docs.py --write`.
 | `_post_ldt_start` | `block_lifecycle.py` | A block that `GetStartCond` put in post-LDT at kickoff: source's `Repair` `WHEN "postLDT"` arm. Wait the remaining post-LDT (`startVal`), log it, then the ...
 | `_down_start` | `block_lifecycle.py` | A block that `GetStartCond` put down (repairing or in pre-LDT) at kickoff: its first turn goes straight to `Repair` with the repair time already drawn ...
 | `_restored_age` | `block_lifecycle.py` | Age left after a maintenance action, per the restoration factor.
-| `_remaining_after_restore` | `block_lifecycle.py` | Remaining raw life after a PM restores part of the current age.
 | `_conditional_life` | `block_lifecycle.py` | Draw a full life conditional on surviving to ``age``.
 | `_set_restored_life` | `block_lifecycle.py` | Set the next life to a conditional draw at residual ``age``.
 | `_draw_life` | `block_lifecycle.py` | Draw a new life and race it against the PM clock: source's `IF FailTimeLeft=0.0: DrawNumber(...)` followed by the `PMTimeLeft` comparison.
