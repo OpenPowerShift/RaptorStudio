@@ -725,7 +725,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             valid=valid,
             run=run,
             selected_movable=view.selected_movable_count() if view else 0,
-            selected_elements=view.selected_element_count() if view else 0,
+            # `selected` is the same walk `selected_element_count()` would
+            # do again -- twice per click, over every item map on the
+            # level. Sum the answer we already have.
+            selected_elements=sum(len(ids) for ids in selected),
             selected_structural=sum(len(ids) for ids in selected[:3]),
             hierarchies_here=view.hierarchy_count() if view else 0,
             selected_hierarchies=len(selected[3]),
