@@ -426,8 +426,17 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         narrow = (max(a, b) * px_per_unit
                   <= NODE_NARROW_HALF_PX + 1e-9)
         gap_px = (30.0 if narrow else 42.0) * spacing
-        return max(node_pitch if narrow else layer_pitch,
-                   a + b + gap_px / px_per_unit)
+        floor = node_pitch if narrow else layer_pitch
+        pitch = max(floor, a + b + gap_px / px_per_unit)
+        # Whole grid steps. Positions are snapped to the grid, so a pitch
+        # that is not a multiple of it makes the gaps alternate (3.75,
+        # 3.75, 5.0 ...). Round to the nearest step, but never give up
+        # more than 40% of the designed clearance to do it.
+        least = max(floor, a + b + 0.6 * gap_px / px_per_unit)
+        steps = round(pitch / GRID)
+        while steps * GRID < least - 1e-9:
+            steps += 1
+        return steps * GRID
 
     # `max_columns` counts series elements, not literal grid columns: a
     # column of parallel branches is one position on the series path, and
@@ -600,10 +609,18 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
             ax, ay = pos[a]
             bx, by = pos[b]
             lo, hi = min(ax, bx), max(ax, bx)
+            ylo, yhi = (ay, by) if ay <= by else (by, ay)
             # Only elements in a column strictly between the endpoints
             # can lie on this edge.
             for k, (x, y) in items[bisect_right(xs, lo):bisect_left(xs, hi)]:
                 if k in (a, b):
+                    continue
+                # Exact early-out: the edge's vertical span cannot meet a
+                # box that lies wholly above or below it, so neither the
+                # hard nor the near-miss test can fire. Most blocks between
+                # the ends of a long fan edge are rejected here.
+                nhh = near_boxes[k][1]
+                if y + nhh <= ylo or y - nhh >= yhi:
                     continue
                 hw, hh = boxes[k]
                 if _seg_rect_pen(ax, ay, bx, by, x, y, hw, hh) > 0:
@@ -652,13 +669,19 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         for ii, (_lo1, hi1, i1) in enumerate(intervals):
             a1, b1 = edge_list[i1]
             p1, q1 = pos[a1], pos[b1]
+            y1lo, y1hi = (p1[1], q1[1]) if p1[1] <= q1[1] else (q1[1], p1[1])
             for _lo2, _hi2, i2 in intervals[ii + 1:]:
                 if _lo2 > hi1:
                     break
                 a2, b2 = edge_list[i2]
                 if a2 in (a1, b1) or b2 in (a1, b1):
                     continue
-                if _seg_seg(p1, q1, pos[a2], pos[b2]):
+                p2, q2 = pos[a2], pos[b2]
+                # Segments whose vertical spans are disjoint cannot cross.
+                if (max(p2[1], q2[1]) < y1lo
+                        or min(p2[1], q2[1]) > y1hi):
+                    continue
+                if _seg_seg(p1, q1, p2, q2):
                     s += 60
                     hard += 1
         hard_state[0] = hard

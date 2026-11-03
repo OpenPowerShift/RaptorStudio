@@ -336,3 +336,27 @@ def test_legacy_rbd_drops_grips_but_keeps_the_link(qapp, tmp_path):
     assert _link_rows(v) == again.sections["LINK_DATA"].rows
     assert _node_rows(v) == again.sections["NODE_DATA"].rows
     assert not getattr(again, "link_grips", [])
+
+
+def test_grip_keeps_its_on_screen_size_when_zoomed_out(qapp):
+    """A fixed scene-unit radius made the handle 2 px across at 25% zoom on
+    a large model, too small to grab. It now ignores the view zoom."""
+    v = _open_shown_view(qapp)
+    link = v._links[0]
+    c = link.line().center()
+    grip = v.insert_routing_node(link._link_num, *v._vt.to_model(c.x(), c.y()))
+    sizes = []
+    for zoom in (1.0, 0.5, 0.25, 3.0):
+        v.resetTransform()
+        v.scale(zoom, zoom)
+        qapp.processEvents()
+        device = grip.deviceTransform(v.viewportTransform())
+        sizes.append(device.mapRect(grip.rect()).width())
+    assert all(s == pytest.approx(sizes[0]) for s in sizes), sizes
+    assert sizes[0] >= 9.0
+    v.resetTransform()
+    v.scale(0.25, 0.25)
+    qapp.processEvents()
+    centre = v.mapFromScene(grip.scenePos())
+    near = centre + QPointF(5.0, 0.0).toPoint()
+    assert v.itemAt(near) is grip, "a click near the dot still hits the handle"

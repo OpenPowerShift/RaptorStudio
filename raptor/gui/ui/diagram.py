@@ -117,6 +117,7 @@ from raptor.gui.ui.diagram_items import (  # noqa: F401
     _NUDGE_DIRS,
     _NodeItem,
     _apply_hover_cursor,
+    set_explicit_bands,
     set_flow_direction,
     _arrow,
     _blend,
@@ -718,6 +719,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # A hand-drawn diagram keeps the neighbour inference; Auto Layout
         # sets an explicit axis on the level it lays out.
         set_flow_direction("auto")
+        set_explicit_bands(False)
         self._stack.clear()   # undo history belongs to the previous file
         # result visuals belong to the previous model too (a new run
         # re-populates them); traversal within a model keeps them
@@ -6653,6 +6655,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if not math.isfinite(spacing) or spacing <= 0.0:
             spacing = 1.0
         set_flow_direction(direction)
+        set_explicit_bands(max_columns is not None)
         # Bipartite adjacency, ref-aware: ('Node', 3) and ('Block', 3)
         # are different elements -- keying by bare id let a layering walk
         # jump between kinds. Members = this level's blocks/nodes/hier
