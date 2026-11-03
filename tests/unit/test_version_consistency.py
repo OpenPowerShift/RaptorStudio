@@ -1,10 +1,12 @@
-"""The version is declared in five places; they must agree.
+"""The version is declared in six places; they must agree.
 
 `pyproject.toml` is what gets built and published, `raptor/__init__.py` is
 what the app and the CLI print, `server.json` is what the MCP Registry
 lists, `packaging/raptor-studio-mcp/pyproject.toml` is the companion
 package (its version and its `raptor-studio[mcp]==` pin), and
-`.release-please-manifest.json` is the base release-please bumps from.
+`.release-please-manifest.json` is the base release-please bumps from, and
+`uv.lock` records the project's own version (it had gone stale at 0.8.0
+while everything else said 0.9.0; release-please now updates it too).
 They had already drifted (pyproject said 0.0.1 while `__version__` said
 0.1.0), and nothing failed -- so a run could report a version no artefact
 carried. release-please now updates `__init__.py` too (the
@@ -55,3 +57,21 @@ def test_the_mcp_companion_package_matches_and_pins_the_release():
     assert f"raptor-studio[mcp]=={_pyproject()}" in project["dependencies"], (
         "the companion must pin exactly this release of raptor-studio, or "
         "`uvx raptor-studio-mcp` installs a different version")
+
+
+def test_uv_lock_records_the_same_version():
+    lock = tomllib.loads((REPO / "uv.lock").read_text())
+    own = [package["version"] for package in lock["package"]
+           if package["name"] == "raptor-studio"]
+    assert own == [_pyproject()], (
+        "uv.lock records a different raptor-studio version; run `uv lock` "
+        "(release-please updates it through release-please-config.json)")
+
+
+def test_release_please_updates_every_versioned_file():
+    """Each file this module checks, other than pyproject.toml and the
+    manifest (release-please's own), is in release-please's extra-files."""
+    config = json.loads((REPO / "release-please-config.json").read_text())
+    paths = {entry["path"] for entry in config["packages"]["."]["extra-files"]}
+    assert {"server.json", "raptor/__init__.py", "uv.lock",
+            "packaging/raptor-studio-mcp/pyproject.toml"} <= paths
