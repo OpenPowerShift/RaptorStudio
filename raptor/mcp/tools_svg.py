@@ -30,6 +30,7 @@ def render_diagram_svg(
     highlight: list[str] | None = None,
     theme: Literal["light", "dark"] = "light",
     include_annotations: bool = True,
+    routing: Literal["straight", "angled", "orthogonal"] = "straight",
 ) -> CallToolResult:
     """Draw one level of the diagram as SVG text, without Qt.
 
@@ -37,7 +38,10 @@ def render_diagram_svg(
     (a PNG of the GUI canvas) is unavailable, or when SVG text is easier to
     read than an image. It draws blocks, nodes (S/E, HI/HO, k/n), events,
     hierarchy ovals, links with arrowheads and annotations at the GUI's
-    scene positions; it does not measure fonts (long names are shortened,
+    scene positions; `routing` is 'straight' (default), 'angled' (short stubs
+    then a straight run) or 'orthogonal' (right angles only, round the
+    other elements). Blocks never move; an orthogonal link that cannot be
+    routed quickly stays straight. It does not measure fonts (long names are shortened,
     the full name is in each element's `<title>`) or show state colours.
 
     `level` is 0 for the top level or a **hierarchy id** (not a depth).
@@ -48,7 +52,7 @@ def render_diagram_svg(
     Returns the SVG in the text result (up to 200 KB; larger drawings are
     only written to the file) and structured {svg_path, width, height,
     elements_drawn, elements_in_view, links_drawn, annotations_drawn,
-    highlighted, inline}. The file is written to renders/ in the workspace.
+    highlighted, routing, links_routed, inline}. The file is written to renders/ in the workspace.
     """
     ws = context.workspace()
     handle = ws.get(model_id)
@@ -58,10 +62,11 @@ def render_diagram_svg(
 
     svg, meta = render_svg(handle.rbd, level=level, highlight=highlight or [],
                            zoom_to=zoom_to or [], margin=margin, theme=theme,
-                           include_annotations=include_annotations)
+                           include_annotations=include_annotations,
+                           routing=routing)
     digest = hashlib.sha256(
         f"svg|{_model_hash(handle.rbd)}|{level}|{theme}|{margin}|"
-        f"{include_annotations}|{','.join(sorted(highlight or []))}|"
+        f"{include_annotations}|{routing}|{','.join(sorted(highlight or []))}|"
         f"{','.join(sorted(zoom_to or []))}".encode()).hexdigest()[:12]
     render_dir = ws.root / "renders"
     render_dir.mkdir(parents=True, exist_ok=True)

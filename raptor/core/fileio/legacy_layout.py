@@ -34,8 +34,10 @@ from __future__ import annotations
 import contextlib
 import contextvars
 import logging
+import math
 import itertools
 import time
+from collections import deque
 from bisect import bisect_left, bisect_right
 
 log = logging.getLogger(__name__)
@@ -224,7 +226,11 @@ _CENTRAL_W = {"node": 1.0}
 
 def layout_container_positions(members, edges, entries, pins=frozenset(),
                                base=None, *, deadline: float | None = None,
-                               report: dict | None = None):
+                               report: dict | None = None,
+                               sizes=None, scale: float | None = None,
+                               direction: str = "LR",
+                               max_columns: int | None = None,
+                               spacing: float = 1.0):
     """Layered layout for ONE container, collision-refined.
 
     members: iterable of hashable keys ("kind", id); edges: (a, b)
@@ -240,9 +246,39 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     `deadline` is a `time.monotonic()` value after which the collision
     refine stops (default: `refine_budget_s()` from now). If it stops early
     and `report` is given, `report["refine_cut_short"]` is incremented, so a
-    caller can say the layout is not fully refined."""
+    caller can say the layout is not fully refined.
+
+    `sizes` optionally maps a member key to its actual `(half_width,
+    half_height)` in MODEL units (the GUI passes exact font metrics, the
+    API passes the shared estimate). Columns are then pitched by those
+    widths instead of the fixed `_HALF` boxes; a long name or a wide
+    hierarchy oval can no longer overlap its neighbour. `scale` is the
+    scene's pixels-per-model-unit, used only to convert the scene pixel
+    minimum gaps into model units.
+
+    `direction` is `"LR"`, `"RL"`, `"TB"` or `"BT"`. `max_columns` wraps a
+    flow into another band after that many series elements, instead of
+    waiting for Raptor's canvas width. Entry and pin markers (Start/End,
+    a hierarchy's In/Out) do not count: they are endpoints, not part of
+    the constrained series path.
+
+    `spacing` scales every inter-element gap and band gap. 1.0 is the
+    nominal drawing; smaller values compact, larger values open it up."""
     if deadline is None:
         deadline = time.monotonic() + refine_budget_s()
+    if direction not in ("LR", "RL", "TB", "BT"):
+        raise ValueError(f"unknown layout direction {direction!r}")
+    if max_columns is not None and max_columns < 1:
+        raise ValueError("max_columns must be at least 1")
+    try:
+        spacing = float(spacing)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("spacing must be a positive number") from None
+    if not math.isfinite(spacing) or spacing <= 0.0:
+        raise ValueError("spacing must be a positive number")
+    row_pitch = ROW_PITCH * spacing
+    layer_pitch = LAYER_PITCH * spacing
+    node_pitch = NODE_PITCH * spacing
     member_set = sorted(set(members))      # deterministic order (ids are unique)
     if not member_set:
         return {}
@@ -253,10 +289,10 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
             succ.setdefault(a, set()).add(b)
             pred.setdefault(b, set()).add(a)
     layer: dict = {}
-    queue = [(e, 0) for e in entries if e in member_set]
+    queue = deque((e, 0) for e in entries if e in member_set)
     visits: dict = {}
     while queue:
-        k, d = queue.pop(0)
+        k, d = queue.popleft()
         if d <= layer.get(k, -1):
             continue
         # A cyclic LINK_DATA graph would otherwise enqueue forever at
@@ -279,7 +315,17 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # elements, is the whole cost of the layout pass.  Resolve each
     # element's kind and collision box ONCE instead of on every visit.
     kinds = {k: kind_of(k) for k in member_set}
-    boxes = {k: _half(kinds[k]) for k in member_set}
+    px_per_unit = float(scale) if scale and scale > 0 else 64.0
+    size_map = sizes or {}
+
+    def _box(k) -> tuple[float, float]:
+        size = size_map.get(k)
+        if size is None:
+            return _half(kinds[k])
+        hw, hh = size
+        return float(hw) + _CLEAR, float(hh) + _CLEAR
+
+    boxes = {k: _box(k) for k in member_set}
     near_boxes = {k: (boxes[k][0] + 0.75, boxes[k][1] + 0.75) for k in member_set}
 
     # Column index per element, then each column's x. Two neighbouring
@@ -300,32 +346,48 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     for L in sorted(by_layer):
         col_base[L] = L + extra
         extra += -(-len(by_layer[L]) // ROW_CHUNK) - 1
-    # Rows hang from one centre line, lowered when the tallest chunk would
-    # otherwise pass the top of Raptor's canvas (Y_MAX). Centred on
-    # ROW_CENTRE, 7 or more rows reached y = 100 and beyond.
-    n_max = min(ROW_CHUNK, max(len(ks) for ks in by_layer.values()))
-    half = (n_max - 1) / 2.0 * ROW_PITCH
-    centre = min(ROW_CENTRE, Y_MAX - half)
+
+    # The flow axis runs along the direction of reading (x for LR/RL, y
+    # for TB/BT); the cross axis is the one rows spread on. Everything
+    # below is computed in those two axes and only turned into scene
+    # coordinates at the very end, so a top-to-bottom layout wraps and
+    # spaces by the same rules as a left-to-right one.
+    from .view_transform import NODE_NARROW_HALF_PX
+
+    horizontal = direction in ("LR", "RL")
+    flow_i = 0 if horizontal else 1
+    cross_i = 1 - flow_i
+
+    def raw_box(k) -> tuple[float, float]:
+        """Drawn half-extents without the clearance margin."""
+        return boxes[k][0] - _CLEAR, boxes[k][1] - _CLEAR
+
+    # Rows spread along the cross axis. The pitch is charged on the
+    # elements' DRAWN cross extent: a long name makes a block wide, and in
+    # a TB layout blocks sit side by side, so a fixed 2.5-unit row pitch
+    # would overlap them.
+    def cross_step(keys) -> float:
+        widest = max((raw_box(k)[cross_i] for k in keys), default=0.0)
+        return max(row_pitch,
+                   (2.0 * widest + 42.0 * spacing) / px_per_unit)
 
     col_of: dict = {}
-    pos: dict = {}
+    row_off: dict = {}
 
     def place_layer(L, ordered):
         """Put a layer's elements, in `ordered` order, into its chunk
-        columns, each chunk centred on the centre line."""
+        columns, each chunk centred on the cross axis."""
         for chunk, start in enumerate(range(0, len(ordered), ROW_CHUNK)):
             group = ordered[start:start + ROW_CHUNK]
             n = len(group)
+            step = cross_step(group)
+            c = col_base[L] + chunk
             for i, k in enumerate(group):
-                col_of[k] = col_base[L] + chunk
-                pos[k] = [col_of[k],
-                          centre + (i - (n - 1) / 2.0) * ROW_PITCH]
+                col_of[k] = c
+                row_off[k] = (i - (n - 1) / 2.0) * step
 
     for L in sorted(by_layer):
         place_layer(L, sorted(by_layer[L]))
-    node_only: dict = {}
-    for k, c in col_of.items():
-        node_only[c] = node_only.get(c, True) and kind_of(k) == "node"
 
     # The barycenter sweeps that used to follow here never reordered a
     # row: they computed an order and then wrote rows back by loop index,
@@ -334,48 +396,197 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # their neighbours would move every layout; the rows keep that same
     # id order.
 
-    # Columns to x. A level wider than Raptor's canvas wraps into bands
-    # stacked downward, alternating direction (left to right, then right
-    # to left) so the link from one band's last column to the next band's
-    # first stays short and vertical instead of crossing the whole band.
-    col_x: dict = {}
+    # Extent of each column along the flow axis, in model units. The
+    # fixed `_HALF` boxes include a clearance margin and made two
+    # hierarchy ovals look wider than their 2.5-unit pitch even when the
+    # drawn ovals clear each other; that false overlap is what zig-zagged
+    # a straight chain.
+    col_flow: dict = {}
+    for k, c in col_of.items():
+        col_flow[c] = max(col_flow.get(c, 0.0), raw_box(k)[flow_i])
+
+    # Columns to flow coordinates. A level wider than the available flow
+    # span (or than `max_columns`) wraps into bands on the cross axis.
+    # Automatic (canvas-width) wrapping alternates direction so the link
+    # from a full band's last column to the next band's first stays short;
+    # an explicit `max_columns` keeps the requested flow direction (see
+    # `snake` below).
+    flow_lo, flow_hi = ((FIRST_X, X_MAX) if horizontal
+                        else (Y_MIN + FIRST_X, Y_MAX - FIRST_X))
+    limit = flow_hi - flow_lo
+
+    def flow_pitch(c0: int, c1: int) -> float:
+        a, b = col_flow.get(c0, 0.0), col_flow.get(c1, 0.0)
+        # Narrow (a plain node with a short label) is measured in pixels:
+        # comparing model units against the 18 px node radius charged a
+        # 120x scene's node columns as narrow and put them 1.25 units
+        # apart, which the transform then had to inflate the scale for.
+        # The transform's `_column_pitch_scale` uses the same limit, so
+        # the two never charge different gaps for the same columns.
+        narrow = (max(a, b) * px_per_unit
+                  <= NODE_NARROW_HALF_PX + 1e-9)
+        gap_px = (30.0 if narrow else 42.0) * spacing
+        floor = node_pitch if narrow else layer_pitch
+        pitch = max(floor, a + b + gap_px / px_per_unit)
+        # Whole grid steps. Positions are snapped to the grid, so a pitch
+        # that is not a multiple of it makes the gaps alternate (3.75,
+        # 3.75, 5.0 ...). Round to the nearest step, but never give up
+        # more than 40% of the designed clearance to do it.
+        least = max(floor, a + b + 0.6 * gap_px / px_per_unit)
+        steps = round(pitch / GRID)
+        while steps * GRID < least - 1e-9:
+            steps += 1
+        return steps * GRID
+
+    # `max_columns` counts series elements, not literal grid columns: a
+    # column of parallel branches is one position on the series path, and
+    # Start/End/In/Out markers are endpoints rather than elements.
+    band_exclude = set(entries) | set(pins)
+    counted_columns = {col_of[k] for k in member_set
+                       if k not in band_exclude}
     col_band: dict = {}
-    limit = X_MAX - FIRST_X
+    col_local: dict = {}
     local = 0.0
     band = 0
     prev = None
+    columns_in_band = 0
     for c in range(max(col_of.values()) + 1):
         if prev is not None:
-            both_nodes = node_only.get(prev, True) and node_only.get(c, True)
-            local += NODE_PITCH if both_nodes else LAYER_PITCH
-            if local > limit + 1e-9:
+            pitch = flow_pitch(prev, c)
+            # A marker-only column (Start/End/In/Out) never starts a new
+            # band: it belongs with the series elements around it.
+            wrap = (max_columns is not None
+                    and columns_in_band >= max_columns
+                    and c in counted_columns)
+            if not wrap and local + pitch > limit + 1e-9:
+                wrap = True
+            if wrap:
                 band += 1
                 local = 0.0
-        col_x[c] = FIRST_X + local if band % 2 == 0 else X_MAX - local
+                columns_in_band = 0
+            else:
+                local += pitch
         col_band[c] = band
+        col_local[c] = local
+        if c in counted_columns:
+            columns_in_band += 1
         prev = c
     wrapped = band > 0
-    band_h = 2.0 * half + 2.0 * ROW_PITCH
-    centre_of = {k: centre - col_band[col_of[k]] * band_h for k in pos}
-    for k in pos:
-        pos[k] = [col_x[col_of[k]],
-                  pos[k][1] - col_band[col_of[k]] * band_h]
-    band_lo = min(_BAND_LO, centre - half)
-    band_hi = _BAND_HI
+    n_bands = band + 1
 
-    # in/out markers sit exactly on the centre line (the level's in and
-    # out nodes are centre aligned)
+    # Cross extent of each band, from the drawn elements in it.
+    cross_half = [0.0] * n_bands
+    for k in member_set:
+        b = col_band[col_of[k]]
+        cross_half[b] = max(cross_half[b],
+                            abs(row_off[k]) + raw_box(k)[cross_i])
+    # A blank ROW_PITCH between bands, at least: bands hold separate
+    # groups of elements and must read as such. When that does not fit
+    # the cross axis, tighten to the one-grid-line minimum (still clear:
+    # the bands' own half-extents are already counted) before giving up.
+    cross_lo, cross_hi = (Y_MIN, Y_MAX) if horizontal else (FIRST_X, X_MAX)
+    available = cross_hi - cross_lo
+
+    def _band_offsets(gap: float) -> list[float]:
+        offsets = [0.0] * n_bands
+        for b in range(1, n_bands):
+            offsets[b] = (offsets[b - 1] + cross_half[b - 1]
+                          + cross_half[b] + gap)
+        return offsets
+
+    band_gap = max(row_pitch, 30.0 * spacing / px_per_unit)
+    band_offset = _band_offsets(band_gap)
+    cross_span = band_offset[-1] + cross_half[-1] + cross_half[0]
+    if cross_span > available + 1e-9 and n_bands > 1:
+        tighter = _band_offsets(GRID)
+        tighter_span = tighter[-1] + cross_half[-1] + cross_half[0]
+        if tighter_span < cross_span:
+            band_gap, band_offset, cross_span = GRID, tighter, tighter_span
+
+    if horizontal:
+        # Bands stack downward from a top centre line. Raise/lower that
+        # line so the whole stack fits the canvas; when it cannot, the
+        # pass is reported as outside_world rather than silently drawn
+        # off the edge.
+        cross_upper = cross_hi - cross_half[0]
+        cross_lower = cross_lo + cross_span - cross_half[0]
+        centre = min(ROW_CENTRE, cross_upper)
+        if centre < cross_lower:
+            centre = cross_lower
+        fits = cross_lower <= cross_upper
+        band_centre = [centre - band_offset[b] for b in range(n_bands)]
+    else:
+        # Bands sit side by side, centred across the canvas width.
+        margin = (available - cross_span) / 2.0
+        band_centre = [cross_lo + margin + cross_half[0] + band_offset[b]
+                       for b in range(n_bands)]
+        fits = margin >= -(1e-9)
+
+    # Automatic wrapping alternates bands so the hand-over stays short.
+    # An explicit `max_columns` keeps every band in the requested flow
+    # direction; the link then returns down the leading edge (left for LR,
+    # right for RL) as the deliberate Z/S the user asked for.
+    snake = max_columns is None
+    centre_of = {k: band_centre[col_band[col_of[k]]] for k in col_of}
+    # Horizontal serpentine starts each short band where the previous one
+    # ended, so the hand-over is a short vertical link (the Z/S bend)
+    # rather than a jump back across the page.
+    band_start: dict[int, float] = {0: flow_lo}
+    if horizontal and snake:
+        band_max: dict[int, float] = {}
+        for c, local in col_local.items():
+            b = col_band[c]
+            band_max[b] = max(band_max.get(b, 0.0), local)
+        for b in range(1, n_bands):
+            prev = b - 1
+            start = band_start[prev]
+            span = band_max.get(prev, 0.0)
+            band_start[b] = start + span if prev % 2 == 0 else start - span
+    pos: dict = {}
+    for k in member_set:
+        c = col_of[k]
+        b = col_band[c]
+        local = col_local[c]
+        forward = b % 2 == 0 or not snake
+        if horizontal:
+            if snake:
+                x = band_start[b] + local if b % 2 == 0 \
+                    else band_start[b] - local
+            else:
+                x = flow_lo + local
+            y = centre_of[k] + row_off[k]
+            if direction == "RL":
+                x = X_MAX + FIRST_X - x
+        else:
+            y = flow_hi - local if forward else flow_lo + local
+            if direction == "BT":
+                y = flow_lo + flow_hi - y
+            x = centre_of[k] + row_off[k]
+        pos[k] = [x, y]
+
+    # in/out markers sit exactly on their band's centre line (the level's
+    # in and out nodes are centre aligned)
     for k in list(entries) + list(pins):
-        if k in pos:
+        if k not in pos:
+            continue
+        if horizontal:
             pos[k][1] = centre_of[k]
+        else:
+            pos[k][0] = centre_of[k]
 
-    if min(y for _x, y in pos.values()) < Y_MIN - 1e-9:
-        # Too many bands for the canvas height: the level cannot be drawn
-        # inside Raptor's canvas at this pitch.
+    xs = [xy[0] for xy in pos.values()]
+    ys = [xy[1] for xy in pos.values()]
+    if (not fits or min(xs) < FIRST_X - 1e-9 or max(xs) > X_MAX + 1e-9
+            or min(ys) < Y_MIN - 1e-9 or max(ys) > Y_MAX + 1e-9):
+        # Too many bands for the canvas: the level cannot be drawn inside
+        # Raptor's 150 x 100 canvas at this pitch. Nothing can fix that
+        # without overlapping elements, so report it for the caller/log.
         if report is not None:
             report["outside_world"] = report.get("outside_world", 0) + 1
         log.warning("layout: %d elements do not fit Raptor's 150 x 100 "
                     "canvas", len(pos))
+    band_lo = min(_BAND_LO, min(ys))
+    band_hi = max(_BAND_HI, max(ys))
 
     # --- greedy collision refine -----------------------------------
     edge_list = [(a, b) for a in member_set for b in succ.get(a, ())]
@@ -398,10 +609,18 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
             ax, ay = pos[a]
             bx, by = pos[b]
             lo, hi = min(ax, bx), max(ax, bx)
+            ylo, yhi = (ay, by) if ay <= by else (by, ay)
             # Only elements in a column strictly between the endpoints
             # can lie on this edge.
             for k, (x, y) in items[bisect_right(xs, lo):bisect_left(xs, hi)]:
                 if k in (a, b):
+                    continue
+                # Exact early-out: the edge's vertical span cannot meet a
+                # box that lies wholly above or below it, so neither the
+                # hard nor the near-miss test can fire. Most blocks between
+                # the ends of a long fan edge are rejected here.
+                nhh = near_boxes[k][1]
+                if y + nhh <= ylo or y - nhh >= yhi:
                     continue
                 hw, hh = boxes[k]
                 if _seg_rect_pen(ax, ay, bx, by, x, y, hw, hh) > 0:
@@ -450,19 +669,35 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         for ii, (_lo1, hi1, i1) in enumerate(intervals):
             a1, b1 = edge_list[i1]
             p1, q1 = pos[a1], pos[b1]
+            y1lo, y1hi = (p1[1], q1[1]) if p1[1] <= q1[1] else (q1[1], p1[1])
             for _lo2, _hi2, i2 in intervals[ii + 1:]:
                 if _lo2 > hi1:
                     break
                 a2, b2 = edge_list[i2]
                 if a2 in (a1, b1) or b2 in (a1, b1):
                     continue
-                if _seg_seg(p1, q1, pos[a2], pos[b2]):
+                p2, q2 = pos[a2], pos[b2]
+                # Segments whose vertical spans are disjoint cannot cross.
+                if (max(p2[1], q2[1]) < y1lo
+                        or min(p2[1], q2[1]) > y1hi):
+                    continue
+                if _seg_seg(p1, q1, p2, q2):
                     s += 60
                     hard += 1
         hard_state[0] = hard
         return s
 
-    cur = score()
+    # The refine candidates move columns along x and rows along y, which
+    # only describes an LR/RL layout. A TB/BT layout is the same grid
+    # rotated, so it is placed already clear and the search is skipped.
+    #
+    # Only score when the search can actually run: `score()` walks every
+    # edge (and the edge-edge crossing scan is quadratic in the edge
+    # count), so scoring a 3,000-element fan that is too large/wrapped to
+    # refine anyway cost most of a minute for nothing.
+    refine_eligible = (horizontal and not wrapped
+                       and len(member_set) <= _REFINE_MAX_ELEMENTS)
+    cur = score() if refine_eligible else 0.0
     # A layered layout with no hard fault (no overlap, no edge through a
     # block, no crossing, everything in band) needs no greedy search: the
     # search can only trade aesthetic tiny terms, at O(n) score calls per
@@ -482,7 +717,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
             raise _OutOfTime
 
     best = None
-    if hard_state[0] and not wrapped and len(member_set) <= _REFINE_MAX_ELEMENTS:
+    if refine_eligible and hard_state[0]:
         try:
             for _pass in range(8 if len(member_set) > 150 else 25):
                 best = None          # (score, apply_fn)
@@ -515,7 +750,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                         continue
                     col_ys = [pos[o][1] for o in columns[x] if o != k]
                     for gy in _grid_rows(band_lo, band_hi):
-                        if any(abs(gy - oy) < ROW_PITCH - 1e-6 for oy in col_ys):
+                        if any(abs(gy - oy) < row_pitch - 1e-6 for oy in col_ys):
                             continue
                         tick()
                         old = y
@@ -528,7 +763,7 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                 for k, (x, _y) in list(pos.items()):
                     if kind_of(k) != "block" or k in pins:
                         continue
-                    for nx in (x - LAYER_PITCH, x + LAYER_PITCH):
+                    for nx in (x - layer_pitch, x + layer_pitch):
                         if not (FIRST_X <= nx <= X_MAX):
                             continue
                         if any(ox == nx for o, (ox, _) in pos.items() if o != k):
@@ -563,7 +798,8 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
                 report["refine_cut_short"] = report.get("refine_cut_short", 0) + 1
             log.info("layout refine stopped at its %.0f s budget",
                      refine_budget_s())
-    # snap everything to the grid
+    # snap everything to the grid (direction is already applied: flow and
+    # cross axes were laid out along the requested orientation above)
     return {k: (_snap(x), _snap(y)) for k, (x, y) in pos.items()}
 
 
@@ -699,7 +935,10 @@ def _link_endpoints(f):
 
 def _place_container(children: dict[str, list], links, entries, outs,
                      id_of, deadline: float | None = None,
-                     report: dict | None = None) -> None:
+                     report: dict | None = None, *,
+                     direction: str = "LR",
+                     max_columns: int | None = None,
+                     spacing: float = 1.0) -> None:
     """Layered layout for one container; writes snapped positions back
     into the rows. `outs` (extra pinned keys, e.g. the container's own
     out node) may not move during collision refinement."""
@@ -714,9 +953,31 @@ def _place_container(children: dict[str, list], links, entries, outs,
         a, b = (fk, fid), (tk, tid)
         if a in members and b in members and a != b:
             edges.append((a, b))
+    from . import element_size
+
+    section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                  "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}
+    # The headless layout uses the shared estimate at the legacy reference
+    # scale. The GUI overrides this with exact QFontMetricsF extents.
+    sizes = {}
+    for key, row in members.items():
+        section = section_of.get(key[0])
+        if section is None:
+            continue
+        col = element_size.NAME_COLUMNS.get(section, "")
+        sizes[key] = (
+            element_size.model_half_width(
+                section, row.get(col, ""), element_size.REFERENCE_SCALE),
+            element_size.model_half_height(
+                section, row.get(col, ""), element_size.REFERENCE_SCALE),
+        )
     pos = layout_container_positions(members.keys(), edges,
                                      entries, pins=outs, deadline=deadline,
-                                     report=report)
+                                     report=report, sizes=sizes,
+                                     scale=element_size.REFERENCE_SCALE,
+                                     direction=direction,
+                                     max_columns=max_columns,
+                                     spacing=spacing)
     for k, (x, y) in pos.items():
         members[k]["xPos"] = f"{x:.6f}"
         members[k]["yPos"] = f"{y:.6f}"
@@ -910,7 +1171,10 @@ def cap_legacy_names(f) -> int:
 
 
 def normalize_legacy_layout(f, force: bool = False,
-                            report: dict | None = None) -> bool:
+                            report: dict | None = None, *,
+                            direction: str = "LR",
+                            max_columns: int | None = None,
+                            spacing: float = 1.0) -> bool:
     """Re-layout an off-grid model onto the legacy grid (in place).
     Returns True when anything was moved. `force` skips the gate (an
     explicit Auto Layout pass over every container).
@@ -969,7 +1233,8 @@ def normalize_legacy_layout(f, force: bool = False,
             entries = [("node", inh)] if inh else []
             outs = {("node", outh)} if outh else set()
         _place_container(children, links, entries, outs, id_of, deadline,
-                         report)
+                         report, direction=direction,
+                         max_columns=max_columns, spacing=spacing)
 
     # events follow their parent element's movement delta
     moved: dict[int, tuple[float, float]] = {}

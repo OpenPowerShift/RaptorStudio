@@ -131,8 +131,8 @@ description and input/output schema is what the server sends on `tools/list`.
 | `add_event` | writes | Add an event to the model.  `prob` is its probability (0-1). | `model_id`, `name`, `prob`? |
 | `add_hierarchy` | writes | Create an empty hierarchy -- a sub-model boundary -- with its In and Out markers already wired up correctly. | `model_id`, `name`, `parent`? |
 | `add_node` | writes | Add a node to the model. | `model_id`, `type`?, `k`?, `name`?, `parent`? |
-| `analytical_analysis` | read-only | Solve the static subset of a model exactly. | `model_id`, `mode`?, `at`?, `times`?, `bx`?, `tau`?, `importance`?, `equation`?, `ignore_repairs`?, `ignore`?, `phase`?, `standby`?, `dependencies`?, `max_variables`?, `max_bdd_nodes`? |
-| `auto_layout` | writes | Re-arrange a model's diagram onto the shared layered grid. | `model_id`, `hierarchy`?, `selectors`? |
+| `analytical_analysis` | read-only | Solve the static subset of a model exactly. | `model_id`, `mode`?, `hierarchy`?, `at`?, `times`?, `bx`?, `tau`?, `importance`?, `equation`?, `ignore_repairs`?, `ignore`?, `phase`?, `standby`?, `dependencies`?, `max_variables`?, `max_bdd_nodes`? |
+| `auto_layout` | writes | Re-arrange a model's diagram onto the shared layered grid. | `model_id`, `hierarchy`?, `selectors`?, `all_levels`?, `direction`?, `max_columns`?, `spacing`?, `label_side`? |
 | `build_model` | writes | Build a complete model from a friendly .rbds spec document. | `name`, `spec`?, `auto_layout`?, `validate_model`?, `model_id`?, `spec_path`? |
 | `cancel_run` | writes | Ask a background job to stop (checked between replications, and while a large model is still being set up). | `job_id` |
 | `close_model` | destructive | Close one or more models.  Set delete=true to also remove their files. | `model_id`, `delete`? |
@@ -177,8 +177,8 @@ description and input/output schema is what the server sends on `tools/list`.
 | `ping` | read-only | Health-check: returns 'pong' if the server is running. | — |
 | `read_doc` | read-only | Read a documentation source as text (paginated). | `name`, `offset`?, `limit`? |
 | `redo_last_edit` | destructive | Step one edit forward again after `undo_last_edit` (multi-step). | `model_id` |
-| `render_diagram` | read-only | Render the model diagram as a PNG image. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `max_px`?, `include_annotations`? |
-| `render_diagram_svg` | read-only | Draw one level of the diagram as SVG text, without Qt. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `include_annotations`? |
+| `render_diagram` | read-only | Render the model diagram as a PNG image. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `max_px`?, `include_annotations`?, `routing`? |
+| `render_diagram_svg` | read-only | Draw one level of the diagram as SVG text, without Qt. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `include_annotations`?, `routing`? |
 | `run_status` | read-only | Progress of a job started with `start_run`. | `job_id` |
 | `save_model_as` | destructive | Save a model to a file path. | `model_id`, `path`, `format`? |
 | `search_docs` | read-only | Search the RAPTOR tutorial docs for passages matching a query. | `query`, `limit`? |

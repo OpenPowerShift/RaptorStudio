@@ -88,6 +88,7 @@ def render_diagram(
     theme: str = "light",
     max_px: int = 1600,
     include_annotations: bool = True,
+    routing: str = "straight",
     timeout_s: int = DEFAULT_TIMEOUT_S,
 ) -> tuple[str, dict[str, Any]]:
     """Render ``model_path`` (``.rbd``/``.rbds``) to ``out_path`` (PNG).
@@ -130,6 +131,9 @@ def render_diagram(
     if int(max_px) > MAX_RENDER_PX:
         raise RenderError(
             f"max_px too large: {max_px}; the limit is {MAX_RENDER_PX}")
+    from raptor.core.routing import ROUTING_MODES
+    if routing not in ROUTING_MODES:
+        raise RenderError(f"routing must be one of {ROUTING_MODES}, got {routing!r}")
     if int(level) < 0:
         raise RenderError(f"level must be >= 0, got {level}")
     if not math.isfinite(float(margin)) or float(margin) < 0:
@@ -148,6 +152,7 @@ def render_diagram(
         "theme": theme,
         "max_px": int(max_px),
         "include_annotations": bool(include_annotations),
+        "routing": routing,
     }
 
     try:
@@ -206,6 +211,7 @@ def render_svg_file(
     margin: float = 12.0,
     theme: str = "light",
     include_annotations: bool = True,
+    routing: str = "straight",
 ) -> tuple[str, dict[str, Any]]:
     """Draw ``model_path`` (``.rbd``/``.rbds``) as SVG to ``out_path``, in
     process and without Qt (see `raptor.render.svg`). Returns
@@ -220,7 +226,7 @@ def render_svg_file(
         rbd = load_rbd(str(path))
     svg, meta = render_svg(rbd, level=level, highlight=highlight or [],
                            zoom_to=zoom_to or [], margin=margin, theme=theme,
-                           include_annotations=include_annotations)
+                           include_annotations=include_annotations, routing=routing)
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(svg, encoding="utf-8")

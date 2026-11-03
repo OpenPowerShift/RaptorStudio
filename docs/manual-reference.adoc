@@ -79,8 +79,12 @@ current value).
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
-|Auto Layout |Rearrange by graph flow (columns left-to-right). Selections are laid out alone. (Ctrl+L) |Ctrl+L
+|Auto Layout |Rearrange the current hierarchy by graph flow. Direction and column wrap are in the Layout group. (Ctrl+L) |Ctrl+L
 |Snap to Grid |Align dragged/placed items to the grid (new work only — opened files are never reshuffled) |
+|Layout max series elements per band |Maximum number of series elements per band (elements one after another; parallel branches share a position). 0 = fit Raptor's canvas width. |number, now 0
+|Auto Layout spacing |Gap scale for Auto Layout: 1 = nominal, lower = more compact, higher = more open. |number, now 1
+|Layout direction |Auto Layout flow: left-to-right (default), right-to-left, top-to-bottom or bottom-to-top. |choice, now Left → right
+|Auto Layout label side |Where above/below labels go when the flow is top-to-bottom: Auto (right for TB, left for BT), Left or Right. |choice, now Auto
 |===
 
 ==== Order
@@ -292,6 +296,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Dark Theme |Toggle light/dark theme |
 |Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options |
+|Link style |How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved. |choice, now Straight
 |Block labels |What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing |choice, now Mean
 |Show phase on block labels |Which phase's law the block labels describe. 'Model' shows the model's own unphased data; a phase shows that phase's stress-adjusted failure time, or that the block is cut. Disabled when the model has no phases. |choice, now Model
 |===

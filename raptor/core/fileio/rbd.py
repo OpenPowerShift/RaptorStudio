@@ -200,6 +200,11 @@ class RbdFile:
     #: top of the diagram). Legacy .rbd has no representation -- the
     #: GUI warns and drops these when saving legacy.
     annotations: list = field(default_factory=list)
+    #: .rbds-only GUI routing points: draggable dog-legs drawn on a link,
+    #: `{"id": int, "link": LINK_DATA id, "x": float, "y": float}`. They
+    #: never enter the simulation graph; legacy .rbd has no representation
+    #: and drops them with the rest of the drawing layer.
+    link_grips: list = field(default_factory=list)
     #: .rbds-only named "Rate" library (reusable expressions with a
     #: human-readable basis, e.g. "0.00015/km failure rate x 20000
     #: km/yr usage" -- entries are {"name": str, "expr": str,

@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import Field
+from pydantic import Field, StrictInt
 
 from mcp.types import CallToolResult
 
@@ -1286,8 +1286,28 @@ _LAYOUT_SECTIONS = ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA",
                     "HIERARCHY_DATA")
 
 
+def _layout_rows(rbd: Any, matches) -> set[tuple[str, str]]:
+    """Every content row for which ``matches(section, id, parent)`` holds.
+
+    Parent columns differ per section (`ParentId`, `parent`, `Parent`); the
+    hierarchy level an element belongs to is the one thing all four carry,
+    so the lookup normalises them here instead of at every call site.
+    """
+    allowed: set[tuple[str, str]] = set()
+    for sec in _LAYOUT_SECTIONS:
+        for r in rbd.section(sec).rows:
+            eid = str(r.get("ID"))
+            if eid == "0":
+                continue
+            parent = str(r.get("ParentId", r.get("parent", "0")))
+            if matches(sec, eid, parent):
+                allowed.add((sec, eid))
+    return allowed
+
+
 def _layout_scope(rbd: Any, hierarchy: str | int | None,
-                  selectors: list[str] | None) -> tuple[str, set[tuple[str, str]] | None]:
+                  selectors: list[str] | None,
+                  all_levels: bool = False) -> tuple[str, set[tuple[str, str]] | None]:
     """The auto-layout scope: a title, and the rows it may repaint.
 
     ``allowed=None`` means the whole model. Resolving the scope is
@@ -1303,16 +1323,10 @@ def _layout_scope(rbd: Any, hierarchy: str | int | None,
         if section != "HIERARCHY_DATA":
             raise ValueError(f"{hierarchy!r} is not a hierarchy")
         hid = str(row["ID"])
-        allowed: set[tuple[str, str]] = set()
-        for sec in _LAYOUT_SECTIONS:
-            for r in rbd.section(sec).rows:
-                if str(r.get("ID")) == "0":
-                    continue
-                parent = r.get("ParentId", r.get("parent", "0"))
-                eid = str(r.get("ID"))
-                if str(parent) == hid or (
-                        sec == "HIERARCHY_DATA" and eid == hid):
-                    allowed.add((sec, eid))
+        allowed = _layout_rows(
+            rbd,
+            lambda sec, eid, parent: parent == hid
+            or (sec == "HIERARCHY_DATA" and eid == hid))
         return f"hierarchy {row.get('hierarchyName', hid)!r}", allowed
 
     if selectors:
@@ -1321,7 +1335,64 @@ def _layout_scope(rbd: Any, hierarchy: str | int | None,
             section, row = resolve_element(rbd, str(selector))
             selected.add((section, str(row["ID"])))
         return f"{len(selected)} selected element(s)", selected
-    return "model", None
+    if all_levels:
+        return "model", None
+    # Default: the home level only, matching the GUI. A whole-model rewrite
+    # from a no-argument call was too destructive on a large model.
+    return "home level", _layout_rows(rbd, lambda _sec, _eid, parent:
+                                      parent == "0")
+
+
+#: Bounds for the auto_layout spacing factor. 1 is nominal; far outside this
+#: range the layout is unusable, and an unbounded value (inf, 1e300) would
+#: write absurd coordinates into the model file.
+_MIN_SPACING = 0.25
+_MAX_SPACING = 3.0
+
+
+def _refresh_handover_points(rbd: Any, hierarchy: str | int | None,
+                             selectors: list[str] | None, all_levels: bool,
+                             *, direction: str,
+                             max_columns: int | None) -> dict[str, int]:
+    """Replace the routing points in the scope `auto_layout` just laid out."""
+    from raptor.api.handover_points import refresh_handover_points
+    from raptor.api.build import resolve_element
+    if selectors:
+        touching: set[tuple[str, int]] = set()
+        prefix = {"BLOCK_DATA": "Block", "NODE_DATA": "Node",
+                  "EVENT_DATA": "Event", "HIERARCHY_DATA": "Hier"}
+        for selector in selectors:
+            section, row = resolve_element(rbd, str(selector))
+            touching.add((prefix[section], int(float(row["ID"]))))
+        return refresh_handover_points(
+            rbd, direction=direction, max_columns=max_columns,
+            touching=touching)
+    levels: set[int] | None
+    if hierarchy is not None:
+        _section, row = resolve_element(rbd, str(hierarchy))
+        levels = {int(float(row["ID"]))}
+    else:
+        levels = None if all_levels else {0}
+    return refresh_handover_points(
+        rbd, direction=direction, max_columns=max_columns, levels=levels)
+
+
+def _validate_layout_args(direction: str, max_columns: int | None) -> None:
+    """Reject a bad direction / column limit before any layout work.
+
+    The MCP SDK enforces the signature's Literal/enum for a real client,
+    but the tool is also callable in-process (tests, the assistant bridge)
+    where Python does not check the annotation. Failing here keeps the
+    error at the tool boundary instead of inside a half-laid-out copy.
+    """
+    if direction not in ("LR", "RL", "TB", "BT"):
+        raise ValueError("direction must be one of 'LR', 'RL', 'TB', 'BT'; "
+                         f"got {direction!r}")
+    if max_columns is not None and (
+            isinstance(max_columns, bool) or not isinstance(max_columns, int)
+            or max_columns < 1):
+        raise ValueError("max_columns must be a positive integer or None; "
+                         f"got {max_columns!r}")
 
 
 def _layout_coords(rbd: Any) -> dict[tuple[str, str], tuple[Any, Any]]:
@@ -1337,7 +1408,10 @@ def _layout_coords(rbd: Any) -> dict[tuple[str, str], tuple[Any, Any]]:
 
 def _apply_layout_positions(rbd: Any,
                             allowed: set[tuple[str, str]] | None,
-                            report: dict | None = None) -> int:
+                            report: dict | None = None, *,
+                            direction: str = "LR",
+                            max_columns: int | None = None,
+                            spacing: float = 1.0) -> int:
     """Lay the whole model out on a copy and adopt the in-scope positions.
 
     A partial run of the layout engine does not know where its neighbours
@@ -1348,7 +1422,9 @@ def _apply_layout_positions(rbd: Any,
     from raptor.core.fileio.legacy_layout import normalize_legacy_layout
 
     trial = copy.deepcopy(rbd)
-    normalize_legacy_layout(trial, force=True, report=report)
+    normalize_legacy_layout(trial, force=True, report=report,
+                            direction=direction, max_columns=max_columns,
+                            spacing=spacing)
     before, after = _layout_coords(rbd), _layout_coords(trial)
     applied = 0
     rows_by_section = {
@@ -1368,11 +1444,105 @@ def _apply_layout_positions(rbd: Any,
     return applied
 
 
+def _selected_members(rbd: Any, selected: set[tuple[str, str]],
+                      kind_of: dict[str, str]) -> dict[tuple[str, int], dict]:
+    """The rows for `selected`, found through one id index per section
+    (a per-element scan was quadratic in the selection size)."""
+    members: dict[tuple[str, int], dict] = {}
+    by_id: dict[str, dict[str, dict]] = {}
+    for sec, eid in selected:
+        kind = kind_of.get(sec)
+        if kind is None:
+            continue
+        if sec not in by_id:
+            index: dict[str, dict] = {}
+            for r in rbd.section(sec).rows:
+                index.setdefault(str(r.get("ID")), r)
+            by_id[sec] = index
+        row = by_id[sec].get(eid)
+        if row is not None:
+            members[(kind, int(float(eid)))] = row
+    return members
+
+
+def _apply_layout_selection(rbd: Any,  # noqa: C901
+                           selected: set[tuple[str, str]],
+                           report: dict | None = None, *,
+                           direction: str = "LR",
+                           max_columns: int | None = None,
+                           spacing: float = 1.0) -> int:
+    """Lay out only `selected` rows, centred on their old bounding box."""
+    import time
+    from raptor.core.fileio import element_size
+    from raptor.core.fileio.legacy_layout import (
+        _link_endpoints, layout_container_positions, refine_budget_s,
+    )
+    kind_of = {"BLOCK_DATA": "block", "NODE_DATA": "node",
+               "EVENT_DATA": "event", "HIERARCHY_DATA": "hier"}
+    members = _selected_members(rbd, selected, kind_of)
+    if not members:
+        return 0
+    edges = []
+    allowed_keys = set(members)
+    for fk, fid, tk, tid in _link_endpoints(rbd):
+        a, b = (fk, fid), (tk, tid)
+        if a in allowed_keys and b in allowed_keys and a != b:
+            edges.append((a, b))
+    predecessors = {b for _a, b in edges}
+    entries = [k for k in members if k not in predecessors]
+    if not entries:
+        entries = [sorted(members)[0]]
+    sizes = {}
+    section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                  "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}
+    for key, row in members.items():
+        sec = section_of[key[0]]
+        col = element_size.NAME_COLUMNS.get(sec, "")
+        sizes[key] = (
+            element_size.model_half_width(
+                sec, row.get(col, ""), element_size.REFERENCE_SCALE),
+            element_size.model_half_height(
+                sec, row.get(col, ""), element_size.REFERENCE_SCALE),
+        )
+    deadline = time.monotonic() + refine_budget_s()
+    pos = layout_container_positions(
+        members.keys(), edges, entries, pins=set(), deadline=deadline,
+        report=report, sizes=sizes, scale=element_size.REFERENCE_SCALE,
+        direction=direction, max_columns=max_columns, spacing=spacing)
+    old = []
+    for row in members.values():
+        try:
+            old.append((float(row.get("xPos", 0.0)),
+                        float(row.get("yPos", 0.0))))
+        except (TypeError, ValueError):
+            old.append((0.0, 0.0))
+    old_cx = (min(x for x, _ in old) + max(x for x, _ in old)) / 2.0
+    old_cy = (min(y for _, y in old) + max(y for _, y in old)) / 2.0
+    new_cx = (min(x for x, _ in pos.values())
+              + max(x for x, _ in pos.values())) / 2.0
+    new_cy = (min(y for _, y in pos.values())
+              + max(y for _, y in pos.values())) / 2.0
+    dx, dy = old_cx - new_cx, old_cy - new_cy
+    applied = 0
+    for key, (x, y) in pos.items():
+        row = members[key]
+        nx, ny = x + dx, y + dy
+        if (row.get("xPos"), row.get("yPos")) != (f"{nx:.6f}", f"{ny:.6f}"):
+            row["xPos"], row["yPos"] = f"{nx:.6f}", f"{ny:.6f}"
+            applied += 1
+    return applied
+
+
 @mcp.tool(annotations=EDIT("Auto layout"))
 @guarded
 def auto_layout(model_id: str,
                 hierarchy: str | int | None = None,
-                selectors: list[str] | None = None) -> CallToolResult:
+                selectors: list[str] | None = None,
+                all_levels: bool = False,
+                direction: Literal["LR", "RL", "TB", "BT"] = "LR",
+                max_columns: StrictInt | None = None,
+                spacing: float = 1.0,
+                label_side: Literal["auto", "left", "right"] = "auto") -> CallToolResult:
     """Re-arrange a model's diagram onto the shared layered grid.
 
     Runs the same engine the GUI's Auto Layout button and .rbd save
@@ -1385,13 +1555,23 @@ def auto_layout(model_id: str,
 
     - `hierarchy`: a hierarchy name or id — only that level's elements
       are repositioned; every other level keeps its coordinates.
-    - `selectors`: names / `Kind:id` of the elements to move. The layout
-      is still computed for the whole level (a subset laid out in
-      isolation does not line up with its neighbours), but only the named
-      elements adopt the new positions.
+    - `selectors`: names / `Kind:id` of the elements to move. Those
+      elements are laid out in isolation and translated so their group
+      centre stays where it was; neighbours outside the selection are
+      untouched.
 
-    With neither, every level is laid out. `build_model` already lays out
-    by default (`auto_layout=True`).
+    With neither, the home level is laid out (matching the GUI); pass
+    `all_levels=True` for every level. `build_model` already lays out by
+    default (`auto_layout=True`).
+
+    `direction` is LR/RL/TB/BT; `max_columns` wraps the flow after that
+    many series elements (parallel branches share one position) into a new
+    band instead of waiting for the canvas width. `spacing` scales every
+    gap (0.25-3; 1 = nominal, lower compacts, higher opens it up). `label_side`
+    places above/below labels on the left or right when the flow is
+    top-to-bottom (auto = right for TB, left for BT). Use the existing
+    View > Link style `orthogonal` setting (or `render_diagram`) for
+    right-angle links.
 
     The collision-refining step has a time budget (30 s in all): a dense
     model can otherwise take minutes. If it runs out, the layered layout is
@@ -1407,17 +1587,41 @@ def auto_layout(model_id: str,
     nudged to the nearest clear spot; one a user dragged away keeps its
     offset. Nothing else ever re-lays out a model: saving and exporting
     keep the positions as they are.
+
+    With `max_columns` set, each link that runs back from one band to the
+    next is pinned as a straight line by two routing points (saved in the
+    model, `handover_points` in the result); the next auto layout of that
+    level replaces them, and any other routing points in the laid-out scope
+    are cleared (`handover_points_removed`). The GUI does the same.
     Returns {moved, model_id, scope, elements_moved, annotations_moved,
-    refine_cut_short}.
+    handover_points, handover_points_removed, refine_cut_short}.
     """
+    _validate_layout_args(direction, max_columns)
+    try:
+        spacing = float(spacing)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("spacing must be a positive number") from None
+    if not _MIN_SPACING <= spacing <= _MAX_SPACING:
+        raise ValueError(f"spacing must be between {_MIN_SPACING} and "
+                         f"{_MAX_SPACING}; got {spacing!r}")
+    if label_side not in ("auto", "left", "right"):
+        raise ValueError("label_side must be auto, left or right")
     context.require_write()
     ws = context.workspace()
     handle = ws.get(model_id)
-    scope, allowed = _layout_scope(handle.rbd, hierarchy, selectors)
+    scope, allowed = _layout_scope(handle.rbd, hierarchy, selectors,
+                                   all_levels=all_levels)
     report: dict = {}
     from raptor.api.annotations import ensure_view_transform, follow_layout
     old_transform = ensure_view_transform(handle.rbd)
-    applied = _apply_layout_positions(handle.rbd, allowed, report)
+    if selectors:
+        applied = _apply_layout_selection(
+            handle.rbd, allowed or set(), report, direction=direction,
+            max_columns=max_columns, spacing=spacing)
+    else:
+        applied = _apply_layout_positions(
+            handle.rbd, allowed, report, direction=direction,
+            max_columns=max_columns, spacing=spacing)
     # Annotations go with the diagram: anchored ones are placed next to
     # their element again, the others keep their place in the model.
     if applied and allowed is None:
@@ -1426,18 +1630,33 @@ def auto_layout(model_id: str,
         # stacked elements (they would otherwise sit on a neighbour).
         from raptor.api.annotations import make_room_for_annotations
         applied += len(make_room_for_annotations(handle.rbd))
-    annotations_moved = follow_layout(handle.rbd, old_transform) if applied else 0
-    if applied:
+    annotations_moved = follow_layout(
+        handle.rbd, old_transform, direction=direction,
+        label_side=None if label_side == "auto" else label_side,
+    ) if applied else 0
+    # Routing points belong to the positions just replaced: clear the laid-out
+    # scope's and, for an explicit band wrap, pin each hand-over (the same
+    # rule the GUI uses; see raptor.core.fileio.band_handover).
+    points = _refresh_handover_points(
+        handle.rbd, hierarchy, selectors, all_levels,
+        direction=direction, max_columns=max_columns)
+    if applied or points["removed"] or points["added"]:
         ws.save(model_id)
     cut = int(report.get("refine_cut_short", 0))
     data = {"model_id": model_id, "moved": bool(applied), "scope": scope,
             "elements_moved": applied, "annotations_moved": annotations_moved,
+            "handover_points": points["added"],
+            "handover_points_removed": points["removed"],
             "refine_cut_short": cut}
     md = (f"Auto-laid out {scope}: {applied} element(s) moved"
           + (f", {annotations_moved} anchored annotation(s) with them."
              if annotations_moved else ".")
           if applied else
           f"Auto layout over {scope}: nothing needed to move.")
+    if points["added"]:
+        md += (f" {points['added']} routing point(s) pin the band "
+               "hand-overs as straight lines; the next auto layout "
+               "replaces them.")
     if cut:
         md += (f"\n\nThe refinement stopped at its time budget on {cut} "
                "level(s); the layout is layered and valid but may still have "

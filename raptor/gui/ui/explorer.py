@@ -3,9 +3,12 @@
 Reads from DiagramView.blocks/nodes/links (live model objects), not raw RbdFile.
 """
 from __future__ import annotations
-from PySide6.QtCore import Qt, Signal
+from collections import deque
+
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem,
+    QHBoxLayout, QPushButton, QTreeWidget, QTreeWidgetItem,
+    QTreeWidgetItemIterator, QVBoxLayout, QWidget,
 )
 
 from raptor.gui.ui.diagram import DiagramView
@@ -34,8 +37,31 @@ class ExplorerDock(QWidget):
         self._tree.itemDoubleClicked.connect(self._on_item_double_clicked)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.addWidget(self._tree)
         self._search_widget = None
+
+        # Expand/collapse controls. Expanding is chunked across event-loop
+        # turns: `QTreeWidget.expandAll()` on a 10k-row level freezes the
+        # window while Qt lays every row out at once.
+        bar = QHBoxLayout()
+        bar.setContentsMargins(4, 4, 4, 0)
+        self._expand_button = QPushButton("Expand all")
+        self._expand_button.setToolTip(
+            "Expand every hierarchy folder in the explorer")
+        self._expand_button.clicked.connect(self.expand_all)
+        self._collapse_button = QPushButton("Collapse all")
+        self._collapse_button.setToolTip(
+            "Collapse every hierarchy folder in the explorer")
+        self._collapse_button.clicked.connect(self.collapse_all)
+        bar.addWidget(self._expand_button)
+        bar.addWidget(self._collapse_button)
+        bar.addStretch(1)
+        self._layout.addLayout(bar)
+        self._layout.addWidget(self._tree)
+
+        self._expand_queue: deque = deque()
+        self._expand_timer = QTimer(self)
+        self._expand_timer.setInterval(0)
+        self._expand_timer.timeout.connect(self._expand_chunk)
 
     def set_search_widget(self, widget) -> None:
         """Install `widget` (MainWindow's own Find combo, built and wired
@@ -46,6 +72,46 @@ class ExplorerDock(QWidget):
         self._search_widget = widget
         if widget is not None:
             self._layout.insertWidget(0, widget)
+
+    def expand_all(self) -> None:
+        """Expand every folder, in bounded chunks so the UI stays alive."""
+        if self._expand_timer.isActive():
+            return
+        self._expand_queue.clear()
+        iterator = QTreeWidgetItemIterator(self._tree)
+        while iterator.value() is not None:
+            item = iterator.value()
+            if item.childCount():
+                self._expand_queue.append(item)
+            iterator += 1
+        if not self._expand_queue:
+            return
+        self._tree.setUpdatesEnabled(False)
+        # Collapse all stays enabled: it is how the user cancels this.
+        self._expand_button.setEnabled(False)
+        self._expand_timer.start()
+
+    def _expand_chunk(self) -> None:
+        # 150 folders per turn: enough to finish a normal level in one
+        # frame, small enough that a 10k-element level never blocks input.
+        for _ in range(150):
+            if not self._expand_queue:
+                break
+            self._expand_queue.popleft().setExpanded(True)
+        if self._expand_queue:
+            return
+        self._cancel_expand()
+
+    def _cancel_expand(self) -> None:
+        self._expand_timer.stop()
+        self._expand_queue.clear()
+        self._tree.setUpdatesEnabled(True)
+        self._expand_button.setEnabled(True)
+
+    def collapse_all(self) -> None:
+        """Collapse every folder, cancelling an in-progress Expand all."""
+        self._cancel_expand()
+        self._tree.collapseAll()
 
     def set_view(self, view: DiagramView | None):
         self._view = view
@@ -58,6 +124,11 @@ class ExplorerDock(QWidget):
         descendants matches, so matching a hierarchy's name keeps its
         whole subtree visible and matching a child keeps its hierarchy
         chain visible.
+
+        The walk visits every descendant, including rows under a collapsed
+        folder, and expands the chain to each hit. So a search finds items
+        that are not currently visible because their parent is closed;
+        no Expand all is needed first.
 
         While a search is active the rows are coloured as well as filtered:
         a title that matches the search directly takes the accent colour,
@@ -116,6 +187,8 @@ class ExplorerDock(QWidget):
         self._refresh()
 
     def _refresh(self):
+        # A rebuild deletes the items an in-progress Expand all still holds.
+        self._cancel_expand()
         self._tree.clear()
         if self._view is None:
             return

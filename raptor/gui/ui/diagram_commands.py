@@ -651,6 +651,32 @@ class ReParentCmd(_ViewCmd):
         self._apply(False)
         self._done()
 
+class RouteGripCmd(_ViewCmd):
+    """Add or remove one GUI-only link grip (a dog-leg drag point).
+
+    The grip is drawing state, so the command uses the layout-only signal
+    and skips Raptor's input-rule gate: no model row changes and no
+    simulation reads it.
+    """
+
+    changed_signal = "layout_changed"
+    needs_rule_check = False
+
+    def __init__(self, view, entry: dict, *, add: bool):
+        super().__init__(view, "Add routing point" if add
+                         else "Remove routing point")
+        self.entry = dict(entry)
+        self.add = add
+
+    def redo(self):
+        self._v._apply_route_grip(self.entry, self.add)
+        self._done()
+
+    def undo(self):
+        self._v._apply_route_grip(self.entry, not self.add)
+        self._done()
+
+
 class TableCellCmd(_ViewCmd):
     """Single-cell edit in a name-keyed row (spare/resource pools,
     triggers -- sections with no ID column)."""

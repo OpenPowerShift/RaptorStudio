@@ -29,6 +29,22 @@ def test_names_become_single_tokens():
     assert row_ops.sanitize_name("   ") == "unnamed"
 
 
+def test_names_cannot_inject_rows_columns_or_sections():
+    # A newline starts a new row, a tab shifts every later column, a
+    # leading "/" would be read as a /___SECTION___ header.
+    assert row_ops.sanitize_name("a\nb") == "a_b"
+    assert row_ops.sanitize_name("a\tb") == "a_b"
+    assert row_ops.sanitize_name("/___SYSTEM_DATA___") == "_/___SYSTEM_DATA___"
+    assert row_ops.sanitize_name("EndOfNodeData") == "_EndOfNodeData"
+    assert row_ops.sanitize_name("EndOfBlockDataExtra") == "_EndOfBlockDataExtra"
+    assert row_ops.sanitize_name("EndOfLife") == "EndOfLife"
+    assert row_ops.sanitize_name("_keep_") == "_keep_"
+    assert row_ops.sanitize_name("a\x00b") == "a_b"
+    assert row_ops.sanitize_name("a\u200bb") == "a_b"
+    assert row_ops.sanitize_name(123) == "123"
+    assert "\n" not in row_ops.sanitize_name("x\ny")
+
+
 def test_next_id_skips_live_elements_and_file_rows():
     rbd = _rbd("EventDepProbe")
     in_rows = {int(float(r["ID"])) for r in rbd.sections["NODE_DATA"].rows}

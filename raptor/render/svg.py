@@ -17,6 +17,7 @@ from typing import Any
 from xml.sax.saxutils import escape, quoteattr
 
 from raptor.core.fileio import view_transform
+from raptor.core.routing import ROUTING_MODES, Router, angled, fan_hint, path_d
 from raptor.core.fileio.typed import block_from_row, event_from_row, hier_from_row, link_from_row, node_from_row
 
 #: Hierarchy oval and event hexagon sizes, as the GUI draws them
@@ -134,14 +135,30 @@ def _shapes(rbd: Any, level: int, vt: view_transform.ViewTransform) -> list[_Sha
 _KIND_OF_REF = {"Block": "block", "Node": "node", "Event": "event", "Hier": "hier"}
 
 
-def _links(rbd: Any, by_key: dict[tuple[str, int], _Shape]) -> list[tuple[_Shape, _Shape]]:
-    out = []
+_Link = tuple[_Shape, _Shape, "list[tuple[float, float]]"]
+
+
+def _link_points(rbd: Any, level: int) -> dict[int, list[tuple[float, float]]]:
+    """The active routing points of each link at `level`, in file order.
+    The GUI draws a link through them as straight segments."""
+    out: dict[int, list[tuple[float, float]]] = {}
+    for g in getattr(rbd, "link_grips", None) or []:
+        if g.get("active", True) and int(g.get("parent", 0) or 0) == level:
+            out.setdefault(int(g.get("link", 0) or 0), []).append(
+                (float(g["x"]), float(g["y"])))
+    return out
+
+
+def _links(rbd: Any, by_key: dict[tuple[str, int], _Shape],
+           level: int = 0) -> list[_Link]:
+    out: list[_Link] = []
+    points = _link_points(rbd, level)
     for row in _rows(rbd, "LINK_DATA"):
         link = link_from_row(row)
         src = by_key.get((_KIND_OF_REF.get(link.connect_f_ref.replace("RBD", "", 1), "node"), link.connect_from_id))
         dst = by_key.get((_KIND_OF_REF.get(link.connect_t_ref.replace("RBD", "", 1), "node"), link.connect_to_id))
         if src is not None and dst is not None:
-            out.append((src, dst))
+            out.append((src, dst, points.get(int(float(row.get("ID", 0) or 0)), [])))
     return out
 
 
@@ -180,14 +197,87 @@ def _frame(boxes: list[tuple[float, float, float, float]],
     return x0, y0, max(x1 - x0, 1.0), max(y1 - y0, 1.0)
 
 
+def _routed(src: _Shape, dst: _Shape, boxes: list[tuple[float, float, float, float]],
+            router: Router, mode: str,
+            targets: list[_Shape], sources: list[_Shape]):
+    """A right-angled route from `src` to `dst`, or None (draw it straight).
+    Leaves along the page flow: sideways when the target is more across than
+    up/down, otherwise top/bottom."""
+    if src is dst:
+        return None
+    dx, dy = dst.cx - src.cx, dst.cy - src.cy
+    if abs(dx) >= 0.5 * abs(dy):
+        out_side, in_side = ("right", "left") if dx >= 0 else ("left", "right")
+    else:
+        out_side, in_side = ("bottom", "top") if dy >= 0 else ("top", "bottom")
+
+    def port(s: _Shape, side: str) -> tuple[float, float]:
+        hw, hh = s.half
+        return {"right": (s.cx + hw, s.cy), "left": (s.cx - hw, s.cy),
+                "bottom": (s.cx, s.cy + hh), "top": (s.cx, s.cy - hh)}[side]
+
+    if mode == "angled":
+        return angled(port(src, out_side), out_side, port(dst, in_side), in_side)
+    p0, p3 = port(src, out_side), port(dst, in_side)
+    hint = fan_hint(out_side, in_side, p0, p3,
+                    [t.bounds() for t in targets], [s.bounds() for s in sources])
+    return router.route(p0, out_side, p3, in_side, boxes, hint)
+
+
+def _links_svg(links: list[_Link], shapes: list[_Shape],
+               routing: str, c: dict[str, str]) -> tuple[list[str], int]:
+    """The SVG for every link, and how many were drawn routed (not as a
+    straight line)."""
+    router = Router(per_route_s=0.05, total_s=3.0, window_s=1e9)
+    fans_out: dict[int, list[_Shape]] = {}
+    fans_in: dict[int, list[_Shape]] = {}
+    for s, d, _pts in links:
+        fans_out.setdefault(id(s), []).append(d)
+        fans_in.setdefault(id(d), []).append(s)
+    # One obstacle snapshot for the whole render: rebuilding it per link
+    # made a large drawing's routing quadratic before the router's own
+    # time budget could even start.
+    boxes = [s.bounds() for s in shapes] if routing != "straight" else []
+    out: list[str] = []
+    routed = 0
+    for src, dst, pts in links:
+        if pts:
+            # Pinned by routing points (a band hand-over): straight segments
+            # from the sides facing the first and last point.
+            a = src.port(*pts[0])
+            b = dst.port(*pts[-1])
+            path = " ".join(f"{x:.1f},{y:.1f}" for x, y in [a, *pts, b])
+            out.append(f'<polyline points="{path}" fill="none" stroke="{c["link"]}" '
+                       f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+            routed += 1
+            continue
+        route = (_routed(src, dst, boxes, router, routing,
+                         fans_out[id(src)], fans_in[id(dst)])
+                 if routing != "straight" else None)
+        if route is not None:
+            routed += 1
+            out.append(f'<path d="{path_d(route)}" fill="none" stroke="{c["link"]}" '
+                       f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+            continue
+        ax, ay = src.port(dst.cx, dst.cy)
+        bx, by = dst.port(src.cx, src.cy)
+        out.append(f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}" stroke="{c["link"]}" '
+                   f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+    return out, routed
+
+
 def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
                zoom_to: list[Any] | None = None, margin: float = 12.0, theme: str = "light",
-               include_annotations: bool = True) -> tuple[str, dict[str, Any]]:
+               include_annotations: bool = True,
+               routing: str = "straight") -> tuple[str, dict[str, Any]]:
     """Draw one level of `rbd` as SVG. Returns `(svg_text, meta)`.
 
     `level` is 0 for the top level or a hierarchy id, as for the PNG
     renderer. `zoom_to` frames the named elements, padded by `margin` scene
-    units; `highlight` outlines them. Coordinates are the GUI's scene
+    units; `highlight` outlines them. `routing` is "straight" or
+    "angled" (short stubs, then a straight run) or "orthogonal" (right
+    angles only, round the other elements; a link that cannot be routed
+    within the time budget stays straight). Coordinates are the GUI's scene
     pixels, so annotation positions match the canvas."""
     if theme not in _THEMES:
         raise SvgRenderError(f"theme must be 'light' or 'dark', got {theme!r}")
@@ -195,11 +285,13 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
         raise SvgRenderError(f"level {level} is not 0 or a hierarchy id; available: {_levels(rbd)}")
     if not math.isfinite(float(margin)) or margin < 0:
         raise SvgRenderError(f"margin must be a finite value >= 0, got {margin}")
+    if routing not in ROUTING_MODES:
+        raise SvgRenderError(f"routing must be one of {ROUTING_MODES}, got {routing!r}")
     c = _THEMES[theme]
     vt = view_transform.ensure(rbd)
     shapes = _shapes(rbd, level, vt)
     by_key = {(s.kind, s.id): s for s in shapes}
-    links = _links(rbd, by_key)
+    links = _links(rbd, by_key, level)
     lit = _resolve(rbd, list(highlight or []), by_key, "highlight")
     zoomed = _resolve(rbd, list(zoom_to or []), by_key, "zoom_to")
     annos = ([a for a in (getattr(rbd, "annotations", None) or [])
@@ -215,11 +307,8 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
            f'fill="{c["link"]}"/></marker></defs>',
            f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{c["bg"]}"/>']
     out.append('<g class="links">')
-    for src, dst in links:
-        ax, ay = src.port(dst.cx, dst.cy)
-        bx, by = dst.port(src.cx, src.cy)
-        out.append(f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}" stroke="{c["link"]}" '
-                   f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+    link_svg, routed = _links_svg(links, shapes, routing, c)
+    out.extend(link_svg)
     out.append("</g>")
     out.append('<g class="elements">')
     for s in shapes:
@@ -243,7 +332,8 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
                   if s.cx >= x0 and s.cx <= x0 + w and s.cy >= y0 and s.cy <= y0 + h)
     meta = {
         "renderer": "svg", "level": level, "width": round(w), "height": round(h),
-        "elements_drawn": len(shapes), "elements_in_view": in_view, "links_drawn": len(links),
+        "elements_drawn": len(shapes), "elements_in_view": in_view, "links_drawn": len(links), "routing": routing,
+        "links_routed": routed,
         "annotations_drawn": len(annos), "highlighted": [s.name or f"{s.kind}:{s.id}" for s in lit],
     }
     return "\n".join(out) + "\n", meta

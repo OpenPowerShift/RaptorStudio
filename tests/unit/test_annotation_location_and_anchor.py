@@ -11,6 +11,7 @@ import pytest
 
 from raptor.api.annotations import (
     follow_layout,
+    layout_anchor_location,
     place_annotation,
     update_annotation,
 )
@@ -251,6 +252,14 @@ class TestAnchorValidation:
         assert len(self._anchor_issues(rbd)) == 1
 
 
+def test_vertical_layout_turns_above_below_into_a_side():
+    assert layout_anchor_location("above", "LR") == "above"
+    assert layout_anchor_location("above", "TB") == "right"
+    assert layout_anchor_location("below", "BT") == "left"
+    assert layout_anchor_location("above", "TB", "left") == "left"
+    assert layout_anchor_location("left", "TB") == "left"
+
+
 class TestNudge:
     def _model(self):
         from raptor.api import build
@@ -303,6 +312,21 @@ class TestNudge:
         before = (note["x"], note["y"])
         follow_layout(rbd)
         assert (note["x"], note["y"]) == before
+
+    def test_tb_follow_layout_puts_an_above_note_on_the_chosen_side(self):
+        rbd = self._model()
+        note = place_annotation(rbd, kind="text", text="n", adjacent_to="A",
+                                location="above")
+        follow_layout(rbd, direction="TB", label_side="right")
+        target = next(b for b in __import__(
+            "raptor.api.annotations", fromlist=["_element_boxes"]
+        )._element_boxes(rbd) if b[1] == note["anchor"]["ref"])
+        assert note["x"] >= target[4]
+        follow_layout(rbd, direction="TB", label_side="left")
+        target = next(b for b in __import__(
+            "raptor.api.annotations", fromlist=["_element_boxes"]
+        )._element_boxes(rbd) if b[1] == note["anchor"]["ref"])
+        assert note["x"] + note["w"] <= target[2]
 
     def test_nudging_is_idempotent(self):
         rbd = self._model()
