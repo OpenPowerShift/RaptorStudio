@@ -30,9 +30,12 @@ def test_load_model_reports_the_path_pass(tmp_path):
     ws, mid = _chain(tmp_path)
     seen = []
     load_model(ws.get(mid).rbd, progress=lambda *a: seen.append(a))
-    assert seen[0][0] == "Analysing paths" and seen[0][1] == 0
+    stages = list(dict.fromkeys(s[0] for s in seen))
+    assert stages == ["Reading blocks", "Analysing paths"]
     assert seen[-1][1] == seen[-1][2] > 0
-    assert [s[1] for s in seen] == sorted(s[1] for s in seen)
+    for stage in stages:                    # each stage counts up on its own
+        done = [s[1] for s in seen if s[0] == stage]
+        assert done == sorted(done)
 
 
 def test_load_model_without_a_callback_is_unchanged(tmp_path):
