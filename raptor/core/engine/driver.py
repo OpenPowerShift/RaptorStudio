@@ -828,14 +828,15 @@ def build_run_streams(model, *, stream_seed: int = 0) -> RunStreams:
     )
 
 
-def _model_from(rbd_file: RbdFile, defer_trigger: str, template):
+def _model_from(rbd_file: RbdFile, defer_trigger: str, template, progress=None):
     """A fresh model: a copy of `template`, else a load of `rbd_file`."""
     if template is not None:
         try:
             return copy.deepcopy(template)
         except RecursionError:      # a very deep model: load it the long way
             pass
-    return load_model(rbd_file, defer_trigger=resolve_defer_trigger(rbd_file, defer_trigger))
+    return load_model(rbd_file, defer_trigger=resolve_defer_trigger(rbd_file, defer_trigger),
+                      progress=progress)
 
 
 def build_engine_ctx(rbd_file: RbdFile, *, num_runs: int | None = None,
@@ -843,7 +844,7 @@ def build_engine_ctx(rbd_file: RbdFile, *, num_runs: int | None = None,
                       ao_plot_interval: float = 10.0, cost_sink=None,
                       cost_plot_interval: float = 720.0,
                       stream_jump: int = 0, stream_seed: int = 0, defer_trigger: str = "",
-                      model_template=None):
+                      model_template=None, progress=None):
     """Shared engine-state construction for `run_simulation` and the GUI's
     `StepSession` (same statements, same order, as run_simulation's former
     inline setup). Returns `(model, ctx)`.
@@ -854,8 +855,11 @@ def build_engine_ctx(rbd_file: RbdFile, *, num_runs: int | None = None,
     `model_template` is a model that `load_model` returned and nothing has
     run: a copy of it stands in for loading the file again, which on a large
     model is most of the cost of building a context. The caller must never
-    run the template itself, or the copies would start from its state."""
-    model = _model_from(rbd_file, defer_trigger, model_template)
+    run the template itself, or the copies would start from its state.
+
+    `progress(stage, done, total)` is optional and reports the slow set-up
+    passes (`Reading blocks`, then `Analysing paths`)."""
+    model = _model_from(rbd_file, defer_trigger, model_template, progress)
     runs = model.num_runs if num_runs is None else num_runs
     streams = build_run_streams(model, stream_seed=stream_seed)
     sys_streams = streams.sys_streams

@@ -103,6 +103,33 @@ def resolve_defer_trigger(rbd_file: RbdFile, choice: str) -> str:
     return rows[0].get("TriggerName", "") if rows else ""
 
 
+def _load_blocks(
+    rbd_file: RbdFile,
+    progress: Callable[[str, int, int], None] | None,
+) -> dict[int, RBDBlock]:
+    """Read `BLOCK_DATA` once, reporting in ~1% slices for a GUI progress bar."""
+    blocks_by_id: dict[int, RBDBlock] = {}
+    block_rows = rbd_file.sections["BLOCK_DATA"].rows
+    report_every = max(1, len(block_rows) // 100)
+    for index, row in enumerate(block_rows, start=1):
+        if row.get("ID") == "0":
+            continue
+        block = block_from_row(row)
+        if block.id in blocks_by_id:
+            # A duplicate ID would silently drop a block (ReleaseProbe4 ran
+            # 3 of its 5 blocks for three weeks this way). Raptor 7's
+            #own file loader has no such repair; refuse rather than guess.
+            raise ValueError(
+                f"BLOCK_DATA has a duplicate ID {block.id} ({blocks_by_id[block.id].name!r} "
+                f"and {block.name!r}) -- see raptor.core.fileio.builder.validate()")
+        blocks_by_id[block.id] = block
+        if progress is not None and index % report_every == 0:
+            progress("Reading blocks", index, len(block_rows))
+    if progress is not None and block_rows:
+        progress("Reading blocks", len(block_rows), len(block_rows))
+    return blocks_by_id
+
+
 def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
                progress: Callable[[str, int, int], None] | None = None) -> SimulationModel:
     """Load a parsed `.rbd` file's `BLOCK_DATA`/`EVENT_DATA`/`NODE_DATA`/
@@ -115,19 +142,7 @@ def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
 
     `progress(stage, done, total)` reports the slow part of set-up (see
     `build_efpa_graph`)."""
-    blocks_by_id: dict[int, RBDBlock] = {}
-    for row in rbd_file.sections["BLOCK_DATA"].rows:
-        if row.get("ID") == "0":
-            continue
-        block = block_from_row(row)
-        if block.id in blocks_by_id:
-            # A duplicate ID would silently drop a block (ReleaseProbe4 ran
-            # 3 of its 5 blocks for three weeks this way). Raptor 7's
-            #own file loader has no such repair; refuse rather than guess.
-            raise ValueError(
-                f"BLOCK_DATA has a duplicate ID {block.id} ({blocks_by_id[block.id].name!r} "
-                f"and {block.name!r}) -- see raptor.core.fileio.builder.validate()")
-        blocks_by_id[block.id] = block
+    blocks_by_id = _load_blocks(rbd_file, progress)
     # Block comments: only `maintDefer` is read by the engine.
     _comments = rbd_file.sections.get("COMMENTS")
     for row in (_comments.rows if _comments is not None else []):
@@ -139,14 +154,27 @@ def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
             if target is not None:
                 target.comment = row.get("Comment", "")
 
-    events_by_id = {event_from_row(row).id: event_from_row(row) for row in rbd_file.sections["EVENT_DATA"].rows}
+    # Each row is parsed ONCE: the old dict comprehensions called
+    # `event_from_row`/`node_from_row`/`hier_from_row` twice per row for
+    # every event, node and hierarchy. That is invisible on a small file
+    # and a real part of set-up on a 3,800-block .rbds.
+    events_by_id: dict[int, RBDEvent] = {}
+    for row in rbd_file.sections["EVENT_DATA"].rows:
+        event = event_from_row(row)
+        events_by_id[event.id] = event
     # A model with both blocks and events is supported: source runs its
     # block `GetStartCond`/`SetToInitValues` loop first, then a separate
     # event `SetToInitValues` loop, matching the
     # block-then-event kickoff order used in `run_simulation`.
 
-    nodes_by_id = {node_from_row(row).id: node_from_row(row) for row in rbd_file.sections["NODE_DATA"].rows}
-    hiers_by_id = {hier_from_row(row).id: hier_from_row(row) for row in rbd_file.sections["HIERARCHY_DATA"].rows}
+    nodes_by_id: dict[int, RBDNode] = {}
+    for row in rbd_file.sections["NODE_DATA"].rows:
+        node = node_from_row(row)
+        nodes_by_id[node.id] = node
+    hiers_by_id: dict[int, RBDHier] = {}
+    for row in rbd_file.sections["HIERARCHY_DATA"].rows:
+        hier = hier_from_row(row)
+        hiers_by_id[hier.id] = hier
     links_by_id: dict[int, Link] = {}
     # Raptor 7 renumbers LINKS 1..N on load, whatever ids the file holds
     # (block/node/event/hierarchy ids are kept). Evidence, 2026-09-23:
