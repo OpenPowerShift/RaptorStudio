@@ -667,6 +667,8 @@ class LiveOverlayMixin:
     #: Live run state cache (blocks, cap_data, model) -- see
     #: `update_live_states`'s tail and `_reapply_live_states`.
     _live_state_cache: tuple | None = None
+    _hier_boundary_cache: dict[int, tuple[int, ...]] | None = None
+    _link_file_ids_cache: list[int] | None = None
 
     def apply_weak_colors(self: DiagramView, metric: dict[int, float],  # type: ignore[misc]
                           gy: float, yr: float,
@@ -854,6 +856,9 @@ class LiveOverlayMixin:
         top = max((v for v in values.values() if v is not None), default=0.0)
         ranked = sorted((v for v in values.values() if v is not None),
                         reverse=True)
+        first_rank: dict[float, int] = {}
+        for pos, ranked_value in enumerate(ranked, start=1):
+            first_rank.setdefault(ranked_value, pos)
         for bid, item in self._block_items.items():
             v = values.get(bid)
             if v is None:
@@ -864,7 +869,7 @@ class LiveOverlayMixin:
             colour = c[f"result_{band.lower()}"]
             block = self.blocks.get(bid)
             name = getattr(block, "name", "") or f"Block {bid}"
-            rank = ranked.index(v) + 1
+            rank = first_rank[v]
             item.set_live_fill(
                 colour,
                 f"Importance — {name}: {measure} {v:.6g} on {metric_name} "

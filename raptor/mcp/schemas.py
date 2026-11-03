@@ -149,7 +149,7 @@ class AutoLayoutInput(BaseModel):
         description="Wrap after this many series elements (parallel "
                     "branches share one); None = fit the canvas")
     spacing: float = Field(
-        default=1.0, gt=0,
+        default=1.0, ge=0.25, le=3.0,
         description="Gap scale: 1 = nominal, lower = more compact, "
                     "higher = more open")
     label_side: Literal["auto", "left", "right"] = Field(

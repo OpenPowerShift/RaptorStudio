@@ -328,7 +328,7 @@ class ContextMenuMixin:
             return
         if routing_act is not None and chosen is routing_act:
             if self.insert_routing_node(
-                    getattr(clicked, "_link_num", None), mx, my) is None:
+                    int(getattr(clicked, "_link_num", 0)), mx, my) is None:
                 _view_status(self, "Cannot add a routing point on that link")
             else:
                 _view_status(self, "Routing point added")

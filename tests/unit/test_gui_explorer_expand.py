@@ -75,3 +75,35 @@ def test_search_finds_and_expands_rows_under_a_closed_folder(qapp):
     assert not root.isExpanded() or root.isExpanded()
     dock.filter_items("")
     assert not child.isHidden()
+
+
+def test_collapse_button_stays_enabled_to_cancel_a_running_expand(qapp):
+    dock, root = _dock()
+    for level in range(4):
+        parent = root if level == 0 else parent.child(0)
+        for i in range(200):
+            parent.addChild(QTreeWidgetItem([f"L{level} {i}"]))
+        parent.child(0).addChild(QTreeWidgetItem(["x"]))
+    dock.expand_all()
+    assert dock._expand_timer.isActive()
+    assert dock._collapse_button.isEnabled()
+    assert not dock._expand_button.isEnabled()
+    dock._collapse_button.click()
+    assert not dock._expand_timer.isActive()
+    assert dock._expand_button.isEnabled()
+
+
+def test_refresh_during_expand_drops_the_stale_queue(qapp):
+    """A rebuild deletes the items the queue holds; the timer must not touch them."""
+    dock, root = _dock()
+    for i in range(400):
+        child = QTreeWidgetItem([f"item {i}"])
+        child.addChild(QTreeWidgetItem(["leaf"]))
+        root.addChild(child)
+    dock.expand_all()
+    assert dock._expand_timer.isActive()
+    dock.refresh()
+    assert not dock._expand_timer.isActive()
+    assert not dock._expand_queue
+    assert dock._expand_button.isEnabled()
+    _wait_for_expand(dock, qapp)

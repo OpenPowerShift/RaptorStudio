@@ -87,8 +87,8 @@ class ExplorerDock(QWidget):
         if not self._expand_queue:
             return
         self._tree.setUpdatesEnabled(False)
+        # Collapse all stays enabled: it is how the user cancels this.
         self._expand_button.setEnabled(False)
-        self._collapse_button.setEnabled(False)
         self._expand_timer.start()
 
     def _expand_chunk(self) -> None:
@@ -100,19 +100,18 @@ class ExplorerDock(QWidget):
             self._expand_queue.popleft().setExpanded(True)
         if self._expand_queue:
             return
-        self._expand_timer.stop()
-        self._tree.setUpdatesEnabled(True)
-        self._expand_button.setEnabled(True)
-        self._collapse_button.setEnabled(True)
+        self._cancel_expand()
 
-    def collapse_all(self) -> None:
-        """Collapse every folder, cancelling an in-progress Expand all."""
+    def _cancel_expand(self) -> None:
         self._expand_timer.stop()
         self._expand_queue.clear()
         self._tree.setUpdatesEnabled(True)
-        self._tree.collapseAll()
         self._expand_button.setEnabled(True)
-        self._collapse_button.setEnabled(True)
+
+    def collapse_all(self) -> None:
+        """Collapse every folder, cancelling an in-progress Expand all."""
+        self._cancel_expand()
+        self._tree.collapseAll()
 
     def set_view(self, view: DiagramView | None):
         self._view = view
@@ -188,6 +187,8 @@ class ExplorerDock(QWidget):
         self._refresh()
 
     def _refresh(self):
+        # A rebuild deletes the items an in-progress Expand all still holds.
+        self._cancel_expand()
         self._tree.clear()
         if self._view is None:
             return

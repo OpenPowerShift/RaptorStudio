@@ -236,7 +236,7 @@ class _BlockItem(QGraphicsRectItem):
         # Forget the state colour too: `set_live_fill` skips a colour it
         # thinks is already painted, so a stale one left the item plain
         # when the same colour came back (Weak Link off and on again).
-        self._live_colour = None
+        self._live_colour: str | None = None
 
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
@@ -265,7 +265,7 @@ class _BlockItem(QGraphicsRectItem):
         # lazily: a fit-to-window large level hides labels, and creating a
         # QGraphicsTextItem + QTextDocument for every block was several
         # seconds of pure construction.
-        self._sub = None
+        self._sub: QGraphicsTextItem | None = None
         # QTextDocument's default ~4px margin is what created the
         # "gap the height of the name" between title and F/R.
         self._label.document().setDocumentMargin(0)
@@ -614,7 +614,7 @@ class _NodeItem(QGraphicsEllipseItem):
         ifont.setBold(True)
         inner.setFont(ifont)
         inner.setToolTip({"1": "Start node", "3": "End node"}.get(
-            node_type, "k-of-n node"))  # same default as _inner_tip()
+            str(node_type), "k-of-n node"))  # same default as _inner_tip()
         tm = inner.boundingRect()
         inner.setPos(-tm.width() / 2, -tm.height() / 2)
 
@@ -646,7 +646,7 @@ class _NodeItem(QGraphicsEllipseItem):
         # a retheme; otherwise `set_live_fill` sees an unchanged colour,
         # skips setBrush(), and the node keeps the themed brush while the
         # capacity gauge says it is still overlaid.
-        self._live_colour = None
+        self._live_colour: str | None = None
         type_colours = {
             1: c["operating"], 2: c["accent"],
             3: c["failed"], 4: c["relationship"],
@@ -665,7 +665,7 @@ class _NodeItem(QGraphicsEllipseItem):
 
     def _inner_tip(self) -> str:
         return {"1": "Start node", "3": "End node"}.get(
-            self._node_type, "k-of-n node")
+            str(self._node_type), "k-of-n node")
 
     def set_anal_label(self, text: str | None,
                        tooltip: str | None = None) -> None:
@@ -1696,7 +1696,7 @@ class _LinkItem(QGraphicsPathItem):
         # Forget the state colour too: `set_live_fill` skips a colour it
         # thinks is already painted, so a stale one left the item plain
         # when the same colour came back (Weak Link off and on again).
-        self._live_colour = None
+        self._live_colour: str | None = None
         self.setPen(QPen(QColor(c["accent"] if self.isSelected()
                                 else c["muted"]),
                          3 if self.isSelected() else 2.5))
@@ -1823,7 +1823,7 @@ class _EventItem(QGraphicsPolygonItem):
         self._event_id = event_id
         self._on_moved = on_moved
         self._r = r       # vertical half-height, for link ports/normals
-        self._half_w = r  # horizontal half-width; `_refit` widens it
+        self._half_w: float = r  # horizontal half-width; `_refit` widens it
         self._phased = False
         self._link_cut: str | None = None  # None | "linked" | "cut" -- Raptor 7 overlay
 
@@ -1920,7 +1920,7 @@ class _EventItem(QGraphicsPolygonItem):
         self._prob_label.setDefaultTextColor(QColor(c["text"]))
         # Like the other items: a retheme clears the cached overlay
         # colour so Weak Link/Cost/Spares can repaint the same colour.
-        self._live_colour = None
+        self._live_colour: str | None = None
 
     def set_live_fill(self, colour_hex: str, tooltip: str | None = None):
         """Solid state colour during the live simulation view (Appendix
@@ -2057,7 +2057,7 @@ class _HierItem(QGraphicsEllipseItem):
         # Forget the state colour too: `set_live_fill` skips a colour it
         # thinks is already painted, so a stale one left the item plain
         # when the same colour came back (Weak Link off and on again).
-        self._live_colour = None
+        self._live_colour: str | None = None
 
     @staticmethod
     def _dsi_triangles() -> QPainterPath:

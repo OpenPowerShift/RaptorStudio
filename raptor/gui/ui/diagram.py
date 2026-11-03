@@ -17,7 +17,7 @@ import itertools
 import math
 import os
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from shiboken6 import isValid
 from PySide6.QtCore import (
@@ -230,7 +230,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # scene. It was one module-wide dict, so two open windows would
         # have snapped to each other's grid.
         self._snap_state = {"x": 0.0, "y": 0.0}
-        self._scene._snap_state = self._snap_state
+        self._scene._snap_state = self._snap_state  # type: ignore[attr-defined]
         # The view owns its scene. Left parentless, the scene is freed by
         # Python whenever its wrapper goes, which the cycle collector may
         # do after the view's C++ side is gone; ~QGraphicsScene then calls
@@ -599,7 +599,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # (entering a hierarchy). A move invalidates them for every endpoint
         # of every link whose route can change.
         for link in affected:
-            for end in (link._from, link._to):
+            for end in cast(
+                    "tuple[Any, Any]", (link._from, link._to)):
                 end._route_centre = None
                 end._route_horizontal = None
                 end._route_flow_sign = None
@@ -704,7 +705,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Units for the canvas labels, read once: the per-block label
         # formatter must not re-parse SYSTEM_DATA on every refresh.
         self._label_units = ""
-        self._label_mode_cache = None
+        self._label_mode_cache: str | None = None
         self._deferred_sublabels = False
         try:
             from raptor.core.fileio.typed import system_config_from_row
@@ -1433,10 +1434,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._route_grips = {}
         for entry in getattr(self._rbd_ref, "link_grips", []):
             link_id = _safe_int(entry.get("link"))
-            link = next((item for item in self._links
-                         if item._link_num == link_id), None)
-            if link is None:
+            found = next((item for item in self._links
+                          if item._link_num == link_id), None)
+            if found is None:
                 continue
+            link = cast(Any, found)
             grip = _RouteGripItem(
                 link, QPointF(float(entry.get("x", 0.0)),
                               float(entry.get("y", 0.0))),
@@ -3025,11 +3027,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def _block_label_mode(self) -> str:
         """The label mode, read once per rebuild/refresh, not per block."""
-        mode = getattr(self, "_label_mode_cache", None)
-        if mode is None:
-            mode = str(app_settings.get("appearance/block_labels",
-                                        block_labels.DEFAULT_MODE))
-            self._label_mode_cache = mode
+        cached = getattr(self, "_label_mode_cache", None)
+        if cached is not None:
+            return str(cached)
+        mode = str(app_settings.get("appearance/block_labels",
+                                    block_labels.DEFAULT_MODE))
+        self._label_mode_cache = mode
         return mode
 
     def _apply_block_labels(self, item, block):
@@ -3769,7 +3772,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def _capacity_analysis_enabled(rbd: RbdFile | None) -> bool:
         section = rbd.sections.get("SYSTEM_DATA") if rbd is not None else None
         row = section.rows[0] if section is not None and section.rows else None
-        return bool(row) and cell_truthy(row.get("capacityAnalysis"))
+        return row is not None and cell_truthy(row.get("capacityAnalysis"))
 
     def insert_routing_node(self, link_num: int, model_x: float,
                             model_y: float, name: str | None = None):
@@ -3851,8 +3854,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             rbd.link_grips = [a for a in getattr(rbd, "link_grips", [])
                               if int(a.get("id", 0)) != aid]
             grips = self._route_grips.get(link_id, [])
-            grip = next((g for g in grips if g._entry_id == aid), None)
-            if grip is not None:
+            found_grip = next((g for g in grips if g._entry_id == aid), None)
+            if found_grip is not None:
+                grip = found_grip
                 link = grip._link
                 if link is not None and isValid(link):
                     link.remove_grip(grip)
@@ -3975,7 +3979,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         """Drop cached centres/port-side decisions after a topology edit."""
         for table in (self._block_items, self._node_items,
                       self._event_items, getattr(self, "_hier_items", {})):
-            for item in table.values():
+            for item in cast("dict[int, Any]", table).values():
                 item._route_centre = None
                 item._route_horizontal = None
                 item._route_flow_sign = None
@@ -5488,7 +5492,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def _editing_annotation(self):
         item = self._scene.focusItem()
         if isinstance(item, _AnnoText) and \
-                item.textInteractionFlags() & Qt.TextEditorInteraction:
+                item.textInteractionFlags() & Qt.TextInteractionFlag.TextEditorInteraction:
             return item
         return None
 
@@ -5976,9 +5980,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         for kind, oid, _start, _now in moves:
             section = section_of[kind]
             moved_by_section.setdefault(section, set()).add(oid)
-            sec = req(self._rbd_ref).sections.get(section)
-            row = next((r for r in req(sec).rows
-                        if _safe_int(r.get("ID")) == oid), None)
+            row = self._row_for(section, oid)
             old = row.get(_PARENT_COLS[section], "0") if row else "0"
             if old != str(hid):
                 parent_moves.append((section, oid, old))
@@ -6012,8 +6014,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             if sec is None:
                 continue
             for oid in oids:
-                row = next((r for r in sec.rows
-                            if _safe_int(r.get("ID")) == oid), None)
+                row = self._row_for(section, oid)
                 old = row.get(_PARENT_COLS[section], "0") if row else "0"
                 if str(old) != str(self._current_parent):
                     continue
@@ -6861,7 +6862,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # Exact drawn extents for this layout. `view_transform.derive`
             # uses them for the scale; without this it would reserve the
             # fixed 108 px block and let a 216 px name overlap.
-            rbd._render_extents = render_extents
+            rbd._render_extents = render_extents  # type: ignore[attr-defined]
             self._compute_model_transform(rbd)
             # Annotations go with the diagram: anchored ones next to their
             # element again, the others at the same place in the model.

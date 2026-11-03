@@ -37,6 +37,7 @@ import logging
 import math
 import itertools
 import time
+from collections import deque
 from bisect import bisect_left, bisect_right
 
 log = logging.getLogger(__name__)
@@ -288,10 +289,10 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
             succ.setdefault(a, set()).add(b)
             pred.setdefault(b, set()).add(a)
     layer: dict = {}
-    queue = [(e, 0) for e in entries if e in member_set]
+    queue = deque((e, 0) for e in entries if e in member_set)
     visits: dict = {}
     while queue:
-        k, d = queue.pop(0)
+        k, d = queue.popleft()
         if d <= layer.get(k, -1):
             continue
         # A cyclic LINK_DATA graph would otherwise enqueue forever at

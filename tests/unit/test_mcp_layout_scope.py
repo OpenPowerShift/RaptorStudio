@@ -184,3 +184,23 @@ def test_auto_layout_input_schema_documents_the_same_limits():
         AutoLayoutInput(model_id="m_1", max_columns=0)
     with pytest.raises(ValidationError):
         AutoLayoutInput(model_id="m_1", spacing=0)
+
+
+@pytest.mark.parametrize("spacing", [
+    0, -1, 0.1, 3.5, 1e300, float("inf"), float("-inf"), float("nan")])
+def test_spacing_outside_the_gui_range_is_refused(hierarchy_model, spacing):
+    """An unbounded factor would write absurd coordinates into the model."""
+    from raptor.mcp.tools_model import auto_layout
+    before = {i: _xy(_rows(hierarchy_model), i) for i in ("1", "4")}
+    result = auto_layout(hierarchy_model, spacing=spacing)
+    assert result.is_error, _text(result)
+    assert "spacing" in _text(result)
+    assert {i: _xy(_rows(hierarchy_model), i) for i in ("1", "4")} == before
+
+
+def test_auto_layout_input_schema_bounds_spacing():
+    from raptor.mcp.schemas import AutoLayoutInput
+    for bad in (0.1, 3.5):
+        with pytest.raises(ValidationError):
+            AutoLayoutInput(model_id="m_1", spacing=bad)
+    assert AutoLayoutInput(model_id="m_1", spacing=3.0).spacing == 3.0

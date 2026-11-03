@@ -1343,6 +1343,13 @@ def _layout_scope(rbd: Any, hierarchy: str | int | None,
                                       parent == "0")
 
 
+#: Bounds for the auto_layout spacing factor. 1 is nominal; far outside this
+#: range the layout is unusable, and an unbounded value (inf, 1e300) would
+#: write absurd coordinates into the model file.
+_MIN_SPACING = 0.25
+_MAX_SPACING = 3.0
+
+
 def _validate_layout_args(direction: str, max_columns: int | None) -> None:
     """Reject a bad direction / column limit before any layout work.
 
@@ -1410,6 +1417,27 @@ def _apply_layout_positions(rbd: Any,
     return applied
 
 
+def _selected_members(rbd: Any, selected: set[tuple[str, str]],
+                      kind_of: dict[str, str]) -> dict[tuple[str, int], dict]:
+    """The rows for `selected`, found through one id index per section
+    (a per-element scan was quadratic in the selection size)."""
+    members: dict[tuple[str, int], dict] = {}
+    by_id: dict[str, dict[str, dict]] = {}
+    for sec, eid in selected:
+        kind = kind_of.get(sec)
+        if kind is None:
+            continue
+        if sec not in by_id:
+            index: dict[str, dict] = {}
+            for r in rbd.section(sec).rows:
+                index.setdefault(str(r.get("ID")), r)
+            by_id[sec] = index
+        row = by_id[sec].get(eid)
+        if row is not None:
+            members[(kind, int(float(eid)))] = row
+    return members
+
+
 def _apply_layout_selection(rbd: Any,  # noqa: C901
                            selected: set[tuple[str, str]],
                            report: dict | None = None, *,
@@ -1424,15 +1452,7 @@ def _apply_layout_selection(rbd: Any,  # noqa: C901
     )
     kind_of = {"BLOCK_DATA": "block", "NODE_DATA": "node",
                "EVENT_DATA": "event", "HIERARCHY_DATA": "hier"}
-    members: dict[tuple[str, int], dict] = {}
-    for sec, eid in selected:
-        kind = kind_of.get(sec)
-        if kind is None:
-            continue
-        row = next((r for r in rbd.section(sec).rows
-                    if str(r.get("ID")) == eid), None)
-        if row is not None:
-            members[(kind, int(float(eid)))] = row
+    members = _selected_members(rbd, selected, kind_of)
     if not members:
         return 0
     edges = []
@@ -1520,7 +1540,7 @@ def auto_layout(model_id: str,
     `direction` is LR/RL/TB/BT; `max_columns` wraps the flow after that
     many series elements (parallel branches share one position) into a new
     band instead of waiting for the canvas width. `spacing` scales every
-    gap (1 = nominal, lower compacts, higher opens it up). `label_side`
+    gap (0.25-3; 1 = nominal, lower compacts, higher opens it up). `label_side`
     places above/below labels on the left or right when the flow is
     top-to-bottom (auto = right for TB, left for BT). Use the existing
     View > Link style `orthogonal` setting (or `render_diagram`) for
@@ -1548,8 +1568,9 @@ def auto_layout(model_id: str,
         spacing = float(spacing)
     except (TypeError, ValueError, OverflowError):
         raise ValueError("spacing must be a positive number") from None
-    if not spacing > 0.0:
-        raise ValueError("spacing must be a positive number")
+    if not _MIN_SPACING <= spacing <= _MAX_SPACING:
+        raise ValueError(f"spacing must be between {_MIN_SPACING} and "
+                         f"{_MAX_SPACING}; got {spacing!r}")
     if label_side not in ("auto", "left", "right"):
         raise ValueError("label_side must be auto, left or right")
     context.require_write()
