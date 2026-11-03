@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import pytest
 
-from raptor.core.engine.graph import build_efpa_graph, upstream_domains
+from raptor.core.engine.graph import (
+    _index_outgoing, _walk_forward, build_efpa_graph, upstream_domains,
+)
 from raptor.core.engine.load import load_model
 from raptor.core.fileio.rbd import load_rbd
 
@@ -222,3 +224,38 @@ def test_a_long_series_chain_loads_without_recursion():
     model = load_model(build_from_spec(spec, auto_layout=False))
     assert len(model.blocks_by_id) == n
     assert len(model.links_by_id) == n + 1
+
+
+def test_a_series_chain_shares_one_forward_walk_cache():
+    """Each block in a block-to-block series used to walk the whole tail
+    again: quadratic, and minutes on a big model before Failure Effects View
+    even opened. The graph build now passes one memo through every walk, so
+    the shared tail is discovered once and every block still gets the same
+    landing node/link."""
+    from raptor.api.build import build_from_spec
+
+    n = 300
+    spec = {
+        "blocks": [{"name": f"B{i}"} for i in range(n)],
+        "nodes": [{"name": "Start", "type": "start"},
+                  {"name": "End", "type": "end"}],
+        "links": ([{"from": "Start", "to": "B0"}]
+                  + [{"from": f"B{i}", "to": f"B{i + 1}"}
+                     for i in range(n - 1)]
+                  + [{"from": f"B{n - 1}", "to": "End"}]),
+        "system": {"term_condition": 8760, "num_runs": 1},
+    }
+    model = load_model(build_from_spec(spec, auto_layout=False))
+    outgoing = _index_outgoing(model.links_by_id)
+    memo: dict[tuple[str, int], tuple[int, int]] = {}
+    blocks = sorted(model.blocks_by_id)
+    expected = _walk_forward("RBDBlock", blocks[0], outgoing,
+                             model.hiers_by_id, None, None)
+    for block_id in blocks:
+        assert _walk_forward("RBDBlock", block_id, outgoing,
+                             model.hiers_by_id, None, memo) == expected
+    # The first walk cached its whole tail; every later block is a hit.
+    assert len(memo) == n
+    # And the graph build agrees: each block points at that same final link.
+    assert {b.downstream_link_id for b in model.blocks_by_id.values()} == {
+        expected[1]}

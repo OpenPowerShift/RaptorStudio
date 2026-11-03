@@ -89,6 +89,42 @@ def test_asking_for_capacity_changes_nothing_fev_decides(fixture):
         assert quiet.logs == asked.logs
 
 
+def test_capacity_is_computed_once_per_state(monkeypatch):
+    """The status bar and the System Status window both ask for the flow of
+    one state; recalculating it for the second read was wasted work on every
+    click of a capacity model."""
+    import raptor.core.engine.fev as fev_mod
+    calls = []
+    real = fev_mod.analyze_capacity
+
+    def counting(*args, **kwargs):
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(fev_mod, "analyze_capacity", counting)
+    session = _session("Capacity2")
+    first = session.capacity()
+    assert session.capacity() is first
+    assert len(calls) == 1
+    block = next(b for b in session.model.blocks_by_id.values()
+                 if b.op_status.value == "Running")
+    session.click_block(block.id)
+    session.capacity()
+    session.capacity()
+    assert len(calls) == 2
+
+
+def test_fev_session_reports_setup_progress():
+    seen: list[tuple[str, int, int]] = []
+    session = FevSession(load_rbd(str(GOLD / "Capacity2" / "input.rbd")),
+                         progress=lambda stage, done, total:
+                         seen.append((stage, done, total)))
+    assert session is not None
+    stages = [s[0] for s in seen]
+    assert "Reading blocks" in stages and "Analysing paths" in stages
+    assert "Preparing the view" in stages
+
+
 def test_a_model_without_capacity_analysis_has_none():
     assert _session("HierarchyExample").capacity() is None
 

@@ -112,6 +112,7 @@ def _walk_forward(
     outgoing: dict[tuple[str, int], list[Link]],
     hiers_by_id: dict[int, RBDHier],
     names: NameResolver | None = None,
+    memo: dict[tuple[str, int], tuple[int, int]] | None = None,
 ) -> tuple[int, int]:
     """Follow a block/event/node's outgoing connection forward, through any
     further `RBDBlock`/`RBDEvent` targets (a block or event connecting directly
@@ -119,6 +120,14 @@ def _walk_forward(
     `RBDNode`. Returns `(node_id, link_id)` -- the `NRBDDownstreamArray`/
     `NRBDPathArray` entry `RunEFPA` computes via its `WHILE lookingForNode`
     loop.
+
+    `memo` (when given) caches successful results for the duration of one
+    `build_efpa_graph` call. A long series of block-to-block links used to
+    walk the same tail once per block: on a 10,000-block chain that was
+    quadratic and took about a minute, all of it re-discovered for every
+    block. Caching makes the shared tail cost one walk. Only successful
+    walks are stored; a dead end or cycle still raises from the element
+    that actually has the problem, exactly as before.
 
     A `RBDHier` target (a node connecting directly into a hierarchy, no
     intervening `RBDNode`) redirects to that hierarchy's own `in_id` node
@@ -138,16 +147,22 @@ def _walk_forward(
     series chain, and a 500-block model would otherwise overflow Python's
     recursion limit while *loading* (before the simulation even starts).
     """
-    where = f"{kind} id={obj_id}'s forward walk"
+    memo = {} if memo is None else memo
+    trail: list[tuple[str, int]] = []
     visited: set[tuple[str, int]] = set()
     while True:
         key = (kind, obj_id)
+        cached = memo.get(key)
+        if cached is not None:
+            result = cached
+            break
         if key in visited:
             raise ValueError(
                 f"{_describe(names, kind, obj_id)} is part of a forward-link "
                 f"cycle -- remove the loop (connect it to a node instead), "
                 f"then re-validate")
         visited.add(key)
+        trail.append(key)
         links = outgoing.get(key)
         if not links:
             # NAME the element -- and name THIS one, not whatever the walk
@@ -166,17 +181,22 @@ def _walk_forward(
         # choice anyway.
         link = min(links, key=lambda l: l.object_num)
         if link.connect_t_ref == "RBDNode":
-            return link.connect_to_id, link.object_num
+            result = (link.connect_to_id, link.object_num)
+            break
         if link.connect_t_ref == "RBDHier":
-            return hiers_by_id[link.connect_to_id].in_id, link.object_num
+            result = (hiers_by_id[link.connect_to_id].in_id, link.object_num)
+            break
         if link.connect_t_ref in ("RBDBlock", "RBDEvent"):
             kind, obj_id = link.connect_t_ref, link.connect_to_id
-            where = f"{kind} id={obj_id}'s forward walk"
             continue
         raise NotImplementedError(
-            f"{where} reached a {link.connect_t_ref} target "
+            f"{kind} id={obj_id}'s forward walk reached a "
+            f"{link.connect_t_ref} target "
             "-- only RBDNode/RBDBlock/RBDEvent/RBDHier forward targets are ported"
         )
+    for key in trail:
+        memo[key] = result
+    return result
 
 
 def _link_target(
@@ -185,20 +205,22 @@ def _link_target(
     hiers_by_id: dict[int, RBDHier],
     where: str,
     names: NameResolver | None = None,
+    memo: dict[tuple[str, int], tuple[int, int]] | None = None,
 ) -> tuple[int, int]:
     """The `(node_id, link_id)` one outgoing link lands on: a node directly,
     a hierarchy's In node, or (through a block/event) wherever that
     element's own walk lands. See `_walk_forward`.
 
     `names` is threaded through so a dead end found several hops along
-    still reports the element that is actually unconnected."""
+    still reports the element that is actually unconnected; `memo` shares
+    the forward-walk cache across the whole graph build."""
     if link.connect_t_ref == "RBDNode":
         return link.connect_to_id, link.object_num
     if link.connect_t_ref == "RBDHier":
         return hiers_by_id[link.connect_to_id].in_id, link.object_num
     if link.connect_t_ref in ("RBDBlock", "RBDEvent"):
         return _walk_forward(link.connect_t_ref, link.connect_to_id,
-                             outgoing, hiers_by_id, names)
+                             outgoing, hiers_by_id, names, memo)
     raise NotImplementedError(
         f"{where} reached a {link.connect_t_ref} target "
         "-- only RBDNode/RBDBlock/RBDEvent/RBDHier forward targets are ported"
@@ -210,6 +232,7 @@ def _node_forward_targets(
     hiers_by_id: dict[int, RBDHier],
     outgoing: dict[tuple[str, int], list[Link]],
     names: NameResolver | None = None,
+    memo: dict[tuple[str, int], tuple[int, int]] | None = None,
 ) -> tuple[list[int], list[int]]:
     """The raw `(connect_to, connect_path)` pair for one node's outgoing
     connection(s). A hierarchy Out (`type_node=5`) node's "connection" is its
@@ -232,7 +255,7 @@ def _node_forward_targets(
     if node.type_node == 5:
         links += outgoing.get(("RBDNode", node.id), [])
     targets = [_link_target(link, outgoing, hiers_by_id,
-                            f"node id={node.id}'s outgoing link", names)
+                            f"node id={node.id}'s outgoing link", names, memo)
                for link in links]
     return [t[0] for t in targets], [t[1] for t in targets]
 
@@ -377,6 +400,10 @@ def build_efpa_graph(
     # cannot see them either.
     _drop_surplus_outgoing(links_by_id)
     outgoing = _index_outgoing(links_by_id)
+    #: One cache for every forward walk in this build. The walk result for a
+    #: block/event is fixed by the static links, so a series chain pays for
+    #: its shared tail once instead of once per element (see `_walk_forward`).
+    forward_memo: dict[tuple[str, int], tuple[int, int]] = {}
     # So an unconnected element is named in the error rather than reported
     # as a bare id -- these ids appear on no diagram.
     names = _make_name_resolver(nodes_by_id, blocks_by_id, events_by_id,
@@ -437,7 +464,7 @@ def build_efpa_graph(
             # hierarchy-internal links (In -> internal block -> path node),
             # and capacity's `FindCapPaths` walks through an In node via these.
             node.next_node_ids, node.next_node_link_ids = _node_forward_targets(
-                node, hiers_by_id, outgoing, names)
+                node, hiers_by_id, outgoing, names, forward_memo)
             continue
         node.in_paths_array = list(incoming_by_node.get(node.id, []))
         if node.type_node == 3:  # End: no downstream (ReconfigureSystem's
@@ -450,7 +477,7 @@ def build_efpa_graph(
         # Raptor 7). Harmless for everything else: nothing
         # outside capacity reads a Start node's nrbd arrays.
         node.next_node_ids, node.next_node_link_ids = _node_forward_targets(
-                node, hiers_by_id, outgoing, names)
+                node, hiers_by_id, outgoing, names, forward_memo)
 
     # RunEFPA's block/In-node fix-up (Raptor 7, "fixes
     # blocks connected into an IN node"): a block whose forward walk
@@ -463,7 +490,7 @@ def build_efpa_graph(
     deferred_in_landings: list[tuple[RBDBlock | RBDEvent, RBDHier]] = []
     for block in blocks_by_id.values():
         node_id, link_id = _walk_forward(
-            "RBDBlock", block.id, outgoing, hiers_by_id, names)
+            "RBDBlock", block.id, outgoing, hiers_by_id, names, forward_memo)
         if nodes_by_id[node_id].type_node == 4:
             deferred_in_landings.append(
                 (block, hiers_by_id[nodes_by_id[node_id].parent_id]))
@@ -472,7 +499,7 @@ def build_efpa_graph(
 
     for event in events_by_id.values():
         node_id, link_id = _walk_forward(
-            "RBDEvent", event.id, outgoing, hiers_by_id, names)
+            "RBDEvent", event.id, outgoing, hiers_by_id, names, forward_memo)
         if nodes_by_id[node_id].type_node == 4:
             deferred_in_landings.append(
                 (event, hiers_by_id[nodes_by_id[node_id].parent_id]))

@@ -57,59 +57,72 @@ def _wrapped_list(label: str, names: list[str]) -> list[str]:
     return lines
 
 
-def fmeca_lists(fev) -> dict[str, list[str]]:
-    """The element names behind each Failure Effects list, in Raptor 7's order
-    (what `build_fmeca` lays out as text; also the structured form for the API)."""
+def fmeca_entries(fev) -> dict[str, list[tuple[str, str, int]]]:
+    """The element names and locators behind each Failure Effects list.
+
+    Each entry is ``(name, kind, id)``; ``kind`` is the canvas locator's own
+    vocabulary (``"block"``/``"event"``/``"node"``/``"hier"``), so a GUI can
+    select the exact element without matching names (which need not be
+    unique). Order is Raptor 7's own, as `fmeca_lists` returns it.
+    """
     model = fev.model
-    cut: list[str] = []
-    linked: list[str] = []
-    failed: list[str] = []
-    induced: list[str] = []
-    idle: list[str] = []
-    pm: list[str] = []
-    failed_events: list[str] = []
+    cut: list[tuple[str, str, int]] = []
+    linked: list[tuple[str, str, int]] = []
+    failed: list[tuple[str, str, int]] = []
+    induced: list[tuple[str, str, int]] = []
+    idle: list[tuple[str, str, int]] = []
+    pm: list[tuple[str, str, int]] = []
+    failed_events: list[tuple[str, str, int]] = []
     for b in model.blocks_by_id.values():
         if b.active_status == ActiveStatus.CUT:
-            cut.append(b.name)
+            cut.append((b.name, "block", b.id))
         elif b.active_status == ActiveStatus.LINKED:
-            linked.append(b.name)
+            linked.append((b.name, "block", b.id))
         elif b.op_status == BlockStatus.REPAIRING:
-            (induced if b.run_state.fev_induced_by_dependency else failed).append(b.name)
+            (induced if b.run_state.fev_induced_by_dependency else failed).append(
+                (b.name, "block", b.id))
         elif b.op_status == BlockStatus.IDLE:
-            idle.append(b.name)
+            idle.append((b.name, "block", b.id))
         elif b.op_status == BlockStatus.PM:
-            pm.append(b.name)
+            pm.append((b.name, "block", b.id))
     for e in model.events_by_id.values():
         if e.active_status == ActiveStatus.CUT:
-            cut.append(e.name)
+            cut.append((e.name, "event", e.id))
         elif e.active_status == ActiveStatus.LINKED:
-            linked.append(e.name)
+            linked.append((e.name, "event", e.id))
         elif e.op_status == EventStatus.FAILURE:
-            failed_events.append(e.name)
+            failed_events.append((e.name, "event", e.id))
 
-    down_nodes: list[str] = []
-    degraded_nodes: list[str] = []
-    down_subs: list[str] = []
-    degraded_subs: list[str] = []
+    down_nodes: list[tuple[str, str, int]] = []
+    degraded_nodes: list[tuple[str, str, int]] = []
+    down_subs: list[tuple[str, str, int]] = []
+    degraded_subs: list[tuple[str, str, int]] = []
     down_like = (NodeStatus.DOWN, NodeStatus.IDLE, NodeStatus.PM)
     for n in model.nodes_by_id.values():
         if n.type_node == 2:
             if n.status in down_like:
-                down_nodes.append(n.node_name)
+                down_nodes.append((n.node_name, "node", n.id))
             elif n.status == NodeStatus.DEGRADED:
-                degraded_nodes.append(n.node_name)
+                degraded_nodes.append((n.node_name, "node", n.id))
         elif n.type_node == 5:
             hier = model.hiers_by_id[n.parent_id]
             if n.status in down_like:
-                down_subs.append(hier.name)
+                down_subs.append((hier.name, "hier", hier.id))
             elif n.status == NodeStatus.DEGRADED:
-                degraded_subs.append(hier.name)
+                degraded_subs.append((hier.name, "hier", hier.id))
     return {
         "cut": cut, "linked": linked, "failed": failed, "failed_events": failed_events,
         "induced": induced, "idle": idle, "pm": pm,
         "down_subsystems": down_subs, "degraded_subsystems": degraded_subs,
         "down_nodes": down_nodes, "degraded_nodes": degraded_nodes,
     }
+
+
+def fmeca_lists(fev) -> dict[str, list[str]]:
+    """The element names behind each Failure Effects list, in Raptor 7's order
+    (what `build_fmeca` lays out as text; also the structured form for the API)."""
+    return {key: [name for name, _kind, _id in entries]
+            for key, entries in fmeca_entries(fev).items()}
 
 
 def build_fmeca(fev, *, show_criticality: bool = False) -> list[str]:

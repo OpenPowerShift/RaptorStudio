@@ -46,6 +46,10 @@ def test_a_failure_shows_the_delivered_flow(qapp):
         assert "Flow 1150 of 1500 (76.7%)" in w._statusbar.currentMessage()
         text = w._fev_text()
         assert "CAPACITY" in text and "Delivered Flow:     1150 of 1500" in text
+        rows = w._fev_inspector._rows
+        delivered = next(row for row in rows if row[1] == "Delivered flow")
+        assert delivered[2] == "1150" and "1500" in delivered[3]
+        assert ("CAPACITY", "", "", "") in rows
     finally:
         _close(w)
 
@@ -56,5 +60,8 @@ def test_a_model_without_capacity_analysis_shows_no_flow(qapp):
         w._fev_view_action.setChecked(True)
         assert "Flow" not in w._statusbar.currentMessage()
         assert "CAPACITY" not in w._fev_text()
+        rows = w._fev_inspector._rows
+        assert not any(row[1] == "Delivered flow" for row in rows)
+        assert ("Capacity", "Not analysed", "", "Capacity analysis is off") in rows
     finally:
         _close(w)
