@@ -17,6 +17,10 @@ from raptor.core.fileio.xlsx_writer import Sheet, write_xlsx
 def _summary_rows(result: dict[str, Any]) -> list[list[Any]]:
     rows: list[list[Any]] = [["Model", result["model"]],
                              ["Mode", result["mode"]]]
+    if result.get("hierarchy"):
+        rows.append(["Hierarchy", result["hierarchy"]])
+        rows.append(["Scope", "standalone port extension "
+                              "(In becomes Start, Out becomes End)"])
     unit = result.get("units") or ""
     if result["mode"] == "reliability":
         rows += [["Mission time", result.get("time")],
@@ -43,6 +47,8 @@ def _summary_rows(result: dict[str, Any]) -> list[list[Any]]:
         rows.append(["Ignored", ", ".join(scope["ignore"])])
     if scope.get("standby"):
         rows.append(["Standby treated as", scope["standby"]])
+    if scope.get("dependencies"):
+        rows.append(["Dependencies treated as", scope["dependencies"]])
     rows.append(["Solver size (BDD nodes)", result.get("bdd_nodes")])
     return rows
 

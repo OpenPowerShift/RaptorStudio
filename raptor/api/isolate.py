@@ -34,7 +34,7 @@ from typing import Any
 from raptor.core.fileio import builder
 from raptor.core.fileio.rbd import RbdFile
 
-DEP_TREATMENTS = ("up", "system", "refuse")
+DEP_TREATMENTS = ("up", "down", "system", "refuse")
 POOL_TREATMENTS = ("full", "share", "refuse")
 STREAM_TREATMENTS = ("keep", "separate")
 
