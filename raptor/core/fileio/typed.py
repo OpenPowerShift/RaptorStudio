@@ -96,7 +96,7 @@ def row_int(value: object, default: int = -1) -> int:
         # than pretending the annotation can know. The `except TypeError`
         # below is exactly that case, and it is why the function is total.
         return int(float(cast("Any", value)))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
 
 
@@ -109,7 +109,7 @@ def int_or_none(value: object) -> int | None:
     """
     try:
         return int(float(cast("Any", value)))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
