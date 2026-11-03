@@ -19,7 +19,8 @@ import re
 import time
 from typing import Any, cast
 from pathlib import Path
-from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal)
+from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal,
+                            QEventLoop)
 from PySide6.QtGui import (QCursor, QKeySequence, QPainter, QColor, QPixmap, QDesktopServices,
                            QShortcut)
 from PySide6.QtCore import QRectF
@@ -322,6 +323,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     _bg_thread: Any = None
     _bg_last_progress: Any = None
     _bg_last_bar: Any = None
+    #: True while ResultsDock.set_results is populating; its progress
+    #: callback pumps the event loop, which must not re-enter the poll
+    #: tick or start a second population.
+    _results_populating: bool = False
 
     def __init__(self):
         super().__init__()
@@ -4242,6 +4247,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         from raptor.gui.ui.result_streams import ResultStream
         self._close_report_streams()
         streams: dict = {}
+        # The End-of-Run report is O(runs x elements). Always spool it to a
+        # temp stream; the Results dock shows a bounded preview and Save
+        # Raw Report exports the whole file. This is not a user-facing
+        # "Files & Reports" opt-in: without it the GUI has to hold the
+        # whole report in RAM.
+        streams["end_of_run"] = ResultStream("end_of_run")
         acts = self._report_stream_actions
         if acts["ao_plot"].isChecked():
             # The engine writes its own file header once on first sight
@@ -4316,6 +4327,20 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         for s in getattr(self, "_active_report_streams", None) or []:
             s.close()
         self._active_report_streams = []
+
+    @staticmethod
+    def _discard_report_streams(streams) -> None:
+        """Close a batch's streams that never became the active set (the
+        run failed before `_remember_report_streams`). Without this their
+        temp files are orphaned: every batch opens an End-of-Run stream,
+        so a failed run would leak one file per attempt."""
+        for s in (streams or {}).values():
+            if s is None:
+                continue
+            try:
+                s.close()
+            except Exception:       # noqa: BLE001 - cleanup must not mask
+                pass
 
     # -- window geometry ----------------------------------------------
     #
@@ -4918,6 +4943,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Synchronous/blocking: the engine runs on the GUI thread, and
         # the progress/event callbacks below pump the event loop so the
         # window stays responsive and Stop can land mid-run.
+        if getattr(self, "_results_populating", False):
+            # The previous batch's results are still being built and the
+            # population stages pump the event loop (paint feedback).
+            # Starting a run now would clear the dock under its own
+            # half-built tables. The click is queued, not lost.
+            self._statusbar.showMessage(
+                "Still rendering the previous results — try again in a "
+                "moment.", 5000)
+            return
         if self._rbd is None:
             return
         # A spin box commits on editingFinished, which F5 does not cause.
@@ -5200,6 +5234,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 ao_sink=streams.get("ao"),
                 capacity_sink=streams.get("capacity"),
                 cost_sink=streams.get("cost"),
+                end_of_run_sink=streams.get("end_of_run"),
+                report_progress=self._report_stage_progress,
                 collect_logs=self._report_stream_actions[
                     "event_log"].isChecked(),
                 metadata_sink=run_metadata,
@@ -5234,6 +5270,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._run_progress_label.setVisible(False)
             self._clear_run_eta()
             self._hide_phase_labels()
+            self._discard_report_streams(streams)
             msgbox.warning(
                 self, "Unsupported Model Feature",
                 f"This model uses a feature the simulation engine doesn't support yet:\n\n{e}",
@@ -5251,6 +5288,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._run_progress_label.setVisible(False)
             self._clear_run_eta()
             self._hide_phase_labels()
+            self._discard_report_streams(streams)
             msgbox.critical(self, "Simulation Failed", f"The run failed:\n\n{e}")
             self._statusbar.showMessage("Run failed")
             return
@@ -5299,12 +5337,16 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._results._source_file_name = self._current_file or ""
         event_logs = self._dev_filtered_event_logs(event_logs)
         importance = self._importance_for(run_model, report_data)
-        self._results.set_results(event_logs, end_of_run_lines, final_results_lines,
-                                  report_data=report_data, units=units,
-                                  notes=report_notes, ao_lines=ao_lines,
-                                  cap_lines=cap_lines, cost_lines=cost_lines,
-                                  manifest=run_metadata.get("manifest"),
-                                  importance=importance)
+        eor_source = streams.get("end_of_run")
+        if eor_source is None:
+            eor_source = end_of_run_lines
+        self._set_results_with_progress(
+            event_logs, eor_source, final_results_lines,
+            report_data=report_data, units=units,
+            notes=report_notes, ao_lines=ao_lines,
+            cap_lines=cap_lines, cost_lines=cost_lines,
+            manifest=run_metadata.get("manifest"),
+            importance=importance)
         self._note_results_basis()
         self._remember_report_streams(streams)
         self._results_show_action.setEnabled(bool(report_data))
@@ -7027,6 +7069,102 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         except Exception:
             pass
 
+    #: How much of the results-population bar each stage represents. The
+    #: stage counts are not equal work: detail tables and graphs dominate.
+    _RESULT_STAGE_PCT = {
+        "overview": 5,
+        "detail tables": 35,
+        "level filter": 40,
+        "graphs": 70,
+        "raw report": 85,
+        "event log": 100,
+    }
+
+    def _results_stage_progress(self, label: str, done: int, total: int) -> None:
+        """Advance one results-population stage without flickering.
+
+        `set_results` builds tables, graphs and the raw preview on the GUI
+        thread. The old code called `showMessage` and `processEvents()` for
+        every stage; a fast batch therefore repainted the status text six
+        times in quick succession, which read as flicker. Drive the thin
+        progress bar monotonically instead, and repaint the message at most
+        once every `_STAGE_PUMP_SECONDS`.
+
+        The re-entrancy guard keeps `processEvents()` from landing back in
+        `_bg_poll_tick` (or another results population) while the dock is
+        half-built; user input is excluded so a Run/Close click cannot
+        either. The click is not lost -- it is delivered once population
+        returns.
+        """
+        pct = self._RESULT_STAGE_PCT.get(label)
+        if pct is None:
+            pct = 100 * int(done) // max(int(total), 1)
+        pct = max(int(pct), int(getattr(self, "_results_stage_pct", 0)))
+        pct = min(pct, 100)
+        self._results_stage_pct = pct
+        self._run_progress.setVisible(True)
+        self._run_progress.setValue(pct)
+        self._run_progress_label.setVisible(True)
+        self._run_progress_label.setText(f"{pct}%")
+        now = time.monotonic()
+        if pct >= 100 or now - getattr(self, "_last_results_pump", 0.0) >= \
+                self._STAGE_PUMP_SECONDS:
+            self._last_results_pump = now
+            self._statusbar.showMessage(f"Processing results — {label}…")
+            QApplication.processEvents(
+                QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+
+    #: Minimum gap between event-loop pumps from the per-run report-stage
+    #: callback. The runner calls it once per run during the End-of-Run
+    #: build; pumping the loop thousands of times would make a large
+    #: batch's report phase slower than the report itself.
+    _STAGE_PUMP_SECONDS = 0.05
+
+    def _set_results_with_progress(self, *args, **kwargs):
+        """Call ResultsDock.set_results with smooth stage feedback, guarded."""
+        if getattr(self, "_results_populating", False):
+            return
+        self._results_populating = True
+        self._results_stage_pct = 0
+        self._last_results_pump = 0.0
+        self._run_progress.setRange(0, 100)
+        self._run_progress.setValue(0)
+        self._run_progress_label.setText("0%")
+        self._run_progress.setVisible(True)
+        self._run_progress_label.setVisible(True)
+        self._statusbar.showMessage("Processing results…")
+        QApplication.processEvents(
+            QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+        try:
+            kwargs.setdefault("progress", self._results_stage_progress)
+            self._results.set_results(*args, **kwargs)
+        finally:
+            self._results_populating = False
+            self._results_stage_pct = 0
+            self._run_progress.setValue(100)
+            self._run_progress_label.setText("100%")
+            self._run_progress.setVisible(False)
+            self._run_progress_label.setVisible(False)
+
+    def _report_stage_progress(self, done: int, total: int, label: str) -> None:
+        """Worker/poll-facing report-stage callback (no Qt widgets).
+
+        Runs on whichever thread built the reports -- on the GUI thread in
+        the synchronous path, where it also paints (throttled). The
+        background path passes a plain-data recorder instead, and the poll
+        renders it.
+        """
+        total = max(int(total), 1)
+        done = int(done)
+        self._statusbar.showMessage(
+            f"Processing results — {label} {done}/{total}")
+        now = time.monotonic()
+        if done >= total or now - getattr(self, "_last_stage_pump", 0.0) >= \
+                self._STAGE_PUMP_SECONDS:
+            self._last_stage_pump = now
+            QApplication.processEvents(
+                QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+
     def _present_results(self):
         """After a run: switch the ribbon to the Results tab, surface
         the dock and expand it -- results are what the user came for."""
@@ -8183,6 +8321,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         state["workers_now"] = state["workers"]
 
         def worker():
+            # Held outside the try so a failure before the batch is
+            # remembered can close this batch's temp streams (every batch
+            # now opens an End-of-Run stream, even with no Files & Reports
+            # boxes ticked).
+            streams: dict = {}
             try:
                 report_data: list = []
                 report_notes: list[str] = []
@@ -8291,6 +8434,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                         return True
                     return False
 
+                def report_progress(done, total, label):
+                    # Plain data only: the poll (main thread) renders it.
+                    state["stage"] = (label, done, total)
+
                 logs, eor, fin = run_simulation_with_reports(
                     bg_model, num_runs=num_runs,
                     report_sink=report_data, notes_sink=report_notes,
@@ -8299,6 +8446,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     ao_sink=streams.get("ao"),
                     capacity_sink=streams.get("capacity"),
                     cost_sink=streams.get("cost"),
+                    end_of_run_sink=streams.get("end_of_run"),
+                    report_progress=report_progress,
                     collect_logs=self._report_stream_actions[
                         "event_log"].isChecked(),
                     metadata_sink=run_metadata,
@@ -8342,6 +8491,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             except Exception as e:
                 import traceback
                 traceback.print_exc()
+                self._discard_report_streams(streams)
                 state["error"] = "".join(
                     traceback.format_exception_only(type(e), e)).strip() \
                     + "\n" + traceback.format_exc(limit=8)
@@ -8392,6 +8542,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             yes_text="Keep going", no_text="Stop here")
 
     def _bg_poll_tick(self):
+        if getattr(self, "_results_populating", False):
+            return
         state = self._bg_state
         if not state:
             return
@@ -8404,6 +8556,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if not self._ask_keep_going_after_runaway(done, total):
                 state["stop_ev"].set()
             state["resume_ev"].set()
+        stage = state.get("stage")
+        if stage and not state.get("done"):
+            label, done, total = stage
+            total = max(int(total), 1)
+            self._statusbar.showMessage(
+                f"Processing results — {label} {done}/{total}")
+            pct = 100 * int(done) // total
+            self._run_progress.setValue(pct)
+            self._run_progress.setVisible(True)
+            self._run_progress_label.setText(f"{pct}%")
+            self._run_progress_label.setVisible(True)
         live = self._live_sim_action.isChecked()
         if state.get("snapshot"):
             snapshot = state["snapshot"]
@@ -8593,13 +8756,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 "WARNING: run stopped at the t=10,000,000 safety bound — "
                 "termination condition never met", 12000)
         self._results._source_file_name = self._current_file or ""
-        self._results.set_results(logs, eor, fin, report_data=report_data,
-                                  units=units, notes=report_notes,
-                                  ao_lines=ao_lines, cap_lines=cap_lines,
-                                  cost_lines=cost_lines,
-                                  manifest=(state.get("run_metadata") or
-                                            {}).get("manifest"),
-                                  importance=state.get("importance"))
+        result_streams = state.get("streams") or {}
+        eor_source = result_streams.get("end_of_run")
+        if eor_source is None:
+            eor_source = eor
+        self._set_results_with_progress(
+            logs, eor_source, fin, report_data=report_data,
+            units=units, notes=report_notes,
+            ao_lines=ao_lines, cap_lines=cap_lines,
+            cost_lines=cost_lines,
+            manifest=(state.get("run_metadata") or {}).get("manifest"),
+            importance=state.get("importance"))
         self._note_results_basis()
         self._remember_report_streams(state.get("streams") or {})
         self._results_show_action.setEnabled(bool(report_data))

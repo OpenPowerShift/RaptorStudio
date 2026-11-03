@@ -89,6 +89,73 @@ def _phase_entry(block, phase: int) -> tuple[str, float] | None:
     return str(types[phase] or "A"), float(stress)
 
 
+def _stats(block, phase: int):
+    """The five values a label and its tooltip both need.
+
+    One pass, so `describe()` cannot disagree with `sublabel()` /
+    `tooltip()` by drifting from a second copy of this arithmetic.
+    """
+    return (_phase_entry(block, phase),
+            _mean_of(block.fail_distro, block.fail_values),
+            _mean_of(block.repair_distro, block.repair_values),
+            _sigma_of(block.fail_distro, block.fail_values),
+            _sigma_of(block.repair_distro, block.repair_values))
+
+
+def _label_lines(block, mode: str, phase: int, units: str,
+                 stats: tuple) -> list[str]:
+    if mode not in dict(MODES) or mode == "off":
+        return []
+    entry, fail_mean, repair_mean, fail_sigma, repair_sigma = stats
+    unit = f" {units}" if units else ""
+    if entry is not None and entry[0] == _CUT:
+        return ["cut in this phase"]
+    shown_fail_mean = fail_mean
+    shown_fail_sigma = fail_sigma
+    if entry is not None and entry[1] > 0.0:
+        # Higher stress shortens the life: the engine divides by it.
+        if shown_fail_mean is not None:
+            shown_fail_mean = shown_fail_mean / entry[1]
+        if shown_fail_sigma is not None:
+            shown_fail_sigma = shown_fail_sigma / entry[1]
+
+    if mode == "mean":
+        return _mean_lines(shown_fail_mean, repair_mean, unit)
+    if mode == "spread":
+        return _spread_lines(shown_fail_mean, shown_fail_sigma,
+                             repair_mean, repair_sigma, unit)
+    if mode == "rate":
+        return _rate_lines(shown_fail_mean, repair_mean)
+    return []
+
+
+def _tooltip_text(block, phase: int, units: str, stats: tuple) -> str:
+    _entry, fail_mean, repair_mean, fail_sigma, repair_sigma = stats
+    unit = f" {units}" if units else ""
+    out = [f"Failure mean {engineering(fail_mean)}{unit}"
+           + (f" ± {engineering(fail_sigma)}{unit}"
+              if fail_sigma is not None else ""),
+           f"Repair mean {engineering(repair_mean)}{unit}"
+           + (f" ± {engineering(repair_sigma)}{unit}"
+              if repair_sigma is not None else "")]
+    if fail_mean:
+        out.append(f"Failure rate {engineering(1.0 / fail_mean)}/h")
+    if repair_mean:
+        out.append(f"Repair rate {engineering(1.0 / repair_mean)}/h")
+    if getattr(block, "uses_phasing", False):
+        types = list(getattr(block, "phase_type", []) or [])
+        values = list(getattr(block, "phase_value", []) or [])
+        if types:
+            shown = ", ".join(
+                f"P{i + 1} {t}"
+                + (f" stress {engineering(v)}" if t != _CUT else " (cut)")
+                for i, (t, v) in enumerate(zip(types, values)))
+            out.append(f"Per-phase: {shown}")
+            if phase >= 0 and phase < len(types):
+                out.append(f"Canvas is showing phase {phase + 1}")
+    return "\n".join(out)
+
+
 def sublabel(block, *, mode: str = DEFAULT_MODE, phase: int = -1,
              units: str = "") -> list[str]:
     """The lines to draw under *block*'s name (empty for mode 'off').
@@ -96,31 +163,7 @@ def sublabel(block, *, mode: str = DEFAULT_MODE, phase: int = -1,
     At most two short lines, because the block is small: the failure side
     first, the repair side second, in the order the `F`/`R` pair used.
     """
-    if mode not in dict(MODES) or mode == "off":
-        return []
-    unit = f" {units}" if units else ""
-    entry = _phase_entry(block, phase)
-    if entry is not None and entry[0] == _CUT:
-        return ["cut in this phase"]
-
-    fail_mean = _mean_of(block.fail_distro, block.fail_values)
-    repair_mean = _mean_of(block.repair_distro, block.repair_values)
-    if entry is not None and fail_mean is not None and entry[1] > 0.0:
-        # Higher stress shortens the life: the engine divides by it.
-        fail_mean = fail_mean / entry[1]
-
-    if mode == "mean":
-        return _mean_lines(fail_mean, repair_mean, unit)
-    if mode == "spread":
-        fail_sigma = _sigma_of(block.fail_distro, block.fail_values)
-        repair_sigma = _sigma_of(block.repair_distro, block.repair_values)
-        if entry is not None and fail_sigma is not None and entry[1] > 0.0:
-            fail_sigma = fail_sigma / entry[1]
-        return _spread_lines(fail_mean, fail_sigma, repair_mean,
-                             repair_sigma, unit)
-    if mode == "rate":
-        return _rate_lines(fail_mean, repair_mean)
-    return []
+    return _label_lines(block, mode, phase, units, _stats(block, phase))
 
 
 def _mean_lines(fail_mean, repair_mean, unit: str) -> list[str]:
@@ -165,33 +208,20 @@ def tooltip(block, *, mode: str = DEFAULT_MODE, phase: int = -1,
     label would show, the spread behind them, the rates, and any per-phase
     entry.
     """
-    unit = f" {units}" if units else ""
-    fail_mean = _mean_of(block.fail_distro, block.fail_values)
-    repair_mean = _mean_of(block.repair_distro, block.repair_values)
-    fail_sigma = _sigma_of(block.fail_distro, block.fail_values)
-    repair_sigma = _sigma_of(block.repair_distro, block.repair_values)
-    out = [f"Failure mean {engineering(fail_mean)}{unit}"
-           + (f" ± {engineering(fail_sigma)}{unit}"
-              if fail_sigma is not None else ""),
-           f"Repair mean {engineering(repair_mean)}{unit}"
-           + (f" ± {engineering(repair_sigma)}{unit}"
-              if repair_sigma is not None else "")]
-    if fail_mean:
-        out.append(f"Failure rate {engineering(1.0 / fail_mean)}/h")
-    if repair_mean:
-        out.append(f"Repair rate {engineering(1.0 / repair_mean)}/h")
-    if getattr(block, "uses_phasing", False):
-        types = list(getattr(block, "phase_type", []) or [])
-        values = list(getattr(block, "phase_value", []) or [])
-        if types:
-            shown = ", ".join(
-                f"P{i + 1} {t}"
-                + (f" stress {engineering(v)}" if t != _CUT else " (cut)")
-                for i, (t, v) in enumerate(zip(types, values)))
-            out.append(f"Per-phase: {shown}")
-            if phase >= 0 and phase < len(types):
-                out.append(f"Canvas is showing phase {phase + 1}")
-    return "\n".join(out)
+    return _tooltip_text(block, phase, units, _stats(block, phase))
+
+
+def describe(block, *, mode: str = DEFAULT_MODE, phase: int = -1,
+             units: str = "") -> tuple[list[str], str]:
+    """Both the canvas sub-label lines and the hover text, computed once.
+
+    `sublabel()` and `tooltip()` each call the distribution mean/sigma
+    functions. The canvas used to call both for every block on every level
+    build, doubling that work; this is the one-pass entry point.
+    """
+    stats = _stats(block, phase)
+    return (_label_lines(block, mode, phase, units, stats),
+            _tooltip_text(block, phase, units, stats))
 
 
 def sublabel_html(lines: list[str]) -> str:
