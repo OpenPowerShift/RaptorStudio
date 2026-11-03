@@ -36,6 +36,10 @@ class ResultStream:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             if header:
                 f.write(header + "\n")
+                # `len()` is the number of rows readers will see; the
+                # header is one of them (the Engine's header-once checks
+                # use truthiness, not this count).
+                self.count = 1
 
     # -- engine-facing list interface -----------------------------------
     def append(self, row: str) -> None:
@@ -46,8 +50,22 @@ class ResultStream:
         self.count += 1
 
     def extend(self, rows) -> None:
-        for r in rows:
-            self.append(r)
+        """Append many rows with one file open.
+
+        The old implementation called `append` per row, which opened,
+        wrote and closed the temp file once per line. That is fine for a
+        handful of plot rows but pathological for a report that can run to
+        millions of lines, so batch writers use this.
+        """
+        if self._closed:
+            return
+        rows = list(rows)
+        if not rows:
+            return
+        with open(self.path, "a", encoding="utf-8") as f:
+            for r in rows:
+                f.write(r if r.endswith("\n") else r + "\n")
+        self.count += len(rows)
 
     def __len__(self) -> int:
         return self.count
@@ -82,6 +100,29 @@ class ResultStream:
             # Closed concurrently (or temp file reaped externally): the
             # data is intentionally gone, so report an empty stream.
             return []
+
+    def read_preview(self, max_lines: int, max_bytes: int) -> list[str]:
+        """First `max_lines` rows, stopping at `max_bytes` of text.
+
+        Used by the Results dock's Raw view: it must never materialise a
+        multi-million-line End-of-Run report just to display a preview.
+        The full stream stays on disk for Export.
+        """
+        if self._closed or max_lines <= 0 or max_bytes <= 0:
+            return []
+        out: list[str] = []
+        used = 0
+        try:
+            with open(self.path, encoding="utf-8",
+                      errors="replace") as f:
+                for line in f:
+                    out.append(line.rstrip("\n"))
+                    used += len(line)
+                    if len(out) >= max_lines or used >= max_bytes:
+                        break
+        except FileNotFoundError:
+            return []
+        return out
 
     def read_new_lines(self) -> list[str]:
         """Only rows appended since the last `read_new_lines()` call —

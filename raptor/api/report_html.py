@@ -76,6 +76,8 @@ class TextBlock:
     title: str
     lines: Sequence[str]
     where: str = ""                # where the full text can be had
+    #: Real length of the report; `lines` may hold only its bounded head.
+    total_lines: int = 0
 
 
 @dataclass
@@ -292,8 +294,9 @@ def _raw_html(blocks: Sequence[TextBlock]) -> str:
         shown = lines[:RAW_LINES]
         out.append(f'<div class="rawblock"><h3>{_e(b.title)}</h3>'
                    f'<pre class="raw">{_e(chr(10).join(shown))}</pre>')
-        if len(lines) > RAW_LINES:
-            more = f"The first {RAW_LINES:,} of {len(lines):,} lines."
+        total = max(b.total_lines, len(lines))
+        if total > RAW_LINES:
+            more = f"The first {RAW_LINES:,} of {total:,} lines."
             if b.where:
                 more += f" {b.where}"
             out.append(f'<p class="note">{_e(more)}</p>')

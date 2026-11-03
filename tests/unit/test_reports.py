@@ -117,3 +117,31 @@ def test_weak_analysis_probe_section_matches_real() -> None:
         return lines[i:j]
 
     assert weak(eor) == weak(real)
+
+
+def test_final_results_weak_tables_compute_each_element_run_once(monkeypatch):
+    """The Final-Results weak-link tables used to call `metrics()` again for
+    every column (and once per state key for State_Data), about eleven
+    times per element-run. That is the O(4 x runs x elements) tail on a
+    large batch. One call per element-run now; the values are unchanged
+    (the golden-fidelity sweep compares the text against real captures)."""
+    from raptor.core.engine import reports as reports_mod
+
+    rbd_file = load_rbd(str(GOLDEN / "WeakAnalysisProbe" / "input.rbd"))
+    report_data: list = []
+    run_simulation_with_reports(rbd_file, num_runs=3, date="STUB_DATE",
+                                report_sink=report_data, collect_logs=False)
+    assert report_data and any(rd.weak_stats for rd in report_data)
+
+    calls: list[tuple] = []
+    original = reports_mod._weak_block_metrics
+
+    def counting(v, ma):
+        calls.append((id(v), ma))
+        return original(v, ma)
+
+    monkeypatch.setattr(reports_mod, "_weak_block_metrics", counting)
+    reports_mod._build_fr_weak_section(report_data)
+
+    element_runs = sum(len(rd.weak_stats) for rd in report_data)
+    assert len(calls) == element_runs
