@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import Qt
 
 from raptor.core.fileio.rbd import load_rbd
 
@@ -60,15 +61,23 @@ def test_the_fev_inspector_shows_the_structured_state(win):
     assert ("FAILURES", "", "", "") in rows
     assert ("EFFECTS", "", "", "") in rows
     assert ("CAPACITY", "", "", "") in rows
+    # Category is in the copied text only: the section rows say it, and
+    # its column cut every Detail short in a 340 px panel.
+    table = win._fev_inspector._table
+    assert table.isColumnHidden(0)
+    assert table.item(0, 1).text() == "SYSTEM"
+    assert table.horizontalScrollBarPolicy() == \
+        Qt.ScrollBarPolicy.ScrollBarAlwaysOff
 
     # A click updates the table in place: Thermal is failed, and the
     # effects/capacity sections follow the new state.
     win._on_fev_target_clicked(_id(win, "Thermal"), "click")
     rows = _inspector_rows(win)
-    assert any(category == "Failures" and element == "Thermal"
+    assert any(category == "Failed components" and element == "Thermal"
                and state == "Repairing"
                for category, element, state, _detail in rows)
-    assert any(category == "Failures" and element == "Attitude"
+    assert any(category.endswith(("components", "failures"))
+               and element == "Attitude"
                for category, element, _state, _detail in rows)
 
 
@@ -108,11 +117,11 @@ def test_right_click_on_a_row_can_go_to_the_element(win, monkeypatch):
     win._fev_view_action.setChecked(True)
     inspector = win._fev_inspector
     row = next(i for i, values in enumerate(_inspector_rows(win))
-               if values[0] == "Failures" and values[1] == "SolarP_500W")
+               if values[1] == "SolarP_500W")
     captured = []
     monkeypatch.setattr(inspector, "_exec_menu",
                         lambda menu, pos: captured.append(menu))
-    item = inspector._table.item(row, 0)
+    item = inspector._table.item(row, 1)       # Element (Category is hidden)
     inspector._show_context_menu(
         inspector._table.visualItemRect(item).center())
     menu = captured[0]

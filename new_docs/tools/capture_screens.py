@@ -357,9 +357,9 @@ sweep.close()
 from raptor.gui.ui.analytic_dialog import open_analytic_dialog  # noqa: E402
 
 
-def analytic_shot(name, dialog, tab_index=None):
-    if tab_index is not None:
-        dialog._tabs.setCurrentIndex(tab_index)
+def analytic_shot(name, dialog, page=None):
+    if page is not None:
+        dialog.show_tab(page)
     app.processEvents()
     dialog.grab().save(os.path.join(IMG, name + ".png"), "PNG")
     print("shot", name)
@@ -370,8 +370,8 @@ exact = open_analytic_dialog(w)
 exact.resize(960, 760)
 exact.compute()
 exact.wait_for_result()
-analytic_shot("exact-summary", exact, 0)
-analytic_shot("exact-elements", exact, 1)
+analytic_shot("exact-summary", exact, exact._tab_summary)
+analytic_shot("exact-elements", exact, exact._tab_elements)
 exact.close()
 load("WaterTreatment")
 exact = open_analytic_dialog(w)
@@ -380,5 +380,19 @@ exact.compute()
 exact.wait_for_result()
 analytic_shot("exact-refused", exact)
 exact.close()
+
+# 33. ch15: Failure Effects View on Bakery1 with Power failed, and the
+# Failure Effects panel beside the canvas.
+load("Bakery1")
+tab("_debug_page_index")
+w._enter_fev()
+app.processEvents()
+_power = next(bid for bid, b in w._fev.model.blocks_by_id.items()
+              if b.name == "Power")
+w._fev_apply("fail", "block", _power, "Power")
+app.processEvents()
+shot("fev-panel")
+w._leave_fev()
+app.processEvents()
 
 print("done")

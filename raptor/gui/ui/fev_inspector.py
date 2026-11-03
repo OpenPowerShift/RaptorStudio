@@ -124,21 +124,27 @@ class FevInspectorDock(QWidget):
             QAbstractItemView.SelectionMode.ExtendedSelection)
         table.setAlternatingRowColors(True)
         table.setWordWrap(False)
+        table.setTextElideMode(Qt.TextElideMode.ElideRight)
         table.verticalHeader().setVisible(False)
         header_view = table.horizontalHeader()
         header_view.setStretchLastSection(True)
         # Interactive columns with a sensible start width, NOT
         # ResizeToContents: the latter remeasures every cell after every
         # insertion, turning a 200-row capacity list into a 1.6 s table
-        # rebuild on every click.
+        # rebuild on every click. Category is hidden: the bold section
+        # rows already say it (it stays in the copied text). The panel's
+        # width goes to Element and Detail, the last stretching to the
+        # edge, so nothing scrolls sideways; a cut-off cell has the full
+        # text in its tooltip.
+        table.setColumnHidden(0, True)
         header_view.setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Interactive)
-        header_view.setSectionResizeMode(
-            1, QHeaderView.ResizeMode.Stretch)
+            1, QHeaderView.ResizeMode.Interactive)
         header_view.setSectionResizeMode(
             2, QHeaderView.ResizeMode.Interactive)
-        table.setColumnWidth(0, 104)
-        table.setColumnWidth(2, 104)
+        table.setColumnWidth(1, 120)
+        table.setColumnWidth(2, 84)
+        table.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         table.itemSelectionChanged.connect(self._sync_copy_buttons)
         table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         table.customContextMenuRequested.connect(self._show_context_menu)
@@ -229,8 +235,9 @@ class FevInspectorDock(QWidget):
         rows: list[_Row] = []
         for key, category, state, detail in _FAILURE_LISTS:
             for name, kind, oid in entries.get(key, []):
-                rows.append(("Failures", name, state,
-                             f"{detail} — {category}", (kind, oid)))
+                # The hidden Category column (in the copied text) carries
+                # Raptor 7's list name, the visible Detail what it means.
+                rows.append((category, name, state, detail, (kind, oid)))
         return rows or [
             ("Failures", "None", "",
              "No failed, induced, idle, PM, cut or linked elements", None)]
@@ -240,8 +247,7 @@ class FevInspectorDock(QWidget):
         rows: list[_Row] = []
         for key, category, state, detail in _EFFECT_LISTS:
             for name, kind, oid in entries.get(key, []):
-                rows.append(("Effects", name, state,
-                             f"{detail} — {category}", (kind, oid)))
+                rows.append((category, name, state, detail, (kind, oid)))
         return rows or [
             ("Effects", "None", "", "No down or degraded nodes/subsystems",
              None)]
@@ -324,8 +330,12 @@ class FevInspectorDock(QWidget):
             }
             for row, (category, element, state, detail) in enumerate(rows):
                 is_section = not element and not state and not detail
-                for column, text in enumerate((category, element, state, detail)):
+                cells = (category, category if is_section else element,
+                         state, detail)
+                for column, text in enumerate(cells):
                     item = QTableWidgetItem(text)
+                    if text and not is_section:
+                        item.setToolTip(text)
                     item.setFlags(Qt.ItemFlag.ItemIsEnabled
                                   | Qt.ItemFlag.ItemIsSelectable)
                     item.setForeground(state_colours.get(state, normal_text)
@@ -339,7 +349,9 @@ class FevInspectorDock(QWidget):
                         item.setFont(font)
                     table.setItem(row, column, item)
                 if is_section:
-                    table.setSpan(row, 0, 1, len(_HEADERS))
+                    # From Element: Category, where the label also is,
+                    # is hidden.
+                    table.setSpan(row, 1, 1, len(_HEADERS) - 1)
         finally:
             table.setUpdatesEnabled(True)
         self._sync_copy_buttons()

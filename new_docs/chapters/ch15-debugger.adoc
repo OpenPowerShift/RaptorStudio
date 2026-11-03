@@ -108,6 +108,29 @@ version of pulling a breaker to see what the building does. Click it
 again to put it back; **Status** says in words what is failed, what that
 induced, and which nodes are down or degraded.
 
+The **Failure Effects** panel opens beside the Inspector while the view
+is on. It shows the same state as a table and updates on every click:
+
+image::fev-panel.png[Failure Effects View on Bakery1 with Power failed: the system is red, and the Failure Effects panel lists Power as Repairing under Failures]
+
+* The badge at the top gives the system colour: green, yellow (degraded
+  but up) or red (down).
+* *Failures* lists every element that is not working, and why: failed,
+  induced by a dependency, idle, in PM, or cut or linked in this phase.
+* *Effects* lists the nodes and subsystems that are down or degraded
+  because of those failures.
+* *Capacity* gives the flow that still reaches the end, when capacity
+  analysis is on.
+
+Right-click a row and choose **Go to element** to find it on the
+canvas, even inside a hierarchy. **Copy all** copies the table for a
+spreadsheet; **Copy summary** copies the full status text.
+
+Try it: with `Power` failed, the panel says *Red · 1 failed block*.
+Repair `Power` and fail `Main_Oven` instead. The standby oven takes
+over, so the system stays up, but the badge turns yellow: the bakery
+works, with no spare oven left. *Effects* shows the degraded node.
+
 A stepped run in progress is discarded when you open the view (it asks
 first), and Run and Step are greyed out until you leave it.
 
