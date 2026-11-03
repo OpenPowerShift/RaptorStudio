@@ -40,6 +40,119 @@ def _id(win, name):
     return win._fev.block_by_name(name).id
 
 
+def _inspector_rows(win):
+    return win._fev_inspector._rows
+
+
+def test_the_fev_inspector_shows_the_structured_state(win):
+    win._fev_view_action.setChecked(True)
+    assert win._fev_inspector_dock.isVisible()
+    rows = _inspector_rows(win)
+    assert rows[0] == ("SYSTEM", "", "", "")
+    assert any(category == "System" and element == "Phase"
+               and state == "1 of 5"
+               for category, element, state, _detail in rows)
+    win._on_fev_phase_next()
+    rows = _inspector_rows(win)
+    assert any(category == "System" and element == "Phase"
+               and state == "2 of 5"
+               for category, element, state, _detail in rows)
+    assert ("FAILURES", "", "", "") in rows
+    assert ("EFFECTS", "", "", "") in rows
+    assert ("CAPACITY", "", "", "") in rows
+
+    # A click updates the table in place: Thermal is failed, and the
+    # effects/capacity sections follow the new state.
+    win._on_fev_target_clicked(_id(win, "Thermal"), "click")
+    rows = _inspector_rows(win)
+    assert any(category == "Failures" and element == "Thermal"
+               and state == "Repairing"
+               for category, element, state, _detail in rows)
+    assert any(category == "Failures" and element == "Attitude"
+               for category, element, _state, _detail in rows)
+
+
+def test_the_fev_inspector_copy_buttons_copy_tsv_and_the_summary(win):
+    from PySide6.QtWidgets import QApplication
+
+    win._fev_view_action.setChecked(True)
+    inspector = win._fev_inspector
+    inspector.copy_all()
+    copied = QApplication.clipboard().text()
+    assert copied.startswith("Category\tElement\tState\tDetail")
+    assert "SYSTEM" in copied and "FAILURES" in copied
+
+    row = next(i for i, values in enumerate(_inspector_rows(win))
+               if values[1] == "Status")
+    inspector._table.selectRow(row)
+    inspector.copy_selected()
+    selected = QApplication.clipboard().text()
+    assert selected.startswith("Category\tElement\tState\tDetail")
+    assert "System\tStatus\t" in selected
+    assert "FAILURES" not in selected
+
+    inspector.copy_summary()
+    assert "FAILURES" in QApplication.clipboard().text()
+
+
+def test_leaving_fev_hides_the_inspector_and_restores_the_inspector_dock(win):
+    win._fev_view_action.setChecked(True)
+    assert win._fev_inspector_dock.isVisible()
+    win._fev_view_action.setChecked(False)
+    assert not win._fev_inspector_dock.isVisible()
+    assert win._inspector_dock.isVisible()
+    assert not win._fev_inspector_toggle_action.isEnabled()
+
+
+def test_right_click_on_a_row_can_go_to_the_element(win, monkeypatch):
+    win._fev_view_action.setChecked(True)
+    inspector = win._fev_inspector
+    row = next(i for i, values in enumerate(_inspector_rows(win))
+               if values[0] == "Failures" and values[1] == "SolarP_500W")
+    captured = []
+    monkeypatch.setattr(inspector, "_exec_menu",
+                        lambda menu, pos: captured.append(menu))
+    item = inspector._table.item(row, 0)
+    inspector._show_context_menu(
+        inspector._table.visualItemRect(item).center())
+    menu = captured[0]
+    actions = {action.text(): action for action in menu.actions()
+               if action.text()}
+    assert actions["Go to element"].isEnabled()
+    seen = []
+    inspector.locate_requested.connect(
+        lambda kind, oid: seen.append((kind, oid)))
+    actions["Go to element"].trigger()
+    assert seen == [("block", win._fev.block_by_name("SolarP_500W").id)]
+
+
+def test_go_to_element_enters_the_hierarchy_and_selects_the_block(win):
+    win._fev_view_action.setChecked(True)
+    block = win._fev.block_by_name("SolarP_500W")
+    win._on_fev_element_locate("block", block.id)
+    view = win._diagram_dock.view
+    assert view._current_parent != 0
+    assert block.id in view._block_items
+    assert any(getattr(item, "_block_id", None) == block.id
+               for item in view._scene.selectedItems())
+
+
+def test_the_view_panels_toggle_controls_the_fev_inspector(win):
+    """View > Panels has the same checkable entry as every other dock; it
+    only makes sense while the Failure Effects View is enabled."""
+    action = win._fev_inspector_toggle_action
+    assert not action.isEnabled() and not action.isChecked()
+    win._fev_view_action.setChecked(True)
+    assert action.isEnabled() and action.isChecked()
+    action.setChecked(False)
+    assert not win._fev_inspector_dock.isVisible()
+    assert action.isEnabled()          # can be brought back while FEV is open
+    action.setChecked(True)
+    assert win._fev_inspector_dock.isVisible()
+    win._fev_view_action.setChecked(False)
+    assert not action.isEnabled() and not action.isChecked()
+
+
 def test_it_opens_without_a_run_and_closes(win):
     assert win._fev is None
     win._fev_view_action.setChecked(True)
@@ -52,6 +165,40 @@ def test_it_opens_without_a_run_and_closes(win):
     win._fev_view_action.setChecked(False)
     assert win._fev is None
     assert win._run_action.isEnabled()
+
+
+def test_the_entry_progress_bar_reports_determinate_work(win, monkeypatch):
+    """A slow engine build must show a real percentage, not a frozen window.
+    The dialog is created only after the short build threshold so a normal
+    model does not flash a modal panel."""
+    from raptor.gui.ui.fev_mixin import _FevProgress
+
+    progress = _FevProgress(win)
+    progress.report("Reading blocks", 50, 100)       # still under threshold
+    assert progress._dialog is None
+    monkeypatch.setattr("time.monotonic", lambda: progress._started + 1.0)
+    progress.report("Reading blocks", 50, 100)
+    assert progress._dialog is not None
+    assert progress._dialog.value() == 28           # 1 + 54 * 0.5
+    progress.report("Analysing paths", 100, 100)
+    assert progress._dialog.value() == 90           # 55 + 35
+    progress.close()
+    assert progress._dialog is None
+
+
+def test_the_canvas_reports_colouring_progress(win):
+    """Preparing the view paints every visible item; a large level must be
+    able to keep its progress window alive while that happens."""
+    win._fev_view_action.setChecked(True)
+    seen = []
+    view = win._diagram_dock.view
+    view.update_live_states(
+        win._fev.model.blocks_by_id, model=win._fev.model,
+        progress=lambda stage, done, total:
+        seen.append((stage, done, total)))
+    assert seen
+    assert seen[-1][0] == "Colouring the diagram"
+    assert seen[-1][1] == seen[-1][2]
 
 
 def test_a_click_fails_a_block_and_the_canvas_follows(win):
@@ -122,7 +269,7 @@ def test_a_model_fev_cannot_start_is_reported_not_crashed(win, monkeypatch):
     shown = []
     monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: shown.append(a[2]))
 
-    def boom(_rbd):
+    def boom(_rbd, **_kwargs):
         raise UnrunnableModel([ModelProblem("model", "nope")])
     monkeypatch.setattr("raptor.core.engine.fev.FevSession", boom)
     win._fev_view_action.setChecked(True)
