@@ -211,6 +211,12 @@ def infer(seen: dict[str, list[dict]]) -> dict[str, dict]:
                            for k, p in sorted(props.items())},
             "required": sorted(REQUIRED_OVERRIDE.get(name, keys)),
         }
+    if "analytical_analysis" in schemas:
+        # The tool only returns `hierarchy` for a hierarchy-scoped solve,
+        # and the scripted session runs whole-model cases. Advertise it so
+        # a scoped result does not silently outgrow its schema.
+        schemas["analytical_analysis"]["properties"].setdefault(
+            "hierarchy", {"type": ["string", "null"]})
     for (tool, key), types in WIDEN.items():
         if tool in schemas and key in schemas[tool]["properties"]:
             schemas[tool]["properties"][key] = {"type": types}

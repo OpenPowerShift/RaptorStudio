@@ -675,8 +675,10 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   mixed, k-of-n, bridge networks and hierarchies. `mode="reliability"` is
   non-repairable `R(t)` with PDF, hazard, MTTF, BX life and exact importance;
   `mode="availability"` is steady-state availability with independent,
-  perfectly repaired components. Refuses PM, spares, resources, dependencies,
-  standby, phases and non-Bernoulli events, naming the first offender.
+  perfectly repaired components. Refuses PM, spares, resources and
+  non-Bernoulli events, and refuses dependencies, standby or phases until a
+  treatment is given: `dependencies="up"|"down"`, `standby="active"|"absent"`
+  or `phase=N`. Names the first offender.
 
 | `describe_metrics`
 | List the result metrics and their units (availability, reliability,
@@ -692,8 +694,9 @@ If the server does not appear, see <<mcp-troubleshooting>>.
   non-repairable; `mode="availability"` is steady-state availability with
   independent, perfectly repaired components. Returns R(t)/A(t), MTTF,
   BX life, conditional reliability, exact Birnbaum/RAW/RRW/Vesely–Fussell
-  and criticality. Refuses PM, spares, resources, dependencies, standby,
-  phases and non-Bernoulli events; use `simulate` for those.
+  and criticality. Refuses PM, spares, resources and non-Bernoulli events,
+  and refuses dependencies, standby or phases until a treatment is given;
+  use `simulate` for the behaviours it still cannot represent.
 
 | `estimate_runtime`
 | Predict wall-clock time from a real pilot at the real horizon. Returns a

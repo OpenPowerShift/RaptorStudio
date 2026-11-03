@@ -17,9 +17,10 @@ every other. Each element is evaluated from its own distribution alone. In
 particular the random-number stream a block draws from has no effect on the
 answer: two blocks that share a stream number are still independent in
 this analysis, and a simulation using separate streams or shared ones
-converges to the same value. Dependence that is modelled in the diagram
-itself (dependencies, standby, shared spares or crews) is refused, not
-approximated. If real components share a common cause (so their failures are positively
+converges to the same value. A dependency drawn in the diagram is refused
+unless you choose how to treat it (see *Dependencies* below), and shared
+spares or crews are refused rather than approximated. If real components
+share a common cause (so their failures are positively
 associated), the independent answer is optimistic for parallel structures and
 pessimistic for series ones.
 
@@ -54,6 +55,32 @@ repair distributions, the command refuses by default. `--ignore repairs`
 (or the older `--ignore-repairs`) computes the first-failure reliability of
 the same structure and labels that assumption in the result.
 
+### Dependencies
+
+A block or node can depend on another element: when the depended-upon
+element is down, the dependent one is forced idle. A static success function
+has no state to carry that interaction, so the solver refuses a model with
+dependencies until you choose a treatment:
+
+```bash
+raptor analytic new_docs/models/EspressoDep1.rbds --at 100 --ignore repairs --dependencies down
+```
+
+- `--dependencies up` (API/MCP `dependencies="up"`) ignores the dependency:
+  every dependent block or node is analysed as if the depended-upon element
+  were always up. This is optimistic — the dependency never blocks it.
+- `--dependencies down` treats every dependency as failed for the whole
+  mission, including the first instant: each dependent element is forced out
+  of the success path (its availability and reliability are 0). This is
+  conservative.
+
+`down` is never more reliable than `up`. The choice is reported in the
+result's `scope.dependencies` and in the assumptions. The GUI shows a
+**Dependencies** row only for a model that has them; like **Standby**, it
+starts unchosen, so the model is refused until a treatment is picked.
+
+It is independent of the phase and standby choices below.
+
 ### Availability: steady state, repairable
 
 ```bash
@@ -80,7 +107,7 @@ The steady-state result is not the finite-horizon number a simulation
 reports. Use simulation when you need the startup transient, PM, crews,
 spares or repair queues.
 
-## Leaving things out: ignore, phase and standby
+## Leaving things out: ignore, phase, standby and dependencies
 
 Instead of refusing, the solver can be told what to assume. Each choice is
 recorded in the result's `scope` and listed under the assumptions, and the
@@ -107,8 +134,13 @@ model is never changed.
   switching-priority order and removes the rest (their elements show no
   importance). Switching time and switch failures are ignored either way.
   This is independent of the phase choice.
+- **Dependencies** (`--dependencies up|down`): a dependent block or node is
+  refused unless you choose. `up` ignores the dependency and analyses the
+  dependent element's own failure law; `down` forces every dependent element
+  out of the success path. See *Dependencies* above. This is independent of
+  the standby choice.
 
-Dependencies and non-Bernoulli events are always refused.
+Dependencies with no treatment and non-Bernoulli events are always refused.
 
 ## What is in scope
 
@@ -128,7 +160,7 @@ The solver refuses, naming the first offending element:
 
 - repairs in reliability mode (unless ignored);
 - PM, spares, resources, crews (unless ignored);
-- dependencies;
+- dependencies (unless you choose `up` or `down`);
 - cold standby (unless you choose how to treat it) and phases (unless you
   choose a phase);
 - capacity/flow as the success criterion: capacity analysis is ignored with a warning, and success is the End node being up;
@@ -154,7 +186,7 @@ On the command line, `--progress auto` draws a bar on a terminal,
 `--progress none` is silent. Progress never goes to stdout, so `-f json`
 stays parseable.
 
-Resource bounds: 5,000 blocks/events and 1,000,000 BDD nodes by default.
+Resource bounds: 5,000 blocks/events and 2,000,000 BDD nodes by default.
 Raise them per call with `raptor analytic --max-variables N` and
 `--max-bdd-nodes N`, or in the application under Settings ▸ Limits. Raising
 a limit does not make an intractable diagram tractable: the BDD can grow
@@ -171,15 +203,17 @@ approximations.
 responsive on a large diagram. Choose the mode, mission time (it defaults to
 the model's run length, and a model that is not time-terminated asks for
 one), optional curve times, BX percentages, which extras to include, which
-simulation-only features to ignore and (when the model has them) which phase
-and standby treatment to use, then press **Compute**. Changing a setting after a result leaves the old result in
-place with a "press Compute" note rather than silently recomputing.
+simulation-only features to ignore and (when the model has them) which phase,
+standby and dependency treatment to use, then press **Compute**. Changing a
+setting after a result leaves the old result in place with a "press Compute"
+note rather than silently recomputing.
 
-When a phase, a standby treatment or any ignored feature was chosen, a note
-above the tabs says so ("This result assumes: Phase 3 (Cruise) analysed as
-if the system stayed in it the whole time; …"), the Elements tab gains a
-Treatment column (cut, linked, stress ×, standby treated as absent), and the
-same facts head the copied text and the exported Summary sheet.
+When a phase, a standby or dependency treatment or any ignored feature was
+chosen, a note above the tabs says so ("This result assumes: Phase 3 (Cruise)
+analysed as if the system stayed in it the whole time; …"), the Elements tab
+gains a Treatment column (cut, linked, stress ×, standby treated as absent,
+dependency forced down), and the same facts head the copied text and the
+exported Summary sheet.
 
 The result has these tabs:
 

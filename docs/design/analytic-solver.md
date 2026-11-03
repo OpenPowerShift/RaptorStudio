@@ -220,9 +220,10 @@ Reliability mode requires:
 
 - every block's `repair_distro` is `NONE`, or `repairs` is in `ignore`
   (the result says "repair distributions were ignored");
-- no PM, spares or resources unless in `ignore`; no dependencies, capacity
-  success criterion, or non-Bernoulli events; cold standby only with a
-  `standby` choice, and phases only with a chosen `phase`.
+- no PM, spares or resources unless in `ignore`; no capacity success
+  criterion or non-Bernoulli events; dependencies only with a
+  `dependencies` choice (`up` or `down`); cold standby only with a `standby`
+  choice, and phases only with a chosen `phase`.
 
 Availability mode requires:
 
