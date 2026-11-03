@@ -79,8 +79,10 @@ def test_search_finds_and_expands_rows_under_a_closed_folder(qapp):
 
 def test_collapse_button_stays_enabled_to_cancel_a_running_expand(qapp):
     dock, root = _dock()
+    parent = root
     for level in range(4):
-        parent = root if level == 0 else parent.child(0)
+        if level:
+            parent = parent.child(0)
         for i in range(200):
             parent.addChild(QTreeWidgetItem([f"L{level} {i}"]))
         parent.child(0).addChild(QTreeWidgetItem(["x"]))

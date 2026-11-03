@@ -898,6 +898,31 @@ def flow_direction() -> str:
     return _FLOW["direction"]
 
 
+def handover_sides(source: QPointF, target: QPointF,
+                   direction: str) -> tuple[str, str] | None:
+    """The (exit, entry) sides for a wrapped-band hand-over, else None.
+
+    With every band keeping the flow direction, the next band's first
+    element sits upstream of the previous band's last one. The hand-over
+    leaves and enters by the sides that face the gap between the bands:
+    bottom to top (or top to bottom) in a horizontal flow, right to left
+    (or left to right) in a vertical one. From those sides a straight line
+    stays clear of both bands' blocks."""
+    if direction in ("LR", "RL"):
+        behind = (target.x() < source.x() - 1.0 if direction == "LR"
+                  else target.x() > source.x() + 1.0)
+        if behind:
+            return (("bottom", "top") if target.y() >= source.y()
+                    else ("top", "bottom"))
+    elif direction in ("TB", "BT"):
+        behind = (target.y() < source.y() - 1.0 if direction == "TB"
+                  else target.y() > source.y() + 1.0)
+        if behind:
+            return (("right", "left") if target.x() >= source.x()
+                    else ("left", "right"))
+    return None
+
+
 #: Bumped whenever a link item is created or enters/leaves a scene, so the
 #: per-scene link index below knows when it is stale.
 _LINK_GEN = [0]
@@ -1173,11 +1198,25 @@ class _LinkItem(QGraphicsPathItem):
         # the shape (fan-in from more than one direction), fall back to
         # the facing side. Iterate: flipping one end can change whether
         # the other end is crossed.
-        # A band hand-over is deliberately routed round the outside; the
-        # straight-line crossing check would flip the exit to a side port
-        # before the hand-over path ever gets drawn.
-        early_handover = self._handover_points(p0, p3)
-        for _ in range(3 if early_handover is None else 0):
+        # A routing point placed just outside a side of an end element
+        # (Auto Layout puts one at each end of a band hand-over) says which
+        # side the link leaves or enters by. The crossing check below would
+        # otherwise flip that port to avoid the straight line it assumes.
+        active = [g.pos() for g in self._grips
+                  if isValid(g) and getattr(g, "_active", True)]
+        pinned = False
+        if active:
+            out_side = self._side_beside(from_item, active[0])
+            in_side = self._side_beside(to_item, active[-1])
+            if out_side is not None:
+                exit_side = out_side
+                p0 = self._port_point(from_item, exit_side)
+                pinned = True
+            if in_side is not None:
+                entry = in_side
+                p3 = self._port_point(to_item, entry)
+                pinned = True
+        for _ in range(0 if pinned else 3):
             changed = False
             if self._segment_crosses(to_item, p0, p3):
                 entry = self._entry_side_for(to_item, fc)
@@ -1190,8 +1229,7 @@ class _LinkItem(QGraphicsPathItem):
             if not changed:
                 break
         route = None
-        grips = [g.pos() for g in self._grips
-                 if isValid(g) and getattr(g, "_active", True)]
+        grips = active
         mode = _ROUTING["mode"]
         if grips:
             # A dragged routing point is a deliberate dog-leg: draw through
@@ -1214,18 +1252,11 @@ class _LinkItem(QGraphicsPathItem):
         self.prepareGeometryChange()
         self._p0, self._p3 = p0, p3
         path = QPainterPath(p0)
-        handover = (early_handover
-                    if route is None and not grips else None)
         if grips:
             tip_from = p0
             for point in grips:
                 path.lineTo(point)
                 tip_from = point
-            path.lineTo(p3)
-        elif handover:
-            tip_from = handover[-1]
-            for point in handover[1:]:
-                path.lineTo(point)
             path.lineTo(p3)
         elif route is None:             # straight, or the router gave up
             tip_from = p0
@@ -1238,43 +1269,29 @@ class _LinkItem(QGraphicsPathItem):
                                        p3.x(), p3.y(), arrow_head_len(1.0))
         self.setPath(path)
 
-    @staticmethod
-    def _handover_points(p0: QPointF, p3: QPointF) -> list[QPointF] | None:
-        """Stub + band-corner lane for a wrapped band hand-over.
+    #: How far beyond a side a routing point may sit (scene units) and
+    #: still count as "beside" that side.
+    _BESIDE_REACH = 30.0
 
-        Every band keeps the page-flow direction, so the next band's first
-        element sits upstream of the previous band's last element. The
-        return line leaves the last element on a short stub, runs through
-        the gap between bands, turns at the next band's leading corner
-        (left for LR, right for RL; top for TB, bottom for BT), and enters
-        the first element on its upstream port.
-        """
-        direction = flow_direction()
-        stub = 14.0
-        if direction == "TB" and p3.y() < p0.y() - 1.0:
-            mid_x = (p0.x() + p3.x()) / 2.0
-            return [p0, QPointF(p0.x(), p0.y() + stub),
-                    QPointF(mid_x, p0.y() + stub),
-                    QPointF(mid_x, p3.y() - stub),
-                    QPointF(p3.x(), p3.y() - stub)]
-        if direction == "BT" and p3.y() > p0.y() + 1.0:
-            mid_x = (p0.x() + p3.x()) / 2.0
-            return [p0, QPointF(p0.x(), p0.y() - stub),
-                    QPointF(mid_x, p0.y() - stub),
-                    QPointF(mid_x, p3.y() + stub),
-                    QPointF(p3.x(), p3.y() + stub)]
-        if direction == "LR" and p3.x() < p0.x() - 1.0:
-            mid_y = (p0.y() + p3.y()) / 2.0
-            lane = p3.x() - stub
-            return [p0, QPointF(p0.x() + stub, p0.y()),
-                    QPointF(p0.x() + stub, mid_y),
-                    QPointF(lane, mid_y), QPointF(lane, p3.y())]
-        if direction == "RL" and p3.x() > p0.x() + 1.0:
-            mid_y = (p0.y() + p3.y()) / 2.0
-            lane = p3.x() + stub
-            return [p0, QPointF(p0.x() - stub, p0.y()),
-                    QPointF(p0.x() - stub, mid_y),
-                    QPointF(lane, mid_y), QPointF(lane, p3.y())]
+    @staticmethod
+    def _side_beside(item, point: QPointF) -> str | None:
+        """The side of `item` that `point` sits directly outside, else None.
+
+        "Directly outside" is within the item's extent across that side and
+        within `_BESIDE_REACH` of it, so a point dragged a little way off
+        an element's edge pins the link to that edge."""
+        c = _LinkItem._true_centre(item)
+        hw, hh = _LinkItem._half_extents(item)
+        dx, dy = point.x() - c.x(), point.y() - c.y()
+        reach = _LinkItem._BESIDE_REACH
+        if abs(dx) <= hw and hh < dy <= hh + reach:
+            return "bottom"
+        if abs(dx) <= hw and -hh - reach <= dy < -hh:
+            return "top"
+        if abs(dy) <= hh and hw < dx <= hw + reach:
+            return "right"
+        if abs(dy) <= hh and -hw - reach <= dx < -hw:
+            return "left"
         return None
 
     @staticmethod
@@ -1758,7 +1775,12 @@ class _RouteGripItem(QGraphicsEllipseItem):
     annotation layer.
     """
 
-    RADIUS = 4.0
+    #: Drawn radius in screen pixels. The item ignores the view zoom, so the
+    #: handle stays this size however far a large model is zoomed out
+    #: (scene units made it 2 px across at 25%).
+    RADIUS = 5.0
+    #: Hit-test radius, wider than the drawn dot so it is easy to grab.
+    HIT_RADIUS = 9.0
 
     def __init__(self, link: _LinkItem, point: QPointF, *, entry_id: int,
                  active: bool = True):
@@ -1773,6 +1795,7 @@ class _RouteGripItem(QGraphicsEllipseItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
         self.setZValue(6)
         self.setCursor(Qt.CursorShape.SizeAllCursor)
         self.setToolTip("Drag to route this link")
@@ -1784,6 +1807,16 @@ class _RouteGripItem(QGraphicsEllipseItem):
         self._initialising = False
         if self.parentItem() is None:
             self.setParentItem(link)
+
+    def shape(self):
+        path = QPainterPath()
+        h = self.HIT_RADIUS
+        path.addEllipse(-h, -h, 2 * h, 2 * h)
+        return path
+
+    def boundingRect(self):
+        h = self.HIT_RADIUS + 1.0
+        return QRectF(-h, -h, 2 * h, 2 * h)
 
     def itemChange(self, change, value):
         if (change == QGraphicsItem.GraphicsItemChange.ItemPositionChange

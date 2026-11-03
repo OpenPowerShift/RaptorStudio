@@ -255,20 +255,16 @@ def test_left_to_right_layout_routes_ports_horizontally():
         set_flow_direction("auto")
 
 
-def test_lr_band_handover_enters_left_at_the_band_corner():
-    """The return line runs down the next band's left edge and enters
-    the first item from the left, with a short exit stub."""
+def _chain_view(name, n, direction, max_columns):
     from itertools import pairwise
     from PySide6.QtWidgets import QApplication
     from raptor.api.build import build_from_spec
     from raptor.gui.ui.diagram import DiagramView
-    from raptor.gui.ui.diagram_items import (
-        BLOCK_H, BLOCK_W, set_flow_direction)
     QApplication.instance() or QApplication([])
-    seq = ["Start"] + [f"B{i}" for i in range(8)] + ["End"]
+    seq = ["Start"] + [f"B{i}" for i in range(n)] + ["End"]
     rbd = build_from_spec({
-        "name": "LRBand",
-        "blocks": [{"name": f"B{i}"} for i in range(8)],
+        "name": name,
+        "blocks": [{"name": f"B{i}"} for i in range(n)],
         "nodes": [{"id": 1, "name": "Start", "type": "start"},
                   {"id": 2, "name": "End", "type": "end"}],
         "links": [{"from": a, "to": b} for a, b in pairwise(seq)],
@@ -276,62 +272,177 @@ def test_lr_band_handover_enters_left_at_the_band_corner():
     }, auto_layout=False)
     view = DiagramView()
     view.load_rbd(rbd)
+    view.auto_layout(direction=direction, max_columns=max_columns)
+    return view
+
+
+def _block_links(view):
+    blocks = {id(it) for it in view._block_items.values()}
+    return [link for link in view._links
+            if id(link._from) in blocks and id(link._to) in blocks]
+
+
+def _reset_flow():
+    from raptor.gui.ui.diagram_items import set_flow_direction
+    set_flow_direction("auto")
+
+
+def _handover_links(view, direction):
+    from PySide6.QtCore import QPointF
+    from raptor.gui.ui.diagram_items import handover_sides
+    out = []
+    for link in _block_links(view):
+        sides = handover_sides(
+            QPointF(link._from.scenePos()), QPointF(link._to.scenePos()),
+            direction)
+        if sides is not None:
+            out.append(link)
+    return out
+
+
+def _path_points(link):
+    path = link.path()
+    return [(path.elementAt(i).x, path.elementAt(i).y)
+            for i in range(path.elementCount())]
+
+
+def test_lr_band_handover_is_pinned_bottom_to_top_by_saved_points():
+    """A wrapped LR band returns to the next band as one straight run,
+    leaving the bottom of the last block and entering the top of the first.
+    Two routing points, stored in the file, pin it."""
+    from raptor.gui.ui.diagram_items import BLOCK_H, BLOCK_W
+    view = _chain_view("LRBand", 8, "LR", 4)
     try:
-        view.auto_layout(direction="LR", max_columns=4)
-        blocks = {id(it) for it in view._block_items.values()}
-        handovers = []
-        for link in view._links:
-            if id(link._from) not in blocks or id(link._to) not in blocks:
+        handovers = _handover_links(view, "LR")
+        assert len(handovers) == 1, "one hand-over between two bands"
+        link = handovers[0]
+        entries = [g for g in view._rbd_ref.link_grips
+                   if g["link"] == link._link_num]
+        assert len(entries) == 2 and all(g["active"] for g in entries)
+        assert len(view._rbd_ref.link_grips) == 2, "only the hand-over"
+        assert len({g["id"] for g in entries}) == 2
+        start = link._from.mapFromScene(link._p0)
+        end = link._to.mapFromScene(link._p3)
+        assert abs(start.y() - BLOCK_H) < 1.0
+        assert abs(start.x() - BLOCK_W / 2) < 1.0
+        assert abs(end.y()) < 1.0 and abs(end.x() - BLOCK_W / 2) < 1.0
+        assert len(_path_points(link)) == 4, "stub, run, stub"
+        for item in view._block_items.values():
+            if item in (link._from, link._to):
                 continue
-            end = link._to.mapFromScene(link._p3)
-            assert abs(end.y() - BLOCK_H / 2) < 1.0, end
-            assert abs(end.x()) < 1.0, end
-            if link.path().elementCount() > 2:
-                handovers.append(link)
-        assert handovers, "a wrapped LR band should draw a Z/S hand-over"
+            assert not link.collidesWithItem(item), item
+        for other in _block_links(view):
+            if other is not link:
+                assert len(_path_points(other)) == 2
+    finally:
+        _reset_flow()
+
+
+def test_vertical_band_handover_is_pinned_beside_the_bands():
+    """A wrapped TB band leaves by the right side and enters the next
+    band's first block by its left side."""
+    from raptor.gui.ui.diagram_items import BLOCK_H, BLOCK_W
+    view = _chain_view("TBBand", 6, "TB", 3)
+    try:
+        handovers = _handover_links(view, "TB")
+        assert handovers, "wrapped bands should draw a hand-over"
         for link in handovers:
-            left = link._to.mapToScene(0, 0).x()
-            xs = [link.path().elementAt(i).x
-                  for i in range(link.path().elementCount())]
-            assert min(xs) < left
             start = link._from.mapFromScene(link._p0)
-            assert abs(start.x() - BLOCK_W) < 1.0, start
-    finally:
-        set_flow_direction("auto")
-
-
-def test_vertical_band_handover_is_a_z_or_s_shape():
-    """A wrapped TB band keeps top entries and detours round the gap."""
-    from itertools import pairwise
-    from PySide6.QtWidgets import QApplication
-    from raptor.api.build import build_from_spec
-    from raptor.gui.ui.diagram import DiagramView
-    from raptor.gui.ui.diagram_items import (
-        BLOCK_W, set_flow_direction)
-    QApplication.instance() or QApplication([])
-    seq = ["Start"] + [f"B{i}" for i in range(6)] + ["End"]
-    rbd = build_from_spec({
-        "name": "TBBand",
-        "blocks": [{"name": f"B{i}"} for i in range(6)],
-        "nodes": [{"id": 1, "name": "Start", "type": "start"},
-                  {"id": 2, "name": "End", "type": "end"}],
-        "links": [{"from": a, "to": b} for a, b in pairwise(seq)],
-        "system": {"term_condition": 100, "num_runs": 1},
-    }, auto_layout=False)
-    view = DiagramView()
-    view.load_rbd(rbd)
-    try:
-        view.auto_layout(direction="TB", max_columns=3)
-        blocks = {id(it) for it in view._block_items.values()}
-        handovers = []
-        for link in view._links:
-            if id(link._from) not in blocks or id(link._to) not in blocks:
-                continue
             end = link._to.mapFromScene(link._p3)
-            assert abs(end.x() - BLOCK_W / 2) < 1.0, end
-            assert abs(end.y()) < 1.0, end
-            if link.path().elementCount() > 2:
-                handovers.append(link)
-        assert handovers, "wrapped bands should draw a Z/S hand-over"
+            assert abs(start.x() - BLOCK_W) < 1.0
+            assert abs(start.y() - BLOCK_H / 2) < 1.0
+            assert abs(end.x()) < 1.0 and abs(end.y() - BLOCK_H / 2) < 1.0
+            for item in view._block_items.values():
+                if item in (link._from, link._to):
+                    continue
+                assert not link.collidesWithItem(item), item
     finally:
-        set_flow_direction("auto")
+        _reset_flow()
+
+
+def test_hand_over_points_are_saved_and_survive_a_reopen(tmp_path):
+    from raptor.core.fileio.model_file import load_model_file
+    from raptor.core.fileio.rbds import save_rbds
+    from raptor.gui.ui.diagram import DiagramView
+    view = _chain_view("Reopen", 8, "LR", 4)
+    try:
+        link = _handover_links(view, "LR")[0]
+        before = _path_points(link)
+        path = tmp_path / "bands.rbds"
+        save_rbds(view._rbd_ref, str(path))
+        reopened = DiagramView()
+        reopened.load_rbd(load_model_file(str(path)))
+        again = next(lk for lk in reopened._links
+                     if lk._link_num == link._link_num)
+        for (x0, y0), (x1, y1) in zip(before, _path_points(again)):
+            assert abs(x0 - x1) < 1.0 and abs(y0 - y1) < 1.0
+        assert len(_path_points(again)) == len(before)
+    finally:
+        _reset_flow()
+
+
+def test_next_auto_layout_removes_the_hand_over_points_and_undo_restores():
+    view = _chain_view("Redo", 8, "LR", 4)
+    try:
+        assert len(view._rbd_ref.link_grips) == 2
+        view.auto_layout(direction="LR", max_columns=None)
+        assert not view._rbd_ref.link_grips
+        view._stack.undo()
+        assert len(view._rbd_ref.link_grips) == 2
+    finally:
+        _reset_flow()
+
+
+def test_automatic_snake_wrap_adds_no_hand_over_points():
+    """Without max_columns the bands alternate direction and the link
+    between bands is short, so nothing is pinned."""
+    view = _chain_view("Snake", 60, "LR", None)
+    try:
+        assert not view._rbd_ref.link_grips
+    finally:
+        _reset_flow()
+
+
+def test_handover_sides_follow_the_flow_direction():
+    from PySide6.QtCore import QPointF
+    from raptor.gui.ui.diagram_items import handover_sides
+    behind = (QPointF(500.0, 0.0), QPointF(0.0, 120.0))
+    assert handover_sides(*behind, "LR") == ("bottom", "top")
+    assert handover_sides(QPointF(0.0, 0.0), QPointF(80.0, 0.0), "LR") is None
+    assert handover_sides(QPointF(0.0, 500.0), QPointF(150.0, 0.0),
+                          "TB") == ("right", "left")
+    assert handover_sides(*behind, "auto") is None
+
+
+def test_flow_pitch_is_a_whole_number_of_grid_steps():
+    """A pitch that is not a multiple of the grid made the gaps alternate
+    (3.75, 3.75, 5.0 ...) once positions were snapped."""
+    from raptor.api.build import build_from_spec
+    from itertools import pairwise
+    from raptor.core.fileio.legacy_layout import GRID, normalize_legacy_layout
+    blocks = []
+    nodes = [{"name": "Start", "type": 1, "n": 0, "out": 1},
+             {"name": "End", "type": 3, "n": 1, "out": 0}]
+    links = [{"from": "Start", "to": "S1"}]
+    prev = "Start"
+    for s in range(1, 7):
+        nodes += [{"name": f"S{s}", "type": 2, "n": 1, "out": 3, "k": 1},
+                  {"name": f"J{s}", "type": 2, "n": 3, "out": 1, "k": 2}]
+        if s > 1:
+            links.append({"from": prev, "to": f"S{s}"})
+        for i in range(3):
+            blocks.append({"name": f"S{s}_B{i}"})
+            links += [{"from": f"S{s}", "to": f"S{s}_B{i}"},
+                      {"from": f"S{s}_B{i}", "to": f"J{s}"}]
+        prev = f"J{s}"
+    links.append({"from": prev, "to": "End"})
+    rbd = build_from_spec({"blocks": blocks, "nodes": nodes, "links": links},
+                          auto_layout=False)
+    normalize_legacy_layout(rbd, force=True, direction="TB")
+    rows = {r.get("Name") or r.get("blockName"): r
+            for r in rbd.section("BLOCK_DATA").rows
+            if str(r.get("ID")) != "0"}
+    ys = [float(rows[f"S{s}_B1"]["yPos"]) for s in range(1, 7)]
+    gaps = {round(abs(b - a), 4) for a, b in pairwise(ys)}
+    assert len(gaps) == 1, f"uneven stage pitch: {sorted(gaps)}"
+    assert all(abs(g / GRID - round(g / GRID)) < 1e-6 for g in gaps)

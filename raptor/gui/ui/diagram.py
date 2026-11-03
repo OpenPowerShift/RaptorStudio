@@ -117,6 +117,7 @@ from raptor.gui.ui.diagram_items import (  # noqa: F401
     _NUDGE_DIRS,
     _NodeItem,
     _apply_hover_cursor,
+    handover_sides,
     set_flow_direction,
     _arrow,
     _blend,
@@ -1456,6 +1457,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         used = {int(a.get("id", 0)) for a in
                 getattr(self, "annotations", [])}
         used |= set(self._anno_items)
+        # Routing points share the id space. Without this every point added
+        # in a row got the same id, so only the first was saved to the file
+        # and removing one removed them all.
+        used |= {int(g.get("id", 0))
+                 for g in getattr(self._rbd_ref, "link_grips", None) or []}
         i = getattr(self, "_anno_seq", 1)
         while i in used:
             i += 1
@@ -3865,6 +3871,41 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     self._scene.removeItem(grip)
             if not grips:
                 self._route_grips.pop(link_id, None)
+
+    #: Distance (scene units) of a hand-over's end points beyond the
+    #: element side, so the link leaves and enters square to that side.
+    _HANDOVER_STUB = 14.0
+
+    def _push_handover_grips(self, stack, direction: str) -> None:
+        """Pin each wrapped-band hand-over to the sides that face the gap.
+
+        Two routing points per hand-over, just outside the exit and entry
+        sides, give one straight run between the bands. They are stored in
+        the file like any routing point, so the route survives a save and
+        reopen, and the next Auto Layout removes them with the rest."""
+        offset = {"bottom": (0.0, 1.0), "top": (0.0, -1.0),
+                  "right": (1.0, 0.0), "left": (-1.0, 0.0)}
+        for link in list(self._links):
+            source, target = link._from, link._to
+            if source is target or (link._link_num or 0) <= 0:
+                continue
+            sides = handover_sides(link._true_centre(source),
+                                   link._true_centre(target), direction)
+            if sides is None:
+                continue
+            for item, side in ((source, sides[0]), (target, sides[1])):
+                port = link._port_point(item, side)
+                dx, dy = offset[side]
+                entry = {
+                    "kind": "route_grip",
+                    "id": self._next_anno_id(),
+                    "parent": self._current_parent,
+                    "link": link._link_num,
+                    "x": round(port.x() + dx * self._HANDOVER_STUB, 2),
+                    "y": round(port.y() + dy * self._HANDOVER_STUB, 2),
+                    "active": True,
+                }
+                stack.push(RouteGripCmd(self, entry, add=True))
 
     def _auto_layout_selection(self, selected, members, edges, *,
                                direction: str,
@@ -6899,6 +6940,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     stack.push(RouteGripCmd(self, entry, add=False))
                 stack.push(LayoutCmd(self, "Auto Layout", before,
                                      self._layout_state()))
+                if max_columns is not None:
+                    self._push_handover_grips(stack, direction)
             finally:
                 stack.endMacro()
         else:
