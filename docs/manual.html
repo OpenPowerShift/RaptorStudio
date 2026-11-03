@@ -475,12 +475,15 @@ as independent, whatever random-number streams they use.</p>
 <div class="paragraph">
 <p>The solver covers series, parallel, mixed, k-of-n, bridge networks and
 hierarchies. It refuses, naming the first offending element, PM, spares,
-resources, repairs (in reliability mode), dependencies, cold standby, phases
-and non-Bernoulli events; use the simulator for those. The <strong>Ignore</strong> row
+resources, repairs (in reliability mode) and non-Bernoulli events; it also
+refuses dependencies, cold standby and phases until you choose a treatment.
+The <strong>Ignore</strong> row
 (Repairs, Preventive maintenance, Spares, Resources) drops that behaviour
 instead of refusing, <strong>Phase</strong> analyses a phased model as if it stayed in one
-phase, and <strong>Standby</strong> treats cold-standby paths as fully in service or as
-absent; each choice is listed under the assumptions. <strong>Copy</strong> and
+phase, <strong>Standby</strong> treats cold-standby paths as fully in service or as
+absent, and <strong>Dependencies</strong> treats every dependency as up (analyse the
+dependent element&#8217;s own law) or down (remove it from the success path); each
+choice is listed under the assumptions. <strong>Copy</strong> and
 <strong>Export…</strong> (a spreadsheet) save the result. The full scope and the API
 are in <a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md">the analytical solver guide</a>.</p>
 </div>

@@ -20,6 +20,10 @@ def scope_sentence(scope: dict[str, Any] | None) -> str:
     if not scope:
         return ""
     parts = []
+    if scope.get("hierarchy"):
+        parts.append(
+            f"hierarchy {scope['hierarchy']} solved as a standalone port "
+            "extension (its In node becomes Start and its Out node End)")
     if scope.get("phase") is not None:
         name = f" ({scope['phase_name']})" if scope.get("phase_name") else ""
         parts.append(f"Phase {scope['phase']}{name} analysed as if the "
@@ -28,6 +32,11 @@ def scope_sentence(scope: dict[str, Any] | None) -> str:
         parts.append("standby paths treated as " + (
             "fully in service" if scope["standby"] == "active"
             else "absent"))
+    if scope.get("dependencies"):
+        parts.append("every dependency treated as " + (
+            "up (dependent elements analysed as independent)"
+            if scope["dependencies"] == "up"
+            else "down (dependent elements forced out of the success path)"))
     if scope.get("ignore"):
         names = {"repairs": "repairs", "pm": "preventive maintenance",
                  "spares": "spares", "resources": "resources"}
@@ -43,6 +52,9 @@ def _scope_lines(scope: dict[str, Any] | None) -> list[str]:
     if not scope:
         return []
     out = []
+    if scope.get("hierarchy"):
+        out.append("Hierarchy analysed: "
+                   f"{scope['hierarchy']} (standalone port extension)")
     if scope.get("phase") is not None:
         out.append(f"Phase analysed: {scope['phase']}"
                    + (f" ({scope['phase_name']})"
@@ -53,6 +65,11 @@ def _scope_lines(scope: dict[str, Any] | None) -> list[str]:
         out.append("Standby treated as: " + (
             "fully in service" if scope["standby"] == "active"
             else "absent"))
+    if scope.get("dependencies"):
+        out.append("Dependencies treated as: " + (
+            "up (dependent elements analysed as independent)"
+            if scope["dependencies"] == "up"
+            else "down (dependent elements forced out of the success path)"))
     return out + [""] if out else out
 
 
@@ -80,7 +97,7 @@ def _table(header: tuple[str, ...], rows: list[list[str]]) -> list[str]:
 def summary_text(result: dict[str, Any]) -> str:  # noqa: C901, PLR0912
     lines = [
         f"Analytical analysis: {result['model']} ({result['mode']})",
-        f"Solver size: {result['bdd_nodes']} BDD nodes",
+        f"Solver size: {result['bdd_nodes']:,} BDD nodes",
         BDD_NOTE,
         "",
     ]

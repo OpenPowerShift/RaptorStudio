@@ -131,7 +131,7 @@ description and input/output schema is what the server sends on `tools/list`.
 | `add_event` | writes | Add an event to the model.  `prob` is its probability (0-1). | `model_id`, `name`, `prob`? |
 | `add_hierarchy` | writes | Create an empty hierarchy -- a sub-model boundary -- with its In and Out markers already wired up correctly. | `model_id`, `name`, `parent`? |
 | `add_node` | writes | Add a node to the model. | `model_id`, `type`?, `k`?, `name`?, `parent`? |
-| `analytical_analysis` | read-only | Solve the static subset of a model exactly. | `model_id`, `mode`?, `at`?, `times`?, `bx`?, `tau`?, `importance`?, `equation`?, `ignore_repairs`?, `ignore`?, `phase`?, `standby`?, `max_variables`?, `max_bdd_nodes`? |
+| `analytical_analysis` | read-only | Solve the static subset of a model exactly. | `model_id`, `mode`?, `hierarchy`?, `at`?, `times`?, `bx`?, `tau`?, `importance`?, `equation`?, `ignore_repairs`?, `ignore`?, `phase`?, `standby`?, `dependencies`?, `max_variables`?, `max_bdd_nodes`? |
 | `auto_layout` | writes | Re-arrange a model's diagram onto the shared layered grid. | `model_id`, `hierarchy`?, `selectors`? |
 | `build_model` | writes | Build a complete model from a friendly .rbds spec document. | `name`, `spec`?, `auto_layout`?, `validate_model`?, `model_id`?, `spec_path`? |
 | `cancel_run` | writes | Ask a background job to stop (checked between replications, and while a large model is still being set up). | `job_id` |

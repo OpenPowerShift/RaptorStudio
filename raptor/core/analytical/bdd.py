@@ -31,10 +31,10 @@ TRUE = 1
 #: A variable never has this value; used only for ordering comparisons.
 _NO_VAR = 1 << 60
 
-#: Default cap. A 122-block real model is ~12k nodes; 1M is generous for
-#: large practical diagrams and small enough to fail before exhausting
-#: memory. A deeper investigation can raise it per call.
-MAX_BDD_NODES = 1_000_000
+#: Default and hard cap. A 122-block real model is ~12k nodes; 2M is
+#: generous for large practical diagrams and small enough to fail before
+#: exhausting memory. Raising the UI/API value above this is refused.
+MAX_BDD_NODES = 2_000_000
 
 #: How often the optional progress callback hears about new BDD nodes.
 _PROGRESS_EVERY = 8_192
@@ -64,6 +64,10 @@ class BDD:
                  progress: Callable[[int], None] | None = None) -> None:
         if max_nodes < 2:
             raise ValueError("max_nodes must be at least 2")
+        if max_nodes > MAX_BDD_NODES:
+            raise ValueError(
+                f"max_nodes cannot exceed the hard cap "
+                f"{MAX_BDD_NODES:,}")
         self.max_nodes = max_nodes
         self._progress = progress
         #: index 0 = FALSE, 1 = TRUE, then (variable, low, high).

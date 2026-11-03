@@ -28,6 +28,9 @@ def add_parser(sub: Any) -> None:
                    default="reliability",
                    help="reliability (R(t), non-repairable) or availability "
                         "(steady state, repairable) (default reliability)")
+    p.add_argument("--hierarchy", default=None, metavar="NAME|ID",
+                   help="analyse one hierarchy as a standalone model; its In "
+                        "node becomes Start and its Out node End")
     p.add_argument("--at", type=float, metavar="T",
                    help="mission time for reliability mode (default: the "
                         "model's run length); ignored in availability mode")
@@ -58,6 +61,10 @@ def add_parser(sub: Any) -> None:
     p.add_argument("--standby", choices=("active", "absent"), default=None,
                    help="cold-standby paths: treat as fully in service, or "
                         "as if they did not exist")
+    p.add_argument("--dependencies", choices=("up", "down"), default=None,
+                   help="treat every dependency as up (analyse the dependent "
+                        "element's own law) or down (remove it from the "
+                        "success path)")
     p.add_argument("--max-variables", type=int, default=None, metavar="N",
                    help="raise the BDD variable limit (default: solver "
                         "setting) when a large model is still tractable")
@@ -82,10 +89,13 @@ def _floats(text: str | None) -> list[float]:
         raise CliError(f"bad number list {text!r}", X.USAGE) from exc
 
 
-def _summary_csv(result: dict[str, Any]) -> str:
+def _summary_csv(result: dict[str, Any]) -> str:  # noqa: C901
     out = io.StringIO()
     writer = csv.writer(out)
     writer.writerow(["section", "name", "value"])
+    writer.writerow(["summary", "model", result.get("model")])
+    if result.get("hierarchy"):
+        writer.writerow(["summary", "hierarchy", result["hierarchy"]])
     for key in ("time", "reliability", "pdf", "hazard", "mttf",
                 "availability", "unavailability", "bdd_nodes"):
         if key in result and result[key] is not None:
@@ -151,6 +161,7 @@ def analytic_command(args: Any) -> int:
             result = analyse(
                 ws, mid,
                 mode=args.mode,
+                hierarchy=args.hierarchy,
                 at=args.at,
                 times=_floats(args.times),
                 bx=_floats(args.bx),
@@ -162,6 +173,7 @@ def analytic_command(args: Any) -> int:
                         if x.strip()],
                 phase=args.phase,
                 standby=args.standby,
+                dependencies=args.dependencies,
                 progress=progress,
                 **limits,
             )
