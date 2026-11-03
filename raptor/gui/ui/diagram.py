@@ -43,6 +43,7 @@ from raptor.core.annotations import (
 )
 from raptor.gui import row_ops
 from raptor.gui.clipboard_plan import count_elements, plan_copy, plan_paste
+from raptor.core.fileio.band_handover import handover_points
 from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 from raptor.gui.hierarchy_plan import (apply_collapse_plan,
                                        collapse_new_violations,
@@ -117,7 +118,6 @@ from raptor.gui.ui.diagram_items import (  # noqa: F401
     _NUDGE_DIRS,
     _NodeItem,
     _apply_hover_cursor,
-    handover_sides,
     set_flow_direction,
     _arrow,
     _blend,
@@ -3872,38 +3872,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             if not grips:
                 self._route_grips.pop(link_id, None)
 
-    #: Distance (scene units) of a hand-over's end points beyond the
-    #: element side, so the link leaves and enters square to that side.
-    _HANDOVER_STUB = 14.0
-
     def _push_handover_grips(self, stack, direction: str) -> None:
         """Pin each wrapped-band hand-over to the sides that face the gap.
 
         Two routing points per hand-over, just outside the exit and entry
-        sides, give one straight run between the bands. They are stored in
-        the file like any routing point, so the route survives a save and
-        reopen, and the next Auto Layout removes them with the rest."""
-        offset = {"bottom": (0.0, 1.0), "top": (0.0, -1.0),
-                  "right": (1.0, 0.0), "left": (-1.0, 0.0)}
+        sides, give one straight run between the bands. The rule is shared
+        with the MCP `auto_layout` tool (`raptor.core.fileio.band_handover`).
+        The points are stored in the file like any routing point, so the
+        route survives a save and reopen; the next Auto Layout removes
+        them with the rest."""
         for link in list(self._links):
             source, target = link._from, link._to
             if source is target or (link._link_num or 0) <= 0:
                 continue
-            sides = handover_sides(link._true_centre(source),
-                                   link._true_centre(target), direction)
-            if sides is None:
+            points = handover_points(link._box(source), link._box(target),
+                                     direction)
+            if points is None:
                 continue
-            for item, side in ((source, sides[0]), (target, sides[1])):
-                port = link._port_point(item, side)
-                dx, dy = offset[side]
+            for x, y in points:
                 entry = {
                     "kind": "route_grip",
                     "id": self._next_anno_id(),
                     "parent": self._current_parent,
                     "link": link._link_num,
-                    "x": round(port.x() + dx * self._HANDOVER_STUB, 2),
-                    "y": round(port.y() + dy * self._HANDOVER_STUB, 2),
-                    "active": True,
+                    "x": x, "y": y, "active": True,
                 }
                 stack.push(RouteGripCmd(self, entry, add=True))
 

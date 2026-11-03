@@ -211,6 +211,12 @@
    "elements_moved": {
     "type": "integer"
    },
+   "handover_points": {
+    "type": "integer"
+   },
+   "handover_points_removed": {
+    "type": "integer"
+   },
    "model_id": {
     "type": "string"
    },
@@ -227,6 +233,8 @@
   "required": [
    "annotations_moved",
    "elements_moved",
+   "handover_points",
+   "handover_points_removed",
    "model_id",
    "moved",
    "refine_cut_short",

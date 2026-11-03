@@ -2362,6 +2362,12 @@
      "id": {
       "type": "integer"
      },
+     "kind": {
+      "type": "string"
+     },
+     "parent": {
+      "type": "integer"
+     },
      "link": {
       "type": "integer"
      },

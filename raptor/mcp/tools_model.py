@@ -1350,6 +1350,33 @@ _MIN_SPACING = 0.25
 _MAX_SPACING = 3.0
 
 
+def _refresh_handover_points(rbd: Any, hierarchy: str | int | None,
+                             selectors: list[str] | None, all_levels: bool,
+                             *, direction: str,
+                             max_columns: int | None) -> dict[str, int]:
+    """Replace the routing points in the scope `auto_layout` just laid out."""
+    from raptor.api.handover_points import refresh_handover_points
+    from raptor.api.build import resolve_element
+    if selectors:
+        touching: set[tuple[str, int]] = set()
+        prefix = {"BLOCK_DATA": "Block", "NODE_DATA": "Node",
+                  "EVENT_DATA": "Event", "HIERARCHY_DATA": "Hier"}
+        for selector in selectors:
+            section, row = resolve_element(rbd, str(selector))
+            touching.add((prefix[section], int(float(row["ID"]))))
+        return refresh_handover_points(
+            rbd, direction=direction, max_columns=max_columns,
+            touching=touching)
+    levels: set[int] | None
+    if hierarchy is not None:
+        _section, row = resolve_element(rbd, str(hierarchy))
+        levels = {int(float(row["ID"]))}
+    else:
+        levels = None if all_levels else {0}
+    return refresh_handover_points(
+        rbd, direction=direction, max_columns=max_columns, levels=levels)
+
+
 def _validate_layout_args(direction: str, max_columns: int | None) -> None:
     """Reject a bad direction / column limit before any layout work.
 
@@ -1560,8 +1587,14 @@ def auto_layout(model_id: str,
     nudged to the nearest clear spot; one a user dragged away keeps its
     offset. Nothing else ever re-lays out a model: saving and exporting
     keep the positions as they are.
+
+    With `max_columns` set, each link that runs back from one band to the
+    next is pinned as a straight line by two routing points (saved in the
+    model, `handover_points` in the result); the next auto layout of that
+    level replaces them, and any other routing points in the laid-out scope
+    are cleared (`handover_points_removed`). The GUI does the same.
     Returns {moved, model_id, scope, elements_moved, annotations_moved,
-    refine_cut_short}.
+    handover_points, handover_points_removed, refine_cut_short}.
     """
     _validate_layout_args(direction, max_columns)
     try:
@@ -1601,17 +1634,29 @@ def auto_layout(model_id: str,
         handle.rbd, old_transform, direction=direction,
         label_side=None if label_side == "auto" else label_side,
     ) if applied else 0
-    if applied:
+    # Routing points belong to the positions just replaced: clear the laid-out
+    # scope's and, for an explicit band wrap, pin each hand-over (the same
+    # rule the GUI uses; see raptor.core.fileio.band_handover).
+    points = _refresh_handover_points(
+        handle.rbd, hierarchy, selectors, all_levels,
+        direction=direction, max_columns=max_columns)
+    if applied or points["removed"] or points["added"]:
         ws.save(model_id)
     cut = int(report.get("refine_cut_short", 0))
     data = {"model_id": model_id, "moved": bool(applied), "scope": scope,
             "elements_moved": applied, "annotations_moved": annotations_moved,
+            "handover_points": points["added"],
+            "handover_points_removed": points["removed"],
             "refine_cut_short": cut}
     md = (f"Auto-laid out {scope}: {applied} element(s) moved"
           + (f", {annotations_moved} anchored annotation(s) with them."
              if annotations_moved else ".")
           if applied else
           f"Auto layout over {scope}: nothing needed to move.")
+    if points["added"]:
+        md += (f" {points['added']} routing point(s) pin the band "
+               "hand-overs as straight lines; the next auto layout "
+               "replaces them.")
     if cut:
         md += (f"\n\nThe refinement stopped at its time budget on {cut} "
                "level(s); the layout is layered and valid but may still have "

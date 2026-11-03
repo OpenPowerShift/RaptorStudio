@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QGraphicsPolygonItem, QStyle, QStyleOptionGraphicsItem,
 )
 from PySide6.QtGui import QPainterPath
+from raptor.core.fileio.band_handover import side_beside
 from raptor.core.routing import ROUTING_MODES, Router, angled, fan_hint
 from raptor.gui.resources.icons import arrow_head_len, arrow_head_points
 from raptor.gui.resources.design_tokens import (
@@ -898,31 +899,6 @@ def flow_direction() -> str:
     return _FLOW["direction"]
 
 
-def handover_sides(source: QPointF, target: QPointF,
-                   direction: str) -> tuple[str, str] | None:
-    """The (exit, entry) sides for a wrapped-band hand-over, else None.
-
-    With every band keeping the flow direction, the next band's first
-    element sits upstream of the previous band's last one. The hand-over
-    leaves and enters by the sides that face the gap between the bands:
-    bottom to top (or top to bottom) in a horizontal flow, right to left
-    (or left to right) in a vertical one. From those sides a straight line
-    stays clear of both bands' blocks."""
-    if direction in ("LR", "RL"):
-        behind = (target.x() < source.x() - 1.0 if direction == "LR"
-                  else target.x() > source.x() + 1.0)
-        if behind:
-            return (("bottom", "top") if target.y() >= source.y()
-                    else ("top", "bottom"))
-    elif direction in ("TB", "BT"):
-        behind = (target.y() < source.y() - 1.0 if direction == "TB"
-                  else target.y() > source.y() + 1.0)
-        if behind:
-            return (("right", "left") if target.x() >= source.x()
-                    else ("left", "right"))
-    return None
-
-
 #: Bumped whenever a link item is created or enters/leaves a scene, so the
 #: per-scene link index below knows when it is stale.
 _LINK_GEN = [0]
@@ -1269,30 +1245,18 @@ class _LinkItem(QGraphicsPathItem):
                                        p3.x(), p3.y(), arrow_head_len(1.0))
         self.setPath(path)
 
-    #: How far beyond a side a routing point may sit (scene units) and
-    #: still count as "beside" that side.
-    _BESIDE_REACH = 30.0
+    @staticmethod
+    def _box(item) -> tuple[float, float, float, float]:
+        """(cx, cy, half_w, half_h) of an end element, scene pixels."""
+        c = _LinkItem._true_centre(item)
+        hw, hh = _LinkItem._half_extents(item)
+        return c.x(), c.y(), hw, hh
 
     @staticmethod
     def _side_beside(item, point: QPointF) -> str | None:
-        """The side of `item` that `point` sits directly outside, else None.
-
-        "Directly outside" is within the item's extent across that side and
-        within `_BESIDE_REACH` of it, so a point dragged a little way off
-        an element's edge pins the link to that edge."""
-        c = _LinkItem._true_centre(item)
-        hw, hh = _LinkItem._half_extents(item)
-        dx, dy = point.x() - c.x(), point.y() - c.y()
-        reach = _LinkItem._BESIDE_REACH
-        if abs(dx) <= hw and hh < dy <= hh + reach:
-            return "bottom"
-        if abs(dx) <= hw and -hh - reach <= dy < -hh:
-            return "top"
-        if abs(dy) <= hh and hw < dx <= hw + reach:
-            return "right"
-        if abs(dy) <= hh and -hw - reach <= dx < -hw:
-            return "left"
-        return None
+        """The side of `item` that `point` sits directly outside (the
+        shared rule in `raptor.core.fileio.band_handover`), else None."""
+        return side_beside(_LinkItem._box(item), (point.x(), point.y()))
 
     @staticmethod
     def _true_centre(item) -> QPointF:

@@ -216,6 +216,8 @@ def build_schema() -> dict[str, Any]:
                 "additionalProperties": False,
                 "properties": {
                     "id": {"type": "integer"},
+                    "kind": {"type": "string"},
+                    "parent": {"type": "integer"},
                     "link": {"type": "integer"},
                     "x": {"type": "number"},
                     "y": {"type": "number"},

@@ -288,13 +288,11 @@ def _reset_flow():
 
 
 def _handover_links(view, direction):
-    from PySide6.QtCore import QPointF
-    from raptor.gui.ui.diagram_items import handover_sides
+    from raptor.core.fileio.band_handover import handover_sides
     out = []
     for link in _block_links(view):
-        sides = handover_sides(
-            QPointF(link._from.scenePos()), QPointF(link._to.scenePos()),
-            direction)
+        a, b = link._from.scenePos(), link._to.scenePos()
+        sides = handover_sides((a.x(), a.y()), (b.x(), b.y()), direction)
         if sides is not None:
             out.append(link)
     return out
@@ -404,12 +402,11 @@ def test_automatic_snake_wrap_adds_no_hand_over_points():
 
 
 def test_handover_sides_follow_the_flow_direction():
-    from PySide6.QtCore import QPointF
-    from raptor.gui.ui.diagram_items import handover_sides
-    behind = (QPointF(500.0, 0.0), QPointF(0.0, 120.0))
+    from raptor.core.fileio.band_handover import handover_sides
+    behind = ((500.0, 0.0), (0.0, 120.0))
     assert handover_sides(*behind, "LR") == ("bottom", "top")
-    assert handover_sides(QPointF(0.0, 0.0), QPointF(80.0, 0.0), "LR") is None
-    assert handover_sides(QPointF(0.0, 500.0), QPointF(150.0, 0.0),
+    assert handover_sides((0.0, 0.0), (80.0, 0.0), "LR") is None
+    assert handover_sides((0.0, 500.0), (150.0, 0.0),
                           "TB") == ("right", "left")
     assert handover_sides(*behind, "auto") is None
 
