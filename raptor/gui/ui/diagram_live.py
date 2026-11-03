@@ -4,6 +4,7 @@ live-state cache re-applied on level changes. A mixin of `DiagramView`."""
 from __future__ import annotations
 
 from raptor.gui.ui.qtcompat import req
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from raptor.gui.resources.design_tokens import (
     APPENDIX_D_STATE_COLOURS, COLOUR, ThemeManager,
@@ -162,7 +163,8 @@ class LiveOverlayMixin:
     }
 
     def update_live_states(self: DiagramView, blocks, cap_data: tuple | None = None,  # type: ignore[misc]
-                           model=None, phase: int | None = None) -> None:
+                           model=None, phase: int | None = None,
+                           progress: Callable[[str, int, int], None] | None = None) -> None:
         """Re-colour every block/node/link/event/hierarchy item from its
         live status during a simulation (the Simulation View animation).
         `blocks` accepts either a {block_id: block} mapping or an
@@ -185,9 +187,26 @@ class LiveOverlayMixin:
         `cap_data` (when capacity analysis is enabled): (node_flow,
         node_capacity) -- paints the live FLOW under the Start marker and
         the capacity-restricted nodes, Raptor 7 `ShowFlow` style (see its
-        own number formatting). `None` clears the readouts."""
+        own number formatting). `None` clears the readouts.
+
+        `progress(stage, done, total)`, when given, is called in slices while
+        the items are painted. Failure Effects View passes it on entry so a
+        very large level keeps repainting its progress window instead of
+        looking frozen while every block's new colour is applied."""
         if not isinstance(blocks, dict):
             blocks = {b.id: b for b in blocks}
+
+        total = (len(self._block_items) + len(self._node_items)
+                 + len(self._hier_items) + len(self._event_items)
+                 + len(getattr(self, "_links", ())))
+        done = 0
+        every = max(64, total // 80)
+
+        def tick(count: int = 1) -> None:
+            nonlocal done
+            done += count
+            if progress is not None and (done % every == 0 or done >= total):
+                progress("Colouring the diagram", min(done, total), total)
 
         def _key(v):
             return v.value if hasattr(v, "value") else str(v)
@@ -261,6 +280,7 @@ class LiveOverlayMixin:
                 "cut" if active_key == "Cut" else None)
             runtime = getattr(block, "run_state", None)
             item.set_fev_hatch(bool(getattr(runtime, "fev_induced_by_dependency", False)))
+            tick()
 
         for nid, nitem in self._node_items.items():
             node = nodes_src.get(nid)
@@ -273,6 +293,7 @@ class LiveOverlayMixin:
             name = getattr(node, "node_name", "") or f"Node {nid}"
             nitem.set_live_fill(colour, f"{name} — {help_txt}")
             nitem.set_live_capacity_text(None)
+            tick()
 
         for hid, hitem in self._hier_items.items():
             hier = hiers_src.get(hid)
@@ -299,6 +320,7 @@ class LiveOverlayMixin:
             if active_key in ("Linked", "Cut"):
                 info = dict(info, state=active_key)
             hitem.set_dsi(info, COLOUR)
+            tick()
 
         for event_item in self._event_items.values():
             event = events_src.get(event_item._event_id)
@@ -315,6 +337,7 @@ class LiveOverlayMixin:
             event_item.set_link_cut(
                 "linked" if active_key == "Linked" else
                 "cut" if active_key == "Cut" else None)
+            tick()
 
         # Links have no per-id item map (unlike blocks/nodes/hiers/
         # events) -- `retheme()` finds them the same way, by scanning
@@ -346,6 +369,7 @@ class LiveOverlayMixin:
                         key, COLOUR["muted"])
                 help_txt = self._LINK_STATE_HELP.get(key, key)
                 sitem.set_live_fill(colour, help_txt)
+                tick()
 
         # BOUNDARY-LINE COLOURING: the hierarchy's OUTPUT boundary
         # links have no ReconfigureNode driver in the engine (after
@@ -411,6 +435,9 @@ class LiveOverlayMixin:
                     nitem.set_live_capacity_text(_flow_label(f))
                 else:
                     nitem.set_live_capacity_text(None)
+
+        if progress is not None:
+            progress("Colouring the diagram", total, total)
 
         # Live-state retention: cache the live sources so a level change
         # (enter/go_up/go_home -- which rebuilds the scene with freshly
