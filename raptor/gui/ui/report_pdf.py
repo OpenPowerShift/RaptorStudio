@@ -159,8 +159,9 @@ def _raw_blocks(win) -> list[TextBlock]:
     from raptor.gui.ui.printing import collect_raw_report_sections
     where = ("The whole report: Results ▸ Raw ▸ Save, or File ▸ Export "
              "▸ Export Tables.")
-    return [TextBlock(title.replace("Raw Report — ", ""), lines, where)
-            for title, lines in collect_raw_report_sections(win)]
+    return [TextBlock(title.replace("Raw Report — ", ""), lines, where,
+                      total)
+            for title, lines, total in collect_raw_report_sections(win)]
 
 
 def _add_results(content: ReportContent, win, opts: dict,
