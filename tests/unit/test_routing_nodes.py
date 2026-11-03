@@ -360,3 +360,20 @@ def test_grip_keeps_its_on_screen_size_when_zoomed_out(qapp):
     centre = v.mapFromScene(grip.scenePos())
     near = centre + QPointF(5.0, 0.0).toPoint()
     assert v.itemAt(near) is grip, "a click near the dot still hits the handle"
+
+
+def test_routing_points_added_in_a_row_get_distinct_ids_and_all_persist(qapp):
+    """They used to share one id: only the first was kept in the file and
+    removing one removed every point."""
+    v = _view()
+    links = v._links[:3] if len(v._links) >= 3 else v._links
+    grips = []
+    for link in links:
+        c = link.line().center()
+        grips.append(v.insert_routing_node(
+            link._link_num, *v._vt.to_model(c.x(), c.y())))
+    ids = [g._entry_id for g in grips]
+    assert len(set(ids)) == len(ids), ids
+    assert len(v._rbd_ref.link_grips) == len(links)
+    v.delete_route_grip(grips[0])
+    assert len(v._rbd_ref.link_grips) == len(links) - 1

@@ -283,49 +283,69 @@ def _block_links(view):
 
 
 def _reset_flow():
-    from raptor.gui.ui.diagram_items import (
-        set_explicit_bands, set_flow_direction)
+    from raptor.gui.ui.diagram_items import set_flow_direction
     set_flow_direction("auto")
-    set_explicit_bands(False)
 
 
-def test_lr_band_handover_is_one_straight_line_bottom_to_top():
-    """A wrapped LR band returns to the next band as a single straight
-    line, leaving the bottom of the last block and entering the top of the
-    first, so it never crosses a block."""
+def _handover_links(view, direction):
+    from PySide6.QtCore import QPointF
+    from raptor.gui.ui.diagram_items import handover_sides
+    out = []
+    for link in _block_links(view):
+        sides = handover_sides(
+            QPointF(link._from.scenePos()), QPointF(link._to.scenePos()),
+            direction)
+        if sides is not None:
+            out.append(link)
+    return out
+
+
+def _path_points(link):
+    path = link.path()
+    return [(path.elementAt(i).x, path.elementAt(i).y)
+            for i in range(path.elementCount())]
+
+
+def test_lr_band_handover_is_pinned_bottom_to_top_by_saved_points():
+    """A wrapped LR band returns to the next band as one straight run,
+    leaving the bottom of the last block and entering the top of the first.
+    Two routing points, stored in the file, pin it."""
     from raptor.gui.ui.diagram_items import BLOCK_H, BLOCK_W
     view = _chain_view("LRBand", 8, "LR", 4)
     try:
-        links = _block_links(view)
-        handovers = [lk for lk in links if lk._p3.x() < lk._p0.x() - 1.0]
+        handovers = _handover_links(view, "LR")
         assert len(handovers) == 1, "one hand-over between two bands"
-        for link in links:
-            assert link.path().elementCount() == 2, "straight line"
         link = handovers[0]
+        entries = [g for g in view._rbd_ref.link_grips
+                   if g["link"] == link._link_num]
+        assert len(entries) == 2 and all(g["active"] for g in entries)
+        assert len(view._rbd_ref.link_grips) == 2, "only the hand-over"
+        assert len({g["id"] for g in entries}) == 2
         start = link._from.mapFromScene(link._p0)
         end = link._to.mapFromScene(link._p3)
         assert abs(start.y() - BLOCK_H) < 1.0
         assert abs(start.x() - BLOCK_W / 2) < 1.0
         assert abs(end.y()) < 1.0 and abs(end.x() - BLOCK_W / 2) < 1.0
+        assert len(_path_points(link)) == 4, "stub, run, stub"
         for item in view._block_items.values():
             if item in (link._from, link._to):
                 continue
             assert not link.collidesWithItem(item), item
+        for other in _block_links(view):
+            if other is not link:
+                assert len(_path_points(other)) == 2
     finally:
         _reset_flow()
 
 
-def test_vertical_band_handover_is_one_straight_line_beside_the_bands():
+def test_vertical_band_handover_is_pinned_beside_the_bands():
     """A wrapped TB band leaves by the right side and enters the next
-    band's first block by its left side: one straight line in the gap."""
+    band's first block by its left side."""
     from raptor.gui.ui.diagram_items import BLOCK_H, BLOCK_W
     view = _chain_view("TBBand", 6, "TB", 3)
     try:
-        links = _block_links(view)
-        handovers = [lk for lk in links if lk._p3.y() < lk._p0.y() - 1.0]
+        handovers = _handover_links(view, "TB")
         assert handovers, "wrapped bands should draw a hand-over"
-        for link in links:
-            assert link.path().elementCount() == 2
         for link in handovers:
             start = link._from.mapFromScene(link._p0)
             end = link._to.mapFromScene(link._p3)
@@ -340,31 +360,58 @@ def test_vertical_band_handover_is_one_straight_line_beside_the_bands():
         _reset_flow()
 
 
-def test_hand_over_ports_apply_only_to_an_explicit_band_wrap():
-    """The automatic wrap snakes (alternating bands), so a link that runs
-    against the flow there is an ordinary link. Only an explicit
-    `max_columns` wrap, where every band keeps the flow direction, uses the
-    straight hand-over ports."""
-    from PySide6.QtCore import QPointF
-    from raptor.gui.ui.diagram_items import (
-        _LinkItem, set_explicit_bands, set_flow_direction)
-    behind_lr = (QPointF(500.0, 0.0), QPointF(0.0, 120.0))
+def test_hand_over_points_are_saved_and_survive_a_reopen(tmp_path):
+    from raptor.core.fileio.model_file import load_model_file
+    from raptor.core.fileio.rbds import save_rbds
+    from raptor.gui.ui.diagram import DiagramView
+    view = _chain_view("Reopen", 8, "LR", 4)
     try:
-        set_flow_direction("LR")
-        set_explicit_bands(False)
-        assert _LinkItem._handover_sides(*behind_lr) is None
-        set_explicit_bands(True)
-        assert _LinkItem._handover_sides(*behind_lr) == ("bottom", "top")
-        # forward links are never hand-overs
-        assert _LinkItem._handover_sides(
-            QPointF(0.0, 0.0), QPointF(80.0, 0.0)) is None
-        set_flow_direction("TB")
-        assert _LinkItem._handover_sides(
-            QPointF(0.0, 500.0), QPointF(150.0, 0.0)) == ("right", "left")
-        set_flow_direction("auto")
-        assert _LinkItem._handover_sides(*behind_lr) is None
+        link = _handover_links(view, "LR")[0]
+        before = _path_points(link)
+        path = tmp_path / "bands.rbds"
+        save_rbds(view._rbd_ref, str(path))
+        reopened = DiagramView()
+        reopened.load_rbd(load_model_file(str(path)))
+        again = next(lk for lk in reopened._links
+                     if lk._link_num == link._link_num)
+        for (x0, y0), (x1, y1) in zip(before, _path_points(again)):
+            assert abs(x0 - x1) < 1.0 and abs(y0 - y1) < 1.0
+        assert len(_path_points(again)) == len(before)
     finally:
         _reset_flow()
+
+
+def test_next_auto_layout_removes_the_hand_over_points_and_undo_restores():
+    view = _chain_view("Redo", 8, "LR", 4)
+    try:
+        assert len(view._rbd_ref.link_grips) == 2
+        view.auto_layout(direction="LR", max_columns=None)
+        assert not view._rbd_ref.link_grips
+        view._stack.undo()
+        assert len(view._rbd_ref.link_grips) == 2
+    finally:
+        _reset_flow()
+
+
+def test_automatic_snake_wrap_adds_no_hand_over_points():
+    """Without max_columns the bands alternate direction and the link
+    between bands is short, so nothing is pinned."""
+    view = _chain_view("Snake", 60, "LR", None)
+    try:
+        assert not view._rbd_ref.link_grips
+    finally:
+        _reset_flow()
+
+
+def test_handover_sides_follow_the_flow_direction():
+    from PySide6.QtCore import QPointF
+    from raptor.gui.ui.diagram_items import handover_sides
+    behind = (QPointF(500.0, 0.0), QPointF(0.0, 120.0))
+    assert handover_sides(*behind, "LR") == ("bottom", "top")
+    assert handover_sides(QPointF(0.0, 0.0), QPointF(80.0, 0.0), "LR") is None
+    assert handover_sides(QPointF(0.0, 500.0), QPointF(150.0, 0.0),
+                          "TB") == ("right", "left")
+    assert handover_sides(*behind, "auto") is None
 
 
 def test_flow_pitch_is_a_whole_number_of_grid_steps():

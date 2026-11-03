@@ -878,7 +878,7 @@ class _NodeItem(QGraphicsEllipseItem):
 
 #: Preferred page-flow direction for port selection. Auto Layout sets it
 #: from its chosen direction; LR is the historical default.
-_FLOW: dict = {"direction": "auto", "explicit_bands": False}
+_FLOW = {"direction": "auto"}
 FLOW_DIRECTIONS = ("auto", "LR", "RL", "TB", "BT")
 
 
@@ -898,15 +898,29 @@ def flow_direction() -> str:
     return _FLOW["direction"]
 
 
-def set_explicit_bands(explicit: bool) -> None:
-    """Say whether the laid-out level wraps into bands that all keep the
-    flow direction (an explicit `max_columns`). Only then is a link that
-    runs against the flow a band hand-over; the automatic wrap snakes, and
-    its reversed bands are ordinary links."""
-    explicit = bool(explicit)
-    if _FLOW["explicit_bands"] != explicit:
-        _FLOW["explicit_bands"] = explicit
-        _LINK_GEN[0] += 1
+def handover_sides(source: QPointF, target: QPointF,
+                   direction: str) -> tuple[str, str] | None:
+    """The (exit, entry) sides for a wrapped-band hand-over, else None.
+
+    With every band keeping the flow direction, the next band's first
+    element sits upstream of the previous band's last one. The hand-over
+    leaves and enters by the sides that face the gap between the bands:
+    bottom to top (or top to bottom) in a horizontal flow, right to left
+    (or left to right) in a vertical one. From those sides a straight line
+    stays clear of both bands' blocks."""
+    if direction in ("LR", "RL"):
+        behind = (target.x() < source.x() - 1.0 if direction == "LR"
+                  else target.x() > source.x() + 1.0)
+        if behind:
+            return (("bottom", "top") if target.y() >= source.y()
+                    else ("top", "bottom"))
+    elif direction in ("TB", "BT"):
+        behind = (target.y() < source.y() - 1.0 if direction == "TB"
+                  else target.y() > source.y() + 1.0)
+        if behind:
+            return (("right", "left") if target.x() >= source.x()
+                    else ("left", "right"))
+    return None
 
 
 #: Bumped whenever a link item is created or enters/leaves a scene, so the
@@ -1184,16 +1198,25 @@ class _LinkItem(QGraphicsPathItem):
         # the shape (fan-in from more than one direction), fall back to
         # the facing side. Iterate: flipping one end can change whether
         # the other end is crossed.
-        # A band hand-over is one straight line between the sides of the
-        # two elements that face the gap between bands. The ordinary port
-        # choice would send it across the band's own blocks, and the
-        # crossing check below would then flip the exit to a side port.
-        handover_sides = self._handover_sides(p0, p3)
-        if handover_sides is not None:
-            exit_side, entry = handover_sides
-            p0 = self._port_point(from_item, exit_side)
-            p3 = self._port_point(to_item, entry)
-        for _ in range(3 if handover_sides is None else 0):
+        # A routing point placed just outside a side of an end element
+        # (Auto Layout puts one at each end of a band hand-over) says which
+        # side the link leaves or enters by. The crossing check below would
+        # otherwise flip that port to avoid the straight line it assumes.
+        active = [g.pos() for g in self._grips
+                  if isValid(g) and getattr(g, "_active", True)]
+        pinned = False
+        if active:
+            out_side = self._side_beside(from_item, active[0])
+            in_side = self._side_beside(to_item, active[-1])
+            if out_side is not None:
+                exit_side = out_side
+                p0 = self._port_point(from_item, exit_side)
+                pinned = True
+            if in_side is not None:
+                entry = in_side
+                p3 = self._port_point(to_item, entry)
+                pinned = True
+        for _ in range(0 if pinned else 3):
             changed = False
             if self._segment_crosses(to_item, p0, p3):
                 entry = self._entry_side_for(to_item, fc)
@@ -1206,8 +1229,7 @@ class _LinkItem(QGraphicsPathItem):
             if not changed:
                 break
         route = None
-        grips = [g.pos() for g in self._grips
-                 if isValid(g) and getattr(g, "_active", True)]
+        grips = active
         mode = _ROUTING["mode"]
         if grips:
             # A dragged routing point is a deliberate dog-leg: draw through
@@ -1247,34 +1269,29 @@ class _LinkItem(QGraphicsPathItem):
                                        p3.x(), p3.y(), arrow_head_len(1.0))
         self.setPath(path)
 
-    @staticmethod
-    def _handover_sides(p0: QPointF, p3: QPointF) -> tuple[str, str] | None:
-        """The (exit, entry) sides for a wrapped band hand-over, else None.
+    #: How far beyond a side a routing point may sit (scene units) and
+    #: still count as "beside" that side.
+    _BESIDE_REACH = 30.0
 
-        Every band keeps the page-flow direction, so the next band's first
-        element sits upstream of the previous band's last element. The
-        hand-over is a single straight line, and it leaves and enters by
-        the sides that face the gap between the bands: bottom to top (or
-        top to bottom) in a horizontal flow, right to left (or left to
-        right) in a vertical one. From those ports the line stays clear of
-        both bands' blocks.
-        """
-        if not _FLOW["explicit_bands"]:
-            return None
-        direction = flow_direction()
-        if direction in ("LR", "RL"):
-            behind = (p3.x() < p0.x() - 1.0 if direction == "LR"
-                      else p3.x() > p0.x() + 1.0)
-            if behind:
-                return (("bottom", "top") if p3.y() >= p0.y()
-                        else ("top", "bottom"))
-            return None
-        if direction in ("TB", "BT"):
-            behind = (p3.y() < p0.y() - 1.0 if direction == "TB"
-                      else p3.y() > p0.y() + 1.0)
-            if behind:
-                return (("right", "left") if p3.x() >= p0.x()
-                        else ("left", "right"))
+    @staticmethod
+    def _side_beside(item, point: QPointF) -> str | None:
+        """The side of `item` that `point` sits directly outside, else None.
+
+        "Directly outside" is within the item's extent across that side and
+        within `_BESIDE_REACH` of it, so a point dragged a little way off
+        an element's edge pins the link to that edge."""
+        c = _LinkItem._true_centre(item)
+        hw, hh = _LinkItem._half_extents(item)
+        dx, dy = point.x() - c.x(), point.y() - c.y()
+        reach = _LinkItem._BESIDE_REACH
+        if abs(dx) <= hw and hh < dy <= hh + reach:
+            return "bottom"
+        if abs(dx) <= hw and -hh - reach <= dy < -hh:
+            return "top"
+        if abs(dy) <= hh and hw < dx <= hw + reach:
+            return "right"
+        if abs(dy) <= hh and -hw - reach <= dx < -hw:
+            return "left"
         return None
 
     @staticmethod
