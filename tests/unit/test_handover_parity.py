@@ -89,3 +89,15 @@ def test_mcp_and_gui_pin_the_same_links(model_id):
     view.auto_layout(direction="LR", max_columns=5)
     gui_links = sorted({g["link"] for g in view._rbd_ref.link_grips})
     assert mcp_links == gui_links
+
+
+def test_svg_draws_pinned_links_through_their_points(model_id):
+    from raptor.mcp.tools_model import auto_layout
+    from raptor.render.svg import render_svg
+    _call(auto_layout(model_id, max_columns=5))
+    rbd = _rbd(model_id)
+    pinned = {g["link"] for g in rbd.link_grips}
+    svg, _meta = render_svg(rbd, routing="straight")
+    assert svg.count("<polyline") == len(pinned) > 0
+    first = rbd.link_grips[0]
+    assert f"{first['x']:.1f},{first['y']:.1f}" in svg

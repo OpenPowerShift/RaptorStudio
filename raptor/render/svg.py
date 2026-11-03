@@ -135,14 +135,30 @@ def _shapes(rbd: Any, level: int, vt: view_transform.ViewTransform) -> list[_Sha
 _KIND_OF_REF = {"Block": "block", "Node": "node", "Event": "event", "Hier": "hier"}
 
 
-def _links(rbd: Any, by_key: dict[tuple[str, int], _Shape]) -> list[tuple[_Shape, _Shape]]:
-    out = []
+_Link = tuple[_Shape, _Shape, "list[tuple[float, float]]"]
+
+
+def _link_points(rbd: Any, level: int) -> dict[int, list[tuple[float, float]]]:
+    """The active routing points of each link at `level`, in file order.
+    The GUI draws a link through them as straight segments."""
+    out: dict[int, list[tuple[float, float]]] = {}
+    for g in getattr(rbd, "link_grips", None) or []:
+        if g.get("active", True) and int(g.get("parent", 0) or 0) == level:
+            out.setdefault(int(g.get("link", 0) or 0), []).append(
+                (float(g["x"]), float(g["y"])))
+    return out
+
+
+def _links(rbd: Any, by_key: dict[tuple[str, int], _Shape],
+           level: int = 0) -> list[_Link]:
+    out: list[_Link] = []
+    points = _link_points(rbd, level)
     for row in _rows(rbd, "LINK_DATA"):
         link = link_from_row(row)
         src = by_key.get((_KIND_OF_REF.get(link.connect_f_ref.replace("RBD", "", 1), "node"), link.connect_from_id))
         dst = by_key.get((_KIND_OF_REF.get(link.connect_t_ref.replace("RBD", "", 1), "node"), link.connect_to_id))
         if src is not None and dst is not None:
-            out.append((src, dst))
+            out.append((src, dst, points.get(int(float(row.get("ID", 0) or 0)), [])))
     return out
 
 
@@ -208,14 +224,14 @@ def _routed(src: _Shape, dst: _Shape, boxes: list[tuple[float, float, float, flo
     return router.route(p0, out_side, p3, in_side, boxes, hint)
 
 
-def _links_svg(links: list[tuple[_Shape, _Shape]], shapes: list[_Shape],
+def _links_svg(links: list[_Link], shapes: list[_Shape],
                routing: str, c: dict[str, str]) -> tuple[list[str], int]:
     """The SVG for every link, and how many were drawn routed (not as a
     straight line)."""
     router = Router(per_route_s=0.05, total_s=3.0, window_s=1e9)
     fans_out: dict[int, list[_Shape]] = {}
     fans_in: dict[int, list[_Shape]] = {}
-    for s, d in links:
+    for s, d, _pts in links:
         fans_out.setdefault(id(s), []).append(d)
         fans_in.setdefault(id(d), []).append(s)
     # One obstacle snapshot for the whole render: rebuilding it per link
@@ -224,7 +240,17 @@ def _links_svg(links: list[tuple[_Shape, _Shape]], shapes: list[_Shape],
     boxes = [s.bounds() for s in shapes] if routing != "straight" else []
     out: list[str] = []
     routed = 0
-    for src, dst in links:
+    for src, dst, pts in links:
+        if pts:
+            # Pinned by routing points (a band hand-over): straight segments
+            # from the sides facing the first and last point.
+            a = src.port(*pts[0])
+            b = dst.port(*pts[-1])
+            path = " ".join(f"{x:.1f},{y:.1f}" for x, y in [a, *pts, b])
+            out.append(f'<polyline points="{path}" fill="none" stroke="{c["link"]}" '
+                       f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+            routed += 1
+            continue
         route = (_routed(src, dst, boxes, router, routing,
                          fans_out[id(src)], fans_in[id(dst)])
                  if routing != "straight" else None)
@@ -265,7 +291,7 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
     vt = view_transform.ensure(rbd)
     shapes = _shapes(rbd, level, vt)
     by_key = {(s.kind, s.id): s for s in shapes}
-    links = _links(rbd, by_key)
+    links = _links(rbd, by_key, level)
     lit = _resolve(rbd, list(highlight or []), by_key, "highlight")
     zoomed = _resolve(rbd, list(zoom_to or []), by_key, "zoom_to")
     annos = ([a for a in (getattr(rbd, "annotations", None) or [])
