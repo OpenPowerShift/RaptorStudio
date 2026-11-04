@@ -71,3 +71,65 @@ def test_arrow_nudge_moves_every_selected_item(qapp):
     assert all(a[0] != b[0] for a, b in zip(after, before))
     assert all(a[1] == b[1] for a, b in zip(after, before))
     set_flow_direction("auto")
+
+
+# -- overlapping elements -----------------------------------------------------
+
+def _drag(qapp, v, p0, p1, steps=8):
+    vp = v.viewport()
+    QTest.mousePress(vp, Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.NoModifier, p0)
+    for s in range(1, steps + 1):
+        QTest.mouseMove(vp, p0 + (p1 - p0) * s / steps)
+    QTest.mouseRelease(vp, Qt.MouseButton.LeftButton,
+                       Qt.KeyboardModifier.NoModifier, p1)
+    qapp.processEvents()
+
+
+def _spots(v):
+    return {oid: (round(it.scenePos().x(), 1), round(it.scenePos().y(), 1))
+            for oid, it in v._block_items.items()}
+
+
+def test_grabbing_a_name_moves_only_that_element(qapp):
+    """Pressing a block's NAME (a child text item, not movable itself) was
+    taken for empty canvas and armed the rubber band under the item drag:
+    an element the dragged one crossed was selected and dragged along, and
+    that move was left out of the undo step."""
+    v = _view()
+    v.auto_layout(direction="LR")
+    v._stack.clear()
+    a, b = (v._block_items[i] for i in sorted(v._block_items)[:2])
+    before = _spots(v)
+    # Drag B by its name onto A.
+    _drag(qapp, v, v.mapFromScene(b._label.sceneBoundingRect().center()),
+          v.mapFromScene(a.sceneBoundingRect().center()))
+    after = _spots(v)
+    assert [oid for oid in before if before[oid] != after[oid]] == \
+        [b._block_id]
+    assert not a.isSelected()
+    v._stack.undo()
+    assert _spots(v) == before
+
+
+def test_every_element_a_gesture_moves_is_in_its_undo(qapp):
+    """Whatever else moved during a drag is recorded with it, so one undo
+    step holds the whole gesture."""
+    v = _view()
+    v.auto_layout(direction="LR")
+    v._stack.clear()
+    ids = sorted(v._block_items)
+    a, c = v._block_items[ids[0]], v._block_items[ids[2]]
+    p = v.mapFromScene(a.sceneBoundingRect().center())
+    vp = v.viewport()
+    QTest.mousePress(vp, Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.NoModifier, p)
+    for s in range(1, 6):
+        QTest.mouseMove(vp, p + type(p)(0, 20 * s))
+    c.setPos(c.pos() + QPointF(150, 150))    # moved by something else
+    QTest.mouseRelease(vp, Qt.MouseButton.LeftButton,
+                       Qt.KeyboardModifier.NoModifier, p + type(p)(0, 100))
+    qapp.processEvents()
+    assert v._stack.count() == 1
+    recorded = v._stack.command(0).keys
+    assert {("block", ids[0]), ("block", ids[2])} <= recorded
