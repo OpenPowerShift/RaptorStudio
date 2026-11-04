@@ -3335,6 +3335,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def _apply_dist(self, bid: int, which: str, dist_param_count: tuple):
         self._editor.apply_dist(bid, which, dist_param_count)
+        # The label shows the law's mean: a new type (repair None, say) is
+        # a new mean even when the parameters are left as they were.
+        self._refresh_block_sublabels(bid)
 
     # ------------------------------------------------------------------
     # Element creation / deletion (build-mode)
