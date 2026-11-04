@@ -118,6 +118,27 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_export_tables",
         enabled_when="model_open"),
     CommandSpec(
+        id="file.export_xlsx",
+        attr="_export_xlsx_action",
+        text="Export Excel Workbook\u2026",
+        icon="export_tables_icon:text",
+        tooltip=(
+            "Save the model's tables and the latest run's results as one "
+            "Excel workbook (.xlsx), set up to read, filter and print"),
+        handler="_export_workbook_xlsx",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="file.export_ods",
+        attr="_export_ods_action",
+        text="Export OpenDocument Spreadsheet\u2026",
+        icon="export_tables_icon:text",
+        tooltip=(
+            "Save the model's tables and the latest run's results as one "
+            "OpenDocument spreadsheet (.ods) for LibreOffice and other "
+            "OpenDocument applications"),
+        handler="_export_workbook_ods",
+        enabled_when="model_open"),
+    CommandSpec(
         id="file.export_svg",
         attr="_export_svg_action",
         text="Export Diagram SVG…",
@@ -1170,8 +1191,9 @@ def _p(title: str, index_attr: str, *groups: Group) -> Page:
 BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("File", ("file.new", "file.open", "file.save", "file.save_as",
               "file.close_file", "file.quit", "home.diff")),
-    ("Print and Export", ("file.print", "file.export_pdf", "file.export_tables",
-               "file.export_svg", "file.export_png", "file.copy_view")),
+    ("Print and Export", ("file.print", "file.export_pdf", "file.export_xlsx",
+               "file.export_ods", "file.export_tables", "file.export_svg",
+               "file.export_png", "file.copy_view")),
 )
 
 #: Commands with a top level entry in the File view's nav column, after

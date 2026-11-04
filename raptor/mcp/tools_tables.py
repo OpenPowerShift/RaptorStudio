@@ -15,7 +15,7 @@ from raptor.mcp import context
 from raptor.mcp.result import ADDITIVE, READ_ONLY, guarded, markdown_table, ok
 from raptor.mcp.server import mcp
 
-Format = Literal["csv", "txt", "txt_report", "xlsx"]
+Format = Literal["csv", "txt", "txt_report", "xlsx", "ods"]
 
 _ROW_CAP = 200
 
@@ -137,9 +137,11 @@ def export_tables(model_id: str, run_id: str | None = None,
 
     `formats` (default ['xlsx']): 'csv' one .csv per table; 'txt' one
     fixed-width .txt per table; 'txt_report' ONE combined text report;
-    'xlsx' ONE workbook with a Run Info tab and a tab per table, real
-    numeric cells (the End-of-Run and interim cost reports go beside it as
-    .txt files). Any combination.
+    'xlsx' ONE Excel workbook and 'ods' the same as an OpenDocument
+    spreadsheet: a Contents tab, a Run Info tab, a tab per table and a
+    Glossary, real numeric cells, filters, frozen headers and print set-up
+    (the End-of-Run and interim cost reports go beside it as .txt files).
+    Any combination.
 
     `folder` is inside the workspace (relative paths resolve against its
     root); default `Tables/<model>` (or `Tables/<model>_<run_id>`).
@@ -158,15 +160,16 @@ def export_tables(model_id: str, run_id: str | None = None,
     run_rbd = _rbd_for(handle, run_id)
     selected = collect(run_rbd, bundle, tables)
     if formats is not None and not formats:
-        raise ValueError("formats cannot be empty; use csv, txt, txt_report or xlsx")
+        raise ValueError("formats cannot be empty; use csv, txt, "
+                         "txt_report, xlsx or ods")
     wanted = set(formats or ["xlsx"])
-    unknown = wanted - {"csv", "txt", "txt_report", "xlsx"}
+    unknown = wanted - {"csv", "txt", "txt_report", "xlsx", "ods"}
     if unknown:
         raise ValueError(f"unknown format(s) {sorted(unknown)}; use csv, "
-                         f"txt, txt_report, xlsx")
+                         f"txt, txt_report, xlsx, ods")
     options = ExportOptions(csv="csv" in wanted, txt_files="txt" in wanted,
                             txt_report="txt_report" in wanted,
-                            xlsx="xlsx" in wanted)
+                            xlsx="xlsx" in wanted, ods="ods" in wanted)
     stem = safe_stem(handle.name)
     if folder is not None:
         folder = context.require_relative_path(folder, "folder")

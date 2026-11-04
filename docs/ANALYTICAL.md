@@ -318,7 +318,8 @@ A model outside the solver's subset shows the reason, naming the first
 offending element, in place of the tabs. The window never changes the model.
 **Copy** puts the full-precision plain-text result on the clipboard, with a
 short note on what a BDD is at the top. **Export ▸ This result…** saves a
-spreadsheet (.xlsx) with Summary, Elements (with the importance measures),
+spreadsheet (Excel .xlsx or OpenDocument .ods, chosen in the Save dialog)
+with Summary, Elements (with the importance measures),
 Curve, Equation and Assumptions sheets. **Export ▸ Reliability and
 availability…** saves the result shown and the other mode with the same
 settings in one workbook, a set of sheets each ("Reliability Summary",
@@ -329,11 +330,16 @@ then writes the workbook. The file is named after the model, the
 hierarchy if one was solved on its own, and the modes:
 `Plant_analytical_reliability.xlsx`,
 `Plant_h12_analytical_reliability_availability.xlsx`. The simulation's table export does not
-include analytical results; use this button, `raptor analytic --xlsx` or
-the MCP tool `export_analytical` for them.
+include analytical results; use this button, `raptor analytic --xlsx` (or
+`--ods`) or the MCP tool `export_analytical` (`file_format="ods"` for
+OpenDocument) for them. The workbook's layout is the same as every other
+spreadsheet export's (manual, "How the spreadsheets are laid out"): the
+Elements sheet is ranked by importance, or weakest first without it, with
+bars on the Birnbaum, Fussell-Vesely and criticality columns.
 
 **Results ▸ Availability and Criticality…** (simulation metrics) has its own
-**Copy** (the visible tab, tab-separated) and **Export…** (both tabs, .xlsx).
+**Copy** (the visible tab, tab-separated) and **Export…** (both tabs, .xlsx
+or .ods).
 
 ## Reading the result
 
@@ -405,11 +411,12 @@ The schema string is `raptor-analytic/1`.
 
 ```python
 from raptor.api.analytical import analyse_modes
-from raptor.api.analytical_export import export_file_name, export_xlsx
+from raptor.api.analytical_export import export_file_name, export_workbook
 
 results = analyse_modes(workspace, model_id, ["reliability", "availability"],
                         bx=[10])
-export_xlsx(results, export_file_name("Lantern1", results))
+export_workbook(results, export_file_name("Lantern1", results))         # .xlsx
+export_workbook(results, export_file_name("Lantern1", results, "ods"))  # .ods
 ```
 
 ## Validation

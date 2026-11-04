@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-analytic \- Solve the static subset of an RBD exactly: series, parallel, mixed, k\-out\-of\-n and hierarchies. Reliability mode is non\-repairable. Availability mode is steady state, independent components, perfect repair. Models outside that subset are refused with the first offending element.
 .SH SYNOPSIS
-\fBraptor analytic\fR [\-h] [\-\-mode {reliability,availability,both}] [\-\-hierarchy NAME|ID] [\-\-at T] [\-\-times T1,T2,...] [\-\-bx X1,X2,...] [\-\-tau T] [\-\-importance] [\-\-no\-importance] [\-\-equation] [\-\-ignore\-repairs] [\-\-ignore LIST] [\-\-phase N|all] [\-\-standby {active,absent}] [\-\-dependencies {up,down}] [\-\-max\-variables N] [\-\-max\-bdd\-nodes N] [\-\-progress {auto,bar,json,none}] [\-\-xlsx PATH] [\-f {text,json,csv}] MODEL
+\fBraptor analytic\fR [\-h] [\-\-mode {reliability,availability,both}] [\-\-hierarchy NAME|ID] [\-\-at T] [\-\-times T1,T2,...] [\-\-bx X1,X2,...] [\-\-tau T] [\-\-importance] [\-\-no\-importance] [\-\-equation] [\-\-ignore\-repairs] [\-\-ignore LIST] [\-\-phase N|all] [\-\-standby {active,absent}] [\-\-dependencies {up,down}] [\-\-max\-variables N] [\-\-max\-bdd\-nodes N] [\-\-progress {auto,bar,json,none}] [\-\-xlsx PATH] [\-\-ods PATH] [\-f {text,json,csv}] MODEL
 .SH DESCRIPTION
 Solve the static subset of an RBD exactly: series, parallel, mixed, k\-out\-of\-n and hierarchies. Reliability mode is non\-repairable. Availability mode is steady state, independent components, perfect repair. Models outside that subset are refused with the first offending element.
 .SH OPTIONS
@@ -61,6 +61,9 @@ progress on stderr: one percentage for the whole solve (building the diagram, th
 .TP
 \fB\-\-xlsx\fR \fIPATH\fR
 also write the result as a spreadsheet (one set of sheets per mode and phase with \-\-mode both or \-\-phase all); a folder gets the default name, e.g. MODEL_analytical_reliability.xlsx
+.TP
+\fB\-\-ods\fR \fIPATH\fR
+the same as \-\-xlsx, as an OpenDocument spreadsheet (.ods)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json|csv}\fR
 stdout format; with several results (\-\-mode both, \-\-phase all) json is {"results": [...]} and csv has mode and phase columns

@@ -445,7 +445,8 @@ class AnalyticDialog(QDialog):
         self._copy.clicked.connect(self._copy_result)
         self._export = QPushButton("Export")
         self._export.setToolTip(
-            "Save as a spreadsheet (.xlsx): summary, elements with "
+            "Save as a spreadsheet (Excel .xlsx or OpenDocument .ods): "
+            "summary, elements with "
             "importance measures, curve, equation and assumptions; this "
             "result, or reliability and availability with the same "
             "settings in one workbook")
@@ -1890,14 +1891,12 @@ class AnalyticDialog(QDialog):
         self._write_workbook(self._in_mode_order(shown, result), path)
 
     def _ask_path(self, name: str) -> str | None:
-        from raptor.gui.ui.filedialogs import getSaveFileName
+        from raptor.gui.ui.filedialogs import ask_spreadsheet_path
         start = os.path.dirname(
             str(getattr(self._win, "_current_file", "") or "")
         ) or os.getcwd()
-        path, _ = getSaveFileName(self, "Export analytical results",
-                                  os.path.join(start, name),
-                                  "Spreadsheet (*.xlsx)")
-        return path or None
+        return ask_spreadsheet_path(self, "Export analytical results",
+                                    os.path.join(start, name))
 
     def export_result(self, path: str | None = None) -> str | None:
         """Write the current result to a workbook (asks for a file if none)."""
@@ -1909,14 +1908,15 @@ class AnalyticDialog(QDialog):
                 path: str | None) -> str | None:
         if not results:
             return None
-        from raptor.api.analytical_export import export_file_name, export_xlsx
+        from raptor.api.analytical_export import (
+            export_file_name, export_workbook)
         if not path:
             path = self._ask_path(export_file_name(self._model_name(),
                                                    results))
             if not path:
                 return None
         try:
-            export_xlsx(results, path)
+            path = str(export_workbook(results, path))
         except OSError as exc:
             msgbox.warning(self, "Export failed", str(exc))
             return None

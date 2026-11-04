@@ -385,6 +385,14 @@ def test_derived_dialog_copies_and_exports(qapp, tmp_path):
     assert "Pump\t50.00" in QApplication.clipboard().text()
     assert dialog.export_xlsx(str(tmp_path / "d.xlsx")) is not None
     assert (tmp_path / "d.xlsx").stat().st_size > 0
+    # The same tabs as OpenDocument, by the file's extension.
+    assert dialog.export_xlsx(str(tmp_path / "d.ods")) == \
+        str(tmp_path / "d.ods")
+    import zipfile
+    with zipfile.ZipFile(tmp_path / "d.ods") as z:
+        content = z.read("content.xml").decode()
+    assert 'table:name="Availability"' in content
+    assert 'table:name="Criticality"' in content
     dialog.close()
 
 

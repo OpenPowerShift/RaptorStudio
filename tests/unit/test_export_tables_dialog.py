@@ -255,3 +255,52 @@ def test_the_docks_have_an_export_tables_button(win):
     for dock in (win._results, win._data_tables):
         texts = [b.text() for b in dock.findChildren(QPushButton)]
         assert "Export Tables…" in texts, type(dock).__name__
+
+
+# -- File > Export Excel Workbook / Export OpenDocument Spreadsheet ------------
+
+@pytest.mark.parametrize("cid,ext", [("file.export_xlsx", ".xlsx"),
+                                     ("file.export_ods", ".ods")])
+def test_the_file_view_saves_one_workbook(ran, qapp, tmp_path, monkeypatch,
+                                         cid, ext):
+    """The File view's spreadsheet commands write the default tables, with
+    the latest run's results, to the file the Save dialog names."""
+    from raptor.gui.command_table import BACKSTAGE
+    from raptor.gui.ui import filedialogs
+    assert cid in dict(BACKSTAGE)["Print and Export"]
+    asked = {}
+
+    def fake(parent, caption, default_path):
+        asked["default"] = default_path
+        return str(tmp_path / f"book{ext}")
+
+    monkeypatch.setattr(filedialogs, "ask_spreadsheet_path", fake)
+    ran._commands.action(cid).trigger()
+    qapp.processEvents()
+    assert asked["default"].endswith(f"_tables{ext}")
+    written = tmp_path / f"book{ext}"
+    assert written.is_file() and written.stat().st_size > 0
+    if ext == ".xlsx":
+        import warnings
+
+        from openpyxl import load_workbook
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning,
+                                module="openpyxl")
+            names = load_workbook(written).sheetnames
+        assert names[:2] == ["Contents", "Run Info"]
+        assert "Summary" in names
+
+
+def test_the_save_dialog_offers_both_spreadsheet_types(qapp, monkeypatch):
+    from raptor.gui.ui import filedialogs
+    seen = {}
+
+    def fake_save(parent, caption, directory, file_filter):
+        seen["filter"] = file_filter
+        return "/tmp/x", "OpenDocument spreadsheet (*.ods)"
+
+    monkeypatch.setattr(filedialogs, "getSaveFileName", fake_save)
+    assert filedialogs.ask_spreadsheet_path(None, "c", "d") == "/tmp/x.ods"
+    assert seen["filter"].split(";;") == [
+        "Excel workbook (*.xlsx)", "OpenDocument spreadsheet (*.ods)"]

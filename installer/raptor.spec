@@ -36,7 +36,7 @@ datas = [
 ]
 
 
-def _bundled_licences(roots=("PySide6", "weasyprint")):
+def _bundled_licences(roots=("PySide6", "weasyprint", "XlsxWriter")):
     """The licence files every bundled distribution ships in its metadata,
     as (source, third_party_licenses/<name>/...) datas: the dependency closure of
     `roots`, which is what the installers carry."""

@@ -74,7 +74,8 @@ class DerivedResultsDialog(QDialog):
         copy_btn.clicked.connect(self.copy_current)
         export_btn = buttons.addButton(
             "Export…", QDialogButtonBox.ButtonRole.ActionRole)
-        export_btn.setToolTip("Save both tabs as a spreadsheet (.xlsx)")
+        export_btn.setToolTip("Save both tabs as a spreadsheet (Excel .xlsx "
+                              "or OpenDocument .ods)")
         export_btn.setAutoDefault(False)
         export_btn.clicked.connect(self.export_xlsx)
         close_btn = buttons.button(QDialogButtonBox.StandardButton.Close)
@@ -97,25 +98,42 @@ class DerivedResultsDialog(QDialog):
         QApplication.clipboard().setText(grid_to_tsv(headers, rows))
 
     def export_xlsx(self, path: str | None = None) -> str | None:
-        """Write both tabs to a workbook; asks for the file when no path."""
-        from raptor.core.fileio.xlsx_writer import Sheet, write_xlsx
+        """Write both tabs to a workbook (.xlsx or .ods, by the file's
+        extension); asks for the file when no path."""
+        from raptor.api.glossary import TERMS
+        from raptor.api.presentation import kind_of
+        from raptor.core.fileio.workbook import (
+            Sheet, WorkbookInfo, spreadsheet_path, write_workbook)
+        parent_file = getattr(self.parent(), "_current_file", "") or ""
         if not path:
-            from raptor.gui.ui.filedialogs import getSaveFileName
-            start = os.path.dirname(getattr(self.parent(), "_current_file",
-                                            "") or "") or os.getcwd()
-            path, _ = getSaveFileName(
+            from raptor.gui.ui.filedialogs import ask_spreadsheet_path
+            start = os.path.dirname(parent_file) or os.getcwd()
+            path = ask_spreadsheet_path(
                 self, "Export availability and criticality",
-                os.path.join(start, "availability_criticality.xlsx"),
-                "Spreadsheet (*.xlsx)")
+                os.path.join(start, "availability_criticality.xlsx"))
             if not path:
                 return None
+        path = spreadsheet_path(path)
         sheets = []
         for title, (headers, rows) in self._grids().items():
-            sheets.append(Sheet(name=title, headers=headers,
-                                rows=[[_cell(v) for v in row]
-                                      for row in rows]))
+            values = [[_cell(v) for v in row] for row in rows]
+            if title == "Availability":
+                sheets.append(Sheet(
+                    name=title, headers=headers, rows=values,
+                    row_formats=[kind_of(str(r[0])) for r in rows],
+                    description="Availability measures, mean over runs"))
+            else:
+                sheets.append(Sheet(
+                    name=title, headers=headers, rows=values,
+                    formats=["", "pct", "pct", "pct"], text_cols={0},
+                    sort=(1, True) if len(headers) > 1 else None,
+                    description="Each block's share of failures, downtime "
+                                "and cost"))
+        model = os.path.basename(parent_file) or "Model"
+        info = WorkbookInfo(title=f"{model} - availability and criticality",
+                            source=model, glossary=TERMS)
         try:
-            write_xlsx(path, sheets)
+            write_workbook(path, sheets, info)
         except OSError as exc:
             msgbox.warning(self, "Export failed", str(exc))
             return None

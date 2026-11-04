@@ -20,6 +20,7 @@ from raptor.api.tables import (
     INPUTS, RESULTS, ResultsBundle, Table, UnknownTable, catalogue, collect,
     input_tables, parse_final_sections, result_tables)
 from raptor.core.fileio.rbd import load_rbd
+from raptor.core.fileio.workbook import WorkbookInfo, write_workbook
 from raptor.core.fileio.xlsx_writer import Sheet, sheet_name, write_xlsx
 
 GOLD = Path(__file__).resolve().parents[1] / "golden"
@@ -65,71 +66,287 @@ class TestSheetNames:
         assert sheet_name("  ''  ", set())
 
 
-class TestWorkbook:
-    def _read(self, path):
-        z = zipfile.ZipFile(path)
-        wb = ET.fromstring(z.read("xl/workbook.xml"))
-        names = [s.get("name") for s in wb.find("m:sheets", NS)]
-        sheets = [ET.fromstring(z.read(f"xl/worksheets/sheet{i}.xml"))
-                  for i in range(1, len(names) + 1)]
-        return z, names, sheets
+def _cells_xlsx(path):
+    """{tab: [[value, ...], ...]} read back with openpyxl."""
+    import warnings
 
-    def test_structure_and_typed_cells(self, tmp_path):
-        p = write_xlsx(tmp_path / "t.xlsx", [
+    from openpyxl import load_workbook
+    with warnings.catch_warnings():
+        # openpyxl does not read Excel 2010's data-bar extension (x14);
+        # Excel and LibreOffice do. The rules themselves are still read.
+        warnings.filterwarnings("ignore", category=UserWarning,
+                                module="openpyxl")
+        book = load_workbook(path)
+    return book, {ws.title: [list(r) for r in ws.iter_rows(values_only=True)]
+                  for ws in book.worksheets}
+
+
+_ODF = {
+    "table": "urn:oasis:names:tc:opendocument:xmlns:table:1.0",
+    "office": "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
+    "text": "urn:oasis:names:tc:opendocument:xmlns:text:1.0",
+    "style": "urn:oasis:names:tc:opendocument:xmlns:style:1.0",
+    "number": "urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0",
+    "calcext": "urn:org:documentfoundation:names:experimental:calc:"
+               "xmlns:calcext:1.0",
+    "config": "urn:oasis:names:tc:opendocument:xmlns:config:1.0",
+}
+
+
+def _q(prefix, name):
+    return f"{{{_ODF[prefix]}}}{name}"
+
+
+def _cells_ods(path):
+    """{tab: [[value, ...], ...]} read from the package's content.xml."""
+    with zipfile.ZipFile(path) as z:
+        assert z.namelist()[0] == "mimetype"
+        assert z.read("mimetype") == \
+            b"application/vnd.oasis.opendocument.spreadsheet"
+        root = ET.fromstring(z.read("content.xml"))
+    out = {}
+    for table in root.iter(_q("table", "table")):
+        rows = []
+        for row in table.iter(_q("table", "table-row")):
+            values = []
+            for cell in row.findall(_q("table", "table-cell")):
+                kind = cell.get(_q("office", "value-type"))
+                if kind == "float":
+                    v = float(cell.get(_q("office", "value")))
+                    values.append(int(v) if v.is_integer() and "."
+                                  not in cell.get(_q("office", "value"))
+                                  else v)
+                elif kind == "string":
+                    values.append("".join(
+                        "".join(p.itertext())
+                        for p in cell.findall(_q("text", "p"))))
+                else:
+                    values.append(None)
+            rows.append(values)
+        out[table.get(_q("table", "name"))] = rows
+    return root, out
+
+
+def _read_back(path):
+    return (_cells_xlsx(path)[1] if str(path).endswith(".xlsx")
+            else _cells_ods(path)[1])
+
+
+_SAMPLE = [
+    Sheet("Summary", ["Measure", "Mean"],
+          [["Availability", 0.98], ["Runs", 3], ["MTBDE", None],
+           ["R & D <x> \"q\"", ">21.23"], ["=SUM(A1)", "N/A"]],
+          notes=["a note"], row_formats=["prob", "count", "time", "time",
+                                         ""]),
+    Sheet("Second", ["A"], [["x"]]),
+]
+
+
+@pytest.mark.parametrize("ext", ["xlsx", "ods"])
+class TestWorkbookBothFormats:
+    """What every spreadsheet export promises, in both file formats."""
+
+    def test_tabs_and_typed_cells(self, tmp_path, ext):
+        p = write_workbook(tmp_path / f"t.{ext}", _SAMPLE,
+                           WorkbookInfo(title="T"))
+        tabs = _read_back(p)
+        assert list(tabs) == ["Contents", "Summary", "Second"]
+        rows = tabs["Summary"]
+        assert rows[0] == ["Measure", "Mean"]          # row 1 is the header
+        assert rows[1] == ["Availability", 0.98]       # a number
+        assert rows[2][1] == 3
+        assert rows[3][1] is None                      # None: empty
+        assert rows[4] == ['R & D <x> "q"', 21.23]     # censored: a number
+        assert rows[5] == ["=SUM(A1)", "N/A"]          # text, not a formula
+        assert "a note" in [r[0] for r in rows if r]
+
+    def test_contents_lists_and_counts_every_tab(self, tmp_path, ext):
+        tabs = _read_back(write_workbook(tmp_path / f"t.{ext}", _SAMPLE,
+                                         WorkbookInfo(title="My book")))
+        contents = tabs["Contents"]
+        assert contents[0][0] == "My book"
+        listed = {r[0]: r[2] for r in contents if r and r[0] in
+                  ("Summary", "Second")}
+        assert listed == {"Summary": 5, "Second": 1}
+
+    def test_one_tab_needs_no_contents(self, tmp_path, ext):
+        tabs = _read_back(write_workbook(tmp_path / f"t.{ext}", _SAMPLE[1:]))
+        assert list(tabs) == ["Second"]
+
+    def test_a_glossary_tab_lists_the_terms_used(self, tmp_path, ext):
+        tabs = _read_back(write_workbook(
+            tmp_path / f"t.{ext}", _SAMPLE,
+            WorkbookInfo(glossary={"MTBDE": "Mean time between downing "
+                                            "events", "SEM": "unused"})))
+        assert list(tabs)[-1] == "Glossary"
+        terms = {r[0]: r[1] for r in tabs["Glossary"][1:]
+                 if len(r) > 1 and r[1]}
+        assert terms == {"MTBDE": "Mean time between downing events"}
+
+    def test_sorted_with_totals_kept_last(self, tmp_path, ext):
+        sheet = Sheet("Cost", ["Block", "Total"],
+                      [["A", "1.00"], ["Total", "9.00"], ["B", "5.00"],
+                       ["C", "N/A"]], formats=["", "cost"], text_cols={0},
+                      sort=(1, True))
+        rows = _read_back(write_workbook(tmp_path / f"t.{ext}", [sheet]))[
+            "Cost"]
+        assert [r[0] for r in rows[1:6]] == ["B", "A", "C", "Total", None]
+        assert rows[6][0] == "Sorted by Total, largest first."
+
+    def test_control_characters_do_not_corrupt_the_file(self, tmp_path,
+                                                         ext):
+        p = write_workbook(tmp_path / f"t.{ext}",
+                           [Sheet("S", ["a"], [["bad\x00\x01char"]])])
+        assert _read_back(p)["S"][1] == ["badchar"]
+
+    def test_empty_sheets_are_valid(self, tmp_path, ext):
+        tabs = _read_back(write_workbook(
+            tmp_path / f"t.{ext}", [Sheet("E", [], []),
+                                    Sheet("F", ["a"], [])]))
+        assert {"E", "F"} <= set(tabs)
+
+    @pytest.mark.skipif(not shutil.which("soffice"),
+                        reason="LibreOffice not installed")
+    def test_libreoffice_opens_it_and_sees_the_values(self, tmp_path, ext):
+        """A real spreadsheet application reads every tab, with numbers as
+        numbers."""
+        write_workbook(tmp_path / f"t.{ext}", [
             Sheet("Summary", ["Measure", "Mean"],
-                  [["Availability", 0.98], ["Runs", 3], ["MTBDE", None],
-                   ["R & D <x> \"q\"", ">21.23"]], notes=["a note"]),
-            Sheet("Second", ["A"], [["x"]])])
-        z, names, sheets = self._read(p)
-        assert names == ["Summary", "Second"]
-        assert z.testzip() is None
-        cells = {c.get("r"): c for c in sheets[0].iter(f"{{{NS['m']}}}c")}
-        assert cells["B2"].find("m:v", NS).text == "0.98"      # a number
-        assert cells["B2"].get("t") is None
-        assert cells["B3"].find("m:v", NS).text == "3"
-        assert cells["A5"].find("m:is/m:t", NS).text == 'R & D <x> "q"'
-        assert cells["B5"].get("t") == "inlineStr"             # stays text
-        assert "B4" not in cells                               # None: empty
+                  [["Availability", 0.9871234567], ["Runs", 3]],
+                  row_formats=["prob", "count"]),
+            Sheet("Blocks", ["Name", "Cost"], [["Pump", -2.5e-7]])])
+        subprocess.run(
+            ["soffice", "--headless", "--convert-to",
+             "csv:Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,"
+             "false,false,false,-1", f"t.{ext}"],
+            cwd=tmp_path, capture_output=True, timeout=120, check=True)
+        # The cell keeps full precision; the format only sets what is shown.
+        assert (tmp_path / "t-Summary.csv").read_text().splitlines() == [
+            "Measure,Mean", "Availability,0.9871234567", "Runs,3"]
+        assert "Pump" in (tmp_path / "t-Blocks.csv").read_text()
 
-    def test_header_is_styled_frozen_and_filtered(self, tmp_path):
-        p = write_xlsx(tmp_path / "t.xlsx",
-                       [Sheet("S", ["a", "b"], [[1, 2], [3, 4]])])
-        _z, _n, (sheet,) = self._read(p)
-        assert sheet.find(".//m:pane", NS).get("state") == "frozen"
-        assert sheet.find("m:autoFilter", NS).get("ref") == "A1:B3"
-        header = next(sheet.iter(f"{{{NS['m']}}}c"))
-        assert header.get("s") == "1"
 
-    def test_control_characters_do_not_corrupt_the_file(self, tmp_path):
-        p = write_xlsx(tmp_path / "t.xlsx",
-                       [Sheet("S", ["a"], [["bad\x00\x01char"]])])
-        self._read(p)                                   # parses as XML
+class TestXlsxLayout:
+    """The layout decisions, read back from the .xlsx with openpyxl."""
+
+    def _book(self, tmp_path, sheets, info=None):
+        return _cells_xlsx(write_workbook(tmp_path / "t.xlsx", sheets,
+                                          info))[0]
+
+    def test_header_frozen_filtered_and_printed_on_every_page(self,
+                                                             tmp_path):
+        ws = self._book(tmp_path, [Sheet("S", ["a", "b"],
+                                         [[1, 2], [3, 4]])])["S"]
+        assert ws.freeze_panes == "A2"
+        assert ws.auto_filter.ref == "A1:B3"
+        assert ws["A1"].font.b and ws["A1"].alignment.wrap_text
+        assert ws.print_title_rows == "$1:$1"
+        assert ws.page_setup.paperSize == 9               # A4
+        # One page wide (fitToWidth defaults to 1), as many tall as needed.
+        assert ws.sheet_properties.pageSetUpPr.fitToPage
+        assert ws.page_setup.fitToHeight in (0, "0")
+        assert ws.page_setup.orientation == "portrait"
+        assert "Page &P of &N" in ws.oddFooter.center.text
+
+    def test_a_wide_tab_prints_landscape(self, tmp_path):
+        ws = self._book(tmp_path, [Sheet(
+            "W", [f"Column number {i}" for i in range(12)],
+            [[1.5] * 12])])["W"]
+        assert ws.page_setup.orientation == "landscape"
+
+    def test_numbers_right_aligned_and_formatted_by_kind(self, tmp_path):
+        ws = self._book(tmp_path, [_SAMPLE[0]])["Summary"]
+        assert ws["B2"].number_format == "0.000000"         # probability
+        assert ws["B2"].alignment.horizontal == "right"
+        assert ws["B3"].number_format == "#,##0"            # a count
+        assert ws["B5"].number_format == '">"#,##0.000'     # censored time
+        assert ws["A2"].alignment.horizontal == "left"
+        assert ws["B6"].font.i                              # N/A muted
+
+    def test_banding_bars_and_scales(self, tmp_path):
+        sheet = Sheet("States", ["Block", "Green %", "Red %", "Avail"],
+                      [["A", 90, 10, 0.9], ["B", 80, 20, 0.8],
+                       ["C", 70, 30, 0.95]],
+                      formats=["", "pct", "pct", "prob"], text_cols={0})
+        ws = self._book(tmp_path, [sheet])["States"]
+        rules = {str(rng.sqref): [r.type for r in rng.rules]
+                 for rng in ws.conditional_formatting}
+        assert rules["A2:D4"] == ["expression"]             # banding
+        assert rules["B2:B4"] == ["dataBar"]
+        assert rules["C2:C4"] == ["dataBar"]
+        assert rules["D2:D4"] == ["colorScale"]
+
+    def test_a_constant_column_is_not_coloured(self, tmp_path):
+        sheet = Sheet("S", ["Block", "Avail"],
+                      [["A", 1.0], ["B", 1.0], ["C", 1.0]],
+                      formats=["", "prob"], text_cols={0})
+        ws = self._book(tmp_path, [sheet])["S"]
+        assert [str(r.sqref) for r in ws.conditional_formatting] == ["A2:B4"]
+
+    def test_totals_are_outside_the_filter_and_the_bars(self, tmp_path):
+        sheet = Sheet("Cost", ["Block", "Total"],
+                      [["A", 1.0], ["B", 5.0], ["Total", 6.0]],
+                      formats=["", "cost"], text_cols={0})
+        ws = self._book(tmp_path, [sheet])["Cost"]
+        assert ws.auto_filter.ref == "A1:B3"
+        assert "B2:B3" in [str(r.sqref) for r in ws.conditional_formatting]
+        assert ws["A4"].font.b and ws["A4"].border.top.style == "thin"
+
+    def test_acronyms_carry_a_comment(self, tmp_path):
+        book = self._book(tmp_path, [Sheet("S", ["Block", "MDT"],
+                                           [["A", 1.0]])],
+                          WorkbookInfo(glossary={"MDT": "Mean Down Time"}))
+        assert "MDT: Mean Down Time" in book["S"]["B1"].comment.text
+
+    def test_contents_links_to_each_tab(self, tmp_path):
+        book = self._book(tmp_path, _SAMPLE, WorkbookInfo(title="T"))
+        links = [c.hyperlink.location for row in book["Contents"].iter_rows()
+                 for c in row if c.hyperlink is not None]
+        assert links == ["'Summary'!A1", "'Second'!A1"]
+
+    def test_unknown_extension_is_refused(self, tmp_path):
+        with pytest.raises(ValueError, match="xlsx or .ods"):
+            write_workbook(tmp_path / "t.xls", _SAMPLE)
 
     def test_a_workbook_needs_a_sheet(self, tmp_path):
         with pytest.raises(ValueError):
             write_xlsx(tmp_path / "t.xlsx", [])
 
-    def test_empty_sheets_are_valid(self, tmp_path):
-        write_xlsx(tmp_path / "t.xlsx", [Sheet("E", [], []),
-                                         Sheet("F", ["a"], [])])
 
-    @pytest.mark.skipif(not shutil.which("soffice"),
-                        reason="LibreOffice not installed")
-    def test_libreoffice_opens_it_and_sees_the_values(self, tmp_path):
-        """A real spreadsheet application reads every tab, with numbers as
-        numbers."""
-        write_xlsx(tmp_path / "t.xlsx", [
-            Sheet("Summary", ["Measure", "Mean"],
-                  [["Availability", 0.9871234567], ["Runs", 3]]),
-            Sheet("Blocks", ["Name", "Cost"], [["Pump", -2.5e-7]])])
-        subprocess.run(
-            ["soffice", "--headless", "--convert-to",
-             "csv:Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,"
-             "false,false,false,-1", "t.xlsx"],
-            cwd=tmp_path, capture_output=True, timeout=120, check=True)
-        assert (tmp_path / "t-Summary.csv").read_text().splitlines() == [
-            "Measure,Mean", "Availability,0.9871234567", "Runs,3"]
-        assert "Pump" in (tmp_path / "t-Blocks.csv").read_text()
+class TestOdsLayout:
+    """The same decisions in the OpenDocument file."""
+
+    def test_filter_frozen_header_print_and_colour(self, tmp_path):
+        sheet = Sheet("States", ["Block", "Green %", "Avail"],
+                      [["A", 90, 0.9], ["B", 80, 0.8], ["C", 70, 0.95]],
+                      formats=["", "pct", "prob"], text_cols={0})
+        p = write_workbook(tmp_path / "t.ods", [sheet])
+        root, _tabs = _cells_ods(p)
+        ranges = [r.get(_q("table", "target-range-address"))
+                  for r in root.iter(_q("table", "database-range"))]
+        assert ranges == ["'States'.A1:'States'.C4"]
+        assert root.find(".//" + _q("table", "table-header-rows")) is not None
+        kinds = [child.tag.split("}")[1]
+                 for f in root.iter(_q("calcext", "conditional-format"))
+                 for child in f]
+        assert kinds == ["condition", "data-bar", "color-scale"]
+        with zipfile.ZipFile(p) as z:
+            styles = z.read("styles.xml").decode()
+            settings = z.read("settings.xml").decode()
+        assert 'style:print-orientation="portrait"' in styles
+        assert 'style:scale-to-X="1"' in styles
+        assert 'fo:page-width="21.0cm"' in styles             # A4
+        assert "<text:page-count>" in styles
+        assert ('config:name="VerticalSplitPosition" config:type="int">1<'
+                in settings)
+
+    def test_numbers_keep_their_places(self, tmp_path):
+        p = write_workbook(tmp_path / "t.ods", [_SAMPLE[0]])
+        with zipfile.ZipFile(p) as z:
+            content = z.read("content.xml").decode()
+        assert 'number:decimal-places="6" number:min-decimal-places="6"' \
+            in content                                        # probability
+        assert "<number:text>&gt;</number:text>" in content   # censored
 
 
 # -- input tables ----------------------------------------------------------
@@ -252,13 +469,13 @@ class TestResultTables:
                             model_name="m", info=info)
         names = sorted(f.name for f in res.files)
         assert names == ["m_results_end_of_run.txt", "m_tables.xlsx"]
-        with zipfile.ZipFile(tmp_path / "m_tables.xlsx") as z:
-            book = z.read("xl/workbook.xml").decode()
-            first = z.read("xl/worksheets/sheet1.xml").decode()
-            summary = z.read("xl/worksheets/sheet2.xml").decode()
-        assert book.index("Run Info") < book.index("Summary")
-        assert "TwoBlockRedundancy" in first
-        assert ' s="3"' in summary      # availability: six places
+        book, tabs = _cells_xlsx(tmp_path / "m_tables.xlsx")
+        assert book.sheetnames[:3] == ["Contents", "Run Info", "Summary"]
+        assert ["Model", "TwoBlockRedundancy"] in tabs["Run Info"]
+        ws = book["Summary"]
+        row = next(r for r in ws.iter_rows(min_row=2)
+                   if r[0].value == "Availability")
+        assert row[2].number_format == "0.000000"   # availability: 6 places
 
     def test_capacity_keeps_its_totals_and_lost_flow(self):
         lines = (GOLD / "LadL7Cap" / "ours" /
@@ -453,15 +670,14 @@ class TestExport:
     def test_the_workbook_has_a_tab_per_table_with_numbers(self, tmp_path):
         res = export_tables(_sample_tables(), tmp_path,
                             ExportOptions(xlsx=True), stem="M")
-        z = zipfile.ZipFile(res.files[0])
-        wb = ET.fromstring(z.read("xl/workbook.xml"))
-        assert [s.get("name") for s in wb.find("m:sheets", NS)] == [
-            "Blocks", "Summary"]
-        sheet = ET.fromstring(z.read("xl/worksheets/sheet1.xml"))
-        cells = {c.get("r"): c for c in sheet.iter(f"{{{NS['m']}}}c")}
-        assert cells["C2"].find("m:v", NS).text == "12.5"       # number
-        assert cells["A2"].find("m:v", NS).text == "1"          # id: number
-        assert cells["B3"].find("m:is/m:t", NS).text == "12"    # name: text
+        book, tabs = _cells_xlsx(res.files[0])
+        # MTBDE is in the Summary, so a Glossary closes the workbook.
+        assert book.sheetnames == ["Contents", "Blocks", "Summary",
+                                   "Glossary"]
+        blocks = tabs["Blocks"]
+        assert blocks[1][2] == 12.5                             # number
+        assert blocks[1][0] == 1                                # id: number
+        assert blocks[2][1] == "12"                             # name: text
 
     def test_same_titles_get_a_group_prefix_on_their_tabs(self, tmp_path):
         tables = [Table("inputs.resources", "Resources", INPUTS, ["a"], [[1]]),
@@ -469,19 +685,49 @@ class TestExport:
                         [[2]])]
         res = export_tables(tables, tmp_path, ExportOptions(xlsx=True),
                             stem="M")
-        wb = ET.fromstring(zipfile.ZipFile(res.files[0]).read(
-            "xl/workbook.xml"))
-        assert [s.get("name") for s in wb.find("m:sheets", NS)] == [
-            "Inputs - Resources", "Results - Resources"]
+        assert _cells_xlsx(res.files[0])[0].sheetnames == [
+            "Contents", "Inputs - Resources", "Results - Resources"]
+
+    def test_the_same_name_in_another_case_gets_a_prefix_too(self,
+                                                             tmp_path):
+        tables = [Table("inputs.spare_pools", "Spare Pools", INPUTS, ["a"],
+                        [[1]]),
+                  Table("results.pools", "Spare pools", RESULTS, ["a"],
+                        [[2]])]
+        res = export_tables(tables, tmp_path, ExportOptions(xlsx=True),
+                            stem="M")
+        assert _cells_xlsx(res.files[0])[0].sheetnames[1:] == [
+            "Inputs - Spare Pools", "Results - Spare pools"]
+
+    def test_excel_and_opendocument_hold_the_same_tables(self, tmp_path):
+        res = export_tables(_sample_tables(), tmp_path,
+                            ExportOptions(xlsx=True, ods=True), stem="M")
+        assert sorted(f.name for f in res.files) == ["M_tables.ods",
+                                                     "M_tables.xlsx"]
+        xlsx = _read_back(tmp_path / "M_tables.xlsx")
+        ods = _read_back(tmp_path / "M_tables.ods")
+        assert list(xlsx) == list(ods)
+        def filled(rows):
+            out = []
+            for r in rows:
+                r = list(r)
+                while r and r[-1] is None:
+                    r.pop()
+                if r:
+                    out.append(r)
+            return out
+
+        for tab in xlsx:
+            assert filled(xlsx[tab]) == filled(ods[tab]), tab
 
     def test_every_format_at_once_and_the_plan_matches(self, tmp_path):
         opts = ExportOptions(csv=True, txt_files=True, txt_report=True,
-                             xlsx=True)
+                             xlsx=True, ods=True)
         tables = _sample_tables()
         planned = plan_files(tables, opts, "M")
         res = export_tables(tables, tmp_path / "sub" / "dir", opts, stem="M")
         assert sorted(f.name for f in res.files) == sorted(planned)
-        assert len(planned) == 2 + 2 + 1 + 1
+        assert len(planned) == 2 + 2 + 1 + 2
 
     def test_default_folder_is_named_tables_beside_the_model(self, tmp_path):
         assert TABLES_DIRNAME == "Tables"

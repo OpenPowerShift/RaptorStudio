@@ -121,7 +121,8 @@ def add_parser(sub: Any) -> None:
     r.add_argument("--list", action="store_true", dest="list_tables",
                    help="list the available tables and exit")
     r.add_argument("--format", action="append",
-                   choices=("csv", "txt", "report", "xlsx"), dest="fmts",
+                   choices=("csv", "txt", "report", "xlsx", "ods"),
+                   dest="fmts",
                    help="output format(s); default csv")
     r.add_argument("-o", "--output", metavar="DIR",
                    help="folder (default ./Tables beside the model)")
@@ -484,7 +485,8 @@ def tables_command(args: Any) -> int:
         fmts = set(args.fmts or ["csv"])
         opts = table_export.ExportOptions(
             csv="csv" in fmts, txt_files="txt" in fmts,
-            txt_report="report" in fmts, xlsx="xlsx" in fmts)
+            txt_report="report" in fmts, xlsx="xlsx" in fmts,
+            ods="ods" in fmts)
         folder = Path(args.output) if args.output else (
             Path(args.model).resolve().parent / table_export.TABLES_DIRNAME)
         try:

@@ -50,6 +50,10 @@ LABELS: dict[str, str] = {
     "Mission_Green_Percent": "Mission green %",
     "Mission_Yellow_Percent": "Mission yellow %",
     "Mission_Red_Percent": "Mission red %",
+    # extended results (Final Results' ***EXTENDED_RESULTS*** section)
+    "Component_CMs": "Component CMs", "Component_PMs": "Component PMs",
+    "MTBF_Total_Time": "MTBF total time",
+    "MTBE_Total_Time": "MTBE total time",
     # statistics columns
     "Minimum": "Minimum", "Maximum": "Maximum", "Mean": "Mean",
     "St.Dev": "St. dev.", "StDev": "St. dev.", "SEM": "SEM",
@@ -153,14 +157,19 @@ def with_unit(label: str, kind: str, units: str = "") -> str:
 # --------------------------------------------------------------------------
 
 _TIME = {"mtbde", "mdt", "mtbm", "mtbmu", "mtbms", "mmt", "mmtu", "mmts",
-         "mtbf", "mttr", "mttf", "ending sim time", "time"}
+         "mtbf", "mttr", "mttf", "ending sim time", "time", "mttff",
+         "mtbf total time", "mtbe total time", "red time corrective",
+         "red time pm", "red time logistics", "red time done",
+         "red time other"}
 _PROB = {"availability", "reliability", "conditional reliability",
-         "dependability", "ao", "do", "r"}
+         "dependability", "ao", "do", "r", "operational availability",
+         "inherent availability", "achieved availability"}
 _COUNT = {"system failures", "component failures", "failures", "delays",
           "min used", "avg used", "max used", "initial", "new spares",
           "min stock", "avg stock", "max stock", "end stock", "run", "id",
           "level", "initial spares", "min available", "avg available",
-          "max available", "end available"}
+          "max available", "end available", "component cms",
+          "component pms"}
 _COST_WORDS = ("cost", "purchase", "operating", "sparing", "disposal",
                "total", "good", "repair", "idle", "repair hold", "pm",
                "pm hold", "standby", "done", "events", "emergency shipping",
@@ -349,6 +358,7 @@ SECTIONS: dict[str, str] = {
     "SUMMARY": "Summary", "LOGISTICS": "Logistics", "SPARING": "Sparing",
     "RESOURCES": "Resources", "COST": "Cost", "CAPACITY": "Capacity",
     "WEAK_LINK_ANALYSIS": "Weak link",
+    "EXTENDED_RESULTS": "Extended results",
 }
 
 #: A sub-table's own name (the label line above it in the report).

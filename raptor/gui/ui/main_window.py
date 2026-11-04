@@ -3393,6 +3393,50 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         from raptor.gui.ui.tables_dialog import open_export_tables_dialog
         open_export_tables_dialog(self)
 
+    def _export_workbook_xlsx(self):
+        """File > Export Excel Workbook...: one .xlsx of the default tables."""
+        self._export_workbook(".xlsx")
+
+    def _export_workbook_ods(self):
+        """File > Export OpenDocument Spreadsheet...: the same as .ods."""
+        self._export_workbook(".ods")
+
+    def _export_workbook(self, ext: str):
+        """The model's tables and the latest run's result tables (the Export
+        Tables dialog's default choice) as ONE workbook, after a Save dialog.
+        The file-type list offers both types, starting on `ext`."""
+        if self._rbd is None:
+            return
+        from raptor.api.table_export import safe_stem, write_tables_workbook
+        from raptor.api.tables import catalogue, collect
+        from raptor.gui.ui.tables_dialog import gather
+        rbd, bundle, model_path, name = gather(self)
+        keys = [i.key for i in catalogue(rbd, bundle)
+                if i.default and i.available]
+        start = (str(Path(model_path).parent) if model_path
+                 else os.getcwd())
+        default = os.path.join(start, f"{safe_stem(name)}_tables{ext}")
+        path = fdg.ask_spreadsheet_path(
+            self, "Export Excel Workbook" if ext == ".xlsx"
+            else "Export OpenDocument Spreadsheet", default)
+        if not path:
+            return
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            info = (self._results.run_info(rbd, model=name,
+                                           file=model_path or "")
+                    if bundle is not None else None)
+            written = write_tables_workbook(collect(rbd, bundle, keys), path,
+                                            model_name=name, info=info)
+        except Exception as e:      # file I/O: never let it cross the slot
+            msgbox.critical(self, "Export Failed",
+                            f"Could not write the workbook:\n\n{e}")
+            self._statusbar.showMessage("Workbook export failed", 8000)
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+        self._statusbar.showMessage(f"Saved {written}", 8000)
+
     def _export_diagram_svg(self):
         """Export the CURRENTLY DISPLAYED hierarchy level as a scalable
         vector file -- reuses the exact same content-rect measurement

@@ -53,8 +53,12 @@ _KEY_ROLE = Qt.ItemDataRole.UserRole
 
 #: (settings key, label, tooltip) for the format checkboxes, in order.
 FORMATS: tuple[tuple[str, str, str], ...] = (
-    ("xlsx", "Spreadsheet (.xlsx) — one tab per table",
-     "One workbook with a tab for every table, numbers as numbers."),
+    ("xlsx", "Excel workbook (.xlsx) — one tab per table",
+     "One workbook with a tab for every table: numbers as numbers, "
+     "filters, frozen headers, a glossary and pages set up to print."),
+    ("ods", "OpenDocument spreadsheet (.ods) — one tab per table",
+     "The same workbook for LibreOffice, OpenOffice and other "
+     "OpenDocument applications."),
     ("csv", "CSV — one file per table",
      "Comma-separated files any spreadsheet or script can read."),
     ("txt_files", "Text — one file per table",
@@ -246,7 +250,8 @@ class ExportTablesDialog(QDialog):
         return ExportOptions(csv=b["csv"].isChecked(),
                              txt_files=b["txt_files"].isChecked(),
                              txt_report=b["txt_report"].isChecked(),
-                             xlsx=b["xlsx"].isChecked())
+                             xlsx=b["xlsx"].isChecked(),
+                             ods=b["ods"].isChecked())
 
     def folder(self) -> Path:
         return Path(self.folder_edit.text().strip()).expanduser()

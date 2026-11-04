@@ -198,6 +198,7 @@ async def export_analytical(
     dependencies: Literal["up", "down"] | None = None,
     max_variables: int | None = None,
     max_bdd_nodes: int | None = None,
+    file_format: Literal["xlsx", "ods"] = "xlsx",
     ctx: Context | None = None,
 ) -> CallToolResult:
     """Solve exactly, as `analytical_analysis` does, and write a spreadsheet.
@@ -211,17 +212,19 @@ async def export_analytical(
     sheets per mode and phase ("Phase 2 Summary").
 
     The file is `<model>[_h<hierarchy>]_analytical_<modes>[_all_phases |
-    _phase<N>].xlsx`, e.g.
-    `Plant_analytical_reliability_availability.xlsx`, in `folder` (inside
-    the workspace; default `Tables/<model>`). An existing file of that name
-    is replaced. Every other argument is as for `analytical_analysis`.
+    _phase<N>].xlsx` (`.ods` with `file_format="ods"`, an OpenDocument
+    spreadsheet), e.g. `Plant_analytical_reliability_availability.xlsx`,
+    in `folder` (inside the workspace; default `Tables/<model>`). An
+    existing file of that name is replaced. Every other argument is as for
+    `analytical_analysis`.
 
     Returns {path, modes, results: [{mode, phase, reliability |
     availability}]}.
     """
     context.require_write()
     from raptor.api.analytical import analyse_modes
-    from raptor.api.analytical_export import export_file_name, export_xlsx
+    from raptor.api.analytical_export import (
+        export_file_name, export_workbook)
     from raptor.api.table_export import TABLES_DIRNAME, safe_stem
 
     ws = context.workspace()
@@ -251,7 +254,8 @@ async def export_analytical(
 
     results = await run_job(ctx, work, label="Analysing")
     dest.mkdir(parents=True, exist_ok=True)
-    path = export_xlsx(results, dest / export_file_name(handle.name, results))
+    path = export_workbook(results, dest / export_file_name(
+        handle.name, results, file_format))
     summary = [{"mode": r["mode"],
                 "phase": (r.get("scope") or {}).get("phase"),
                 **({"reliability": r.get("reliability")}

@@ -96,6 +96,7 @@ DEFAULTS: dict[str, Any] = {
     "execution/default_animate": False,
     # tables/ -- the Export Tables dialog: which formats were last chosen
     "tables/xlsx": True,
+    "tables/ods": False,
     "tables/csv": False,
     "tables/txt_files": False,
     "tables/txt_report": False,

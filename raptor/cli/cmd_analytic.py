@@ -87,6 +87,9 @@ def add_parser(sub: Any) -> None:
                         "--phase all); a folder gets "
                         "the default name, e.g. "
                         "MODEL_analytical_reliability.xlsx")
+    p.add_argument("--ods", default=None, metavar="PATH",
+                   help="the same as --xlsx, as an OpenDocument "
+                        "spreadsheet (.ods)")
     p.add_argument("-f", "--format", choices=("text", "json", "csv"),
                    default="text",
                    help="stdout format; with several results (--mode "
@@ -241,7 +244,9 @@ def analytic_command(args: Any) -> int:
                 progress.finish()
         name = ws.get(mid).name
     if args.xlsx:
-        _write_xlsx(args.xlsx, name, results)
+        _write_workbook(args.xlsx, name, results, "xlsx")
+    if args.ods:
+        _write_workbook(args.ods, name, results, "ods")
     _emit(args.format, results)
     return X.OK
 
@@ -265,15 +270,18 @@ def _emit(format_: str, results: list[dict[str, Any]]) -> None:
                 eprint(f"warning: {warning}")
 
 
-def _write_xlsx(target: str, name: str, results: list[dict[str, Any]]) -> None:
+def _write_workbook(target: str, name: str, results: list[dict[str, Any]],
+                    ext: str) -> None:
     from pathlib import Path
 
-    from raptor.api.analytical_export import export_file_name, export_xlsx
+    from raptor.api.analytical_export import export_file_name, export_workbook
     path = Path(target)
     if path.is_dir():
-        path = path / export_file_name(name, results)
+        path = path / export_file_name(name, results, ext)
+    elif path.suffix.lower() != f".{ext}":
+        path = path.with_name(path.name + f".{ext}")
     try:
-        export_xlsx(results, path)
+        path = export_workbook(results, path)
     except OSError as exc:
         raise CliError(f"cannot write {path}: {exc}", X.OUTPUT) from exc
     eprint(f"wrote {path}")

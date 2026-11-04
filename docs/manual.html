@@ -35,7 +35,11 @@
 <li><a href="#run-manifest">What a result set records about itself</a></li>
 <li><a href="#stepping">Debug tab: stepping debugger</a></li>
 <li><a href="#extract-hierarchy">Checking part of a model: Extract Hierarchy</a></li>
-<li><a href="#export-tables">Exporting tables</a></li>
+<li><a href="#export-tables">Exporting tables</a>
+<ul class="sectlevel2">
+<li><a href="#spreadsheets">How the spreadsheets are laid out</a></li>
+</ul>
+</li>
 <li><a href="#preferences">Preferences</a></li>
 <li><a href="#files">Files and formats</a></li>
 <li><a href="#standards">IEC 61078 and standards alignment</a></li>
@@ -493,12 +497,14 @@ all), <strong>Standby</strong> treats cold-standby paths as fully in service or 
 absent, and <strong>Dependencies</strong> treats every dependency as up (analyse the
 dependent element&#8217;s own law) or down (remove it from the success path); each
 choice is listed under the assumptions. <strong>Copy</strong> puts the result on the
-clipboard; <strong>Export ▸ This result…</strong> saves it as a spreadsheet, and
+clipboard; <strong>Export ▸ This result…</strong> saves it as a spreadsheet (Excel or
+OpenDocument, chosen in the Save dialog&#8217;s file-type list), and
 <strong>Export ▸ Reliability and availability…</strong> saves it with the other mode
 (same settings, worked out first if need be) in one workbook, named after
 the model and the modes, e.g.
 <code>Plant_analytical_reliability_availability.xlsx</code>. The same is on the
-command line (<code>raptor analytic --mode both --xlsx out/</code>) and in MCP
+command line (<code>raptor analytic --mode both --xlsx out/</code>, or <code>--ods</code>) and
+in MCP
 (<code>export_analytical</code>). The full scope and the API
 are in <a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md">the analytical solver guide</a>.</p>
 </div>
@@ -511,7 +517,8 @@ values close the Final Results report, in its <code><strong><strong>EXTENDED_RES
 section (Min / Mean / Max / St.Dev / SEM over runs, then each block&#8217;s
 percentage share of failures, downtime and cost). Downtime shares need Weak
 Link analysis and cost shares need Cost analysis. <strong>Copy</strong> puts the visible
-tab on the clipboard and <strong>Export…</strong> saves both tabs as a spreadsheet.</p>
+tab on the clipboard and <strong>Export…</strong> saves both tabs as a spreadsheet
+(Excel or OpenDocument).</p>
 </div>
 </div>
 <div class="sect2">
@@ -1210,13 +1217,12 @@ Before any run the group is listed but greyed out, saying why.</p>
 </thead>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Spreadsheet (<code>.xlsx</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">One workbook: a <strong>Run Info</strong> tab (the model, runs, run length, analyses
-  and when it ran), then a <strong>tab per table</strong>. Numbers are real numbers (so
-  they sort and chart) shown to six places for probabilities and two for
-  money and percentages, names stay text, and the header row is frozen
-  with a filter on it. The End-of-Run and interim cost reports are text,
-  so they are saved beside the workbook as <code>.txt</code> files.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Excel workbook (<code>.xlsx</code>) and OpenDocument spreadsheet (<code>.ods</code>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One workbook, in either or both formats (see <a href="#spreadsheets">How the spreadsheets are laid out</a>): a
+  <strong>Contents</strong> tab, a <strong>Run Info</strong> tab (the model, runs, run length,
+  analyses and when it ran), a <strong>tab per table</strong> and a <strong>Glossary</strong>. The
+  End-of-Run and interim cost reports are text, so they are saved beside
+  the workbook as <code>.txt</code> files.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">CSV</p></td>
@@ -1234,16 +1240,73 @@ Before any run the group is listed but greyed out, saying why.</p>
 </table>
 <div class="paragraph">
 <p>Files go to a folder called <strong>Tables</strong> beside the model file (change it
-with <strong>Browse…</strong>), named <code>&lt;model&gt;_&lt;table&gt;.&lt;ext&gt;</code>, or <code>&lt;model&gt;_tables.xlsx</code> /
-<code>&lt;model&gt;_tables.txt</code> for the workbook and combined report. Files of the
+with <strong>Browse…</strong>), named <code>&lt;model&gt;_&lt;table&gt;.&lt;ext&gt;</code>, or <code>&lt;model&gt;_tables.xlsx</code>,
+<code>&lt;model&gt;_tables.ods</code> / <code>&lt;model&gt;_tables.txt</code> for the workbooks and combined
+report. Files of the
 same names are replaced&#8201;&#8212;&#8201;the dialog counts them before you export. The
 tables reflect the model as it is on screen, including edits you have not
 saved. Your format choices are remembered.</p>
 </div>
 <div class="paragraph">
+<p>For one workbook without the dialog, <strong>File ▸ Print and Export ▸ Export
+Excel Workbook…</strong> or <strong>Export OpenDocument Spreadsheet…</strong> asks only where to
+save it, and writes the tables the dialog ticks by default. The Save
+dialog&#8217;s file-type list offers both types either way. The command line
+has the same: <code>raptor tables MODEL --run --format xlsx --format ods</code>.</p>
+</div>
+<div class="sect2">
+<h3 id="spreadsheets">How the spreadsheets are laid out</h3>
+<div class="paragraph">
+<p>Every spreadsheet RAPTOR Studio writes&#8201;&#8212;&#8201;Export Tables, the File view&#8217;s
+workbook commands, the analytical solver&#8217;s Export and Availability and
+Criticality&#8217;s Export&#8201;&#8212;&#8201;has the same layout, in Excel and OpenDocument
+alike:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Row 1 is the header</strong> on every data tab, so the file reads straight
+into a script (pandas, R, MATLAB). The model, the date and the tab&#8217;s
+title are in the printed page header and footer and on the Contents tab.</p>
+</li>
+<li>
+<p><strong>Numbers are numbers</strong>, right-aligned and shown by their kind: six
+places for availability and reliability, two for money and percentages,
+three for times, whole counts with a thousands separator. The cell keeps
+full precision. A censored estimate keeps its number with a <code>&gt;</code> in its
+format; <code>N/A</code> is grey.</p>
+</li>
+<li>
+<p><strong>Each data tab</strong> has a frozen header (and frozen name column when it is
+wide), a filter on the header, every other row shaded (the shading
+follows sorting and filtering) and a first sort that puts what you look
+for at the top: the weakest element first in a Weak Link table, the
+largest cost first, the most-used spare first. A note under the table
+says what it is sorted by. A <strong>Total</strong> row stays last, in bold.</p>
+</li>
+<li>
+<p><strong>Colour means something</strong>: a bar shows a percentage or a total&#8217;s size
+within its column (a state&#8217;s share of time in that state&#8217;s colour), and
+orange marks the lowest values of an availability or reliability column.</p>
+</li>
+<li>
+<p><strong>Abbreviations</strong> (MTBDE, SEM, RAW, &#8230;&#8203;) carry a comment on their header,
+and the <strong>Glossary</strong> tab explains every one the workbook uses, and the
+colours.</p>
+</li>
+<li>
+<p><strong>Printing</strong>: each tab is set up for A4, portrait or landscape by its
+width, one page wide with the header row repeated on every page. A very
+wide tab (Per-Run Results) prints at 70% across several pages with its
+first column repeated.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
 <p>An AI assistant using the MCP server can read and write the same tables
 with <code>list_tables</code>, <code>get_table</code> and <code>export_tables</code>; see the <a href="../new_docs/book.html#ch-mcp">MCP chapter</a>
 of the User Guide.</p>
+</div>
 </div>
 </div>
 </div>
@@ -2670,6 +2733,16 @@ documentation.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Export PDF…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Save the printable report (diagram + results + weak link) as a PDF file</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export Excel Workbook…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save the model&#8217;s tables and the latest run&#8217;s results as one Excel workbook (.xlsx), set up to read, filter and print</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export OpenDocument Spreadsheet…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save the model&#8217;s tables and the latest run&#8217;s results as one OpenDocument spreadsheet (.ods) for LibreOffice and other OpenDocument applications</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
