@@ -3513,15 +3513,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def import_rbd_as_hierarchy(self, path: str,
                                 name: str | None = None) -> int:
-        """Merge an existing .rbd file in as one hierarchy: default name = the file's own
+        """Merge an existing .rbds or .rbd file in as one hierarchy: default name = the file's own
         name; the imported model's Start/End nodes become the wrapper's
         In/Out markers; every id is remapped into a fresh range; the
         imported home level hangs directly under the new hier. One macro
         undo step."""
         if self._rbd_ref is None:
             raise RuntimeError("no file loaded")
-        from raptor.core.fileio.rbd import load_rbd
-        imported = load_rbd(path)
+        # .rbds or .rbd, by extension: the legacy reader alone refused every
+        # .rbds file at its first line.
+        from raptor.core.fileio.model_file import load_model_file
+        imported = load_model_file(path)
         if not name:
             stem = os.path.basename(path)
             name = os.path.splitext(stem)[0]

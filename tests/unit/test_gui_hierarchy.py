@@ -522,10 +522,13 @@ def test_drop_on_oval_reparents_and_cuts_boundary_links(qapp):
 # Import RBD as hierarchy
 # ---------------------------------------------------------------------
 
-def test_import_rbd_as_hierarchy_preserves_metrics(qapp):
+@pytest.mark.parametrize("suffix", [".rbd", ".rbds"])
+def test_import_rbd_as_hierarchy_preserves_metrics(qapp, tmp_path, suffix):
     """Import TwoBlockRedundancy into an empty host, wire host
     Start->Hier->End, and the imported model must reproduce the
-    original's Availability/MTBDE/MDT/System_Failures exactly."""
+    original's Availability/MTBDE/MDT/System_Failures exactly. From an
+    .rbds file too: the import used to read every file as .rbd and refused
+    an .rbds at its first line."""
     from raptor.core.engine.runner import run_simulation_with_reports
     from raptor.core.fileio.rbd import load_rbd, save_rbd
     from raptor.gui.new_model import build_new_model
@@ -558,7 +561,12 @@ def test_import_rbd_as_hierarchy_preserves_metrics(qapp):
     _host_row["TermCondition"] = "100.000000"
     v = DiagramView()
     v.load_rbd(host)
-    hid = v.import_rbd_as_hierarchy(fixture)
+    source = fixture
+    if suffix == ".rbds":
+        from raptor.core.fileio.rbds import save_rbds
+        source = str(tmp_path / "TwoBlockRedundancy.rbds")
+        save_rbds(load_rbd(fixture), source)
+    hid = v.import_rbd_as_hierarchy(source)
     assert hid in v.hiers
     _row = next(r for r in host.sections["HIERARCHY_DATA"].rows
                if int(float(r["ID"])) == hid)
