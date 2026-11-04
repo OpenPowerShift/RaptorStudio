@@ -9390,13 +9390,23 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """A new, empty window beside this one, for another model."""
         from PySide6.QtCore import QPoint
         from raptor.gui import open_models
-        win = type(self)()
-        win.resize(self.size())
-        win.move(self.pos() + QPoint(36, 36))
-        open_models.keep(win)
-        win.show()
-        win.raise_()
-        win.activateWindow()
+        # Building a window takes most of a second: say so at once, in the
+        # window that was clicked, before anything is built.
+        self._statusbar.showMessage("Opening a new window…")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        QApplication.processEvents()
+        try:
+            win = type(self)()
+            win.resize(self.size())
+            win.move(self.pos() + QPoint(36, 36))
+            open_models.keep(win)
+            win.show()
+            win.raise_()
+            win.activateWindow()
+            QApplication.processEvents()
+        finally:
+            QApplication.restoreOverrideCursor()
+            self._statusbar.clearMessage()
         return win
 
     def _recent_reload(self):
