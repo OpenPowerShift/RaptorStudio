@@ -213,9 +213,8 @@ def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
     if system_config.termination_type == "CycleSim" and not rbd_file.sections["PHASES"].rows:
         raise UnrunnableModel([ModelProblem(
             "system",
-            "the run is terminated by cycles but no phases are defined. Raptor 7 refuses this "
-            "model too ('cycle terminated without phases defined'). Add phases, or end the run by "
-            "time or failures.")])
+            "the run is terminated by cycles but no phases are defined. Add phases, or end the "
+            "run by time or failures.")])
 
     resource_pools = {
         pool.pool_name: pool

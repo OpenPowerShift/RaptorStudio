@@ -92,7 +92,7 @@ class RuleGatedStack:
         self._stack.undo()
         self._stack.push(_Discard("Refused edit"))
         from raptor.gui.ui import msgbox
-        msgbox.warning(self._view, "Raptor 7 refuses this", refusal_text(added))
+        msgbox.warning(self._view, "Not allowed", refusal_text(added))
 
     # ---------------------------------------------------------------- stack API
     def push(self, cmd: QUndoCommand) -> None:

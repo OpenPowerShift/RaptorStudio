@@ -36,6 +36,7 @@ from raptor.core.fileio.typed import int_or_none
 
 SUBLABELS = "sublabels"                # a block's F / R at-a-glance lines
 DEPENDENCY_BADGE = "dependency badge"  # a block's or node's badge
+NODE_BADGE = "node badge"              # a connect node's k/n
 
 
 @dataclass(frozen=True)
@@ -232,7 +233,8 @@ _ARMS: dict[str, Arm] = {
     "block gd rate limit": Arm("block", ("gd_rate", "gd_limit"),
                                spread_attrs=True),
     # -- nodes: every edit is recorded so Save writes only touched fields
-    "node k": Arm("node", ("good_paths",), edited="good_paths"),
+    "node k": Arm("node", ("good_paths",), edited="good_paths",
+                  refresh=(NODE_BADGE,)),
     "node full flow": Arm("node", ("full_flow",), edited="flow_flags"),
     "node any path": Arm("node", ("any_path",), edited="flow_flags"),
     "node dependency": Arm("node", ("dependency_num", "dep_type"),
