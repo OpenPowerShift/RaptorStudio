@@ -714,7 +714,14 @@ def test_hierarchy_subtree_copy_paste_undo(qapp):
     # markers exist and are unique
     hobj = v.hiers[new_hid]
     assert hobj.in_id != hobj.out_id
-    assert hobj.in_id in v.nodes and hobj.out_id in v.nodes
+    rows = {int(float(r["ID"])): r for r in v._rbd_ref.sections["NODE_DATA"].rows}
+    assert int(float(rows[hobj.in_id]["parent"])) == new_hid
+    assert int(float(rows[hobj.out_id]["parent"])) == new_hid
+    # They are drawn inside the new hierarchy, not beside its oval.
+    assert hobj.in_id not in v._node_items
+    v.enter_level(new_hid)
+    assert hobj.in_id in v._node_items and hobj.out_id in v._node_items
+    v.go_home()
     _total_blocks_before_undo = None
     v._stack.undo()
     assert new_hid not in v.hiers

@@ -3524,6 +3524,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # .rbds file at its first line.
         from raptor.core.fileio.model_file import load_model_file
         imported = load_model_file(path)
+        # Its positions are in its own drawing units: re-express them in
+        # this model's, or every spacing inside the hierarchy changes.
+        view_transform.rebase(imported, view_transform.ensure(imported),
+                              self._vt)
         if not name:
             stem = os.path.basename(path)
             name = os.path.splitext(stem)[0]
@@ -3694,15 +3698,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         from raptor.core.fileio.typed import node_from_row
         nid = _safe_int(row.get("ID"))
         node = node_from_row(row)
-        # In/Out hierarchy markers are always canvas-visible on their
-        # hierarchy's parent level (they sit beside the oval there,
-        # Raptor 7) even though their `parent` column names the
-        # hierarchy itself -- the user double-clicks them to
-        # ascend/descend from the parent side. Only skip other kinds of
-        # foreign-level rows.
-        is_hier_marker = node.type_node in (4, 5)
-        if not is_hier_marker and \
-                _safe_int(row.get("parent", "0")) != self._current_parent:
+        # Drawn only on its own level, the rule a level rebuild follows: a
+        # hierarchy's In/Out markers belong inside it, not beside its oval
+        # on the parent level (an added or imported hierarchy showed them
+        # there until the next rebuild).
+        if _safe_int(row.get("parent", "0")) != self._current_parent:
             return nid   # another level's row -- file only (see _insert_block)
         self.nodes[nid] = node
         item = _NodeItem(nid, node.node_name, node.type_node,

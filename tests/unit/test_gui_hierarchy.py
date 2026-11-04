@@ -326,8 +326,11 @@ def test_add_hierarchy_bootstraps_section(qapp):
     row = next(r for r in v._rbd_ref.sections["HIERARCHY_DATA"].rows
                if int(float(r["ID"])) == hid)
     in_id, out_id = int(float(row["in"])), int(float(row["out"]))
-    assert v.nodes[in_id].type_node == 4 and v.nodes[in_id].parent_id == hid
-    assert v.nodes[out_id].type_node == 5 and v.nodes[out_id].parent_id == hid
+    rows = {int(float(r["ID"])): r for r in v._rbd_ref.sections["NODE_DATA"].rows}
+    assert rows[in_id]["Type"] == "4" and int(float(rows[in_id]["parent"])) == hid
+    assert rows[out_id]["Type"] == "5" and int(float(rows[out_id]["parent"])) == hid
+    # The markers belong inside the hierarchy, not beside its oval here.
+    assert in_id not in v._node_items and out_id not in v._node_items
     # Descend: the new level shows exactly its own markers.
     v.enter_level(hid)
     assert sorted(v.nodes) == [in_id, out_id]
@@ -912,3 +915,48 @@ def test_collapse_refuses_a_selection_a_hierarchy_cannot_hold(qapp, monkeypatch)
     assert v.collapse_selection("Pair") is None
     assert shown and "entered by 2 link(s)" in shown[-1]
     assert [dict(r) for r in v._rbd_ref.sections["LINK_DATA"].rows] == links_before
+
+
+def test_import_shows_only_the_oval_and_keeps_the_files_layout(qapp, tmp_path):
+    """The home level gains the hierarchy oval and nothing else (its In/Out
+    markers were drawn there until the next rebuild), and inside, the
+    imported model is laid out exactly as it is on its own, its Start and
+    End become In and Out where they stood (its positions were read in the
+    host's drawing units, which shrank every spacing)."""
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.core.fileio.rbds import save_rbds
+    from raptor.gui.new_model import build_new_model
+    from raptor.gui.ui.diagram import DiagramView
+
+    def centres(v):
+        out = {}
+        for oid, it in v._block_items.items():
+            out[v.blocks[oid].name] = it.sceneBoundingRect().center()
+        for oid, it in v._node_items.items():
+            n = v.nodes[oid]
+            name = {4: "start", 5: "end"}.get(n.type_node, n.node_name.lower())
+            out[name] = it.sceneBoundingRect().center()
+        return out
+
+    source = str(tmp_path / "Model.rbds")
+    save_rbds(load_rbd(os.path.join(
+        REPO, "tests/golden/TwoBlockRedundancy/input.rbd")), source)
+    alone = DiagramView()
+    alone.load_rbd(load_rbd(os.path.join(
+        REPO, "tests/golden/TwoBlockRedundancy/input.rbd")))
+    expected = centres(alone)
+
+    host = DiagramView()
+    host.load_rbd(build_new_model("host"))
+    before = set(host._node_items)
+    hid = host.import_rbd_as_hierarchy(source)
+    assert set(host._node_items) == before          # no In/Out markers here
+    assert hid in host._hier_items
+    host.enter_level(hid)
+    got = centres(host)
+    assert set(got) == set(expected)
+    ox = got["start"].x() - expected["start"].x()
+    oy = got["start"].y() - expected["start"].y()
+    for name, p in expected.items():
+        assert got[name].x() == pytest.approx(p.x() + ox, abs=1.5), name
+        assert got[name].y() == pytest.approx(p.y() + oy, abs=1.5), name
