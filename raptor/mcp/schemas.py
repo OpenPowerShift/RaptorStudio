@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 
 
 # ── Workspace & lifecycle ────────────────────────────────────
@@ -140,6 +140,22 @@ class UndoLastEditInput(BaseModel):
 
 class AutoLayoutInput(BaseModel):
     model_id: str = Field(description="Model to re-arrange on the layered grid")
+    all_levels: bool = Field(
+        default=False, description="Lay out every hierarchy level, not just home")
+    direction: Literal["LR", "RL", "TB", "BT"] = Field(
+        default="LR", description="LR, RL, TB or BT flow direction")
+    max_columns: StrictInt | None = Field(
+        default=None, ge=1,
+        description="Wrap after this many series elements (parallel "
+                    "branches share one); None = fit the canvas")
+    spacing: float = Field(
+        default=1.0, ge=0.25, le=3.0,
+        description="Gap scale: 1 = nominal, lower = more compact, "
+                    "higher = more open")
+    label_side: Literal["auto", "left", "right"] = Field(
+        default="auto",
+        description="Side for above/below labels in a TB/BT layout; "
+                    "auto = right for TB, left for BT")
 
 
 # ── Model features ───────────────────────────────────────────

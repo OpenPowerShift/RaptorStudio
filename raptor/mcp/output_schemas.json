@@ -211,6 +211,12 @@
    "elements_moved": {
     "type": "integer"
    },
+   "handover_points": {
+    "type": "integer"
+   },
+   "handover_points_removed": {
+    "type": "integer"
+   },
    "model_id": {
     "type": "string"
    },
@@ -227,6 +233,8 @@
   "required": [
    "annotations_moved",
    "elements_moved",
+   "handover_points",
+   "handover_points_removed",
    "model_id",
    "moved",
    "refine_cut_short",
@@ -1185,10 +1193,16 @@
    "links_drawn": {
     "type": "integer"
    },
+   "links_routed": {
+    "type": "integer"
+   },
    "renderer": {
     "type": "string"
    },
    "resource_link": {
+    "type": "string"
+   },
+   "routing": {
     "type": "string"
    },
    "svg_path": {
@@ -1210,8 +1224,10 @@
    "inline",
    "level",
    "links_drawn",
+   "links_routed",
    "renderer",
    "resource_link",
+   "routing",
    "svg_path",
    "width",
    "zoom_to"

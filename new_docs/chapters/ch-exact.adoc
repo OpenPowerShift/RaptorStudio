@@ -1,0 +1,417 @@
+[[ch-exact]]
+== Exact Answers: Checking a Simulation with the Analytical Solver
+
+*Time: about 30 minutes.*
+*New ideas: the exact (analytical) solver, checking a simulation against
+it, steady-state availability, what the solver cannot do.*
+
+=== You will learn
+
+* How to get an exact answer for a simple model, with no trials and no
+  noise.
+* How to check a simulation against the exact answer, with the SEM from
+  <<ch-trials>>.
+* What a difference between the two tells you.
+* What the solver cannot model, and when only simulation will do.
+
+=== You need
+
+* <<ch-trials>> finished. You use the SEM (standard error of the mean)
+  from that chapter.
+* `models/Lantern1.rbds`, `models/Vendo1.rbds` and
+  `models/WaterTreatment.rbds`.
++
+opsmodel:Lantern1[]
+
+=== The story
+
+In <<ch-trials>> you ran the lantern 1000 times. The answer settled
+"near 0.38", and the chapter called that the long-run truth. But how do
+you know the truth is 0.38? Every simulation result is a measurement,
+and a measurement has noise.
+
+For a simple model, you do not have to measure. You can *calculate*.
+RAPTOR Studio has a second tool for this, the **analytical solver**. It
+works out the answer from the diagram and the failure distributions
+directly. There are no trials, so there is no noise.
+
+That gives you a reference. If the simulation and the exact answer
+agree, you can trust the model and the simulation more. If they do not
+agree, something is different, and you can find out what.
+
+=== One new idea: measure or calculate
+
+Think of a coin. To find the chance of heads, you can toss it 1000
+times and count. That is a simulation. Or you can say "two sides, equal
+chance, so 0.5". That is a calculation.
+
+The calculation is exact, but only when its assumptions are true. If
+the coin is bent, the calculation is wrong and the tosses are right.
+
+The solver and the simulation work the same way:
+
+[cols="2,3,3",options="header"]
+|===
+| |Simulation |Analytical solver
+|How |Runs the system many times with random failures |Calculates from the diagram and the distributions
+|Answer |An estimate, with an SEM |Exact, no SEM
+|Models |Everything: repairs, PM, spares, crews, standby, phases |A simpler subset (see <<exact-limits>>)
+|Speed |Seconds to hours |Usually under a second; minutes for a very large model
+|===
+
+Use each one to check the other.
+
+=== Your first exact answer
+
+. Open `Lantern1.rbds`.
+. Click *Results ▸ Analytical…*. The solver window opens. It does not
+  solve yet.
+. Look at the settings. *Mode* is *Reliability — no repairs, R(t)*.
+  *Mission time* is 48 hours, the model's run length.
+. Click *Compute*.
+
+image::exact-summary.png[The solver window for Lantern1: reliability at 48 hours 0.384604, MTTF 43.1426 hours, B10 life 9.15389 hours]
+
+The *Summary* tab shows one card for each result:
+
+* *Reliability at 48 hours: 0.384604.* The chance that a lantern works
+  for the whole 48-hour trip. <<ch-trials>> measured "near 0.38". Now
+  you have the exact value.
+* *MTTF: 43.1426 hours.* The mean time to the first failure of the
+  lantern. A 48-hour simulation cannot measure this directly. It stops
+  at 48 hours, so it never sees the lanterns that fail later.
+* *B10 life: 9.15389 hours.* By this time, 10% of lanterns have failed.
+* *Hazard rate* and *Failure density* describe how fast failures happen
+  at 48 hours. You do not need them in this chapter.
+
+The window never changes your model. You can try settings freely.
+
+=== Check the solver by hand
+
+The solver is not a black box. For a series system you can check it
+with a calculator.
+
+The lantern is three blocks in series: Battery_Pack, Switch and
+LED_Panel. The lantern works only if all three work. So the system
+reliability is the product of the three block reliabilities. Open the
+*Elements* tab to see each one:
+
+[cols="3,2",options="header"]
+|===
+|Block |Reliability at 48 h
+|Battery_Pack (Weibull, shape 1.5, scale 60 h) |0.4889
+|Switch (Exponential, mean 200 h) |0.7866
+|LED_Panel (Normal, mean 100 h, SD 10 h) |0.9999999
+|*Lantern (product)* |*0.4889 × 0.7866 × 1.0 = 0.3846*
+|===
+
+image::exact-elements.png[The Elements tab for Lantern1: each block's reliability and MTTF, with the Birnbaum, RAW, RRW, Fussell–Vesely and criticality importance measures]
+
+The product is the solver's answer. For parallel, k-out-of-n and
+bridge diagrams the algebra is longer, but the solver does it exactly
+in the same way.
+
+The *Elements* tab also shows **importance measures**. They tell you
+which block matters most. The simplest is *Birnbaum*: how much the
+system reliability changes when this block goes from failed to perfect.
+For a series system, the Birnbaum value of a block is the product of
+the *other* blocks' reliabilities:
+
+* Battery_Pack: 0.7866 × 1.0 = 0.7866.
+* Switch: 0.4889 × 1.0 = 0.4889.
+
+*Criticality* sorts the table. Battery_Pack is first, with 0.65: it
+causes about two thirds of the lantern failures. LED_Panel is last.
+It almost never fails within 48 hours. If you want a better lantern,
+improve the battery first.
+
+TIP: Hover over a column heading to read what the measure means. Hover
+over a number to see all its digits.
+
+=== Use the exact answer to check a simulation
+
+Now check the simulation from <<ch-trials>>.
+
+. Close the solver window.
+. Set *Trials* to 2000 and click *Run*.
+. Read *Reliability (Mean)* and its SEM in the Results panel.
+
+A run of 2000 trials gave 0.3775 with an SEM of 0.0108. Your numbers
+can be slightly different. Compare the simulation with the exact value:
+
+----
+difference = 0.3846 - 0.3775 = 0.0071
+in SEMs    = 0.0071 / 0.0108 = 0.66
+----
+
+Use this rule:
+
+[cols="2,5",options="header"]
+|===
+|Difference |What it means
+|Up to 2 × SEM |They agree. This is normal noise.
+|2 to 3 × SEM |Probably noise. Run more trials and look again.
+|More than 3 × SEM |A real difference. Find out why.
+|===
+
+Here the difference is 0.66 SEM, so the two agree. The model and the
+simulation give the same answer, and the solver confirms the number in
+<<ch-trials>>.
+
+Why does the rule use 2 × SEM? About 95% of simulations land within
+2 × SEM of the truth. So a difference of less than 2 × SEM is the
+noise you expect. A difference of more than 3 × SEM happens by chance
+in fewer than 3 runs in 1000.
+
+=== Availability: the long-run fraction of time up
+
+Reliability mode assumes no repairs: one failure and the system is
+finished. For a repairable system, use availability mode.
+
+. Open `Vendo1.rbds`, the vending machine from <<ch-repair>>.
+. Click *Results ▸ Analytical…*.
+. Set *Mode* to *Availability — steady state*.
+. Click *Compute*.
+
+The result is *Availability 0.970685*. Again you can check it by hand.
+For one block with repair, the long-run availability is
+
+----
+A = MTTF / (MTTF + MTTR)
+----
+
+[cols="3,2,2,2",options="header"]
+|===
+|Block |MTTF |MTTR |Availability
+|Keypad |600 h |12 h |600 / 612 = 0.98039
+|Compressor |400 h |4 h |400 / 404 = 0.99010
+|*Machine (series, product)* | | |*0.98039 × 0.99010 = 0.97069*
+|===
+
+A simulation of 200 trials gave 0.97098 with an SEM of 0.00041. The
+difference is 0.00029, which is 0.7 SEM. They agree.
+
+NOTE: *Steady state* means "after a long time". The solver gives the
+fraction of time up when the system has run for a very long time. A
+simulation of one year includes the start, when every part is new.
+When the run is short compared with the MTTF of the parts, the two
+answers are different, and both are correct. They answer different
+questions.
+
+=== When they disagree: what the gap tells you
+
+Open `WaterTreatment.rbds` and the solver. Click *Compute*.
+
+image::exact-refused.png[The solver refuses WaterTreatment: block 1 Intake_Screen has a repair distribution, but reliability mode means non-repairable]
+
+The solver refuses the model. It names the first block it cannot handle
+and says why. This plant has repairs, preventive maintenance (PM) on its
+six pumps, and a small pool of spare motors: 2 in stock, a new one every
+4380 hours (six months), or an emergency order in 96 hours. The solver
+cannot model PM or spares.
+
+You can tell the solver to leave these things out. It then gives the
+answer for a simpler plant:
+
+. Set *Mode* to *Availability — steady state*.
+. Tick *Ignore ▸ Preventive maintenance*, *Spares* and *Resources*.
+. Click *Compute*.
+
+The solver gives 0.99785. The *Assumptions* tab lists what it left
+out. This is the availability of the same plant with no PM and a spare
+motor always on the shelf.
+
+A simulation of the real plant (1000 trials) gave 0.99425, with an SEM
+of 0.00005. The difference is 0.0036, which is about 70 SEM. That is a
+real difference, not noise. It is 0.36% of the time, or about 31 hours
+of downtime a year.
+
+What causes the gap? The solver cannot tell you, but simulation can.
+Simulate copies of the plant, each with one thing removed:
+
+[cols="5,2,3",options="header"]
+|===
+|Copy of the plant |Simulated availability |Difference from 0.99785
+|As built |0.99425 |+0.0036 (70 SEM)
+|No PM |0.99791 |-0.00006 (1.4 SEM): agrees
+|PM, but unlimited spare motors |0.99577 |+0.0021 (46 SEM)
+|No PM, unlimited spare motors |0.99789 |-0.00004 (1.0 SEM): agrees
+|No PM, unlimited spares, 10-year run |0.99787 |-0.00002 (1.3 SEM): agrees
+|===
+
+The table tells the story:
+
+* *PM causes the whole gap.* With PM switched off, the simulation agrees
+  with the exact answer.
+* *Part of the PM cost is spares.* Each PM uses a spare motor. With only
+  2 in stock, a pump that fails after a PM often waits for a motor.
+  Unlimited motors recover about 40% of the gap. The rest is the PM
+  downtime itself.
+* *Spares alone do not matter.* With PM off, unlimited motors change
+  nothing.
+* *The start of the run does not matter here.* A 10-year run gives the
+  same answer as a 1-year run, so the new-plant start-up is not part of
+  the gap.
+
+So the fix is to look at the PM plan, or to stock more motors, not to
+buy better pumps.
+
+NOTE: PM does not always lower availability. For parts that wear out,
+PM can raise it, because it replaces a part before it fails. The solver
+cannot tell you which way PM goes. Simulation can.
+
+When you see a real difference, do this:
+
+. Read the *Assumptions* tab. List everything the solver left out or
+  treated differently.
+. Ask: "Do I expect these things to change the answer?" Waiting for
+  spares or crews lowers availability. PM, standby and phases can move
+  it either way.
+. If you expect *no* difference, look for a mistake in the model. Check
+  the distributions and their units, the links, and the k-out-of-n
+  values.
+. To find the cause, simulate copies of the model with one feature
+  removed at a time, as in the table above. When the simulation agrees
+  with the exact answer, you have found what causes the gap.
+
+[[exact-limits]]
+=== What the solver cannot do
+
+The solver gives exact answers only for a subset of models. It refuses
+a model it cannot solve, and it names the first block or node that
+stops it. It never gives an approximate answer without telling you.
+
+[cols="3,4,4",options="header"]
+|===
+|Feature |What the solver does |What to do
+|Repairs, reliability mode |Refuses. Reliability mode means no repairs. |Tick *Ignore ▸ Repairs* for the reliability up to the first failure, or use availability mode.
+|Preventive maintenance, spares, crews |Refuses. |Tick *Ignore* for the answer with perfect support. Simulate for the real answer.
+|Cold standby |Refuses until you choose. |Choose *Standby*: treat the standby paths as always in service, or as absent. *Absent* is a lower limit. *Always in service* is not an upper limit: a cold spare does not age while it waits, so the real system can be better. Switching delays and switch failures make it worse. Simulate for the real answer.
+|Phases |Refuses until you choose. |Choose one *Phase*: the solver assumes the system stays in that phase all the time. Or choose *All phases, one at a time*: it solves each phase on its own, and *Showing phase* above the results picks one to see. It does not model the changes from phase to phase.
+|Dependencies |Refuses until you choose. |Choose *Dependencies*: up (ignore the dependency) or down (remove the dependent parts). See <<ch-dependency>>.
+|Capacity and flow |Ignores them, with a warning. |Success means "a path from Start to End works". Simulate for flow.
+|Events other than a fixed success probability |Refuses. |Simulate.
+|Start-up behaviour |Availability mode gives the steady state only. |Simulate for a short mission.
+|===
+
+The most important limit is **independence**. The solver assumes that
+every part fails on its own. A real system can have a *common cause*:
+one power feed, one flood, one bad batch of parts. If two parallel pumps
+share a power feed, they can fail together. The solver does not see
+this. For parallel parts, its answer is then *too optimistic*. The
+simulation has the same limit unless you model the common cause, for
+example with a dependency or a shared block.
+
+=== A checklist for checking a simulation
+
+Use this list when you build a new model, or when a result surprises
+you.
+
+. Make a simple version of the model that the solver accepts. Often you
+  only tick *Ignore* boxes. Sometimes you solve one hierarchy at a time
+  (see <<exact-large>>).
+. Get the exact answer.
+. Simulate the same simple version with enough trials to make the SEM
+  small.
+. Compare them with the 2 × SEM rule. They must agree. If they do not
+  agree, the model has a mistake, or the simulation does something the
+  solver does not.
+. Simulate the full model. Explain the gap from the exact answer with
+  the features the solver left out.
+. Read the importance measures. The most critical parts must make
+  engineering sense. A surprise in the importance table often shows a
+  wrong distribution or a wrong link.
+
+[[exact-large]]
+=== Large models
+
+The solver builds a *decision diagram* of the model. For most models
+this takes less than a second. When the paths through a model share
+many blocks, the diagram can grow very large.
+
+* The progress bar beside *Compute* shows one percentage for the whole
+  solve, with the stage and the time left.
+* *Cancel*, or closing the window, stops the solve.
+* If the diagram grows past its limit, the solver stops and tells you.
+  It offers a larger limit, and shows how much memory that needs.
+* For a very large model, choose one *Hierarchy* in the settings and
+  solve it on its own. The solver treats the hierarchy's input as always
+  available.
+
+=== Keep and export the results
+
+The window keeps every result you calculate while it is open. If you
+change a setting and then change it back, the earlier result shows
+again at once.
+
+*Export ▸ This result…* saves the result as a spreadsheet. *Export ▸
+Reliability and availability…* saves both modes with the same settings
+in one workbook. If you have not calculated the other mode, the solver
+calculates it first. The page still shows your result. The file name
+tells you what is in it, for example
+`Vendo1_analytical_reliability_availability.xlsx`.
+
+The same solver is on the command line and in the AI assistant
+(<<ch-mcp>>):
+
+----
+raptor analytic models/Vendo1.rbds --mode both --xlsx .
+----
+
+=== Check yourself
+
+. A simulation of the lantern gives 0.40 with an SEM of 0.01. The exact
+  answer is 0.3846. Do they agree?
+. Why does the solver refuse `WaterTreatment.rbds` in reliability
+  mode?
+. For WaterTreatment, the solver gives 0.99785 and the simulation gives
+  0.99426 ± 0.00011. Which answer is correct?
+. Two pumps in parallel share one power feed. The solver says the pair
+  has a reliability of 0.99. Is the real value higher or lower?
+
+.Answers
+[%collapsible]
+====
+. Yes. The difference is 0.0154, which is 1.5 SEM. That is less than
+  2 SEM, so it is normal noise.
+. Its blocks have repair distributions. Reliability mode means "no
+  repairs", so the solver will not pretend that the repairs do not
+  exist. Tick *Ignore ▸ Repairs* to get the reliability up to the first
+  failure, or use availability mode.
+. Both, for different questions. The solver answers "what if there were
+  no PM and a spare always on the shelf?" The simulation answers "what
+  does the real plant do?" The gap is the effect of PM and the spares
+  it uses.
+. Lower, or at best the same. The shared feed can fail both pumps
+  together, and the solver assumes the pumps fail independently. For
+  parallel parts the independent answer is optimistic.
+====
+
+=== Exercise
+
+Open `Espresso1.rbds` from <<ch-trials>>. Get the exact reliability for
+the 500-hour season. Then simulate 2000 trials. Calculate the difference
+in SEMs. Do the two agree?
+
+.Answer
+[%collapsible]
+====
+The exact reliability is 0.3606. A run of 2000 trials gave 0.374 with an
+SEM of 0.0108: a difference of 0.0134, which is 1.2 SEM. They agree.
+<<ch-trials>> quoted "about 0.37". The exact value is a little lower.
+====
+
+=== What you learned
+
+* The analytical solver calculates an exact answer from the diagram,
+  with no trials and no noise.
+* For simple diagrams you can check it by hand: a product of block
+  reliabilities in series, `MTTF / (MTTF + MTTR)` for one repaired block.
+* A simulation agrees with the exact answer when the difference is less
+  than 2 × SEM. More than 3 × SEM is a real difference.
+* A real difference is the effect of what the solver left out, or a
+  mistake in the model. The *Assumptions* tab lists what was left out.
+  Simulate copies with one feature removed at a time to find which.
+* The solver does not model PM, spares, crews, flow or common causes. It
+  assumes every part fails independently. Use simulation for those, and
+  use the solver to check the parts it can do.

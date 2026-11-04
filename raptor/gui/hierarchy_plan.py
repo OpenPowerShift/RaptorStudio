@@ -171,10 +171,10 @@ def _drop_redundant_halves(plan: DissolvePlan, link_section: Any,
                            marker_ids: tuple[int, int]) -> None:
     """A rewired boundary link makes the marker's own half redundant."""
     rewired = {rl[0] for rl in plan.rewired_links}
-    for row in list(link_section.rows):
+    for idx, row in enumerate(list(link_section.rows)):
         if _int(row.get("ID")) in rewired and _touches_marker(row,
                                                               marker_ids):
-            plan.removed_links.append((row, link_section.rows.index(row)))
+            plan.removed_links.append((row, idx))
 
 
 def _plan_links(plan: DissolvePlan, link_section: Any, hid: int,
@@ -241,9 +241,11 @@ def _parent_moves(rbd: Any, selected: dict[str, list[int]]) -> list:
         sec = rbd.sections.get(section)
         if sec is None:
             continue
+        by_id: dict[int, dict] = {}
+        for r in sec.rows:
+            by_id.setdefault(_int(r.get("ID")), r)
         for oid in selected[section]:
-            row = next((r for r in sec.rows if _int(r.get("ID")) == oid),
-                       None)
+            row = by_id.get(oid)
             old = row.get(PARENT_COLS[section], "0") if row else "0"
             moves.append((section, oid, old))
     return moves

@@ -137,7 +137,7 @@ def make_block_row(bid, name="unnamed", x=0.0, y=0.0, parent=0, nlinks=(1, 1),
              rdist=D_LOGNORM, rparams=(10.0, 2.0, 0.0), rstream=SYS_STREAM_C,
              simstart=3, amtexh=0.0, phasing=0, sbstress=0.0,
              duty_cycle=1.0, start_age=0.0,
-             restoration_factor=0.0, restoration_type=1,
+             restoration_factor=0.0, restoration_type=0,
              gdtype=0, gdrate=1.0, gdlimit=1.0,
              pool="unnamed", sptype="Infinite",
              rso=1, stock=100, newsp=1, arrive=720.0, eso=1, emertime=24.0,
@@ -300,23 +300,28 @@ def fix_link_counts(blocks, nodes, events, links):
     outbound link count crashes Raptor7Student at Simulate)."""
     nin: dict[tuple[str, str], int] = {}
     nout: dict[tuple[str, str], int] = {}
+    # `.get` (not `[...]`): a hand-edited/half-imported row can lack a
+    # column, and this runs after every topology edit in the GUI -- a
+    # missing key used to raise out of a QUndoCommand's redo(), leaving a
+    # half-applied macro behind. Such a row is already reported by
+    # `builder.validate`; counting it as an unattached endpoint is enough.
     for link in links:
-        from_end = (link["FromType"], link["FromID"])
-        to = (link["ToType"], link["ToID"])
+        from_end = (link.get("FromType", ""), link.get("FromID", ""))
+        to = (link.get("ToType", ""), link.get("ToID", ""))
         nout[from_end] = nout.get(from_end, 0) + 1
         nin[to] = nin.get(to, 0) + 1
     for b in blocks:
-        key = ("Block", b["ID"])
+        key = ("Block", b.get("ID"))
         b["In"] = str(nin.get(key, 0))
         b["Out"] = str(nout.get(key, 0))
     for e in events:
-        key = ("Event", e["ID"])
+        key = ("Event", e.get("ID"))
         e["In"] = str(nin.get(key, 0))
         e["Out"] = str(nout.get(key, 0))
     for n in nodes:
-        key = ("Node", n["ID"])
+        key = ("Node", n.get("ID"))
         n["Out"] = str(nout.get(key, 0))
-        t = n["Type"]
+        t = n.get("Type")
         if t == "1":      # start marker: n always 0
             n["n"] = "0"
         elif t == "5":    # hierarchy-out marker: n = 1 by convention

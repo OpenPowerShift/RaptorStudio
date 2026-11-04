@@ -11,25 +11,34 @@ the path-product equation and the assumptions the answer rests on.
 from __future__ import annotations
 
 import copy
+import json
+import math
 import os
+from collections import OrderedDict
 import queue
+import re
 import threading
 import time
+import weakref
+from collections.abc import Sequence
 from typing import Any, cast
 
-from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
+from PySide6.QtCore import QEvent, QPointF, QRectF, Qt, QTimer
 from PySide6.QtGui import QColor, QFontDatabase, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog,
     QDoubleSpinBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QPlainTextEdit, QProgressBar,
-    QPushButton, QSizePolicy, QSpinBox, QStackedWidget, QTableWidget,
+    QHeaderView, QLabel, QLineEdit, QMenu, QPlainTextEdit, QProgressBar,
+    QPushButton, QScrollArea, QSizePolicy, QSpinBox, QStackedWidget,
+    QTableWidget,
     QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget)
 
-from raptor.api.analytical import analyse_rbd, scope_options
+from raptor.api.analytical import analyse_rbd_set, scope_options
 from raptor.api.analytical_text import fmt as _fmt_full
 from raptor.api.analytical_text import scope_sentence, summary_text
 from raptor.core.analytical.bdd import MAX_BDD_NODES
+from raptor.core.analytical.errors import BddTooLarge
+from raptor.core.analytical.limits import max_bdd_nodes_allowed, memory_text
 from raptor.core.analytical.errors import AnalyticalError
 from raptor.core.analytical.network import MAX_VARIABLES
 from raptor.gui.ui import msgbox
@@ -38,6 +47,13 @@ from raptor.gui.resources.design_tokens import (
 
 #: Curve points drawn when the user leaves "Curve at times" blank.
 _AUTO_CURVE_POINTS = 41
+#: Solved results kept per dialog, so going back to earlier settings shows
+#: their result at once. Each is a few kB to a few hundred kB.
+_CACHE_SIZE = 16
+_READY_TITLE = "Ready to compute"
+_READY_BODY = ("Check the settings above, then press Compute. A small model "
+               "solves in a moment; a large one can take minutes, with "
+               "progress and the time left shown beside the button.")
 
 _MEASURE_HELP = {
     "Birnbaum": "How far the system moves if this element's probability "
@@ -89,6 +105,27 @@ def _short(value: float | None, digits: int = 6) -> str:
     return f"{value:.{digits}g}"
 
 
+def _readable(value: float | None) -> str:
+    """A table number at a glance; the full value is in its tooltip.
+
+    Four significant figures, except near 1 (reliabilities, availabilities,
+    RAW, RRW), where the digits that differ from 1 are what matters:
+    0.9999873 stays 0.9999873, not "1". Large values are whole numbers
+    with thousands separators rather than 2.395e+04.
+    """
+    if value is None:
+        return "N/A"
+    if value == 0.0 or value == 1.0 or not math.isfinite(value):
+        return f"{value:g}"
+    gap = abs(value - 1.0)
+    if gap < 0.01:
+        decimals = min(12, max(4, 2 - math.floor(math.log10(gap))))
+        return f"{value:.{decimals}f}"
+    if 1_000.0 <= abs(value) < 1e9:
+        return f"{value:,.0f}"
+    return f"{value:.4g}"
+
+
 def _percent(value: float | None) -> str:
     return "" if value is None else f"{100.0 * value:.4g} %"
 
@@ -103,8 +140,10 @@ class _TimeSpin(QDoubleSpinBox):
 class _NumItem(QTableWidgetItem):
     """A table cell that sorts by its number, with N/A always last."""
 
-    def __init__(self, value: float | None, digits: int = 6) -> None:
-        super().__init__(_short(value, digits))
+    def __init__(self, value: float | None, digits: int = 6, *,
+                 readable: bool = False) -> None:
+        super().__init__(_readable(value) if readable
+                         else _short(value, digits))
         self._value = value
         self.setTextAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -135,16 +174,30 @@ def _solve(token: int, rbd: Any, name: str, options: dict[str, Any],
         progress_inbox.put((token, stage, done, total))
 
     try:
-        inbox.put((token, analyse_rbd(rbd, name, progress=progress, **options),
-                   None))
+        chosen = dict(options)
+        results = analyse_rbd_set(rbd, name, [chosen.pop("mode", "reliability")],
+                                  progress=progress, **chosen)
+        # One result, or {"phases": [...]} for "All phases".
+        inbox.put((token, results[0] if len(results) == 1
+                   else {"phases": results}, None))
     except _AnalyticCancelled:
         inbox.put((token, None, ("cancelled", "Cancelled")))
+    except BddTooLarge as exc:
+        inbox.put((token, None, ("refused", str(exc), exc.limit, exc.allowed)))
     except AnalyticalError as exc:
         inbox.put((token, None, ("refused", str(exc))))
     except ValueError as exc:
         inbox.put((token, None, ("invalid", str(exc))))
     except Exception as exc:  # noqa: BLE001 - worker boundary
         inbox.put((token, None, ("failed", f"{type(exc).__name__}: {exc}")))
+
+
+def _without_pass_count(stage: str) -> str:
+    """The solver's line without its pass count, which the percentage
+    replaces: "Computing importance — pass 988 of about 3,082, about 15 s
+    left" becomes "Computing importance — about 15 s left"."""
+    return re.sub(r" — pass [\d,]+ of about [\d,]+(?:, (.*))?$",
+                  lambda m: f" — {m.group(1)}" if m.group(1) else "", stage)
 
 
 class _AnalyticCancelled(Exception):
@@ -225,6 +278,56 @@ class _CurvePlot(QWidget):
                 painter.drawEllipse(QPointF(to_x(t), to_y(v)), 3.0, 3.0)
 
 
+class _CardGrid(QWidget):
+    """The Summary cards: as many per row (up to 3) as fit at their natural
+    width, each at its natural height."""
+
+    MAX_COLUMNS = 3
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.grid = QGridLayout(self)
+        self.grid.setSpacing(SPACING["md"])
+        self.grid.setContentsMargins(SPACING["md"], SPACING["md"],
+                                     SPACING["md"], SPACING["md"])
+        self._cards: list[QWidget] = []
+        self._columns = 0
+
+    def set_cards(self, cards: Sequence[QWidget]) -> None:
+        self._cards = list(cards)
+        self._columns = 0
+        self._reflow()
+
+    def _fitting_columns(self) -> int:
+        if not self._cards:
+            return 1
+        widest = max(card.sizeHint().width() for card in self._cards)
+        spacing = self.grid.spacing()
+        margins = self.grid.contentsMargins()
+        room = self.width() - margins.left() - margins.right()
+        fit = (room + spacing) // max(1, widest + spacing)
+        return max(1, min(self.MAX_COLUMNS, fit, len(self._cards)))
+
+    def _reflow(self) -> None:
+        columns = self._fitting_columns()
+        if columns == self._columns:
+            return
+        self._columns = columns
+        for card in self._cards:
+            self.grid.removeWidget(card)
+        for column in range(self.MAX_COLUMNS):
+            self.grid.setColumnStretch(column, 1 if column < columns else 0)
+        for index, card in enumerate(self._cards):
+            self.grid.addWidget(card, index // columns, index % columns)
+        rows = (len(self._cards) + columns - 1) // columns
+        for row in range(rows + 4):
+            self.grid.setRowStretch(row, 1 if row == rows else 0)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        super().resizeEvent(event)
+        self._reflow()
+
+
 class AnalyticDialog(QDialog):
     """Modeless; computes on demand and leaves the model untouched."""
 
@@ -235,15 +338,39 @@ class AnalyticDialog(QDialog):
         self._busy = False
         self._rerun = False     # settings changed while a solve was running
         self._cancel_ev = threading.Event()
+        self._worker: threading.Thread | None = None
         self._has_standby = False   # the open model has cold-standby nodes
         self._has_dependencies = False
-        self._shown_rbd_id: int | None = None
+        #: The model the page shows: a weak reference (an id() can be
+        #: reused by the next model opened, which then showed the old
+        #: model's results) and its file path, plus a serial for the cache.
+        self._shown_rbd: weakref.ref | None = None
+        self._shown_path: Any = None
+        self._model_serial = 0
         self._result: dict[str, Any] | None = None
         self._inbox: queue.Queue = queue.Queue()
         self._progress_inbox: queue.Queue = queue.Queue()
         self._poll = QTimer(self)
         self._poll.setInterval(30)
         self._poll.timeout.connect(self._drain)
+        #: The window's model revision the shown result was solved from,
+        #: so an edit made while the dialog stays open is noticed.
+        self._solved_revision: int | None = None
+        self._stale_shown = False
+        self._changed_while_busy = False
+        self._solve_on_pick: Any = None
+        #: Results by `_cache_key`: the settings and the model revision.
+        self._cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self._running_key: str | None = None
+        self._running_options: dict[str, Any] | None = None
+        #: (path, shown result) while the other mode is worked out for a
+        #: workbook with both; the page keeps showing the shown result.
+        self._export_pending: tuple[str, list[dict[str, Any]]] | None = None
+        #: Every phase's result for an "All phases" solve, else None.
+        self._result_set: list[dict[str, Any]] | None = None
+        self._watch = QTimer(self)
+        self._watch.setInterval(400)
+        self._watch.timeout.connect(self._check_model)
         self.setWindowTitle("Analytical Analysis")
         self.setModal(False)
         self.resize(900, 720)
@@ -264,21 +391,13 @@ class AnalyticDialog(QDialog):
         self._heading.setObjectName("DialogHeading")
         root.addWidget(self._heading)
         self._intro_prefix = (
-            "Exact answers without sampling, for models inside the static "
-            "subset. Reliability mode is non-repairable; availability mode "
-            "is the steady state of independent, perfectly repaired "
-            "components. Components are treated as independent.\n"
-            "The solver turns the diagram into a BDD (binary decision "
-            "diagram): a compact exact map of which combinations of working "
-            "and failed elements keep the system up. It is a calculation "
-            "aid, not a simulation, and its size is not the number of "
-            "blocks.\n"
+            "Exact results worked out from the diagram, without simulation, "
+            "with every element failing independently. Reliability mode "
+            "assumes no repairs; availability mode gives the long-run "
+            "fraction of time up when every element is repaired on its "
+            "own.\n"
         )
-        self._intro = QLabel(
-            self._intro_prefix
-            + f"Current limits: {MAX_VARIABLES:,} variables and "
-            f"{MAX_BDD_NODES:,} BDD nodes. Raise them only when the model is "
-            "known to be tractable; a larger BDD can take a long time.")
+        self._intro = QLabel(self._intro_prefix.rstrip())
         self._intro.setObjectName("SectionNote")
         self._intro.setWordWrap(True)
         root.addWidget(self._intro)
@@ -291,6 +410,19 @@ class AnalyticDialog(QDialog):
         self._banner.setWordWrap(True)
         root.addWidget(self._banner)
 
+        self._outlook_note = QLabel("")
+        self._outlook_note.setObjectName("SectionNote")
+        self._outlook_note.setWordWrap(True)
+        self._outlook_note.setTextFormat(Qt.TextFormat.PlainText)
+        self._outlook_note.setAccessibleName("Diagram size outlook")
+        self._outlook_note.setToolTip(
+            "A check of the model's structure made before solving. A diagram "
+            "only grows large where a junction's inputs share blocks (other "
+            "than through one common element, which the solver factors "
+            "out). The exact size is known only once it is built.")
+        self._outlook_note.hide()
+        root.addWidget(self._outlook_note)
+
         self._scope_note = QLabel("")
         self._scope_note.setObjectName("ScopeNote")
         self._scope_note.setWordWrap(True)
@@ -300,7 +432,8 @@ class AnalyticDialog(QDialog):
 
         self._pages = QStackedWidget()
         self._pages.addWidget(self._build_message_page())
-        self._pages.addWidget(self._build_results_page())
+        self._pages.addWidget(self._wrap_with_phase_picker(
+            self._build_results_page()))
         root.addWidget(self._pages, 1)
 
         footer = QHBoxLayout()
@@ -310,13 +443,24 @@ class AnalyticDialog(QDialog):
         self._copy.setAutoDefault(False)
         self._copy.setEnabled(False)
         self._copy.clicked.connect(self._copy_result)
-        self._export = QPushButton("Export…")
+        self._export = QPushButton("Export")
         self._export.setToolTip(
-            "Save the result as a spreadsheet (.xlsx): summary, elements "
-            "with importance measures, curve, equation and assumptions")
+            "Save as a spreadsheet (.xlsx): summary, elements with "
+            "importance measures, curve, equation and assumptions; this "
+            "result, or reliability and availability with the same "
+            "settings in one workbook")
         self._export.setAutoDefault(False)
         self._export.setEnabled(False)
-        self._export.clicked.connect(self.export_result)
+        menu = QMenu(self._export)
+        self._export_this = menu.addAction("This result…")
+        self._export_this.triggered.connect(lambda: self.export_result())
+        self._export_both = menu.addAction("Reliability and availability…")
+        self._export_both.setToolTip(
+            "Both modes with the current settings in one workbook; the "
+            "other mode is worked out first if it has not been")
+        menu.setToolTipsVisible(True)
+        self._export_both.triggered.connect(lambda: self.export_both())
+        self._export.setMenu(menu)
         close = QPushButton("Close")
         close.setAutoDefault(False)
         close.clicked.connect(self.close)
@@ -325,16 +469,29 @@ class AnalyticDialog(QDialog):
         footer.addWidget(close)
         root.addLayout(footer)
 
-    def _limits_sentence(self) -> str:
+    def _limits_sentence(self, elements: int | None = None,
+                         nodes: int | None = None) -> str:
+        if elements is None:
+            elements = self._max_variables.value()
+        if nodes is None:
+            nodes = self._max_bdd_nodes.value()
         return (
-            f"Current limits: {self._max_variables.value():,} variables and "
-            f"{self._max_bdd_nodes.value():,} BDD nodes. Raise them only when "
-            "the model is known to be tractable; a larger BDD can take a long "
-            "time.")
+            f"Size limits: {elements:,} elements and {nodes:,} BDD nodes "
+            "(the BDD is the solver's internal map of which failures bring "
+            "the system down). Higher limits can make a solve slow.")
+
+    def _refresh_bdd_memory(self) -> None:
+        if hasattr(self, "_bdd_memory"):
+            nodes = self._max_bdd_nodes.value()
+            self._bdd_memory.setText(
+                f"(needs {memory_text(nodes)} at most; this machine allows "
+                f"up to {self._max_bdd_nodes.maximum():,})")
 
     def _refresh_limits_text(self) -> None:
-        if hasattr(self, "_intro"):
-            self._intro.setText(self._intro_prefix + self._limits_sentence())
+        # A tooltip, not a wrapped line: in a short dialog a second wrapped
+        # line under the spin boxes was clipped.
+        if hasattr(self, "_limits_host"):
+            self._limits_host.setToolTip(self._limits_sentence())
 
     def _build_settings(self) -> QGroupBox:  # noqa: PLR0915
         box = QGroupBox("Settings")
@@ -457,9 +614,10 @@ class AnalyticDialog(QDialog):
         self._hierarchy = QComboBox()
         self._hierarchy.setAccessibleName("Hierarchy to analyse")
         self._hierarchy.setToolTip(
-            "Analyse the whole model, or one hierarchy as a standalone "
-            "port extension. The hierarchy's In node becomes Start and its "
-            "Out node End; everything outside is dropped.")
+            "Analyse the whole model, or one hierarchy on its own. The "
+            "hierarchy's In node is treated as the system Start and its Out "
+            "node as the End, so its input is assumed always available; "
+            "everything outside the hierarchy is left out.")
         self._hierarchy.addItem("Whole model", None)
         form.addRow("Hierarchy:", self._hierarchy)
 
@@ -470,46 +628,69 @@ class AnalyticDialog(QDialog):
         self._max_variables.setValue(MAX_VARIABLES)
         self._max_variables.setSingleStep(250)
         self._max_variables.setGroupSeparatorShown(True)
-        self._max_variables.setAccessibleName("Maximum variables")
+        self._max_variables.setAccessibleName("Maximum elements")
         self._max_variables.setToolTip(
-            "Largest number of blocks/events the solver may put in the BDD.")
+            "Largest number of blocks and events the solver will take on.")
         self._max_bdd_nodes = QSpinBox()
-        self._max_bdd_nodes.setRange(2, MAX_BDD_NODES)
+        self._max_bdd_nodes.setRange(2, max_bdd_nodes_allowed())
         self._max_bdd_nodes.setValue(MAX_BDD_NODES)
         self._max_bdd_nodes.setSingleStep(100_000)
         self._max_bdd_nodes.setGroupSeparatorShown(True)
         self._max_bdd_nodes.setAccessibleName("Maximum BDD nodes")
         self._max_bdd_nodes.setToolTip(
-            "Hard cap on BDD size. Raising it risks a long solve and high "
-            "memory use; the progress bar shows BDD growth.")
+            "The most nodes the solver's diagram may grow to before it gives "
+            "up. The default suits almost every model. A higher limit needs "
+            "more memory (shown alongside) and makes the solve, importance "
+            "measures and curve slower. The largest limit offered is half "
+            "of the memory free on this machine.")
         limits.addWidget(self._max_variables)
-        limits.addWidget(QLabel("variables"))
+        limits.addWidget(QLabel("elements"))
         limits.addSpacing(SPACING["md"])
         limits.addWidget(self._max_bdd_nodes)
         limits.addWidget(QLabel("BDD nodes"))
+        self._bdd_memory = QLabel("")
+        self._bdd_memory.setObjectName("SectionNote")
+        limits.addWidget(self._bdd_memory)
         limits.addStretch(1)
         limits_host = QWidget()
         limits_host.setLayout(limits)
+        # Size limits are rarely needed, so they sit behind "Advanced".
+        self._advanced = QCheckBox("Show advanced settings")
+        self._advanced.setAccessibleName("Show advanced settings")
+        form.addRow("", self._advanced)
         form.addRow("Limits:", limits_host)
+        self._limits_host = limits_host
+        self._advanced.toggled.connect(self._show_advanced)
 
         self._form = form
         self._reliability_rows = (self._at, self._times, self._bx)
         self._mode.currentIndexChanged.connect(self._mode_changed)
+        # Typed values (times, limits) wait for Compute or Enter: solving on
+        # every keystroke would start a solve per digit.
         for signal in (self._at.valueChanged, self._times.textChanged,
-                       self._bx.textChanged, self._importance.toggled,
-                       self._equation.toggled, self._ignore.toggled,
-                       self._ignore_pm.toggled, self._ignore_spares.toggled,
+                       self._bx.textChanged,
+                       self._max_variables.valueChanged,
+                       self._max_bdd_nodes.valueChanged):
+            signal.connect(self._settings_changed)
+        # A pick from a list or a tick is a finished choice, but nothing
+        # solves until Compute is pressed (a large model takes minutes).
+        # The page below says so at once: ticking the very option a refusal
+        # suggested must not leave the refusal on screen.
+        for signal in (self._importance.toggled, self._equation.toggled,
+                       self._ignore.toggled, self._ignore_pm.toggled,
+                       self._ignore_spares.toggled,
                        self._ignore_resources.toggled,
                        self._phase.currentIndexChanged,
                        self._standby.currentIndexChanged,
                        self._dependencies.currentIndexChanged,
-                       self._hierarchy.currentIndexChanged,
-                       self._max_variables.valueChanged,
-                       self._max_bdd_nodes.valueChanged):
-            signal.connect(self._settings_changed)
+                       self._hierarchy.currentIndexChanged):
+            signal.connect(self._choice_changed)
         self._max_variables.valueChanged.connect(self._refresh_limits_text)
         self._max_bdd_nodes.valueChanged.connect(self._refresh_limits_text)
+        self._max_bdd_nodes.valueChanged.connect(self._refresh_bdd_memory)
+        self._refresh_bdd_memory()
         self._refresh_limits_text()
+        self._show_advanced(False)
         for line in (self._times, self._bx):
             line.returnPressed.connect(self.compute)
         return box
@@ -520,10 +701,13 @@ class AnalyticDialog(QDialog):
         self._compute.setDefault(True)
         self._compute.setToolTip("Solve with the current settings (Enter)")
         self._compute.clicked.connect(self.compute)
+        # A thin bar in the theme's colours, like the main window's run bar
+        # (styled in `_restyle`; unstyled, the platform drew it black on a
+        # light theme). The percentage leads the line beside it.
         self._progress = QProgressBar()
         self._progress.setRange(0, 0)
-        self._progress.setTextVisible(True)
-        self._progress.setFixedWidth(180)
+        self._progress.setTextVisible(False)
+        self._progress.setFixedSize(160, 6)
         self._progress.setAccessibleName("Computing")
         self._progress.hide()
         self._progress_label = QLabel("")
@@ -558,33 +742,189 @@ class AnalyticDialog(QDialog):
         self._notice_body.setAccessibleName("Analysis message")
         lay.addWidget(self._notice_title)
         lay.addWidget(self._notice_body)
+        # One-click versions of the advice in the message: most real models
+        # have repairs, so reliability mode refuses them on first open.
+        fixes = QHBoxLayout()
+        fixes.setContentsMargins(0, SPACING["sm"], 0, 0)
+        self._fix = QPushButton("")
+        self._fix.setAccessibleName("Apply the suggested setting")
+        self._fix.clicked.connect(self._apply_fix)
+        self._alt_fix = QPushButton("Use availability mode instead")
+        self._alt_fix.setToolTip(
+            "Steady-state availability keeps the repairs in the answer.")
+        self._alt_fix.clicked.connect(self._use_availability)
+        for button in (self._fix, self._alt_fix):
+            button.hide()
+            fixes.addWidget(button)
+        fixes.addStretch(1)
+        lay.addLayout(fixes)
+        self._fix_action: Any = None
         lay.addStretch(2)
         return page
 
+    def _show_advanced(self, shown: bool) -> None:
+        self._form.setRowVisible(self._limits_host, shown)
+
+    def _offer_fix(self, key: str | None) -> None:
+        """Show the button that applies the refusal's suggestion, if any."""
+        checks = {
+            "repair distribution": (self._ignore, "Ignore repairs and compute"),
+            "preventive maintenance": (self._ignore_pm,
+                                       "Ignore preventive maintenance and "
+                                       "compute"),
+            "spare": (self._ignore_spares, "Ignore spares and compute"),
+            "resource": (self._ignore_resources,
+                         "Ignore resources and compute"),
+        }
+        combos = {
+            "has phases": (self._phase, "Choose a phase…"),
+            "cold standby": (self._standby, "Choose a standby treatment…"),
+            "dependency": (self._dependencies,
+                           "Choose a dependency treatment…"),
+        }
+        self._fix_action = None
+        # The buttons are one click: they apply the fix and solve. A list
+        # opened by one solves once a pick is made from it.
+        if key in checks:
+            box, label = checks[key]
+
+            def tick(box=box) -> None:
+                box.setChecked(True)
+                self.compute()
+            self._fix_action = tick
+            self._fix.setText(label)
+        elif key in combos:
+            combo, label = combos[key]
+
+            def pick(combo=combo) -> None:
+                self._solve_on_pick = combo
+                combo.setFocus()
+                combo.showPopup()
+            self._fix_action = pick
+            self._fix.setText(label)
+        self._fix.setVisible(self._fix_action is not None)
+        self._alt_fix.setVisible(
+            key == "repair distribution"
+            and self._mode.currentData() == "reliability")
+
+    def _offer_larger_limit(self, allowed: int) -> None:
+        """A size refusal that a larger limit might fix: offer ``allowed``
+        nodes, saying what it costs."""
+        def raise_limit() -> None:
+            self._max_bdd_nodes.setValue(
+                min(allowed, self._max_bdd_nodes.maximum()))
+            self.compute()
+        self._fix_action = raise_limit
+        self._fix.setText(f"Try a limit of {allowed:,} nodes "
+                          f"({memory_text(allowed)} at most)")
+        self._fix.setVisible(True)
+
+    def _use_availability(self) -> None:
+        self._mode.setCurrentIndex(max(0, self._mode.findData("availability")))
+        self.compute()
+
+    def _apply_fix(self) -> None:
+        if self._fix_action is not None:
+            self._fix_action()
+
+    def _build_elements_table(self) -> QTableWidget:
+        table = QTableWidget(0, 0)
+        table.setAccessibleName("Per-element results")
+        table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setAlternatingRowColors(True)
+        table.setSortingEnabled(True)
+        table.verticalHeader().setVisible(False)
+        # Widths are set per fill and on resize (`_spread_columns`): each
+        # column's natural width, spare room shared by the measures. Not
+        # ResizeToContents, which measured every row on each repaint (slow
+        # for thousands of elements); only the first 200 rows are measured.
+        table.horizontalHeader().setResizeContentsPrecision(200)
+        table.setObjectName("ElementTable")
+        table.setHorizontalScrollMode(
+            QAbstractItemView.ScrollMode.ScrollPerPixel)
+        table.viewport().installEventFilter(self)
+        return table
+
+    def _wrap_with_phase_picker(self, tabs: QWidget) -> QWidget:
+        """The result tabs, with a "Showing phase" list above them for an
+        "All phases" result (one result per phase, shown one at a time)."""
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 0, 0, 0)
+        row = QHBoxLayout()
+        self._phase_picker_label = QLabel("Showing phase:")
+        self._phase_picker = QComboBox()
+        self._phase_picker.setAccessibleName("Phase shown")
+        self._phase_picker.setToolTip(
+            "Each phase was solved on its own. Pick one to see its result; "
+            "Export saves them all")
+        self._phase_picker.currentIndexChanged.connect(self._phase_picked)
+        row.addWidget(self._phase_picker_label)
+        row.addWidget(self._phase_picker, 1)
+        row.addStretch(1)
+        self._phase_picker_row = QWidget()
+        self._phase_picker_row.setLayout(row)
+        row.setContentsMargins(0, 0, 0, SPACING["sm"])
+        self._phase_picker_row.hide()
+        lay.addWidget(self._phase_picker_row)
+        lay.addWidget(tabs, 1)
+        return page
+
+    def _phase_picked(self, index: int) -> None:
+        results = self._result_set
+        if not results or not 0 <= index < len(results):
+            return
+        self._result = results[index]
+        self._show_result(self._result)
+
+    def _display(self, result: dict[str, Any]) -> None:
+        """Show a result, or a set with one result per phase."""
+        phases = result.get("phases")
+        self._result_set = list(phases) if phases else None
+        self._phase_picker.blockSignals(True)
+        self._phase_picker.clear()
+        if phases:
+            for item in phases:
+                scope = item.get("scope") or {}
+                self._phase_picker.addItem(
+                    f"{scope.get('phase')}. {scope.get('phase_name') or ''}"
+                    .rstrip())
+        self._phase_picker.blockSignals(False)
+        self._phase_picker_row.setVisible(bool(phases))
+        self._result = phases[0] if phases else result
+        self._show_result(self._result)
+
+    def _results_to_save(self) -> list[dict[str, Any]]:
+        """What This result saves: every phase of an "All phases" set."""
+        if self._result_set:
+            return list(self._result_set)
+        return [self._result] if self._result is not None else []
+
     def _build_results_page(self) -> QWidget:
         self._tabs = QTabWidget()
+        self._tabs.setObjectName("AnalyticTabs")
         self._tabs.setDocumentMode(True)
+        # The tab bar's own base line is drawn in the palette's shadow
+        # shade, a black line on the light theme; `_restyle` draws it in
+        # the theme's border colour instead.
+        self._tabs.tabBar().setDrawBase(False)
 
-        self._summary_page = QWidget()
-        self._cards = QGridLayout(self._summary_page)
-        self._cards.setSpacing(SPACING["md"])
-        self._cards.setContentsMargins(SPACING["md"], SPACING["md"],
-                                       SPACING["md"], SPACING["md"])
-        self._tab_summary = self._tabs.addTab(self._summary_page, "Summary")
+        # The cards keep their natural size: in a short window the page
+        # scrolls, and in a narrow one they reflow to fewer per row, rather
+        # than squashing (which cut the big numbers in half).
+        self._summary_page = _CardGrid()
+        self._cards = self._summary_page.grid
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(self._summary_page)
+        self._tab_summary = self._add_page(scroll, "Summary")
 
-        self._elements = QTableWidget(0, 0)
-        self._elements.setAccessibleName("Per-element results")
-        self._elements.setEditTriggers(
-            QAbstractItemView.EditTrigger.NoEditTriggers)
-        self._elements.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows)
-        self._elements.setAlternatingRowColors(True)
-        self._elements.setSortingEnabled(True)
-        self._elements.verticalHeader().setVisible(False)
-        self._elements.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.ResizeToContents)
-        self._elements.horizontalHeader().setStretchLastSection(True)
-        self._tab_elements = self._tabs.addTab(self._elements, "Elements")
+        self._elements = self._build_elements_table()
+        self._tab_elements = self._add_page(self._elements, "Elements")
 
         curve = QWidget()
         curve_lay = QHBoxLayout(curve)
@@ -601,7 +941,7 @@ class AnalyticDialog(QDialog):
         self._curve_table.setMaximumWidth(300)
         curve_lay.addWidget(self._plot, 3)
         curve_lay.addWidget(self._curve_table, 1)
-        self._tab_curve = self._tabs.addTab(curve, "Curve")
+        self._tab_curve = self._add_page(curve, "Curve")
 
         self._equation_view = QPlainTextEdit()
         self._equation_view.setReadOnly(True)
@@ -616,13 +956,46 @@ class AnalyticDialog(QDialog):
         self._equation_note.setWordWrap(True)
         equation_lay.addWidget(self._equation_note)
         equation_lay.addWidget(self._equation_view, 1)
-        self._tab_equation = self._tabs.addTab(equation_page, "Equation")
+        self._tab_equation = self._add_page(equation_page, "Equation")
 
         self._notes = QPlainTextEdit()
         self._notes.setReadOnly(True)
         self._notes.setAccessibleName("Assumptions and warnings")
-        self._tab_notes = self._tabs.addTab(self._notes, "Assumptions")
+        self._tab_notes = self._add_page(self._notes, "Assumptions")
         return self._tabs
+
+    # The result tabs. A tab that does not apply (Curve in availability
+    # mode, Equation when not asked for) is taken out and put back, not
+    # hidden: a hidden tab under the styled tab bar left its width as a
+    # gap ("Summary, Elements, ____, Assumptions"). So a tab is named by
+    # its page widget, never by an index, which moves.
+
+    def _add_page(self, page: QWidget, label: str) -> QWidget:
+        self._tabs.addTab(page, label)
+        self._tab_order = [*getattr(self, "_tab_order", []), (page, label)]
+        return page
+
+    def tab_shown(self, page: QWidget) -> bool:
+        return self._tabs.indexOf(page) != -1
+
+    def show_tab(self, page: QWidget) -> None:
+        """Bring ``page``'s tab to the front."""
+        if self.tab_shown(page):
+            self._tabs.setCurrentWidget(page)
+
+    def _set_tab_shown(self, page: QWidget, shown: bool) -> None:
+        if shown == self.tab_shown(page):
+            return
+        if not shown:
+            self._tabs.removeTab(self._tabs.indexOf(page))
+            return
+        position = 0
+        for other, label in self._tab_order:
+            if other is page:
+                self._tabs.insertTab(position, page, label)
+                return
+            if self.tab_shown(other):
+                position += 1
 
     # -- theme ----------------------------------------------------------------
 
@@ -651,7 +1024,18 @@ class AnalyticDialog(QDialog):
             f"QLabel#MetricValue {{ color: {c['text']}; font-size: 22px; "
             f"font-weight: 600; background: transparent; }}"
             f"QLabel#MetricSub {{ color: {c['muted']}; "
-            f"font-size: {TYPE['caption']}px; background: transparent; }}")
+            f"font-size: {TYPE['caption']}px; background: transparent; }}"
+            f"QTabWidget#AnalyticTabs::pane {{ border: none; "
+            f"border-top: 1px solid {c['border']}; }}"
+            f"QTableWidget#ElementTable::item {{ padding: 0 {SPACING['sm']}px; }}"
+            # Room on the right of each heading for the sort arrow, which
+            # otherwise sits on a right-aligned heading's last letters.
+            f"QTableWidget#ElementTable QHeaderView::section {{ "
+            f"padding-left: {SPACING['sm']}px; padding-right: 18px; }}"
+            f"QProgressBar {{ border: none; border-radius: 3px; "
+            f"background: {c['border']}; }}"
+            f"QProgressBar::chunk {{ border-radius: 3px; "
+            f"background: {c['accent']}; }}")
         self._plot.update()
 
     def _on_theme_changed(self, _dark: bool) -> None:
@@ -661,8 +1045,20 @@ class AnalyticDialog(QDialog):
 
     def _begin_for_model(self) -> None:
         """Start from the open model: its run length, then solve if we can."""
+        # Free memory changes; read the ceiling afresh for each model.
+        self._max_bdd_nodes.setMaximum(max_bdd_nodes_allowed())
+        self._refresh_bdd_memory()
         rbd = self._win._rbd
-        self._shown_rbd_id = id(rbd)
+        self._shown_rbd = weakref.ref(rbd)
+        self._shown_path = getattr(self._win, "_current_file", None)
+        self._model_serial += 1
+        self._cache.clear()
+        self._result = None
+        # The last solve was of the old model: an "edited since" note
+        # compares against it, and said "The model has changed since this
+        # result" over a fresh page for a newly opened model.
+        self._solved_revision = None
+        self._stale_shown = False
         horizon = _run_length(rbd)
         self._at.blockSignals(True)
         self._at.setValue(horizon if horizon is not None else 0.0)
@@ -670,6 +1066,9 @@ class AnalyticDialog(QDialog):
         self._set_title(rbd)
         self._fill_scope_controls(rbd)
         self._mode_changed(solve=False)
+        # Nothing solves on opening: a large model takes minutes, and the
+        # settings (mode, mission time, phase, dependencies, ...) usually
+        # want a look first. Compute is the default button, so Enter runs it.
         if horizon is None and self._mode.currentData() == "reliability":
             self._show_notice(
                 "Enter a mission time",
@@ -678,7 +1077,8 @@ class AnalyticDialog(QDialog):
                 "Compute.")
             self._at.setFocus()
         else:
-            self.compute()
+            self._show_ready()
+            self._compute.setFocus()
 
     def _fill_scope_controls(self, rbd: Any) -> None:
         """Show the phase, standby and dependency choices only when the
@@ -697,6 +1097,8 @@ class AnalyticDialog(QDialog):
             self._phase.addItem("Choose a phase…", None)
             for number, name in enumerate(phases, 1):
                 self._phase.addItem(f"{number}. {name}", number)
+            if len(phases) > 1:
+                self._phase.addItem("All phases, one at a time", "all")
         self._standby.setCurrentIndex(0)
         self._hierarchy.clear()
         self._hierarchy.addItem("Whole model", None)
@@ -736,16 +1138,146 @@ class AnalyticDialog(QDialog):
         for widget in self._reliability_rows:
             self._form.setRowVisible(widget, reliability)
         self._ignore.setVisible(reliability)
-        if solve and self.isVisible():
-            self.compute()
+        if solve:
+            self._choice_changed()
 
     def _settings_changed(self, *_args) -> None:
-        if self._result is not None and not self._busy:
-            self._banner.setText(
+        """A setting changed: say what Compute will do, without solving."""
+        if self._busy:
+            # Shown once the running solve is delivered.
+            self._changed_while_busy = True
+        elif self._pages.currentIndex() == 0:
+            # A notice (a refusal, "cancelled", ...) is about the old
+            # settings; the new ones have not been tried yet.
+            self._show_ready()
+        else:
+            self._mark_stale(
                 "Settings changed — press Compute to update the results.")
 
-    def _values(self) -> dict[str, Any]:
-        reliability = self._mode.currentData() == "reliability"
+    def _choice_changed(self, *_args) -> None:
+        picked = self._solve_on_pick is not None \
+            and self.sender() is self._solve_on_pick
+        self._solve_on_pick = None
+        if picked:
+            self.compute()       # the pick a fix button asked for
+        elif self._busy:
+            self._changed_while_busy = True
+        elif not self._show_cached():
+            # A different treatment is a different question: the old
+            # answer must not stay on screen looking like this one's.
+            self._show_ready()
+
+    def _same_model(self) -> bool:
+        """Is the window's model still the one this page was set up for?"""
+        shown = self._shown_rbd() if self._shown_rbd is not None else None
+        return (shown is not None and shown is self._win._rbd
+                and getattr(self._win, "_current_file", None)
+                == self._shown_path)
+
+    def _cache_key(self, options: dict[str, Any] | None = None) -> str | None:
+        """The settings (the current ones by default) and model revision,
+        or None if a setting does not parse. The limits are left out: they
+        decide whether a solve finishes, never its answer."""
+        if options is None:
+            try:
+                options = self._values()
+            except ValueError:
+                return None
+        options = dict(options)
+        options.pop("max_variables", None)
+        options.pop("max_bdd_nodes", None)
+        return json.dumps([self._model_serial,
+                           getattr(self._win, "_model_revision", 0), options],
+                          sort_keys=True, default=str)
+
+    def _show_cached(self) -> bool:
+        """Show the result already worked out for these settings, if any."""
+        key = self._cache_key()
+        result = self._cache.get(key) if key is not None else None
+        if key is None or result is None:
+            return False
+        self._cache.move_to_end(key)
+        self._stale_shown = False
+        self._solved_revision = getattr(self._win, "_model_revision", 0)
+        self._display(result)
+        self._banner.setText(self._banner.text()
+                             + "  Shown from earlier: these settings were "
+                               "already solved for this model.")
+        return True
+
+    def _show_ready(self) -> None:
+        """Nothing for these settings yet: say so, and that earlier results
+        are kept (no need to export before trying another treatment)."""
+        self._show_notice(_READY_TITLE, _READY_BODY)
+        if self._cache:
+            self._notice_body.setText(
+                _READY_BODY + "\n\nEarlier results are kept while this "
+                "window is open: change the settings back to see one "
+                "again at once.")
+
+    def _mark_stale(self, text: str) -> None:
+        """Say the panel below no longer matches the settings or model."""
+        self._stale_shown = True
+        self._banner.setText(text)
+
+    def _check_model(self) -> None:
+        """Notice a model edit or a different model while the dialog is open.
+
+        A different model starts over, as reopening the dialog does. An edit
+        to the same model only marks the result out of date: re-solving a
+        large model on every edit would be far too slow.
+        """
+        if self._win._rbd is None:
+            # The model was closed: its results must not stay up as if
+            # they were still about an open model.
+            if self._shown_rbd is not None:
+                self._shown_rbd = None
+                self._cache.clear()
+                self._result = None
+                self._solved_revision = None
+                if self._busy:
+                    self._cancel_solve()
+                self._show_notice("No model open",
+                                  "Open a model to analyse it.")
+            return
+        if not self._same_model():
+            self._begin_for_model()
+            return
+        revision = getattr(self._win, "_model_revision", 0)
+        if (self._solved_revision is not None and not self._busy
+                and self._result is not None
+                and self._pages.currentIndex() == 1
+                and revision != self._solved_revision
+                and not self._stale_shown):
+            self._mark_stale("The model has changed since this result — "
+                             "press Compute to update it.")
+
+    def showEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        super().showEvent(event)
+        self._watch.start()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        self._watch.stop()
+        # Closing the window stops the solve: nobody is left to see it, and
+        # a large one would otherwise keep a core busy for minutes.
+        if self._busy:
+            self._cancel_solve()
+        super().hideEvent(event)
+
+    def shut_down(self, wait_s: float = 3.0) -> None:
+        """Close for good (the application is exiting): cancel any solve and
+        give the worker a moment to stop at its next progress check."""
+        self._cancel_ev.set()
+        self.close()
+        worker = self._worker
+        if worker is not None and worker.is_alive():
+            worker.join(wait_s)
+
+    def _values(self, mode: str | None = None) -> dict[str, Any]:
+        """The solve's options: the current settings, in ``mode`` if given
+        (the other mode, for a workbook with both)."""
+        mode = mode or self._mode.currentData()
+        reliability = mode == "reliability"
         times: list[float] = []
         bx: list[float] = []
         if reliability:
@@ -761,7 +1293,7 @@ class AnalyticDialog(QDialog):
             times = [at * i / (_AUTO_CURVE_POINTS - 1)
                      for i in range(_AUTO_CURVE_POINTS)]
         return {
-            "mode": self._mode.currentData(),
+            "mode": mode,
             "at": at,
             "times": times or None,
             "bx": bx,
@@ -802,14 +1334,34 @@ class AnalyticDialog(QDialog):
         except ValueError as exc:
             self._show_notice("Check the settings", str(exc))
             return
+        if self._show_cached():
+            return
+        self._start_solve(options)
+
+    def _start_solve(self, options: dict[str, Any]) -> None:
+        self._running_key = self._cache_key(options)
+        self._running_options = dict(options)
         self._token += 1
         self._cancel_ev.clear()
+        self._outlook_note.hide()
+        self._solved_revision = getattr(self._win, "_model_revision", 0)
+        self._stale_shown = False
+        self._changed_while_busy = False
+        if self._pages.currentIndex() == 0:
+            # Replace the old notice (a refusal, "ready", ...) at once, so
+            # the choice just made is not shown as still refused for the
+            # whole of a long solve.
+            self._show_notice(
+                "Working out the results…",
+                "Progress and the time left are shown beside the Compute "
+                "button. Cancel, or closing this window, stops the solve.")
         self._set_busy(True)
-        threading.Thread(
+        self._worker = threading.Thread(
             target=_solve, daemon=True,
             args=(self._token, copy.deepcopy(self._win._rbd),
                   self._model_name(), options, self._inbox,
-                  self._progress_inbox, self._cancel_ev)).start()
+                  self._progress_inbox, self._cancel_ev))
+        self._worker.start()
 
     def _cancel_solve(self) -> None:
         if not self._busy:
@@ -864,16 +1416,27 @@ class AnalyticDialog(QDialog):
                      total: int) -> None:
         if token != self._token or not self._busy:
             return
+        if stage.startswith("Outlook: "):
+            text = stage.removeprefix("Outlook: ")
+            self._outlook_note.setText("Diagram size: " + text[:1].upper()
+                                       + text[1:])
+            self._outlook_note.show()
+            return
         total = max(0, int(total))
         if total:
-            self._progress.setRange(0, total)
-            self._progress.setValue(min(max(0, int(done)), total))
-            self._progress.setFormat("%v / %m")
+            # One figure for the whole solve: the solver gives the build its
+            # expected share and the results the rest (`_Overall`), so the
+            # bar fills once rather than filling and starting again.
+            permille = min(1000, max(0, int(done)) * 1000 // total)
+            permille = max(permille, self._progress.value())
+            self._progress.setRange(0, 1000)
+            self._progress.setValue(permille)
             self._progress_label.setText(
-                f"{stage} — {done:,} of {total:,}")
+                f"{permille // 10}% · {_without_pass_count(stage)}")
         else:
             self._progress.setRange(0, 0)
-            self._progress_label.setText(f"{stage} — {done:,}")
+            self._progress_label.setText(
+                stage if not done else f"{stage} — {done:,}")
 
     def _on_done(self, token: int, result: Any, error: Any) -> None:
         if token != self._token:
@@ -881,51 +1444,97 @@ class AnalyticDialog(QDialog):
         if error is None and self._cancel_ev.is_set():
             result, error = None, ("cancelled", "Cancelled")
         self._set_busy(False)
+        if self._export_pending is not None:
+            self._finish_export_both(result, error)
+            return
         if self._rerun:
             self._rerun = False
             self.compute()
             return
         if error is not None:
-            self._result = None
-            self._set_actions(False)
-            kind, message = error
-            if kind == "cancelled":
-                self._banner.setText("Cancelled")
-                self._show_notice(
-                    "Analysis cancelled",
-                    "The solve was stopped. The model was not changed.")
-                return
-            titles = {
-                "refused": "This model is outside the static solver",
-                "invalid": "Check the settings",
-                "failed": "The analysis could not be completed",
-            }
-            tips = {
-                "repair distribution": "tick Ignore ▸ Repairs",
-                "preventive maintenance": "tick Ignore ▸ Preventive "
-                                          "maintenance",
-                "spare": "tick Ignore ▸ Spares",
-                "resource": "tick Ignore ▸ Resources",
-                "has phases": "choose a Phase",
-                "cold standby": "choose a Standby treatment",
-                "dependency": "choose a Dependencies treatment",
-            }
-            lowered = message.lower()
-            advice = [tip for key, tip in tips.items() if key in lowered]
-            suggestion = (f"\n\nTo analyse the model anyway, "
-                          f"{advice[0]}." if advice else "")
-            hint = {
-                "refused": "\n\nSimulation handles repairs, preventive "
-                           "maintenance, spares, resources, dependencies, "
-                           "standby and phases." + suggestion,
-                "invalid": "",
-                "failed": "\n\nThe model was not changed.",
-            }[kind]
-            self._show_notice(titles[kind],
-                              message[:1].upper() + message[1:] + hint)
+            self._show_error(error)
             return
-        self._result = result
-        self._show_result(result)
+        self._deliver(result)
+
+    def _keep(self, result: dict[str, Any]) -> None:
+        """Cache a finished solve; each phase of an "All phases" set is
+        also kept on its own, so choosing that phase later shows it."""
+        entries = [(self._running_key, result)]
+        options = self._running_options
+        for item in result.get("phases") or ():
+            if options is not None:
+                phase = (item.get("scope") or {}).get("phase")
+                entries.append((self._cache_key(dict(options, phase=phase)),
+                                item))
+        for key, value in entries:
+            if key is not None:
+                self._cache[key] = value
+        while len(self._cache) > _CACHE_SIZE:
+            self._cache.popitem(last=False)
+
+    def _show_error(self, error: Any) -> None:
+        """A solve that did not give a result: say why, offer a fix."""
+        self._result = None
+        self._set_actions(False)
+        kind, message, *size = error
+        if kind == "cancelled":
+            self._banner.setText("Cancelled")
+            self._show_notice(
+                "Analysis cancelled",
+                "The solve was stopped. The model was not changed.")
+            return
+        titles = {
+            "refused": "This model is outside the static solver",
+            "invalid": "Check the settings",
+            "failed": "The analysis could not be completed",
+        }
+        tips = {
+            "repair distribution": "tick Ignore ▸ Repairs",
+            "preventive maintenance": "tick Ignore ▸ Preventive "
+                                      "maintenance",
+            "spare": "tick Ignore ▸ Spares",
+            "resource": "tick Ignore ▸ Resources",
+            "has phases": "choose a Phase",
+            "cold standby": "choose a Standby treatment",
+            "dependency": "choose a Dependencies treatment",
+        }
+        lowered = message.lower()
+        advice = [tip for key, tip in tips.items() if key in lowered]
+        fix_key = next((key for key in tips if key in lowered), None)
+        suggestion = (f"\n\nTo analyse the model anyway, "
+                      f"{advice[0]}." if advice else "")
+        hint = {
+            "refused": "\n\nSimulation handles repairs, preventive "
+                       "maintenance, spares, resources, dependencies, "
+                       "standby and phases." + suggestion,
+            "invalid": "",
+            "failed": "\n\nThe model was not changed.",
+        }[kind]
+        message = message.rstrip()
+        if message and message[-1] not in ".!?":
+            message += "."
+        self._show_notice(titles[kind],
+                          message[:1].upper() + message[1:] + hint)
+        if kind == "refused":
+            self._offer_fix(fix_key)
+            if len(size) == 2 and size[1] > size[0]:
+                # A size refusal: a step up first (4x, at least the
+                # default), not straight to the most this machine takes.
+                self._notice_title.setText(
+                    "The solver's diagram grew too large")
+                self._offer_larger_limit(
+                    min(size[1], max(MAX_BDD_NODES, 4 * size[0])))
+            if "limit" in lowered:
+                # A size refusal: show where the limits are set.
+                self._advanced.setChecked(True)
+
+    def _deliver(self, result: dict[str, Any]) -> None:
+        """Show a finished solve, and keep it for these settings."""
+        self._keep(result)
+        self._display(result)
+        if self._changed_while_busy:
+            self._mark_stale(
+                "Settings changed — press Compute to update the results.")
 
     # -- display --------------------------------------------------------------
 
@@ -934,9 +1543,18 @@ class AnalyticDialog(QDialog):
         self._notice_body.setText(body)
         self._pages.setCurrentIndex(0)
         self._banner.setText("")
+        # The "This result assumes" line belongs to a result; with a notice
+        # in its place it would describe something no longer shown.
+        self._scope_note.hide()
+        self._fix.hide()
+        self._alt_fix.hide()
         self._set_actions(False)
 
     def _show_result(self, result: dict[str, Any]) -> None:
+        # The size outlook matters while solving, and afterwards only as a
+        # warning; a reassuring one would just take room from the results.
+        if "may grow large" not in self._outlook_note.text():
+            self._outlook_note.hide()
         self._fill_summary(result)
         self._fill_elements(result)
         self._fill_curve(result)
@@ -954,22 +1572,23 @@ class AnalyticDialog(QDialog):
             "never overlap, so adding them gives the system "
             f"{quantity}.")
         self._fill_notes(result)
-        self._tabs.setTabVisible(self._tab_curve, bool(result.get("times")))
-        self._tabs.setTabVisible(self._tab_equation, bool(equation))
+        self._set_tab_shown(self._tab_curve, bool(result.get("times")))
+        self._set_tab_shown(self._tab_equation, bool(equation))
         self._show_scope(result)
         self._pages.setCurrentIndex(1)
-        if self._tabs.currentIndex() == -1 or not self._tabs.isTabVisible(
-                self._tabs.currentIndex()):
-            self._tabs.setCurrentIndex(self._tab_summary)
+        if self._tabs.currentIndex() == -1:
+            self._tabs.setCurrentWidget(self._tab_summary)
         self._set_actions(True)
         warnings = len(result.get("warnings") or [])
         note = (f"  {warnings} warning(s) on the Assumptions tab."
                 if warnings else "")
         hierarchy = result.get("hierarchy")
-        scope = ("Exact static result for hierarchy "
-                 f"{hierarchy} — a standalone port extension."
+        scope = ("Exact result for hierarchy "
+                 f"{hierarchy} on its own (its input assumed always "
+                 "available)."
                  if hierarchy else
-                 "Exact static result. The model was not sampled or changed.")
+                 "Exact result worked out from the diagram, with no "
+                 "simulation. The model was not changed.")
         self._banner.setText(f"{scope}{note}")
 
     def _show_scope(self, result: dict[str, Any]) -> None:
@@ -989,6 +1608,8 @@ class AnalyticDialog(QDialog):
               *, sub: str = "", suffix: str = "") -> QFrame:
         card = QFrame()
         card.setObjectName("MetricCard")
+        card.setSizePolicy(QSizePolicy.Policy.Preferred,
+                           QSizePolicy.Policy.Fixed)
         lay = QVBoxLayout(card)
         lay.setContentsMargins(SPACING["md"], SPACING["sm"], SPACING["md"],
                                SPACING["sm"])
@@ -1013,6 +1634,10 @@ class AnalyticDialog(QDialog):
     def _fill_summary(self, result: dict[str, Any]) -> None:
         self._clear_cards()
         suffix = f" {result['units']}" if result.get("units") else ""
+        # Rates are per one time unit: "per hour", not "per hours".
+        unit = str(result.get("units") or "")
+        one = unit[:-1] if unit.endswith("s") and len(unit) > 1 else unit
+        per = f" per {one}" if one else ""
         cards: list[QFrame] = []
         if result["mode"] == "reliability":
             at = result["time"]
@@ -1028,10 +1653,11 @@ class AnalyticDialog(QDialog):
             cards.append(self._card(
                 "Hazard rate", result.get("hazard"),
                 "System failure rate at the mission time: density divided by "
-                "reliability."))
+                "reliability.", sub=per.strip()))
             cards.append(self._card(
                 "Failure density", result.get("pdf"),
-                "System failure density f(t) at the mission time."))
+                "System failure density f(t) at the mission time.",
+                sub=per.strip()))
             for key, value in (result.get("bx") or {}).items():
                 cards.append(self._card(
                     f"B{key} life", value,
@@ -1056,11 +1682,7 @@ class AnalyticDialog(QDialog):
                 "Unavailability", result.get("unavailability"),
                 "Long-run probability that the system is down.",
                 sub=_percent(result.get("unavailability"))))
-        for index, card in enumerate(cards):
-            self._cards.addWidget(card, index // 3, index % 3)
-        self._cards.setRowStretch(len(cards) // 3 + 1, 1)
-        for column in range(3):
-            self._cards.setColumnStretch(column, 1)
+        self._summary_page.set_cards(cards)
 
     @staticmethod
     def _element_row(comp: dict[str, Any], availability: bool,
@@ -1114,7 +1736,7 @@ class AnalyticDialog(QDialog):
                 comp, availability,
                 importance.get((comp["kind"], comp["id"])), bool(importance))
             for offset, value in enumerate(cells, 1):
-                table.setItem(row, offset, _NumItem(value))
+                table.setItem(row, offset, _NumItem(value, readable=True))
             if treated:
                 table.setItem(row, len(headers) - 1,
                               QTableWidgetItem(comp.get("state") or ""))
@@ -1122,6 +1744,56 @@ class AnalyticDialog(QDialog):
         if importance:
             table.sortItems(len(headers) - 1 - int(treated),
                             Qt.SortOrder.DescendingOrder)
+        self._spread_columns(len(headers), treated)
+
+    def _spread_columns(self, count: int, treated: bool) -> None:
+        """Every column gets the width its header and numbers need (names
+        capped at 360 px); room to spare goes to the measures, and a window
+        too narrow for them all scrolls sideways rather than squeezing the
+        numbers into ellipses. Redone when the table is resized."""
+        table = self._elements
+        header = table.horizontalHeader()
+        header.setStretchLastSection(False)
+        text_columns = {0} | ({count - 1} if treated else set())
+        for column in range(count):
+            header.setSectionResizeMode(
+                column, QHeaderView.ResizeMode.Interactive)
+            item = table.horizontalHeaderItem(column)
+            if item is not None:
+                item.setTextAlignment(
+                    (Qt.AlignmentFlag.AlignLeft if column in text_columns
+                     else Qt.AlignmentFlag.AlignRight)
+                    | Qt.AlignmentFlag.AlignVCenter)
+        table.resizeColumnsToContents()
+        gap = 0     # the header and cell padding already space them
+        self._natural_widths = [
+            min(header.sectionSize(column) + gap, 360)
+            if column in text_columns else header.sectionSize(column) + gap
+            for column in range(count)]
+        self._text_columns = text_columns
+        self._share_spare_width()
+
+    def _share_spare_width(self) -> None:
+        widths = list(getattr(self, "_natural_widths", ()))
+        table = self._elements
+        if not widths or len(widths) != table.columnCount():
+            return
+        measures = [c for c in range(len(widths))
+                    if c not in self._text_columns]
+        spare = table.viewport().width() - sum(widths)
+        if spare > 0 and measures:
+            for column in measures:
+                widths[column] += spare // len(measures)
+        header = table.horizontalHeader()
+        for column, width in enumerate(widths):
+            header.resizeSection(column, width)
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 (Qt API)
+        table = getattr(self, "_elements", None)
+        if table is not None and watched is table.viewport() \
+                and event.type() == QEvent.Type.Resize:
+            self._share_spare_width()
+        return super().eventFilter(watched, event)
 
     def _fill_curve(self, result: dict[str, Any]) -> None:
         points = result.get("times") or []
@@ -1147,7 +1819,7 @@ class AnalyticDialog(QDialog):
         lines += [f"  • {a}" for a in result.get("assumptions") or []]
         self._notes.setPlainText("\n".join(lines))
         self._tabs.setTabText(
-            self._tab_notes,
+            self._tabs.indexOf(self._tab_notes),
             f"Assumptions ({len(warnings)} warning"
             f"{'s' if len(warnings) != 1 else ''})" if warnings
             else "Assumptions")
@@ -1156,24 +1828,95 @@ class AnalyticDialog(QDialog):
         self._copy.setEnabled(enabled)
         self._export.setEnabled(enabled)
 
+    def export_both(self, path: str | None = None) -> str | None:
+        """This result and the other mode with the same settings, in one
+        workbook (the same as ``raptor analytic --mode both``). The other
+        mode is worked out first if it has not been; the page keeps
+        showing this result. Returns the path once written, or None if a
+        solve was started (it is written when the solve finishes)."""
+        shown = self._result
+        if shown is None or self._busy:
+            return None
+        saved = self._results_to_save()
+        other = ("availability" if shown["mode"] == "reliability"
+                 else "reliability")
+        try:
+            options = self._values(other)
+        except ValueError as exc:
+            self._show_notice("Check the settings", str(exc))
+            return None
+        if not path:
+            from raptor.api.analytical_export import export_file_name
+            names = [{"mode": "reliability", "hierarchy": shown.get("hierarchy")},
+                     {"mode": "availability", "hierarchy": shown.get("hierarchy")}]
+            path = self._ask_path(export_file_name(self._model_name(), names))
+            if not path:
+                return None
+        key = self._cache_key(options)
+        cached = self._cache.get(key) if key is not None else None
+        if cached is not None:
+            return self._write_workbook(self._in_mode_order(saved, cached),
+                                        path)
+        self._export_pending = (path, saved)
+        self._start_solve(options)
+        self._banner.setText(f"Working out {other} for the workbook…")
+        return None
+
+    @staticmethod
+    def _in_mode_order(shown: list[dict[str, Any]], other: dict[str, Any]
+                       ) -> list[dict[str, Any]]:
+        """Reliability first, then availability; each a result or every
+        phase of an "All phases" set."""
+        others = list(other.get("phases") or [other])
+        return (shown + others if shown[0]["mode"] == "reliability"
+                else others + shown)
+
+    def _finish_export_both(self, result: Any, error: Any) -> None:
+        path, shown = self._export_pending or ("", [])
+        self._export_pending = None
+        if error is not None:
+            # The page still shows its own result; say why the workbook
+            # was not written rather than replace that result.
+            kind, message, *_size = error
+            self._banner.setText("Workbook not written.")
+            if kind != "cancelled":
+                msgbox.warning(
+                    self, "Export failed",
+                    f"The other mode could not be worked out with these "
+                    f"settings, so the workbook was not written:\n\n"
+                    f"{message}")
+            return
+        self._keep(result)
+        self._write_workbook(self._in_mode_order(shown, result), path)
+
+    def _ask_path(self, name: str) -> str | None:
+        from raptor.gui.ui.filedialogs import getSaveFileName
+        start = os.path.dirname(
+            str(getattr(self._win, "_current_file", "") or "")
+        ) or os.getcwd()
+        path, _ = getSaveFileName(self, "Export analytical results",
+                                  os.path.join(start, name),
+                                  "Spreadsheet (*.xlsx)")
+        return path or None
+
     def export_result(self, path: str | None = None) -> str | None:
         """Write the current result to a workbook (asks for a file if none)."""
         if self._result is None:
             return None
-        from raptor.api.analytical_export import export_xlsx
+        return self._write_workbook(self._results_to_save(), path)
+
+    def _write_workbook(self, results: list[dict[str, Any]],
+                path: str | None) -> str | None:
+        if not results:
+            return None
+        from raptor.api.analytical_export import export_file_name, export_xlsx
         if not path:
-            from raptor.gui.ui.filedialogs import getSaveFileName
-            start = os.path.dirname(
-                str(getattr(self._win, "_current_file", "") or "")
-            ) or os.getcwd()
-            path, _ = getSaveFileName(
-                self, "Export analytical result",
-                os.path.join(start, f"{self._model_name()}_analytical.xlsx"),
-                "Spreadsheet (*.xlsx)")
+            path = self._ask_path(export_file_name(self._model_name(),
+                                                   results))
             if not path:
                 return None
         try:
-            export_xlsx(self._result, path)
+            export_xlsx(results, path)
         except OSError as exc:
             msgbox.warning(self, "Export failed", str(exc))
             return None
@@ -1181,17 +1924,21 @@ class AnalyticDialog(QDialog):
         return path
 
     def _copy_result(self) -> None:
-        if self._result is not None:
-            QApplication.clipboard().setText(summary_text(self._result))
+        results = self._results_to_save()
+        if results:
+            QApplication.clipboard().setText(
+                "\n\n".join(summary_text(r) for r in results))
 
     # -- lifecycle ------------------------------------------------------------
 
     def refresh_for_model(self) -> None:
-        """Re-solve when the window's model is a different one."""
-        if id(self._win._rbd) != self._shown_rbd_id:
+        """Start over when the window's model is a different one; for the
+        same model keep what is shown (an edit since is flagged by the model
+        watch, and Compute solves again)."""
+        if not self._same_model():
             self._begin_for_model()
         else:
-            self.compute()
+            self._check_model()
 
 
 def open_analytic_dialog(win) -> AnalyticDialog:

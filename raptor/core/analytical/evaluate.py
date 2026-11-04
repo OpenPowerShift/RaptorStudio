@@ -6,8 +6,10 @@ turns these values into JSON-safe dictionaries.
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+
+import numpy as np
 
 from .bdd import FALSE, TRUE
 from .errors import NotApplicable
@@ -38,6 +40,18 @@ class ImportanceRow:
 def system_probability(build: BuildResult, t: float) -> float:
     """``R_sys(t)`` in reliability mode, ``A_sys(t)`` in availability mode."""
     return build.bdd.probability(build.root, build.probabilities(t))
+
+
+def system_probabilities(build: BuildResult,
+                         times: Sequence[float]) -> list[float]:
+    """`system_probability` at many times, in one batched walk."""
+    if not times:
+        return []
+    table = np.column_stack([build.probabilities(t) for t in times]) \
+        if build.variables else np.zeros((0, len(times)))
+    if table.shape[0] == 0:
+        return [build.bdd.probability(build.root, []) for _ in times]
+    return build.bdd.probability_batch(build.root, table).tolist()
 
 
 def availability(build: BuildResult) -> float:
@@ -93,12 +107,17 @@ def _upper_bound(build: BuildResult, target: float) -> float | None:
     value = max(_scale(build), 1.0)
     if system_probability(build, 0.0) <= target:
         return 0.0
+    # The same doubling search, with every candidate in one batch.
+    candidates: list[float] = []
     for _ in range(60):
-        if system_probability(build, value) <= target:
-            return value
+        candidates.append(value)
         value *= 2.0
         if value > _MAX_SCALE:
-            return None
+            break
+    for point, reliability in zip(candidates,
+                                  system_probabilities(build, candidates)):
+        if reliability <= target:
+            return point
     return None
 
 
@@ -115,8 +134,9 @@ def mttf(build: BuildResult) -> float | None:
     upper = _upper_bound(build, _TAIL)
     if upper is None or upper <= 0.0:
         return None
-    return _adaptive_simpson(lambda x: system_probability(build, x),
-                             0.0, upper, tol=1e-9, max_depth=24)
+    return _adaptive_simpson_batched(
+        lambda xs: system_probabilities(build, xs),
+        0.0, upper, tol=1e-9, max_depth=24)
 
 
 def bx_life(build: BuildResult, percent: float) -> float | None:  # noqa: C901, PLR0912
@@ -135,16 +155,24 @@ def bx_life(build: BuildResult, percent: float) -> float | None:  # noqa: C901, 
     upper = _upper_bound(build, target)
     if upper is None:
         return None
+    # Bisection, 32 ways at a time: each batched walk narrows the bracket
+    # 33-fold, so about 9 walks replace about 45 one-point passes. Reliability
+    # never rises with time, so the bracket logic is the same as halving.
     low = 0.0
     high = float(upper)
-    for _ in range(120):
-        mid = (low + high) / 2.0
-        if system_probability(build, mid) > target:
-            low = mid
-        else:
-            high = mid
+    for _ in range(40):
         if high - low <= max(1e-12, high * 1e-12):
             break
+        points = [low + (high - low) * (i + 1) / 33.0 for i in range(32)]
+        values = system_probabilities(build, points)
+        new_low, new_high = low, high
+        for point, reliability in zip(points, values):
+            if reliability > target:
+                new_low = point
+            else:
+                new_high = point
+                break
+        low, high = new_low, new_high
     return (low + high) / 2.0
 
 
@@ -202,21 +230,23 @@ def importance(build: BuildResult, at: float = 0.0,
     base = build.bdd.probability(build.root, probabilities)
     unavailability = 1.0 - base
     rows: list[ImportanceRow] = []
-    total = len(build.variables)
-    every = max(1, total // 100)
-    for index, info in enumerate(build.variables):
-        if progress is not None and index % every == 0:
-            progress("Computing importance", index, total)
-        if info.variable is None:
-            continue
-        variable = info.variable
+    # Every "this element certainly works / certainly failed" case in one
+    # batched walk: column 2j is element j forced up, 2j+1 forced down.
+    elements = [(info.variable, info) for info in build.variables
+                if info.variable is not None]
+    if progress is not None:
+        progress("Computing importance", 0, len(elements))
+    forced = np.repeat(np.asarray(probabilities, dtype=float)[:, None],
+                       2 * len(elements), axis=1)
+    for j, (variable, _info) in enumerate(elements):
+        forced[variable, 2 * j] = 1.0
+        forced[variable, 2 * j + 1] = 0.0
+    values = (build.bdd.probability_batch(build.root, forced).tolist()
+              if elements else [])
+    for j, (variable, info) in enumerate(elements):
         p = probabilities[variable]
-        upper = list(probabilities)
-        upper[variable] = 1.0
-        lower = list(probabilities)
-        lower[variable] = 0.0
-        p1 = build.bdd.probability(build.root, upper)
-        p0 = build.bdd.probability(build.root, lower)
+        p1 = values[2 * j]
+        p0 = values[2 * j + 1]
         birnbaum = p1 - p0
         raw = ((1.0 - p0) / unavailability
                if unavailability > 0.0 else None)
@@ -238,7 +268,7 @@ def importance(build: BuildResult, at: float = 0.0,
             criticality=criticality,
         ))
     if progress is not None:
-        progress("Computing importance", total, total)
+        progress("Computing importance", len(elements), len(elements))
     rows.sort(key=lambda row: (row.criticality is None,
                                -(row.criticality or 0.0),
                                row.name.lower()))
@@ -292,6 +322,51 @@ def _token(name: str) -> str:
                       for char in name.strip())
     cleaned = cleaned.strip("_") or "unnamed"
     return cleaned if len(cleaned) <= 64 else cleaned[:61] + "..."
+
+
+def _adaptive_simpson_batched(f, a: float, b: float, *, tol: float,
+                              max_depth: int) -> float | None:
+    """`_adaptive_simpson`, worked level by level.
+
+    The same intervals are split by the same test, but every interval
+    still open at one depth gets its two new points from one batched call
+    ``f(xs) -> values``. The parts are added left to right at the end, so
+    the sum can differ from the recursive one only in the last bits.
+    """
+    if b <= a:
+        return 0.0
+    mid = (a + b) / 2.0
+    fa, fm, fb = f([a, mid, b])
+    if not (math.isfinite(fa) and math.isfinite(fb) and math.isfinite(fm)):
+        return None
+    whole = (b - a) * (fa + 4.0 * fm + fb) / 6.0
+    # (left, right, f_left, f_mid, f_right, estimate, depth)
+    open_ = [(a, b, fa, fm, fb, whole, max_depth)]
+    done: list[tuple[float, float]] = []
+    while open_:
+        points: list[float] = []
+        for left, right, *_rest in open_:
+            middle = (left + right) / 2.0
+            points.append((left + middle) / 2.0)
+            points.append((middle + right) / 2.0)
+        values = f(points)
+        next_open = []
+        for i, (left, right, f_left, f_mid, f_right, estimate, depth) in \
+                enumerate(open_):
+            middle = (left + right) / 2.0
+            f_lm, f_rm = values[2 * i], values[2 * i + 1]
+            left_est = (middle - left) * (f_left + 4.0 * f_lm + f_mid) / 6.0
+            right_est = (right - middle) * (f_mid + 4.0 * f_rm + f_right) / 6.0
+            delta = left_est + right_est - estimate
+            if depth <= 0 or abs(delta) <= 15.0 * tol:
+                done.append((left, left_est + right_est + delta / 15.0))
+            else:
+                next_open.append((left, middle, f_left, f_lm, f_mid,
+                                  left_est, depth - 1))
+                next_open.append((middle, right, f_mid, f_rm, f_right,
+                                  right_est, depth - 1))
+        open_ = next_open
+    return math.fsum(part for _left, part in sorted(done))
 
 
 def _adaptive_simpson(f, a: float, b: float, *, tol: float,

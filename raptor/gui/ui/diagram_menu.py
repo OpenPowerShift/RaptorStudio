@@ -10,6 +10,7 @@ from raptor.gui.ui.diagram_items import (
     _HierItem,
     _LinkItem,
     _NodeItem,
+    _RouteGripItem,
     _view_status,
 )
 from raptor.gui.ui.diagram_annotations import (
@@ -52,6 +53,16 @@ class ContextMenuMixin:
             event.accept()
             return
         scene_pos = self.mapToScene(event.position().toPoint())
+        grip = next((it for it in self._scene.items(scene_pos)
+                     if isinstance(it, _RouteGripItem)), None)
+        if grip is not None:
+            menu = QMenu(self)
+            delete_act = menu.addAction("Delete routing point")
+            chosen = self._exec_menu(menu, event)
+            if chosen is delete_act:
+                self.delete_route_grip(grip)
+            event.accept()
+            return
         sel_count = len([it for it in self._scene.selectedItems()
                          if it.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable])
         align_menu = None
@@ -246,6 +257,14 @@ class ContextMenuMixin:
         n_sel = len(self._scene.selectedItems())
         n_annos = len(self._selected_annotation_ids())
         mx, my = self.scene_to_model(scene_pos)
+        routing_act = None
+        if isinstance(clicked, _LinkItem):
+            # Link items created by the loader always carry a real id, but
+            # a preview/partially built item may carry None; offering the
+            # action there would only fail after the user chose it.
+            if isinstance(getattr(clicked, "_link_num", None), int):
+                routing_act = menu.addAction("Add routing point here…")
+                menu.addSeparator()
         # Cut/Copy/Paste in the conventional order, with "Paste Here"
         # last of the three and renamed: it drops the copy on THIS exact
         # spot, which is why the old first-positioned "Paste here" read
@@ -301,7 +320,19 @@ class ContextMenuMixin:
             menu.addSeparator()
             dep_action = menu.addAction("Focus on Dependency")
         chosen = self._exec_menu(menu, event)
-        if chosen is paste_act:
+        if chosen is None:
+            # Dismissed. Several optional actions below are None when not
+            # offered, so an unguarded `chosen is action` chain would run
+            # one of them (`None is None`) just because the user clicked
+            # away.
+            return
+        if routing_act is not None and chosen is routing_act:
+            if self.insert_routing_node(
+                    int(getattr(clicked, "_link_num", 0)), mx, my) is None:
+                _view_status(self, "Cannot add a routing point on that link")
+            else:
+                _view_status(self, "Routing point added")
+        elif chosen is paste_act:
             self.paste(at_model=(mx, my))
         elif chosen is out_act:
             self._move_selection_to_parent()

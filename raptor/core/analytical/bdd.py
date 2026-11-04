@@ -23,7 +23,12 @@ import sys
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 
+import time
+
+import numpy as np
+
 from .errors import BddTooLarge
+from .limits import DEFAULT_BDD_NODES, max_bdd_nodes_allowed, memory_text
 
 FALSE = 0
 TRUE = 1
@@ -31,10 +36,17 @@ TRUE = 1
 #: A variable never has this value; used only for ordering comparisons.
 _NO_VAR = 1 << 60
 
-#: Default and hard cap. A 122-block real model is ~12k nodes; 2M is
-#: generous for large practical diagrams and small enough to fail before
-#: exhausting memory. Raising the UI/API value above this is refused.
-MAX_BDD_NODES = 2_000_000
+#: The default limit (see `limits`). A 122-block real model is ~12k nodes;
+#: 2M takes a few seconds and well under 1 GB. The user may raise it up to
+#: `limits.max_bdd_nodes_allowed()`, a ceiling from the machine's free memory.
+MAX_BDD_NODES = DEFAULT_BDD_NODES
+
+#: Below this many reachable nodes a pass is a plain Python loop: numpy's
+#: per-call overhead would cost more than it saves.
+_VECTOR_FROM = 2_000
+#: Memory a batched pass may use for its node-by-case table; larger batches
+#: are done in column chunks.
+_BATCH_BYTES = 128 * 1024 * 1024
 
 #: How often the optional progress callback hears about new BDD nodes.
 _PROGRESS_EVERY = 8_192
@@ -64,11 +76,21 @@ class BDD:
                  progress: Callable[[int], None] | None = None) -> None:
         if max_nodes < 2:
             raise ValueError("max_nodes must be at least 2")
-        if max_nodes > MAX_BDD_NODES:
+        allowed = max_bdd_nodes_allowed()
+        if max_nodes > allowed:
             raise ValueError(
-                f"max_nodes cannot exceed the hard cap "
-                f"{MAX_BDD_NODES:,}")
+                f"a BDD limit of {max_nodes:,} nodes would need "
+                f"{memory_text(max_nodes)} at most; this machine allows up "
+                f"to {allowed:,} ({memory_text(allowed)}), half of the "
+                "memory that is free now")
         self.max_nodes = max_nodes
+        self._allowed = allowed
+        #: Called before every pass over the diagram (results, curve,
+        #: importance) with the number of evaluations it carries (a batched
+        #: pass carries many). The caller reports progress from it, and may
+        #: raise from it to cancel.
+        self.on_pass: Callable[[int], None] | None = None
+        self._started = time.monotonic()
         self._progress = progress
         #: index 0 = FALSE, 1 = TRUE, then (variable, low, high).
         self.nodes: list[tuple[int, int, int] | None] = [None, None]
@@ -76,6 +98,26 @@ class BDD:
         self._var_of: dict[int, int] = {}
         self._not_memo: dict[int, int] = {FALSE: TRUE, TRUE: FALSE}
         self._apply_memo: dict[tuple[str, int, int], int] = {}
+        self._order_cache: dict[int, list[int]] = {}
+        self._plan_cache: dict[int, _Plan] = {}
+
+    def _too_large(self) -> BddTooLarge:
+        """The refusal, saying what was reached and what can be done."""
+        seconds = time.monotonic() - self._started
+        text = (f"the solver's diagram reached the limit of "
+                f"{self.max_nodes:,} nodes ({memory_text(self.max_nodes)}) "
+                f"after {seconds:.1f} s without finishing.")
+        if self.max_nodes < self._allowed:
+            text += (f" This machine allows a limit of up to "
+                     f"{self._allowed:,} nodes ({memory_text(self._allowed)})"
+                     "; a larger diagram is also slower to use (importance "
+                     "measures and the curve walk it many times).")
+        else:
+            text += " That is the largest limit this machine allows."
+        text += (" Solving one hierarchy at a time is usually far quicker "
+                 "than raising the limit.")
+        return BddTooLarge(text, limit=self.max_nodes, seconds=seconds,
+                           allowed=self._allowed)
 
     # -- construction -----------------------------------------------------
 
@@ -96,10 +138,7 @@ class BDD:
         if got is not None:
             return got
         if len(self.nodes) >= self.max_nodes:
-            raise BddTooLarge(
-                f"the analytical BDD exceeded {self.max_nodes:,} nodes; "
-                "this model is outside the practical static subset. Solve "
-                "its hierarchies separately, or raise the BDD limit.")
+            raise self._too_large()
         node = len(self.nodes)
         self.nodes.append(key)
         self._unique[key] = node
@@ -214,20 +253,30 @@ class BDD:
         if k == n:
             return self.And(*live)
 
-        # G[j] = exactly j true so far. Start with zero true.
-        exact = [TRUE] + [FALSE] * n
-        for branch in live:
+        # G[j] = exactly j true so far, for j < k; G[k] = at least k true
+        # (absorbing). A count that can no longer reach k with the branches
+        # still to come is dropped. Both keep the result exact; together
+        # they keep at most n-k+1 live counts instead of n+1, which matters
+        # for "k of n" with k close to n (a 10-of-11 node over large
+        # branches built 1.7M nodes the old way).
+        exact = [TRUE] + [FALSE] * k
+        for done, branch in enumerate(live, 1):
+            remaining = n - done
             neg = self.neg(branch)
-            nxt = [FALSE] * (n + 1)
-            for j in range(n + 1):
+            nxt = [FALSE] * (k + 1)
+            for j in range(k + 1):
                 if exact[j] == FALSE:
                     continue
-                nxt[j] = self.Or(nxt[j], self.And(exact[j], neg))
-                if j < n:
+                if j == k:
+                    nxt[k] = self.Or(nxt[k], exact[k])
+                    continue
+                if j + remaining >= k:
+                    nxt[j] = self.Or(nxt[j], self.And(exact[j], neg))
+                if j + 1 + remaining >= k:
                     nxt[j + 1] = self.Or(nxt[j + 1],
                                          self.And(exact[j], branch))
             exact = nxt
-        return self.Or(*exact[k:])
+        return exact[k]
 
     def restrict(self, node: int, var: int, value: bool) -> int:
         """Substitute one variable and return the reduced result."""
@@ -254,32 +303,58 @@ class BDD:
 
     # -- probability ------------------------------------------------------
 
+    def _reachable(self, root: int) -> list[int]:
+        """Non-terminal nodes under ``root``, children before parents.
+
+        A node is only ever made after its children (`_mk`), so increasing
+        index is a valid bottom-up order. Cached per root: the diagram never
+        changes once built, and the evaluation walks it hundreds of times.
+        """
+        got = self._order_cache.get(root)
+        if got is not None:
+            return got
+        seen: set[int] = set()
+        stack = [root]
+        while stack:
+            node = stack.pop()
+            if node <= TRUE or node in seen:
+                continue
+            seen.add(node)
+            _var, low, high = self.nodes[node]  # type: ignore[misc]
+            stack.append(low)
+            stack.append(high)
+        order = sorted(seen)
+        self._order_cache[root] = order
+        return order
+
     def probability(self, root: int, probabilities: Sequence[float]) -> float:
         """Probability that ``root`` is true for independent variables.
 
         ``probabilities[i]`` is P(variable i = true). The multilinearity of
         the BDD is the whole point: this is exact for independent components.
+
+        One bottom-up loop, not a recursive walk: the recursive version kept
+        each pass's table alive through a reference cycle until the garbage
+        collector ran, so MTTF's hundreds of passes held hundreds of tables
+        (550 MB for a 77,000-node diagram).
         """
-        memo: dict[int, float] = {}
-
-        def visit(node: int) -> float:
-            if node == FALSE:
-                return 0.0
-            if node == TRUE:
-                return 1.0
-            got = memo.get(node)
-            if got is not None:
-                return got
-            var, low, high = self.nodes[node]  # type: ignore[misc]
-            p = probabilities[var]
+        if self.on_pass is not None:
+            self.on_pass(1)
+        if root <= TRUE:
+            return float(root)
+        for p in probabilities:
             if p < 0.0 or p > 1.0:
-                raise ValueError(
-                    f"probability for variable {var} is {p!r}, not in [0, 1]")
-            value = p * visit(high) + (1.0 - p) * visit(low)
-            memo[node] = value
-            return value
-
-        return visit(root)
+                raise ValueError(f"probability {p!r} is not in [0, 1]")
+        if len(self._reachable(root)) >= _VECTOR_FROM:
+            column = np.asarray(probabilities, dtype=float)[:, None]
+            return float(self._plan(root).evaluate(column)[0])
+        value: dict[int, float] = {FALSE: 0.0, TRUE: 1.0}
+        nodes = self.nodes
+        for node in self._reachable(root):
+            var, low, high = nodes[node]  # type: ignore[misc]
+            p = probabilities[var]
+            value[node] = p * value[high] + (1.0 - p) * value[low]
+        return value[root]
 
     def probability_and_derivative(
         self,
@@ -296,30 +371,69 @@ class BDD:
 
         so the system pdf is ``-dP`` when ``p_i`` are reliabilities.
         """
-        memo: dict[int, tuple[float, float]] = {}
-
-        def visit(node: int) -> tuple[float, float]:
-            if node == FALSE:
-                return 0.0, 0.0
-            if node == TRUE:
-                return 1.0, 0.0
-            got = memo.get(node)
-            if got is not None:
-                return got
-            var, low, high = self.nodes[node]  # type: ignore[misc]
+        if self.on_pass is not None:
+            self.on_pass(1)
+        if root <= TRUE:
+            return float(root), 0.0
+        for p in probabilities:
+            if p < 0.0 or p > 1.0:
+                raise ValueError(f"probability {p!r} is not in [0, 1]")
+        value: dict[int, float] = {FALSE: 0.0, TRUE: 1.0}
+        slope: dict[int, float] = {FALSE: 0.0, TRUE: 0.0}
+        nodes = self.nodes
+        for node in self._reachable(root):
+            var, low, high = nodes[node]  # type: ignore[misc]
             p = probabilities[var]
             dp = derivatives[var]
-            if p < 0.0 or p > 1.0:
-                raise ValueError(
-                    f"probability for variable {var} is {p!r}, not in [0, 1]")
-            high_p, high_dp = visit(high)
-            low_p, low_dp = visit(low)
-            value = p * high_p + (1.0 - p) * low_p
-            slope = dp * (high_p - low_p) + p * high_dp + (1.0 - p) * low_dp
-            memo[node] = (value, slope)
-            return value, slope
+            high_p, low_p = value[high], value[low]
+            value[node] = p * high_p + (1.0 - p) * low_p
+            slope[node] = (dp * (high_p - low_p) + p * slope[high]
+                           + (1.0 - p) * slope[low])
+        return value[root], slope[root]
 
-        return visit(root)
+    def probability_batch(self, root: int, probabilities) -> np.ndarray:
+        """``P(root)`` for many cases in one walk.
+
+        ``probabilities`` is a ``(variables, cases)`` array: column ``j`` is
+        one case's P(variable i = true). Each node is worked out for every
+        case at once, and all nodes that test the same variable together,
+        so the Python loop runs once per variable rather than once per node
+        per case. The arithmetic is the same expression as `probability`,
+        so the results are the same to the last bit. Done in column chunks
+        that keep the node-by-case table under ``_BATCH_BYTES``.
+        """
+        table = np.asarray(probabilities, dtype=float)
+        if table.ndim != 2:
+            raise ValueError("probabilities must be a (variables, cases) array")
+        cases = table.shape[1]
+        if root <= TRUE:
+            if self.on_pass is not None:
+                self.on_pass(cases)
+            return np.full(cases, float(root))
+        if cases and (np.any(table < 0.0) or np.any(table > 1.0)):
+            bad = table[(table < 0.0) | (table > 1.0)][0]
+            raise ValueError(f"probability {bad!r} is not in [0, 1]")
+        plan = self._plan(root)
+        chunk = max(1, _BATCH_BYTES // (8 * (plan.size + 2)))
+        out = np.empty(cases)
+        for begin in range(0, cases, chunk):
+            stop = min(cases, begin + chunk)
+            out[begin:stop] = plan.evaluate(table[:, begin:stop])
+            # Count each chunk once it is done, not the whole batch up
+            # front: importance on a large diagram is one batch of
+            # thousands of cases taking many seconds, and counting it
+            # before the work left the progress at "the last pass" for all
+            # of that time.
+            if self.on_pass is not None:
+                self.on_pass(stop - begin)
+        return out
+
+    def _plan(self, root: int) -> _Plan:
+        got = self._plan_cache.get(root)
+        if got is None:
+            got = _Plan(self, root, self._reachable(root))
+            self._plan_cache[root] = got
+        return got
 
     # -- support, paths and equations -------------------------------------
 
@@ -372,3 +486,51 @@ class BDD:
         if not visit(root, []):
             return None
         return out
+
+
+class _Plan:
+    """A diagram laid out for vectorised evaluation.
+
+    Rows 0 and 1 of the value table are the FALSE and TRUE terminals; then
+    every reachable node, grouped by variable, deepest variable first. A
+    node's children always test a later variable (or are terminals), so
+    when a group is worked out its children's rows are already filled.
+    """
+
+    __slots__ = ("groups", "root_row", "size")
+
+    def __init__(self, bdd: BDD, root: int, reachable: list[int]) -> None:
+        nodes = bdd.nodes
+        by_var: dict[int, list[int]] = {}
+        for node in reachable:
+            by_var.setdefault(nodes[node][0], []).append(node)  # type: ignore[index]
+        row = {FALSE: 0, TRUE: 1}
+        ordered: list[tuple[int, list[int]]] = sorted(by_var.items(),
+                                                      reverse=True)
+        next_row = 2
+        for _var, members in ordered:
+            for node in members:
+                row[node] = next_row
+                next_row += 1
+        self.groups: list[tuple[int, int, int, np.ndarray, np.ndarray]] = []
+        start = 2
+        for var, members in ordered:
+            low = np.fromiter((row[nodes[n][1]] for n in members),  # type: ignore[index]
+                              dtype=np.intp, count=len(members))
+            high = np.fromiter((row[nodes[n][2]] for n in members),  # type: ignore[index]
+                               dtype=np.intp, count=len(members))
+            self.groups.append((var, start, start + len(members), low, high))
+            start += len(members)
+        self.root_row = row[root]
+        self.size = len(reachable)
+
+    def evaluate(self, table: np.ndarray) -> np.ndarray:
+        """Root value for each column of ``table`` (variables x cases)."""
+        cases = table.shape[1]
+        values = np.empty((self.size + 2, cases))
+        values[0] = 0.0
+        values[1] = 1.0
+        for var, start, stop, low, high in self.groups:
+            p = table[var]
+            values[start:stop] = p * values[high] + (1.0 - p) * values[low]
+        return values[self.root_row].copy()

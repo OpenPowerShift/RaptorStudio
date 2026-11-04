@@ -23,8 +23,17 @@ class BddTooLarge(AnalyticalError):
     """The reduced ordered BDD exceeded the configured node cap.
 
     Raised rather than truncated: a silent approximation would be worse than
-    a refusal for an "exact" solver.
+    a refusal for an "exact" solver. ``limit`` is the cap that was hit,
+    ``seconds`` how long the build ran, and ``allowed`` the largest cap this
+    machine allows (so a caller can say whether raising it is possible).
     """
+
+    def __init__(self, message: str, *, limit: int = 0, seconds: float = 0.0,
+                 allowed: int = 0) -> None:
+        super().__init__(message)
+        self.limit = limit
+        self.seconds = seconds
+        self.allowed = allowed
 
 
 class UnsupportedDistribution(AnalyticalError):

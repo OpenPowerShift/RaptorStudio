@@ -29,6 +29,11 @@ NODE_R = 18
 MIN_ELEMENT_GAP = 52
 #: Between two NODES a link needs room for its arrowhead only.
 NODE_GAP = 40
+#: Largest drawn half-width that still counts as a plain node column for
+#: pitch purposes. A node symbol is 18 px, but its name label can be a
+#: little wider without needing the full block gap; the layout engine uses
+#: this same limit (in pixels) so the two never disagree.
+NODE_NARROW_HALF_PX = 30.0
 LEGACY_SCALE = 8.0
 
 #: Half the taller of a block and a node -- the radius an element in a
@@ -145,14 +150,26 @@ def _column_pitch_scale(rbd: Any) -> float:
     for cols in _levels_by_kind(rbd).values():
         for a, b in itertools.pairwise(sorted(cols)):
             ha, hb = cols[a], cols[b]
-            gap = NODE_GAP if max(ha, hb) <= NODE_R else MIN_ELEMENT_GAP
+            gap = (NODE_GAP if max(ha, hb) <= NODE_NARROW_HALF_PX
+                   else MIN_ELEMENT_GAP)
             needed = max(needed, (ha + hb + gap) / (b - a))
     return needed
 
 
 def _levels_by_kind(rbd: Any) -> dict[int, dict[float, float]]:
-    """Per level, per column x: the widest element's half-width there."""
+    """Per level, per column x: the widest element's half-width there.
+
+    Widths come from the shared Qt-free estimate, or from exact
+    `QFontMetricsF` extents when the GUI has written `_render_extents`
+    (a transient map keyed `(section, id)`). The old fixed 54/18 px
+    numbers made a long block's 216 px box overlap its neighbour.
+    """
     out: dict[int, dict[float, float]] = {}
+    # Exact drawn extents, when the GUI has just laid the level out. The
+    # default stays the fixed canvas size: changing every file's load-time
+    # scale would shrink every existing diagram merely because its names
+    # are longer than 14 characters.
+    exact = getattr(rbd, "_render_extents", None) or {}
     for name in _SECTIONS:
         sec = rbd.sections.get(name)
         if not sec:
@@ -160,14 +177,18 @@ def _levels_by_kind(rbd: Any) -> dict[int, dict[float, float]]:
         hw = float(NODE_R) if name == "NODE_DATA" else BLOCK_W / 2.0
         for r in sec.rows:
             try:
-                if int(float(r.get("ID", 0))) == 0:
+                ident = int(float(r.get("ID", 0)))
+                if ident == 0:
                     continue
                 x = float(r["xPos"])
                 parent = int(float(r.get(_PARENT_COL[name], 0) or 0))
             except (TypeError, ValueError, KeyError, OverflowError):
                 continue
+            width = exact.get((name, str(ident)), hw)
+            if isinstance(width, (tuple, list)):
+                width = width[0]
             cols = out.setdefault(parent, {})
-            cols[x] = max(cols.get(x, 0.0), hw)
+            cols[x] = max(cols.get(x, 0.0), float(width))
     return out
 
 

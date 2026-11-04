@@ -463,11 +463,15 @@ class RBDBlock(RBDBasic):
     #: Initial age at t=0, in the model's time units. Used by the
     #: Start=3 ("up, some complete") first-life draw.
     start_age: float = 0.0
-    #: 0.0 = no restoration, 1.0 = as good as new. Applies to PM and repair.
+    #: Share of the block's age a repair (or a PM without PM refresh)
+    #: removes: 0.0 = none (age kept), 1.0 = all (as good as new). Used only
+    #: when `restoration_type` is 1 or 2.
     restoration_factor: float = 0.0
-    #: 1 = Kijima Type I (restore damage since the last restoration),
-    #: 2 = Kijima Type II (restore a fraction of total age).
-    restoration_type: int = 1
+    #: 0 = off (Raptor's own behaviour: a repair is as good as new, a PM
+    #: follows PM refresh), 1 = Kijima Type I (restore part of the age added
+    #: since the previous repair or PM), 2 = Kijima Type II (restore part of
+    #: the whole age).
+    restoration_type: int = 0
     pm_stagger: float = 0.0
     pm_freq: float = 0.0
     pm_fixed_cost: float = 0.0

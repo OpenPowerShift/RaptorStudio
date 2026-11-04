@@ -25,6 +25,7 @@ from collections.abc import Callable, Generator
 
 from raptor.core.model import (ActiveStatus, BlockStatus, Link, RBDBlock,
                                RBDEvent, RBDNode, SparePool, SparingType)
+from raptor.core.engine.conditional_life import conditional_life
 from raptor.core.rng import Distribution, RandomSource
 from raptor.core.scheduler import Owner, Process, Scheduler, Wait, Wake
 from raptor.core.engine.blocks import BlockStatistics, StateDeltas, change_block_state, write_block_failed_line
@@ -383,6 +384,13 @@ def get_start_cond(block: RBDBlock, rng_fail: RandomSource, rng_repair: RandomSo
                                  fail_time_left=time_to_fail - initial_age)
             if i < 99:
                 time_to_fail = rng_fail.draw_number(Distribution(block.fail_distro), block.fail_values)
+        if block.start_age > 0.0:
+            # Raptor 7's own fallback (below) is an instant failure. With a
+            # start age deep in the life's tail that is far too pessimistic,
+            # so draw the life conditionally instead. `amount_exhausted`
+            # alone keeps the Raptor 7 behaviour.
+            life = conditional_life(rng_fail, block.fail_distro, block.fail_values, initial_age)
+            return StartCond("Running", fail_time_left=life - initial_age)
         return StartCond("Running", fail_time_left=0.000001)  # 
 
     if t == 4:
@@ -1511,27 +1519,17 @@ class BlockProcess:
         self.clock.age_at_last_restore = residual
         return residual
 
-    def _remaining_after_restore(self, raw_life: float,
-                                 remaining: float) -> float:
-        """Remaining raw life after a PM restores part of the current age."""
-        age = max(0.0, raw_life - max(0.0, remaining))
-        residual = self._restored_age(age)
-        return max(0.0, raw_life - residual)
-
     def _conditional_life(self, age: float) -> float:
         """Draw a full life conditional on surviving to ``age``.
 
-        Rejection is exact for every distribution and uses the same fail
-        stream as the ordinary draw. It is only reached when a restoration
-        factor is non-zero, so the default draw sequence is unchanged.
+        Exact at any age (see `conditional_life`) and drawn from the same
+        fail stream as the ordinary draw. It is only reached when a
+        restoration factor is non-zero, so the default draw sequence is
+        unchanged.
         """
         block = self.block
-        for _ in range(1000):
-            draw = self.rng_fail.draw_number(
-                Distribution(block.fail_distro), block.fail_values)
-            if draw > age:
-                return draw
-        return age + 0.000001
+        return conditional_life(self.rng_fail, block.fail_distro,
+                                block.fail_values, age)
 
     def _set_restored_life(self, age: float) -> None:
         """Set the next life to a conditional draw at residual ``age``."""
@@ -1542,6 +1540,10 @@ class BlockProcess:
         self.clock.raw_life = raw
         self.clock.fail_time_left = max(0.0, raw - age)
         self.clock.age_at_last_restore = age
+        # A new life was drawn, so the per-life operating time (logged with
+        # `Failed`, read by the OBPM threshold) starts again, as it does
+        # after the fresh draw a plain repair leads to.
+        self.clock.operating_time = 0.0
 
     def _draw_life(self) -> float:
         """Draw a new life and race it against the PM clock: source's
@@ -1564,9 +1566,16 @@ class BlockProcess:
         order. It applies once per run.
         """
         block = self.block
+        #: Age the block already had when this life started. Only the
+        #: start-condition life can have one (Start=3 subtracts the start age
+        #: and amount exhausted from it); the restoration factor needs it to
+        #: know the block's true age at its first failure or PM.
+        age_before = 0.0
         if self.initial_fail_time_left is not None:
             raw_fail_draw = self.initial_fail_time_left
             self.initial_fail_time_left = None
+            if block.sim_start_type == 3:
+                age_before = max(0.0, block.start_age + block.amount_exhausted)
         else:
             raw_fail_draw = self.rng_fail.draw_number(Distribution(block.fail_distro), block.fail_values)
         system_state = self.system_state
@@ -1585,7 +1594,7 @@ class BlockProcess:
         # one: DepPmNoRefreshProbe's Raptor 7 capture has the block redrawing on
         # leaving a dependency idle, and the PM after that resumed the SAME life.
         self.clock.race_raw_life = raw_fail_draw if self.pm.due else None
-        self.clock.raw_life = raw_fail_draw
+        self.clock.raw_life = raw_fail_draw + age_before
         self.clock.age_at_last_restore = 0.0
         self.clock.failed_age = 0.0
         return raw_fail_draw
@@ -3205,23 +3214,31 @@ class BlockProcess:
             # FailTimeLeft (a block Cut/Idle from t=0 that PMs before
             # its first redraw), so the refresh discards it too.
             self.initial_fail_time_left = None
-        elif block.restoration_factor > 0.0 and self.clock.raw_life is not None:
-            # Partial restoration: keep the current life but give back part
-            # of the consumed age. Factor 1.0 falls through to a fresh draw,
-            # exactly like pm_refresh; factor 0.0 is the no-op branch below.
+        elif (block.restoration_type in (1, 2) and block.restoration_factor > 0.0
+                and self.clock.raw_life is not None):
+            # Partial restoration (Type I/II, PM refresh off): the PM takes
+            # the block's age back to a residual age, and the rest of its
+            # life is drawn afresh given it has survived to that age -- the
+            # same virtual-age rule a repair uses. Keeping the old life and
+            # only shifting it would hand back the restored hours as extra
+            # life even for a block that does not age (an exponential life).
+            # Factor 1.0 gives residual 0, a fresh draw exactly like
+            # pm_refresh; factor 0.0 ("age kept") is the resume-the-same-life
+            # branch below, which is exact and draws nothing.
             remaining: float | None
             if self.clock.fail_time_left is None and self.clock.race_raw_life is not None:
-                raw = float(self.clock.race_raw_life)
-                remaining = raw - self.clock.wait_duration * self.clock.stress
+                remaining = (self.clock.race_raw_life
+                             - self.clock.wait_duration * self.clock.stress)
             else:
-                raw = float(self.clock.raw_life)
                 remaining = self.clock.fail_time_left
             if remaining is not None:
-                restored = self._remaining_after_restore(raw, remaining)
-                self.clock.fail_time_left = (
-                    None if restored >= raw else restored)
-                if self.clock.fail_time_left is None:
-                    self.initial_fail_time_left = None
+                # `raw_life` counts from age 0 (it includes any start age),
+                # while `race_raw_life` and `fail_time_left` are what is left
+                # of this life, so the age is their difference either way.
+                age = max(0.0, float(self.clock.raw_life) - max(0.0, remaining))
+                residual = self._restored_age(age)
+                self.initial_fail_time_left = None
+                self._set_restored_life(residual)
         elif self.clock.fail_time_left is None and self.clock.race_raw_life is not None:
             self.clock.fail_time_left = self.clock.race_raw_life - self.clock.wait_duration * self.clock.stress
         # The parked whole life is spent: left set, the next pass's race would take it, not the remainder.
@@ -4017,11 +4034,13 @@ class BlockProcess:
             if events_file:
                 logs.append(format_event_log_line(sim_time, "Block", block.name, "End_Post-LDT", f"Time={ldt_wait:.6f}"))
 
-        # Restoration factor: after a failure, a partial repair leaves a
+        # Restoration (Type I/II): after a failure, the repair leaves a
         # residual age and the next life is drawn conditionally on having
-        # survived to it. Factor 0.0 (the default) takes the existing fresh
-        # draw unchanged; factor 1.0 is also the existing fresh draw.
-        if block.restoration_factor > 0.0 and self.clock.failed_age > 0.0:
+        # survived to it. Factor 0.0 keeps the whole age (as bad as old);
+        # factor 1.0 leaves none, which is the ordinary fresh draw.
+        # Restoration type 0 (off, the default) is Raptor's own repair: a
+        # fresh draw, as good as new.
+        if block.restoration_type in (1, 2) and self.clock.failed_age > 0.0:
             residual = self._restored_age(self.clock.failed_age)
             self.clock.failed_age = 0.0
             self._set_restored_life(residual)

@@ -216,6 +216,16 @@ def _anchor_for(rbd, ref: str | int) -> dict[str, Any]:
             raise BuildError(
                 f"annotation {ref!r} has no usable geometry") from None
         return geometry
+    return _anchor_from_row(rbd, section, row)
+
+
+def _anchor_from_row(rbd, section: str, row: dict[str, Any]) -> dict[str, Any]:
+    """The geometry half of `_anchor_for`, when the row is already known.
+
+    `_element_records` walks every row; calling `_anchor_for` there meant a
+    fresh linear `get_row` scan per element, i.e. O(N^2) for a 5,000-block
+    model. Auto Layout on a four-node hierarchy took ~9 s because of it.
+    """
     try:
         x = float(row.get("xPos", 0) or 0)
         y = float(row.get("yPos", 0) or 0)
@@ -230,7 +240,7 @@ def _anchor_for(rbd, ref: str | int) -> dict[str, Any]:
     elif section == "HIERARCHY_DATA":
         kind, half, pkey = "Hierarchy", _HIER_HALF, "Parent"
     else:  # pragma: no cover - resolve_element only returns these sections
-        raise BuildError(f"cannot anchor an annotation to {ref!r}")
+        raise BuildError(f"cannot anchor an annotation to {section}")
     try:
         parent = int(float(row.get(pkey, 0) or 0))
     except (TypeError, ValueError):
@@ -307,7 +317,26 @@ def refresh_anchor_names(rbd) -> int:
     return changed
 
 
-def follow_layout(rbd, old_transform: dict | None = None) -> int:
+def layout_anchor_location(location: str, direction: str = "LR",
+                           label_side: str | None = None) -> str:
+    """The side an anchored note should use for the page's flow direction.
+
+    Above/below are perpendicular to a left-to-right flow. A top-to-bottom
+    layout turns them into a left/right side, chosen by `label_side`
+    ("left"/"right"; None = right for TB and left for BT). Explicit
+    left/right notes in a horizontal flow, and explicit above/below notes
+    in a vertical one, are left alone.
+    """
+    if direction in ("TB", "BT") and location in ("above", "below"):
+        if label_side in ("left", "right"):
+            return label_side
+        return "right" if direction == "TB" else "left"
+    return location
+
+
+def follow_layout(rbd, old_transform: dict | None = None, *,
+                  direction: str = "LR",
+                  label_side: str | None = None) -> int:
     """Keep annotations with the diagram after Auto Layout moved elements.
 
     An annotation placed next to an element or another annotation
@@ -366,7 +395,9 @@ def follow_layout(rbd, old_transform: dict | None = None) -> int:
             elif anchor.get("target") is not None:
                 target = _anchor_for(rbd, anchor.get("ref") or anchor["target"])
                 w, h = float(entry.get("w") or 0), float(entry.get("h") or 0)
-                location = str(anchor.get("location", ANNO_DEFAULT_LOCATION))
+                location = layout_anchor_location(
+                    str(anchor.get("location", ANNO_DEFAULT_LOCATION)),
+                    direction, label_side)
                 gap = float(anchor.get("gap", 12.0))
                 dx, dy = anchor_offset(anchor)
                 if dx or dy:
@@ -441,7 +472,7 @@ def _element_records(rbd) -> list[dict[str, Any]]:
                 continue
             ref = f"{prefix}:{int(float(row['ID']))}"
             try:
-                a = _anchor_for(rbd, ref)
+                a = _anchor_from_row(rbd, section, row)
             except BuildError:
                 continue
             out.append({"parent": a["parent"], "ref": ref, "section": section,

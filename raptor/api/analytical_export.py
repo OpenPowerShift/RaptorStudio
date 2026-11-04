@@ -7,6 +7,8 @@ assumptions. Numbers are real numeric cells.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -19,8 +21,9 @@ def _summary_rows(result: dict[str, Any]) -> list[list[Any]]:
                              ["Mode", result["mode"]]]
     if result.get("hierarchy"):
         rows.append(["Hierarchy", result["hierarchy"]])
-        rows.append(["Scope", "standalone port extension "
-                              "(In becomes Start, Out becomes End)"])
+        rows.append(["Scope", "this hierarchy on its own: its In node is "
+                              "treated as Start and its Out node as End, "
+                              "so its input is always available"])
     unit = result.get("units") or ""
     if result["mode"] == "reliability":
         rows += [["Mission time", result.get("time")],
@@ -105,8 +108,70 @@ def analytical_sheets(result: dict[str, Any]) -> list[Sheet]:
     return sheets
 
 
-def export_xlsx(result: dict[str, Any], path: str | Path) -> Path:
-    """Write ``result`` to ``path`` as an .xlsx workbook."""
+def _phase(result: dict[str, Any]) -> Any:
+    return (result.get("scope") or {}).get("phase")
+
+
+def _labels(results: Sequence[dict[str, Any]]) -> list[str]:
+    """Each result's sheet prefix: its mode when the modes differ, its
+    phase when the phases differ ("Phase 2", "Availability phase 2"), and
+    a number if two would still share a name (several treatments)."""
+    modes = {r["mode"] for r in results}
+    phases = {_phase(r) for r in results}
+    labels = []
+    for r in results:
+        parts = []
+        if len(modes) > 1:
+            parts.append(str(r["mode"]).capitalize())
+        if len(phases) > 1:
+            parts.append(f"phase {_phase(r)}" if parts else f"Phase {_phase(r)}")
+        labels.append(" ".join(parts) or str(r["mode"]).capitalize())
+    if len(set(labels)) != len(labels):
+        labels = [f"{i} {label}" for i, label in enumerate(labels, 1)]
+    return labels
+
+
+def export_xlsx(results: dict[str, Any] | Sequence[dict[str, Any]],
+                path: str | Path) -> Path:
+    """Write one result, or several (reliability and availability, say), to
+    ``path`` as one .xlsx workbook. Several results get a set of sheets
+    each, named after the mode: "Reliability Summary", "Availability
+    Elements", ..."""
     path = Path(path)
-    write_xlsx(path, analytical_sheets(result))
+    batch = [results] if isinstance(results, dict) else list(results)
+    if not batch:
+        raise ValueError("no analytical results to export")
+    if len(batch) == 1:
+        write_xlsx(path, analytical_sheets(batch[0]))
+        return path
+    sheets = [replace(sheet, name=f"{label} {sheet.name}")
+              for label, result in zip(_labels(batch), batch)
+              for sheet in analytical_sheets(result)]
+    write_xlsx(path, sheets)
     return path
+
+
+def export_file_name(model: str, results: dict[str, Any]
+                     | Sequence[dict[str, Any]]) -> str:
+    """The workbook's default name: the model, the hierarchy if one was
+    solved on its own, and what is in it, e.g.
+    ``Plant_analytical_reliability.xlsx``,
+    ``Plant_h12_analytical_reliability_availability.xlsx``,
+    ``Plant_analytical_reliability_phase2.xlsx``,
+    ``Plant_analytical_reliability_all_phases.xlsx``."""
+    from raptor.api.table_export import safe_stem
+    batch = [results] if isinstance(results, dict) else list(results)
+    stem = safe_stem(model)
+    hierarchies = {r.get("hierarchy") for r in batch}
+    if len(hierarchies) == 1 and None not in hierarchies:
+        stem += "_h" + safe_stem(str(next(iter(hierarchies))))
+    modes = list(dict.fromkeys(str(r["mode"]) for r in batch))
+    phases = {_phase(r) for r in batch}
+    kind = "_".join(sorted(modes, key=("reliability", "availability").index))
+    if len(phases) > 1:
+        kind += "_all_phases"
+    elif len(modes) * len(phases) != len(batch):
+        kind = f"{len(batch)}_results"
+    elif None not in phases:
+        kind += f"_phase{next(iter(phases))}"
+    return f"{stem}_analytical_{kind}.xlsx"

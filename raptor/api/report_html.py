@@ -389,9 +389,11 @@ table.info th { text-align: left; font-weight: 600; color: #535e68;
 table.info td { padding: 1mm 0; border-bottom: 1px solid #edeef0; }
 table.info tr:nth-child(even) td { background: none; }
 .cards { display: flex; flex-wrap: wrap; gap: 4mm; }
-.card { border: 1px solid #e0e2e6; border-left: 3px solid #fb923c;
-        border-radius: 2mm; padding: 3mm 4mm; width: 46mm;
-        background: #fbfbfb; }
+/* The application's light-theme metric card: canvas fill and border
+   (design_tokens "canvas" #EDF2F7, "border" #D7E0E8). */
+.card { border: 1px solid #d7e0e8; border-radius: 2mm;
+        padding: 3mm 4mm; width: 46mm; background: #edf2f7;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .card .k { font-size: 8pt; color: #6f7c8a; text-transform: uppercase;
            letter-spacing: 0.04em; }
 .card .v { font-size: 16pt; font-weight: 600; color: #23282c;

@@ -4,8 +4,10 @@ RAPTOR Studio can evaluate a coherent RBD **exactly**, without sampling, for
 the subset of models where a static answer exists. The solver is separate
 from the simulation engine. It is reached from **Results ▸ Analytical…** in
 the application, with `raptor analytic` on the
-command line, through the MCP tool `analytical_analysis`, and through
-`raptor.api.analytical.analyse`.
+command line, through the MCP tools `analytical_analysis` (the result) and
+`export_analytical` (a spreadsheet), and through
+`raptor.api.analytical.analyse`. All four take the same settings and give
+the same numbers.
 
 The solver is not a replacement for simulation. It answers a smaller
 question and says so when the model is outside its assumptions.
@@ -107,6 +109,21 @@ The steady-state result is not the finite-horizon number a simulation
 reports. Use simulation when you need the startup transient, PM, crews,
 spares or repair queues.
 
+### Both modes at once
+
+```bash
+raptor analytic new_docs/models/Lantern1.rbds --mode both --xlsx .
+```
+
+`--mode both` solves reliability and then availability with the same
+settings; the reliability-only ones (`--at`, `--times`, `--bx`, `--tau`,
+ignoring repairs) apply to the reliability solve only. Text output prints
+both summaries, `-f json` gives `{"results": [reliability, availability]}`,
+and `-f csv` adds a leading `mode` column. In MCP, `export_analytical` takes
+`modes=["reliability", "availability"]`; in the application, use
+**Export ▸ Reliability and availability…** on a result. The API is
+`raptor.api.analytical.analyse_modes`.
+
 ## Leaving things out: ignore, phase, standby and dependencies
 
 Instead of refusing, the solver can be told what to assume. Each choice is
@@ -127,7 +144,13 @@ model is never changed.
   is out of the circuit (no path through it), a Linked block is bypassed
   (perfect), a node uses the phase's k-of-n requirement, and an event takes
   the phase's success probability. A phased model with no phase chosen is
-  refused.
+  refused. `--phase all` (MCP `export_analytical(phase="all")`, and *All
+  phases, one at a time* in the application) solves each phase on its own,
+  one result per phase; the changes from one phase to the next are still
+  not modelled. The application shows one phase at a time (*Showing
+  phase* above the tabs) and exports them all, a set of sheets each
+  ("Phase 2 Summary"); `-f json` gives `{"results": [...]}` and `-f csv` a
+  `phase` column.
 - **Standby** (`--standby active|absent`): cold-standby nodes are refused
   unless you choose. `active` treats every standby path as fully in service
   (an ordinary parallel path); `absent` keeps only the first k paths in
@@ -176,23 +199,79 @@ availability.
 
 ### Progress and limits
 
-The application shows a determinate progress bar while the BDD is built and
-while importance measures are calculated. It reports the graph nodes visited
-and the current BDD node count, so a long build is visible rather than an
-indefinite spinner.
+Progress is one percentage for the whole solve, the same in the
+application, on the command line and in MCP. A solve builds the diagram
+and then works the results out from it. The size of the diagram is not
+known until it is built, but the split between the two is: building costs
+about 100 times as much per node as one walk over the finished diagram,
+so the build's share is about 100 / (100 + walks), whatever the size.
+The walks are known from the settings (about 900 for MTTF, 360 per BX
+percentage, one per curve point, two per element for importance). On the
+BESS model with importance the build is about 3 % of the solve; in
+availability mode without importance it is nearly all of it. The figure
+never goes back: MTTF and BX are adaptive, and when one runs long the
+figure holds rather than steps back.
 
-On the command line, `--progress auto` draws a bar on a terminal,
-`--progress json` writes one JSON event per line to stderr, and
-`--progress none` is silent. Progress never goes to stdout, so `-f json`
-stays parseable.
+Beside the figure is the stage: the nodes so far and their memory while
+building, then reliability, MTTF, BX life, the curve and importance, each
+with the time left. Importance on a large diagram can be the longest
+stage (25-45 s for the 476,000-node BESS model); its walks are counted as
+they finish.
 
-Resource bounds: 5,000 blocks/events and 2,000,000 BDD nodes by default.
-Raise them per call with `raptor analytic --max-variables N` and
-`--max-bdd-nodes N`, or in the application under Settings ▸ Limits. Raising
-a limit does not make an intractable diagram tractable: the BDD can grow
-exponentially, and the solver refuses rather than approximate. For a large
-model with repeated hierarchy blocks, solve the series submodels separately
-and combine them; the result is exact for the decomposition.
+On the command line, `--progress auto` draws a one-line bar on a
+terminal, `--progress json` writes one JSON event per line to stderr
+(`done` of `total` = 1000 is the figure), and `--progress none` is silent.
+Progress never goes to stdout, so `-f json` stays parseable. MCP sends the
+figure as progress notifications, with the percentage and stage in the
+message.
+
+### How large the diagram may grow
+
+The solver works on a BDD, a diagram of which combinations of working and
+failed elements keep the system up. Its size depends on the structure, not
+just the number of blocks.
+
+**Before building**, the solver checks the structure and reports a size
+outlook (the application shows it as "Diagram size: …"; the CLI and MCP get
+it as a progress message, and a size refusal repeats it):
+
+- If no junction's inputs share blocks, the diagram grows with the size of
+  the model, not exponentially. Blocks that every input reaches through one
+  common element (a feeder in series ahead of a k-of-n stage, say) do not
+  count: the solver factors that element out exactly, as
+  `cond(J) = cond(D) AND cond(J with D working)`.
+- Otherwise it names the junctions whose inputs share blocks, worst first
+  (k-of-n with 1 < k < n grows fastest). That is a warning sign, not a
+  forecast: the exact size is only known by building.
+
+**While building**, the progress line shows the nodes so far and their
+memory, and says when the build has used most of its limit with most of the
+junctions still to go.
+
+**The limit** is 5,000 blocks/events and 2,000,000 BDD nodes by default:
+a few seconds and well under 1 GB. Raise it per call with
+`raptor analytic --max-variables N` and `--max-bdd-nodes N`, with the MCP
+`max_variables` / `max_bdd_nodes` arguments, or in the application under
+Show advanced settings ▸ Limits, which shows the memory a limit needs. The
+most this machine allows is half of the memory free at the time, at about
+350 bytes per node (8,000,000 when free memory cannot be read); anything
+higher is refused before solving, because a diagram that outgrows memory
+gets the application killed by the operating system. A size refusal says
+how far the build got, and the application offers a step up.
+
+A larger diagram is slower to use as well as to build. The results walk
+it many times: twice per element for importance, once per curve point,
+about 350 times per BX percentage, and hundreds to over a thousand times
+for MTTF. The walks
+are vectorised with NumPy: every node that tests the same element is worked
+out at once, and many walks (all the importance cases, all the curve
+points, one level of the MTTF integration) share one pass, which made
+evaluation 8-20 times faster on the large example models. The progress
+line counts the walks and estimates the time left: MTTF and BX are
+adaptive, so their counts are guesses that grow if a stage runs long. Raising the limit does
+not make an intractable diagram tractable, and the solver refuses rather
+than approximate. Solving one hierarchy at a time is usually the better
+route for a large model.
 
 The solver also caps curve times and BX percentages. These are refusals, not
 approximations.
@@ -200,13 +279,22 @@ approximations.
 ## The application window
 
 **Results ▸ Analytical…** solves on a background thread, so the window stays
-responsive on a large diagram. Choose the mode, mission time (it defaults to
-the model's run length, and a model that is not time-terminated asks for
-one), optional curve times, BX percentages, which extras to include, which
+responsive on a large diagram. Nothing is solved on opening: a large model
+can take minutes. Choose the mode, mission time (it defaults to the model's
+run length, and a model that is not time-terminated asks for one), optional
+curve times, BX percentages, which extras to include, which
 simulation-only features to ignore and (when the model has them) which phase,
-standby and dependency treatment to use, then press **Compute**. Changing a
-setting after a result leaves the old result in place with a "press Compute"
-note rather than silently recomputing.
+standby and dependency treatment to use, then press **Compute** (or Enter).
+**Cancel**, or closing the window, stops a solve within about half a second.
+
+Choosing a different mode, treatment or option clears the result ("Ready to
+compute"), so an answer is never shown for settings it was not worked out
+for. A typed change (times, BX) leaves the result in place with a "press
+Compute" note. Results already worked out are kept while the window is
+open, for the model as it is: going back to earlier settings, or pressing
+Compute again, shows theirs at once. An edit to the model, or opening
+another model, starts over. The one-click fixes a refusal offers ("Ignore
+repairs and compute", "Choose a phase…") apply the fix and solve.
 
 When a phase, a standby or dependency treatment or any ignored feature was
 chosen, a note above the tabs says so ("This result assumes: Phase 3 (Cruise)
@@ -229,10 +317,20 @@ The result has these tabs:
 A model outside the solver's subset shows the reason, naming the first
 offending element, in place of the tabs. The window never changes the model.
 **Copy** puts the full-precision plain-text result on the clipboard, with a
-short note on what a BDD is at the top. **Export…** saves a spreadsheet
-(.xlsx) with Summary, Elements (with the importance measures), Curve,
-Equation and Assumptions sheets. The simulation's table export does not
-include analytical results; use this button for them.
+short note on what a BDD is at the top. **Export ▸ This result…** saves a
+spreadsheet (.xlsx) with Summary, Elements (with the importance measures),
+Curve, Equation and Assumptions sheets. **Export ▸ Reliability and
+availability…** saves the result shown and the other mode with the same
+settings in one workbook, a set of sheets each ("Reliability Summary",
+"Availability Elements", ...), as `--mode both` does on the command line.
+If the other mode has not been worked out, the window asks for the file,
+works it out (with the usual progress; the page keeps the result shown),
+then writes the workbook. The file is named after the model, the
+hierarchy if one was solved on its own, and the modes:
+`Plant_analytical_reliability.xlsx`,
+`Plant_h12_analytical_reliability_availability.xlsx`. The simulation's table export does not
+include analytical results; use this button, `raptor analytic --xlsx` or
+the MCP tool `export_analytical` for them.
 
 **Results ▸ Availability and Criticality…** (simulation metrics) has its own
 **Copy** (the visible tab, tab-separated) and **Export…** (both tabs, .xlsx).
@@ -274,11 +372,16 @@ No rebuild is needed. Open an existing model exactly as before:
 
 - a legacy `.rbd` loads with the new age settings at their defaults
   (`duty_cycle = 1`, `start_age = 0`, `restoration_factor = 0`,
-  `restoration_type = 1`);
-- an older `.rbds` (version 1 or 2) loads unchanged; the next save writes
-  version 3, including any non-default age fields;
+  `restoration_type = 0`, which is off);
+- an older `.rbds` (version 1 or 2) loads unchanged;
+- an older `.rbds` (version 3 or earlier) is read as it was written: a
+  restoration factor of 0 is off, and a factor saved without a type is
+  Type I; the next save writes version 4;
 - a model with `PM Refresh` already on keeps its existing as-good-as-new
-  behaviour; restoration factor only matters when it is non-zero.
+  PM; restoration only applies when the restoration type is Type I or
+  Type II;
+- availability mode refuses a block with restoration Type I or II and a
+  factor below 1, because a repair then leaves the block partly worn.
 
 The legacy `.rbd` format has no columns for the age settings. Saving an
 edited model to `.rbd` drops them (the application warns before doing so).
@@ -299,6 +402,15 @@ result = analyse(workspace, model_id, mode="reliability", at=48.0,
 
 The result is JSON-safe: undefined values are `null`, never NaN or Infinity.
 The schema string is `raptor-analytic/1`.
+
+```python
+from raptor.api.analytical import analyse_modes
+from raptor.api.analytical_export import export_file_name, export_xlsx
+
+results = analyse_modes(workspace, model_id, ["reliability", "availability"],
+                        bx=[10])
+export_xlsx(results, export_file_name("Lantern1", results))
+```
 
 ## Validation
 

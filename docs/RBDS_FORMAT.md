@@ -172,9 +172,9 @@ rather than left to auto-assignment.
 | pm_duration_dist, pm_params | int, [f,f,f] | 19, [1,0,0] | how long a PM takes |
 | pm_triggered, pm_trigger | bool, str | false, "none" | PM is started by the named trigger instead of the interval |
 | pm_spare | bool | false | needs a spare to conduct PM |
-| pm_refresh | bool | false | after a PM the block is refreshed like new (equivalent to restoration factor 1) |
-| restoration_factor | float | 0 | fraction of accumulated age removed by PM/repair: 0 = none (age kept), 1 = as good as new (age reset); 0.7 leaves 30% of the age |
-| restoration_type | int | 1 | 1 = Kijima Type I (restore damage since the last action), 2 = Kijima Type II (restore a fraction of total age) |
+| pm_refresh | bool | false | after a PM the block is as good as new, whatever the restoration settings |
+| restoration_type | int | 0 | what a repair (or a PM with `pm_refresh` off) does to the block's age: 0 = off (Raptor's own behaviour: a repair is as good as new, a PM follows `pm_refresh`), 1 = Kijima Type I (remove part of the age added since the previous repair or PM), 2 = Kijima Type II (remove part of the whole age) |
+| restoration_factor | float | 0 | share of the age a repair or PM removes, used only with `restoration_type` 1 or 2: 0 = none (as bad as old), 1 = all (as good as new); 0.7 removes 70% and leaves 30%. A factor with `restoration_type` 0 is refused by validation |
 | pm_mis_defer | bool | false | defer PM until a non-mission phase (phased models) |
 | pm_fail_reset | bool | false | a failure resets the time to the next PM |
 | pm_req_defer | bool | false | defer PM until a spare or the resources are available |
@@ -716,7 +716,12 @@ extension namespace: kept, and never warned about.
   file's `defaults`, which a version-1 reader would have filled from the
   wrong row. Version 3 added the `.rbds`-only age fields (`duty_cycle`,
   `start_age`, `restoration_factor`, `restoration_type`), which a version-2
-  reader would reject under its `additionalProperties: false` schema. A
+  reader would reject under its `additionalProperties: false` schema.
+  Version 4 made `restoration_type` 0 (off) the default, so a
+  `restoration_factor` of 0 with Type I or II now means "age kept". Up to
+  version 3 a factor of 0 meant off and a factor without a type meant Type I;
+  a reader reads an older file that way, and a version-3 reader would read a
+  version-4 factor with the type left out (off) as Type I. A
   reader refuses a `version` newer than its own, saying which RAPTOR Studio
   saved the file.
 * Writers emit one value per setting and never a value the reader computes

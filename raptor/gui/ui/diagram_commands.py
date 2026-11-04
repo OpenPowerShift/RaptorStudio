@@ -1,6 +1,7 @@
 """Undo commands for the diagram canvas: each captures the old value and
 re-applies via the view's `_apply_*` helpers or its file rows."""
 from __future__ import annotations
+from typing import Any
 from PySide6.QtGui import (
     QUndoCommand,
 )
@@ -13,6 +14,7 @@ from raptor.gui.ui.diagram_common import (  # noqa: I001
     _PARENT_COLS,
     _safe_int,
 )
+from raptor.gui.ui.diagram_items import links_affected_by_moving
 
 
 # --- Undo/redo commands -------------------------------------------------
@@ -177,6 +179,9 @@ class MoveCmd(_ViewCmd):
     def __init__(self, view, moves):
         super().__init__(view, "Move elements")
         self.moves = moves  # [(kind, id, (old_sx, old_sy), (new_sx, new_sy))]
+        #: (kind, id) of every element this gesture places -- all of them
+        #: need their file row updated, on undo/redo too.
+        self.keys = {(kind, oid) for kind, oid, _old, _new in moves}
 
     def _place(self, poses):
         v = self._v
@@ -229,8 +234,23 @@ class MoveCmd(_ViewCmd):
                         obj.y_position = v._flip_base - sy / v._scale
         finally:
             v._snap_state["x"], v._snap_state["y"] = saved_snap
-        v._write_positions_to_rows()       # the rows move with the canvas
-        for link in v._links:
+        # The rows move with the canvas -- only those of the elements this
+        # command placed, not every row in the file.
+        v._write_positions_to_rows(self.keys)
+        # Re-route only the links this move can change. Re-routing every
+        # link cost ~0.7 ms each: 2 s on a 3,000-link model, on every
+        # drag release and every undo/redo of a drag.
+        affected: dict[int, Any] = {}
+        for kind, oid, _sx, _sy in self.moves:
+            item = (v._block_items.get(oid) if kind == "block"
+                    else v._node_items.get(oid) if kind == "node"
+                    else v._event_items.get(oid) if kind == "event"
+                    else v._hier_items.get(oid))
+            if item is None:
+                continue
+            for link in links_affected_by_moving(item):
+                affected[id(link)] = link
+        for link in affected.values():
             link._update_route()
         # Annotations anchored to these elements go with them; on undo too,
         # since their place is a function of the element's.
@@ -259,11 +279,15 @@ class BulkGeometryCmd(_ViewCmd):
     changed_signal = "layout_changed"
     needs_rule_check = False
 
-    def __init__(self, view, text, old, new):
+    def __init__(self, view, text, old, new, keys=None):
         super().__init__(view, text)
         # [(item, QPointF), ...]
         self.old = list(old)
         self.new = list(new)
+        #: (kind, id) of the moved elements, when the caller could name
+        #: every one of them; None means "sync the whole level" (some
+        #: kinds, annotations among them, are not in the position map).
+        self.keys = set(keys) if keys is not None else None
 
     def _place(self, states):
         v = self._v
@@ -279,7 +303,7 @@ class BulkGeometryCmd(_ViewCmd):
                     continue   # deleted C++ object
         finally:
             v._snap_state["x"], v._snap_state["y"] = saved_snap
-        v.sync_model_positions()
+        v.sync_model_positions(only=self.keys)
         follow = getattr(v, "follow_anchors", None)
         if follow is not None:
             follow()
@@ -626,6 +650,32 @@ class ReParentCmd(_ViewCmd):
     def undo(self):
         self._apply(False)
         self._done()
+
+class RouteGripCmd(_ViewCmd):
+    """Add or remove one GUI-only link grip (a dog-leg drag point).
+
+    The grip is drawing state, so the command uses the layout-only signal
+    and skips Raptor's input-rule gate: no model row changes and no
+    simulation reads it.
+    """
+
+    changed_signal = "layout_changed"
+    needs_rule_check = False
+
+    def __init__(self, view, entry: dict, *, add: bool):
+        super().__init__(view, "Add routing point" if add
+                         else "Remove routing point")
+        self.entry = dict(entry)
+        self.add = add
+
+    def redo(self):
+        self._v._apply_route_grip(self.entry, self.add)
+        self._done()
+
+    def undo(self):
+        self._v._apply_route_grip(self.entry, not self.add)
+        self._done()
+
 
 class TableCellCmd(_ViewCmd):
     """Single-cell edit in a name-keyed row (spare/resource pools,

@@ -7,8 +7,8 @@ Raptor 7 workbook: new structure, new examples, new model files. Written in Simp
 ## Layout
 
     book.adoc            master document (renders the whole book)
-    chapters/            23 chapters (ch00–ch16 + ch-dependency + ch-events
-                         + ch-phasing + ch-transients + ch-capstone-line
+    chapters/            24 chapters (ch00–ch16 + ch-dependency + ch-events
+                         + ch-phasing + ch-transients + ch-exact + ch-capstone-line
                          + ch-capstone-flight) + 3 appendices (glossary,
                          IEC 61078, developer options) — reading order
                          is book.adoc's own include:: list, not filename

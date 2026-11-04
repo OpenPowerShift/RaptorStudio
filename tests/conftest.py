@@ -84,6 +84,23 @@ def _open_models_in_new_windows():
     QSettings().remove("files/open_in")
 
 
+@pytest.fixture(autouse=True)
+def _default_link_routing():
+    """The canvas's page-flow direction and link style back to their
+    defaults after each test. Both are module-wide (`diagram_items._FLOW`,
+    `_ROUTING`): Auto Layout and the View ribbon set them, so a test that
+    laid out a model top-to-bottom left every later test on that worker
+    routing links for TB, and the port-side tests failed in CI's shards
+    though they passed alone."""
+    from raptor.gui.ui import diagram_items
+    flow, routing = dict(diagram_items._FLOW), dict(diagram_items._ROUTING)
+    yield
+    diagram_items._FLOW.clear()
+    diagram_items._FLOW.update(flow)
+    diagram_items._ROUTING.clear()
+    diagram_items._ROUTING.update(routing)
+
+
 #: The real `MainWindow._recovery_path`, kept before the session patch below
 #: so a test of the per-window file naming can call it.
 _ORIGINAL_RECOVERY_PATH: list = []

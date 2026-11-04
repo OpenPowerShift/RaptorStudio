@@ -412,3 +412,29 @@ def test_the_minimap_does_not_listen_to_the_scenes_changed_signal(dock):
     # Only Qt's own view connections (one per QGraphicsView); none of ours.
     assert not hasattr(dock._minimap, "_on_scene_changed")
     assert receivers <= 2
+
+
+def test_the_poll_fingerprint_does_not_walk_every_element(dock, monkeypatch):
+    """The 200 ms poll used to hash every element's position, so an idle
+    10,000-element canvas did tens of thousands of operations a second for
+    an unchanged picture. It now reads the view's layout generation."""
+    v, mm = _zoomed(dock)
+
+    def boom(*_args):                 # the fallback's per-item walk
+        raise AssertionError("the fingerprint walked every element")
+
+    monkeypatch.setattr("raptor.gui.ui.diagram.isValid", boom)
+    sig = mm._scene_signature()
+    assert sig[0] == (len(v._block_items) + len(v._node_items)
+                      + len(v._event_items) + len(v._hier_items))
+    assert sig[1] == v._layout_generation
+    assert sig[2] == len(v._links)
+
+
+def test_the_layout_generation_follows_a_move(dock):
+    v, mm = _zoomed(dock)
+    before = v._layout_generation
+    item = next(iter(v._block_items.values()))
+    item.setPos(item.pos().x() + 15, item.pos().y())
+    assert v._layout_generation > before
+    assert mm._scene_signature()[1] == v._layout_generation

@@ -466,10 +466,17 @@ and does not change the model. Choose <strong>Reliability</strong> for a non-rep
 <code>R(t)</code> (PDF, hazard, MTTF, BX life, conditional reliability, exact importance)
 or <strong>Availability</strong> for steady-state availability with independent, perfectly
 repaired components. The mission time (default: the run length) and optional
-curve times are entered in the dialog; BX percentages default to 10. The
-solve runs in the background and the result is shown as headline figures, a
-sortable per-element table of importance measures, a reliability curve, the
-exact equation and the assumptions behind the answer. Components are treated
+curve times are entered in the dialog; BX percentages default to 10.
+Nothing is solved until you press <strong>Compute</strong>: a large model can take
+minutes. The solve runs in the background, with the step (building the
+diagram, then working out the results), a percentage and the time left
+beside the button; <strong>Cancel</strong>, or closing the window, stops it. The result
+is shown as headline figures, a sortable per-element table of importance
+measures, a reliability curve, the exact equation and the assumptions
+behind the answer. Choosing a different treatment or option clears the
+result until you compute again; results already worked out are kept, so
+going back to earlier settings shows theirs at once. Opening another model
+starts the dialog over. Components are treated
 as independent, whatever random-number streams they use.</p>
 </div>
 <div class="paragraph">
@@ -480,11 +487,19 @@ refuses dependencies, cold standby and phases until you choose a treatment.
 The <strong>Ignore</strong> row
 (Repairs, Preventive maintenance, Spares, Resources) drops that behaviour
 instead of refusing, <strong>Phase</strong> analyses a phased model as if it stayed in one
-phase, <strong>Standby</strong> treats cold-standby paths as fully in service or as
+phase (or each phase on its own with <strong>All phases, one at a time</strong>: pick
+the phase to show in <strong>Showing phase</strong> above the tabs; Export saves them
+all), <strong>Standby</strong> treats cold-standby paths as fully in service or as
 absent, and <strong>Dependencies</strong> treats every dependency as up (analyse the
 dependent element&#8217;s own law) or down (remove it from the success path); each
-choice is listed under the assumptions. <strong>Copy</strong> and
-<strong>Export…</strong> (a spreadsheet) save the result. The full scope and the API
+choice is listed under the assumptions. <strong>Copy</strong> puts the result on the
+clipboard; <strong>Export ▸ This result…</strong> saves it as a spreadsheet, and
+<strong>Export ▸ Reliability and availability…</strong> saves it with the other mode
+(same settings, worked out first if need be) in one workbook, named after
+the model and the modes, e.g.
+<code>Plant_analytical_reliability_availability.xlsx</code>. The same is on the
+command line (<code>raptor analytic --mode both --xlsx out/</code>) and in MCP
+(<code>export_analytical</code>). The full scope and the API
 are in <a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md">the analytical solver guide</a>.</p>
 </div>
 <div class="paragraph">
@@ -1098,7 +1113,23 @@ the phases (applying each phase&#8217;s Cut, Linked and stress changes),
 opens the system-status summary (failed components, induced failures,
 down and degraded nodes, system colour) and <strong>Log</strong> appends the same
 text to a file, byte for byte what a Failure Effects log contains. They sit on the
-<strong>Debug</strong> tab beside the stepping verbs. Failure Effects View and a run
+<strong>Debug</strong> tab beside the stepping verbs.</p>
+</div>
+<div class="paragraph">
+<p>While the view is open, the <strong>Failure Effects</strong> panel (a tab beside the
+Inspector; <strong>View ▸ Panels ▸ Failure Effects</strong> hides or shows it) gives
+the same state as a table that updates on every click. A badge and a
+headline give the system colour and counts ("Red · 1 failed block").
+The rows are grouped: <strong>System</strong> (status, the phase on a phased model),
+<strong>Failures</strong> (failed, induced, idle, PM, cut and linked elements, each
+with its state), <strong>Effects</strong> (down and degraded nodes and subsystems)
+and <strong>Capacity</strong> (delivered and lost flow and each node&#8217;s flow, when
+capacity analysis is on). Right-click a row and choose <strong>Go to element</strong>
+to open its hierarchy and select it on the canvas. <strong>Copy selected</strong> and
+<strong>Copy all</strong> copy rows as tab-separated text for a spreadsheet (with a
+Category column giving Raptor 7&#8217;s list name, such as "Induced
+failures"); <strong>Copy summary</strong> copies the full status text, as <strong>Log</strong>
+writes it. Failure Effects View and a run
 are separate modes: Run and Step are unavailable while it is open, and
 editing the model closes it. <code>raptor fev</code> does the same from the
 command line. The Weak Link, Capacity and Cost switches are run
@@ -1696,13 +1727,33 @@ current value).</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Auto Layout</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Rearrange by graph flow (columns left-to-right). Selections are laid out alone. (Ctrl+L)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rearrange the current hierarchy by graph flow. Direction and column wrap are in the Layout group. (Ctrl+L)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+L</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Snap to Grid</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Align dragged/placed items to the grid (new work only — opened files are never reshuffled)</p></td>
 <td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Layout max series elements per band</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Maximum number of series elements per band (elements one after another; parallel branches share a position). 0 = fit Raptor&#8217;s canvas width.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">number, now 0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Auto Layout spacing</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Gap scale for Auto Layout: 1 = nominal, lower = more compact, higher = more open.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">number, now 1</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Layout direction</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Auto Layout flow: left-to-right (default), right-to-left, top-to-bottom or bottom-to-top.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice, now Left → right</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Auto Layout label side</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Where above/below labels go when the flow is top-to-bottom: Auto (right for TB, left for BT), Left or Right.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice, now Auto</p></td>
 </tr>
 </tbody>
 </table>
@@ -2435,6 +2486,11 @@ current value).</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Preferences…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Preferences: defaults for new models, working habits, this model&#8217;s display unit, advanced and developer options</p></td>
 <td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Link style</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice, now Straight</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Block labels</p></td>

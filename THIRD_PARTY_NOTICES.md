@@ -20,6 +20,7 @@ texts in `third_party_licenses/GNU/` (the Qt for Python wheels carry no licence 
 | fontTools | MIT | WeasyPrint font subsetting | https://github.com/fonttools/fonttools |
 | Pillow | MIT-CMU | WeasyPrint images | https://github.com/python-pillow/Pillow |
 | cffi, pycparser | MIT-0, BSD-3-Clause | WeasyPrint's binding to Pango | https://github.com/python-cffi/cffi |
+| NumPy | BSD-3-Clause; its wheels bundle OpenBLAS (BSD-3-Clause) and, on Linux and Windows, the GCC runtime libraries (GPL-3.0 with the GCC Runtime Library Exception) | The analytical solver's vectorised BDD evaluation | https://github.com/numpy/numpy |
 | MathJax | Apache-2.0 | Offline typesetting of the formulas page (`docs/js/mathjax/LICENSE`) | https://github.com/mathjax/MathJax |
 | GTK 3 runtime for Windows: GLib, Pango, Cairo, HarfBuzz, FreeType, Fontconfig and their dependencies | LGPL-2.1-or-later (GLib, Pango, GTK), LGPL-2.1 or MPL-1.1 (Cairo), MIT (HarfBuzz, Fontconfig), FreeType License | WeasyPrint's text layout, **Windows installer only** | https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer |
 | Python | PSF-2.0 | The runtime inside the installers | https://www.python.org |

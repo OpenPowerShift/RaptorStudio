@@ -12,6 +12,7 @@ result would not prove anything.
 from __future__ import annotations
 
 import math
+import time
 from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 
@@ -20,8 +21,9 @@ from raptor.core.model import ActiveStatus, RBDBlock, RBDEvent
 from raptor.core.rng import Distribution as RngDistribution
 
 from . import survival
-from .bdd import BDD, FALSE, MAX_BDD_NODES, TRUE
-from .errors import NotApplicable
+from .bdd import BDD, FALSE, MAX_BDD_NODES, TRUE, recursion_headroom
+from .errors import BddTooLarge, NotApplicable
+from .limits import memory_text
 
 #: Engine values that mean "no spare constraint".
 _INFINITE_SPARING = "INFINITE"
@@ -264,95 +266,143 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
     total_nodes = max(1, len(model.nodes_by_id))
     done = [0]
 
+
     def bdd_progress(count: int) -> None:
         if progress is not None:
-            progress(f"Building BDD ({count:,} nodes)", done[0], total_nodes)
+            progress(_build_stage(count, done[0], total_nodes, max_bdd_nodes,
+                                  time.monotonic() - build_began),
+                     done[0], total_nodes)
 
+    build_began = time.monotonic()
     bdd = BDD(max_nodes=max_bdd_nodes, progress=bdd_progress)
     # Reverse the first-encounter order for BDD indices. A series chain then
     # adds each new variable BELOW the existing diagram, which is linear;
     # adding it above would rebuild the whole chain (quadratic nodes).
-    var_index = {key: len(order) - 1 - i for i, key in enumerate(order)}
+    var_index = _variable_index(order, end, incoming, block_in)
     x = {key: bdd.variable(i) for key, i in var_index.items()}
 
-    node_memo: dict[int, int] = {}
-    visiting: set[int] = set()
     standby_absent: set[tuple[str, int]] = set()
+    # Dominator factoring. If every path into a junction J passes through one
+    # element D (D dominates J), then exactly
+    #     cond(J) = cond(D) AND cond(J with D taken as working),
+    # because each input's condition is cond(D) AND a local part, and
+    # threshold(cond(D) AND local_i, k) = cond(D) AND threshold(local_i, k)
+    # for k >= 1. Building the k-of-n over the small local parts, rather
+    # than over inputs that each carry D's whole upstream, keeps the build
+    # from creating millions of intermediate nodes. A node forced TRUE in
+    # the middle of the graph (a phase-linked hierarchy Out) breaks the
+    # identity, so such a model is built without factoring.
+    start_key = ("RBDNode", start)
+    factor_ok = not any(
+        node.type_node == 5 and scope.phase is not None
+        and _node_k(node, scope, len(incoming.get(node_id, []))) <= 0
+        for node_id, node in model.nodes_by_id.items())
+    idom = _immediate_dominators(start_key, incoming, block_in) \
+        if factor_ok else {}
+    outlook = size_outlook(model, order, incoming, block_in, scope, idom)
+    if progress is not None:
+        progress("Outlook: " + outlook.text(), 0, 0)
+    Key = tuple[str, int]
+    node_memo: dict[tuple[int, Key | None], int] = {}
+    visiting: set[tuple[int, Key | None]] = set()
+    finished: set[int] = set()
 
-    def input_condition(kind: str, ident: int) -> int:
+    def element_condition(kind: str, ident: int, cut: Key | None) -> int:
+        """When ``kind ident`` passes a signal, given ``cut`` works."""
+        if cut is not None and (kind, ident) == cut:
+            return TRUE
+        if kind == "RBDNode":
+            return node_condition(ident, cut)
+        if kind in ("RBDBlock", "RBDEvent"):
+            variable = x.get((kind, ident))
+            if variable is None:
+                # Not reachable from Start, so it can never carry a signal.
+                return FALSE
+            return bdd.And(input_condition(kind, ident, cut), variable)
+        raise NotApplicable(f"unresolved {kind} {ident}")
+
+    def input_condition(kind: str, ident: int, cut: Key | None) -> int:
         link = block_in.get((kind, ident))
         if link is None:
             raise NotApplicable(
                 f"{kind} {ident} has no input link; the analytical solver "
                 "needs a single Start-to-End path")
-        return branch_condition(link)
+        return branch_condition(link, cut)
 
-    def branch_condition(link) -> int:
+    def branch_condition(link, cut: Key | None) -> int:
         """The condition under which ``link`` carries a Start-to-End signal."""
         if scope.dependencies == "down" and (
                 getattr(link, "switch_status", False)
                 or getattr(link, "sb_link", False)):
             return FALSE
         source_kind, source_id = _link_source(link)
-        if source_kind == "RBDNode":
-            return node_condition(source_id)
-        if source_kind in ("RBDBlock", "RBDEvent"):
-            variable = x.get((source_kind, source_id))
-            if variable is None:
-                # Not reachable from Start, so it can never carry a signal.
-                return FALSE
-            return bdd.And(input_condition(source_kind, source_id), variable)
+        if source_kind in ("RBDNode", "RBDBlock", "RBDEvent"):
+            return element_condition(source_kind, source_id, cut)
         raise NotApplicable(
             f"link {link.object_num} has an unresolved {source_kind} source")
 
-    def node_condition(node_id: int) -> int:  # noqa: C901, PLR0912
-        got = node_memo.get(node_id)
+    def _finish(node_id: int, key: tuple[int, Key | None], out: int) -> int:
+        visiting.discard(key)
+        node_memo[key] = out
+        if node_id not in finished:
+            finished.add(node_id)
+            done[0] += 1
+            if progress is not None:
+                progress(_build_stage(bdd.node_count, done[0], total_nodes,
+                                      max_bdd_nodes,
+                                      time.monotonic() - build_began), done[0], total_nodes)
+        return out
+
+    def node_condition(node_id: int, cut: Key | None = None) -> int:  # noqa: C901, PLR0912
+        key = (node_id, cut)
+        got = node_memo.get(key)
         if got is not None:
             return got
-        if node_id in visiting:
+        if key in visiting:
             raise NotApplicable(
                 f"node {node_id} is part of a cycle; the analytical solver "
                 "needs an acyclic RBD")
-        visiting.add(node_id)
+        visiting.add(key)
         node = model.nodes_by_id[node_id]
         if has_node_dependency(node) and scope.dependencies == "down":
             # The caller asked to force every dependent element down: a
             # dependent junction cannot carry a success path.
-            out = FALSE
-            visiting.remove(node_id)
-            node_memo[node_id] = out
-            done[0] += 1
-            if progress is not None:
-                progress(f"Building BDD ({bdd.node_count:,} nodes)",
-                         done[0], total_nodes)
-            return out
+            return _finish(node_id, key, FALSE)
         if node.type_node == 1:
-            out = TRUE
+            return _finish(node_id, key, TRUE)
+        links = incoming.get(node_id, [])
+        k = _node_k(node, scope, len(links))
+        if k <= 0 and node.type_node == 5 and scope.phase is not None:
+            return _finish(node_id, key, TRUE)  # hierarchy Out Linked in this phase
+        if node.type_node == 3 or k <= 0:
+            k = 1
+        if node.cold_standby and scope.standby == "absent":
+            kept, dropped = _split_standby(node, links, k)
+            links = kept
+            for link in dropped:
+                kind, ident = _link_source(link)
+                if kind in ("RBDBlock", "RBDEvent"):
+                    standby_absent.add((kind, ident))
+        dom = idom.get(("RBDNode", node_id))
+        if dom is not None and dom != cut and dom != start_key:
+            # Factor out the dominator (see above): the junction relative to
+            # it, then AND with the dominator's own condition.
+            local = node_condition(node_id, dom)
+            out = bdd.And(element_condition(*dom, cut), local)
         else:
-            links = incoming.get(node_id, [])
-            k = _node_k(node, scope, len(links))
-            if k <= 0 and node.type_node == 5 and scope.phase is not None:
-                out = TRUE   # a hierarchy Out node Linked in this phase
-            else:
-                if node.type_node == 3 or k <= 0:
-                    k = 1
-                if node.cold_standby and scope.standby == "absent":
-                    kept, dropped = _split_standby(node, links, k)
-                    links = kept
-                    for link in dropped:
-                        kind, ident = _link_source(link)
-                        if kind in ("RBDBlock", "RBDEvent"):
-                            standby_absent.add((kind, ident))
-                out = bdd.threshold([branch_condition(link) for link in links], k)
-        visiting.remove(node_id)
-        node_memo[node_id] = out
-        done[0] += 1
-        if progress is not None:
-            progress(f"Building BDD ({bdd.node_count:,} nodes)",
-                     done[0], total_nodes)
-        return out
+            out = bdd.threshold([branch_condition(link, cut) for link in links], k)
+        return _finish(node_id, key, out)
 
-    root = node_condition(end)
+    try:
+        root = node_condition(end)
+    except BddTooLarge as exc:
+        # Name the junctions the pre-check expected to be large: they are
+        # the place to start (solve that hierarchy alone, or simplify it).
+        if outlook.risky:
+            raise BddTooLarge(f"{exc} {outlook.text()}", limit=exc.limit,
+                              seconds=exc.seconds,
+                              allowed=exc.allowed) from None
+        raise
     if progress is not None:
         progress("Building BDD", total_nodes, total_nodes)
 
@@ -400,10 +450,17 @@ def build(model: SimulationModel, *, mode: str = "reliability",  # noqa: C901, P
     ]
     if mode == "reliability":
         assumptions.append("no repairs: R(t) is the first-failure reliability")
-        assumptions.append(
-            "a block with a duty cycle ages at that fraction of calendar "
-            "time; a block with a start age is treated as having already "
-            "survived to that age, so its reliability is conditional on that")
+        # Only say it when it applies: listing it for every model read as
+        # though the model had duty cycles or start ages it does not have.
+        if any(info.duty_cycle != 1.0 for info in infos):
+            assumptions.append(
+                "a block with a duty cycle ages at that fraction of "
+                "calendar time")
+        if any(info.start_age > 0.0 for info in infos):
+            assumptions.append(
+                "a block with a start age is treated as having already "
+                "survived to that age, so its reliability is conditional "
+                "on that")
     else:
         assumptions.append(
             "steady state, perfect repair, independent alternating-renewal "
@@ -610,11 +667,12 @@ def _gate_block(block: RBDBlock, *, mode: str, scope: Scope) -> None:  # noqa: C
     else:  # availability
         if block.fail_distro == int(RngDistribution.NONE):
             return
-        if block.restoration_factor not in (0.0, 1.0):
+        if block.restoration_type in (1, 2) and block.restoration_factor < 1.0:
             raise NotApplicable(
-                f"{name} has restoration factor "
-                f"{block.restoration_factor!r}; availability mode assumes "
-                "perfect repair (factor 0 or 1)")
+                f"{name} uses a restoration factor of "
+                f"{block.restoration_factor!r}, so a repair leaves it partly "
+                "worn; availability mode assumes every repair is as good as "
+                "new (restoration off, or factor 1)")
         if block.repair_distro == int(RngDistribution.NONE):
             # A non-repairable block is allowed; it is simply down at steady
             # state. A parallel path can still keep the system up.
@@ -669,6 +727,198 @@ def _gate_event(event: RBDEvent, scope: Scope) -> None:
 # Graph indexing
 # ---------------------------------------------------------------------------
 
+def _immediate_dominators(start: tuple[str, int], incoming: dict,  # noqa: C901
+                          block_in: dict) -> dict[tuple[str, int], tuple[str, int]]:
+    """Immediate dominator of every element reachable from ``start``.
+
+    Cooper, Harvey and Kennedy's iterative algorithm over the element graph
+    (nodes, blocks and events). Element D dominates X when every path from
+    Start to X passes through D.
+    """
+    preds: dict[tuple[str, int], list[tuple[str, int]]] = {}
+    succs: dict[tuple[str, int], list[tuple[str, int]]] = {}
+
+    def add(src: tuple[str, int], dst: tuple[str, int]) -> None:
+        preds.setdefault(dst, []).append(src)
+        succs.setdefault(src, []).append(dst)
+
+    for node_id, links in incoming.items():
+        for link in links:
+            add(_link_source(link), ("RBDNode", node_id))
+    for key, link in block_in.items():
+        add(_link_source(link), key)
+    # Reverse postorder from Start (iterative DFS).
+    order: list[tuple[str, int]] = []
+    seen = {start}
+    stack = [(start, iter(succs.get(start, [])))]
+    while stack:
+        top, children = stack[-1]
+        child = next(children, None)
+        if child is None:
+            order.append(top)
+            stack.pop()
+        elif child not in seen:
+            seen.add(child)
+            stack.append((child, iter(succs.get(child, []))))
+    order.reverse()
+    index = {key: i for i, key in enumerate(order)}
+    dom: dict[tuple[str, int], tuple[str, int]] = {start: start}
+
+    def intersect(a: tuple[str, int], b: tuple[str, int]) -> tuple[str, int]:
+        while a != b:
+            while index[a] > index[b]:
+                a = dom[a]
+            while index[b] > index[a]:
+                b = dom[b]
+        return a
+
+    changed = True
+    while changed:
+        changed = False
+        for key in order[1:]:
+            ready = [p for p in preds.get(key, []) if p in dom and p in index]
+            if not ready:
+                continue
+            new = ready[0]
+            for other in ready[1:]:
+                new = intersect(other, new)
+            if dom.get(key) != new:
+                dom[key] = new
+                changed = True
+    dom.pop(start, None)
+    return dom
+
+
+def _build_stage(count: int, done: int, total: int, limit: int,
+                 elapsed: float = 0.0) -> str:
+    """The progress line while the diagram is built.
+
+    The size of a BDD cannot be known before it is built, so this reports
+    what is known (nodes so far, their memory, junctions done) with a rough
+    time left at the rate so far, and flags a build that has used most of
+    its limit with most of the junctions still to go: it is then unlikely
+    to finish within the limit. The time is rough because junctions differ
+    a great deal in cost.
+    """
+    text = f"Building BDD ({count:,} nodes, {memory_text(count)})"
+    if elapsed > 2.0 and total and done >= max(1, total // 20) and done < total:
+        left = elapsed * (total - done) / done
+        text += (f", roughly {round(left)} s left at this rate" if left < 90
+                 else f", roughly {round(left / 60)} min left at this rate")
+    if count > limit // 2 and done < total // 2:
+        text += (f" — {count / limit:.0%} of the limit used with "
+                 f"{done:,} of {total:,} junctions done; unlikely to finish "
+                 "within it")
+    return text
+
+
+@dataclass
+class SizeRisk:
+    """A junction whose inputs share blocks (see `size_outlook`)."""
+
+    name: str
+    k: int
+    inputs: int
+    shared: int
+
+    @property
+    def threshold(self) -> bool:
+        """k-of-n with 1 < k < n: the case that grows fastest."""
+        return 1 < self.k < self.inputs
+
+
+@dataclass
+class SizeOutlook:
+    """What the structure says about the diagram's size, before building."""
+
+    elements: int
+    risks: list[SizeRisk] = field(default_factory=list)
+
+    @property
+    def risky(self) -> bool:
+        return bool(self.risks)
+
+    def text(self) -> str:
+        if not self.risks:
+            return ("no junction's inputs share blocks (apart from a "
+                    "common element ahead of them, which is factored out), "
+                    "so the diagram grows with the size of the model, not "
+                    "exponentially.")
+        worst = self.risks[:3]
+        named = "; ".join(
+            f"{r.name} ({r.k} of {r.inputs}, inputs share {r.shared} "
+            f"block{'s' if r.shared != 1 else ''})" for r in worst)
+        more = (f" and {len(self.risks) - 3} more" if len(self.risks) > 3
+                else "")
+        kind = ("k-of-n junctions whose inputs share blocks"
+                if worst[0].threshold else
+                "junctions whose inputs share blocks")
+        return (f"the diagram may grow large: {kind}: {named}{more}. "
+                "Solving the hierarchy that holds them on its own usually "
+                "helps most.")
+
+
+def size_outlook(model: SimulationModel, order: list,  # noqa: C901
+                 incoming: dict, block_in: dict, scope: Scope,
+                 idom: dict | None = None) -> SizeOutlook:
+    """Find the junctions whose inputs share upstream blocks.
+
+    Cheap (bit masks) and done before the BDD is built. Blocks that every
+    input reaches through one element (the junction's dominator) are not
+    counted: the build factors them out. If no junction's inputs share
+    anything else, every merge combines independent parts and the diagram
+    stays small. A junction whose inputs do share blocks is where it can
+    grow, fastest for k-of-n with 1 < k < n. This is a warning sign, not a
+    forecast: the exact size is known only by building.
+    """
+    bit = {key: 1 << i for i, key in enumerate(order)}
+    memo: dict[tuple[tuple[str, int], tuple[str, int] | None], int] = {}
+    idom = idom or {}
+
+    def upstream(kind: str, ident: int, stop: tuple[str, int] | None) -> int:
+        key = (kind, ident)
+        if key == stop:
+            return 0
+        got = memo.get((key, stop))
+        if got is not None:
+            return got
+        memo[(key, stop)] = 0    # cycle guard; build() refuses cycles itself
+        if kind == "RBDNode":
+            mask = 0
+            for link in incoming.get(ident, []):
+                mask |= upstream(*_link_source(link), stop)
+        else:
+            mask = bit.get(key, 0)
+            link = block_in.get(key)
+            if link is not None:
+                mask |= upstream(*_link_source(link), stop)
+        memo[(key, stop)] = mask
+        return mask
+
+    risks: list[SizeRisk] = []
+    with recursion_headroom():
+        for node_id, links in incoming.items():
+            if len(links) < 2:
+                continue
+            seen = dup = 0
+            stop = idom.get(("RBDNode", node_id))
+            for link in links:
+                mask = upstream(*_link_source(link), stop)
+                dup |= seen & mask
+                seen |= mask
+            if not dup:
+                continue
+            node = model.nodes_by_id.get(node_id)
+            if node is None:
+                continue
+            k = max(1, _node_k(node, scope, len(links)))
+            risks.append(SizeRisk(
+                name=node.node_name or f"node {node_id}", k=k,
+                inputs=len(links), shared=bin(dup).count("1")))
+    risks.sort(key=lambda r: (not r.threshold, -r.shared * r.inputs, r.name))
+    return SizeOutlook(elements=len(order), risks=risks)
+
+
 def _index_links(model: SimulationModel):
     incoming: dict[int, list] = {}
     block_in: dict[tuple[str, int], object] = {}
@@ -713,6 +963,51 @@ def _link_target(link) -> tuple[str, int]:
             f"link {link.object_num} enters a hierarchy but was not resolved "
             "to its internal node")
     return kind, ident
+
+
+#: Which variable order the BDD uses (see `_variable_index`).
+VARIABLE_ORDER = "backward"
+
+
+def _variable_index(order: list[tuple[str, int]], end: int, incoming: dict,
+                    block_in: dict) -> dict[tuple[str, int], int]:
+    """BDD index of each variable (0 = top of the diagram).
+
+    "backward" (the default) numbers variables in the order the condition
+    walk meets them going back from End, each element before what feeds
+    it. A sub-network's variables then sit together, and an element sits
+    above everything upstream of it, so ANDing a junction's local part with
+    its dominator's condition stays cheap. This is the usual depth-first
+    ordering heuristic for fault-tree BDDs. "forward" is the earlier order:
+    first encounter going forward from Start, reversed. Variables only
+    reachable going forward (dead ends) go last.
+    """
+    if VARIABLE_ORDER == "forward":
+        return {key: len(order) - 1 - i for i, key in enumerate(order)}
+    wanted = set(order)
+    out: dict[tuple[str, int], int] = {}
+    seen_nodes: set[int] = set()
+    stack: list[tuple[str, int]] = [("RBDNode", end)]
+    while stack:
+        kind, ident = stack.pop()
+        if kind == "RBDNode":
+            if ident in seen_nodes:
+                continue
+            seen_nodes.add(ident)
+            links = incoming.get(ident, [])
+            stack.extend(_link_source(link) for link in reversed(links))
+            continue
+        key = (kind, ident)
+        if key in out or key not in wanted:
+            continue
+        out[key] = len(out)
+        link = block_in.get(key)
+        if link is not None:
+            stack.append(_link_source(link))
+    for key in order:
+        if key not in out:
+            out[key] = len(out)
+    return out
 
 
 def _variable_order(model: SimulationModel,  # noqa: C901

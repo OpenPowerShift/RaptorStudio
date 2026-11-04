@@ -226,9 +226,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Auto Layout",
         icon="autolayout_icon:accent",
         tooltip=(
-            "Rearrange by graph flow (columns left-to-right). Selections are laid"
-            " out alone. (Ctrl+L)"),
-        handler="_diagram_dock.view.auto_layout",
+            "Rearrange the current hierarchy by graph flow. Direction and "
+            "column wrap are in the Layout group. (Ctrl+L)"),
+        handler="_auto_layout",
         shortcut="Ctrl+L",
         enabled_when="model_open"),
     CommandSpec(
@@ -1210,7 +1210,9 @@ LAYOUT: tuple[Page, ...] = (
                            Btn("model.hier_up"), Btn("model.hier_home"),
                            Custom("_build_goto_combo")), priority=2)),
     _p("Arrange", "_arrange_page_index",
-       Group("Layout", (Btn("model.auto_layout", True), Btn("view.snap"))),
+       Group("Layout", (Btn("model.auto_layout", True),
+                        Custom("_build_layout_settings"),
+                        Btn("view.snap"))),
        Group("Order", (Btn("arrange.order_front"),
                        Btn("arrange.order_forward"),
                        Btn("arrange.order_backward"),
@@ -1287,6 +1289,7 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        Group("Appearance", (Btn("view.theme", True), Btn("view.prefs", True),
+                            Custom("_build_link_routing_settings"),
                             Custom("_build_block_labels_settings")),
              priority=2)),
     _p("Help", "_help_page_index",

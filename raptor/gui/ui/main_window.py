@@ -629,6 +629,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 win, spec.text),
         })
         self._commands.create_all()
+        self._sync_link_routing()
         self._undo_stack.cleanChanged.connect(self._on_undo_clean_changed)
         # Spread applies to the ACTIVE overlay, and only Weak and Cost
         # have quartile bands. Enable it from the checked state, not from
@@ -725,7 +726,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             valid=valid,
             run=run,
             selected_movable=view.selected_movable_count() if view else 0,
-            selected_elements=view.selected_element_count() if view else 0,
+            # `selected` is the same walk `selected_element_count()` would
+            # do again -- twice per click, over every item map on the
+            # level. Sum the answer we already have.
+            selected_elements=sum(len(ids) for ids in selected),
             selected_structural=sum(len(ids) for ids in selected[:3]),
             hierarchies_here=view.hierarchy_count() if view else 0,
             selected_hierarchies=len(selected[3]),
@@ -2574,6 +2578,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             view = self._diagram_dock.view
             view.fix_annotation_contrast(view.find_low_contrast_annotations())
 
+    def _sync_link_routing(self) -> None:
+        """Apply the saved link style and show it in the View combo."""
+        from raptor.gui.ui.diagram_items import set_link_routing
+        mode = str(settings.get("appearance/link_routing", "straight"))
+        set_link_routing(mode)
+        self._sync_link_routing_combo()
+
     def _toggle_theme(self, checked: bool):
         ThemeManager.instance().set_dark(checked)
         # Persist so the next launch opens in the same mode.
@@ -4223,7 +4234,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 if (float(row.get("_DutyCycle", 1.0)) != 1.0
                         or float(row.get("_StartAge", 0.0)) != 0.0
                         or float(row.get("_RestoreFactor", 0.0)) != 0.0
-                        or int(float(row.get("_RestoreType", 1))) != 1):
+                        or int(float(row.get("_RestoreType", 0))) != 0):
                     age_blocks += 1
             except (TypeError, ValueError):
                 continue
@@ -4355,13 +4366,54 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._remember_recent(path)
         self._statusbar.showMessage(f"Saved: {Path(path).name}")
 
-    def _open_report_streams(self) -> dict:
+    def _report_choices(self) -> dict[str, bool]:
+        """Snapshot the Files & Reports checkboxes on the GUI thread.
+
+        A background worker must not read QAction state: Qt widgets belong
+        to the GUI thread, and reading one while the canvas paints is a
+        data race that showed up as an occasional segfault in Python's
+        cyclic GC. The worker gets this plain dict instead.
+        """
+        acts = getattr(self, "_report_stream_actions", {})
+        choices = {key: bool(act.isChecked()) for key, act in acts.items()}
+        analyses = self._analysis_flags()
+        for key, flag, label in (
+                ("capacity_plot", "capacityAnalysis", "Capacity"),
+                ("cost_plot", "costAnalysis", "Cost")):
+            if not choices.get(key):
+                continue
+            if analyses.get(flag):
+                continue
+            # The run is already active here, so this untick would look
+            # like a user edit to the edit-during-run guard and prompt to
+            # cancel the very run that made it.
+            choices[key] = False
+            act = acts.get(key)
+            if act is not None:
+                self._run_own_change = True
+                try:
+                    act.setChecked(False)
+                finally:
+                    self._run_own_change = False
+            self._statusbar.showMessage(
+                f"{label} plot not collected — turn on "
+                f"Analyses ▸ {label} to record it", 8000)
+        return choices
+
+    def _open_report_streams(self, choices: dict[str, bool] | None = None) -> dict:
         """Create the disk-backed ResultStreams for this batch's ticked
         Files & Reports checkboxes (None = the sink is not collected and
         is not handed to the engine at all). Closes the previous batch's
         temp files first: plot rows must never accumulate in RAM across
-        runs."""
+        runs.
+
+        `choices` is the plain snapshot from `_report_choices`; pass it
+        from a worker thread. None reads the live checkboxes, which is only
+        safe on the GUI thread (the synchronous run path).
+        """
         from raptor.gui.ui.result_streams import ResultStream
+        if choices is None:
+            choices = self._report_choices()
         self._close_report_streams()
         streams: dict = {}
         # The End-of-Run report is O(runs x elements). Always spool it to a
@@ -4370,8 +4422,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # "Files & Reports" opt-in: without it the GUI has to hold the
         # whole report in RAM.
         streams["end_of_run"] = ResultStream("end_of_run")
-        acts = self._report_stream_actions
-        if acts["ao_plot"].isChecked():
+        if choices.get("ao_plot"):
             # The engine writes its own file header once on first sight
             # of an empty sink (`if _ao_sink is not None and not _ao_-
             # sink`) — ResultStream's list-like truthiness keeps that
@@ -4391,28 +4442,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # through the checkbox, and a widget-only gate would be bypassed.
         # When it bites we say so, once, in the status bar, naming what to
         # turn on.
-        analyses = self._analysis_flags()
-        for key, flag, label in (
-                ("capacity_plot", "capacityAnalysis", "Capacity"),
-                ("cost_plot", "costAnalysis", "Cost")):
-            if not acts[key].isChecked():
-                continue
-            if analyses.get(flag):
+        for key in ("capacity_plot", "cost_plot"):
+            if choices.get(key):
                 streams["capacity" if key == "capacity_plot" else "cost"] \
                     = ResultStream(
                         "capacity" if key == "capacity_plot" else "cost")
-            else:
-                # The run is already active here, so this untick would
-                # look like a user edit to the edit-during-run guard and
-                # prompt to cancel the very run that made it.
-                self._run_own_change = True
-                try:
-                    acts[key].setChecked(False)
-                finally:
-                    self._run_own_change = False
-                self._statusbar.showMessage(
-                    f"{label} plot not collected — turn on "
-                    f"Analyses ▸ {label} to record it", 8000)
         return streams
 
     def _analysis_flags(self) -> dict:
@@ -4714,6 +4748,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # outlive the application.
             if getattr(self, "_help_viewer", None) is not None:
                 self._help_viewer.close()
+            # The Analytical window is a window of its own too: left open,
+            # it kept the application (and its solve) running after the
+            # main window closed. Closing it cancels the solve.
+            analytic = getattr(self, "_analytic_dialog", None)
+            if analytic is not None:
+                analytic.shut_down()
             from raptor.gui import open_models
             open_models.unregister(self)
             event.accept()
@@ -7282,6 +7322,31 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             QApplication.processEvents(
                 QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
 
+    def _auto_layout(self):
+        """Run Auto Layout with visible busy feedback.
+
+        The layout itself is fast, but the annotations-follow pass used to
+        scan every element for every element (quadratic) and the canvas
+        rebuild is on the UI thread. Without this the app simply froze for
+        seconds after Ctrl+L, especially from a small hierarchy inside a
+        large model.
+        """
+        view = getattr(getattr(self, "_diagram_dock", None), "view", None)
+        if view is None:
+            return
+        hier = view.hiers.get(getattr(view, "_current_parent", 0))
+        label = ("Home" if not getattr(view, "_current_parent", 0)
+                 else getattr(hier, "name", None) or "hierarchy")
+        self._statusbar.showMessage(f"Auto Layout — {label}…")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        QApplication.processEvents(
+            QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+        try:
+            view.auto_layout()
+        finally:
+            QApplication.restoreOverrideCursor()
+            self._statusbar.showMessage(f"Auto Layout — {label} done", 4000)
+
     def _present_results(self):
         """After a run: switch the ribbon to the Results tab, surface
         the dock and expand it -- results are what the user came for."""
@@ -8394,6 +8459,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Taken on the GUI thread, before the worker starts.
         bg_model = self._model_for_engine(copy=True)
         main_manifest = self._build_run_manifest()
+        # Plain-data snapshots for the worker: QAction/QSettings reads
+        # must stay on this thread.
+        report_choices = self._report_choices()
+        event_delay = self._effective_event_delay()
         state: dict = {"done": False, "progress": (0, num_runs),
                        "snapshot": None, "paused": False}
         # `resume_ev` cleared = paused (Event.wait blocks while clear);
@@ -8443,6 +8512,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # now opens an End-of-Run stream, even with no Files & Reports
             # boxes ticked).
             streams: dict = {}
+            # A cyclic-GC pass here walks every Python object in the
+            # process, including PySide wrappers owned by the GUI thread.
+            # Clearing a Qt cycle on this thread while the canvas paints
+            # its C++ object is a use-after-free (seen as a segfault in
+            # `Garbage-collecting` on a large model). The run's own objects
+            # are reference-counted; defer only the cyclic collector and
+            # restore it when the worker exits.
+            import gc
+            gc_was_enabled = gc.isenabled()
+            if gc_was_enabled:
+                gc.disable()
             try:
                 report_data: list = []
                 report_notes: list[str] = []
@@ -8451,7 +8531,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 # signal-connected helper, appended to from this worker
                 # thread — file appends are GIL-atomic, same rule as the
                 # list sinks below).
-                streams = self._open_report_streams()
+                streams = self._open_report_streams(report_choices)
                 # keep the raw stream objects (fresh stream is falsy —
                 # never `or []` it, or the sink is lost)
                 ao_lines = streams.get("ao")
@@ -8531,7 +8611,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     # `_speed_state` directly here is what made the dial
                     # apply to background runs but not to the default
                     # foreground mode.
-                    d = self._effective_event_delay()
+                    d = event_delay
                     if d:
                         time.sleep(d)
 
@@ -8565,8 +8645,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     cost_sink=streams.get("cost"),
                     end_of_run_sink=streams.get("end_of_run"),
                     report_progress=report_progress,
-                    collect_logs=self._report_stream_actions[
-                        "event_log"].isChecked(),
+                    collect_logs=report_choices.get("event_log", True),
                     metadata_sink=run_metadata,
                     # `workers` is already forced to 1 when live_view is
                     # on (above).
@@ -8613,6 +8692,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     traceback.format_exception_only(type(e), e)).strip() \
                     + "\n" + traceback.format_exc(limit=8)
             finally:
+                if gc_was_enabled:
+                    gc.enable()
                 state["done"] = True
 
         self._bg_thread = threading.Thread(target=worker, daemon=True)

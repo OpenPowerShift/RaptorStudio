@@ -673,6 +673,18 @@ def _apply_patch(rbd: RbdFile, section: str, row: dict, kind: str,
         trig = str(row.get("pmTrig", "")).strip().lower()
         set_fields(row, pmTriggered=0 if trig in ("", "none") else 1)
         changed["pmTriggered"] = row["pmTriggered"]
+    # A restoration factor set without a type on a block whose restoration
+    # is off means Type I: without this the factor would be silently
+    # ignored (restoration type 0 is "off").
+    if section == "BLOCK_DATA" and "_RestoreFactor" in changed \
+            and "_RestoreType" not in changed:
+        try:
+            current = int(float(row.get("_RestoreType", 0) or 0))
+        except (TypeError, ValueError):
+            current = 0
+        if current not in (1, 2):
+            row["_RestoreType"] = "1"
+            changed["_RestoreType"] = "1"
     return changed
 
 

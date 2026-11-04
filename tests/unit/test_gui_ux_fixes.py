@@ -142,30 +142,29 @@ def test_auto_layout_inside_hierarchy(qapp):
     assert len(diffs) <= len(home_before_r)
 
 
-def test_auto_layout_with_a_selection_lays_out_the_whole_level(qapp):
-    """A selection is not a scope. Laying out only the selected block, to
-    where a full layout would put it, while its neighbours stayed put
-    lifted it off a straight chain ("wonky"). Every element lands where a
-    full layout puts it, and the selection survives."""
+def test_auto_layout_with_a_selection_leaves_the_neighbours_alone(qapp):
+    """With a selection, Auto Layout lays out only the selected elements
+    and keeps the group's centre (see `DiagramView.auto_layout`); it once
+    laid out the whole level, which this test used to require. The
+    neighbours stay where they were, and the selection survives."""
     path = "tests/golden/TwoBlockRedundancy/input.rbd"
     v = DiagramView()
     v.load_rbd(load_rbd(path))
     first_id = min(v._block_items)
+    before = {k: (round(it.pos().x()), round(it.pos().y()))
+              for k, it in v._block_items.items()}
     v._scene.clearSelection()
     v._block_items[first_id].setSelected(True)
     v.auto_layout()
     # Re-fetch by id: auto_layout rebuilds the canvas, so items held from
     # before it are deleted.
-    with_sel = {k: (round(it.pos().x()), round(it.pos().y()))
-                for k, it in v._block_items.items()}
+    after = {k: (round(it.pos().x()), round(it.pos().y()))
+             for k, it in v._block_items.items()}
     assert v._block_items[first_id].isSelected()
-
-    v2 = DiagramView()
-    v2.load_rbd(load_rbd(path))
-    v2.auto_layout()
-    full = {k: (round(it.pos().x()), round(it.pos().y()))
-            for k, it in v2._block_items.items()}
-    assert with_sel == full
+    assert {k: xy for k, xy in after.items() if k != first_id} == \
+        {k: xy for k, xy in before.items() if k != first_id}
+    # One block laid out on its own stays centred where it was.
+    assert after[first_id] == before[first_id]
 
 
 # ---------------------------------------------------------------------

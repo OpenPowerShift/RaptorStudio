@@ -1,6 +1,7 @@
 """`raptor analytic`: the static RBD solver."""
 from __future__ import annotations
 
+import argparse
 import csv
 import io
 import sys
@@ -24,10 +25,11 @@ def add_parser(sub: Any) -> None:
                     "repair. Models outside that subset are refused with the "
                     "first offending element.")
     p.add_argument("model", metavar="MODEL")
-    p.add_argument("--mode", choices=("reliability", "availability"),
+    p.add_argument("--mode", choices=("reliability", "availability", "both"),
                    default="reliability",
-                   help="reliability (R(t), non-repairable) or availability "
-                        "(steady state, repairable) (default reliability)")
+                   help="reliability (R(t), non-repairable), availability "
+                        "(steady state, repairable), or both with the same "
+                        "settings (default reliability)")
     p.add_argument("--hierarchy", default=None, metavar="NAME|ID",
                    help="analyse one hierarchy as a standalone model; its In "
                         "node becomes Start and its Out node End")
@@ -55,9 +57,10 @@ def add_parser(sub: Any) -> None:
                    help="comma-separated simulation-only features to leave "
                         "out instead of refusing: repairs (reliability "
                         "mode), pm, spares, resources")
-    p.add_argument("--phase", type=int, default=None, metavar="N",
+    p.add_argument("--phase", type=_phase_arg, default=None, metavar="N|all",
                    help="analyse a phased model as if it stayed in phase N "
-                        "(1-based) the whole time")
+                        "(1-based) the whole time; all solves each phase on "
+                        "its own, one result per phase")
     p.add_argument("--standby", choices=("active", "absent"), default=None,
                    help="cold-standby paths: treat as fully in service, or "
                         "as if they did not exist")
@@ -69,15 +72,38 @@ def add_parser(sub: Any) -> None:
                    help="raise the BDD variable limit (default: solver "
                         "setting) when a large model is still tractable")
     p.add_argument("--max-bdd-nodes", type=int, default=None, metavar="N",
-                   help="raise the BDD node limit (default: solver setting) "
-                        "for a large but structurally simple model")
+                   help="raise the BDD node limit (default 2,000,000, about "
+                        "0.7 GB); at most half of the free memory at 350 "
+                        "bytes a node")
     p.add_argument("--progress", choices=("auto", "bar", "json", "none"),
                    default="auto",
-                   help="progress on stderr: BDD construction and the "
-                        "importance pass (auto = bar only on a terminal)")
+                   help="progress on stderr: one percentage for the whole "
+                        "solve (building the diagram, then the results), "
+                        "with the stage and the time left (auto = bar only "
+                        "on a terminal)")
+    p.add_argument("--xlsx", default=None, metavar="PATH",
+                   help="also write the result as a spreadsheet (one set of "
+                        "sheets per mode and phase with --mode both or "
+                        "--phase all); a folder gets "
+                        "the default name, e.g. "
+                        "MODEL_analytical_reliability.xlsx")
     p.add_argument("-f", "--format", choices=("text", "json", "csv"),
-                   default="text")
+                   default="text",
+                   help="stdout format; with several results (--mode "
+                        "both, --phase all) json is "
+                        '{"results": [...]} and csv has mode and phase '
+                        "columns")
     p.set_defaults(func=analytic_command)
+
+
+def _phase_arg(text: str) -> int | str:
+    if text.strip().lower() == "all":
+        return "all"
+    try:
+        return int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"phase must be a number or 'all', not {text!r}") from None
 
 
 def _floats(text: str | None) -> list[float]:
@@ -89,10 +115,25 @@ def _floats(text: str | None) -> list[float]:
         raise CliError(f"bad number list {text!r}", X.USAGE) from exc
 
 
-def _summary_csv(result: dict[str, Any]) -> str:  # noqa: C901
+def _summary_csv(result: dict[str, Any], *,  # noqa: C901
+                 mode_column: bool = False, phase_column: bool = False,
+                 header: bool = True) -> str:
     out = io.StringIO()
-    writer = csv.writer(out)
-    writer.writerow(["section", "name", "value"])
+    plain = csv.writer(out)
+    lead = (([result["mode"]] if mode_column else [])
+            + ([(result.get("scope") or {}).get("phase")]
+               if phase_column else []))
+
+    class _Writer:
+        @staticmethod
+        def writerow(row: list[Any]) -> None:
+            plain.writerow([*lead, *row])
+
+    writer = _Writer()
+    if header:
+        plain.writerow((["mode"] if mode_column else [])
+                       + (["phase"] if phase_column else [])
+                       + ["section", "name", "value"])
     writer.writerow(["summary", "model", result.get("model")])
     if result.get("hierarchy"):
         writer.writerow(["summary", "hierarchy", result["hierarchy"]])
@@ -122,32 +163,45 @@ def _summary_csv(result: dict[str, Any]) -> str:  # noqa: C901
 
 
 def _progress_callback(mode: str):
+    """stderr progress. ``done``/``total`` is one figure for the whole solve
+    (`raptor.api.analytical._Overall`); the bar is a single line rewritten
+    in place, cut to the terminal's width. It once started a new line
+    whenever the stage text changed, which is every report."""
     if mode == "none" or (mode == "auto" and not sys.stderr.isatty()):
         return None
     import json as _json
+    import shutil
 
-    last = {"stage": ""}
+    shown = {"line": False}
 
     def cb(stage: str, done: int, total: int) -> None:
         if mode == "json":
             eprint(_json.dumps({"event": "progress", "stage": stage,
                                 "done": done, "total": total}))
             return
-        if stage != last["stage"]:
-            if last["stage"]:
+        if stage.startswith("Outlook: "):
+            if shown["line"]:
                 sys.stderr.write("\n")
-            last["stage"] = stage
-        total_text = f"/{total}" if total else ""
-        sys.stderr.write(f"\r{stage} {done}{total_text}")
-        if total and done >= total:
-            sys.stderr.write("\n")
-            last["stage"] = ""
+            sys.stderr.write(stage.removeprefix("Outlook: ") + "\n")
+            shown["line"] = False
+            sys.stderr.flush()
+            return
+        percent = f"{100 * done // total:3d}% " if total else ""
+        width = max(20, shutil.get_terminal_size((100, 20)).columns - 1)
+        sys.stderr.write("\r" + f"{percent}{stage}"[:width].ljust(width))
+        shown["line"] = True
         sys.stderr.flush()
+
+    def finish() -> None:
+        if shown["line"]:
+            sys.stderr.write("\n")
+            sys.stderr.flush()
+    cb.finish = finish  # type: ignore[attr-defined]
     return cb
 
 
 def analytic_command(args: Any) -> int:
-    from raptor.api.analytical import analyse
+    from raptor.api.analytical import analyse_modes
     from raptor.core.analytical.errors import AnalyticalError
     progress = _progress_callback(args.progress)
     limits: dict[str, int] = {}
@@ -155,12 +209,13 @@ def analytic_command(args: Any) -> int:
         limits["max_variables"] = args.max_variables
     if args.max_bdd_nodes is not None:
         limits["max_bdd_nodes"] = args.max_bdd_nodes
+    modes = (["reliability", "availability"] if args.mode == "both"
+             else [args.mode])
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         try:
-            result = analyse(
-                ws, mid,
-                mode=args.mode,
+            results = analyse_modes(
+                ws, mid, modes,
                 hierarchy=args.hierarchy,
                 at=args.at,
                 times=_floats(args.times),
@@ -181,13 +236,44 @@ def analytic_command(args: Any) -> int:
             raise CliError(str(exc), X.INVALID) from exc
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
-    if args.format == "json":
-        emit_json(result, None)
-    elif args.format == "csv":
-        sys.stdout.write(_summary_csv(result))
-    else:
-        print(summary_text(result))
-    if args.format != "text" and result.get("warnings"):
-        for warning in result["warnings"]:
-            eprint(f"warning: {warning}")
+        finally:
+            if progress is not None and hasattr(progress, "finish"):
+                progress.finish()
+        name = ws.get(mid).name
+    if args.xlsx:
+        _write_xlsx(args.xlsx, name, results)
+    _emit(args.format, results)
     return X.OK
+
+
+def _emit(format_: str, results: list[dict[str, Any]]) -> None:
+    both = len(results) > 1
+    modes = len({r["mode"] for r in results}) > 1
+    phases = len({(r.get("scope") or {}).get("phase") for r in results}) > 1
+    if format_ == "json":
+        emit_json({"results": results} if both else results[0], None)
+    elif format_ == "csv":
+        sys.stdout.write("".join(
+            _summary_csv(result, mode_column=modes, phase_column=phases,
+                         header=index == 0)
+            for index, result in enumerate(results)))
+    else:
+        print("\n\n".join(summary_text(result) for result in results))
+    if format_ != "text":
+        for result in results:
+            for warning in result.get("warnings") or []:
+                eprint(f"warning: {warning}")
+
+
+def _write_xlsx(target: str, name: str, results: list[dict[str, Any]]) -> None:
+    from pathlib import Path
+
+    from raptor.api.analytical_export import export_file_name, export_xlsx
+    path = Path(target)
+    if path.is_dir():
+        path = path / export_file_name(name, results)
+    try:
+        export_xlsx(results, path)
+    except OSError as exc:
+        raise CliError(f"cannot write {path}: {exc}", X.OUTPUT) from exc
+    eprint(f"wrote {path}")

@@ -2,7 +2,7 @@
 # Raptor Studio MCP server
 
 Raptor Studio ships a [Model Context Protocol](https://modelcontextprotocol.io) server, so an AI assistant can
-build, validate, simulate and explain reliability block diagrams. It exposes **67 tools**, a set of
+build, validate, simulate and explain reliability block diagrams. It exposes **68 tools**, a set of
 **resources** and three **prompts**. The numbers come from the same engine as the desktop app and the
 `raptor` command line.
 
@@ -132,7 +132,7 @@ description and input/output schema is what the server sends on `tools/list`.
 | `add_hierarchy` | writes | Create an empty hierarchy -- a sub-model boundary -- with its In and Out markers already wired up correctly. | `model_id`, `name`, `parent`? |
 | `add_node` | writes | Add a node to the model. | `model_id`, `type`?, `k`?, `name`?, `parent`? |
 | `analytical_analysis` | read-only | Solve the static subset of a model exactly. | `model_id`, `mode`?, `hierarchy`?, `at`?, `times`?, `bx`?, `tau`?, `importance`?, `equation`?, `ignore_repairs`?, `ignore`?, `phase`?, `standby`?, `dependencies`?, `max_variables`?, `max_bdd_nodes`? |
-| `auto_layout` | writes | Re-arrange a model's diagram onto the shared layered grid. | `model_id`, `hierarchy`?, `selectors`? |
+| `auto_layout` | writes | Re-arrange a model's diagram onto the shared layered grid. | `model_id`, `hierarchy`?, `selectors`?, `all_levels`?, `direction`?, `max_columns`?, `spacing`?, `label_side`? |
 | `build_model` | writes | Build a complete model from a friendly .rbds spec document. | `name`, `spec`?, `auto_layout`?, `validate_model`?, `model_id`?, `spec_path`? |
 | `cancel_run` | writes | Ask a background job to stop (checked between replications, and while a large model is still being set up). | `job_id` |
 | `close_model` | destructive | Close one or more models.  Set delete=true to also remove their files. | `model_id`, `delete`? |
@@ -155,6 +155,7 @@ description and input/output schema is what the server sends on `tools/list`.
 | `describe_model` | read-only | Describe the model structure. | `model_id`, `detail`?, `level`? |
 | `diff_models` | read-only | Say what is different between two models (their inputs, not their results). | `model_a`, `model_b`, `ignore`?, `match`?, `detail`? |
 | `estimate_runtime` | read-only | Estimate wall-clock time for a simulation before running it. | `model_id`, `num_runs`?, `run_length`?, `workers`?, `importance`? |
+| `export_analytical` | writes | Solve exactly, as `analytical_analysis` does, and write a spreadsheet. | `model_id`, `modes`?, `folder`?, `hierarchy`?, `at`?, `times`?, `bx`?, `tau`?, `importance`?, `equation`?, `ignore_repairs`?, `ignore`?, `phase`?, `standby`?, `dependencies`?, `max_variables`?, `max_bdd_nodes`? |
 | `export_tables` | writes | Write tables to files: CSV, text, or one spreadsheet. | `model_id`, `run_id`?, `tables`?, `formats`?, `folder`? |
 | `extract_hierarchy` | writes | Build a standalone model from one hierarchy (a port extension), or just list what crosses its boundary. | `model_id`, `hierarchy`, `treatments`?, `report_only`?, `name`? |
 | `failure_effects` | read-only | Run failure-effects analysis (Raptor workbook Chapter 10). | `model_id`, `fail`?, `repair`?, `phase`? |
@@ -177,8 +178,8 @@ description and input/output schema is what the server sends on `tools/list`.
 | `ping` | read-only | Health-check: returns 'pong' if the server is running. | — |
 | `read_doc` | read-only | Read a documentation source as text (paginated). | `name`, `offset`?, `limit`? |
 | `redo_last_edit` | destructive | Step one edit forward again after `undo_last_edit` (multi-step). | `model_id` |
-| `render_diagram` | read-only | Render the model diagram as a PNG image. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `max_px`?, `include_annotations`? |
-| `render_diagram_svg` | read-only | Draw one level of the diagram as SVG text, without Qt. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `include_annotations`? |
+| `render_diagram` | read-only | Render the model diagram as a PNG image. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `max_px`?, `include_annotations`?, `routing`? |
+| `render_diagram_svg` | read-only | Draw one level of the diagram as SVG text, without Qt. | `model_id`, `level`?, `zoom_to`?, `margin`?, `highlight`?, `theme`?, `include_annotations`?, `routing`? |
 | `run_status` | read-only | Progress of a job started with `start_run`. | `job_id` |
 | `save_model_as` | destructive | Save a model to a file path. | `model_id`, `path`, `format`? |
 | `search_docs` | read-only | Search the RAPTOR tutorial docs for passages matching a query. | `query`, `limit`? |

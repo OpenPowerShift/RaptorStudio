@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import QStringListModel, Qt
+from PySide6.QtCore import QSize, QStringListModel, Qt
 from PySide6.QtGui import QAction, QUndoStack
 from PySide6.QtWidgets import (
     QComboBox, QDoubleSpinBox, QHBoxLayout, QLabel,
@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.gui.resources import icons
-from raptor.gui.resources.design_tokens import RIBBON, active_colour
+from raptor.gui.resources.design_tokens import RIBBON, ThemeManager, active_colour
 from raptor.gui.ui.run_experiment_mixin import _ANALYSIS_TIPS
 
 
@@ -496,6 +496,149 @@ class RibbonBuilders(_Base):
                 self._set_analysis_flag(c, on, l))
             group.add_action(act)
             self._analysis_actions[col] = act
+
+    _LINK_STYLES = (
+        ("straight", "Straight", "link_straight_icon",
+         "Straight lines from port to port"),
+        ("angled", "Angled", "link_angled_icon",
+         "A short stub out of each port, then a straight run"),
+        ("orthogonal", "Right-angle", "link_orthogonal_icon",
+         "Right angles only, steering round other elements. Blocks never "
+         "move; a link that cannot be routed quickly stays straight."),
+    )
+
+    def _build_link_routing_settings(self, group) -> None:
+        """View > Appearance: how links are drawn. A view setting, not model
+        data: it re-routes the canvas and leaves the model untouched."""
+        self._link_routing_combo = QComboBox()
+        self._link_routing_combo.setAccessibleName("Link style")
+        self._link_routing_combo.setToolTip(
+            "How links are drawn: straight, angled (short stubs, then a "
+            "straight run) or right-angle. No block is ever moved.")
+        self._link_routing_combo.setFixedWidth(118)
+        self._link_routing_combo.setIconSize(QSize(20, 20))
+        self._refresh_link_routing_icons()
+        self._link_routing_combo.currentIndexChanged.connect(
+            lambda _i: self._on_link_routing_changed())
+        ThemeManager.instance().on_changed(self._on_link_routing_theme)
+        group.add_widget(_labeled_box("Links", self._link_routing_combo,
+                                      label_width=76))
+
+    def _on_link_routing_theme(self, _dark: bool) -> None:
+        self._refresh_link_routing_icons()
+
+    def _refresh_link_routing_icons(self) -> None:
+        from raptor.gui.resources import icons
+        combo = self._link_routing_combo
+        current = combo.currentData()
+        colour = active_colour()["text"]
+        combo.blockSignals(True)
+        combo.clear()
+        for key, label, icon_fn, tip in self._LINK_STYLES:
+            combo.addItem(getattr(icons, icon_fn)(colour), label, key)
+            combo.setItemData(combo.count() - 1, tip,
+                              Qt.ItemDataRole.ToolTipRole)
+        idx = combo.findData(current or "straight")
+        combo.setCurrentIndex(max(idx, 0))
+        combo.blockSignals(False)
+
+    def _sync_link_routing_combo(self) -> None:
+        if not hasattr(self, "_link_routing_combo"):
+            return
+        from raptor.gui.ui.diagram_items import link_routing
+        combo = self._link_routing_combo
+        combo.blockSignals(True)
+        combo.setCurrentIndex(max(combo.findData(link_routing()), 0))
+        combo.blockSignals(False)
+
+    def _on_link_routing_changed(self) -> None:
+        from raptor.gui.ui import settings as app_settings
+        from raptor.gui.ui.diagram_items import set_link_routing
+        key = self._link_routing_combo.currentData()
+        set_link_routing(key)
+        app_settings.set_value("appearance/link_routing", key)
+        view = getattr(getattr(self, "_diagram_dock", None), "view", None)
+        if view is not None:
+            view.reroute_links()
+
+    def _build_layout_settings(self, group) -> None:
+        """View > Appearance: Auto Layout direction and column limit."""
+        from raptor.gui.ui import settings as app_settings
+
+        self._layout_direction_combo = QComboBox()
+        self._layout_direction_combo.setAccessibleName("Layout direction")
+        self._layout_direction_combo.setToolTip(
+            "Auto Layout flow: left-to-right (default), right-to-left, "
+            "top-to-bottom or bottom-to-top.")
+        for key, label in (("LR", "Left → right"), ("RL", "Right → left"),
+                           ("TB", "Top → bottom"), ("BT", "Bottom → top")):
+            self._layout_direction_combo.addItem(label, key)
+        current = str(app_settings.get("layout/direction", "LR"))
+        self._layout_direction_combo.setCurrentIndex(
+            max(self._layout_direction_combo.findData(current), 0))
+        self._layout_direction_combo.setFixedWidth(132)
+        self._layout_direction_combo.currentIndexChanged.connect(
+            lambda _i: app_settings.set_value(
+                "layout/direction",
+                self._layout_direction_combo.currentData()))
+
+        self._layout_columns_spin = QSpinBox()
+        self._layout_columns_spin.setAccessibleName("Layout max series elements per band")
+        self._layout_columns_spin.setToolTip(
+            "Maximum number of series elements per band (elements one "
+            "after another; parallel branches share a position). "
+            "0 = fit Raptor's canvas width.")
+        self._layout_columns_spin.setRange(0, 64)
+        self._layout_columns_spin.setSpecialValueText("Auto")
+        self._layout_columns_spin.setValue(int(
+            app_settings.get("layout/max_columns", 0) or 0))
+        self._layout_columns_spin.setFixedWidth(72)
+        self._layout_columns_spin.valueChanged.connect(
+            lambda value: app_settings.set_value("layout/max_columns",
+                                                 int(value)))
+
+        group.add_widget(_labeled_box("Layout", self._layout_direction_combo,
+                                      label_width=76))
+        group.add_widget(_labeled_box("Max band", self._layout_columns_spin,
+                                      label_width=76))
+
+        self._layout_spacing_spin = QDoubleSpinBox()
+        self._layout_spacing_spin.setAccessibleName("Auto Layout spacing")
+        self._layout_spacing_spin.setToolTip(
+            "Gap scale for Auto Layout: 1 = nominal, lower = more compact, "
+            "higher = more open.")
+        self._layout_spacing_spin.setRange(0.25, 3.0)
+        self._layout_spacing_spin.setSingleStep(0.05)
+        self._layout_spacing_spin.setDecimals(2)
+        self._layout_spacing_spin.setValue(float(
+            app_settings.get("layout/spacing", 1.0) or 1.0))
+        self._layout_spacing_spin.setFixedWidth(72)
+        self._layout_spacing_spin.valueChanged.connect(
+            lambda value: app_settings.set_value("layout/spacing",
+                                                 float(value)))
+        group.add_widget(_labeled_box("Spacing", self._layout_spacing_spin,
+                                      label_width=76))
+
+        self._layout_label_side_combo = QComboBox()
+        self._layout_label_side_combo.setAccessibleName(
+            "Auto Layout label side")
+        self._layout_label_side_combo.setToolTip(
+            "Where above/below labels go when the flow is top-to-bottom: "
+            "Auto (right for TB, left for BT), Left or Right.")
+        for label, key in (("Auto", "auto"), ("Left", "left"),
+                           ("Right", "right")):
+            self._layout_label_side_combo.addItem(label, key)
+        current_side = str(app_settings.get("layout/label_side", "auto"))
+        self._layout_label_side_combo.setCurrentIndex(max(
+            self._layout_label_side_combo.findData(current_side), 0))
+        self._layout_label_side_combo.setFixedWidth(86)
+        self._layout_label_side_combo.currentIndexChanged.connect(
+            lambda _i: app_settings.set_value(
+                "layout/label_side",
+                self._layout_label_side_combo.currentData()))
+        group.add_widget(_labeled_box("Label side",
+                                      self._layout_label_side_combo,
+                                      label_width=76))
 
     def _build_block_labels_settings(self, group) -> None:
         """View > Appearance: what the canvas writes under a block name,

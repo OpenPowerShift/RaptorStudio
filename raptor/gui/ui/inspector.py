@@ -1727,20 +1727,30 @@ class InspectorDock(QWidget):
 
         _gb, fl = self._group("Simulation", layout)
         start = _SIM_START.get(block.sim_start_type, f"Unknown ({block.sim_start_type})")
-        self._row(fl, "Start state", start)
+        self._row(fl, "Start state", start,
+                  "How the block begins each run: working or failed, and "
+                  "how much of its life or repair is already done.")
         self._row(fl, "Uses phasing", "Yes" if block.uses_phasing else "No")
         # For "% repair complete" starts the value is a percentage of the
         # repair cycle; for "some life exhausted" starts it's time units.
         if block.sim_start_type == 5:
             self._row(fl, "% complete", f"{block.amount_exhausted:.3f}")
         elif block.sim_start_type in (3,):
-            self._row(fl, "Amount exhausted", f"{block.amount_exhausted:.3f}")
+            self._row(fl, "Amount exhausted", f"{block.amount_exhausted:.3f}",
+                      "Life already used at time 0 (Raptor 7's setting). It "
+                      "adds to Start age.")
         if block.sim_start_type == 3:
-            self._float_row(
+            age_edit = self._float_row(
                 fl, "Start age", block.start_age,
                 lambda v, bid=block_id:
                     self.block_start_age_changed.emit(bid, v),
                 is_time=True)
+            age_edit.setToolTip(
+                "How old the block already is at time 0, for a block "
+                "partway through its life. Its first life is drawn given it "
+                "has survived to this age, so a worn block fails sooner. It "
+                "also counts as age already used when a restoration factor "
+                "applies. 0 = new.")
 
     def _populate_failure(self, block: RBDBlock):
         w = self._scroll_failure.widget()
@@ -1767,16 +1777,19 @@ class InspectorDock(QWidget):
         # switched on from scratch here.
         gb, fl = self._group("Advanced", layout)
         gb.setToolTip(
-            "Standby stress and growth/decay -- how this block's "
-            "effective failure rate changes over time or while in "
-            "standby.")
+            "How this block wears: ageing in standby, how much of the time "
+            "it works, what a repair or PM does to its age, and whether its "
+            "lives get longer or shorter after each failure.")
         stress_spin = QDoubleSpinBox()
         stress_spin.setRange(0.0, 100.0)
         stress_spin.setDecimals(4)
         stress_spin.setValue(float(block.sb_stress))
+        stress_spin.setAccessibleName("Standby stress")
         stress_spin.setToolTip(
-            "0 = cold standby, between 0 and 1 = warm, >=1 = hot "
-            "(fails at the normal rate even while idle).")
+            "How fast the block ages while it waits in standby, as a "
+            "multiple of its normal rate. 0 = cold standby (no ageing while "
+            "waiting), between 0 and 1 = warm, 1 or more = hot (ages at "
+            "the normal rate, or faster, even while waiting).")
         stress_spin.editingFinished.connect(
             lambda bid=block_id, sp=stress_spin:
                 self.block_standby_stress_changed.emit(bid, sp.value()))
@@ -1788,9 +1801,12 @@ class InspectorDock(QWidget):
         duty_spin.setValue(float(block.duty_cycle))
         duty_spin.setAccessibleName("Duty cycle")
         duty_spin.setToolTip(
-            "Effective operating-time multiplier: 1 = continuous rated "
-            "duty, 0.3 = 30% duty, 1.5 = 50% overload. It compounds with a "
-            "phase stress multiplier.")
+            "How hard the block works, as a share of its rated duty; it "
+            "sets how fast the block uses up its life in calendar time. "
+            "1 = working all the time (the default). 0.3 = working 30% of "
+            "the time, so each life lasts 1/0.3 = 3.3 times as long. 1.5 = "
+            "run 50% harder than rated. It multiplies any phase stress, "
+            "and the standby stress while the block is in standby.")
         duty_spin.setSingleStep(0.05)
         duty_spin.setKeyboardTracking(False)
         duty_spin.valueChanged.connect(
@@ -1798,42 +1814,56 @@ class InspectorDock(QWidget):
                 self.block_duty_cycle_changed.emit(bid, v))
         fl.addRow("Duty cycle:", duty_spin)
 
+        restore_combo = QComboBox()
+        restore_combo.addItem("Off — repair as good as new", 0)
+        restore_combo.addItem("Type I — restore recent wear", 1)
+        restore_combo.addItem("Type II — restore total age", 2)
+        restore_combo.setCurrentIndex(
+            max(0, restore_combo.findData(int(block.restoration_type))))
+        restore_combo.setAccessibleName("Restoration type")
+        restore_combo.setToolTip(
+            "What a repair, or a PM with PM refresh off, does to the "
+            "block's age.\n"
+            "Off: Raptor's own behaviour. Every repair is as good as new; "
+            "a PM renews the life or resumes it according to PM refresh.\n"
+            "Type I (Kijima I): removes the restoration factor's share of "
+            "the wear added since the previous repair or PM.\n"
+            "Type II (Kijima II): removes that share of the block's whole "
+            "age.\n"
+            "With PM refresh ticked, a PM is always as good as new.")
+        fl.addRow("Restoration:", restore_combo)
+
         restore_spin = QDoubleSpinBox()
         restore_spin.setRange(0.0, 1.0)
         restore_spin.setDecimals(6)
         restore_spin.setValue(float(block.restoration_factor))
         restore_spin.setAccessibleName("Restoration factor")
         restore_spin.setToolTip(
-            "Fraction of accumulated age removed by PM/repair: 0 = none "
-            "(age kept), 1 = as good as new (age reset to 0). 0.7 leaves "
-            "30% of the age.")
-        restore_spin.setSingleStep(0.05)
+            "Share of the block's age a repair or PM removes. 0 = none: the "
+            "block is as worn as just before it failed (as bad as old). "
+            "1 = all: as good as new. 0.7 removes 70% and leaves 30%. "
+            "Used only when Restoration is Type I or Type II.")
         restore_spin.setSingleStep(0.05)
         restore_spin.setKeyboardTracking(False)
+        restore_spin.setEnabled(block.restoration_type in (1, 2))
         restore_spin.valueChanged.connect(
             lambda v, bid=block_id:
                 self.block_restoration_factor_changed.emit(bid, v))
+        def _restore_type_chosen(_i: int, bid: int = block_id,
+                                 cmb: QComboBox = restore_combo,
+                                 sp: QDoubleSpinBox = restore_spin) -> None:
+            chosen = int(cmb.currentData())
+            sp.setEnabled(chosen in (1, 2))
+            self.block_restoration_type_changed.emit(bid, chosen)
+        restore_combo.currentIndexChanged.connect(_restore_type_chosen)
         fl.addRow("Restoration factor:", restore_spin)
-
-        restore_combo = QComboBox()
-        restore_combo.addItem("Kijima Type I", 1)
-        restore_combo.addItem("Kijima Type II", 2)
-        restore_combo.setCurrentIndex(
-            max(0, restore_combo.findData(int(block.restoration_type))))
-        restore_combo.currentIndexChanged.connect(
-            lambda _i, bid=block_id, cmb=restore_combo:
-                self.block_restoration_type_changed.emit(
-                    bid, int(cmb.currentData())))
-        restore_combo.setAccessibleName("Restoration type")
-        restore_combo.setEnabled(block.restoration_factor > 0.0)
-        restore_combo.setToolTip(
-            "Type I restores damage since the previous action; Type II "
-            "restores a fraction of the whole age. Only used when the "
-            "restoration factor is above zero.")
-        fl.addRow("Restoration type:", restore_combo)
 
         gd_cb = QCheckBox(
             "This block's mean life changes following a failure")
+        gd_cb.setToolTip(
+            "Reliability growth or decay: after each failure the block's "
+            "lives get longer (growth, e.g. design fixes) or shorter "
+            "(decay, e.g. wear that repairs do not remove).")
         gd_cb.setChecked(block.gd_type != 0)
         gd_cb.toggled.connect(
             lambda on, bid=block_id:
@@ -1850,6 +1880,11 @@ class InspectorDock(QWidget):
             gd_combo.currentIndexChanged.connect(
                 lambda _i, bid=block_id, cmb=gd_combo:
                     self.block_gd_type_changed.emit(bid, cmb.currentData()))
+            gd_combo.setToolTip(
+                "How the life changes with the number of failures n so "
+                "far.\nLinear: life × (1 + rate × n).\nGeometric: life × "
+                "rate^n.\nAsymptotic: the mean life moves from its "
+                "starting value towards Limit, faster for a larger rate.")
             fl.addRow("Type:", gd_combo)
 
             rate_spin = QDoubleSpinBox()
@@ -1866,6 +1901,15 @@ class InspectorDock(QWidget):
                     bid, [rs.value(), ls.value()])
             rate_spin.editingFinished.connect(_commit_gd)
             limit_spin.editingFinished.connect(_commit_gd)
+            rate_spin.setToolTip(
+                "How much the life changes per failure (see Type). "
+                "Linear: above 0 is growth, below 0 decay. Geometric: "
+                "above 1 is growth, below 1 decay. Asymptotic: how quickly "
+                "the mean life approaches Limit.")
+            limit_spin.setToolTip(
+                "The mean life (in the model's time units) the change "
+                "stops at: growth never goes above it and decay never "
+                "below it.")
             fl.addRow("Rate:", rate_spin)
             fl.addRow("Limit:", limit_spin)
 
@@ -2217,7 +2261,11 @@ class InspectorDock(QWidget):
                 ("Needs a spare to conduct PM", "pm_spare_needed",
                  "spare_needed", None),
                 ("After PM is completed, refresh block like new",
-                 "pm_refresh", "refresh", None),
+                 "pm_refresh", "refresh",
+                 "Ticked: every PM leaves the block as good as new, "
+                 "whatever its restoration setting. Unticked: the block "
+                 "resumes the life it had, or, with restoration Type I or "
+                 "II (Failure tab), has part of its age removed."),
                 ("Defer PM until a non-mission phase occurs",
                  "pm_mis_defer", "mis_defer",
                  "Only meaningful when this model has phases defined."),
