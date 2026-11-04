@@ -268,10 +268,12 @@ are in link:https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYT
 **Results ▸ Availability and Criticality…** reads the latest run's additive
 metrics: operational / inherent / achieved availability, MTTFF, MTBF and
 MTBE on a total-time denominator, component CM/PM counts, Red-time cause
-buckets, and per-block failure / downtime / cost criticality. These are not
-added to the legacy report text, which stays byte-compatible with captured
-reference output. **Copy** puts the visible tab on the clipboard and
-**Export…** saves both tabs as a spreadsheet.
+buckets, and per-block failure / downtime / cost criticality. The same
+values close the Final Results report, in its `***EXTENDED_RESULTS***`
+section (Min / Mean / Max / St.Dev / SEM over runs, then each block's
+percentage share of failures, downtime and cost). Downtime shares need Weak
+Link analysis and cost shares need Cost analysis. **Copy** puts the visible
+tab on the clipboard and **Export…** saves both tabs as a spreadsheet.
 
 === A hierarchy's body and its DSI
 

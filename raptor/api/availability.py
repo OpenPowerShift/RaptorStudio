@@ -1,9 +1,9 @@
 """Point availability, availability classifications and criticality tables.
 
-These are derived from data the simulation already records. They are kept out
-of the legacy `End_Of_Run`/`Final_Results` text on purpose: those files are
-byte-compared against captured reference output, and adding rows there would
-break fidelity. The API reads the per-run JSON instead.
+These are derived from data the simulation already records. The cross-run
+summary is also the Final Results report's ``***EXTENDED_RESULTS***``
+section (`core.engine.extended_results`); this module reads the per-run JSON
+for what that summary does not hold, such as point availability at a time.
 """
 from __future__ import annotations
 

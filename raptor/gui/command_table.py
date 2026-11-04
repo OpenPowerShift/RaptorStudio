@@ -852,8 +852,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         tooltip=(
             "Additive run metrics: inherent/achieved/operational "
             "availability, MTTFF, Red-time causes and per-block failure, "
-            "downtime and cost criticality. The report text is "
-            "unchanged."),
+            "downtime and cost criticality. The same values close the "
+            "Final Results report, under EXTENDED_RESULTS."),
         handler="_show_derived_dialog",
         enabled_when="has_results"),
     CommandSpec(

@@ -28,6 +28,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools"))
 import golden_fixtures as gf  # noqa: E402
 
+from raptor.core.engine.extended_results import legacy_lines  # noqa: E402
 from raptor.core.engine.runner import run_simulation_with_reports  # noqa: E402
 from raptor.core.fileio.rbd import load_rbd  # noqa: E402
 from tests.unit.log_compare import (  # noqa: E402
@@ -60,8 +61,9 @@ def _mask_header(lines: list[str]) -> list[str]:
 
 def _diff(mine: list[str], real: list[str]) -> str | None:
     """Return None if mine/real match (modulo fp32-noise); else a one-line
-    failure description."""
-    mine = _mask_header(strip_trailing_blank_ish(mine))
+    failure description. Only the Raptor 7 part of ours is compared: the
+    ``***EXTENDED_RESULTS***`` section has no real-Raptor counterpart."""
+    mine = _mask_header(strip_trailing_blank_ish(legacy_lines(mine)))
     real = _mask_header(strip_trailing_blank_ish(real))
     if len(mine) != len(real):
         return f"line count differs: mine={len(mine)} real={len(real)}"

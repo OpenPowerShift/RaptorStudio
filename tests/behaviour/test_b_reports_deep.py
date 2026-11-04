@@ -80,6 +80,7 @@ from typing import Any
 import pytest
 
 from raptor.core.engine import runner as _runner
+from raptor.core.engine.extended_results import legacy_lines
 from raptor.core.engine.load import load_model
 from raptor.core.engine.reports import (
     _mean_stock, _output_to_fr, build_final_results_report,
@@ -795,7 +796,8 @@ def test_a_model_with_an_event_and_a_hierarchy_puts_the_event_analysis_first() -
     # there is none after the event title before its own tables -- which is
     # the coupling: a hierarchy on its own gets its leading blank only
     # because the event routine writes one unconditionally.
-    assert run.final[titles[2]:] == [
+    # (Only the legacy report: the extended section follows it.)
+    assert legacy_lines(run.final)[titles[2]:] == [
         "EVENT_ANALYSIS",
         "",
         "Availability_Data",

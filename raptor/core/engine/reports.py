@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 from raptor.core.engine.report_format import (
     format_stats, get_display_str, int_to_str, pop_to_sample, real_to_sn, real_to_str,
 )
+from raptor.core.engine.extended_results import build_extended_results_section
 from raptor.core.engine.stats import RunningStat
 from raptor.core.model import RBDBlock, SparingType
 from raptor.core.engine.errors import EngineInvariantError
@@ -1408,6 +1409,10 @@ def build_final_results_report(
     lines.extend(_build_fr_capacity_section(all_run_data))
     lines.extend(_build_fr_cost_section(all_run_data))
     lines.extend(_build_fr_weak_section(all_run_data))
+    # Raptor Studio's own measures, after every Raptor 7 section. The
+    # fidelity tests compare only the part before the banner
+    # (`extended_results.legacy_lines`).
+    lines.extend(build_extended_results_section(all_run_data))
 
     return lines
 

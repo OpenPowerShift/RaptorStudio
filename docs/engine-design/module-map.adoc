@@ -63,6 +63,7 @@ flowchart TD
 | `raptor/core/engine/errors.py` | Engine exceptions and invariant helpers.
 | `raptor/core/engine/eventlog.py` | Shared event-log line formatting -- port of `WriteEvents`.
 | `raptor/core/engine/events.py` | Port of `RBDEventObj.ConductEvent`/`ChangeEventState`.
+| `raptor/core/engine/extended_results.py` | The ``***EXTENDED_RESULTS***`` section of the Final Results report.
 | `raptor/core/engine/fev.py` | Failure Effects View (FEV): a model state you change by hand, with no event loop.
 | `raptor/core/engine/fmeca.py` | The Failure Effects text: `CreateFMECAarray` and `WriteFMECAtoFile`.
 | `raptor/core/engine/graph.py` | Scoped port of `RunEFPA`'s structural-graph-building loops: given a loaded `.rbd` file's parsed `LINK_DATA`, derive each node's `in_paths_array`/`propagates_to_node_ids`/`propagates_to_link_ids` and each block/event's `downstream_link_id`.

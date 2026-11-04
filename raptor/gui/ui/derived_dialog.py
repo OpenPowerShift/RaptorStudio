@@ -1,9 +1,10 @@
 """Results ▸ Availability and Criticality: additive run metrics in the GUI.
 
-The legacy Final Results text is left byte-identical to the captured
-reference output. These tables read the same per-run objects and present the
-new fields: MTTFF, availability classifications, Red-time cause buckets, and
-per-block failure/downtime/cost criticality.
+The same measures close the Final Results report under
+``***EXTENDED_RESULTS***`` (`core.engine.extended_results`). This dialog
+reads the same per-run objects and adds Copy and spreadsheet Export: MTTFF,
+availability classifications, Red-time cause buckets, and per-block
+failure/downtime/cost criticality.
 """
 from __future__ import annotations
 
@@ -51,7 +52,8 @@ class DerivedResultsDialog(QDialog):
         intro = QLabel(
             f"Additive run metrics over {len(self._data)} run(s): "
             "availability classifications, MTTFF, Red-time causes and "
-            "criticality ratios. Report text is unchanged.")
+            "criticality ratios. The same values close the Final Results "
+            "report, under EXTENDED_RESULTS.")
         intro.setWordWrap(True)
         lay.addWidget(intro)
 

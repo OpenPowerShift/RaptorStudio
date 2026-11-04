@@ -17,6 +17,7 @@ import pathlib
 
 import pytest
 
+from raptor.core.engine.extended_results import legacy_lines
 from raptor.core.engine.runner import run_simulation_with_reports
 from raptor.core.fileio.rbd import load_rbd
 from tests.unit.log_compare import (
@@ -38,7 +39,8 @@ def _mask_header_date(lines: list[str]) -> list[str]:
 
 def _diff(mine: list[str], real: list[str], label: str) -> None:
 
-    mine = _mask_header_date(strip_trailing_blank_ish(mine))
+    # Our ***EXTENDED_RESULTS*** section has no real counterpart.
+    mine = _mask_header_date(strip_trailing_blank_ish(legacy_lines(mine)))
 
     real = _mask_header_date(strip_trailing_blank_ish(real))
 
