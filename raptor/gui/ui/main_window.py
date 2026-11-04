@@ -3563,11 +3563,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         elif not hid:
             self._diagram_dock.view.go_home()
 
-    def _show_derived_dialog(self):
-        """Results ▸ Availability and Criticality: additive run metrics."""
-        from raptor.gui.ui.derived_dialog import open_derived_dialog
-        open_derived_dialog(self)
-
     def _open_analytic_dialog(self):
         """Results ▸ Analytical: exact static reliability/availability."""
         if self._rbd is None:

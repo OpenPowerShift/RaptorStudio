@@ -121,7 +121,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         id="file.export_xlsx",
         attr="_export_xlsx_action",
         text="Export Excel Workbook\u2026",
-        icon="export_tables_icon:text",
+        icon="export_xlsx_icon:text",
         tooltip=(
             "Save the model's tables and the latest run's results as one "
             "Excel workbook (.xlsx), set up to read, filter and print"),
@@ -131,7 +131,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         id="file.export_ods",
         attr="_export_ods_action",
         text="Export OpenDocument Spreadsheet\u2026",
-        icon="export_tables_icon:text",
+        icon="export_ods_icon:text",
         tooltip=(
             "Save the model's tables and the latest run's results as one "
             "OpenDocument spreadsheet (.ods) for LibreOffice and other "
@@ -866,18 +866,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_show_domains_dialog",
         enabled_when="model_open"),
     CommandSpec(
-        id="results.derived",
-        attr="_derived_action",
-        text="Availability and Criticality…",
-        icon="detail_view_icon:accent",
-        tooltip=(
-            "Additive run metrics: inherent/achieved/operational "
-            "availability, MTTFF, Red-time causes and per-block failure, "
-            "downtime and cost criticality. The same values close the "
-            "Final Results report, under EXTENDED_RESULTS."),
-        handler="_show_derived_dialog",
-        enabled_when="has_results"),
-    CommandSpec(
         id="results.analytical",
         attr="_analytical_action",
         text="Analytical…",
@@ -1288,7 +1276,7 @@ LAYOUT: tuple[Page, ...] = (
                       Btn("results.results_float", True),
                       Btn("results.clear_results"),
                       Btn("results.spof"), Btn("results.domains"),
-                      Btn("results.analytical"), Btn("results.derived"))),
+                      Btn("results.analytical"))),
        Group("Show on Canvas", (Btn("results.weak_color", True),
                                 Btn("results.capacity_overlay"),
                                 Btn("results.cost_overlay"),

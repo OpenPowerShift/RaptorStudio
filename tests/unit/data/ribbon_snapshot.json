@@ -380,16 +380,6 @@
    "text": "Delete Selected",
    "tooltip": "Delete selected blocks/nodes (Del)\n\nUnavailable: open or create a model first"
   },
-  "_derived_action": {
-   "checkable": false,
-   "checked": false,
-   "context": 1,
-   "has_icon": true,
-   "has_menu": false,
-   "shortcuts": [],
-   "text": "Availability and Criticality\u2026",
-   "tooltip": "Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The same values close the Final Results report, under EXTENDED_RESULTS.\n\nUnavailable: there are no results to clear \u2014 run the model first"
-  },
   "_diff_action": {
    "checkable": false,
    "checked": false,
@@ -1492,7 +1482,6 @@
    "_cut_action": false,
    "_data_tables_action": true,
    "_delete_tool": false,
-   "_derived_action": false,
    "_diff_action": false,
    "_domains_action": false,
    "_explorer_toggle_action": true,
@@ -1633,7 +1622,6 @@
    "_cut_action": true,
    "_data_tables_action": true,
    "_delete_tool": false,
-   "_derived_action": false,
    "_diff_action": true,
    "_domains_action": true,
    "_explorer_toggle_action": true,
@@ -1774,7 +1762,6 @@
    "_cut_action": false,
    "_data_tables_action": true,
    "_delete_tool": false,
-   "_derived_action": false,
    "_diff_action": false,
    "_domains_action": false,
    "_explorer_toggle_action": true,
@@ -2448,11 +2435,6 @@
        "kind": "action",
        "large": false,
        "text": "Analytical\u2026"
-      },
-      {
-       "kind": "action",
-       "large": false,
-       "text": "Availability and Criticality\u2026"
       }
      ],
      "title": "Show"

@@ -509,16 +509,14 @@ in MCP
 are in <a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md">the analytical solver guide</a>.</p>
 </div>
 <div class="paragraph">
-<p><strong>Results ▸ Availability and Criticality…</strong> reads the latest run&#8217;s additive
+<p><strong>Final Results ▸ Extended results</strong> shows the latest run&#8217;s additive
 metrics: operational / inherent / achieved availability, MTTFF, MTBF and
 MTBE on a total-time denominator, component CM/PM counts, Red-time cause
-buckets, and per-block failure / downtime / cost criticality. The same
-values close the Final Results report, in its <code><strong><strong>EXTENDED_RESULTS</strong></strong></code>
-section (Min / Mean / Max / St.Dev / SEM over runs, then each block&#8217;s
-percentage share of failures, downtime and cost). Downtime shares need Weak
-Link analysis and cost shares need Cost analysis. <strong>Copy</strong> puts the visible
-tab on the clipboard and <strong>Export…</strong> saves both tabs as a spreadsheet
-(Excel or OpenDocument).</p>
+buckets (Min / Mean / Max / St.Dev / SEM over runs), and each block&#8217;s
+percentage share of failures, downtime and cost. They close the Final
+Results report too, in its <code><strong><strong>EXTENDED_RESULTS</strong></strong></code> section, and Export
+Tables writes them like any other result table. Downtime shares need Weak
+Link analysis and cost shares need Cost analysis.</p>
 </div>
 </div>
 <div class="sect2">
@@ -2335,11 +2333,6 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Analytical…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes.</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Availability and Criticality…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The same values close the Final Results report, under EXTENDED_RESULTS.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 </tbody>
