@@ -22,6 +22,7 @@ from collections.abc import Callable
 from raptor.api.results import aggregate_metrics, capacity_values, metrics_to_dict, Metric
 from raptor.api.workspace import Workspace
 from raptor.core.fileio.rbd import RbdFile
+from raptor.core.engine.report_rows import tags_of
 from raptor.core.engine.reporting import RunReportData
 
 
@@ -488,6 +489,7 @@ def run(
     artefacts = {
         "end_of_run": eor_text,
         "final_results": final_text,
+        "final_results_ids": json.dumps(tags_of(final_lines)),
         "availability_plot": "\n".join(ao_lines),
         "capacity": "\n".join(cap_lines),
         "cost": "\n".join(cost_lines),
@@ -499,11 +501,13 @@ def run(
         from raptor.core.engine.eventlog import format_event_log_file
         runs = [log if isinstance(log, list) else [log] for log in event_logs]
         cats = developer.event_log_filter
-        artefacts["events"] = "\n".join(str(x) for x in format_event_log_file(
+        event_file = format_event_log_file(
             runs, sim_rbd.file_name, time.ctime(),
             blocks="block" in cats, nodes="node" in cats, system="system" in cats,
             phases="phase" in cats,
-            component=developer.event_log_component))
+            component=developer.event_log_component)
+        artefacts["events"] = "\n".join(str(x) for x in event_file)
+        artefacts["events_ids"] = json.dumps(tags_of(event_file))
     if importance_data is not None:
         artefacts["importance"] = "\n".join(
             _importance.table_lines(importance_data))
@@ -517,7 +521,7 @@ def run(
     # conditionally-collected ones. A section added to SECTION_FILES without
     # a writer here would otherwise be readable-but-never-written, which is
     # how the copies drifted in the first place.
-    optional = {"events"} if not collect_events else set()
+    optional = {"events", "events_ids"} if not collect_events else set()
     # Written by the engine itself, as it draws, when the `sim_details` option is on.
     optional.add("sim_details")
     # Only when the experiment asked for importance measures.
@@ -783,8 +787,13 @@ def isolation_metadata(workspace: Workspace, run_id: str) -> dict | None:
 SECTION_FILES = {
     "end_of_run": "end_of_run.txt",
     "final_results": "final_results.txt",
+    # Which element each Final Results row is about (`report_rows`): the
+    # text names elements, and names are not unique.
+    "final_results_ids": "final_results_ids.json",
     "availability_plot": "availability_plot.txt",
     "events": "events.txt",
+    # Which block, node or event each event-log line is about.
+    "events_ids": "events_ids.json",
     # Only when the `sim_details` developer option is on (Raptor 7's `/sd`).
     "sim_details": "simDetails.TXT",
     # Only with the `domain_tree` / `core_file` developer options (Avant-garde F and G).

@@ -578,16 +578,44 @@ class TestResultTables:
         _rbd, bundle = run_bundle
         t = next(t for t in result_tables(bundle)
                  if t.key == "results.event_log")
-        assert t.headers == ["Run"] + list(EVENT_LOG_HEADERS)
+        h = list(EVENT_LOG_HEADERS)
+        # The element's ID follows its name: names are not unique.
+        assert t.headers == ["Run", *h[:3], "ID", *h[3:]]
         # Every cell must land in a column that has a header above it --
         # the unlabelled-tail failure mode the Cost sheet had.
         for row in t.rows:
             assert len(row) == len(t.headers)
-            assert all(c != "" or i == 0 for i, c in enumerate(row)) or True
         first = bundle.event_logs[0][0]
-        fields = first.split("\t")
-        assert t.rows[0][1:1 + len(fields)] == [
-            f.strip() for f in fields[:len(EVENT_LOG_HEADERS)]]
+        fields = [f.strip() for f in first.split("\t")][:len(h)]
+        row = t.rows[0]
+        assert row[1:4] + row[5:5 + len(fields) - 3] == fields
+
+    def test_every_element_row_carries_its_id(self, run_bundle):
+        """Names are not unique, so a result row about a block, node or
+        event says which one by id; the report text itself is unchanged."""
+        _rbd, bundle = run_bundle
+        tables = {t.key: t for t in result_tables(bundle)}
+        log = tables["results.event_log"]
+        i_type, i_id = log.headers.index("Type"), log.headers.index("ID")
+        blocks = [r for r in log.rows if r[i_type] == "Block"]
+        assert blocks and all(isinstance(r[i_id], int) for r in blocks)
+        named = [t for t in tables.values() if "ID" in t.headers
+                 and t.key != "results.event_log"]
+        assert named, "no Final Results table carries element ids"
+        for t in named:
+            i = t.headers.index("ID")
+            assert all(r[i] != "" for r in t.rows
+                       if str(r[0]).strip().lower() != "total"), t.key
+
+    def test_saved_tags_round_trip(self):
+        from raptor.core.engine.report_rows import (
+            apply_tags, element_of, tag, tags_of)
+        lines = ["head", tag("Pump   3.0", "block", 7), "tail"]
+        saved = tags_of(lines)
+        assert saved == [[1, "block", 7]]
+        back = apply_tags([str(x) for x in lines], saved)
+        assert back == lines and element_of(back[1]) == ("block", 7)
+        assert element_of(back[0]) is None
 
     def test_cost_section_splits_into_one_table_per_sub_table(self):
         """`***COST***` is seven tables plus a summary tail under one

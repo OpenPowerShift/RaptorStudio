@@ -156,7 +156,7 @@ def change_event_state(
             logs.append(
                 format_event_log_line(
                     sim_time, "Event", event.name, action_string,
-                    comment_string if comment_string else "change_event_state",
+                    comment_string if comment_string else "change_event_state", element_id=event.id
                 )
             )
 
