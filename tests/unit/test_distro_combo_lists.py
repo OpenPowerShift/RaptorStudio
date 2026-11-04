@@ -45,7 +45,7 @@ def test_a_value_the_file_already_holds_is_kept_selectable():
     still show (and keep) it, not land on Beta and be replaced on save."""
     combo = fill_distro_combo(QComboBox(), 20, is_failure=True, kind="delay")
     assert combo.currentData() == 20
-    assert "not offered by Raptor 7" in combo.currentText()
+    assert "not offered here" in combo.currentText()
 
 
 def test_fixed_for_a_failure_law_is_the_only_addition_to_raptor7s_lists():

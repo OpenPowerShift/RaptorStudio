@@ -388,8 +388,8 @@ def validate(rbd: RbdFile) -> list[str]:
             continue
         if end_k > 1:
             issues.append(
-                f"WARN: End node {nodes[end_id].get('Name')!r} has k={end_k}, but Raptor 7 needs only one good "
-                "path at an End node; put the K-of-N on a node in front of it (a single link into End)"
+                f"WARN: End node {nodes[end_id].get('Name')!r} has k={end_k}, but an End node needs only one good "
+                "path; put the K-of-N on a node in front of it (a single link into End)"
             )
 
     # hierarchy In/Out marker nodes: `in`/`out` must name an existing
@@ -445,8 +445,8 @@ def validate(rbd: RbdFile) -> list[str]:
         if declared_level != real_level:
             issues.append(
                 f"WARN: HIERARCHY_DATA {hier_row.get('hierarchyName')!r} (id={hid}) declares "
-                f"level={declared_level} but is {real_level} level(s) deep -- Raptor 7 walks "
-                f"hierarchies by level and crashes on Simulate (Array allocation); save_rbd "
+                f"level={declared_level} but is {real_level} level(s) deep -- an .rbd "
+                f"reader walks hierarchies by level and fails on Simulate; save_rbd "
                 f"derives the level from Parent, so the export is repaired"
             )
 
@@ -464,8 +464,8 @@ def validate(rbd: RbdFile) -> list[str]:
         if declared_i != real:
             issues.append(
                 f"ERROR: node {row.get('Name')!r} (id={nid}) declares n={declared} but has "
-                f"{real} real incoming link(s) -- this crashes Raptor 7 with an Access "
-                f"Violation, fix n to match exactly"
+                f"{real} real incoming link(s) -- the .rbd file "
+                f"cannot be opened like this; fix n to match exactly"
             )
 
     # node Out: OVER-declared (declared > real) is harmless -- every
@@ -496,8 +496,8 @@ def validate(rbd: RbdFile) -> list[str]:
         elif declared_i != real:
             issues.append(
                 f"WARN: node {row.get('Name')!r} (id={nid}) declares Out={declared} but has "
-                f"{real} real outgoing link(s) -- OVER-declared, harmless in "
-                "Raptor 7 (several working models have this), listed for visibility only"
+                f"{real} real outgoing link(s) -- over-declared, harmless "
+                "(several working models have this), listed for visibility only"
             )
 
     # Gamma(6)/Pearson5(11)/Weibull(15) with fewer than 3 stored params:
@@ -514,8 +514,8 @@ def validate(rbd: RbdFile) -> list[str]:
                 if dist in (6, 11, 15) and n < 3:
                     issues.append(
                         f"ERROR: {kind} {row.get('blockName')!r} {dist_key}={dist} with {n_key}={n} -- "
-                        "Raptor 7 reads dataArray[3] (location) OUT OF BOUNDS and adds heap garbage "
-                        "to every draw; set it to 3 (every real-authored model does)"
+                        "the location parameter is read out of range and every draw is wrong in "
+                        "an .rbd reader; set it to 3 (every real-authored model does)"
                     )
 
     # header counts vs actual rows
@@ -532,7 +532,7 @@ def validate(rbd: RbdFile) -> list[str]:
                 # (unlike other sections' drift, which is harmless)
                 issues.append(
                     f"ERROR: header {key}={declared_count} but {section} actually has {real} row(s) "
-                    "-- would crash Raptor 7 on open (unlike other sections' header-count "
+                    "-- the .rbd file could not be opened (unlike other sections' header-count "
                     "drift, which is harmless) -- call sync_counts(rbd) before saving, or pass "
                     "sync_counts_first=True (default) to save()"
                 )
@@ -547,7 +547,7 @@ def validate(rbd: RbdFile) -> list[str]:
     from raptor.core.fileio.phase_edit import phase_problems
     for problem in phase_problems(rbd):
         if not problem.startswith("header Phases"):
-            issues.append(f"ERROR: {problem} -- Raptor 7 reads the wrong number of phase tokens and crashes on "
-                          "open; change phases through the phases API")
+            issues.append(f"ERROR: {problem} -- the wrong number of phase tokens is read and the "
+                          ".rbd file cannot be opened; change phases through the phases API")
 
     return issues

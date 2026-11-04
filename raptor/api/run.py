@@ -299,8 +299,8 @@ def run(
     if run_length is not None and not (
             1e-6 <= float(run_length) <= 999_999_999.999999):
         raise ValueError(
-            "Stop simulation time must be between 0.000001 and "
-            "999,999,999.999999!")
+            "The run length must be between 0.000001 and "
+            "999,999,999.999999.")
     handle = workspace.get(model_id)
 
     # Work on a copy only when overriding, so the live model is untouched.

@@ -175,9 +175,9 @@ def insert_phase(rbd: RbdFile, position: int, *, name: str, dist: int = 19,
     if not 1 <= position <= n + 1:
         raise PhaseEditError(f"phase position {position} is outside 1..{n + 1}")
     if not name or " " in name:
-        raise PhaseEditError("'Phase Name' field can't be blank or have blank spaces!")
+        raise PhaseEditError("Phase name cannot be blank or contain spaces.")
     if len(name) > 20:
-        raise PhaseEditError("'Phase Name' must be no greater than 20 characters!")
+        raise PhaseEditError("Phase name must be at most 20 characters.")
     phases.rows.insert(position - 1, make_phase_row(name, position, 1 if mission else 0, dist, params))
     for i, row in enumerate(phases.rows, 1):
         row["Num"] = str(i)

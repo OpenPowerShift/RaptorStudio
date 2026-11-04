@@ -722,9 +722,8 @@ def test_a_post_ldt_start_into_an_empty_spare_pool_is_refused():
     assert "block 'A' starts the run in post-LDT with an empty spare pool" in message, (
         f"the refusal must name the block and the shape it refuses; got "
         f"{message!r}")
-    assert "spare-check ELSE arm" in message, (
-        f"the refusal must name the Raptor 7 branch it declines to guess; got "
-        f"{message!r}")
+    assert "not supported" in message, (
+        f"the refusal must say the case is not supported; got {message!r}")
 
 
 def test_a_post_ldt_start_whose_spare_grab_would_reorder_the_pool_is_refused():

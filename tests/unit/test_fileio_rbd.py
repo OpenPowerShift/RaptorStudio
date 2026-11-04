@@ -339,7 +339,7 @@ class TestProtectedFileAndVersion:
 
     def test_version_5_and_6_rejected_with_clear_message(self) -> None:
         for ver in ("Version6_6.0.0", "Version5_5.0.0"):
-            with pytest.raises(ValueError, match="unsupported RAPTOR file "
+            with pytest.raises(ValueError, match="unsupported .rbd file "
                                                  "version"):
                 parse_rbd(self._text(ver, "1"))
 

@@ -609,6 +609,6 @@ def test_a_typed_value_raptor7_refuses_is_refused(v, monkeypatch):
     before = v.blocks[bid].pm_freq
     v.set_block_pm_freq(bid, 10.0)
     v.set_block_pm_stagger(bid, 50.0)
-    assert shown and "PM stagger value cannot be greater than or equal to PM frequency!" in shown[-1]
+    assert shown and "PM stagger value cannot be greater than or equal to PM frequency." in shown[-1]
     assert v.blocks[bid].pm_stagger < 10.0 and v.blocks[bid].pm_freq == 10.0 != before
     assert not v._stack.canRedo(), "the refused edit must not come back through Redo"

@@ -637,7 +637,7 @@ class TestAddElement:
         free = add_block(workspace, motor_model, "Free")
         end = next(n for n in handle.rbd.section("NODE_DATA").rows if n["Type"] == "3")
         links_before = len(handle.rbd.section("LINK_DATA").rows)
-        with pytest.raises(InputRuleViolation, match="more than one connection to an End Node"):
+        with pytest.raises(InputRuleViolation, match="Only one link can go to an End node"):
             connect(workspace, motor_model, "Block", int(free["ID"]), "Node", int(end["ID"]))
         assert len(workspace.get(motor_model).rbd.section("LINK_DATA").rows) == links_before
 

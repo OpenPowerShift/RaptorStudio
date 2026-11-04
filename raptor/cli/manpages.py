@@ -50,7 +50,7 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
          "--set 'block:Pump A.fail_params=1.5,500'",
          "Try a different failure distribution without editing the model."),
         ("raptor run pump.rbd -r all -o out/",
-         "Also write every Raptor 7-format report into out/."),
+         "Also write every legacy-format text report into out/."),
         ("raptor run pump.rbd --stop failures=10 -n 50",
          "Run until the 10th system failure, 50 times."),
     ],
@@ -105,7 +105,7 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
         ("raptor extract plant.rbd --hierarchy Cooling --report-hazards",
          "List what crosses the Cooling hierarchy's boundary and what would be done about it."),
         ("raptor extract plant.rbd --hierarchy Cooling -o cooling.rbd --deps system --pools share",
-         "Save Cooling as a standalone model that opens in Raptor 7."),
+         "Save Cooling as a standalone .rbd model."),
     ],
     "mcp": [
         ("raptor mcp", "Serve MCP over stdio (what an assistant launches)."),

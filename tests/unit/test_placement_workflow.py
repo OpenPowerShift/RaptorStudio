@@ -402,8 +402,8 @@ class TestHierarchies:
         # which is exactly what Raptor 7 refuses to run (ValidateRBD).
         errors = [i.message for i in issues(rbd) if i.severity == "error"]
         assert errors == [
-            "To simulate, hier 'Sub' must connect from something!",
-            "To simulate, hier 'Sub' must connect to something!"], errors
+            "The hier 'Sub' needs a link in before the model can run.",
+            "The hier 'Sub' needs a link out before the model can run."], errors
 
     def test_collapse_selection_rewires_the_boundary(self, workspace):
         """The GUI's Collapse Selection: internal links travel down a

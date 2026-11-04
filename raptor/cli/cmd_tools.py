@@ -152,20 +152,20 @@ def add_parser(sub: Any) -> None:
                     "system down.")
     sp.add_argument("model", metavar="MODEL")
     sp.add_argument("-o", "--output", metavar="FILE",
-                    help="write the Raptor 7-format text file to FILE")
+                    help="write the legacy-format text file to FILE")
     sp.add_argument("-f", "--format", choices=("text", "json"),
                     default="text")
     sp.add_argument("--criticality", action="store_true", default=None,
                     help="add the criticality column to the file (a "
-                         "Raptor 7 developer option)")
+                         "developer option)")
     sp.set_defaults(func=spf_command)
 
     ex = sub.add_parser(
         "extract", help="save one hierarchy as a standalone model",
         description="Build a standalone model from one hierarchy (its In node "
                     "becomes Start, its Out node End) and save it, or list "
-                    "what crosses its boundary. A port extension: Raptor 7 "
-                    "has no such feature, but the saved .rbd opens in it.")
+                    "what crosses its boundary. The saved .rbd is an ordinary "
+                    "model file.")
     ex.add_argument("model", metavar="MODEL")
     ex.add_argument("--hierarchy", required=True, metavar="NAME|ID")
     ex.add_argument("-o", "--output", metavar="FILE",
@@ -201,16 +201,16 @@ def add_parser(sub: Any) -> None:
                     help="read actions from FILE, one per line (- for stdin); "
                          "each `write` line records the text at that point")
     fv.add_argument("--log", metavar="FILE",
-                    help="write the Raptor 7-format Failure Effects log (CRLF, "
+                    help="write the legacy-format Failure Effects log (CRLF, "
                          "the file Write To Failure Effects Log appends to)")
     fv.add_argument("-f", "--format", choices=("text", "json"), default="text")
     fv.add_argument("--criticality", action="store_true", default=None,
-                    help="add the Criticality line (Raptor 7's developer "
+                    help="add the Criticality line (a developer "
                          "option)")
     fv.add_argument("--capacity", action="store_true",
                     help="also show the flow delivered, and the flow and "
                          "capacity of each capacity node (models with "
-                         "capacity analysis; not in Raptor 7)")
+                         "capacity analysis)")
     fv.set_defaults(func=fev_command)
 
     st = sub.add_parser(

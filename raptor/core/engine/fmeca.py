@@ -186,8 +186,8 @@ def build_fmeca(fev, *, show_criticality: bool = False) -> list[str]:
     if len(out) + 1 > MAX_LINES:
         raise UnrunnableModel([ModelProblem(
             "model",
-            f"the Failure Effects text would be {len(out)} lines; Raptor 7's "
-            f"array holds {MAX_LINES} and goes out of range beyond that")])
+            f"the Failure Effects text would be {len(out)} lines; at most "
+            f"{MAX_LINES} are supported")])
     return out
 
 

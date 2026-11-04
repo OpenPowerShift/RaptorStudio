@@ -58,9 +58,9 @@ def help_command(args: Any) -> int:
         return X.OK
     if t == "formats":
         print("summary formats (-f/--format): text, json, ndjson, csv, "
-              "markdown, none\nmodel files: .rbd (Raptor 7), "
+              "markdown, none\nmodel files: .rbd (legacy format), "
               ".rbds (JSON; see docs/RBDS_FORMAT.md)\n"
-              "report files (-r): Raptor 7 text, CRLF line ends")
+              "report files (-r): legacy text format, CRLF line ends")
         return X.OK
     parser = build_parser()
     for action in parser._actions:                  # noqa: SLF001

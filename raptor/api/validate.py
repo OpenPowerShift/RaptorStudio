@@ -48,8 +48,8 @@ class Issue:
 
 #: What a crowded layout gets instead of being moved on save or export.
 LAYOUT_WARNING = (
-    "some elements are closer together than one Raptor 7 grid step (1.25), "
-    "so Raptor 7 draws them overlapping. Saving and exporting leave the "
+    "some elements are closer together than one grid step (1.25), so a "
+    ".rbd viewer draws them overlapping. Saving and exporting leave the "
     "layout as it is; run Auto Layout to space them out.")
 
 
@@ -954,7 +954,7 @@ def _check_capacity_settings(rbd: RbdFile) -> list[Issue]:
         result.append(Issue(
             "warning", f"Node {marker.get('ID')} '{label}'",
             f"this hierarchy {kind} marker is set as a capacity boundary "
-            "(full_flow=0 or div_flow=0). Raptor 7's own models leave every "
+            "(full_flow=0 or div_flow=0). Models usually leave every "
             "marker unrestricted, and with capacity analysis on the caps "
             "then bind on the links into the marker, so flow through the "
             "hierarchy can come out far lower than expected (even zero) "

@@ -81,7 +81,7 @@ DEV_FEATURES: tuple[DevFeature, ...] = (
                source="/d switch"),
     DevFeature("sim_details", "Random draw log (simDetails)",
                "Write simDetails.TXT: every random draw. Appends across "
-               "launches, as Raptor 7 does.", "bool",
+               "launches.", "bool",
                source="/sd switch"),
     DevFeature("mission_file", "Mission file",
                "Write a mission file: block id, time and system up/down at "

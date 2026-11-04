@@ -220,7 +220,7 @@ def save_model_as(model_id: str, path: str,
     explicit extension must match `format`; a mismatch or a path into the
     managed models/runs/renders trees is refused.  A .rbd export runs
     validate() first and refuses on ERROR. The layout is saved as it is;
-    `layout_warning` says when Raptor 7 would draw elements overlapping
+    `layout_warning` says when an .rbd viewer would draw elements overlapping
     (call `auto_layout` first to space them out).
     """
     context.require_write()

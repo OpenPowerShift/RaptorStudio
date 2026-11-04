@@ -194,7 +194,7 @@ class TestValidateNodeOutOverDeclared:
         start["Out"] = "2"
 
         issues = validate(rbd)
-        over_warn = [i for i in issues if "OVER-declared" in i and "Out=" in i]
+        over_warn = [i for i in issues if "over-declared" in i and "Out=" in i]
         assert over_warn, f"Expected Out over-declared warning, got: {issues}"
         # Must be a WARN, not an ERROR
         assert all("WARN" in w for w in over_warn)
@@ -264,7 +264,7 @@ class TestValidateDistParamCount:
         first["#FParam"] = "2"
 
         issues = validate(rbd)
-        dist_err = [i for i in issues if "OUT OF BOUNDS" in i and "FDist=15" in i]
+        dist_err = [i for i in issues if "read out of range" in i and "FDist=15" in i]
         assert dist_err, f"Expected dist param count error, got: {issues}"
 
 
@@ -277,7 +277,7 @@ class TestValidatePhasesHeaderCount:
         rbd.counts["Phases"] = 999
 
         issues = validate(rbd)
-        phases_err = [i for i in issues if "PHASES" in i and "crash Raptor 7" in i]
+        phases_err = [i for i in issues if "PHASES" in i and "could not be opened" in i]
         assert phases_err, f"Expected PHASES header error, got: {issues}"
 
 

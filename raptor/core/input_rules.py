@@ -23,10 +23,9 @@ in scripted models). The GUI's pickers enforce the lists; the rules here only
 refuse Empirical where the file cannot hold its points (a delay, a PM
 duration, a phase or a trigger).
 
-Messages are Raptor 7's own text, with its spelling and wording mistakes
-corrected and trailing padding removed. Where Raptor 7 has no message because it
-simply does not offer a choice (a distribution its list omits, Empirical with
-no points), the text is the port's and the rule's comment says so.
+Messages are this application's own: plain sentences that use the GUI's field
+names. The limits are the original program's; its dialog wording is not
+quoted.
 
 Deliberately not checked: the Preferences dialog's save increment and global
 units (the port's preferences are its own), and the
@@ -236,15 +235,15 @@ def _check_markers_and_elements(rbd, out: list[Violation]) -> None:
     """`ValidateRBD`'s connectivity checks."""
     if not _rows(rbd, "BLOCK_DATA") and not _rows(rbd, "EVENT_DATA"):
         out.append(Violation("run.no_blocks", "run", "model",
-                             "There must be at least 1 block or event to simulate!"))
+                             "Add at least one block or event before running."))
     into, links_out = _link_counts(rbd)
     for node in _rows(rbd, "NODE_DATA"):
         t, nid, name = _int(node, "Type"), str(node.get("ID")), node.get("Name", "")
         s = _Scope(out, "run", "run", f"Node {nid} '{name}'")
         if into.get(("node", nid), 0) < 1 and t not in (1, 4):
-            s.add("node_from", f"To simulate, node '{name}' must connect from something!")
+            s.add("node_from", f"Node '{name}' needs a link in before the model can run.")
         if links_out.get(("node", nid), 0) < 1 and t not in (3, 5):
-            s.add("node_to", f"To simulate, node '{name}' must connect to something!")
+            s.add("node_to", f"Node '{name}' needs a link out before the model can run.")
     for section, kind, col in (("BLOCK_DATA", "block", "blockName"),
                                      ("EVENT_DATA", "event", "eventName"),
                                      ("HIERARCHY_DATA", "hier", "hierarchyName")):
@@ -252,9 +251,9 @@ def _check_markers_and_elements(rbd, out: list[Violation]) -> None:
             oid, name = str(row.get("ID")), row.get(col, "")
             s = _Scope(out, "run", "run", f"{kind.capitalize()} {oid} '{name}'")
             if into.get((kind, oid), 0) < 1:
-                s.add(f"{kind}_from", f"To simulate, {kind} '{name}' must connect from something!")
+                s.add(f"{kind}_from", f"The {kind} '{name}' needs a link in before the model can run.")
             if links_out.get((kind, oid), 0) < 1:
-                s.add(f"{kind}_to", f"To simulate, {kind} '{name}' must connect to something!")
+                s.add(f"{kind}_to", f"The {kind} '{name}' needs a link out before the model can run.")
 
 
 def _term_type(make_system_row: dict) -> int:
@@ -278,29 +277,29 @@ def _check_termination(make_system_row: dict, s: _Scope) -> None:
     """The run-length fields the System dialog and the Simulation dialog both
     check."""
     s.outside("runs", _num(make_system_row, "NumRuns"), 1, 999999999,
-              "Number of runs must be between 1 and 999,999,999!")
+              "Number of runs must be between 1 and 999,999,999.")
     term = _term_type(make_system_row)
     length, start = _num(make_system_row, "TermCondition"), _num(make_system_row, "StartStats")
     ordered = length is None or start is None or length > start
     if term == 1:
         s.outside("time_len", length, 0.000001, _BIG,
-                  "Stop simulation time must be between 0.000001 and 999,999,999.999999!")
+                  "The run length must be between 0.000001 and 999,999,999.999999.")
         if _out_of(start, 0.0, 999999999.999998):
             s.add("time_start",
-                  "Start statistics time must be between 0 and 999,999,999.999998!")
+                  "The start of statistics must be between 0 and 999,999,999.999998.")
         elif not ordered:
             s.add("time_order",
-                  "Start statistics time must be less than stop simulation time!")
+                  "The start of statistics must be before the end of the run.")
     elif term in (2, 3):
         word, key = ("failure", "fail") if term == 2 else ("cycle", "cycle")
         s.outside(f"{key}_len", length, 1, 999999999,
-                  f"Stop simulation {word} must be between 1 and 999,999,999!")
+                  f"The number of {word}s that ends the run must be between 1 and 999,999,999.")
         if _out_of(start, 0, 999999998):
             s.add(f"{key}_start",
-                  f"Start statistics {word} must be between 0 and 999,999,998!")
+                  f"The {word}s before statistics start must be between 0 and 999,999,998.")
         elif not ordered:
             s.add(f"{key}_order",
-                  f"Start statistics {word} must be less than stop simulation {word}!")
+                  f"Statistics must start before the {word}s that end the run.")
 
 
 def _check_run_settings_into(rbd, out: list[Violation]) -> None:
@@ -316,7 +315,7 @@ def _check_run_settings_into(rbd, out: list[Violation]) -> None:
         # Raptor 7 says so and runs it time-terminated instead
         # the port refuses rather than change the
         # model behind the user's back.
-        s.add("cycle_without_phases", "You cannot use cycle terminated without phases defined.")
+        s.add("cycle_without_phases", "A run that ends after a number of cycles needs phases defined.")
 
 
 def check_run_settings(rbd) -> list[Violation]:
@@ -348,14 +347,14 @@ _ELEMENT_LINK_RULES = {   # kind -> (out line, in line, "A ...", "to a ...")  Ra
     "hier": ("A hierarchy item", "a hierarchy item"),
 }
 _MARKER_LINK_RULES = {    # node Type -> (no-in/no-out rule, ..., limit rule)
-    1: ("into", "Cannot connect to a Start Marker from any object!",
-        "out", "Cannot have more than one connection from a Start Node! Place an ordinary node after the marker and fan out from that node."),
-    3: ("out", "Cannot connect to any object from an End Marker!",
-        "in", "Cannot have more than one connection to an End Node! Place an ordinary node before the marker and merge there."),
-    4: ("into", "Cannot connect to an In Marker from any object!",
-        "out", "Cannot have more than one connection from an In Marker! Place an ordinary node after the marker and fan out from that node."),
-    5: ("out", "Cannot connect to any object from an Out Marker!",
-        "in", "Cannot have more than one connection to an Out Marker! Place an ordinary node before the marker and merge there."),
+    1: ("into", "You cannot connect to a Start node from any object.",
+        "out", "Only one link can go from a Start node. To branch, link it to an ordinary node and fan out from there."),
+    3: ("out", "You cannot connect to any object from an End node.",
+        "in", "Only one link can go to an End node. To join branches, merge them at an ordinary node first."),
+    4: ("into", "You cannot connect to a hierarchy's In marker from any object.",
+        "out", "Only one link can go from a hierarchy's In marker. To branch, link it to an ordinary node and fan out from there."),
+    5: ("out", "You cannot connect to any object from a hierarchy's Out marker.",
+        "in", "Only one link can go to a hierarchy's Out marker. To join branches, merge them at an ordinary node first."),
 }
 
 
@@ -370,9 +369,9 @@ def _check_links(rbd, out: list[Violation]) -> None:
             oid = str(row.get("ID"))
             s = _Scope(out, "link", "link", f"{kind.capitalize()} {oid} '{row.get(col, '')}'")
             if links_out.get((kind, oid), 0) > 1:
-                s.add(f"{kind}_out", f"{a} can only connect to one object! Route the branch through a node to fan out.")
+                s.add(f"{kind}_out", f"{a} can only connect to one object. Route the branch through a node to fan out.")
             if into.get((kind, oid), 0) > 1:
-                s.add(f"{kind}_in", f"Cannot connect more than one link to {to}!")
+                s.add(f"{kind}_in", f"Only one link can connect to {to}.")
     for node in _rows(rbd, "NODE_DATA"):
         rule = _MARKER_LINK_RULES.get(_int(node, "Type"))
         if rule is None:
@@ -407,7 +406,7 @@ def _block_distributions(row: dict, s: _Scope) -> None:
             # lists, and Raptor 7 runs such a file (Fixed failure laws are
             # common in scripted models), so it is not reported.
             s.add(f"dist_offered.{col}",
-                  f"Raptor 7 does not offer Empirical for the {what}: only a block's failure "
+                  f"Empirical is not offered for the {what}: only a block's failure "
                   "and repair laws can hold data points.")
     for col, key, what in (("FDist", "FEmp", "failure"), ("RDist", "REmp", "repair")):
         if _int(row, col) == 16 and not str(row.get(key, "")).split():
@@ -422,21 +421,21 @@ def _block_sparing(row: dict, s: _Scope) -> None:
     if str(row.get("SpType", "")) != "Custom":
         return
     s.outside("stock", _num(row, "Stock"), 0, 999999999,
-              "Initial stock must be between 0 and 999,999,999!")
+              "Initial stock must be between 0 and 999,999,999.")
     checks = []
     if _flag(row, "RSO"):
-        checks += [("new_spares", "NewSp", 99999, "New spares value must be between 1 and 99,999!"),
+        checks += [("new_spares", "NewSp", 99999, "New spares value must be between 1 and 99,999."),
                    ("arrive_every", "ArriveEvery", _BIG,
-                    "New spares arrival rate value must be between 0.000001 and 999,999,999.999999!")]
+                    "New spares arrival rate value must be between 0.000001 and 999,999,999.999999.")]
     if _flag(row, "SLO"):
         s.outside("stock_level", _num(row, "Level"), 0, 99999,
-                  "Stock level must be between 0 and 99,999!")
-        checks += [("stock_amount", "Quan", 99999, "Stock order amount must be between 1 and 99,999!"),
+                  "Stock level must be between 0 and 99,999.")
+        checks += [("stock_amount", "Quan", 99999, "Stock order amount must be between 1 and 99,999."),
                    ("stock_rate", "SLOTime", _BIG,
-                    "Stock arrival rate value must be between 0.000001 and 999,999,999.999999!")]
+                    "Stock arrival rate value must be between 0.000001 and 999,999,999.999999.")]
     if _flag(row, "ESO"):
         checks.append(("emer_time", "EmerTime", _BIG,
-                       "Emergency spare delay value must be between 0.000001 and 999,999,999.999999!"))
+                       "Emergency spare delay value must be between 0.000001 and 999,999,999.999999."))
     for rule, col, hi, msg in checks:      # each is `<= 0 OR > hi`
         x = _num(row, col)
         if x is not None and (x <= 0 or x > hi):
@@ -449,11 +448,11 @@ def _block_pm(row: dict, s: _Scope) -> None:
     freq, stagger = _num(row, "PMFreq"), _num(row, "PMStaggerTime")
     if not triggered:
         s.outside("pm_freq", freq, 0.000001, _BIG,
-                  "Frequency of PM must be between 0.000001 and 999,999,999.999999!")
+                  "Frequency of PM must be between 0.000001 and 999,999,999.999999.")
     if _out_of(stagger, 0.0, _BIG):
-        s.add("pm_stagger", "PM stagger value must be between 0 and 999,999,999.999999!")
+        s.add("pm_stagger", "PM stagger value must be between 0 and 999,999,999.999999.")
     elif not triggered and freq is not None and stagger is not None and stagger >= freq:
-        s.add("pm_stagger_vs_freq", "PM stagger value cannot be greater than or equal to PM frequency!")
+        s.add("pm_stagger_vs_freq", "PM stagger value cannot be greater than or equal to PM frequency.")
 
 
 _BLOCK_COSTS = (  # BlockPropObj.ReceiveData's costVals[1..13]
@@ -483,17 +482,17 @@ _DEPENDENCY_PERCENTS = (
 def _block_costs_and_dependency(row: dict, s: _Scope) -> None:
     for col, what in _BLOCK_COSTS:
         s.outside(f"cost.{col}", _num(row, col), 0.0, 999999999.99,
-                  f"{what} must be between 0 and 999,999,999.99!")
+                  f"{what} must be between 0 and 999,999,999.99.")
     s.outside("cost.doneFixed", _num(row, "doneFixed"), -999999999.99, 999999999.99,
-              "Fixed cost of this block being done must be between -999,999,999.99 and 999,999,999.99!")
+              "Fixed cost of this block being done must be between -999,999,999.99 and 999,999,999.99.")
     pcts = [_num(row, col) for col, _what in _DEPENDENCY_PERCENTS]
     for x, (col, what) in zip(pcts, _DEPENDENCY_PERCENTS):
-        s.outside(f"dep.{col}", x, 0.0, 100.0, f"{what} must be between 0 and 100!")
+        s.outside(f"dep.{col}", x, 0.0, 100.0, f"{what} must be between 0 and 100.")
     s.outside("dep.DepPMThresh", _num(row, "DepPMThresh"), 0.0, 100.0,
-              "Life exhausted must be between 0 and 100!")
+              "The PM threshold (life exhausted) must be between 0 and 100.")
     known = [x for x in pcts if x is not None]
     if len(known) == len(pcts) and abs(sum(known) - 100.0) > 1e-9:
-        s.add("dep.total", "Total percentage time must add up to 100!")
+        s.add("dep.total", "The dependency percentages must add up to 100.")
 
 
 def _block_growth_decay(row: dict, s: _Scope) -> None:
@@ -503,19 +502,19 @@ def _block_growth_decay(row: dict, s: _Scope) -> None:
         return
     mean = dialog_fail_mean(_int(row, "FDist"), _fail_values(row))
     rate, limit = _num(row, "GDRate") or 0.0, _num(row, "GDLimit") or 0.0
-    low = f"The limit must be between 0.000001 and {mean:.6f}!"
-    high = f"The limit must be between {mean:.6f} and 999,999,999.999999!"
+    low = f"The limit must be between 0.000001 and {mean:.6f}."
+    high = f"The limit must be between {mean:.6f} and 999,999,999.999999."
     if mean < 0.0:
-        s.add("gd.mean", "Selected failure distribution/parameters cannot be used with block degrade!")
+        s.add("gd.mean", "This failure distribution and its parameters cannot be used with degradation.")
     elif gd == 3:
         if rate < 0.0 or rate >= 999999999.999:
-            s.add("gd.rate", "The rate must be between 0.000001 and 999,999,999.999999!")
+            s.add("gd.rate", "The rate must be between 0.000001 and 999,999,999.999999.")
         if limit < 0.0 or limit >= 999999999.999:
-            s.add("gd.limit", "The limit must be between 0.000001 and 999,999,999.999999!")
+            s.add("gd.limit", "The limit must be between 0.000001 and 999,999,999.999999.")
     elif gd == 1 and (rate < -_BIG or rate > 999999999.999):
-        s.add("gd.slope", "The slope must be between +/- 999,999,999.999999!")
+        s.add("gd.slope", "The slope must be between +/- 999,999,999.999999.")
     elif gd == 2 and rate <= 0.000001:
-        s.add("gd.base", "The base must be greater than 0.000001!")
+        s.add("gd.base", "The base must be greater than 0.000001.")
     else:
         falling = rate < 0.0 if gd == 1 else rate < 1.0
         if falling and (limit < 0.000002 or limit > mean):
@@ -554,13 +553,13 @@ def gd_corrections(gd_type: int, rate: float, limit: float, mean: float) -> tupl
 def _block_start_standby_resources(row: dict, pools: dict, s: _Scope) -> None:
     start, amt = _int(row, "SimStart"), _num(row, "AmtExhausted")
     if start == 3 and amt is not None and (amt < 0.0 or amt >= 999999999.999):
-        s.add("start_life", "The amount of life exhausted must be between 0.0 and 999,999,999.999999!")
+        s.add("start_life", "The amount of life exhausted must be between 0.0 and 999,999,999.999999.")
     if start == 5:
         s.outside("start_repair", amt, 0.0, 99.999999,
-                  "The percent of repair exhausted must be between 0.0 and 99.999999!")
+                  "The percent of repair exhausted must be between 0.0 and 99.999999.")
     lo = -999.999 if str(row.get("blockName", "")).startswith(("Bin-", "Timer-")) else 0.0   # {BINS}
     s.outside("sb_stress", _num(row, "SBStress"), lo, 999.999,
-              "The standby stress must be between 0 and 999.999!")
+              "The standby stress must be between 0 and 999.999.")
     res = str(row.get("Resource1Name", "None"))
     pool = pools.get(res)
     if pool is None or _int(row, "NumRes") < 1:
@@ -570,16 +569,16 @@ def _block_start_standby_resources(row: dict, pools: dict, s: _Scope) -> None:
         asked = _int(row, col)
         if have < asked:
             s.add(f"res.{col}", f"{asked} {res} were requested for {use} from a pool of "
-                  f"{have}. Please select {have} or less!")
+                  f"{have}: ask for {have} or fewer.")
 
 
 def _check_block(row: dict, pools: dict, out: list[Violation]) -> None:
     """`BlockPropObj.ReceiveData`."""
     name = str(row.get("blockName", ""))
     s = _Scope(out, "block", "dialog", f"Block {row.get('ID')} '{name}'")
-    s.name(name, "'Block Name' field can't be blank or have blank spaces!",
-           "'Block Name' field can't be blank or have blank spaces!",
-           "'Block Name' must be no greater than 20 characters!")
+    s.name(name, "Block name cannot be blank or contain spaces.",
+           "Block name cannot be blank or contain spaces.",
+           "Block name must be at most 20 characters.")
     _block_distributions(row, s)
     _block_sparing(row, s)
     _block_pm(row, s)
@@ -600,14 +599,14 @@ def _block_age_features(row: dict, s: _Scope) -> None:
     """
     duty = _num(row, "_DutyCycle")
     if duty is not None and duty <= 0.0:
-        s.add("age.duty", "Duty cycle must be greater than zero!")
+        s.add("age.duty", "Duty cycle must be greater than zero.")
     restore = _num(row, "_RestoreFactor")
     if restore is not None and _out_of(restore, 0.0, 1.0):
-        s.add("age.restore", "Restoration factor must be between 0 and 1!")
+        s.add("age.restore", "Restoration factor must be between 0 and 1.")
     rtype = _int(row, "_RestoreType", 0)
     if rtype not in (0, 1, 2):
         s.add("age.restore_type",
-              "Restoration type must be 0 (off), 1 (Type I) or 2 (Type II)!")
+              "Restoration type must be 0 (off), 1 (Type I) or 2 (Type II).")
     elif rtype == 0 and restore is not None and restore > 0.0:
         # Off ignores the factor; say so rather than run a model that does
         # not do what its numbers suggest.
@@ -616,7 +615,7 @@ def _block_age_features(row: dict, s: _Scope) -> None:
               "Type I or Type II, or set the factor to 0.")
     age = _num(row, "_StartAge")
     if age is not None and _out_of(age, 0.0, 999999999.0):
-        s.add("age.start", "Start age must be between 0 and 999,999,999!")
+        s.add("age.start", "Start age must be between 0 and 999,999,999.")
     if age is not None and age > 0.0 and _int(row, "SimStart", 3) != 3:
         s.add("age.start_condition",
               "Start age is used only by the Start='up, some complete' "
@@ -627,15 +626,15 @@ def _check_event(row: dict, out: list[Violation]) -> None:
     """`EventsBoxObj.ReceiveData`."""
     name = str(row.get("eventName", ""))
     s = _Scope(out, "event", "dialog", f"Event {row.get('ID')} '{name}'")
-    s.name(name, "'Event Name' field can't be blank or have blank spaces!",
-           "'Event Name' field can't be blank or have blank spaces!",
-           "'Event Name' must be no greater than 20 characters!")
+    s.name(name, "Event name cannot be blank or contain spaces.",
+           "Event name cannot be blank or contain spaces.",
+           "Event name must be at most 20 characters.")
     s.outside("probability", _num(row, "failVal"), 0.0, 1.0,
-              "Success probability must be between 0 and 1!")
+              "Success probability must be between 0 and 1.")
     for col, what in (("InitCost", "Initial cost"), ("OpCost", "Cost per success"),
                             ("RepCost", "Cost per failure")):
         s.outside(f"cost.{col}", _num(row, col), 0.0, 999999999.0,
-                  f"{what} must be between 0 and 999,999,999!")
+                  f"{what} must be between 0 and 999,999,999.")
 
 
 def _check_node(row: dict, n_in: int, out: list[Violation]) -> None:
@@ -645,62 +644,62 @@ def _check_node(row: dict, n_in: int, out: list[Violation]) -> None:
     name = str(row.get("Name", ""))
     s = _Scope(out, "node", "dialog", f"Node {row.get('ID')} '{name}'")
     if has_blank(name):     # a node may be unnamed
-        s.add("name", "'Node Name' field can't be blank or have blank spaces!")
+        s.add("name", "Node name cannot be blank or contain spaces.")
     elif len(name) > 20:
-        s.add("name", "'Node Name' must be no greater than 20 characters!")
+        s.add("name", "Node name must be at most 20 characters.")
     elif name.lower() in ("start", "end"):
         s.add("name_reserved",
-              f"The name {name.lower()} is a reserved node name!")
+              f"'{name.lower()}' is reserved for the Start and End nodes.")
     k, kstar = _num(row, "k"), _num(row, "k*")
     if k is not None and k > 9999:
-        s.add("k_max", "Good paths must be between 1 and 9,999!")
+        s.add("k_max", "Required good (k) must be between 1 and 9,999.")
     elif k is not None and k != -1 and n_in >= 1 and (k < 1 or k > n_in):
         # -1 is the stored "never set" (a one-path node; FactoryDemo's 60K);
         # the dialog only checks a k that is changed.
-        s.add("k_range", f"Good paths must be between 1 and {n_in}!")
+        s.add("k_range", f"Required good (k) must be between 1 and {n_in}, the number of paths in.")
     if not _flag(row, "Cold") or kstar is None:
         return
     if k is not None and k > kstar:
-        s.add("k_vs_kstar", "Maximum number running (k* on Standby tab) must be greater than or "
-              "equal to good paths (k on General tab)!")
+        s.add("k_vs_kstar", "Maximum running (k*) must be at least Required good (k)."
+              "")
     elif kstar > n_in:
-        s.add("kstar_vs_n", "Maximum number running (k* on Standby tab) must be less than or "
-              "equal to total paths!")
+        s.add("kstar_vs_n", "Maximum running (k*) cannot be more than the number of paths in."
+              "")
 
 
 def _check_standby_link(link: dict, s: _Scope) -> None:
     """The standby table, for a link into a
     cold-standby node."""
-    s.outside("cold_priority", _num(link, "ColdPri"), 1, 99, "Priority must be between 1 and 99!")
+    s.outside("cold_priority", _num(link, "ColdPri"), 1, 99, "Priority must be between 1 and 99.")
     p = _num(link, "AProb")
     if p is not None and (p <= 0.0 or p > 1.0):
         s.add("auto_probability",
-              "Auto switch probability must be greater than 0 and less than or equal to 1!")
+              "Auto switch probability must be greater than 0 and less than or equal to 1.")
     s.outside("auto_time", _num(link, "AutoTime"), 0.0, 999999999.0,
-              "Auto switch time must be between 0 and 999,999,999!")
+              "Auto switch time must be between 0 and 999,999,999.")
     man = _num(link, "ManTime")
     if man != -1.0:      # -1: "No Manual Switching"
         s.outside("manual_time", man, 0.0, 999999999.0,
-                  "Manual switch time must be between 0 and 999,999,999!")
+                  "Manual switch time must be between 0 and 999,999,999.")
 
 
 def _check_capacity_link(link: dict, generated: float, s: _Scope) -> None:
     """The capacity tables. -1 and -2 are
     "FullFlow" and an even share, not a typed number."""
-    s.outside("capacity_priority", _num(link, "CapPri"), 1, 99, "Priority must be between 1 and 99!")
+    s.outside("capacity_priority", _num(link, "CapPri"), 1, 99, "Priority must be between 1 and 99.")
     nom, mx = _num(link, "nomFlow"), _num(link, "MaxFlow")
     typed_nom = nom is not None and nom not in (-1.0, -2.0)
     typed_max = mx is not None and mx not in (-1.0, -2.0)
     if typed_nom and nom is not None:
         if nom < 0:
-            s.add("nominal_positive", "Nominal flow must be greater than 0!")
+            s.add("nominal_positive", "Nominal flow must be greater than 0.")
         elif (typed_max and mx is not None and mx >= 0 and nom > mx) or (mx == -1.0 and nom > generated):
-            s.add("nominal_vs_max", "Nominal flow must be less than or equal to the max flow!")
+            s.add("nominal_vs_max", "Nominal flow must be less than or equal to the max flow.")
     if typed_max and mx is not None:
         if mx < 0:
-            s.add("max_positive", "The max flow must be greater than 0!")
+            s.add("max_positive", "The max flow must be greater than 0.")
         elif typed_nom and nom is not None and nom >= 0 and mx < nom:
-            s.add("max_vs_nominal", "The max flow must be greater than the nominal flow!")
+            s.add("max_vs_nominal", "The max flow must be greater than the nominal flow.")
         elif mx > generated:
             s.add("max_vs_generated",
                   f"Maximum flow ({mx:g}) is higher than Flow Generated "
@@ -759,7 +758,7 @@ def _check_link_fields(rbd, out: list[Violation]) -> None:
             if value is not None and value not in (-1.0, -2.0) \
                     and not value.is_integer():
                 s.add("capacity_integer",
-                      f"{col_label} must be a whole number! (the .rbd format "
+                      f"{col_label} must be a whole number. (the .rbd format "
                       f"stores capacity flow as an integer)")
         target = nodes.get(str(link.get("ToID"))) if _kind(link.get("ToType")) == "node" else None
         if target is not None and _flag(target, "Cold"):
@@ -775,25 +774,25 @@ def _check_system(rbd, out: list[Violation]) -> None:
     make_system_row = _system(rbd)
     s = _Scope(out, "system", "dialog", "System")
     units = str(make_system_row.get("units", ""))
-    s.name(units, "The units field can't be blank or have blank spaces!",
-           "The units field can't be blank or have blank spaces!",
-           "The units name must be no greater than 20 characters!", rule="units")
+    s.name(units, "The units field cannot be blank or contain spaces.",
+           "The units field cannot be blank or contain spaces.",
+           "The units name must be at most 20 characters.", rule="units")
     for col, what in (("flowGenerated", "Volume of capacity generated"),
                             ("sysLostCost", "Cost of a lost unit of volume"),
                             ("systemRedCost", "The cost of system red time")):
-        s.outside(col, _num(make_system_row, col), 0.0, 999999999.0, f"{what} must be between 0 and 999,999,999!")
+        s.outside(col, _num(make_system_row, col), 0.0, 999999999.0, f"{what} must be between 0 and 999,999,999.")
     gy, yr = _num(make_system_row, "GYthreshold"), _num(make_system_row, "YRthreshold")
     if yr is not None and gy is not None and (yr < 0.0 or (yr >= gy and gy > 0.01)):
-        s.add("yr_threshold", "The YR threshold value must be between 0 and the GY threshold value!")
+        s.add("yr_threshold", "The yellow/red threshold must be between 0 and the green/yellow threshold.")
     s.outside("gy_threshold", gy, 0.10, 1.00,
-              "The GY threshold value must be between 0.10 and 1.0!")
+              "The green/yellow threshold must be between 0.10 and 1.0.")
     ymin = _num(make_system_row, "graphYmin")
     if ymin is not None and ymin < 0.0:
         s.add("graph_ymin", "Y-axis minimum must be greater than or equal to 0.0.")
     elif ymin is not None and ymin > 0.999999:
         s.add("graph_ymin", "Y-axis minimum must be less than 1.0.")
     if _out_of(_num(make_system_row, "graphTimeSlice"), 0.000001, 10000000.0):
-        s.add("time_slice", "Time slice must be between 0.000001 and 10,000,000!")
+        s.add("time_slice", "Time slice must be between 0.000001 and 10,000,000.")
     _check_termination(make_system_row, _Scope(out, "system_dialog", "dialog", "System"))
 
 
@@ -825,28 +824,28 @@ def _check_phases(rbd, n_in: dict, out: list[Violation]) -> None:
     for row in _all_rows(rbd, "PHASES"):
         name = str(row.get("PhaseName", ""))
         s = _Scope(out, "phase", "dialog", f"Phase '{name}'")
-        s.name(name, "'Phase Name' field can't be blank or have blank spaces!",
-               "'Phase Name' field can't be blank or have blank spaces!",
-               "'Phase Name' must be no greater than 20 characters!")
+        s.name(name, "Phase name cannot be blank or contain spaces.",
+               "Phase name cannot be blank or contain spaces.",
+               "Phase name must be at most 20 characters.")
         code = _int(row, "Dist")
         if code == 16:     # the port's text: see _block_distributions
-            s.add("dist_offered", "Raptor 7 does not offer Empirical for a phase length: only a "
+            s.add("dist_offered", "Empirical is not offered for a phase length: only a "
                   "block's failure and repair laws can hold data points.")
     for row in _rows(rbd, "BLOCK_DATA"):
         if any(x < 0.0 or x > 999.999 for x in _phase_cells(row)):
             _Scope(out, "phase", "dialog", f"Block {row.get('ID')} '{row.get('blockName', '')}'").add(
-                "block_stress", "Stress value must be between 0 and 999.999!")
+                "block_stress", "The phase stress must be between 0 and 999.999.")
     for row in _rows(rbd, "EVENT_DATA"):
         if any(x < 0.0 or x > 1.0 for x in _phase_cells(row)):
             _Scope(out, "phase", "dialog", f"Event {row.get('ID')} '{row.get('eventName', '')}'").add(
-                "event_p", "p value must be between 0 and 1!")
+                "event_p", "The probability must be between 0 and 1.")
     for row in _rows(rbd, "NODE_DATA"):
         n, name, ks = n_in.get(str(row.get("ID")), 0), row.get("Name", ""), _node_phase_ks(row)
         s = _Scope(out, "phase", "dialog", f"Node {row.get('ID')} '{name}'")
         if n == 0 and any(k != 0 for k in ks):
-            s.add("node_k_zero", f"The k value for node '{name}' must be 0!")
+            s.add("node_k_zero", f"Required good (k) for node '{name}' must be 0 in every phase: it has no paths in.")
         elif any(k < 0 or k > n or k > 9999 for k in ks):
-            s.add("node_k", f"The k value for node '{name}' must be between 0 and {n}!")
+            s.add("node_k", f"Required good (k) for node '{name}' must be between 0 and {n}, its number of paths in, in every phase.")
 
 
 def _check_triggers(rbd, out: list[Violation]) -> None:
@@ -854,13 +853,13 @@ def _check_triggers(rbd, out: list[Violation]) -> None:
     for row in _all_rows(rbd, "TRIGGERS"):
         name = str(row.get("TriggerName", ""))
         s = _Scope(out, "trigger", "dialog", f"Trigger '{name}'")
-        s.name(name, "The trigger name cannot be blank!",
-               "A trigger name can't have blank spaces!", "The trigger name must be no greater than 20 characters!")
+        s.name(name, "The trigger name cannot be blank.",
+               "A trigger name can't have blank spaces.", "The trigger name must be at most 20 characters.")
         s.outside("stagger", _num(row, "InitUsed"), 0.0, _BIG,
-                  "The stagger value must be between 0 and 999,999,999.999999!")
+                  "The stagger value must be between 0 and 999,999,999.999999.")
         code = _int(row, "Dist")
         if code == 16:     # the port's text: see _block_distributions
-            s.add("dist_offered", "Raptor 7 does not offer Empirical for a trigger: only a "
+            s.add("dist_offered", "Empirical is not offered for a trigger: only a "
                   "block's failure and repair laws can hold data points.")
 
 
@@ -868,44 +867,44 @@ def _check_spare_pool(row: dict, out: list[Violation]) -> None:
     """`SparePoolsBoxObj.BeSelected`."""
     name = str(row.get("PoolName", ""))
     s = _Scope(out, "spare_pool", "dialog", f"Spare pool '{name}'")
-    s.name(name, "The spare pool name cannot be blank!",
-           "A spare pool name can't have blank spaces!", "The spare pool name must be no greater than 20 characters!")
+    s.name(name, "The spare pool name cannot be blank.",
+           "A spare pool name can't have blank spaces.", "The spare pool name must be at most 20 characters.")
     s.outside("stock", _num(row, "Stock"), 0.0, 999999999.0,
-              "The initial stock level must be between 0 and 999,999,999!")
+              "The initial stock level must be between 0 and 999,999,999.")
     s.outside("create_cost", _num(row, "SpCost"), 0.0, 999999999.0,
-              "The cost to create this spare pool must be between 0 and 999,999,999!")
+              "The cost to create this spare pool must be between 0 and 999,999,999.")
     s.outside("ship_cost", _num(row, "emerShipCost"), 0.0, 999999999.0,
-              "The cost to ship an emergency spare must be between 0 and 999,999,999!")
+              "The cost to ship an emergency spare must be between 0 and 999,999,999.")
     if _flag(row, "RSO"):
         s.outside("new_spares", _num(row, "NewSp"), 1.0, 99999.0,
-                  "The number of new spares must be between 1 and 99,999!")
+                  "The number of new spares must be between 1 and 99,999.")
         s.outside("arrive_every", _num(row, "ArriveEvery"), 0.000001, _BIG,
-                  "The new spares arrival rate must be between 0.000001 and 999,999,999.999999!")
+                  "The new spares arrival rate must be between 0.000001 and 999,999,999.999999.")
     if _flag(row, "SLO"):
         s.outside("stock_level", _num(row, "Level"), 0.0, math.inf,
-                  "The stock level for ordering new spares must be greater than 0!")
+                  "The stock level for ordering new spares must be greater than 0.")
         s.outside("stock_amount", _num(row, "Quan"), 1.0, 99999.0,
-                  "The number of spares ordered must be between 1 and 99,999!")
+                  "The number of spares ordered must be between 1 and 99,999.")
         s.outside("stock_rate", _num(row, "SLOTime"), 0.000001, _BIG,
-                  "The stock arrival rate must be between 0.000001 and 999,999,999.999999!")
+                  "The stock arrival rate must be between 0.000001 and 999,999,999.999999.")
     if _flag(row, "ESO"):
         s.outside("emer_time", _num(row, "EmerTime"), 0.000001, _BIG,
-                  "The time to receive an emergency spare must be between 0.000001 and 999,999,999.999999!")
+                  "The time to receive an emergency spare must be between 0.000001 and 999,999,999.999999.")
 
 
 def _check_resource(row: dict, units: str, out: list[Violation]) -> None:
     """`ResPoolsBoxObj.BeSelected`."""
     name = str(row.get("PoolName", ""))
     s = _Scope(out, "resource", "dialog", f"Resource pool '{name}'")
-    s.name(name, "The resource pool name cannot be blank!",
-           "A resource pool name can't have blank spaces!",
-           "The resource pool name must be no greater than 20 characters!")
+    s.name(name, "The resource pool name cannot be blank.",
+           "A resource pool name can't have blank spaces.",
+           "The resource pool name must be at most 20 characters.")
     s.outside("count", _num(row, "NumIn"), 0.0, 9999.0,
-              "The number of resources must be between 0 and 9,999!")
+              "The number of resources must be between 0 and 9,999.")
     for col, what in (("SpareCost", "The cost to create this pool"),
                             ("FixedPerUse", "The fixed cost of using this resource"),
                             ("PerTimeUnit", f"The cost of using this resource per {units}")):
-        s.outside(f"cost.{col}", _num(row, col), 0.0, 999999999.0, f"{what} must be between 0 and 999,999,999!")
+        s.outside(f"cost.{col}", _num(row, col), 0.0, 999999999.0, f"{what} must be between 0 and 999,999,999.")
 
 
 def _check_experiment(rbd, out: list[Violation]) -> None:
@@ -946,8 +945,7 @@ def collapse_boundary_problem(entering: int, leaving: int) -> str | None:
     if entering <= 1 and leaving <= 1:
         return None
     return (f"The selection is entered by {entering} link(s) and left by {leaving}; a hierarchy "
-            "takes one link in and one out (Raptor 7: \"Cannot connect more than one link to a "
-            "hierarchy item!\"). Include the node where the paths split and the node where they "
+            "takes one link in and one out. Include the node where the paths split and the node where they "
             "join, so one link enters the selection and one leaves it.")
 
 

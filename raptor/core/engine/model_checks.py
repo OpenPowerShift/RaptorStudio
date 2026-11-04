@@ -105,8 +105,8 @@ def check_runnable(blocks: dict[int, RBDBlock], nodes: dict[int, RBDNode],
                 problems.append(ModelProblem(
                     f"block {block.name!r}",
                     f"it is one of the cold-standby paths into node {node.node_name!r} and depends on "
-                    f"{target.name!r}, another path into the same node. Raptor 7.0.11 crashes "
-                    "(MODSIM Runtime error: Access Violation) on this shape, so it is refused. "
+                    f"{target.name!r}, another path into the same node. This shape is not "
+                    "supported, so it is refused. "
                     "Remove the dependency, or take the block out of the cold-standby node."))
     return problems
 
@@ -128,7 +128,6 @@ def dependency_cycle_warnings(blocks: dict[int, RBDBlock], nodes: dict[int, RBDN
         loop = " depends on ".join([*names, names[0]])
         warnings.append(ModelProblem(
             names[0],
-            f"circular dependency: {loop}. Raptor 7 runs these, and the captured cases "
-            "(idle or induced-failure reactions, one to three blocks) resolve normally, but "
-            "check it is intended."))
+            f"circular dependency: {loop}. It runs, and idle or induced-failure reactions "
+            "resolve normally, but check it is intended."))
     return warnings

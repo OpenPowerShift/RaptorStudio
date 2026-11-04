@@ -670,7 +670,7 @@ def test_preflight_reports_fan_out_as_raptor7_does(qapp):
     w = MainWindow()
     w._load_into_app(_lr(path), "x")
     assert not [i for i in w._preflight_issues() if "can only connect to one object" in i]
-    fan = [i for i in issues(_lr(path)) if "A block can only connect to one object!" in i.message]
+    fan = [i for i in issues(_lr(path)) if "A block can only connect to one object." in i.message]
     assert fan and all(i.severity == "warning" for i in fan)
     assert any("Tractor_Ele" in i.element for i in fan), fan
 
@@ -833,8 +833,8 @@ def test_preflight_connectivity_from_and_to(qapp):
 
     rbd = w._rbd
     blocks, links = rbd.sections["BLOCK_DATA"], rbd.sections["LINK_DATA"]
-    frm = "To simulate, block '{}' must connect from something!"
-    to = "To simulate, block '{}' must connect to something!"
+    frm = "The block '{}' needs a link in before the model can run."
+    to = "The block '{}' needs a link out before the model can run."
 
     # No links at all: Raptor 7 names both halves (ValidateRBD,
     # Raptor 7), and both block the run.

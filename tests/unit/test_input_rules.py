@@ -57,50 +57,50 @@ def _add_link(ftype, ftarget, ttype, ttarget):
 
 #: (rule id, mutation of HierarchyExample, a phrase of Raptor 7's message)
 CASES = [
-    ("block.name", _set("BLOCK_DATA", blockName="Two Words"), "can't be blank or have blank spaces"),
-    ("block.name", _set("BLOCK_DATA", blockName="X" * 21), "no greater than 20 characters"),
+    ("block.name", _set("BLOCK_DATA", blockName="Two Words"), "Block name cannot be blank or contain spaces."),
+    ("block.name", _set("BLOCK_DATA", blockName="X" * 21), "Block name must be at most 20 characters."),
     ("block.pm_freq", _set("BLOCK_DATA", pmTriggered=0, PMFreq=0), "Frequency of PM must be between"),
     ("block.pm_stagger_vs_freq", _set("BLOCK_DATA", pmTriggered=0, PMFreq=10, PMStaggerTime=10),
-     "PM stagger value cannot be greater than or equal to PM frequency!"),
+     "PM stagger value cannot be greater than or equal to PM frequency."),
     ("block.cost.Running", _set("BLOCK_DATA", Running=-1), "Cost to operate block must be between"),
     ("block.cost.doneFixed", _set("BLOCK_DATA", doneFixed=-1e10), "Fixed cost of this block being done"),
     ("block.dep.total", _set("BLOCK_DATA", DepNothing=50, DepIdle=0, DepPM=0, DepFail=0),
-     "Total percentage time must add up to 100!"),
-    ("block.dep.DepIdle", _set("BLOCK_DATA", DepIdle=120), "Percent idle time must be between 0 and 100!"),
+     "The dependency percentages must add up to 100."),
+    ("block.dep.DepIdle", _set("BLOCK_DATA", DepIdle=120), "Percent idle time must be between 0 and 100."),
     ("block.stock", _set("BLOCK_DATA", SpType="Custom", Stock=-1), "Initial stock must be between"),
     ("block.new_spares", _set("BLOCK_DATA", SpType="Custom", RSO=1, NewSp=0), "New spares value must be between"),
     ("block.emer_time", _set("BLOCK_DATA", SpType="Custom", ESO=1, EmerTime=0), "Emergency spare delay value"),
-    ("block.gd.mean", _set("BLOCK_DATA", FDist=17, GDType=1), "cannot be used with block degrade!"),
+    ("block.gd.mean", _set("BLOCK_DATA", FDist=17, GDType=1), "This failure distribution and its parameters cannot be used with degradation."),
     ("block.gd.base", _set("BLOCK_DATA", FDist=4, FParam1=100, FParam2=0, GDType=2, GDRate=0, GDLimit=100),
-     "The base must be greater than 0.000001!"),
+     "The base must be greater than 0.000001."),
     ("block.gd.limit_high", _set("BLOCK_DATA", FDist=4, FParam1=100, FParam2=0, GDType=1, GDRate=0.5,
                                  GDLimit=10), "The limit must be between 100.000000 and"),
     ("block.start_repair", _set("BLOCK_DATA", SimStart=5, AmtExhausted=150),
      "The percent of repair exhausted must be between"),
-    ("block.sb_stress", _set("BLOCK_DATA", SBStress=-1), "The standby stress must be between 0 and 999.999!"),
-    ("block.dist_offered.Pre-LDTDist", _set("BLOCK_DATA", **{"Pre-LDTDist": 16}), "does not offer Empirical"),
+    ("block.sb_stress", _set("BLOCK_DATA", SBStress=-1), "The standby stress must be between 0 and 999.999."),
+    ("block.dist_offered.Pre-LDTDist", _set("BLOCK_DATA", **{"Pre-LDTDist": 16}), "Empirical is not offered for the pre-repair delay: only a block's failure and repair laws can hold data points."),
     ("event.probability", (_set("EVENT_DATA", failVal=1.5), EVENTS),
-     "Success probability must be between 0 and 1!"),
-    ("event.name", (_set("EVENT_DATA", eventName="X" * 21), EVENTS), "'Event Name' must be no greater than 20"),
-    ("node.name_reserved", _set_regular_node(Name="START"), "The name start is a reserved node name!"),
-    ("node.k_max", _set_regular_node(k=10000), "Good paths must be between 1 and 9,999!"),
-    ("system.units", _set("SYSTEM_DATA", units="two words"), "The units field can't be blank"),
-    ("system.gy_threshold", _set("SYSTEM_DATA", GYthreshold=1.5), "The GY threshold value must be"),
+     "Success probability must be between 0 and 1."),
+    ("event.name", (_set("EVENT_DATA", eventName="X" * 21), EVENTS), "Event name must be at most 20 characters."),
+    ("node.name_reserved", _set_regular_node(Name="START"), "'start' is reserved for the Start and End nodes."),
+    ("node.k_max", _set_regular_node(k=10000), "Required good (k) must be between 1 and 9,999."),
+    ("system.units", _set("SYSTEM_DATA", units="two words"), "The units field cannot be blank or contain spaces."),
+    ("system.gy_threshold", _set("SYSTEM_DATA", GYthreshold=1.5), "The green/yellow threshold must be between 0.10 and 1.0."),
     ("system.graph_ymin", _set("SYSTEM_DATA", graphYmin=-0.5), "Y-axis minimum must be greater than or equal"),
-    ("system.runs", _set("SYSTEM_DATA", NumRuns=0), "Number of runs must be between 1 and 999,999,999!"),
+    ("system.runs", _set("SYSTEM_DATA", NumRuns=0), "Number of runs must be between 1 and 999,999,999."),
     ("system.time_order", _set("SYSTEM_DATA", TerminationType=1, TermCondition=100, StartStats=100),
-     "Start statistics time must be less than stop simulation time!"),
+     "The start of statistics must be before the end of the run."),
     # .rbds SYSTEM_DATA stores the NAME; reading it as a number hid this
     # refusal on every file the port itself writes.
     ("system.cycle_without_phases", _set("SYSTEM_DATA", TerminationType="CycleSim"),
-     "You cannot use cycle terminated without phases defined."),
+     "A run that ends after a number of cycles needs phases defined."),
     ("link.marker_out_limit", _add_link("Node", "1", "Block", "block"),
-     "Cannot have more than one connection from a Start Node"),
+     "Only one link can go from a Start node. To branch, link it to an ordinary node and fan out from there."),
     ("link.marker_into", _add_link("Block", "block", "Node", "1"),
-     "Cannot connect to a Start Marker from any object!"),
+     "You cannot connect to a Start node from any object."),
     ("link.marker_out", _add_link("Node", "3", "Block", "block"),
-     "Cannot connect to any object from an End Marker!"),
-    ("link.hier_in", _add_link("Node", "1", "Hier", ""), "Cannot connect more than one link to a hierarchy item!"),
+     "You cannot connect to any object from an End node."),
+    ("link.hier_in", _add_link("Node", "1", "Hier", ""), "Only one link can connect to a hierarchy item."),
     # Not Raptor 7's wording: its dialog silently truncates the typed value
     # with STRTOINT, but the .rbd stores the flow with ReadInt/WriteInt and a
     # decimal there desynchronises the reader and crashes it on open.
@@ -117,7 +117,7 @@ def _base(mutate):
 
 @pytest.mark.parametrize("rule,mutate,phrase", CASES,
                          ids=[f"{c[0]}-{i}" for i, c in enumerate(CASES)])
-def test_each_rule_fires_with_raptor7s_message(rule, mutate, phrase):
+def test_each_rule_fires_with_its_message(rule, mutate, phrase):
     mutate, base = _base(mutate)
     rbd = load_rbd(base)
     before = {v.key for v in check(rbd)}
@@ -228,7 +228,7 @@ def test_a_spec_raptor7_could_not_draw_is_refused_by_build_model(tmp_path):
                       {"from": "A", "to": "J"}, {"from": "B", "to": "J"}, {"from": "J", "to": "End"}]}
     result = tools_model.build_model(name="fan", spec=spec)
     text = str(getattr(result, "content", result))
-    assert result.is_error and "more than one connection from a Start Node" in text
+    assert result.is_error and "Only one link can go from a Start node" in text
 
 
 def test_the_templates_are_shapes_raptor7_draws():

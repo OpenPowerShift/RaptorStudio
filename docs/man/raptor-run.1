@@ -59,10 +59,10 @@ summary on stdout (default text)
 write the full structured results (schema raptor\-results/1) to PATH ('\-' = stdout)
 .TP
 \fB\-r\fR, \fB\-\-report\fR \fINAME\fR
-also write a Raptor 7\-format text file, repeatable: ao\-plot, capacity\-plot, core\-file, cumulative\-by\-time, cumulative\-by\-trial, diagnostics, domain\-tree, down\-times, end\-of\-run, end\-times, events, failure\-times, final, final\-results, interim\-cost, key\-params, mission\-file, sim\-details, all
+also write a legacy\-format text report, repeatable: ao\-plot, capacity\-plot, core\-file, cumulative\-by\-time, cumulative\-by\-trial, diagnostics, domain\-tree, down\-times, end\-of\-run, end\-times, events, failure\-times, final, final\-results, interim\-cost, key\-params, mission\-file, sim\-details, all
 .TP
 \fB\-\-legacy\-names\fR
-name files as Raptor 7 does (rpt_events_<Model>.txt ...); the default
+use the legacy report file names (rpt_events_<Model>.txt ...); the default
 .TP
 \fB\-\-metrics\fR \fILIST\fR
 limit the summary, e.g. Availability,MTBDE,MDT
@@ -121,7 +121,7 @@ Try a different failure distribution without editing the model.
 .fi
 .RE
 .PP
-Also write every Raptor 7\-format report into out/.
+Also write every legacy\-format text report into out/.
 .RS
 .nf
 \fBraptor run pump.rbd \-r all \-o out/\fR
@@ -151,7 +151,7 @@ usage error
 model invalid (validation errors)
 .TP
 \fB4\fR
-model refused: a shape Raptor 7 cannot run
+model refused: a shape that cannot be run
 .TP
 \fB5\fR
 timed out or aborted; partial results written

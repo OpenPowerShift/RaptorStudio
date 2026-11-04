@@ -288,7 +288,7 @@ class RibbonBuilders(_Base):
             f"A full-speed run splits its trials across this many cores "
             f"(this machine has {cores.available()}). Sweep and Compare use "
             f"them too. Any number from 2 up gives the same results; one "
-            f"core gives Raptor 7's exact sequence, statistically the same "
+            f"core gives a different random sequence: statistically the same "
             f"answer but not bit-identical.")
         spin = getattr(self, "_cores_spin", None)
         if spin is not None:

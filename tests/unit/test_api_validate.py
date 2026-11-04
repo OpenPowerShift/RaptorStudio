@@ -142,14 +142,14 @@ class TestBlockEventFanInOut:
                if n.get("Type") == "3"][0]
         # Casing (block 1) already feeds one node; add a second out-link.
         self._add_link(rbd, "Block", 1, "Node", end["ID"])
-        assert self._warnings(rbd, "A block can only connect to one object!"), \
+        assert self._warnings(rbd, "A block can only connect to one object."), \
             [str(i) for i in issues(rbd)]
 
     def test_block_fan_in_is_a_raptor7_link_warning(self):
         rbd = _load("MotorDemo")
         # A second block feeding block 1 makes its real fan-in 2.
         self._add_link(rbd, "Block", 2, "Block", 1)
-        assert self._warnings(rbd, "Cannot connect more than one link to a block!"), \
+        assert self._warnings(rbd, "Only one link can connect to a block."), \
             [str(i) for i in issues(rbd)]
 
     def test_event_fan_out_is_a_raptor7_link_warning(self):
@@ -157,7 +157,7 @@ class TestBlockEventFanInOut:
         event = rbd.section("EVENT_DATA").rows[0]
         node = rbd.section("NODE_DATA").rows[0]
         self._add_link(rbd, "Event", int(event["ID"]), "Node", int(node["ID"]))
-        assert self._warnings(rbd, "An event can only connect to one object!"), \
+        assert self._warnings(rbd, "An event can only connect to one object."), \
             [str(i) for i in issues(rbd)]
 
 

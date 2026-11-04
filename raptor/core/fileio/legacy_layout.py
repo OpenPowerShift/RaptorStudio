@@ -1282,5 +1282,5 @@ def normalize_legacy_layout(f, force: bool = False,
         h["xOrigin"] = f"{VIEW_ORIGIN_X:.6f}"
         h["yOrigin"] = f"{VIEW_ORIGIN_Y:.6f}"
     log.info("normalize_legacy_layout: re-laid %d container(s) onto the "
-             "1.25 Raptor 7 grid", len(kids))
+             "1.25 grid", len(kids))
     return True
