@@ -5297,10 +5297,22 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # Pressing a link or the grid background counts as empty
             # canvas (neither is movable), matching what Qt itself
             # treats as a band drag.
+            # Judge the ELEMENT, not the part pressed: a block's name is a
+            # child text item that is not movable itself. Taking it for
+            # empty canvas armed the band under an item drag, so every
+            # element the dragged one passed over was selected and dragged
+            # along (outside the gesture's undo record).
+            owner = hit.topLevelItem() if hit is not None else None
             self._band_anchor = (
-                None if (hit is not None
-                         and hit.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                None if (owner is not None
+                         and owner.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
                 else event.position())
+            # Where every element was at the press: whatever the gesture
+            # moves, the release records it for undo.
+            self._press_positions = {
+                (kind, oid): (it.scenePos().x(), it.scenePos().y())
+                for kind, table in self._element_tables()
+                for oid, it in table.items()}
             hit_aid = getattr(hit, "_anno_id", None)
             if hit_aid is not None and not any(
                     k == "anno" and o == hit_aid
@@ -5329,6 +5341,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     @staticmethod
     def _move_by(item, dx, dy):
         item.setPos(item.pos() + QPointF(dx, dy))
+
+    def _element_tables(self):
+        """(kind, id -> canvas item) for every movable element kind."""
+        return (("block", self._block_items), ("node", self._node_items),
+                ("event", self._event_items),
+                ("hier", getattr(self, "_hier_items", {})))
 
     def _move_group_with_primary(self) -> None:
         """Carry every other selected item by the primary item's drag delta.
@@ -5958,6 +5976,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if (abs(now[0] - start[0]) > 0.5
                         or abs(now[1] - start[1]) > 0.5):
                     moves.append((kind, oid, tuple(start), now))
+            started = {(k, o) for k, o, _s in self._drag_start}
+            tables = dict(self._element_tables())
+            for (kind, oid), start in getattr(
+                    self, "_press_positions", {}).items():
+                if (kind, oid) in started:
+                    continue
+                it = tables[kind].get(oid)
+                if it is None:
+                    continue
+                now = (it.scenePos().x(), it.scenePos().y())
+                if (abs(now[0] - start[0]) > 0.5
+                        or abs(now[1] - start[1]) > 0.5):
+                    moves.append((kind, oid, start, now))
+            self._press_positions = {}
             drag_start, self._drag_start = self._drag_start, []
             self._drag_primary = None
             self._drag_primary_start = None
