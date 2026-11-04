@@ -80,3 +80,40 @@ def test_only_the_shown_tab_is_built_until_it_is_opened(qapp, monkeypatch):
     insp.ensure_all_tabs_built()
     assert "Repair Distribution" in " ".join(_titles(insp._scroll_repair)) or _titles(insp._scroll_repair)
     w._dirty = False
+
+
+def test_position_rows_never_point_at_deleted_labels(qapp, monkeypatch):
+    """Select a block, open another tab, deselect, select the block again:
+    General (holding the Position labels) is cleared but not rebuilt. A
+    later drag or undo refreshed the old, deleted labels and raised
+    "Internal C++ object (QLabel) already deleted" from every layout
+    change."""
+    from PySide6.QtCore import QEvent
+    monkeypatch.setattr(InspectorDock, "lazy_tabs", True)
+    w = MainWindow()
+    w._load_into_app(load_rbd(str(GOLD / "TwoBlockRedundancy" / "input.rbd")),
+                     None)
+    view, insp = w._diagram_dock.view, w._inspector
+    bid = next(b for b in view.blocks if b != 0)
+
+    def settle():
+        qapp.processEvents()
+        qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+    insp._user_tab_index = 0
+    insp.show_block(bid, view.blocks)
+    insp._tabs.setCurrentIndex(insp._tabs.indexOf(insp._scroll_repair))
+    insp.clear_selection()
+    settle()
+    insp.show_block(bid, view.blocks)
+    insp.block_repair_type_changed.emit(bid, 18)        # repair: none
+    settle()
+    w._mark_layout_dirty()                                # raised here
+    # Opening General builds the labels again, and they follow the block.
+    insp._tabs.setCurrentIndex(insp._tabs.indexOf(insp._scroll_general))
+    view.blocks[bid].x_position += 12.5
+    w._mark_layout_dirty()
+    assert insp._position_labels[0].text() == \
+        f"{view.blocks[bid].x_position:.3f}"
+    w._dirty = False
+    w.close()

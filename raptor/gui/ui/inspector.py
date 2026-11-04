@@ -877,6 +877,13 @@ class InspectorDock(QWidget):
         self._populate_system_config(cfg)
 
     def _clear_tab(self, scroll: QScrollArea):
+        if scroll is getattr(self, "_scroll_general", None):
+            # The Position labels live on General and die with it. A block
+            # selected while another tab is open builds General only when
+            # it is opened, so a kept reference would point at deleted
+            # labels (and the previous element) until then.
+            self._position_source = None
+            self._position_labels = None
         w = scroll.widget()
         if w is None:
             return
@@ -1653,6 +1660,10 @@ class InspectorDock(QWidget):
         self._header.setText(f"Block: {block.name}  (ID {block.id})")
         self._current_block_id = block.id
         self._current_node_id = None
+        # General (with the Position labels) may not be built now: until it
+        # is, there are no labels for this block to keep up to date.
+        self._position_source = None
+        self._position_labels = None
         # Only the tab that will be shown is built now; the rest are built when the user opens them. Building all
         # seven on every canvas click was most of the lag when selecting elements.
         blocks = getattr(self, "_blocks_source", None) or {}
