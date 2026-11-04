@@ -881,6 +881,9 @@ class PhaseCmd(_ViewCmd):
             obj.phase_value = values
         if hasattr(obj, "phase"):
             obj.phase = node_ks
+        if self.kind == "block":
+            # A label showing one phase describes that phase's law.
+            v._refresh_block_sublabels(self.oid)
 
     def redo(self):
         self._apply(True)
@@ -1122,6 +1125,7 @@ class PhaseStructureCmd(_ViewCmd):
                     obj.phase_type, obj.phase_value = types, values
                 if hasattr(obj, "phase"):
                     obj.phase = ks
+        v._refresh_block_sublabels()
 
     def redo(self):
         if self._before is None:

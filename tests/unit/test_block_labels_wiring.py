@@ -183,3 +183,34 @@ def test_view_ribbon_has_mode_and_phase_combos(qapp):
 
     w._dirty = False
     w.close()
+
+
+@pytest.mark.parametrize("which,code,gone", [("R", 18, "MTTR"),
+                                             ("F", 18, "MTTF")])
+def test_a_distribution_change_repaints_the_label(qapp, which, code, gone):
+    """Changing a law's TYPE (repair to None, say) left the old MTTR under
+    the block: only a parameter edit repainted the label. Undo puts it
+    back."""
+    w, v = _open("TwoBlockRedundancy")
+    bid = next(b for b in v._block_items
+               if b != 0 and gone in v._block_items[b]._sub.toPlainText())
+    item = v._block_items[bid]
+    w._on_block_dist_type_changed(bid, which, code)
+    assert gone not in item._sub.toPlainText()
+    v._stack.undo()
+    assert gone in item._sub.toPlainText()
+    w._dirty = False
+    w.close()
+
+
+def test_a_phase_edit_repaints_the_label_of_the_phase_shown(qapp):
+    w, v = _open("PhasingDemo")
+    v.set_label_phase(0)
+    n = len(v.blocks[4].phase_type)
+    # Stress 4 on every phase: Thermal's 2435 h becomes 608.75 h.
+    v.set_element_phasing("block", 4, True, [("A", 4.0)] * n)
+    assert "MTTF 608.8" in v._block_items[4]._sub.toPlainText()
+    v._stack.undo()
+    assert "1,218" in v._block_items[4]._sub.toPlainText()
+    w._dirty = False
+    w.close()
