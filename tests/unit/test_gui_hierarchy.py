@@ -532,7 +532,10 @@ def test_import_rbd_as_hierarchy_preserves_metrics(qapp):
     from raptor.gui.ui.diagram import DiagramView
 
     def metrics(fin):
-        return [(l.split()[0], l.split()[1]) for l in fin
+        # The legacy report only: the extended section has its own rows
+        # named "Availability ..." and a one-word table title.
+        from raptor.core.engine.extended_results import legacy_lines
+        return [(l.split()[0], l.split()[1]) for l in legacy_lines(fin)
                 if l.strip().startswith(("Availability", "MTBDE", "MDT",
                                          "System_Failures"))]
 
