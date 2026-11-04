@@ -52,7 +52,7 @@ def test_analytic_dialog_computes_reliability(qapp):
     _win, dialog = _dialog(qapp, "Lantern1")
     assert dialog._pages.currentIndex() == 1
     assert dialog._result["reliability"] == pytest.approx(0.38460369, rel=1e-6)
-    assert any(text.startswith("0.384604") for text in _card_texts(dialog))
+    assert any(text.startswith("0.38460369") for text in _card_texts(dialog))
     # Per-element table: every element, sorted by criticality, N/A last.
     table = dialog._elements
     assert table.rowCount() == 3

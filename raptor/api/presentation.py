@@ -233,6 +233,19 @@ def _sig(value: float, digits: int) -> str:
     return f"{value:,.{decimals}f}"
 
 
+def probability_text(value: float | None, *, min_places: int = 4,
+                     max_places: int = 9) -> str:
+    """A probability (reliability, availability) for a headline card: at
+    least `min_places` decimals, so 0 reads "0.0000" and 0.5 "0.5000",
+    and up to `max_places` where the digits matter (0.998884325)."""
+    if value is None:
+        return "N/A"
+    text = f"{value:.{max_places}f}"
+    whole, _, frac = text.partition(".")
+    frac = frac.rstrip("0").ljust(min_places, "0")
+    return f"{whole}.{frac}"
+
+
 def to_number(value: Any) -> float | None:
     """A cell as a float, or None if it is not a number (``N/A``, text).
     ``1,234.5`` and ``>21.2`` (censored) both read as numbers."""

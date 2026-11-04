@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget)
 
+from raptor.api.presentation import probability_text
 from raptor.api.analytical import analyse_rbd_set, scope_options
 from raptor.api.analytical_text import fmt as _fmt_full
 from raptor.api.analytical_text import scope_sentence, summary_text
@@ -1606,7 +1607,8 @@ class AnalyticDialog(QDialog):
                 widget.deleteLater()
 
     def _card(self, caption: str, value: float | None, tip: str,
-              *, sub: str = "", suffix: str = "") -> QFrame:
+              *, sub: str = "", suffix: str = "",
+              probability: bool = False) -> QFrame:
         card = QFrame()
         card.setObjectName("MetricCard")
         card.setSizePolicy(QSizePolicy.Policy.Preferred,
@@ -1617,7 +1619,12 @@ class AnalyticDialog(QDialog):
         lay.setSpacing(SPACING["2xs"])
         cap = QLabel(caption)
         cap.setObjectName("MetricCaption")
-        text = "N/A" if value is None else f"{_short(value)}{suffix}"
+        if value is None:
+            text = "N/A"
+        elif probability:
+            text = probability_text(value)    # at least four places
+        else:
+            text = f"{_short(value)}{suffix}"
         val = QLabel(text)
         val.setObjectName("MetricValue")
         val.setTextInteractionFlags(
@@ -1646,7 +1653,8 @@ class AnalyticDialog(QDialog):
                 f"Reliability at {_short(at)}{suffix}",
                 result.get("reliability"),
                 "Probability that the system has not failed by the mission "
-                "time.", sub=_percent(result.get("reliability"))))
+                "time.", sub=_percent(result.get("reliability")),
+                probability=True))
             cards.append(self._card(
                 "MTTF", result.get("mttf"),
                 "Mean time to first system failure: the integral of R(t).",
@@ -1673,12 +1681,13 @@ class AnalyticDialog(QDialog):
                     conditional["reliability"],
                     "Conditional reliability of a further mission, given "
                     "survival to the mission time.",
-                    sub=_percent(conditional["reliability"])))
+                    sub=_percent(conditional["reliability"]),
+                    probability=True))
         else:
             cards.append(self._card(
                 "Availability", result.get("availability"),
                 "Long-run probability that the system is up.",
-                sub=_percent(result.get("availability"))))
+                sub=_percent(result.get("availability")), probability=True))
             cards.append(self._card(
                 "Unavailability", result.get("unavailability"),
                 "Long-run probability that the system is down.",

@@ -80,6 +80,18 @@ def test_report_sink_returns_structured_data(real_results):
         rel=1e-6)
 
 
+def test_probability_cards_show_at_least_four_places(real_results):
+    """A reliability of exactly 0 (or 0.5) read "0" ("0.5") on the card:
+    probabilities keep at least four decimal places."""
+    from raptor.api.presentation import probability_text
+    dock, report_data = real_results
+    rel = dock._cards["Reliability"]._value.text()
+    whole, _, frac = rel.partition(".")
+    assert whole in ("0", "1") and len(frac) >= 4, rel
+    assert [probability_text(v) for v in (0.0, 0.5, 1.0, 0.998884325)] == [
+        "0.0000", "0.5000", "1.0000", "0.998884325"]
+
+
 def test_overview_cards_have_plain_english_tooltips(real_results):
     dock, _ = real_results
     for acronym in ("Availability", "MTBDE", "MDT", "System_Failures"):
