@@ -3,7 +3,9 @@
 The simulation's table export does not cover the analytical solver, so this
 writes the same result the window shows: a Summary sheet, one row per
 element (with the importance measures), the curve, the equation and the
-assumptions. Numbers are real numeric cells.
+assumptions, as an Excel (``.xlsx``) or OpenDocument (``.ods``) workbook.
+Numbers are real numeric cells; layout, colour and print set-up are
+`raptor.core.fileio.workbook`'s, the same as every other spreadsheet export.
 """
 from __future__ import annotations
 
@@ -13,7 +15,24 @@ from pathlib import Path
 from typing import Any
 
 from raptor.api.analytical_text import BDD_NOTE
-from raptor.core.fileio.xlsx_writer import Sheet, write_xlsx
+from raptor.api.glossary import TERMS
+from raptor.core.fileio.workbook import (
+    BAR, Sheet, WorkbookInfo, write_workbook,
+)
+
+#: Summary rows whose value is a probability or a time ("B10 life ...").
+_PROB_ITEMS = ("Reliability", "Availability", "Unavailability",
+               "Conditional reliability")
+
+
+def _summary_kind(item: str) -> str:
+    if item.startswith(_PROB_ITEMS):
+        return "prob"
+    if item in ("Failure density", "Hazard rate"):
+        return "rate"
+    if item.startswith("B") and " life " in item:
+        return "time"
+    return "time" if item in ("Mission time", "MTTF") else ""
 
 
 def _summary_rows(result: dict[str, Any]) -> list[list[Any]]:
@@ -85,26 +104,53 @@ def _element_sheet(result: dict[str, Any]) -> Sheet:
             measure = importance.get((comp["kind"], comp["id"])) or {}
             row += [measure.get(key) for key in keys]
         rows.append(row)
-    return Sheet(name="Elements", headers=headers, rows=rows)
+    formats = ["", "", "prob", "time"] + (["time"] if availability else [])
+    formats.append("")                                      # Treatment
+    if importance:
+        # Birnbaum, Fussell-Vesely and criticality are fractions; RAW and
+        # RRW are ratios to the system as it is.
+        formats += ["prob", "ratio", "ratio", "prob", "prob"]
+    first_measure = headers.index("Birnbaum") if importance else None
+    bars = ({first_measure + k: BAR for k in (0, 3, 4)}
+            if first_measure is not None else {})
+    return Sheet(
+        name="Elements", headers=headers, rows=rows, formats=formats,
+        text_cols={0, 1, headers.index("Treatment")}, title="Elements",
+        description="Every element: its own " + headers[2].lower()
+                    + (", MTTF and MTTR" if availability else " and MTTF")
+                    + (", and its importance" if importance else ""),
+        # Ranked by importance when there is one; else weakest first.
+        sort=None if importance else (2, False), bars=bars,
+        scales={2: True},              # the weakest element stands out
+        notes=(["Ranked by importance, most important first."]
+               if importance else []))
 
 
 def analytical_sheets(result: dict[str, Any]) -> list[Sheet]:
     """The workbook's sheets for one analytical result."""
+    summary = _summary_rows(result)
     sheets = [Sheet(
-        name="Summary", headers=["Item", "Value"],
-        rows=_summary_rows(result), notes=[BDD_NOTE])]
+        name="Summary", headers=["Item", "Value"], rows=summary,
+        notes=[BDD_NOTE], row_formats=[_summary_kind(str(r[0]))
+                                       for r in summary],
+        description=f"The system's {result['mode']} and how it was solved")]
     sheets.append(_element_sheet(result))
     if result.get("times"):
         sheets.append(Sheet(
             name="Curve", headers=["Time", "Reliability"],
-            rows=[[p["time"], p["value"]] for p in result["times"]]))
+            rows=[[p["time"], p["value"]] for p in result["times"]],
+            formats=["time", "prob"], highlight=False,
+            description="System reliability against time, for a chart"))
     if result.get("equation"):
         sheets.append(Sheet(name="Equation", headers=["Equation"],
-                            rows=[[result["equation"]]]))
+                            rows=[[result["equation"]]], text_cols={0},
+                            description="The structure function solved"))
     notes = ([["Warning", w] for w in result.get("warnings") or []]
              + [["Assumption", a] for a in result.get("assumptions") or []])
     sheets.append(Sheet(name="Assumptions", headers=["Kind", "Text"],
-                        rows=notes))
+                        rows=notes, text_cols={0, 1},
+                        description="Warnings and the assumptions the "
+                                    "solver made"))
     return sheets
 
 
@@ -131,28 +177,41 @@ def _labels(results: Sequence[dict[str, Any]]) -> list[str]:
     return labels
 
 
-def export_xlsx(results: dict[str, Any] | Sequence[dict[str, Any]],
-                path: str | Path) -> Path:
+def export_workbook(results: dict[str, Any] | Sequence[dict[str, Any]],
+                    path: str | Path) -> Path:
     """Write one result, or several (reliability and availability, say), to
-    ``path`` as one .xlsx workbook. Several results get a set of sheets
+    ``path`` as one workbook: ``.xlsx`` or ``.ods`` by its extension
+    (``.xlsx`` when it has neither). Several results get a set of sheets
     each, named after the mode: "Reliability Summary", "Availability
     Elements", ..."""
     path = Path(path)
+    if path.suffix.lower() not in (".xlsx", ".ods"):
+        path = path.with_name(path.name + ".xlsx")
     batch = [results] if isinstance(results, dict) else list(results)
     if not batch:
         raise ValueError("no analytical results to export")
     if len(batch) == 1:
-        write_xlsx(path, analytical_sheets(batch[0]))
-        return path
-    sheets = [replace(sheet, name=f"{label} {sheet.name}")
-              for label, result in zip(_labels(batch), batch)
-              for sheet in analytical_sheets(result)]
-    write_xlsx(path, sheets)
+        sheets = analytical_sheets(batch[0])
+    else:
+        sheets = [replace(sheet, name=f"{label} {sheet.name}",
+                          title=f"{label} {sheet.title or sheet.name}")
+                  for label, result in zip(_labels(batch), batch)
+                  for sheet in analytical_sheets(result)]
+    modes = " and ".join(dict.fromkeys(str(r["mode"]) for r in batch))
+    model = str(batch[0].get("model") or "Model")
+    info = WorkbookInfo(title=f"{model} - analytical {modes}",
+                        subtitle=[f"Model: {model}"], source=model,
+                        glossary=TERMS)
+    write_workbook(path, sheets, info)
     return path
 
 
+#: The name it had when the only format was Excel.
+export_xlsx = export_workbook
+
+
 def export_file_name(model: str, results: dict[str, Any]
-                     | Sequence[dict[str, Any]]) -> str:
+                     | Sequence[dict[str, Any]], ext: str = "xlsx") -> str:
     """The workbook's default name: the model, the hierarchy if one was
     solved on its own, and what is in it, e.g.
     ``Plant_analytical_reliability.xlsx``,
@@ -174,4 +233,4 @@ def export_file_name(model: str, results: dict[str, Any]
         kind = f"{len(batch)}_results"
     elif None not in phases:
         kind += f"_phase{next(iter(phases))}"
-    return f"{stem}_analytical_{kind}.xlsx"
+    return f"{stem}_analytical_{kind}.{ext.lstrip('.')}"

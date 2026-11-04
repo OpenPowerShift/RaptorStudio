@@ -255,3 +255,95 @@ def test_the_docks_have_an_export_tables_button(win):
     for dock in (win._results, win._data_tables):
         texts = [b.text() for b in dock.findChildren(QPushButton)]
         assert "Export Tables…" in texts, type(dock).__name__
+
+
+# -- File > Export Excel Workbook / Export OpenDocument Spreadsheet ------------
+
+@pytest.mark.parametrize("cid,ext", [("file.export_xlsx", ".xlsx"),
+                                     ("file.export_ods", ".ods")])
+def test_the_file_view_saves_one_workbook(ran, qapp, tmp_path, monkeypatch,
+                                         cid, ext):
+    """The File view's spreadsheet commands write the default tables, with
+    the latest run's results, to the file the Save dialog names."""
+    from raptor.gui.command_table import BACKSTAGE
+    from raptor.gui.ui import filedialogs
+    assert cid in dict(BACKSTAGE)["Print and Export"]
+    asked = {}
+
+    def fake(parent, caption, default_path):
+        asked["default"] = default_path
+        return str(tmp_path / f"book{ext}")
+
+    monkeypatch.setattr(filedialogs, "ask_spreadsheet_path", fake)
+    ran._commands.action(cid).trigger()
+    qapp.processEvents()
+    assert asked["default"].endswith(f"_tables{ext}")
+    written = tmp_path / f"book{ext}"
+    assert written.is_file() and written.stat().st_size > 0
+    if ext == ".xlsx":
+        import warnings
+
+        from openpyxl import load_workbook
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning,
+                                module="openpyxl")
+            names = load_workbook(written).sheetnames
+        assert names[:2] == ["Contents", "Run Info"]
+        assert "Summary" in names
+
+
+def test_the_save_dialog_offers_both_spreadsheet_types(qapp, monkeypatch):
+    from raptor.gui.ui import filedialogs
+    seen = {}
+
+    def fake_save(parent, caption, directory, file_filter):
+        seen["filter"] = file_filter
+        return "/tmp/x", "OpenDocument spreadsheet (*.ods)"
+
+    monkeypatch.setattr(filedialogs, "getSaveFileName", fake_save)
+    assert filedialogs.ask_spreadsheet_path(None, "c", "d") == "/tmp/x.ods"
+    assert seen["filter"].split(";;") == [
+        "Excel workbook (*.xlsx)", "OpenDocument spreadsheet (*.ods)"]
+
+
+def test_ticking_tables_does_not_rebuild_them(ran, monkeypatch):
+    """Every click used to rebuild every table (the whole event log on a
+    large run), twice, just to count the files the preview names."""
+    from raptor.api import tables as api_tables
+    from raptor.gui.ui import tables_dialog
+    dlg = _dialog(ran)
+    built = []
+    for mod in (api_tables, tables_dialog):
+        monkeypatch.setattr(mod, "all_tables",
+                            lambda *a, **k: built.append(1) or [])
+    monkeypatch.setattr(api_tables, "result_tables",
+                        lambda *a, **k: built.append(1) or [])
+    dlg.select_all()
+    dlg.select_none()
+    dlg.select_defaults()
+    assert built == []
+    assert dlg.chosen_tables()
+
+
+def test_export_runs_off_the_main_thread_and_says_what_it_writes(
+        ran, tmp_path, monkeypatch):
+    import threading
+    from raptor.gui.ui import tables_dialog
+    real, threads, told = tables_dialog.export_tables, [], []
+
+    def spy(*a, progress=None, **k):
+        threads.append(threading.current_thread())
+
+        def tell(name):
+            told.append(name)
+            progress(name)
+        return real(*a, progress=tell, **k)
+    monkeypatch.setattr(tables_dialog, "export_tables", spy)
+    dlg = _dialog(ran)
+    dlg.folder_edit.setText(str(tmp_path))
+    for key, cb in dlg.format_boxes.items():
+        cb.setChecked(key == "csv")
+    result = tables_dialog.perform_export(ran, dlg)
+    assert result is not None and told
+    assert threads and threads[0] is not threading.main_thread()
+    assert ran._busy_dialog is None             # the indicator is gone

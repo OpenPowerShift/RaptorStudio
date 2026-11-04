@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-tables \- Write the model's input tables (and, with \-\-run, the result tables of a fresh run) as CSV, text or a spreadsheet.
 .SH SYNOPSIS
-\fBraptor tables\fR [\-h] [\-\-run] [\-\-table KEY] [\-\-list] [\-\-format {csv,txt,report,xlsx}] [\-o DIR] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
+\fBraptor tables\fR [\-h] [\-\-run] [\-\-table KEY] [\-\-list] [\-\-format {csv,txt,report,xlsx,ods}] [\-o DIR] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
 .SH DESCRIPTION
 Write the model's input tables (and, with \-\-run, the result tables of a fresh run) as CSV, text or a spreadsheet.
 .SH OPTIONS
@@ -17,7 +17,7 @@ a table key (see \-\-list); repeatable
 \fB\-\-list\fR
 list the available tables and exit
 .TP
-\fB\-\-format\fR \fI{csv|txt|report|xlsx}\fR
+\fB\-\-format\fR \fI{csv|txt|report|xlsx|ods}\fR
 output format(s); default csv
 .TP
 \fB\-o\fR, \fB\-\-output\fR \fIDIR\fR

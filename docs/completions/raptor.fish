@@ -14,6 +14,7 @@ complete -c raptor -n '__fish_seen_subcommand_from analytic' -l max-bdd-nodes
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l max-variables
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l mode
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l no-importance
+complete -c raptor -n '__fish_seen_subcommand_from analytic' -l ods
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l phase
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l standby

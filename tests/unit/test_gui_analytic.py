@@ -17,7 +17,6 @@ from raptor.core.fileio.rbds import load_rbds, save_rbds
 from raptor.core.fileio.typed import block_from_row
 from raptor.gui.ui.analytic_dialog import AnalyticDialog
 from raptor.gui.ui.diagram import DiagramView
-from raptor.gui.ui.derived_dialog import DerivedResultsDialog
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MODELS = os.path.join(REPO, "new_docs", "models")
@@ -213,35 +212,6 @@ def test_age_fields_survive_undo_and_rbds_round_trip(qapp):
             os.unlink(path)
 
 
-def test_derived_results_dialog_shows_classifications_and_criticality(qapp):
-    from types import SimpleNamespace
-
-    report = SimpleNamespace(
-        availability=0.97, inherent_availability=0.98,
-        achieved_availability=0.975, mttff=100.0,
-        mtbf_total=200.0, mtbe_total=250.0,
-        num_component_cms=3, num_component_pms=1,
-        red_corrective_time=5.0, red_pm_time=1.0,
-        red_logistics_time=0.0, red_done_time=0.0, red_other_time=0.0,
-        criticality={1: {"name": "Pump", "failure": 0.6,
-                         "downtime": 0.4, "cost": 0.2,
-                         "downing_event": None}})
-
-    class Results:
-        _report_data = [report]
-
-    class Win(QWidget):
-        _results = Results()
-
-    win = Win()
-    dialog = DerivedResultsDialog(win, [report])
-    from PySide6.QtWidgets import QTabWidget
-    tabs = dialog.findChild(QTabWidget)
-    assert tabs is not None
-    assert tabs.count() == 2
-    dialog.close()
-
-
 def test_scope_controls_appear_only_when_the_model_has_them(qapp):
     _win, plain = _dialog(qapp, "Lantern1")
     assert plain._phase.count() == 0
@@ -368,23 +338,6 @@ def test_export_writes_a_workbook_and_copy_explains_the_bdd(qapp, tmp_path):
         assert sheet in names
     dialog._copy_result()
     assert "binary decision diagram" in QApplication.clipboard().text()
-    dialog.close()
-
-
-def test_derived_dialog_copies_and_exports(qapp, tmp_path):
-    from types import SimpleNamespace
-
-    run = SimpleNamespace(operational_availability=0.9, criticality={
-        1: {"name": "Pump", "failure": 0.5, "downtime": 0.25, "cost": 0.1}})
-    parent = QWidget()
-    dialog = DerivedResultsDialog(parent, [run])
-    dialog.copy_current()
-    assert "Operational availability\t0.9" in QApplication.clipboard().text()
-    dialog._tabs.setCurrentIndex(1)
-    dialog.copy_current()
-    assert "Pump\t50.00" in QApplication.clipboard().text()
-    assert dialog.export_xlsx(str(tmp_path / "d.xlsx")) is not None
-    assert (tmp_path / "d.xlsx").stat().st_size > 0
     dialog.close()
 
 

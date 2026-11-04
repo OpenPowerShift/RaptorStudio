@@ -6,11 +6,13 @@ Three outputs, any combination:
   accented names correctly.
 * **Text** -- a fixed-width ``.txt`` per table, or ONE combined report with
   every table in it (Raptor 7's Save.TXT, made one file).
-* **Spreadsheet** -- ONE ``.xlsx`` workbook with a tab per table, real
-  numeric cells shown to the places `raptor.api.presentation` uses, and a
-  Run Info tab first when there are results. The End-of-Run and interim
-  cost reports are text, not tables: they go beside the workbook as
-  ``.txt`` files.
+* **Spreadsheet** -- ONE workbook, Excel (``.xlsx``) and/or OpenDocument
+  (``.ods``), with a tab per table, real numeric cells shown to the places
+  `raptor.api.presentation` uses, a Contents tab, a Run Info tab when there
+  are results and a Glossary of the abbreviations used. Layout, colour and
+  print set-up are `raptor.core.fileio.workbook`'s, shared by every
+  spreadsheet export. The End-of-Run and interim cost reports are text, not
+  tables: they go beside the workbook as ``.txt`` files.
 
 Files go in a folder named ``Tables`` next to the model by default
 (:func:`default_folder`), and are named ``<model>_<table>.<ext>`` /
@@ -20,15 +22,16 @@ from __future__ import annotations
 
 import csv
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from raptor.api.glossary import TERMS
 from raptor.api.presentation import RunInfo, table_kinds
 from raptor.api.tables import INPUTS, RESULTS, Table
-from raptor.core.fileio.xlsx_writer import Sheet, write_xlsx
+from raptor.core.fileio.workbook import Sheet, WorkbookInfo, write_workbook
 
 #: The folder tables are written to, beside the model file. Also the name of
 #: the ribbon button, the dialog and the MCP tools ("Tables"), so the same
@@ -41,10 +44,17 @@ class ExportOptions:
     csv: bool = False              # one .csv per table
     txt_files: bool = False        # one .txt per table
     txt_report: bool = False       # one combined .txt
-    xlsx: bool = False             # one workbook, a tab per table
+    xlsx: bool = False             # one Excel workbook, a tab per table
+    ods: bool = False              # the same workbook as OpenDocument
 
     def any(self) -> bool:
-        return self.csv or self.txt_files or self.txt_report or self.xlsx
+        return (self.csv or self.txt_files or self.txt_report or self.xlsx
+                or self.ods)
+
+    def workbook_types(self) -> list[str]:
+        """The workbook extensions chosen, Excel first."""
+        return [ext for ext, on in (("xlsx", self.xlsx), ("ods", self.ods))
+                if on]
 
 
 @dataclass
@@ -85,11 +95,11 @@ def plan_files(tables: Sequence[Table], options: ExportOptions,
         names += [f"{stem}_{_file_slug(t.key)}.txt" for t in tables]
     if options.txt_report:
         names.append(f"{stem}_tables.txt")
-    if options.xlsx:
-        names.append(f"{stem}_tables.xlsx")
-        if not options.txt_files:
-            names += [f"{stem}_{_file_slug(t.key)}.txt" for t in tables
-                      if t.key in TEXT_REPORTS]
+    for ext in options.workbook_types():
+        names.append(f"{stem}_tables.{ext}")
+    if options.workbook_types() and not options.txt_files:
+        names += [f"{stem}_{_file_slug(t.key)}.txt" for t in tables
+                  if t.key in TEXT_REPORTS]
     return names
 
 
@@ -206,11 +216,13 @@ def _sheet_titles(tables: Sequence[Table]) -> list[str]:
     """Tab names: the table's title, prefixed with its group only where two
     tables would otherwise share a name (an input 'Resources' and a result
     'Resources')."""
+    # Tab names are unique ignoring case, so "Spare Pools" (an input) and
+    # "Spare pools" (a result) clash too.
     counts: dict[str, int] = {}
     for t in tables:
-        counts[t.title] = counts.get(t.title, 0) + 1
-    return [t.title if counts[t.title] == 1 else f"{t.group} - {t.title}"
-            for t in tables]
+        counts[t.title.lower()] = counts.get(t.title.lower(), 0) + 1
+    return [t.title if counts[t.title.lower()] == 1
+            else f"{t.group} - {t.title}" for t in tables]
 
 
 def _csv_safe(value: Any) -> str:
@@ -242,25 +254,86 @@ def _write_csv(table: Table, path: Path) -> None:
 
 def _run_info_sheet(info: RunInfo) -> Sheet:
     return Sheet(name="Run Info", headers=["Item", "Value"],
-                 rows=[[k, v] for k, v in info.rows()])
+                 rows=[[k, v] for k, v in info.rows()], text_cols={0, 1},
+                 description="The run these results come from: model, "
+                             "runs, settings and software")
+
+
+#: The first sort of a result table: (table-key pattern, column header,
+#: descending). The order puts what an engineer looks for first at the top:
+#: the weakest element, the largest cost, the most-used spare.
+_SORTS: tuple[tuple[str, str, bool], ...] = (
+    (r"_(availability|dependability|reliability)_data$", "Mean", False),
+    (r"_state_data$", "Red %", True),
+    (r"_state_data$", "Repairing %", True),
+    (r"^results\.weak_link_analysis_.*_mtbde$", "MTBDE", False),
+    (r"^results\.sparing_spares_utilization$", "Avg used", True),
+    (r"^results\.cost_", "Total", True),
+    (r"^results\.extended_results_block_criticality$", "Failures %", True),
+)
+
+
+def _sort_for(table: Table) -> tuple[int, bool] | None:
+    for pattern, header, descending in _SORTS:
+        if re.search(pattern, table.key) and header in table.headers:
+            return table.headers.index(header), descending
+    return None
+
+
+def _description(table: Table) -> str:
+    where = table.section or ("Model input" if table.group == INPUTS
+                              else table.group)
+    return f"{where}: {table.title}" if where != table.title else where
+
+
+def _text_columns(table: Table) -> set[int]:
+    """The table's own text columns, and a first column of names."""
+    cols = set(table.text_cols)
+    first = [row[0] for row in table.rows[:50] if row]
+    if first and all(isinstance(v, str) and not _is_number(v.strip())
+                     and v.strip() not in ("", "N/A") for v in first):
+        cols.add(0)
+    return cols
 
 
 def _table_sheet(title: str, table: Table) -> Sheet:
     col_kinds, row_kinds = table_kinds(table)
+    scales = {}
+    if table.key == "results.per_run" and "Availability" in table.headers:
+        scales[table.headers.index("Availability")] = True
     return Sheet(name=title, headers=table.headers, notes=table.notes,
                  rows=[[_spreadsheet_value(v, i in table.text_cols)
                         for i, v in enumerate(row)] for row in table.rows],
-                 formats=col_kinds, row_formats=row_kinds)
+                 formats=col_kinds, row_formats=row_kinds,
+                 text_cols=_text_columns(table), title=table.title,
+                 description=_description(table), sort=_sort_for(table),
+                 scales=scales)
+
+
+def workbook_info(model_name: str, info: RunInfo | None = None, *,
+                  what: str = "tables") -> WorkbookInfo:
+    """The Contents tab's title block and the page header/footer text."""
+    subtitle = [f"Model: {model_name}"] if model_name else []
+    if info is not None and info.runs:
+        subtitle.append(f"Runs: {info.runs:,}"
+                        + (f", {info.termination}" if info.termination
+                           else ""))
+    return WorkbookInfo(title=f"{model_name or 'Model'} - {what}",
+                        subtitle=subtitle, source=model_name,
+                        glossary=TERMS)
 
 
 def export_tables(tables: Sequence[Table], folder: str | Path,
                   options: ExportOptions, *, model_name: str = "",
                   stem: str | None = None,
-                  info: RunInfo | None = None) -> ExportResult:
+                  info: RunInfo | None = None,
+                  progress: Callable[[str], None] | None = None
+                  ) -> ExportResult:
     """Write `tables` to `folder` (created if needed) in the chosen formats.
     Existing files of the same names are replaced. Raises ValueError if no
     format or no table is chosen -- an export that writes nothing and says
-    nothing is worse than an error."""
+    nothing is worse than an error. `progress` is called with each file's
+    name before it is written (it may be called from a worker thread)."""
     if not tables:
         raise ValueError("no tables to export")
     if not options.any():
@@ -270,45 +343,77 @@ def export_tables(tables: Sequence[Table], folder: str | Path,
     folder.mkdir(parents=True, exist_ok=True)
     stem = stem or safe_stem(model_name)
     result = ExportResult(folder=folder, tables=len(tables))
+    tell = progress or (lambda _name: None)
 
     for t in tables:
         slug = _file_slug(t.key)
         if options.csv:
             p = folder / f"{stem}_{slug}.csv"
+            tell(p.name)
             _write_csv(t, p)
             result.files.append(p)
         if options.txt_files:
             p = folder / f"{stem}_{slug}.txt"
+            tell(p.name)
             p.write_text(format_table_text(t) + "\n", encoding="utf-8")
             result.files.append(p)
     if options.txt_report:
         p = folder / f"{stem}_tables.txt"
+        tell(p.name)
         p.write_text(format_report_text(tables, model_name or stem, info),
                      encoding="utf-8")
         result.files.append(p)
-    if options.xlsx:
-        result.files += _write_workbook(tables, folder, stem, info,
-                                        text_beside=not options.txt_files)
+    if options.workbook_types():
+        result.files += _write_workbooks(
+            tables, folder, stem, info, options.workbook_types(),
+            model_name=model_name or stem,
+            text_beside=not options.txt_files, tell=tell)
     return result
 
 
-def _write_workbook(tables: Sequence[Table], folder: Path, stem: str,
-                    info: RunInfo | None, *, text_beside: bool) -> list[Path]:
-    """The workbook (Run Info first), and the text reports beside it."""
-    written: list[Path] = []
+def workbook_sheets(tables: Sequence[Table],
+                    info: RunInfo | None = None) -> list[Sheet]:
+    """The workbook's tabs for `tables`: Run Info first when there are
+    results, then a tab per table (text reports excluded)."""
     sheet_tables = [x for x in tables if x.key not in TEXT_REPORTS]
     sheets = [_table_sheet(title, x) for title, x in
               zip(_sheet_titles(sheet_tables), sheet_tables)]
     if info is not None and info.runs:
         sheets.insert(0, _run_info_sheet(info))
+    return sheets
+
+
+def write_tables_workbook(tables: Sequence[Table], path: str | Path, *,
+                          model_name: str = "",
+                          info: RunInfo | None = None) -> Path:
+    """`tables` as ONE workbook at `path` (``.xlsx`` or ``.ods``, by its
+    extension). Raises ValueError when no table can be a tab."""
+    sheets = workbook_sheets(tables, info)
+    if not sheets:
+        raise ValueError("no tables to write to a workbook")
+    return write_workbook(path, sheets, workbook_info(model_name, info))
+
+
+def _write_workbooks(tables: Sequence[Table], folder: Path, stem: str,
+                     info: RunInfo | None, types: Sequence[str], *,
+                     model_name: str, text_beside: bool,
+                     tell: Callable[[str], None] = lambda _n: None
+                     ) -> list[Path]:
+    """The workbook(s), and the text reports beside them."""
+    written: list[Path] = []
+    sheets = workbook_sheets(tables, info)
     if sheets:
-        p = folder / f"{stem}_tables.xlsx"
-        write_xlsx(p, sheets)
-        written.append(p)
+        book = workbook_info(model_name, info)
+        for ext in types:
+            p = folder / f"{stem}_tables.{ext}"
+            tell(p.name)
+            write_workbook(p, sheets, book)
+            written.append(p)
     if text_beside:
         for x in tables:
             if x.key in TEXT_REPORTS:
                 tp = folder / f"{stem}_{_file_slug(x.key)}.txt"
+                tell(tp.name)
                 tp.write_text("\n".join(str(r[-1]) for r in x.rows) + "\n",
                               encoding="utf-8")
                 written.append(tp)

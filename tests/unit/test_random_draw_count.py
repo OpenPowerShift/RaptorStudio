@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from raptor.core.engine.extended_results import legacy_lines
 from raptor.core.engine.runner import run_simulation_with_reports
 from raptor.core.fileio.rbd import load_rbd
 
@@ -14,7 +15,8 @@ def _final(**kw):
     meta: dict = {}
     _, _, fin = run_simulation_with_reports(
         load_rbd(str(GOLD / "input.rbd")), date="DATE", metadata_sink=meta, **kw)
-    return fin, meta
+    # Only the Raptor 7 part has a real counterpart.
+    return legacy_lines(fin), meta
 
 
 def test_final_results_matches_real_with_the_line():

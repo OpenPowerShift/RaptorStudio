@@ -148,3 +148,15 @@ __all__ = [
     "plain_icons",
     "theme_file_dialog",
 ]
+
+
+def ask_spreadsheet_path(parent, caption: str, default_path: str) -> str | None:
+    """Ask where to save a workbook: Excel (.xlsx) or OpenDocument (.ods),
+    chosen in the file-type list. Returns the path with the extension of
+    the type chosen (when the name has neither), or None when cancelled.
+    Every spreadsheet save in the GUI goes through here, so they all offer
+    the same two types."""
+    from raptor.core.fileio.workbook import SPREADSHEET_FILTERS, spreadsheet_path
+    filters = ";;".join(f for _e, f in SPREADSHEET_FILTERS)
+    path, chosen = getSaveFileName(parent, caption, default_path, filters)
+    return spreadsheet_path(path, chosen) if path else None

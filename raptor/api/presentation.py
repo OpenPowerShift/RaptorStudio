@@ -50,6 +50,10 @@ LABELS: dict[str, str] = {
     "Mission_Green_Percent": "Mission green %",
     "Mission_Yellow_Percent": "Mission yellow %",
     "Mission_Red_Percent": "Mission red %",
+    # extended results (Final Results' ***EXTENDED_RESULTS*** section)
+    "Component_CMs": "Component CMs", "Component_PMs": "Component PMs",
+    "MTBF_Total_Time": "MTBF total time",
+    "MTBE_Total_Time": "MTBE total time",
     # statistics columns
     "Minimum": "Minimum", "Maximum": "Maximum", "Mean": "Mean",
     "St.Dev": "St. dev.", "StDev": "St. dev.", "SEM": "SEM",
@@ -153,18 +157,34 @@ def with_unit(label: str, kind: str, units: str = "") -> str:
 # --------------------------------------------------------------------------
 
 _TIME = {"mtbde", "mdt", "mtbm", "mtbmu", "mtbms", "mmt", "mmtu", "mmts",
-         "mtbf", "mttr", "mttf", "ending sim time", "time"}
+         "mtbf", "mttr", "mttf", "ending sim time", "time", "mttff",
+         "mtbf total time", "mtbe total time", "red time corrective",
+         "red time pm", "red time logistics", "red time done",
+         "red time other", "mtbe", "total time", "uptime", "downtime",
+         "corrective red time", "pm red time", "logistics red time",
+         "done red time", "other red time"}
 _PROB = {"availability", "reliability", "conditional reliability",
-         "dependability", "ao", "do", "r"}
+         "dependability", "ao", "do", "r", "operational availability",
+         "inherent availability", "achieved availability",
+         "capacity weighted availability", "capacity-weighted availability"}
+#: Capacity flows (units per time unit) and the flow over a run.
+_FLOW = {"units produced", "mean flow", "mean capacity", "lost flow",
+         "ave lost flow", "flow generated"}
 _COUNT = {"system failures", "component failures", "failures", "delays",
           "min used", "avg used", "max used", "initial", "new spares",
           "min stock", "avg stock", "max stock", "end stock", "run", "id",
           "level", "initial spares", "min available", "avg available",
-          "max available", "end available"}
+          "max available", "end available", "component cms",
+          "component pms"}
 _COST_WORDS = ("cost", "purchase", "operating", "sparing", "disposal",
                "total", "good", "repair", "idle", "repair hold", "pm",
                "pm hold", "standby", "done", "events", "emergency shipping",
                "value", "grand total", "spare pool")
+
+
+#: A measure whose kind its name alone decides.
+_NAMED_KIND = {**{k: "flow" for k in _FLOW}, **{k: "time" for k in _TIME},
+               **{k: "prob" for k in _PROB}}
 
 
 def kind_of(label: str, *, table: str = "") -> str:
@@ -180,10 +200,8 @@ def kind_of(label: str, *, table: str = "") -> str:
     # Already a display label ("St. dev.", "Avg used"): do not re-split it.
     base = (raw if raw in _DISPLAY_LABELS else humanise(raw)).lower()
     t = table.lower()
-    if base in _PROB:
-        return "prob"
-    if base in _TIME:
-        return "time"
+    if base in _NAMED_KIND:
+        return _NAMED_KIND[base]
     if base in _STATS:
         if "states" in t:
             return "pct"
@@ -245,6 +263,8 @@ def fmt(value: Any, kind: str = "num") -> str:
         out = f"{num:,.2f}"
     elif kind == "cost":
         out = f"{num:,.2f}"
+    elif kind == "flow":
+        out = f"{num:,.3f}"
     elif kind == "count":
         # A whole count stays whole; an average of counts (written with a
         # decimal point, "3.00") keeps two places, so a column of averages
@@ -349,6 +369,7 @@ SECTIONS: dict[str, str] = {
     "SUMMARY": "Summary", "LOGISTICS": "Logistics", "SPARING": "Sparing",
     "RESOURCES": "Resources", "COST": "Cost", "CAPACITY": "Capacity",
     "WEAK_LINK_ANALYSIS": "Weak link",
+    "EXTENDED_RESULTS": "Extended results",
 }
 
 #: A sub-table's own name (the label line above it in the report).

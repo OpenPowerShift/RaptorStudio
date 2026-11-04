@@ -14,11 +14,11 @@ from raptor.gui.ui.modality import exec_dialog
 from raptor.gui.ui import msgbox
 
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
-    QApplication,
     QCheckBox,
     QDialog,
     QDialogButtonBox,
@@ -43,7 +43,9 @@ from raptor.api.tables import (
     INPUTS,
     RESULTS,
     ResultsBundle,
+    Table,
     TableInfo,
+    all_tables,
     catalogue,
     collect,
 )
@@ -53,8 +55,12 @@ _KEY_ROLE = Qt.ItemDataRole.UserRole
 
 #: (settings key, label, tooltip) for the format checkboxes, in order.
 FORMATS: tuple[tuple[str, str, str], ...] = (
-    ("xlsx", "Spreadsheet (.xlsx) — one tab per table",
-     "One workbook with a tab for every table, numbers as numbers."),
+    ("xlsx", "Excel workbook (.xlsx) — one tab per table",
+     "One workbook with a tab for every table: numbers as numbers, "
+     "filters, frozen headers, a glossary and pages set up to print."),
+    ("ods", "OpenDocument spreadsheet (.ods) — one tab per table",
+     "The same workbook for LibreOffice, OpenOffice and other "
+     "OpenDocument applications."),
     ("csv", "CSV — one file per table",
      "Comma-separated files any spreadsheet or script can read."),
     ("txt_files", "Text — one file per table",
@@ -74,7 +80,10 @@ class ExportTablesDialog(QDialog):
         self._rbd, self._bundle = rbd, bundle
         self._stem = safe_stem(model_name)
         self._model_name = model_name
-        self._infos = catalogue(rbd, bundle)
+        # Built once: every click on the tree used to rebuild every table
+        # (the whole event log on a large run), twice, to count file names.
+        self._tables = all_tables(rbd, bundle)
+        self._infos = catalogue(rbd, bundle, tables=self._tables)
 
         outer = QVBoxLayout(self)
         outer.addWidget(QLabel(
@@ -241,12 +250,18 @@ class ExportTablesDialog(QDialog):
                 if (c.flags() & Qt.ItemFlag.ItemIsUserCheckable)
                 and c.checkState(0) == Qt.CheckState.Checked]
 
+    def chosen_tables(self) -> list[Table]:
+        """The ticked tables, in catalogue order (already built)."""
+        return collect(self._rbd, self._bundle, self.selected_keys(),
+                       tables=self._tables)
+
     def options(self) -> ExportOptions:
         b = self.format_boxes
         return ExportOptions(csv=b["csv"].isChecked(),
                              txt_files=b["txt_files"].isChecked(),
                              txt_report=b["txt_report"].isChecked(),
-                             xlsx=b["xlsx"].isChecked())
+                             xlsx=b["xlsx"].isChecked(),
+                             ods=b["ods"].isChecked())
 
     def folder(self) -> Path:
         return Path(self.folder_edit.text().strip()).expanduser()
@@ -266,7 +281,7 @@ class ExportTablesDialog(QDialog):
         elif not self.folder_edit.text().strip():
             text, ok = "Choose a folder.", False
         else:
-            tables = collect(self._rbd, self._bundle, keys)
+            tables = self.chosen_tables()
             names = plan_files(tables, opts, self._stem)
             existing = [n for n in names if (self.folder() / n).exists()]
             text = (f"{len(tables)} table(s) → {len(names)} file(s) in "
@@ -306,26 +321,103 @@ def gather(win):
     return win._rbd, bundle, win._current_file, name
 
 
+class _Background:
+    """`work(tell)` on a worker thread while the main thread keeps the
+    window painted. `tell(text)` only stores the text (the worker must not
+    touch Qt); the main thread shows it in the busy indicator and the
+    status bar."""
+
+    def __init__(self, win, work, message: str) -> None:
+        import threading
+        self.win, self.work = win, work
+        self.text, self.shown = message, ""
+        self.result: Any = None
+        self.error: BaseException | None = None
+        self.thread = threading.Thread(target=self._run, daemon=True,
+                                       name="export-tables")
+
+    def tell(self, text: str) -> None:
+        self.text = text
+
+    def _run(self) -> None:
+        try:
+            self.result = self.work(self.tell)
+        except BaseException as e:      # handed back to the main thread
+            self.error = e
+
+    def _show(self) -> None:
+        if self.text == self.shown:
+            return
+        self.shown = self.text
+        dlg = getattr(self.win, "_busy_dialog", None)
+        if dlg is not None:
+            dlg.setLabelText(self.shown)
+        status = getattr(self.win, "_statusbar", None)
+        if status is not None:
+            status.showMessage(self.shown)
+
+    def wait(self) -> Any:
+        from PySide6.QtCore import QEventLoop, QTimer
+        loop, timer = QEventLoop(), QTimer()
+
+        def poll() -> None:
+            self._show()
+            if not self.thread.is_alive():
+                loop.quit()
+
+        timer.setInterval(50)
+        timer.timeout.connect(poll)
+        self.thread.start()
+        timer.start()
+        try:
+            if self.thread.is_alive():
+                loop.exec()
+            self.thread.join()
+        finally:
+            timer.stop()
+        if self.error is not None:
+            raise self.error
+        return self.result
+
+
+def _in_background(win, work, message: str) -> Any:
+    """Run `work(tell)` on a worker thread behind the window's busy
+    indicator and wait for it; return what it returned, re-raise what it
+    raised."""
+    busy = getattr(win, "_begin_busy", None)
+    created = busy(message) if busy else False
+    try:
+        return _Background(win, work, message).wait()
+    finally:
+        if created:
+            win._end_busy(created)
+
+
 def perform_export(win, dlg: ExportTablesDialog):
     """Write what the dialog chose. Returns the ExportResult, or None if it
-    failed (the failure has been shown)."""
-    tables = collect(dlg._rbd, dlg._bundle, dlg.selected_keys())
-    QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+    failed (the failure has been shown). The files are written on a worker
+    thread, so the window stays responsive and says what it is writing."""
+    tables = dlg.chosen_tables()
+    folder, options = dlg.folder(), dlg.options()
     try:
         info = (win._results.run_info(dlg._rbd, model=dlg._model_name,
                                       file=win._current_file or "")
                 if dlg._bundle is not None else None)
-        result = export_tables(tables, dlg.folder(), dlg.options(),
-                               model_name=dlg._model_name, stem=dlg._stem,
-                               info=info)
+
+        def work(tell):
+            return export_tables(
+                tables, folder, options, model_name=dlg._model_name,
+                stem=dlg._stem, info=info,
+                progress=lambda name: tell(f"Writing {name}…"))
+
+        result = _in_background(
+            win, work, f"Exporting {len(tables)} table(s)…")
     except Exception as e:      # file I/O: never let it cross the slot
         msgbox.critical(
             win, "Export Tables Failed",
             f"Could not write the tables:\n\n{e}")
         win._statusbar.showMessage("Table export failed", 8000)
         return None
-    finally:
-        QApplication.restoreOverrideCursor()
     dlg.remember_choices()
     win._statusbar.showMessage(
         f"Exported {result.tables} table(s) as {len(result.files)} file(s) "
@@ -339,7 +431,14 @@ def open_export_tables_dialog(win) -> None:
     """The window's `Export Tables...` command."""
     if win._rbd is None:
         return
-    rbd, bundle, path, name = gather(win)
-    dlg = ExportTablesDialog(win, rbd, bundle, path, name)
+    # Reading a large run's results into tables takes a moment: say so.
+    busy = getattr(win, "_begin_busy", None)
+    created = busy("Preparing the tables…") if busy else False
+    try:
+        rbd, bundle, path, name = gather(win)
+        dlg = ExportTablesDialog(win, rbd, bundle, path, name)
+    finally:
+        if created:
+            win._end_busy(created)
     if exec_dialog(dlg) == QDialog.DialogCode.Accepted:
         perform_export(win, dlg)

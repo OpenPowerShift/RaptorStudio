@@ -256,22 +256,25 @@ all), **Standby** treats cold-standby paths as fully in service or as
 absent, and **Dependencies** treats every dependency as up (analyse the
 dependent element's own law) or down (remove it from the success path); each
 choice is listed under the assumptions. **Copy** puts the result on the
-clipboard; **Export ▸ This result…** saves it as a spreadsheet, and
+clipboard; **Export ▸ This result…** saves it as a spreadsheet (Excel or
+OpenDocument, chosen in the Save dialog's file-type list), and
 **Export ▸ Reliability and availability…** saves it with the other mode
 (same settings, worked out first if need be) in one workbook, named after
 the model and the modes, e.g.
 `Plant_analytical_reliability_availability.xlsx`. The same is on the
-command line (`raptor analytic --mode both --xlsx out/`) and in MCP
+command line (`raptor analytic --mode both --xlsx out/`, or `--ods`) and
+in MCP
 (`export_analytical`). The full scope and the API
 are in link:https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md[the analytical solver guide].
 
-**Results ▸ Availability and Criticality…** reads the latest run's additive
+**Final Results ▸ Extended results** shows the latest run's additive
 metrics: operational / inherent / achieved availability, MTTFF, MTBF and
 MTBE on a total-time denominator, component CM/PM counts, Red-time cause
-buckets, and per-block failure / downtime / cost criticality. These are not
-added to the legacy report text, which stays byte-compatible with captured
-reference output. **Copy** puts the visible tab on the clipboard and
-**Export…** saves both tabs as a spreadsheet.
+buckets (Min / Mean / Max / St.Dev / SEM over runs), and each block's
+percentage share of failures, downtime and cost. They close the Final
+Results report too, in its `***EXTENDED_RESULTS***` section, and Export
+Tables writes them like any other result table. Downtime shares need Weak
+Link analysis and cost shares need Cost analysis.
 
 === A hierarchy's body and its DSI
 
@@ -784,13 +787,12 @@ Then pick the formats -- any combination:
 |===
 | Format | What you get
 
-| Spreadsheet (`.xlsx`)
-| One workbook: a **Run Info** tab (the model, runs, run length, analyses
-  and when it ran), then a **tab per table**. Numbers are real numbers (so
-  they sort and chart) shown to six places for probabilities and two for
-  money and percentages, names stay text, and the header row is frozen
-  with a filter on it. The End-of-Run and interim cost reports are text,
-  so they are saved beside the workbook as `.txt` files.
+| Excel workbook (`.xlsx`) and OpenDocument spreadsheet (`.ods`)
+| One workbook, in either or both formats (see <<spreadsheets>>): a
+  **Contents** tab, a **Run Info** tab (the model, runs, run length,
+  analyses and when it ran), a **tab per table** and a **Glossary**. The
+  End-of-Run and interim cost reports are text, so they are saved beside
+  the workbook as `.txt` files.
 
 | CSV
 | One `.csv` file per table (UTF-8, opens correctly in a spreadsheet).
@@ -803,11 +805,57 @@ Then pick the formats -- any combination:
 |===
 
 Files go to a folder called **Tables** beside the model file (change it
-with *Browse…*), named `<model>_<table>.<ext>`, or `<model>_tables.xlsx` /
-`<model>_tables.txt` for the workbook and combined report. Files of the
+with *Browse…*), named `<model>_<table>.<ext>`, or `<model>_tables.xlsx`,
+`<model>_tables.ods` / `<model>_tables.txt` for the workbooks and combined
+report. Files of the
 same names are replaced -- the dialog counts them before you export. The
 tables reflect the model as it is on screen, including edits you have not
 saved. Your format choices are remembered.
+
+For one workbook without the dialog, **File ▸ Print and Export ▸ Export
+Excel Workbook…** or **Export OpenDocument Spreadsheet…** asks only where to
+save it, and writes the tables the dialog ticks by default. The Save
+dialog's file-type list offers both types either way. The command line
+has the same: `raptor tables MODEL --run --format xlsx --format ods`.
+
+[[spreadsheets]]
+=== How the spreadsheets are laid out
+
+Every spreadsheet RAPTOR Studio writes -- Export Tables, the File view's
+workbook commands, the analytical solver's Export and Availability and
+Criticality's Export -- has the same layout, in Excel and OpenDocument
+alike:
+
+* **Row 1 is the header** on every data tab, so the file reads straight
+  into a script (pandas, R, MATLAB). The model, the date and the tab's
+  title are in the printed page header and footer and on the Contents tab.
+* **Numbers are numbers**, right-aligned and shown by their kind: six
+  places for availability and reliability, two for money and percentages,
+  three for times and flows, whole counts with a thousands separator, and
+  any other column one format throughout, with a thousands separator. The
+  cell keeps
+  full precision. A censored estimate keeps its number with a `>` in its
+  format; `N/A` is grey.
+* **Each data tab** has a frozen header (and frozen name column when it is
+  wide), a filter on the header, every other row shaded (the shading
+  follows sorting and filtering) and a first sort that puts what you look
+  for at the top: the weakest element first in a Weak Link table, the
+  largest cost first, the most-used spare first. A note under the table
+  says what it is sorted by. A *Total* row stays last, in bold.
+* **Distribution parameters are named**: under the Blocks, Triggers and
+  Phases tables a note says what parameters 1, 2 and 3 are for each
+  distribution the table uses (Weibull: shape, scale, location; Normal:
+  mean, standard deviation).
+* **Colour means something**: a bar shows a percentage or a total's size
+  within its column (a state's share of time in that state's colour), and
+  orange marks the lowest values of an availability or reliability column.
+* **Abbreviations** (MTBDE, SEM, RAW, ...) carry a comment on their header,
+  and the **Glossary** tab explains every one the workbook uses, and the
+  colours.
+* **Printing**: each tab is set up for A4, portrait or landscape by its
+  width, one page wide with the header row repeated on every page. A very
+  wide tab (Per-Run Results) prints at 70% across several pages with its
+  first column repeated.
 
 An AI assistant using the MCP server can read and write the same tables
 with `list_tables`, `get_table` and `export_tables`; see the xref:../new_docs/book.html#ch-mcp[MCP chapter]

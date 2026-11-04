@@ -1561,6 +1561,39 @@ def pdf_icon(colour: str) -> QIcon:
     return _icon("pdf", colour, draw)
 
 
+def _workbook_icon(key: str, colour: str, label: str) -> QIcon:
+    """A sheet ruled as a grid, carrying a solid band with the file type --
+    the same shape as `pdf_icon`, so the export commands read as a set."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c)
+        _page(p, c, 10, 4, 28, 40)
+        p.setPen(_pen(c, 2))
+        p.drawRect(QRectF(15, 10, 16, 11))
+        p.drawLine(15, 15, 31, 15)
+        p.drawLine(22, 10, 22, 21)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRoundedRect(QRectF(4, 24, 34, 14), 2, 2)
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+        f = QFont("sans-serif")
+        f.setBold(True)
+        f.setPixelSize(11 if len(label) > 3 else 12)
+        p.setFont(f)
+        p.setPen(QPen(c))
+        p.drawText(QRectF(4, 24, 34, 14), Qt.AlignmentFlag.AlignCenter, label)
+    return _icon(key, colour, draw)
+
+
+def export_xlsx_icon(colour: str) -> QIcon:
+    """Export Excel Workbook: a ruled sheet with an "XLSX" band."""
+    return _workbook_icon("xlsx", colour, "XLSX")
+
+
+def export_ods_icon(colour: str) -> QIcon:
+    """Export OpenDocument Spreadsheet: a ruled sheet with an "ODS" band."""
+    return _workbook_icon("ods", colour, "ODS")
+
+
 def svg_icon(colour: str) -> QIcon:
     """Export SVG: a Bézier curve with its two handles -- vector art."""
     def draw(p: QPainter, c: QColor):

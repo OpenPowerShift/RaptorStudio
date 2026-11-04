@@ -1,284 +1,226 @@
-"""A minimal, dependency-free .xlsx writer.
+"""The ``.xlsx`` renderer, on XlsxWriter.
 
-An .xlsx file is a zip of a few XML parts. This writes exactly what a table
-export needs -- named sheets, a bold shaded header row that stays put while
-scrolling, real numeric cells, sized columns and a filter on the header --
-and nothing else, so no spreadsheet library has to be installed.
+The layout is decided in :mod:`raptor.core.fileio.workbook`, shared with the
+``.ods`` writer; this module only turns a :class:`~.workbook.WorkbookPlan`
+into Excel's file format. :func:`write_xlsx` and :class:`Sheet` are kept for
+callers that predate the shared layer.
 
-Numbers are written as numbers (so the spreadsheet can sort and chart them),
-text as text. Nothing here reads a workbook back; the tests do that by
-converting the file with LibreOffice when it is available.
+Every string is written with ``write_string``: a model name or comment that
+begins with ``=`` is text, never a formula.
 """
 from __future__ import annotations
 
-import math
-import re
-import zipfile
 from collections.abc import Sequence
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from xml.sax.saxutils import escape
 
-#: Excel's hard limits.
-MAX_ROWS = 1_048_576
-MAX_SHEET_NAME = 31
+import xlsxwriter
+from xlsxwriter.format import Format
+from xlsxwriter.worksheet import Worksheet
 
-_BAD_SHEET_CHARS = re.compile(r"[\[\]:*?/\\]")
-# XML 1.0 forbids most control characters, whatever the escaping.
-_BAD_XML_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
+from raptor.core.fileio.workbook import (
+    BAND, HEADER_TEXT, INK, LINK, LOW, LOW_TO, MAX_ROWS, MAX_SHEET_NAME,
+    MUTED, NUMBER_FORMATS, RULE, WIDE_PRINT_SCALE, Cell, Sheet, SheetPlan, Style, WorkbookInfo,
+    WorkbookPlan, sheet_name, write_workbook,
+)
 
-_STYLE_NORMAL, _STYLE_HEADER, _STYLE_NOTE = 0, 1, 2
-#: Number formats a numeric cell can carry, by the kind of quantity
-#: (`raptor.api.presentation`): the cell keeps its full value, the format
-#: only sets how many places are shown.
-_NUMBER_STYLES = {"prob": 3, "pct": 4, "cost": 4}
+__all__ = ["MAX_ROWS", "MAX_SHEET_NAME", "Sheet", "render_xlsx",
+           "sheet_name", "write_xlsx"]
 
-
-@dataclass
-class Sheet:
-    """One tab: a header row and the rows under it."""
-    name: str
-    headers: Sequence[str]
-    rows: Sequence[Sequence[Any]]
-    #: Free-text lines written under the table, after a blank row.
-    notes: Sequence[str] = field(default_factory=tuple)
-    #: The kind of each column's numbers ("prob", "pct", "cost", ...).
-    formats: Sequence[str] = field(default_factory=tuple)
-    #: Per-row kinds for a table of measures (one row per measure); a row's
-    #: kind wins over its column's.
-    row_formats: Sequence[str] = field(default_factory=tuple)
+_FONT = "Calibri"
+_A4 = 9
 
 
-def sheet_name(wanted: str, taken: set[str]) -> str:
-    """A legal, unique sheet name: <= 31 characters, none of []:*?/\\, not
-    starting or ending with an apostrophe, unique case-insensitively."""
-    name = _BAD_SHEET_CHARS.sub(" ", wanted).strip().strip("'") or "Sheet"
-    name = name[:MAX_SHEET_NAME].rstrip().rstrip("'") or "Sheet"
-    candidate, n = name, 2
-    while candidate.lower() in taken:
-        suffix = f" ({n})"
-        candidate = name[:MAX_SHEET_NAME - len(suffix)] + suffix
-        n += 1
-    taken.add(candidate.lower())
-    return candidate
-
-
-def _col_letter(index: int) -> str:
-    """0 -> A, 25 -> Z, 26 -> AA ..."""
-    out = ""
-    index += 1
-    while index:
-        index, rem = divmod(index - 1, 26)
-        out = chr(65 + rem) + out
-    return out
-
-
-def _text(value: Any) -> str:
-    return escape(_BAD_XML_CHARS.sub("", str(value)))
-
-
-def _cell(ref: str, value: Any, style: int = _STYLE_NORMAL) -> str:
-    """One <c> element. None is an empty cell (kept so styles apply)."""
-    s = f' s="{style}"' if style else ""
-    if value is None or value == "":
-        return f'<c r="{ref}"{s}/>' if style else ""
-    if isinstance(value, bool):
-        return f'<c r="{ref}"{s} t="b"><v>{int(value)}</v></c>'
-    if isinstance(value, int):
-        return f'<c r="{ref}"{s}><v>{value}</v></c>'
-    if isinstance(value, float):
-        if math.isnan(value) or math.isinf(value):
-            return (f'<c r="{ref}"{s} t="inlineStr"><is><t>'
-                    f'{_text(value)}</t></is></c>')
-        return f'<c r="{ref}"{s}><v>{value!r}</v></c>'
-    return (f'<c r="{ref}"{s} t="inlineStr"><is>'
-            f'<t xml:space="preserve">{_text(value)}</t></is></c>')
-
-
-def _number_style(value: Any, row_kind: str | None,
-                  col_kind: str | None) -> int:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return _STYLE_NORMAL
-    return _NUMBER_STYLES.get(row_kind or col_kind or "", _STYLE_NORMAL)
-
-
-def _display_len(value: Any) -> int:
-    if value is None:
-        return 0
-    if isinstance(value, float):
-        return len(f"{value:.6g}")
-    return len(str(value))
-
-
-def _column_widths(headers: Sequence[str],
-                   rows: Sequence[Sequence[Any]]) -> list[float]:
-    widths = [len(str(h)) + 2 for h in headers]
-    for row in rows[:500]:                    # a sample is enough
-        for i, v in enumerate(row):
-            if i >= len(widths):
-                widths.append(0)
-            widths[i] = max(widths[i], _display_len(v) + 2)
-    return [min(max(w, 8), 60) for w in widths]
-
-
-def _sheet_xml(sheet: Sheet) -> str:
-    rows = list(sheet.rows)
-    truncated = len(rows) > MAX_ROWS - 2 - (len(sheet.notes) + 2)
-    if truncated:
-        rows = rows[:MAX_ROWS - 2 - (len(sheet.notes) + 2)]
-    column_count = max(len(sheet.headers), *(len(r) for r in rows), 1)
-    widths = _column_widths(sheet.headers, rows)
-    widths += [10.0] * (column_count - len(widths))
-
-    parts = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-             '<worksheet xmlns="http://schemas.openxmlformats.org/'
-             'spreadsheetml/2006/main">']
-    if sheet.headers:
-        parts.append(
-            '<sheetViews><sheetView workbookViewId="0">'
-            '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" '
-            'state="frozen"/></sheetView></sheetViews>')
-    parts.append("<cols>" + "".join(
-        f'<col min="{i + 1}" max="{i + 1}" width="{w:.1f}" customWidth="1"/>'
-        for i, w in enumerate(widths)) + "</cols>")
-    parts.append("<sheetData>")
-    r = 1
-    if sheet.headers:
-        cells = "".join(_cell(f"{_col_letter(i)}{r}", h, _STYLE_HEADER)
-                        for i, h in enumerate(sheet.headers))
-        parts.append(f'<row r="{r}">{cells}</row>')
-    for n, row in enumerate(rows):
-        r += 1
-        row_kind = sheet.row_formats[n] if n < len(sheet.row_formats) \
-            else None
-        cells = "".join(
-            _cell(f"{_col_letter(i)}{r}", v,
-                  _number_style(v, row_kind if i else None,
-                                sheet.formats[i] if i < len(sheet.formats)
-                                else None))
-            for i, v in enumerate(row))
-        parts.append(f'<row r="{r}">{cells}</row>' if cells
-                     else f'<row r="{r}"/>')
-    notes = list(sheet.notes)
-    if truncated:
-        notes.append("(Rows beyond the spreadsheet limit were left out.)")
-    if notes:
-        r += 1                                # a blank separator row
-        for note in notes:
-            r += 1
-            parts.append(f'<row r="{r}">'
-                         f'{_cell(f"A{r}", note, _STYLE_NOTE)}</row>')
-    parts.append("</sheetData>")
-    if sheet.headers and rows:
-        last = f"{_col_letter(len(sheet.headers) - 1)}{len(rows) + 1}"
-        parts.append(f'<autoFilter ref="A1:{last}"/>')
-    parts.append("</worksheet>")
-    return "".join(parts)
-
-
-_CONTENT_TYPES = (
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/'
-    'content-types">'
-    '<Default Extension="rels" ContentType="application/vnd.'
-    'openxmlformats-package.relationships+xml"/>'
-    '<Default Extension="xml" ContentType="application/xml"/>'
-    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.'
-    'openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.'
-    'openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
-    "{sheets}"
-    "</Types>")
-
-_ROOT_RELS = (
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/'
-    'relationships"><Relationship Id="rId1" Type="http://schemas.'
-    'openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
-    'Target="xl/workbook.xml"/></Relationships>')
-
-# fonts: 0 normal, 1 bold, 2 italic grey; fills: 0 none, 1 gray125 (both
-# required by Excel), 2 header shade.
-_STYLES = (
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
-    '2006/main">'
-    '<numFmts count="1"><numFmt numFmtId="164" formatCode="0.000000"/>'
-    '</numFmts>'
-    '<fonts count="3">'
-    '<font><sz val="11"/><name val="Calibri"/></font>'
-    '<font><b/><sz val="11"/><name val="Calibri"/></font>'
-    '<font><i/><sz val="10"/><color rgb="FF666666"/><name val="Calibri"/>'
-    '</font></fonts>'
-    '<fills count="3"><fill><patternFill patternType="none"/></fill>'
-    '<fill><patternFill patternType="gray125"/></fill>'
-    '<fill><patternFill patternType="solid"><fgColor rgb="FFDCE6F1"/>'
-    '<bgColor indexed="64"/></patternFill></fill></fills>'
-    '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/>'
-    '</border><border><left/><right/><top/>'
-    '<bottom style="thin"><color auto="1"/></bottom><diagonal/></border>'
-    '</borders>'
-    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" '
-    'borderId="0"/></cellStyleXfs>'
-    '<cellXfs count="5">'
-    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
-    '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" '
-    'applyFont="1" applyFill="1" applyBorder="1"/>'
-    '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" '
-    'applyFont="1"/>'
-    # 3: a probability, six places; 4: money or a percentage, two places
-    # with thousands separators (built-in format 4).
-    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" '
-    'applyNumberFormat="1"/>'
-    '<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" '
-    'applyNumberFormat="1"/></cellXfs>'
-    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" '
-    'builtinId="0"/></cellStyles></styleSheet>')
-
-
-def write_xlsx(path: str | Path, sheets: Sequence[Sheet]) -> Path:
-    """Write `sheets` as one workbook, one tab each. Sheet names are made
-    legal and unique (see :func:`sheet_name`). Returns the path."""
-    if not sheets:
-        raise ValueError("a workbook needs at least one sheet")
+def write_xlsx(path: str | Path, sheets: Sequence[Sheet],
+               info: WorkbookInfo | None = None) -> Path:
+    """Write `sheets` as one ``.xlsx`` workbook (see
+    :func:`~raptor.core.fileio.workbook.write_workbook`)."""
     path = Path(path)
-    taken: set[str] = set()
-    named = [(sheet_name(s.name, taken), s) for s in sheets]
+    if path.suffix.lower() != ".xlsx":
+        path = path.with_suffix(".xlsx")
+    return write_workbook(path, sheets, info)
 
-    content = _CONTENT_TYPES.format(sheets="".join(
-        f'<Override PartName="/xl/worksheets/sheet{i}.xml" '
-        f'ContentType="application/vnd.openxmlformats-officedocument.'
-        f'spreadsheetml.worksheet+xml"/>' for i in range(1, len(named) + 1)))
-    workbook = (
-        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
-        '2006/main" xmlns:r="http://schemas.openxmlformats.org/'
-        'officeDocument/2006/relationships"><sheets>'
-        + "".join(f'<sheet name="{escape(n, {chr(34): "&quot;"})}" '
-                  f'sheetId="{i}" r:id="rId{i}"/>'
-                  for i, (n, _s) in enumerate(named, 1))
-        + "</sheets></workbook>")
-    rels = (
-        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<Relationships xmlns="http://schemas.openxmlformats.org/package/'
-        '2006/relationships">'
-        + "".join(
-            f'<Relationship Id="rId{i}" Type="http://schemas.openxmlformats.'
-            f'org/officeDocument/2006/relationships/worksheet" '
-            f'Target="worksheets/sheet{i}.xml"/>'
-            for i in range(1, len(named) + 1))
-        + f'<Relationship Id="rId{len(named) + 1}" Type="http://schemas.'
-          f'openxmlformats.org/officeDocument/2006/relationships/styles" '
-          f'Target="styles.xml"/></Relationships>')
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("[Content_Types].xml", content)
-        z.writestr("_rels/.rels", _ROOT_RELS)
-        z.writestr("xl/workbook.xml", workbook)
-        z.writestr("xl/_rels/workbook.xml.rels", rels)
-        z.writestr("xl/styles.xml", _STYLES)
-        for i, (_n, sheet) in enumerate(named, 1):
-            z.writestr(f"xl/worksheets/sheet{i}.xml", _sheet_xml(sheet))
-    return path
+def _hf(text: str) -> str:
+    """Text for a page header/footer: ``&`` is its control character."""
+    return text.replace("&", "&&")
+
+
+def _sized(points: int, text: str) -> str:
+    """`text` in a `points`-size font. A font size code takes every digit
+    after it, so text starting with a digit ("2026-11-05") is set apart by
+    a space -- else "&8" + "2026" is size 82026 and the year disappears."""
+    gap = " " if text[:1].isdigit() else ""
+    return f"&{points}{gap}{_hf(text)}"
+
+
+class _Formats:
+    """One XlsxWriter Format per distinct Style, made on first use."""
+
+    def __init__(self, book: xlsxwriter.Workbook) -> None:
+        self._book = book
+        self._cache: dict[Style, Format] = {}
+
+    def __call__(self, style: Style) -> Format:
+        fmt = self._cache.get(style)
+        if fmt is None:
+            fmt = self._book.add_format(self._props(style))
+            self._cache[style] = fmt
+        return fmt
+
+    @staticmethod
+    def _props(style: Style) -> dict[str, Any]:
+        props: dict[str, Any] = {"font_name": _FONT, "font_size": 11,
+                                 "valign": "top", "align": style.align}
+        if style.number:
+            props["num_format"] = NUMBER_FORMATS[style.number]
+        if style.align == "left" and style.role in _INDENTED:
+            # A text column after a right-aligned number does not touch it.
+            props["indent"] = 1
+        if style.wrap:
+            props["text_wrap"] = True
+        props.update(_ROLE_PROPS.get(style.role, {}))
+        return props
+
+
+#: Roles whose left-aligned text is indented by one character.
+_INDENTED = frozenset({"data", "header", "total", "na", "link"})
+#: What each role adds to a cell's format.
+_ROLE_PROPS: dict[str, dict[str, Any]] = {
+    "header": {"bold": True, "font_color": HEADER_TEXT, "bg_color": INK,
+               "valign": "vcenter", "bottom": 2, "bottom_color": RULE},
+    "total": {"bold": True, "top": 1, "top_color": INK},
+    "na": {"font_color": MUTED, "italic": True},
+    "note": {"font_color": MUTED, "italic": True, "font_size": 10},
+    "title": {"bold": True, "font_size": 16, "font_color": INK},
+    "subtitle": {"font_color": MUTED},
+    "link": {"font_color": LINK, "underline": 1},
+}
+
+
+def _write(ws: Worksheet, row: int, col: int, cell: Cell,
+           fmt: _Formats) -> None:
+    value, f = cell.value, fmt(cell.style)
+    if value is None or value == "":
+        if cell.style.role == "header":
+            ws.write_blank(row, col, None, f)
+        return
+    if isinstance(value, bool):
+        ws.write_boolean(row, col, value, f)
+    elif isinstance(value, (int, float)):
+        ws.write_number(row, col, value, f)
+    else:
+        ws.write_string(row, col, str(value), f)
+
+
+def _ref(name: str) -> str:
+    return "'" + name.replace("'", "''") + "'"
+
+
+def _cells(ws: Worksheet, sp: SheetPlan, fmt: _Formats) -> None:
+    """The title block, header, rows, notes and comments."""
+    for r, line in enumerate(sp.above):
+        for c, cell in enumerate(line):
+            _write(ws, r, c, cell, fmt)
+    top = sp.header_row
+    for c, cell in enumerate(sp.headers):
+        _write(ws, top, c, cell, fmt)
+    first = top + (1 if sp.headers else 0)
+    for n, row in enumerate(sp.rows):
+        for c, cell in enumerate(row):
+            target = sp.links.get((first + n, c))
+            if target is not None:
+                ws.write_url(first + n, c, f"internal:{_ref(target)}!A1",
+                             fmt(cell.style), string=str(cell.value),
+                             tip=f"Go to {target}")
+            else:
+                _write(ws, first + n, c, cell, fmt)
+    note_row = first + len(sp.rows) + 1
+    for i, note in enumerate(sp.notes):
+        ws.write_string(note_row + i, 0, note, fmt(Style("note")))
+    for (r, c), text in sp.comments.items():
+        ws.write_comment(top + r, c, text, {
+            "author": "RAPTOR Studio", "x_scale": 2.2,
+            "y_scale": 1 + text.count("\n") * 0.6 + len(text) / 120})
+
+
+def _rules(book: xlsxwriter.Workbook, ws: Worksheet, sp: SheetPlan) -> None:
+    """Banding, bars and colour scales, the filter and the frozen panes."""
+    top = sp.header_row
+    first = top + (1 if sp.headers else 0)
+    last = first + len(sp.rows) - 1
+    body_last = first + sp.body_count - 1
+    cols = max(sp.column_count, 1)
+    if sp.rows and sp.banding:
+        ws.conditional_format(first, 0, last, cols - 1, {
+            "type": "formula", "criteria": "=MOD(ROW(),2)=0",
+            "format": book.add_format({"bg_color": BAND})})
+    for c, colour in sp.bars.items():
+        ws.conditional_format(first, c, body_last, c, {
+            "type": "data_bar", "bar_color": colour, "bar_solid": True,
+            "min_type": "num", "min_value": 0, "bar_no_border": True})
+    for c, higher_better in sp.scales.items():
+        ws.conditional_format(first, c, body_last, c, {
+            "type": "2_color_scale",
+            "min_color": LOW if higher_better else LOW_TO,
+            "max_color": LOW_TO if higher_better else LOW})
+    if sp.filter and sp.body_count:
+        ws.autofilter(top, 0, body_last, cols - 1)
+    if sp.freeze_rows or sp.freeze_cols:
+        ws.freeze_panes(top + sp.freeze_rows, sp.freeze_cols)
+
+
+def _print_setup(ws: Worksheet, plan: WorkbookPlan, sp: SheetPlan) -> None:
+    """A4, by width portrait or landscape, one page wide (a very wide tab:
+    across pages, its first column repeated), header row on every page."""
+    ws.set_paper(_A4)
+    if sp.landscape:
+        ws.set_landscape()
+    else:
+        ws.set_portrait()
+    if sp.fit_width:
+        ws.fit_to_pages(1, 0)
+    else:
+        ws.set_print_scale(WIDE_PRINT_SCALE)
+        ws.repeat_columns(0)
+    ws.center_horizontally()
+    ws.set_margins(left=0.5, right=0.5, top=0.75, bottom=0.75)
+    top = sp.header_row
+    if sp.headers:
+        ws.repeat_rows(top)
+    first = top + (1 if sp.headers else 0)
+    end_row = max(first + len(sp.rows) + len(sp.notes), top)
+    ws.print_area(0, 0, end_row, max(sp.column_count, 1) - 1)
+    left, right = plan.header_text(sp)
+    ws.set_header(f"&L{_sized(9, left)}&R&B{_sized(9, right)}")
+    f_left, f_right = plan.footer_text()
+    ws.set_footer(f"&L{_sized(8, f_left)}&C&8Page &P of &N"
+                  f"&R{_sized(8, f_right)}")
+
+
+def _sheet(book: xlsxwriter.Workbook, plan: WorkbookPlan, sp: SheetPlan,
+           fmt: _Formats) -> None:
+    ws = book.add_worksheet(sp.name)
+    for col, width in enumerate(sp.widths):
+        ws.set_column(col, col, width)
+    _cells(ws, sp, fmt)
+    _rules(book, ws, sp)
+    _print_setup(ws, plan, sp)
+
+
+def render_xlsx(path: Path, plan: WorkbookPlan) -> None:
+    """Write `plan` to `path` as an ``.xlsx`` workbook."""
+    book = xlsxwriter.Workbook(str(path), {
+        "strings_to_numbers": False, "strings_to_formulas": False,
+        "strings_to_urls": False, "nan_inf_to_errors": False})
+    try:
+        book.set_properties({
+            "title": plan.info.title, "author": "RAPTOR Studio",
+            "comments": "Written by RAPTOR Studio",
+            "created": plan.info.written})
+        book.set_size(1600, 1000)
+        fmt = _Formats(book)
+        for sp in plan.sheets:
+            _sheet(book, plan, sp, fmt)
+    finally:
+        book.close()

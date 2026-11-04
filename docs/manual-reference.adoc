@@ -234,7 +234,6 @@ current value).
 |Single-Point Failures |List every component that alone can fail the system — series elements; export as a text file |
 |Domains… |Domain of each node — which elements' failures can propagate to it |
 |Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
-|Availability and Criticality… |Additive run metrics: inherent/achieved/operational availability, MTTFF, Red-time causes and per-block failure, downtime and cost criticality. The report text is unchanged. |
 |===
 
 ==== Show on Canvas
@@ -352,6 +351,8 @@ documentation.
 |Control |What it does |Shortcut / value
 |Print… |Print diagrams, simulation results and the Weak Link analysis with a project title block (Ctrl+P) |Ctrl+P
 |Export PDF… |Save the printable report (diagram + results + weak link) as a PDF file |
+|Export Excel Workbook… |Save the model's tables and the latest run's results as one Excel workbook (.xlsx), set up to read, filter and print |
+|Export OpenDocument Spreadsheet… |Save the model's tables and the latest run's results as one OpenDocument spreadsheet (.ods) for LibreOffice and other OpenDocument applications |
 |Export Tables… |Write the model's tables (blocks, nodes, links, ... ) and a run's result tables as CSV, text or one spreadsheet with a tab per table |
 |Export Diagram SVG… |Save the currently displayed hierarchy level as a scalable vector (.svg) file, for editing or embedding elsewhere at any resolution |
 |Save Bitmap |Save the diagram view as a PNG image |

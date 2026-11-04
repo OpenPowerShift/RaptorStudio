@@ -155,7 +155,7 @@ description and input/output schema is what the server sends on `tools/list`.
 | `describe_model` | read-only | Describe the model structure. | `model_id`, `detail`?, `level`? |
 | `diff_models` | read-only | Say what is different between two models (their inputs, not their results). | `model_a`, `model_b`, `ignore`?, `match`?, `detail`? |
 | `estimate_runtime` | read-only | Estimate wall-clock time for a simulation before running it. | `model_id`, `num_runs`?, `run_length`?, `workers`?, `importance`? |
-| `export_analytical` | writes | Solve exactly, as `analytical_analysis` does, and write a spreadsheet. | `model_id`, `modes`?, `folder`?, `hierarchy`?, `at`?, `times`?, `bx`?, `tau`?, `importance`?, `equation`?, `ignore_repairs`?, `ignore`?, `phase`?, `standby`?, `dependencies`?, `max_variables`?, `max_bdd_nodes`? |
+| `export_analytical` | writes | Solve exactly, as `analytical_analysis` does, and write a spreadsheet. | `model_id`, `modes`?, `folder`?, `hierarchy`?, `at`?, `times`?, `bx`?, `tau`?, `importance`?, `equation`?, `ignore_repairs`?, `ignore`?, `phase`?, `standby`?, `dependencies`?, `max_variables`?, `max_bdd_nodes`?, `file_format`? |
 | `export_tables` | writes | Write tables to files: CSV, text, or one spreadsheet. | `model_id`, `run_id`?, `tables`?, `formats`?, `folder`? |
 | `extract_hierarchy` | writes | Build a standalone model from one hierarchy (a port extension), or just list what crosses its boundary. | `model_id`, `hierarchy`, `treatments`?, `report_only`?, `name`? |
 | `failure_effects` | read-only | Run failure-effects analysis (Raptor workbook Chapter 10). | `model_id`, `fail`?, `repair`?, `phase`? |

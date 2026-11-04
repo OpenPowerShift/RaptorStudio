@@ -8,7 +8,11 @@ change to a model that does not match real yet. This snapshot can: for every
 own `NumRuns` and records a SHA-256 (plus line count) of each artifact:
 
 * ``events``   -- every run's event log
-* ``eor``/``fr`` -- the End-of-Run and Final Results reports
+* ``eor``/``fr`` -- the End-of-Run report and the Raptor 7 part of the
+  Final Results report (everything before ``***EXTENDED_RESULTS***``)
+* ``fr_ext``   -- the Final Results' ``***EXTENDED_RESULTS***`` section,
+  Raptor Studio's own measures. Kept apart so a change to them never moves
+  the ``fr`` hash of the legacy text.
 * ``sd``       -- the `/sd` draw log (every random draw, in order)
 * ``capacity`` -- capacity-plot lines (empty for most models)
 * ``cost``     -- interim-cost lines, only when the model runs cost-on
@@ -42,6 +46,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
+from raptor.core.engine.extended_results import legacy_lines  # noqa: E402
 from raptor.core.engine.invariants import InvariantChecker  # noqa: E402
 from raptor.core.engine.runner import run_simulation_with_reports  # noqa: E402
 from raptor.core.fileio.builder import load  # noqa: E402
@@ -49,7 +54,7 @@ from raptor.core.fileio.builder import load  # noqa: E402
 GOLDEN = REPO / "tests" / "golden"
 FIXTURES = REPO / "tests" / "fixtures"
 SNAPSHOT = GOLDEN / "SNAPSHOT.toml"
-ARTIFACTS = ("events", "eor", "fr", "sd", "capacity", "cost")
+ARTIFACTS = ("events", "eor", "fr", "fr_ext", "sd", "capacity", "cost")
 #: Fixed stand-in for the reports' wall-clock header date.
 DATE = "SNAPSHOT"
 _COST_HEADER = re.compile(r"^(Interim Cost Report for .*?)  \w{3} \w{3} .*$")
@@ -81,9 +86,11 @@ def run_artifacts(key: str) -> dict[str, list[str]]:
         except Exception as exc:  # pinned, not hidden: see module docstring
             return {"error": [f"{type(exc).__name__}: {exc}"]}
         sd = sd_path.read_text(encoding="latin-1").splitlines() if sd_path.exists() else []
+    fr_legacy = legacy_lines(fr)
     out = {
         "events": [line for run in logs for line in run],
-        "eor": eor, "fr": fr, "sd": sd, "capacity": capacity,
+        "eor": eor, "fr": fr_legacy, "fr_ext": fr[len(fr_legacy):],
+        "sd": sd, "capacity": capacity,
     }
     if cost is not None:
         # The interim-cost header carries `time.ctime()` (orchestrator.py's
