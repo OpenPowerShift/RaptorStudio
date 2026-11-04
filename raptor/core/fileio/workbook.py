@@ -105,6 +105,12 @@ NUMBER_FORMATS: dict[str, str] = {
     "count_avg": "#,##0.00",
     "id": "0",
     "ratio": "0.0000",
+    "flow": "#,##0.000",
+    # A number of no known kind: whole numbers, or three places, or six
+    # for a column of small fractions -- one format for the whole column.
+    "whole": "#,##0",
+    "num": "#,##0.000",
+    "small": "0.000000",
 }
 #: A censored estimate keeps its number and shows a ``>`` before it.
 CENSORED_PREFIX = "gt_"
@@ -118,7 +124,7 @@ ID_HEADERS = frozenset({"id", "run", "from id", "to id", "number", "num",
 #: "rate" (a density or hazard, six places) and "ratio" (RAW, RRW).
 _KIND_FORMAT = {"prob": "prob", "pct": "pct", "time": "time",
                 "cost": "cost", "count": "count", "rate": "prob",
-                "ratio": "ratio"}
+                "ratio": "ratio", "flow": "flow"}
 
 _NUMBER_TEXT = re.compile(r"^(>)?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)?(?:\.\d+)?"
                           r"(?:[eE][+-]?\d+)?)$")
@@ -376,9 +382,12 @@ def _term_pattern(terms: Collection[str]) -> re.Pattern[str] | None:
     if not terms:
         return None
     alternatives = sorted(terms, key=len, reverse=True)
-    # A plural ("CMs", "PMs") counts as the term.
-    return re.compile(r"(?<![\w-])(" + "|".join(map(re.escape, alternatives))
-                      + r")s?(?![\w-])")
+    # A plural ("CMs", "PMs") counts as the term. A term in words
+    # ("Lost flow") matches in any case ("Lost Flow"); an acronym only as
+    # written, so "PM" is not found in "pm".
+    return re.compile(r"(?<![\w-])(" + "|".join(
+        f"(?i:{re.escape(t)})" if any(ch.islower() for ch in t)
+        else re.escape(t) for t in alternatives) + r")s?(?![\w-])")
 
 
 def _terms_in(text: str, pattern: re.Pattern[str] | None) -> list[str]:
@@ -516,6 +525,37 @@ def _typed_rows(sheet: Sheet, raw_rows: list[list[Any]], headers: list[str],
     return rows, stats
 
 
+def _general_key(values: list[float]) -> str:
+    """One format for numbers of no known kind: whole numbers with a
+    thousands comma, small fractions to six places, others to three."""
+    if all(v == int(v) for v in values):
+        return "whole"
+    if all(abs(v) < 1 for v in values):
+        return "small"
+    return "num"
+
+
+def _settle_general(rows: list[list[Cell]], per_row: bool) -> None:
+    """Give "general" numbers a real format: decided over the whole column
+    (so its decimals line up), or per cell in a table of measures, where
+    each row is a different quantity."""
+    groups: dict[Any, list[Cell]] = {}
+    for n, row in enumerate(rows):
+        for col, cell in enumerate(row):
+            key = cell.style.number
+            if key.removeprefix(CENSORED_PREFIX) == "general" \
+                    and _is_number(cell.value):
+                groups.setdefault((n, col) if per_row else col,
+                                  []).append(cell)
+    for cells in groups.values():
+        chosen = _general_key([float(c.value) for c in cells])
+        for c in cells:
+            prefix = CENSORED_PREFIX if c.style.number.startswith(
+                CENSORED_PREFIX) else ""
+            c.style = Style(c.style.role, prefix + chosen, c.style.align,
+                            c.style.wrap)
+
+
 def _restyle(rows: list[list[Cell]], numeric_col: list[bool],
              body_count: int) -> None:
     """Short text in a numeric column ("Infinite", "inf") lines up with the
@@ -561,9 +601,13 @@ def _comments(headers: list[str], rows: list[list[Cell]], labels: bool,
     """Glossary comments on headers (and on row labels), and the terms."""
     used: set[str] = set()
     comments: dict[tuple[int, int], str] = {}
+    canonical = {t.lower(): t for t in glossary}
 
     def note(where: tuple[int, int], text: str) -> None:
-        found = _terms_in(text, terms)
+        found = list(dict.fromkeys(
+            t if t in glossary else canonical.get(t.lower(), t)
+            for t in _terms_in(text, terms)))
+        found = [t for t in found if t in glossary]
         if found:
             used.update(found)
             comments[where] = "\n".join(f"{t}: {glossary[t]}"
@@ -604,6 +648,7 @@ def plan_sheet(sheet: Sheet, name: str,
     raw_rows, body_count = _ordered_rows(sheet, headers, notes)
     rows, stats = _typed_rows(sheet, raw_rows, headers, text_cols,
                               body_count)
+    _settle_general(rows, bool(sheet.row_formats))
     # A column is numeric when most of its filled cells are numbers.
     numeric_col = [c not in text_cols and stats[c].numbers > 0
                    and stats[c].numbers >= stats[c].texts

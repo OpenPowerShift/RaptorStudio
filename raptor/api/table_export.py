@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import csv
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -326,11 +326,14 @@ def workbook_info(model_name: str, info: RunInfo | None = None, *,
 def export_tables(tables: Sequence[Table], folder: str | Path,
                   options: ExportOptions, *, model_name: str = "",
                   stem: str | None = None,
-                  info: RunInfo | None = None) -> ExportResult:
+                  info: RunInfo | None = None,
+                  progress: Callable[[str], None] | None = None
+                  ) -> ExportResult:
     """Write `tables` to `folder` (created if needed) in the chosen formats.
     Existing files of the same names are replaced. Raises ValueError if no
     format or no table is chosen -- an export that writes nothing and says
-    nothing is worse than an error."""
+    nothing is worse than an error. `progress` is called with each file's
+    name before it is written (it may be called from a worker thread)."""
     if not tables:
         raise ValueError("no tables to export")
     if not options.any():
@@ -340,19 +343,23 @@ def export_tables(tables: Sequence[Table], folder: str | Path,
     folder.mkdir(parents=True, exist_ok=True)
     stem = stem or safe_stem(model_name)
     result = ExportResult(folder=folder, tables=len(tables))
+    tell = progress or (lambda _name: None)
 
     for t in tables:
         slug = _file_slug(t.key)
         if options.csv:
             p = folder / f"{stem}_{slug}.csv"
+            tell(p.name)
             _write_csv(t, p)
             result.files.append(p)
         if options.txt_files:
             p = folder / f"{stem}_{slug}.txt"
+            tell(p.name)
             p.write_text(format_table_text(t) + "\n", encoding="utf-8")
             result.files.append(p)
     if options.txt_report:
         p = folder / f"{stem}_tables.txt"
+        tell(p.name)
         p.write_text(format_report_text(tables, model_name or stem, info),
                      encoding="utf-8")
         result.files.append(p)
@@ -360,7 +367,7 @@ def export_tables(tables: Sequence[Table], folder: str | Path,
         result.files += _write_workbooks(
             tables, folder, stem, info, options.workbook_types(),
             model_name=model_name or stem,
-            text_beside=not options.txt_files)
+            text_beside=not options.txt_files, tell=tell)
     return result
 
 
@@ -389,7 +396,9 @@ def write_tables_workbook(tables: Sequence[Table], path: str | Path, *,
 
 def _write_workbooks(tables: Sequence[Table], folder: Path, stem: str,
                      info: RunInfo | None, types: Sequence[str], *,
-                     model_name: str, text_beside: bool) -> list[Path]:
+                     model_name: str, text_beside: bool,
+                     tell: Callable[[str], None] = lambda _n: None
+                     ) -> list[Path]:
     """The workbook(s), and the text reports beside them."""
     written: list[Path] = []
     sheets = workbook_sheets(tables, info)
@@ -397,12 +406,14 @@ def _write_workbooks(tables: Sequence[Table], folder: Path, stem: str,
         book = workbook_info(model_name, info)
         for ext in types:
             p = folder / f"{stem}_tables.{ext}"
+            tell(p.name)
             write_workbook(p, sheets, book)
             written.append(p)
     if text_beside:
         for x in tables:
             if x.key in TEXT_REPORTS:
                 tp = folder / f"{stem}_{_file_slug(x.key)}.txt"
+                tell(tp.name)
                 tp.write_text("\n".join(str(r[-1]) for r in x.rows) + "\n",
                               encoding="utf-8")
                 written.append(tp)

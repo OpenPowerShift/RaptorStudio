@@ -125,9 +125,9 @@ def test_censored_metrics_are_flagged(hospital):
     per_run = get_table(hospital, "results.per_run",
                         run_id=run.structured_content["run_id"])
     headers = per_run.structured_content["headers"]
-    assert "mtbde_censored" in headers
+    assert "MTBDE Censored" in headers
     row = per_run.structured_content["rows"][0]
-    assert row[headers.index("mtbde_censored")] in (True, "True", 1)
+    assert row[headers.index("MTBDE Censored")] in (True, "True", 1)
 
 
 def test_rbd_export_reports_what_it_dropped(hospital):

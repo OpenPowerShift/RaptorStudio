@@ -359,15 +359,68 @@ def _real_rows(rbd: Any, section: str, id_col: str | None) -> list[dict]:
     return rows
 
 
+#: Parameter names as a reader expects them (`PARAM_INFO` uses identifiers).
+_PARAM_WORDS = {"stdev": "standard deviation", "k": "k (shape)",
+                "degrees_of_freedom": "degrees of freedom",
+                "shape1": "shape 1", "shape2": "shape 2",
+                "probability": "probability of success"}
+#: Columns of a section that hold a distribution code.
+_DIST_COLS = {"BLOCK_DATA": ("FDist", "RDist", "Pre-LDTDist", "Post-LDTDist",
+                             "Dist"),
+              "EVENT_DATA": ("Distro",), "TRIGGERS": ("Dist",),
+              "PHASES": ("Dist",)}
+
+
+def _dist_codes(rows: Iterable[dict], cols: Iterable[str]) -> list[int]:
+    codes: set[int] = set()
+    for r in rows:
+        for c in cols:
+            try:
+                codes.add(int(float(r.get(c, ""))))
+            except (TypeError, ValueError):
+                pass
+    return sorted(codes)
+
+
+def param_notes(codes: Iterable[int], *, with_codes: bool = False
+                ) -> list[str]:
+    """Notes naming each used distribution's parameters, in slot order:
+    "Weibull: 1 shape, 2 scale, 3 location". `with_codes` adds the file's
+    code ("15 = Weibull") for tables that show codes, not names."""
+    from raptor.api.distributions import PARAM_INFO, dist_name
+    lines = []
+    for code in sorted(set(codes), key=dist_name):
+        names = PARAM_INFO.get(code, {}).get("params", [])
+        if not names:
+            continue
+        if names[-1] == "...":
+            what = "the values it draws from"
+        else:
+            what = ", ".join(f"{i} {_PARAM_WORDS.get(n, n.replace('_', ' '))}"
+                             for i, n in enumerate(names, 1))
+        label = f"{code} = {dist_name(code)}" if with_codes \
+            else dist_name(code)
+        lines.append(f"{label}: {what}.")
+    if not lines:
+        return []
+    head = ("Distribution codes, and what parameters 1, 2 and 3 are for "
+            "each:" if with_codes else
+            "What the distribution parameters are, in order:")
+    return [head, *lines]
+
+
+
 def _raw_table(rbd: Any, section: str, key: str, title: str,
                id_col: str | None) -> Table | None:
     rows = _real_rows(rbd, section, id_col)
     if not rows:
         return None
     cols = list(rbd.sections[section].columns)
+    dist_cols = [c for c in _DIST_COLS.get(section, ()) if c in cols]
     return Table(
         key=f"inputs.{key}", title=title, group=INPUTS, headers=cols,
         rows=[[r.get(c, "") for c in cols] for r in rows],
+        notes=param_notes(_dist_codes(rows, dist_cols), with_codes=True),
         text_cols={i for i, c in enumerate(cols) if _NAMEISH.search(c)})
 
 
@@ -455,7 +508,8 @@ def _blocks_summary(rbd: Any) -> Table | None:
             r.get("PMFreq", ""), dep])
     return Table("inputs.blocks", "Blocks", INPUTS, headers, body,
                  notes=["A readable summary; 'Blocks (file columns)' has "
-                        "every column of the model file."],
+                        "every column of the model file.",
+                        *param_notes(_dist_codes(rows, ("FDist", "RDist")))],
                  text_cols={1, 3, 4, 5, 6, 7, 8, 11})
 
 
@@ -502,8 +556,10 @@ def _readable(table: Table | None, keep: Sequence[str],
 
     idx = [table.headers.index(c) for c in keep if c in table.headers]
     rows = [[cell(table.headers[i], r[i]) for i in idx] for r in table.rows]
+    named = [dict(zip(table.headers, r)) for r in table.rows]
     return Table(table.key, table.title, table.group,
                  [humanise(table.headers[i]) for i in idx], rows,
+                 notes=param_notes(_dist_codes(named, dist_cols)),
                  text_cols={0} | {n for n, i in enumerate(idx)
                                   if table.headers[i] in (*dist_cols,
                                                           *flag_cols)})
@@ -604,6 +660,11 @@ _PER_RUN_LABELS = {
     "red_other_time": "Other Red Time",
     "green_percent": "Green %", "yellow_percent": "Yellow %",
     "red_percent": "Red %",
+    # capacity analysis only
+    "units_produced": "Units Produced", "mean_flow": "Mean Flow",
+    "mean_capacity": "Mean Capacity",
+    "capacity_weighted_availability": "Capacity-Weighted Availability",
+    "lost_flow": "Lost Flow",
 }
 
 
@@ -652,13 +713,27 @@ def _section_table(title: str, columns: list[str],
                  text_cols={0}, section=section_of(title))
 
 
+def _per_run_label(key: str, humanise: Any) -> str:
+    """A per-run column's header: its label, "MTBDE Censored" for a
+    censoring flag, and words (never snake_case) for anything else."""
+    if key in _PER_RUN_LABELS:
+        return _PER_RUN_LABELS[key]
+    if key.endswith("_censored"):
+        base = key.removesuffix("_censored")
+        return f"{_PER_RUN_LABELS.get(base, base.upper())} Censored"
+    return " ".join(w if w.isupper() else w.capitalize()
+                    for w in humanise(key).split())
+
+
 def _per_run_table(per_run: Sequence[dict]) -> Table | None:
     if not per_run:
         return None
     keys = [k for k in _PER_RUN_LABELS if any(k in r for r in per_run)]
     keys += [k for k in per_run[0]
              if k not in _PER_RUN_LABELS and _scalar(per_run[0][k])]
-    headers = ["Run"] + [_PER_RUN_LABELS.get(k, k) for k in keys]
+    from raptor.api.presentation import humanise
+    # A key with no label of its own still reads as words, never snake_case.
+    headers = ["Run"] + [_per_run_label(k, humanise) for k in keys]
     body = [[i + 1] + [r.get(k) for k in keys] for i, r in enumerate(per_run)]
     return Table("results.per_run", "Per-Run Results", RESULTS, headers, body)
 
@@ -772,34 +847,50 @@ def result_tables(bundle: ResultsBundle) -> list[Table]:
 # catalogue and collection
 # --------------------------------------------------------------------------
 
-def catalogue(rbd: Any, bundle: ResultsBundle | None = None
-              ) -> list[TableInfo]:
+def _has_results(bundle: ResultsBundle | None) -> bool:
+    return bundle is not None and bool(bundle.final_lines or bundle.per_run)
+
+
+def all_tables(rbd: Any, bundle: ResultsBundle | None = None) -> list[Table]:
+    """Every table there is, inputs then results. Building them parses the
+    whole result set (on a large run the event log alone is millions of
+    rows), so a caller that asks more than once -- the Export Tables
+    dialog, on every click -- builds them once and passes them in."""
+    tables = input_tables(rbd)
+    if _has_results(bundle):
+        assert bundle is not None
+        tables += result_tables(bundle)
+    return tables
+
+
+def catalogue(rbd: Any, bundle: ResultsBundle | None = None, *,
+              tables: Sequence[Table] | None = None) -> list[TableInfo]:
     """What can be exported, with row counts. Result tables are listed
     (unavailable, with the reason) even before a run, so the picker shows
-    what a run would add."""
-    infos = [TableInfo(t.key, t.title, INPUTS, len(t.rows),
-                       default=t.key != "inputs.blocks_all")
-             for t in input_tables(rbd)]
-    if bundle is None or not (bundle.final_lines or bundle.per_run):
+    what a run would add. `tables` is :func:`all_tables`, if already
+    built."""
+    if tables is None:
+        tables = all_tables(rbd, bundle)
+    infos = [TableInfo(t.key, t.title, t.group, len(t.rows),
+                       default=(t.key != "inputs.blocks_all"
+                                and t.key not in _LONG))
+             for t in tables]
+    if not _has_results(bundle):
         infos.append(TableInfo(
             "results.summary", "Summary and other result tables", RESULTS,
             0, available=False, reason="run a simulation first"))
-        return infos
-    infos += [TableInfo(t.key, t.title, RESULTS, len(t.rows),
-                        default=t.key not in _LONG)
-              for t in result_tables(bundle)]
     return infos
 
 
 def collect(rbd: Any, bundle: ResultsBundle | None = None,
-            keys: Iterable[str] | None = None) -> list[Table]:
+            keys: Iterable[str] | None = None, *,
+            tables: Sequence[Table] | None = None) -> list[Table]:
     """The requested tables (all defaults if `keys` is None), in catalogue
     order. Raises :class:`UnknownTable` naming the valid keys if any key
     does not exist -- silently dropping a request would hand back a
-    partial export that looks complete."""
-    tables = input_tables(rbd)
-    if bundle is not None and (bundle.final_lines or bundle.per_run):
-        tables += result_tables(bundle)
+    partial export that looks complete. `tables` is :func:`all_tables`,
+    if already built."""
+    tables = list(tables) if tables is not None else all_tables(rbd, bundle)
     by_key = {t.key: t for t in tables}
     if keys is None:
         return [t for t in tables

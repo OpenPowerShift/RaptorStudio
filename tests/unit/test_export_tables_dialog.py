@@ -304,3 +304,46 @@ def test_the_save_dialog_offers_both_spreadsheet_types(qapp, monkeypatch):
     assert filedialogs.ask_spreadsheet_path(None, "c", "d") == "/tmp/x.ods"
     assert seen["filter"].split(";;") == [
         "Excel workbook (*.xlsx)", "OpenDocument spreadsheet (*.ods)"]
+
+
+def test_ticking_tables_does_not_rebuild_them(ran, monkeypatch):
+    """Every click used to rebuild every table (the whole event log on a
+    large run), twice, just to count the files the preview names."""
+    from raptor.api import tables as api_tables
+    from raptor.gui.ui import tables_dialog
+    dlg = _dialog(ran)
+    built = []
+    for mod in (api_tables, tables_dialog):
+        monkeypatch.setattr(mod, "all_tables",
+                            lambda *a, **k: built.append(1) or [])
+    monkeypatch.setattr(api_tables, "result_tables",
+                        lambda *a, **k: built.append(1) or [])
+    dlg.select_all()
+    dlg.select_none()
+    dlg.select_defaults()
+    assert built == []
+    assert dlg.chosen_tables()
+
+
+def test_export_runs_off_the_main_thread_and_says_what_it_writes(
+        ran, tmp_path, monkeypatch):
+    import threading
+    from raptor.gui.ui import tables_dialog
+    real, threads, told = tables_dialog.export_tables, [], []
+
+    def spy(*a, progress=None, **k):
+        threads.append(threading.current_thread())
+
+        def tell(name):
+            told.append(name)
+            progress(name)
+        return real(*a, progress=tell, **k)
+    monkeypatch.setattr(tables_dialog, "export_tables", spy)
+    dlg = _dialog(ran)
+    dlg.folder_edit.setText(str(tmp_path))
+    for key, cb in dlg.format_boxes.items():
+        cb.setChecked(key == "csv")
+    result = tables_dialog.perform_export(ran, dlg)
+    assert result is not None and told
+    assert threads and threads[0] is not threading.main_thread()
+    assert ran._busy_dialog is None             # the indicator is gone

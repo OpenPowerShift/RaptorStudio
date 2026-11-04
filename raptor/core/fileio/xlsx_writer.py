@@ -46,6 +46,14 @@ def _hf(text: str) -> str:
     return text.replace("&", "&&")
 
 
+def _sized(points: int, text: str) -> str:
+    """`text` in a `points`-size font. A font size code takes every digit
+    after it, so text starting with a digit ("2026-11-05") is set apart by
+    a space -- else "&8" + "2026" is size 82026 and the year disappears."""
+    gap = " " if text[:1].isdigit() else ""
+    return f"&{points}{gap}{_hf(text)}"
+
+
 class _Formats:
     """One XlsxWriter Format per distinct Style, made on first use."""
 
@@ -184,9 +192,10 @@ def _print_setup(ws: Worksheet, plan: WorkbookPlan, sp: SheetPlan) -> None:
     end_row = max(first + len(sp.rows) + len(sp.notes), top)
     ws.print_area(0, 0, end_row, max(sp.column_count, 1) - 1)
     left, right = plan.header_text(sp)
-    ws.set_header(f"&L&9{_hf(left)}&R&9&B{_hf(right)}")
+    ws.set_header(f"&L{_sized(9, left)}&R&B{_sized(9, right)}")
     f_left, f_right = plan.footer_text()
-    ws.set_footer(f"&L&8{_hf(f_left)}&C&8Page &P of &N&R&8{_hf(f_right)}")
+    ws.set_footer(f"&L{_sized(8, f_left)}&C&8Page &P of &N"
+                  f"&R{_sized(8, f_right)}")
 
 
 def _sheet(book: xlsxwriter.Workbook, plan: WorkbookPlan, sp: SheetPlan,

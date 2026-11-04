@@ -160,10 +160,16 @@ _TIME = {"mtbde", "mdt", "mtbm", "mtbmu", "mtbms", "mmt", "mmtu", "mmts",
          "mtbf", "mttr", "mttf", "ending sim time", "time", "mttff",
          "mtbf total time", "mtbe total time", "red time corrective",
          "red time pm", "red time logistics", "red time done",
-         "red time other"}
+         "red time other", "mtbe", "total time", "uptime", "downtime",
+         "corrective red time", "pm red time", "logistics red time",
+         "done red time", "other red time"}
 _PROB = {"availability", "reliability", "conditional reliability",
          "dependability", "ao", "do", "r", "operational availability",
-         "inherent availability", "achieved availability"}
+         "inherent availability", "achieved availability",
+         "capacity weighted availability", "capacity-weighted availability"}
+#: Capacity flows (units per time unit) and the flow over a run.
+_FLOW = {"units produced", "mean flow", "mean capacity", "lost flow",
+         "ave lost flow", "flow generated"}
 _COUNT = {"system failures", "component failures", "failures", "delays",
           "min used", "avg used", "max used", "initial", "new spares",
           "min stock", "avg stock", "max stock", "end stock", "run", "id",
@@ -174,6 +180,11 @@ _COST_WORDS = ("cost", "purchase", "operating", "sparing", "disposal",
                "total", "good", "repair", "idle", "repair hold", "pm",
                "pm hold", "standby", "done", "events", "emergency shipping",
                "value", "grand total", "spare pool")
+
+
+#: A measure whose kind its name alone decides.
+_NAMED_KIND = {**{k: "flow" for k in _FLOW}, **{k: "time" for k in _TIME},
+               **{k: "prob" for k in _PROB}}
 
 
 def kind_of(label: str, *, table: str = "") -> str:
@@ -189,10 +200,8 @@ def kind_of(label: str, *, table: str = "") -> str:
     # Already a display label ("St. dev.", "Avg used"): do not re-split it.
     base = (raw if raw in _DISPLAY_LABELS else humanise(raw)).lower()
     t = table.lower()
-    if base in _PROB:
-        return "prob"
-    if base in _TIME:
-        return "time"
+    if base in _NAMED_KIND:
+        return _NAMED_KIND[base]
     if base in _STATS:
         if "states" in t:
             return "pct"
@@ -254,6 +263,8 @@ def fmt(value: Any, kind: str = "num") -> str:
         out = f"{num:,.2f}"
     elif kind == "cost":
         out = f"{num:,.2f}"
+    elif kind == "flow":
+        out = f"{num:,.3f}"
     elif kind == "count":
         # A whole count stays whole; an average of counts (written with a
         # decimal point, "3.00") keeps two places, so a column of averages

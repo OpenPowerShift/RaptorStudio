@@ -86,6 +86,10 @@ _FORMAT_SPEC = {
     "count_avg": (2, 2, True),
     "id": (0, 0, False),
     "ratio": (4, 4, False),
+    "flow": (3, 3, True),
+    "whole": (0, 0, True),
+    "num": (3, 3, True),
+    "small": (6, 6, False),
 }
 
 
@@ -367,7 +371,9 @@ def _styles(plan: WorkbookPlan) -> str:
                  else f'style:scale-to="{WIDE_PRINT_SCALE}%"')
         layouts.append(
             f'<style:page-layout style:name="pm{i + 1}">'
-            f'<style:page-layout-properties fo:page-width="{width}" '
+            # "continue": page numbers run on across the sheets.
+            f'<style:page-layout-properties '
+            f'style:first-page-number="continue" fo:page-width="{width}" '
             f'fo:page-height="{height}" style:print-orientation='
             f'"{orientation}" fo:margin-top="1.0cm" fo:margin-bottom="1.0cm" '
             f'fo:margin-left="1.27cm" fo:margin-right="1.27cm" '

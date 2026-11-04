@@ -50,6 +50,20 @@ TERMS: dict[str, str] = {
     "Conditional reliability": "Of the missions that started with the "
                                "system up, the fraction completed without a "
                                "failure.",
+    # capacity analysis
+    "Units produced": "Total flow delivered by the system over the run: "
+                      "mean flow multiplied by the run's length.",
+    "Mean flow": "The system's (Start node's) flow, averaged over time, in "
+                 "units per time unit.",
+    "Mean capacity": "The flow the system could have carried, averaged over "
+                     "time, in units per time unit.",
+    "Capacity-weighted availability": "Mean flow divided by the flow "
+                                      "generated: the share of the demand "
+                                      "delivered. Availability only asks "
+                                      "whether any flow got through.",
+    "Lost flow": "Flow generated minus mean flow: the demand not delivered, "
+                 "on average. Times the run length it is the product not "
+                 "supplied.",
     # statistics
     "SEM": "Standard Error of the Mean: how much the mean would vary if the "
            "simulation were repeated (st. dev. / sqrt(runs)). Smaller is "

@@ -313,6 +313,32 @@ class TestXlsxLayout:
             write_xlsx(tmp_path / "t.xlsx", [])
 
 
+    def test_numbers_of_no_known_kind_get_one_format_per_column(self,
+                                                                tmp_path):
+        ws = self._book(tmp_path, [Sheet(
+            "G", ["Whole", "Mixed", "Small"],
+            [[1200, 12.5, 0.0012], [3, 1200, 0.5]])])["G"]
+        assert ws["A2"].number_format == "#,##0"
+        # 1200 is whole, but its column is not: the decimals line up.
+        assert ws["B2"].number_format == ws["B3"].number_format == \
+            "#,##0.000"
+        assert ws["C2"].number_format == "0.000000"
+
+    def test_a_footer_starting_with_a_digit_keeps_it(self, tmp_path):
+        from datetime import datetime
+        info = WorkbookInfo(title="T", written=datetime(2026, 11, 5, 6, 8))
+        ws = self._book(tmp_path, [Sheet("S", ["a"], [[1]])], info)["S"]
+        # "&8" + "2026" would be a font size of 82026, eating the year.
+        assert ws.oddFooter.right.text == "2026-11-05 06:08"
+
+    def test_a_term_in_words_is_explained_in_any_case(self, tmp_path):
+        from raptor.api.glossary import TERMS
+        ws = self._book(tmp_path, [Sheet("S", ["Lost Flow", "pm"], [[1, 2]])],
+                        WorkbookInfo(glossary=TERMS))["S"]
+        assert ws["A1"].comment.text.startswith("Lost flow:")
+        assert ws["B1"].comment is None       # an acronym only as written
+
+
 class TestOdsLayout:
     """The same decisions in the OpenDocument file."""
 
@@ -347,6 +373,14 @@ class TestOdsLayout:
         assert 'number:decimal-places="6" number:min-decimal-places="6"' \
             in content                                        # probability
         assert "<number:text>&gt;</number:text>" in content   # censored
+
+    def test_page_numbers_run_on_across_sheets(self, tmp_path):
+        p = write_workbook(tmp_path / "t.ods", list(_SAMPLE))
+        with zipfile.ZipFile(p) as z:
+            styles = z.read("styles.xml").decode()
+        layouts = styles.count("<style:page-layout-properties ")
+        assert layouts >= 2
+        assert styles.count('style:first-page-number="continue"') == layouts
 
 
 # -- input tables ----------------------------------------------------------
@@ -407,6 +441,25 @@ class TestInputTables:
 
 # -- result tables -----------------------------------------------------------
 
+class TestParameterNotes:
+    def test_names_each_used_distributions_parameters_in_order(self):
+        from raptor.api.tables import param_notes
+        notes = param_notes([15, 7, 15])
+        assert notes == ["What the distribution parameters are, in order:",
+                         "Lognormal: 1 mean, 2 standard deviation.",
+                         "Weibull: 1 shape, 2 scale, 3 location."]
+        coded = param_notes([15], with_codes=True)
+        assert coded[1] == "15 = Weibull: 1 shape, 2 scale, 3 location."
+        assert param_notes([]) == []
+
+    def test_block_and_trigger_tables_carry_them(self):
+        tables = {t.key: t for t in input_tables(_model("Phasing3"))}
+        assert any(n.startswith("What the distribution parameters")
+                   for n in tables["inputs.blocks"].notes)
+        assert any(n.startswith("Distribution codes")
+                   for n in tables["inputs.blocks_all"].notes)
+
+
 class TestParseFinalSections:
     def test_a_stats_table(self):
         got = parse_final_sections([
@@ -429,6 +482,20 @@ class TestParseFinalSections:
 
 
 class TestResultTables:
+    def test_per_run_headers_are_words_with_formats(self):
+        from raptor.api.presentation import table_kinds
+        bundle = ResultsBundle(per_run=[{
+            "availability": 0.9, "units_produced": 12345.678,
+            "capacity_weighted_availability": 0.8, "lost_flow": 1.5,
+            "mtbde_censored": True, "some_new_measure": 2.0}])
+        t = next(t for t in result_tables(bundle)
+                 if t.key == "results.per_run")
+        assert t.headers == ["Run", "Availability", "Units Produced",
+                             "Capacity-Weighted Availability", "Lost Flow",
+                             "MTBDE Censored", "Some New Measure"]
+        kinds, _ = table_kinds(t)
+        assert kinds[2:5] == ["flow", "prob", "flow"]
+
     def test_a_real_run_gives_the_expected_tables(self, run_bundle):
         _rbd, bundle = run_bundle
         keys = [t.key for t in result_tables(bundle)]
@@ -611,6 +678,15 @@ class TestCatalogue:
         with pytest.raises(UnknownTable):
             collect(_model(), None, ["results.summary"])
 
+    def test_prebuilt_tables_give_the_same_answers(self, run_bundle):
+        from raptor.api.tables import all_tables
+        rbd, bundle = run_bundle
+        built = all_tables(rbd, bundle)
+        assert catalogue(rbd, bundle, tables=built) == catalogue(rbd, bundle)
+        keys = ["results.summary", "inputs.blocks"]
+        assert [t.key for t in collect(rbd, bundle, keys, tables=built)] \
+            == [t.key for t in collect(rbd, bundle, keys)]
+
 
 # -- export ----------------------------------------------------------------------
 
@@ -626,6 +702,13 @@ def _sample_tables():
 
 
 class TestExport:
+    def test_progress_names_each_file_before_it_is_written(self, tmp_path):
+        told = []
+        result = export_tables(_sample_tables(), tmp_path,
+                               ExportOptions(csv=True, xlsx=True),
+                               stem="m", progress=told.append)
+        assert told == [f.name for f in result.files]
+
     def test_no_format_or_no_tables_is_an_error(self, tmp_path):
         with pytest.raises(ValueError, match="format"):
             export_tables(_sample_tables(), tmp_path, ExportOptions())
