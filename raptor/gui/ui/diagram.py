@@ -16,6 +16,7 @@ import copy
 import itertools
 import math
 import os
+import re
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -49,7 +50,7 @@ from raptor.gui.hierarchy_plan import (apply_collapse_plan,
                                        collapse_new_violations,
                                        plan_collapse, plan_dissolve,
                                        plan_import)
-from raptor.gui.model_edit import (BLOCK_COST_FIELDS, DEPENDENCY_BADGE,
+from raptor.gui.model_edit import (BLOCK_COST_FIELDS, DEPENDENCY_BADGE, NODE_BADGE,
                                    PM_OPTION_ATTRS, SUBLABELS, EditedFields,
                                    ModelEditor, _pos)
 from raptor.core.fileio.typed import (
@@ -1383,29 +1384,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             for link_item in self._links:
                 link_item._update_route()
 
-        # K-of-N badges: a Regular node shows its k/n requirement inside
-        # the circle (e.g. "1/2"), matching the real canvas's own labels.
-        # Must filter by `connect_t_ref=="RBDNode"`: block/node/event ids
-        # are each numbered independently (a Block and a Node can share
-        # the same integer id), so counting every link with this raw
-        # `connect_to_id` -- regardless of what KIND of element it
-        # targets -- overcounts whenever some other element happens to
-        # share the node's id, inflating the "n" half of the badge
-        # (e.g. "1/3" instead of "1/2").
-        incoming: dict[int, int] = {}
-        for link in self.links:
-            if link.connect_t_ref == "RBDNode":
-                incoming[link.connect_to_id] = incoming.get(link.connect_to_id, 0) + 1
-        for nid, node in self.nodes.items():
-            item = self._node_items.get(nid)
-            if item is not None and node.type_node == 2 and nid in incoming:
-                n = incoming[nid]
-                k = node.good_paths
-                # A file k=-1 sentinel means "K-of-N never configured"
-                # (coerced to 1 at load); only show a badge that makes
-                # sense.
-                if 1 <= k <= n and n > 1:
-                    item.set_label_text(f"{k}/{n}")
+        self._refresh_node_badges()
 
         log.debug("_rebuild_scene: %d blocks, %d nodes, %d events, %d "
                   "hiers, %d links placed -- entering _apply_scene_layout",
@@ -3288,6 +3267,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 self._refresh_block_sublabels(refresh.oid)
             elif refresh.what == DEPENDENCY_BADGE:
                 self._refresh_dependency_badge(refresh.kind, refresh.oid)
+            elif refresh.what == NODE_BADGE:
+                self._refresh_node_badges()
         if kind == "event":
             event, item = self.events.get(oid), self._event_items.get(oid)
             if event is not None and item is not None:
@@ -3465,7 +3446,21 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         base["xPos"] = f"{model_x:.6f}"
         base["yPos"] = f"{model_y:.6f}"
         if node_type == 2:
-            base.setdefault("k", "1")
+            # A new node is a fresh node: the clone above supplies the
+            # columns, never another node's settings. Copying them gave a
+            # new node Start's k=0 (or a neighbour's k=2, its dependency,
+            # standby and phases), so its first incoming link was refused.
+            # k starts at 1, one good path; the status bar says where to
+            # set more.
+            from raptor.core.fileio.rbdlib import make_node_row
+            fresh = make_node_row(nid, base["Name"], 0, 0, k=1, n=0, out=0)
+            for col in list(base):
+                if re.fullmatch(r"P\s?\d{3}", col):
+                    del base[col]
+            for col in ("k", "n", "Out", "Cold", "PR", "Autos", "k*",
+                        "Phases", "depNum", "depType", "divFlow",
+                        "fullflow", "repCap", "repNA"):
+                base[col] = fresh[col]
         self._stack.push(AddCmd(self, "node", [base]))
         return nid
 
@@ -3989,6 +3984,28 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         else:
             self.layout_changed.emit()
 
+    def _refresh_node_badges(self) -> None:
+        """The k/n badge inside every connect node on this level ("2/3":
+        two of three incoming paths must be good), set or cleared. Called
+        on a rebuild, after a k edit and after any change to the links, so
+        the badge never shows an old k or n.
+
+        Links are counted only where `connect_t_ref == "RBDNode"`: blocks,
+        nodes and events are numbered separately, so a block sharing a
+        node's id must not add to that node's n."""
+        incoming: dict[int, int] = {}
+        for link in self.links:
+            if link.connect_t_ref == "RBDNode":
+                incoming[link.connect_to_id] = \
+                    incoming.get(link.connect_to_id, 0) + 1
+        for nid, node in self.nodes.items():
+            item = self._node_items.get(nid)
+            if item is None or node.type_node != 2:
+                continue
+            n, k = incoming.get(nid, 0), node.good_paths
+            # One path, or a k that makes no sense yet: no badge.
+            item.set_label_text(f"{k}/{n}" if n > 1 and 1 <= k <= n else "")
+
     def _recount_link_ends(self) -> None:
         """Recompute In/Out and node n from the actual link rows.
 
@@ -4029,6 +4046,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             if r is not None:
                 event.connect_into_num = _safe_int(r.get("In"))
                 event.connect_out_of_num = _safe_int(r.get("Out"))
+        self._refresh_node_badges()
 
     def _clear_route_caches(self) -> None:
         """Drop cached centres/port-side decisions after a topology edit."""
@@ -4921,6 +4939,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             else:
                 nid = self.add_node(f"node_{len(self.nodes) + 1}", mx, my)
                 self.element_created.emit("node", nid)
+                _view_status(self, "Node placed: one good path in is enough "
+                             "(k = 1). For k-out-of-n, connect its paths, "
+                             "then set Required good (k) in the Inspector.")
             return
         if self.tool_mode == "connect":
             item = self._element_at(scene_pos)
