@@ -192,7 +192,11 @@ def f10_hier_copy_paste():
                if int(float(r.get("ParentId", 0))) == new_hid)
     assert kids == src_count, (kids, src_count)
     h = v.hiers[new_hid]
-    assert h.in_id in v.nodes and h.out_id in v.nodes
+    # The markers are drawn inside the new hierarchy, not beside its oval.
+    assert h.in_id not in v._node_items
+    v.enter_level(new_hid); pe()
+    assert h.in_id in v._node_items and h.out_id in v._node_items
+    v.go_home(); pe()
     v._stack.undo(); pe()
     assert new_hid not in v.hiers
 run_check("F10.hier.subtree_copy_paste_undo", f10_hier_copy_paste)
