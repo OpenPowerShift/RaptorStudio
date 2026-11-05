@@ -1029,6 +1029,52 @@ def _check_control_chars(rbd, out: list[Violation]) -> None:
 
 # ---------------------------------------------------------------- entry points
 
+#: How deep hierarchies may nest: a hierarchy inside seven others is the
+#: deepest allowed. One limit for creating and for entering a level, so a
+#: hierarchy that can be made can always be opened; it also keeps the
+#: Model Explorer's indenting readable.
+MAX_HIERARCHY_DEPTH = 8
+
+
+def hierarchy_depths(rbd) -> dict[int, int]:
+    """Each hierarchy's nesting depth (1 = on the home level), worked out
+    from the `Parent` chain rather than the stored `level` column, which a
+    file may get wrong. A parent cycle stops the count."""
+    parents: dict[int, int] = {}
+    for row in _rows(rbd, "HIERARCHY_DATA"):
+        hid = _int(row, "ID")
+        if hid:
+            parents[hid] = _int(row, "Parent")
+    depths: dict[int, int] = {}
+    for hid in parents:
+        depth, seen, at = 0, set(), hid
+        while at and at in parents and at not in seen:
+            seen.add(at)
+            depth += 1
+            at = parents[at]
+        depths[hid] = depth
+    return depths
+
+
+def hierarchy_depth_violations(rbd) -> list[Violation]:
+    """Only the nesting-depth rule: cheap (it reads HIERARCHY_DATA alone),
+    for edits that skip the other rules, such as Paste and Import."""
+    out: list[Violation] = []
+    _check_hierarchy_depth(rbd, out)
+    return out
+
+
+def _check_hierarchy_depth(rbd, out: list[Violation]) -> None:
+    names = {_int(r, "ID"): str(r.get("hierarchyName", ""))
+             for r in _rows(rbd, "HIERARCHY_DATA")}
+    for hid, depth in sorted(hierarchy_depths(rbd).items()):
+        if depth > MAX_HIERARCHY_DEPTH:
+            _Scope(out, "hier", "dialog", f"Hier {hid} '{names.get(hid, '')}'").add(
+                "depth", f"Hierarchies can be nested at most {MAX_HIERARCHY_DEPTH} "
+                f"deep; this one is {depth} levels down. Move its contents up a "
+                "level, or collapse at a shallower level.")
+
+
 def check(rbd) -> list[Violation]:
     """Every Raptor 7 input rule the model breaks."""
     out: list[Violation] = []
@@ -1054,6 +1100,7 @@ def check(rbd) -> list[Violation]:
     for row in _all_rows(rbd, "RESOURCE_DATA"):
         _check_resource(row, units, out)
     _check_experiment(rbd, out)
+    _check_hierarchy_depth(rbd, out)
     return out
 
 

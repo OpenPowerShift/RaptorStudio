@@ -25,7 +25,8 @@ from typing import Any
 
 from PySide6.QtGui import QUndoCommand, QUndoStack
 
-from raptor.core.input_rules import Violation, check, refusal_text
+from raptor.core.input_rules import (
+    Violation, check, hierarchy_depth_violations, refusal_text)
 
 
 class _Discard(QUndoCommand):
@@ -72,8 +73,13 @@ class RuleGatedStack:
         view = self._view
         rbd = getattr(view, "_rbd_ref", None)
         editor = getattr(view, "_editor", None)
-        if rbd is None or editor is None or self._off or getattr(view, "_loading", False):
+        if rbd is None or editor is None or getattr(view, "_loading", False):
             return None
+        if self._off:
+            # Copied-in content is not typed input, but it still may not
+            # nest hierarchies deeper than can be opened. The rows hold the
+            # hierarchy structure already, so no copy is needed.
+            return hierarchy_depth_violations(rbd)
         snapshot = copy.deepcopy(rbd)
         editor.write_back(snapshot, hier_ids=set(getattr(view, "_hier_items", {})))
         return [v for v in check(snapshot) if v.kind != "run"]

@@ -1502,6 +1502,13 @@ Raptor 7 runs files that use it.</p>
 deletes them.</p>
 </li>
 <li>
+<p>Hierarchies nest up to eight deep, where Raptor 7 allowed five. Every
+level that exists can be opened; at the eighth level Add Hierarchy and
+Collapse Selection are unavailable (their tooltip says why), a paste or
+import that would go deeper is refused, and validation reports a file
+nested deeper.</p>
+</li>
+<li>
 <p>A cold-standby partner that depends on another partner of the same node is
 refused at Run, because Raptor 7 crashes on it. A cycle of dependencies runs,
 with a warning, as it does in Raptor 7.</p>
