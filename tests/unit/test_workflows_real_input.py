@@ -182,3 +182,37 @@ def test_clicking_empty_canvas_clears_the_inspector(win):
                      Qt.KeyboardModifier.NoModifier, QPoint(5, 5))
     QApplication.processEvents()
     assert win._inspector.current_target() is None
+
+
+def test_auto_layout_tooltip_and_status_name_what_it_arranges(win):
+    from raptor.gui.ui.main_window import _AUTO_LAYOUT_TIP
+    v = win._diagram_dock.view
+    win._sync_auto_layout_tooltip()
+    assert win._auto_layout_action.toolTip().startswith(_AUTO_LAYOUT_TIP)
+
+    for item in list(v._block_items.values())[:2]:
+        item.setSelected(True)
+    QApplication.processEvents()
+    assert win._auto_layout_action.toolTip().startswith(
+        "Auto Layout the 2 selected items only")
+    win._auto_layout()
+    assert win._statusbar.currentMessage() == \
+        "Auto Layout done: 2 selected items on Home"
+
+    v._scene.clearSelection()
+    QApplication.processEvents()
+    assert win._auto_layout_action.toolTip().startswith(_AUTO_LAYOUT_TIP)
+    total = v.layout_selection_count()[1]
+    win._auto_layout()
+    assert win._statusbar.currentMessage() == \
+        f"Auto Layout done: {total} items on Home"
+
+
+def test_the_level_label_names_home_or_the_hierarchy(win):
+    v = win._diagram_dock.view
+    assert v.level_label() == "Home"
+    hid = v.add_hierarchy("Pumps", 0.0, 0.0)
+    v.enter_level(hid)
+    QApplication.processEvents()
+    assert v.level_label() == "hierarchy Pumps"
+    v.go_up()

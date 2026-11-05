@@ -21,6 +21,8 @@
 <li><a href="#canvas-editing">Building on the canvas</a>
 <ul class="sectlevel2">
 <li><a href="#_insert_an_element_on_a_link">Insert an element on a link</a></li>
+<li><a href="#_add_an_element_in_parallel">Add an element in parallel</a></li>
+<li><a href="#_auto_layout_a_selection">Auto Layout a selection</a></li>
 </ul>
 </li>
 <li><a href="#input-rules">Values and links Raptor 7 refuses</a></li>
@@ -424,6 +426,72 @@ again on the new link.</p>
 </td>
 </tr>
 </table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_add_an_element_in_parallel">Add an element in parallel</h3>
+<div class="paragraph">
+<p>With <strong>Add Block</strong>, <strong>Add Event</strong> or <strong>Add Hierarchy</strong> on, point at a block, an
+event or a hierarchy that already has one link in and one link out. An
+accent outline means a click adds the new element in parallel with it; a
+red outline means it is refused (the element is not connected yet, or
+<strong>Add Node</strong> is on: a node cannot be in parallel), and the status bar says
+why. When the new element will join an existing group, the group&#8217;s split
+and join nodes and its other branches get a lighter outline, and the
+status bar says which branch it becomes and the join node&#8217;s new vote,
+e.g. "as branch 3 between node_3 and node_4 (node_4 becomes 1/3)".</p>
+</div>
+<div class="paragraph">
+<p>What the click does:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Split and join nodes are reused when they can be.</strong> If the element&#8217;s
+link in comes from an ordinary node, the new branch starts there; if its
+link out goes to an ordinary node, the new branch ends there. So adding
+beside one branch of an existing parallel group gives that group one
+more branch.</p>
+</li>
+<li>
+<p><strong>Otherwise a node is added.</strong> A Start node, a hierarchy&#8217;s In marker or
+another element before it gets a new split node; an End node, an Out
+marker or another element after it gets a new join node. Each is
+inserted on the link the same way as <strong>Insert an element on a link</strong>,
+with the same spacing.</p>
+</li>
+<li>
+<p><strong>The join node&#8217;s k is left as it is.</strong> A new join node starts at 1 of 2
+(either branch will do). A reused join node keeps its k, so a 2-of-3
+node becomes 2-of-4: the click adds one more branch, and you decide the
+vote.</p>
+</li>
+<li>
+<p><strong>The group is laid out again.</strong> The split node, the join node and every
+branch between them are arranged by <strong>Auto Layout</strong>, with the split node
+kept where it is. If the group grows along the flow, everything after
+the join node moves along with it. Elements beside the group are not
+moved, so check for overlaps when a group is next to another branch.</p>
+</li>
+<li>
+<p><strong>One undo</strong> puts back the links, the nodes and every position.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The new links get <strong>Connect</strong>'s defaults, as in the note above.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_auto_layout_a_selection">Auto Layout a selection</h3>
+<div class="paragraph">
+<p><strong>Arrange → Auto Layout</strong> (Ctrl+L) arranges the whole level shown, or, when
+some but not all of its elements are selected, only those, centred where
+they are now. Its tooltip says which: with three elements selected it
+reads "Auto Layout the 3 selected items only". When it finishes, the
+status bar says how many items it arranged and where, e.g. "Auto Layout
+done: 3 selected items on Home" or "Auto Layout done: 12 items in
+hierarchy Pumps".</p>
 </div>
 </div>
 </div>
@@ -1764,22 +1832,22 @@ current value).</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Block</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new block, or hover a link and click to insert it in series</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Node</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Regular node, or hover a link and click to insert it in series</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Regular node, or click a link to insert it in series</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Event</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables), or hover a link and click to insert it in series</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Hierarchy</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new hierarchy (with its In/Out markers), or hover a link and click to insert it in series</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

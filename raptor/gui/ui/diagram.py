@@ -331,7 +331,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: Add-tool hover-on-link state. The link is held only while it is
         #: the unique/clear nearest candidate; the state is "allowed" or
         #: "blocked" so the item can paint an accent or warning halo.
-        self._insert_hover_link: _LinkItem | None = None
+        #: The hovered insert target: a link (series) or an element
+        #: (parallel). The name predates the parallel case.
+        self._insert_hover_link: Any = None
+        #: Overlays round a parallel target (`_insert_halo`, strong) and
+        #: the nodes/branches it will join (lighter); all in
+        #: `_insert_halos`.
+        self._insert_halo: Any = None
+        self._insert_halos: list = []
+        #: Cursor elements show under the pointer (None = pointing hand);
+        #: kept in step with the armed tool by `_sync_item_cursors`.
+        self._element_cursor: Any = None
         self._insert_hover_state: str | None = None
         self._insert_hover_status = ""
         #: Cached page-flow inference for hover. Keyed by the layout
@@ -3978,10 +3988,67 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 }
                 stack.push(RouteGripCmd(self, entry, add=True))
 
+    def _layout_graph(self) -> tuple[dict[tuple[str, int], QGraphicsItem],
+                                     list[tuple[tuple[str, int],
+                                                tuple[str, int]]]]:
+        """This level's layout vertices and edges, keyed ("block", id) etc.
+
+        Shared by Auto Layout and insert-in-parallel's local layout.
+        """
+        members: dict[tuple[str, int], QGraphicsItem] = {}
+        members.update({("block", bid): item
+                        for bid, item in self._block_items.items()})
+        members.update({("node", nid): item
+                        for nid, item in self._node_items.items()})
+        members.update({("hier", hid): item
+                        for hid, item in getattr(self, "_hier_items",
+                                                 {}).items()})
+        # Events are flow objects too (Node -> Event -> Node), so they
+        # must be laid out as vertices. They used to be left out and
+        # shifted by their parent block's delta, but an event's
+        # EVENT_DATA ParentId is its hierarchy LEVEL, not a block, so on
+        # the home level they never moved at all.
+        members.update({("event", eid): item
+                        for eid, item in getattr(self, "_event_items",
+                                                 {}).items()})
+
+        edges: list[tuple[tuple[str, int], tuple[str, int]]] = []
+        link: Any
+        for link in self.links:
+            a = (link.connect_f_ref.replace("RBD", "", 1).lower(),
+                 link.connect_from_id)
+            b = (link.connect_t_ref.replace("RBD", "", 1).lower(),
+                 link.connect_to_id)
+            if a in members and b in members:
+                edges.append((a, b))
+
+        return members, edges
+
+    def layout_selection_count(self) -> tuple[int, int]:
+        """(selected, total) layout elements on this level. Auto Layout
+        arranges only the selection when 0 < selected < total."""
+        members, _edges = self._layout_graph()
+        # Selection changes fire while a level is rebuilt, when the item
+        # tables can still hold deleted items: count only live ones.
+        live = [item for item in members.values() if isValid(item)]
+        selected = sum(1 for item in live if item.isSelected())
+        return selected, len(live)
+
+    def level_label(self) -> str:
+        """"Home", or "hierarchy <name>" for the level shown."""
+        parent = self._current_parent
+        if not parent:
+            return "Home"
+        hier = self.hiers.get(parent)
+        name = getattr(hier, "name", None)
+        return f"hierarchy {name}" if name else "this hierarchy"
+
     def _auto_layout_selection(self, selected, members, edges, *,
                                direction: str,
                                max_columns: int | None,
-                               spacing: float) -> None:
+                               spacing: float,
+                               anchor: tuple[str, int] | None = None,
+                               text: str = "Auto Layout selection") -> None:
         """Lay out only the selected elements, centred on their old bbox.
 
         The subset is laid out in isolation -- a selected chain becomes
@@ -4021,6 +4088,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         new_y = [p[1] for p in new_pos.values()]
         dx = (min(old_x) + max(old_x)) / 2.0 - (min(new_x) + max(new_x)) / 2.0
         dy = (min(old_y) + max(old_y)) / 2.0 - (min(new_y) + max(new_y)) / 2.0
+        if anchor is not None and anchor in new_pos:
+            # Keep one element exactly where it was instead of the group's
+            # centre (insert-in-parallel pins its split node, so the link
+            # into the group stays straight).
+            centre = _LinkItem._true_centre(members[anchor])
+            ax, ay = self._vt.to_model(centre.x(), centre.y())
+            dx = ax - new_pos[anchor][0]
+            dy = ay - new_pos[anchor][1]
 
         before = self._layout_state()
         self._loading = True
@@ -4041,8 +4116,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._user_arranged = True
         stack = getattr(self, "_stack", None)
         if stack is not None:
-            stack.push(LayoutCmd(self, "Auto Layout selection", before,
-                                 self._layout_state()))
+            stack.push(LayoutCmd(self, text, before, self._layout_state()))
         else:
             self.layout_changed.emit()
 
@@ -4428,42 +4502,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if axis is None:
             _view_status(self, f"Cannot insert {info[2]}: no flow direction")
             return None
-        section = self._link_section()
-        if section is None:
-            return None
-        old_row = next((dict(row) for row in section.rows
-                        if _safe_int(row.get("ID")) == link_num), None)
-        if old_row is None:
+        if self._link_row(link_num) is None:
             _view_status(self, "Cannot insert here: connector row not found")
             return None
-        old_index = next((i for i, row in enumerate(section.rows)
-                          if _safe_int(row.get("ID")) == link_num), 0)
-        upstream, downstream, dropped = self._plan_grip_split(link)
-        provisional = self._provisional_insert_center(link)
         endpoint_label = self._link_endpoint_label(link)
         self._clear_link_insert_hover()
 
         oid = 0
         self._stack.beginMacro(f"Insert {info[2]} on link")
         try:
-            oid = self._create_inserted_element(kind, provisional)
-            item = self._item_for_insert_kind(kind, oid)
-            if item is None:
-                raise RuntimeError("the new element was not created")
-            final_centre, shift = self._final_insert_center(link, item, axis)
-            delta = axis.delta(shift)
-            moves = self._insert_moves(link, item, final_centre, delta)
-            if moves:
-                self._stack.push(MoveCmd(self, moves))
-            upstream_id = self._next_link_id()
-            downstream_id = upstream_id + 1
-            new_rows = self._split_link_rows(
-                link, info[1], oid, upstream_id, downstream_id)
-            grip_moves = self._grip_moves_for_split(
-                upstream, downstream, dropped, upstream_id, downstream_id,
-                delta)
-            self._stack.push(SplitLinkCmd(
-                self, old_row, old_index, new_rows, grip_moves))
+            oid = self._insert_on_link_steps(kind, link, info, axis)
         finally:
             self._stack.endMacro()
         item = self._item_for_insert_kind(kind, oid)
@@ -4473,6 +4521,274 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self.element_created.emit(kind, oid)
         _view_status(self, f"{info[2]} inserted on {endpoint_label}")
         return oid
+
+    def _link_row(self, link_num: int) -> tuple[dict, int] | None:
+        """(copy of the LINK_DATA row, its index), or None."""
+        section = self._link_section()
+        if section is None:
+            return None
+        for index, row in enumerate(section.rows):
+            if _safe_int(row.get("ID")) == link_num:
+                return dict(row), index
+        return None
+
+    def _insert_on_link_steps(self, kind: str, link, info, axis) -> int:
+        """The undoable steps of a series insert, without a macro: create
+        the element, move it and the downstream subgraph, and split the
+        link. Shared by `insert_element_on_link` and the parallel insert,
+        which wraps several of these in one macro."""
+        found = self._link_row(link._link_num)
+        if found is None:
+            raise RuntimeError("the connector row is gone")
+        old_row, old_index = found
+        upstream, downstream, dropped = self._plan_grip_split(link)
+        provisional = self._provisional_insert_center(link)
+        oid = self._create_inserted_element(kind, provisional)
+        item = self._item_for_insert_kind(kind, oid)
+        if item is None:
+            raise RuntimeError("the new element was not created")
+        final_centre, shift = self._final_insert_center(link, item, axis)
+        delta = axis.delta(shift)
+        moves = self._insert_moves(link, item, final_centre, delta)
+        if moves:
+            self._stack.push(MoveCmd(self, moves))
+        upstream_id = self._next_link_id()
+        downstream_id = upstream_id + 1
+        new_rows = self._split_link_rows(
+            link, info[1], oid, upstream_id, downstream_id)
+        grip_moves = self._grip_moves_for_split(
+            upstream, downstream, dropped, upstream_id, downstream_id,
+            delta)
+        self._stack.push(SplitLinkCmd(
+            self, old_row, old_index, new_rows, grip_moves))
+        return oid
+
+    # -- insert in parallel on an element ----------------------------------
+    def _item_links(self, item) -> tuple[list, list]:
+        """(links into `item`, links out of it) on this level."""
+        into, out_of = [], []
+        for link in self._links:
+            if not isValid(link):
+                continue
+            if link._to is item:
+                into.append(link)
+            if link._from is item:
+                out_of.append(link)
+        return into, out_of
+
+    def _is_regular_node(self, item) -> bool:
+        """An ordinary node (Type 2): it can take another link in or out.
+        Start/End and a hierarchy's In/Out markers allow only one."""
+        if not isinstance(item, _NodeItem):
+            return False
+        node = self.nodes.get(item._node_id)
+        return node is not None and node.type_node == 2
+
+    def _parallel_refusal(self, target, info) -> str | None:
+        """Why a new element cannot go in parallel with `target`, or None."""
+        if self._rbd_ref is None:
+            return "Open a model first"
+        if info[0] == "node":
+            return ("a node cannot be in parallel; use Add Block, Add Event "
+                    "or Add Hierarchy")
+        into, out_of = self._item_links(target)
+        if len(into) != 1 or len(out_of) != 1:
+            return "connect it with one link in and one link out first"
+        if into[0]._from is out_of[0]._to:
+            return "its link in and its link out share a node"
+        if self._link_flow_axis(out_of[0]) is None:
+            return "its link out has no clear flow direction"
+        if info[0] == "hier":
+            from raptor.core.input_rules import MAX_HIERARCHY_DEPTH
+            if self._current_depth() >= MAX_HIERARCHY_DEPTH:
+                return (f"Hierarchies can nest at most "
+                        f"{MAX_HIERARCHY_DEPTH} levels deep")
+        return None
+
+    @staticmethod
+    def _between(split, join, edges) -> set:
+        """`split`, `join` and every element on a path from one to the
+        other: the parallel group that is laid out again."""
+        forward: dict = {}
+        backward: dict = {}
+        for a, b in edges:
+            forward.setdefault(a, []).append(b)
+            backward.setdefault(b, []).append(a)
+
+        def reach(start, stop, adjacency) -> set:
+            seen = {start}
+            queue = [start]
+            while queue:
+                current = queue.pop()
+                if current == stop:
+                    continue
+                for nxt in adjacency.get(current, ()):
+                    if nxt not in seen:
+                        seen.add(nxt)
+                        queue.append(nxt)
+            return seen
+
+        return (reach(split, join, forward) & reach(join, split, backward)
+                ) | {split, join}
+
+    def insert_element_in_parallel(self, kind: str, target) -> int | None:
+        """Add a new block/event/hierarchy in parallel with `target`.
+
+        The new element gets its own path between a split node before the
+        target and a join node after it. An ordinary node already there is
+        reused (so a target already in a parallel group gets one more
+        branch, and a reused join node's k is left as it is); a Start/In
+        marker or a non-node gets a new split node, an End/Out marker or a
+        non-node a new join node, each inserted in series with the same
+        spacing as insert-on-link. The group between the two nodes is then
+        laid out again, and whatever is downstream of the join node moves
+        along if the group grew. One undo step.
+        """
+        info = {"block": ("block", "Block", "Block"),
+                "node": ("node", "Node", "Node"),
+                "event": ("event", "Event", "Event"),
+                "hier": ("hier", "Hier", "Hierarchy")}.get(kind)
+        target_key = self._item_key(target)
+        if info is None or self._rbd_ref is None or target_key is None \
+                or isinstance(target, _NodeItem):
+            return None
+        target_name = self._endpoint_text(target)
+        refusal = self._parallel_refusal(target, info)
+        if refusal:
+            _view_status(self, f"Cannot add {info[2]} in parallel with "
+                               f"{target_name}: {refusal}")
+            return None
+        self._clear_link_insert_hover()
+        oid = 0
+        added_nodes = 0
+        self._stack.beginMacro(f"Add {info[2]} in parallel")
+        try:
+            oid, added_nodes = self._parallel_steps(kind, target_key, info)
+        finally:
+            self._stack.endMacro()
+        item = self._item_for_insert_kind(kind, oid)
+        if item is not None:
+            self._scene.clearSelection()
+            item.setSelected(True)
+        self.element_created.emit(kind, oid)
+        extra = ""
+        if added_nodes == 1:
+            extra = "; 1 node added"
+        elif added_nodes > 1:
+            extra = f"; {added_nodes} nodes added"
+        _view_status(self, f"{info[2]} added in parallel with "
+                           f"{target_name}{extra}")
+        return oid
+
+    def _parallel_steps(self, kind: str, target_key, info) -> tuple[int, int]:
+        """The undoable steps of `insert_element_in_parallel` (no macro).
+        Returns (new element id, number of nodes added)."""
+        node_info = ("node", "Node", "Node")
+        added = 0
+
+        def target():
+            return self._level_items()[target_key]
+
+        # Split side.
+        into, _out = self._item_links(target())
+        source = into[0]._from
+        if self._is_regular_node(source):
+            split = ("node", source._node_id)
+        else:
+            axis = self._link_flow_axis(into[0])
+            if axis is None:
+                raise RuntimeError("the link in has no flow direction")
+            split = ("node", self._insert_on_link_steps(
+                "node", into[0], node_info, axis))
+            added += 1
+        # Join side (looked up again: the split may have rebuilt links).
+        _into, out_of = self._item_links(target())
+        sink = out_of[0]._to
+        if self._is_regular_node(sink):
+            join = ("node", sink._node_id)
+        else:
+            axis = self._link_flow_axis(out_of[0])
+            if axis is None:
+                raise RuntimeError("the link out has no flow direction")
+            join = ("node", self._insert_on_link_steps(
+                "node", out_of[0], node_info, axis))
+            added += 1
+
+        # The new element, first placed beside the target across the flow;
+        # the group layout below puts it in its final place.
+        page_flow = self._page_flow()
+        centre = _LinkItem._true_centre(target())
+        hw, hh = _LinkItem._half_extents(target())
+        gap = self._standard_insert_gap()
+        if page_flow in ("LR", "RL"):
+            provisional = QPointF(centre.x(), centre.y() + 2.0 * hh + gap)
+        else:
+            provisional = QPointF(centre.x() + 2.0 * hw + gap, centre.y())
+        oid = self._create_inserted_element(kind, provisional)
+        first = self._next_link_id()
+        self._stack.push(AddCmd(self, "link", [
+            self._make_link_row("Node", split[1], info[1], oid, first),
+            self._make_link_row(info[1], oid, "Node", join[1], first + 1),
+        ]))
+
+        self._layout_parallel_group(split, join, page_flow)
+        return oid, added
+
+    def _layout_parallel_group(self, split, join, page_flow: str) -> None:
+        """Lay out the split node, the join node and every branch between
+        them, keeping the split node where it is; then move whatever is
+        downstream of the join node by however far the join node moved
+        downstream, so the gap after the group is kept."""
+        members, edges = self._layout_graph()
+        if split not in members or join not in members:
+            return
+        group = self._between(split, join, edges)
+        axis_x = page_flow in ("LR", "RL")
+        sign = 1 if page_flow in ("LR", "TB") else -1
+
+        def along(key) -> float:
+            c = _LinkItem._true_centre(members[key])
+            return c.x() if axis_x else c.y()
+
+        join_before = along(join)
+        try:
+            spacing = float(app_settings.get("layout/spacing", 1.0) or 1.0)
+        except (TypeError, ValueError, OverflowError):
+            spacing = 1.0
+        if not math.isfinite(spacing) or spacing <= 0.0:
+            spacing = 1.0
+        self._auto_layout_selection(
+            group, members, edges, direction=page_flow, max_columns=None,
+            spacing=spacing, anchor=split, text="Lay out parallel group")
+        # Item positions changed under the cached route centres.
+        for item in members.values():
+            cast(Any, item)._route_centre = None
+        shift = (along(join) - join_before) * sign
+        if shift <= 0.5:
+            return
+        forward: dict = {}
+        for a, b in edges:
+            forward.setdefault(a, []).append(b)
+        seen = set(group)
+        queue = [join]
+        moved = []
+        while queue:
+            current = queue.pop()
+            for nxt in forward.get(current, ()):
+                if nxt in seen:
+                    continue
+                seen.add(nxt)
+                queue.append(nxt)
+                moved.append(nxt)
+        dx, dy = (sign * shift, 0.0) if axis_x else (0.0, sign * shift)
+        moves = []
+        for kind, oid in moved:
+            item = members[(kind, oid)]
+            old = item.scenePos()
+            moves.append((kind, oid, (old.x(), old.y()),
+                          (old.x() + dx, old.y() + dy)))
+        if moves:
+            self._stack.push(MoveCmd(self, moves))
 
     def add_event(self, name: str, model_x: float, model_y: float,
                   probability: float = 0.5) -> int:
@@ -5179,12 +5495,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def _resolve_link_insert_target(self, scene_pos: QPointF
                                     ) -> tuple[Any | None, str, str]:
-        """(link item, "none"|"allowed"|"blocked", reason)."""
+        """(target, "none"|"allowed"|"blocked", reason).
+
+        The target is a link (insert in series) or, when the pointer is on
+        a block, event or hierarchy, that element (add in parallel).
+        Nodes are not targets: a click on one places as before.
+        """
         info = self._insert_tool_info()
         if info is None or self._rbd_ref is None:
             return (None, "none", "")
-        if self._element_body_at(scene_pos) is not None:
-            return (None, "none", "")
+        element = self._element_body_at(scene_pos)
+        if element is not None:
+            if isinstance(element, _NodeItem):
+                return (None, "none", "")
+            reason = self._parallel_refusal(element, info)
+            if reason:
+                return (element, "blocked", reason)
+            return (element, "allowed", "")
         scale = abs(self.transform().m11()) or 1.0
         pick_radius = self._LINK_PICK_RADIUS_PX / scale
         margin = self._LINK_AMBIGUITY_PX / scale
@@ -5227,39 +5554,133 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def _link_endpoint_label(self, link) -> str:
         return f"{self._endpoint_text(link._from)} → {self._endpoint_text(link._to)}"
 
-    def _set_insert_hover(self, link, state: str, reason: str = "") -> None:
-        old = self._insert_hover_link
-        if old is not link and old is not None:
-            try:
-                if isValid(old):
-                    old.set_insert_highlight(None)
-            except RuntimeError:
-                pass
-        self._insert_hover_link = link
-        self._insert_hover_state = state
-        if link is None:
-            return
-        link.set_insert_highlight(state)
+    def _insert_message(self, target, state: str, reason: str) -> str:
+        """The status-bar text for an Add-tool hover or refused click."""
         info = self._insert_tool_info()
         noun = info[2] if info is not None else "Element"
+        if isinstance(target, _LinkItem):
+            if state == "blocked":
+                return f"Cannot insert {noun}: {reason}"
+            return (f"Insert {noun} on {self._link_endpoint_label(target)}"
+                    f" — click to place")
+        name = self._endpoint_text(target)
         if state == "blocked":
-            message = f"Cannot insert {noun}: {reason}"
+            return f"Cannot add {noun} in parallel with {name}: {reason}"
+        split, join, _siblings = self._parallel_preview(target)
+        if split is not None and join is not None:
+            k = self.nodes[join._node_id].good_paths
+            n = 1 + sum(1 for link in self._links
+                        if isValid(link) and link._to is join)
+            what = (f"as branch {n} between {self._endpoint_text(split)} "
+                    f"and {self._endpoint_text(join)} "
+                    f"({self._endpoint_text(join)} becomes {k}/{n})")
+        elif split is None and join is None:
+            what = "with a new split node and a new join node"
+        elif split is None:
+            what = (f"with a new split node, joining at "
+                    f"{self._endpoint_text(join)}")
         else:
-            message = (f"Insert {noun} on {self._link_endpoint_label(link)}"
-                       f" — click to place")
+            what = (f"from {self._endpoint_text(split)}, with a new join "
+                    f"node")
+        return f"Add {noun} in parallel with {name} {what} — click to place"
+
+    def _parallel_preview(self, target) -> tuple[Any, Any, list]:
+        """What adding in parallel with `target` will reuse: (split node
+        item or None, join node item or None, the other elements between
+        them). None means that node will be created; the siblings are only
+        listed when both nodes are reused, since only then does the new
+        element join an existing group."""
+        into, out_of = self._item_links(target)
+        if len(into) != 1 or len(out_of) != 1:
+            return (None, None, [])
+        split = into[0]._from if self._is_regular_node(into[0]._from) \
+            else None
+        join = out_of[0]._to if self._is_regular_node(out_of[0]._to) \
+            else None
+        siblings: list = []
+        if split is not None and join is not None:
+            members, edges = self._layout_graph()
+            split_key = ("node", split._node_id)
+            join_key = ("node", join._node_id)
+            target_key = self._item_key(target)
+            siblings = [members[key] for key in
+                        self._between(split_key, join_key, edges)
+                        if key not in (split_key, join_key, target_key)
+                        and key in members]
+        return (split, join, siblings)
+
+    def _set_insert_hover(self, target, state: str, reason: str = "") -> None:
+        if target is self._insert_hover_link \
+                and state == self._insert_hover_state:
+            return          # nothing changed: no repaint, no re-walk
+        self._clear_link_insert_hover()
+        self._insert_hover_link = target
+        self._insert_hover_state = state
+        if target is None:
+            return
+        if isinstance(target, _LinkItem):
+            target.set_insert_highlight(state)
+        else:
+            self._show_element_insert_halo(target, state)
+            if state == "allowed":
+                split, join, siblings = self._parallel_preview(target)
+                for other in (split, join, *siblings):
+                    if other is not None:
+                        self._show_element_insert_halo(
+                            other, state, strong=False)
+        message = self._insert_message(target, state, reason)
         if message != self._insert_hover_status:
             self._insert_hover_status = message
             _view_status(self, message)
 
+    def _show_element_insert_halo(self, item, state: str, *,
+                                  strong: bool = True) -> None:
+        """A translucent outline round an element, the element counterpart
+        of a link's insert halo (accent = allowed, failure colour =
+        refused). The target gets a strong one; the nodes and branches the
+        new element will join get a lighter one. Overlay items owned by
+        the view, so the element classes keep their own painting."""
+        from PySide6.QtWidgets import QGraphicsPathItem
+        halo = QGraphicsPathItem()
+        halo.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        halo.setAcceptHoverEvents(False)
+        halo.setOpacity(0.32 if strong else 0.18)
+        pad = 5.0 if strong else 4.0
+        rect = self._element_shape_rect(item).adjusted(-pad, -pad, pad, pad)
+        path = QPainterPath()
+        if isinstance(item, (_NodeItem, _HierItem)):
+            path.addEllipse(rect)
+        else:
+            path.addRoundedRect(rect, 8.0, 8.0)
+        colour = COLOUR["accent"] if state == "allowed" else COLOUR["failed"]
+        pen = QPen(QColor(colour), 8.0 if strong else 6.0)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        halo.setPen(pen)
+        halo.setBrush(QBrush())
+        halo.setPath(path)
+        halo.setZValue(item.zValue() - 0.5)
+        self._scene.addItem(halo)
+        self._insert_halos.append(halo)
+        if strong:
+            self._insert_halo = halo
+
     def _clear_link_insert_hover(self) -> None:
-        link = self._insert_hover_link
+        target = self._insert_hover_link
         self._insert_hover_link = None
         self._insert_hover_state = None
         self._insert_hover_status = ""
-        if link is not None:
+        if isinstance(target, _LinkItem):
             try:
-                if isValid(link):
-                    link.set_insert_highlight(None)
+                if isValid(target):
+                    target.set_insert_highlight(None)
+            except RuntimeError:
+                pass
+        self._insert_halo = None
+        halos, self._insert_halos = self._insert_halos, []
+        for halo in halos:
+            try:
+                if isValid(halo) and halo.scene() is not None:
+                    halo.scene().removeItem(halo)
             except RuntimeError:
                 pass
 
@@ -5333,11 +5754,24 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         a hand, just where a link starts or ends."""
         from PySide6.QtGui import QCursor
         hand = QCursor(Qt.CursorShape.PointingHandCursor)
+        # Kept for items that set their cursor again on hover (blocks and
+        # nodes): they must show this one, not a hand, or the armed tool's
+        # cursor is lost whenever an element passes under the pointer --
+        # e.g. while wheel-zooming.
+        self._element_cursor = tool_cursor
         for items in (self._block_items, self._node_items,
                       self._event_items, self._hier_items):
             for item in items.values():
                 item.setCursor(tool_cursor if tool_cursor is not None
                                else hand)
+
+    def element_cursor(self):
+        """The cursor an element shows under the pointer: the armed tool's
+        cursor, or the pointing hand when no tool is armed."""
+        from PySide6.QtGui import QCursor
+        cursor = getattr(self, "_element_cursor", None)
+        return cursor if cursor is not None else QCursor(
+            Qt.CursorShape.PointingHandCursor)
 
     def _apply_tool_cursor(self):
         from PySide6.QtGui import QCursor, QPixmap, QPainter, QColor
@@ -5465,7 +5899,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             "Event": self.events, "Hier": self.hiers}
         pool = pools.get(kind, {})
         obj = pool.get(oid)
-        return getattr(obj, "name", "") or f"{kind} {oid}"
+        # Nodes keep their name in `node_name`; every other kind in `name`.
+        return (getattr(obj, "name", "") or getattr(obj, "node_name", "")
+                or f"{kind} {oid}")
 
     def _connect_refusal_reason(self, src_kind: str, src_id: int,
                                 kind: str, eid: int) -> str | None:
@@ -5559,15 +5995,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                               "add_hierarchy"):
             info = self._insert_tool_info()
             if info is not None:
-                link, state, block_reason = self._resolve_link_insert_target(
-                    scene_pos)
-                if link is not None:
+                target, state, block_reason = (
+                    self._resolve_link_insert_target(scene_pos))
+                if target is not None:
                     if state == "blocked":
-                        _view_status(self, f"Cannot insert {info[2]}: "
-                                     f"{block_reason}")
+                        # A refused target consumes the click: the element
+                        # is not dropped somewhere the user did not mean.
+                        _view_status(self, self._insert_message(
+                            target, state, block_reason))
                         return
-                    if self.insert_element_on_link(
-                            info[0], link._link_num) is not None:
+                    if isinstance(target, _LinkItem):
+                        link_num = target._link_num
+                        if link_num is not None and \
+                                self.insert_element_on_link(
+                                    info[0], link_num) is not None:
+                            return
+                    elif self.insert_element_in_parallel(
+                            info[0], target) is not None:
                         return
             mx, my = self.scene_to_model(scene_pos)
             if self.tool_mode == "add_block":
@@ -6597,7 +7041,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def mouseReleaseEvent(self, event):
         self._band_anchor = None
         if event.button() == Qt.MouseButton.MiddleButton:
-            self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+            # Back to the armed tool's cursor, not a plain arrow: a pan
+            # must not disarm the placement cursor.
+            self._apply_tool_cursor()
             self._pan_anchor = None
             event.accept()
             return
@@ -7417,32 +7863,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # ovals/events; events are vertices on the flow (Node -> Event ->
         # Node), so the layout places them instead of leaving them where
         # their unrelated hierarchy ParentId puts them.
-        members: dict[tuple[str, int], QGraphicsItem] = {}
-        members.update({("block", bid): item
-                        for bid, item in self._block_items.items()})
-        members.update({("node", nid): item
-                        for nid, item in self._node_items.items()})
-        members.update({("hier", hid): item
-                        for hid, item in getattr(self, "_hier_items",
-                                                 {}).items()})
-        # Events are flow objects too (Node -> Event -> Node), so they
-        # must be laid out as vertices. They used to be left out and
-        # shifted by their parent block's delta, but an event's
-        # EVENT_DATA ParentId is its hierarchy LEVEL, not a block, so on
-        # the home level they never moved at all.
-        members.update({("event", eid): item
-                        for eid, item in getattr(self, "_event_items",
-                                                 {}).items()})
-
-        edges: list[tuple[tuple[str, int], tuple[str, int]]] = []
-        link: Any
-        for link in self.links:
-            a = (link.connect_f_ref.replace("RBD", "", 1).lower(),
-                 link.connect_from_id)
-            b = (link.connect_t_ref.replace("RBD", "", 1).lower(),
-                 link.connect_to_id)
-            if a in members and b in members:
-                edges.append((a, b))
+        members, edges = self._layout_graph()
 
         selected = {k for k, it in members.items() if it.isSelected()}
         if selected and len(selected) < len(members):

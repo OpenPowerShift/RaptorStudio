@@ -77,6 +77,18 @@ from raptor.gui.resources.design_tokens import (
 )
 
 
+#: Auto Layout's tooltip when it arranges the whole level (no selection,
+#: or everything selected); the selection variant is built per count.
+_AUTO_LAYOUT_TIP = next(c.tooltip for c in COMMANDS
+                        if c.id == "model.auto_layout")
+
+
+def _items_phrase(count: int, *, selected: bool = False) -> str:
+    """'1 item', '3 selected items'."""
+    noun = "item" if count == 1 else "items"
+    return f"{count} selected {noun}" if selected else f"{count} {noun}"
+
+
 def _engine_version() -> str:
     """The version string recorded in a run manifest, so a result can be
     traced back to the engine that produced it."""
@@ -3939,6 +3951,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._command_state(reuse_validity=True),
             only={"can_align", "can_mass_edit", "can_zoom_hierarchy",
                   "can_extract_hierarchy"})
+        self._sync_auto_layout_tooltip()
 
     def _on_tool_mode_changed(self, mode: str):
         """Keep the ribbon's tool buttons in step with the view.
@@ -7385,18 +7398,43 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         view = getattr(getattr(self, "_diagram_dock", None), "view", None)
         if view is None:
             return
-        hier = view.hiers.get(getattr(view, "_current_parent", 0))
-        label = ("Home" if not getattr(view, "_current_parent", 0)
-                 else getattr(hier, "name", None) or "hierarchy")
-        self._statusbar.showMessage(f"Auto Layout — {label}…")
+        label = view.level_label()
+        selected, total = view.layout_selection_count()
+        # Same rule as `DiagramView.auto_layout`: a partial selection is
+        # laid out on its own, otherwise the whole level.
+        count = selected if 0 < selected < total else total
+        what = _items_phrase(count, selected=0 < selected < total)
+        place = "on Home" if label == "Home" else f"in {label}"
+        self._statusbar.showMessage(f"Auto Layout — {what} {place}…")
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         QApplication.processEvents(
             QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+        done = False
         try:
             view.auto_layout()
+            done = True
         finally:
             QApplication.restoreOverrideCursor()
-            self._statusbar.showMessage(f"Auto Layout — {label} done", 4000)
+            if done:
+                self._statusbar.showMessage(
+                    f"Auto Layout done: {what} {place}", 6000)
+
+    def _sync_auto_layout_tooltip(self) -> None:
+        """Auto Layout's tooltip says what it will arrange: the selection
+        only (with its size) when some but not all elements are selected,
+        otherwise the whole level."""
+        view = getattr(getattr(self, "_diagram_dock", None), "view", None)
+        action = getattr(self, "_auto_layout_action", None)
+        if view is None or action is None or getattr(view, "_loading", False):
+            return
+        selected, total = view.layout_selection_count()
+        if 0 < selected < total:
+            tip = (f"Auto Layout the {_items_phrase(selected, selected=True)}"
+                   f" only, centred where they are now; nothing else moves."
+                   f" (Ctrl+L)")
+        else:
+            tip = _AUTO_LAYOUT_TIP
+        self._commands.set_tooltip(action, tip)
 
     def _present_results(self):
         """After a run: switch the ribbon to the Results tab, surface
