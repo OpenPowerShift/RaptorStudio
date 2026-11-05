@@ -612,3 +612,33 @@ def test_a_typed_value_raptor7_refuses_is_refused(v, monkeypatch):
     assert shown and "PM stagger value cannot be greater than or equal to PM frequency." in shown[-1]
     assert v.blocks[bid].pm_stagger < 10.0 and v.blocks[bid].pm_freq == 10.0 != before
     assert not v._stack.canRedo(), "the refused edit must not come back through Redo"
+
+
+def test_block_defaults_change_the_app_not_the_model_file(qapp, monkeypatch):
+    """Block Defaults are the GUI's defaults for blocks placed from now on
+    (app settings). The model's own template row (BLOCK_DATA ID=0) and
+    every block already in it stay as they are, and the model is not
+    marked changed (#142)."""
+    import copy
+    from PySide6.QtWidgets import QDialog, QComboBox
+    from raptor.gui.ui.main_window import MainWindow
+    from raptor.gui.ui import dialogs
+    win = MainWindow()
+    win._load_into_app(load_rbd(os.path.join(GOLD, "HierarchyExample",
+                                              "input.rbd")), None)
+    before = copy.deepcopy(win._rbd.sections["BLOCK_DATA"].rows)
+    other_spare = None
+
+    def accept(self):
+        nonlocal other_spare
+        spare = self.findChildren(QComboBox)[-1]
+        spare.setCurrentIndex((spare.currentIndex() + 1) % spare.count())
+        other_spare = spare.currentData()
+        return QDialog.Accepted
+    monkeypatch.setattr(QDialog, "exec", accept)
+    dialogs.edit_block_defaults(win)
+
+    assert win._block_defaults()["sparing"] == other_spare
+    assert win._diagram_dock.view.default_block_sparing == other_spare
+    assert win._rbd.sections["BLOCK_DATA"].rows == before
+    assert not win._dirty

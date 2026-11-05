@@ -42,18 +42,22 @@ def test_the_helpers_build_dialogs_with_the_plain_provider(qapp):
     assert isinstance(dlg.iconProvider(), filedialogs.PlainIconProvider)
 
 
-def test_even_unwrapped_dialogs_get_the_plain_provider_via_the_app_filter(qapp):
-    """Qt creates some dialogs itself (and a future call site may forget);
-    the application filter must catch those too."""
-    filedialogs.install_plain_icons(qapp)
-    dlg = QFileDialog()
-    dlg.setOption(QFileDialog.Option.DontUseNativeDialog, True)
-    dlg.show()
-    qapp.processEvents()
-    try:
-        assert isinstance(dlg.iconProvider(), filedialogs.PlainIconProvider)
-    finally:
-        dlg.close()
+def test_every_dialog_built_in_the_gui_gets_the_plain_provider():
+    """There is no application-wide filter to catch a missed constructor
+    (it crashed PySide with QtWebEngine, #142), so each `QFileDialog(...)`
+    is themed where it is built."""
+    import re
+    from pathlib import Path
+    root = Path(filedialogs.__file__).resolve().parents[1]
+    missed = []
+    for path in root.rglob("*.py"):
+        lines = path.read_text().splitlines()
+        for n, line in enumerate(lines):
+            if re.search(r"=\s*QFileDialog\(", line):
+                window = "\n".join(lines[n:n + 8])
+                if not re.search(r"theme_file_dialog\(|plain_icons\(", window):
+                    missed.append(f"{path.name}:{n + 1}")
+    assert missed == []
 
 
 def test_stock_toolbar_glyphs_are_replaced_with_theme_icons(qapp):
