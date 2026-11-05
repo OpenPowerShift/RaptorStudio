@@ -703,10 +703,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     # open, and consistent across level switches (no per-level fit).
     LEGACY_SCALE = view_transform.LEGACY_SCALE
 
-    def _compute_model_transform(self, rbd: RbdFile):
+    def _compute_model_transform(self, rbd: RbdFile, spacing: float = 1.0):
         """Whole-model origin/flip/scale, computed once per load and then
         frozen on the file (see `raptor.core.fileio.view_transform`)."""
-        vt = view_transform.ensure(rbd)
+        vt = view_transform.ensure(rbd, spacing)
         self._vt = vt
         self._origin_x = vt.origin_x
         self._flip_base = vt.flip_base
@@ -8077,7 +8077,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # uses them for the scale; without this it would reserve the
             # fixed 108 px block and let a 216 px name overlap.
             rbd._render_extents = render_extents  # type: ignore[attr-defined]
-            self._compute_model_transform(rbd)
+            self._compute_model_transform(rbd, spacing)
             # Annotations go with the diagram: anchored ones next to their
             # element again, the others at the same place in the model.
             from raptor.api.annotations import (

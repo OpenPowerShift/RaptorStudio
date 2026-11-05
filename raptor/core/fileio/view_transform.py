@@ -137,7 +137,7 @@ def collect_levels(rbd: Any) -> dict[int, tuple[list[float], list[float]]]:
     return levels
 
 
-def _column_pitch_scale(rbd: Any) -> float:
+def _column_pitch_scale(rbd: Any, spacing: float = 1.0) -> float:
     """The scale that keeps every pair of horizontally ADJACENT columns on
     a level clear: their widest elements' half-widths plus the gap.
 
@@ -151,7 +151,7 @@ def _column_pitch_scale(rbd: Any) -> float:
         for a, b in itertools.pairwise(sorted(cols)):
             ha, hb = cols[a], cols[b]
             gap = (NODE_GAP if max(ha, hb) <= NODE_NARROW_HALF_PX
-                   else MIN_ELEMENT_GAP)
+                   else MIN_ELEMENT_GAP) * spacing
             needed = max(needed, (ha + hb + gap) / (b - a))
     return needed
 
@@ -283,8 +283,13 @@ def rebase(rbd: Any, source: ViewTransform, target: ViewTransform) -> None:
             r["xPos"], r["yPos"] = f"{mx:.6f}", f"{my:.6f}"
 
 
-def derive(rbd: Any) -> ViewTransform:
-    """Derive a transform from the positions currently in the file rows."""
+def derive(rbd: Any, spacing: float = 1.0) -> ViewTransform:
+    """Derive a transform from the positions currently in the file rows.
+
+    `spacing` is Auto Layout's spacing factor. The scale is chosen so the
+    closest pair keeps its minimum gap, and that gap is what the factor
+    sets: left at the fixed 52 px, a layout built at 0.5 or 2.0 was drawn at
+    the scale that restored 52 px, and the factor did nothing."""
     xs, ys = collect_positions(rbd)
     origin_x = min(xs) if xs else 0.0
     flip_base = max(ys) if ys else 0.0
@@ -297,7 +302,7 @@ def derive(rbd: Any) -> ViewTransform:
     dy_col = _column_pitch(rbd) or dy_min
     grid_x = _uniform_grid_unit(xs, origin_x, dx_min)
     grid_y = _uniform_grid_unit(ys, flip_base, dy_min)
-    needed = max(float(LEGACY_SCALE), _column_pitch_scale(rbd))
+    needed = max(float(LEGACY_SCALE), _column_pitch_scale(rbd, spacing))
     if dy_col > 0:
         # Centre-to-centre budget for two elements ADJACENT in a column:
         # half the taller one plus the gap. The term used to be
@@ -307,7 +312,8 @@ def derive(rbd: Any) -> ViewTransform:
         # tightest pitch in the file, so it inflated the scale by ~1.7x
         # and every link with it (a 268 px link between 108 px blocks,
         # most of it empty: "auto layout makes the boxes tiny").
-        needed = max(needed, (HALF_ELEMENT_H + MIN_ELEMENT_GAP) / dy_col)
+        needed = max(needed,
+                     (HALF_ELEMENT_H + MIN_ELEMENT_GAP * spacing) / dy_col)
     # Clamp on the scene's pixel size, not the scale number: a huge scene
     # segfaults real display drivers, while a compact file can safely use a
     # much higher scale than a sprawling one. SpaceStation.rbd's 2.5-unit
@@ -336,11 +342,11 @@ def frozen(rbd: Any) -> ViewTransform | None:
     return None
 
 
-def ensure(rbd: Any) -> ViewTransform:
+def ensure(rbd: Any, spacing: float = 1.0) -> ViewTransform:
     """The file's frozen transform, deriving and freezing one if it has
     none. The single entry point for both the GUI and the API."""
     vt = frozen(rbd)
     if vt is None:
-        vt = derive(rbd)
+        vt = derive(rbd, spacing)
         rbd.view_transform = vt.as_dict()
     return vt
