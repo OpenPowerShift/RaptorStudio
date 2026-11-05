@@ -208,6 +208,11 @@ class RbdFile:
     #: "straight" | "angled" | "orthogonal"}`. A level absent here is drawn
     #: straight. Legacy .rbd drops it with the rest of the drawing layer.
     link_styles: dict = field(default_factory=dict)
+    #: .rbds-only page-flow direction Auto Layout last used per hierarchy
+    #: level, `{str(parent id): "LR" | "RL" | "TB" | "BT"}`. It decides which
+    #: side of an element a link attaches to; a level absent here infers it
+    #: from its own links.
+    flow_directions: dict = field(default_factory=dict)
     #: .rbds-only named "Rate" library (reusable expressions with a
     #: human-readable basis, e.g. "0.00015/km failure rate x 20000
     #: km/yr usage" -- entries are {"name": str, "expr": str,

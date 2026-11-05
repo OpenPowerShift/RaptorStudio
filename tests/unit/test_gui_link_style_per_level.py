@@ -80,3 +80,30 @@ def test_style_is_saved_with_the_file(win, tmp_path):
     path = tmp_path / "m.rbds"
     save_rbds(view._rbd_ref, str(path))
     assert load_rbds(str(path)).link_styles == {"0": "angled"}
+
+
+def test_layout_direction_stays_on_the_level_it_was_applied_to(win):
+    """Auto Layout top-to-bottom at Home must not make a hierarchy attach
+    its links to the top and bottom of nodes."""
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.diagram_items import flow_direction
+    view = win._diagram_dock.view
+    _enter(view, "Power_sub")
+    before = _routes(view)
+    assert flow_direction() == "auto"
+    view.go_up()
+    QApplication.processEvents()
+    settings.set_value("layout/direction", "TB")
+    try:
+        view.auto_layout()
+        QApplication.processEvents()
+        assert flow_direction() == "TB"
+        _enter(view, "Power_sub")
+        assert flow_direction() == "auto"
+        assert ({k: len(v) for k, v in _routes(view).items()}
+                == {k: len(v) for k, v in before.items()})
+        view.go_up()
+        QApplication.processEvents()
+        assert flow_direction() == "TB"
+    finally:
+        settings.set_value("layout/direction", "LR")

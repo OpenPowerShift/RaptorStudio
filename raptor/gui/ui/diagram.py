@@ -1224,6 +1224,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # The level's own link style, so a level nobody touched is not
         # restyled by whatever another level was last set to.
         set_link_routing(self.level_link_style())
+        set_flow_direction(self.level_flow_direction())
         # Stable transform: origin/scale/flip come from the whole model
         # (computed once in load_rbd), so every element renders exactly
         # where its file row says -- same on every open, and identical
@@ -3128,6 +3129,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         self._label_phase = phase
         self.refresh_block_labels()
+
+    def level_flow_direction(self) -> str:
+        """The page flow Auto Layout last used on the level on screen, or
+        "auto" (infer it from the level's own links)."""
+        flows = getattr(self._rbd_ref, "flow_directions", None) or {}
+        return str(flows.get(str(self._current_parent), "auto"))
+
+    def _remember_flow_direction(self) -> None:
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        if not isinstance(getattr(rbd, "flow_directions", None), dict):
+            rbd.flow_directions = {}
+        rbd.flow_directions[str(self._current_parent)] = flow_direction()
 
     def level_link_style(self) -> str:
         """The link style saved for the level on screen (straight if none)."""
@@ -8064,6 +8079,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._user_arranged = True
         # The level now keeps the style it was just laid out in.
         self._remember_link_style()
+        self._remember_flow_direction()
         # sync only (not write_back): the position overlay reads the
         # typed objects on level rebuilds, so traversal keeps the
         # arrangement; rows are written on Save like any other edit.

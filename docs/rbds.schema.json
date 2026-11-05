@@ -2348,6 +2348,12 @@
     }
    }
   },
+  "flow_directions": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "string"
+   }
+  },
   "link_styles": {
    "type": "object",
    "additionalProperties": {
