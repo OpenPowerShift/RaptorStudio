@@ -32,10 +32,10 @@ current value).
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
-|Add Block |Click the canvas to place a new block |
-|Add Node |Click the canvas to place a new Regular node |
-|Add Event |Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables) |
-|Add Hierarchy |Click the canvas to place a new hierarchy (with its In/Out markers) |
+|Add Block |Click the canvas to place a new block, or hover a link and click to insert it in series |
+|Add Node |Click the canvas to place a new Regular node, or hover a link and click to insert it in series |
+|Add Event |Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables), or hover a link and click to insert it in series |
+|Add Hierarchy |Click the canvas to place a new hierarchy (with its In/Out markers), or hover a link and click to insert it in series |
 |Collapse Selection |Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval |
 |Delete Selected |Delete selected blocks/nodes (Del) |Del
 |===

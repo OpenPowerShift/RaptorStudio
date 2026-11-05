@@ -14,7 +14,7 @@ from raptor.gui.ui.diagram_common import (  # noqa: I001
     _PARENT_COLS,
     _safe_int,
 )
-from raptor.gui.ui.diagram_items import links_affected_by_moving
+from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 
 
 # --- Undo/redo commands -------------------------------------------------
@@ -431,6 +431,90 @@ class DeleteCmd(_ViewCmd):
         for r in self.link_rows:
             v._insert_link(r)
         self._done()
+
+class SplitLinkCmd(_ViewCmd):
+    """Replace one link with two new links and move its routing points.
+
+    Used by insert-on-link. The replacement rows already carry the fresh
+    ids and endpoints the caller wants (built exactly as a manual Connect
+    would build them); this command only owns the atomic row/item swap and
+    the allocation of the original link's grips to the two halves.
+
+    `grip_moves` is [(old_entry, new_entry, new_link_id)]:
+      - old_entry is restored on undo, unchanged;
+      - new_entry is added on redo with its `link` already pointing at one
+        of the new links (downstream entries may also have shifted x/y);
+      - a pair whose new_entry is None was dropped at the split point and
+        is only restored by undo.
+    """
+
+    def __init__(self, view, old_row: dict, old_index: int,
+                 new_rows: list[dict], grip_moves=()):
+        super().__init__(view, "Insert element on link")
+        self.old_row = dict(old_row)
+        self.old_index = max(0, int(old_index))
+        self.new_rows = [dict(row) for row in new_rows]
+        self.grip_moves = [
+            (dict(old), dict(new) if new is not None else None,
+             int(new_id) if new_id is not None else None)
+            for old, new, new_id in grip_moves
+        ]
+        self.old_link_id = _safe_int(self.old_row.get("ID"))
+        self.new_link_ids = [_safe_int(row.get("ID"))
+                             for row in self.new_rows]
+
+    def _row_section(self):
+        return self._v._rbd_ref.sections["LINK_DATA"]
+
+    def _remove_old_grips(self):
+        for old, _new, _new_id in self.grip_moves:
+            self._v._apply_route_grip(old, False)
+
+    def _remove_new_grips(self):
+        for _old, new, _new_id in self.grip_moves:
+            if new is not None:
+                self._v._apply_route_grip(new, False)
+
+    def _add_new_grips(self):
+        for _old, new, _new_id in self.grip_moves:
+            if new is not None:
+                self._v._apply_route_grip(new, True)
+
+    def _add_old_grips(self):
+        for old, _new, _new_id in self.grip_moves:
+            self._v._apply_route_grip(old, True)
+
+    def _apply(self, forward: bool):
+        v = self._v
+        section = self._row_section()
+        if forward:
+            self._remove_old_grips()
+            v._remove_link_row_and_item(self.old_link_id)
+            for row in self.new_rows:
+                section.rows.append(dict(row))
+                v._insert_link(dict(row))
+            self._add_new_grips()
+        else:
+            self._remove_new_grips()
+            for link_id in self.new_link_ids:
+                v._remove_link_row_and_item(link_id)
+            section.rows.insert(min(self.old_index, len(section.rows)),
+                                dict(self.old_row))
+            v._insert_link(dict(self.old_row))
+            self._add_old_grips()
+        v._recount_link_ends()
+        v._clear_route_caches()
+        with routing_batch(v._scene):
+            for link in v._links:
+                link._update_route()
+        self._done()
+
+    def redo(self):
+        self._apply(True)
+
+    def undo(self):
+        self._apply(False)
+
 
 class DepResetCmd(_ViewCmd):
     """Reset each dependent element to independent -- port of Raptor's

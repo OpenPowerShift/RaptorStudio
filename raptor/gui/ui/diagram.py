@@ -79,6 +79,8 @@ from raptor.gui.ui.diagram_common import (  # noqa: F401
     _safe_int,
     log,
 )
+from raptor.gui import link_insert
+from raptor.gui.ui.diagram_items import flow_direction
 from raptor.gui.ui.diagram_commands import (  # noqa: F401
     AddCmd,
     BulkGeometryCmd,
@@ -98,6 +100,7 @@ from raptor.gui.ui.diagram_commands import (  # noqa: F401
     RenameCmd,
     RouteGripCmd,
     RowCellCmd,
+    SplitLinkCmd,
     StreamCmd,
     TableCellCmd,
     TableRowCmd,
@@ -325,6 +328,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self.model_changed.connect(self._invalidate_live_caches)
         #: Canvas tool mode: "select" | "add_block" | "add_node" | "add_event" | "connect".
         self._tool_mode = "select"
+        #: Add-tool hover-on-link state. The link is held only while it is
+        #: the unique/clear nearest candidate; the state is "allowed" or
+        #: "blocked" so the item can paint an accent or warning halo.
+        self._insert_hover_link: _LinkItem | None = None
+        self._insert_hover_state: str | None = None
+        self._insert_hover_status = ""
+        #: Cached page-flow inference for hover. Keyed by the layout
+        #: generation, link count and current hierarchy level so a move or
+        #: a topology change re-runs the (linear) vote, not every mouse move.
+        self._page_flow_cache: tuple[tuple, str] | None = None
         self._delete_armed = False
         #: "fail" | "repair" | None -- Failure Effects click-to-target.
         #: Mirrors `_delete_armed`'s own arm/cursor/click pattern.
@@ -1124,6 +1137,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def _rebuild_scene(self):
         """(Re)build every canvas item for `self._current_parent`."""
+        self._clear_link_insert_hover()
         self._loading = True
         # Disable drag-snap for the duration of this bulk placement: item
         # construction below calls setPos() for every element, which
@@ -3767,6 +3781,54 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._scene.removeItem(item)
         self.hiers.pop(oid, None)
 
+    def _link_section(self):
+        if self._rbd_ref is None:
+            return None
+        return self._rbd_ref.sections.get("LINK_DATA")
+
+    def _link_row_template(self) -> dict:
+        """The template a manual Connect uses: the first LINK_DATA row.
+
+        This is deliberately shared with `connect_elements` so insert-on-
+        link creates the same row a user would get by deleting a link and
+        drawing two replacements.
+        """
+        section = self._link_section()
+        if section is not None and section.rows:
+            return dict(section.rows[0])
+        return {
+            "ID": "0", "FromType": "Node", "FromID": "0", "ToType": "Block",
+            "ToID": "0", "pID": "0", "ColdPri": "50", "AProb": "1.000000",
+            "AutoTime": "0.000000", "ManTime": "0.000000", "CapPri": "50",
+            "nomFlow": "-2", "MaxFlow": "-1",
+        }
+
+    def _next_link_id(self) -> int:
+        """The next free LINK_DATA id, across every hierarchy level."""
+        section = self._link_section()
+        if section is None:
+            return 1
+        nums = [_safe_int(row.get("ID")) for row in section.rows]
+        return max(nums) + 1 if nums else 1
+
+    def _make_link_row(self, from_type: str, from_id: int,
+                       to_type: str, to_id: int, link_id: int,
+                       p_id: Any | None = None) -> dict:
+        row = self._link_row_template()
+        row["ID"] = str(link_id)
+        # File tokens: LINK_DATA stores unprefixed kinds ("Block",
+        # "Node", "Hier") -- link_from_row adds the RBD prefix on parse.
+        # Storing caller-style "RBDBlock" here would produce RBDRBDBlock
+        # refs that the engine's forward walk rejects ("no outgoing link
+        # found").
+        row["FromType"] = from_type.replace("RBD", "", 1)
+        row["FromID"] = str(from_id)
+        row["ToType"] = to_type.replace("RBD", "", 1)
+        row["ToID"] = str(to_id)
+        if p_id is not None:
+            row["pID"] = str(p_id)
+        return row
+
     def connect_elements(self, from_type: str, from_id: int,
                          to_type: str, to_id: int) -> int | None:
         """Create a LINK_DATA row between two elements (e.g. Node->Block).
@@ -3791,31 +3853,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     and same_ref(existing_link.connect_t_ref, to_type)
                     and existing_link.connect_to_id == to_id):
                 return None
-        section = self._rbd_ref.sections.get("LINK_DATA")
+        section = self._link_section()
         if section is None:
             return None
-        # Allocate against EVERY link row, not `self.links`: that list is
-        # level-scoped now (only links with both ends on the visible
-        # level), so a new link at home could otherwise reuse the id of a
-        # hidden-level link and write a duplicate LINK_DATA id.
-        nums = [_safe_int(r.get("ID")) for r in section.rows]
-        num = max(nums) + 1 if nums else 1
-        row = dict(section.rows[0]) if section.rows else {
-            "ID": "0", "FromType": "Node", "FromID": "0", "ToType": "Block",
-            "ToID": "0", "pID": "0", "ColdPri": "50", "AProb": "1.000000",
-            "AutoTime": "0.000000", "ManTime": "0.000000", "CapPri": "50",
-            "nomFlow": "-2", "MaxFlow": "-1",
-        }
-        row["ID"] = str(num)
-        # File tokens: LINK_DATA stores unprefixed kinds ("Block",
-        # "Node", "Hier") -- link_from_row adds the RBD prefix on parse.
-        # Storing caller-style "RBDBlock" here would produce RBDRBDBlock
-        # refs that the engine's forward walk rejects ("no outgoing link
-        # found").
-        row["FromType"] = from_type.replace("RBD", "", 1)
-        row["FromID"] = str(from_id)
-        row["ToType"] = to_type.replace("RBD", "", 1)
-        row["ToID"] = str(to_id)
+        # `_next_link_id` allocates against EVERY link row, not
+        # `self.links`: that list is level-scoped now (only links with both
+        # ends on the visible level), so a new link at home could otherwise
+        # reuse the id of a hidden-level link and write a duplicate
+        # LINK_DATA id.
+        num = self._next_link_id()
+        row = self._make_link_row(from_type, from_id, to_type, to_id, num)
         self._stack.push(AddCmd(self, "link", [row]))
         return num
 
@@ -4087,6 +4134,25 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 item._route_entry_side = None
                 item._route_exit_side = None
 
+    def _remove_link_row_and_item(self, link_num: int) -> None:
+        """Remove one link row and its canvas item, without rebuilding the
+        whole link layer (used by SplitLinkCmd; `DeleteCmd`'s shared path
+        would also discard unrelated live routing-point items)."""
+        section = self._link_section()
+        if section is not None:
+            section.rows[:] = [row for row in section.rows
+                               if _safe_int(row.get("ID")) != link_num]
+        self.links[:] = [link for link in self.links
+                         if link.object_num != link_num]
+        for item in list(self._links):
+            if item._link_num != link_num:
+                continue
+            self._links.remove(item)
+            if isValid(item):
+                self._scene.removeItem(item)
+        self._clear_route_caches()
+        self._recount_link_ends()
+
     def _insert_link(self, row: dict) -> int:
         from raptor.core.fileio.typed import link_from_row
         num = _safe_int(row.get("ID"))
@@ -4107,6 +4173,318 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     existing._update_route()
         self._recount_link_ends()
         return num
+
+    # -- insert-on-link -------------------------------------------------
+    @staticmethod
+    def _item_key(item) -> tuple[str, int] | None:
+        if isinstance(item, _BlockItem):
+            return ("block", item._block_id)
+        if isinstance(item, _NodeItem):
+            return ("node", item._node_id)
+        if isinstance(item, _EventItem):
+            return ("event", item._event_id)
+        if isinstance(item, _HierItem):
+            return ("hier", item._hier_id)
+        return None
+
+    @staticmethod
+    def _ref_key(ref: str, oid: int) -> tuple[str, int]:
+        return (ref.replace("RBD", "", 1).lower(), oid)
+
+    def _level_items(self) -> dict[tuple[str, int], Any]:
+        out: dict[tuple[str, int], Any] = {}
+        for kind, table in (
+                ("block", self._block_items), ("node", self._node_items),
+                ("event", self._event_items),
+                ("hier", getattr(self, "_hier_items", {}))):
+            for oid, item in table.items():
+                out[(kind, oid)] = item
+        return out
+
+    def _downstream_items(self, start, exclude=None) -> list[tuple[str, int, Any]]:
+        """The start item and everything reachable through outgoing links on
+        this level. Unrelated branches and upstream elements are excluded."""
+        items = self._level_items()
+        start_key = self._item_key(start)
+        if start_key is None or start_key not in items:
+            return []
+        exclude_key = self._item_key(exclude) if exclude is not None else None
+        outgoing: dict[tuple[str, int], list[tuple[str, int]]] = {}
+        for link in self.links:
+            a = self._ref_key(link.connect_f_ref, link.connect_from_id)
+            b = self._ref_key(link.connect_t_ref, link.connect_to_id)
+            if a in items and b in items:
+                outgoing.setdefault(a, []).append(b)
+        seen = {start_key}
+        queue = [start_key]
+        ordered: list[tuple[str, int, Any]] = []
+        while queue:
+            current = queue.pop(0)
+            if current != exclude_key:
+                ordered.append((current[0], current[1], items[current]))
+            for nxt in outgoing.get(current, ()):
+                if nxt in seen or nxt == exclude_key:
+                    continue
+                seen.add(nxt)
+                queue.append(nxt)
+        return ordered
+
+    def _provisional_insert_center(self, link) -> QPointF:
+        active = [g for g in link.grip_items()
+                  if getattr(g, "_active", True)]
+        if active:
+            return link.path().pointAtPercent(0.5)
+        source = _LinkItem._true_centre(link._from)
+        target = _LinkItem._true_centre(link._to)
+        return QPointF((source.x() + target.x()) / 2.0,
+                       (source.y() + target.y()) / 2.0)
+
+    def _final_insert_center(self, link, item, axis: link_insert.FlowAxis
+                             ) -> tuple[QPointF, float]:
+        source_rect = self._element_shape_rect(link._from)
+        target_rect = self._element_shape_rect(link._to)
+        new_rect = self._element_shape_rect(item)
+        source_span = self._span_of(source_rect, axis.axis)
+        target_span = self._span_of(target_rect, axis.axis)
+        new_span = self._span_of(new_rect, axis.axis)
+        gap = self._standard_insert_gap()
+        active = [g for g in link.grip_items()
+                  if getattr(g, "_active", True)]
+        if active:
+            # Dog-legs: stay on the drawn route, midway between the
+            # routing points, then clamp to the minimum gap. Preserving
+            # the route is more important than equal side gaps here.
+            midpoint = link.path().pointAtPercent(0.5)
+            half = (new_span[1] - new_span[0]) / 2.0
+            centre = midpoint.x() if axis.axis == "x" else midpoint.y()
+            proposed = (centre - half, centre + half)
+            plan = link_insert.plan_minimum_spacing(
+                source_span, target_span, proposed, axis, gap)
+            cross = (midpoint.y() if axis.axis == "x" else midpoint.x())
+        else:
+            new_size = new_span[1] - new_span[0]
+            plan = link_insert.plan_equal_spacing(
+                source_span, target_span, new_size, axis, gap)
+            source_centre = _LinkItem._true_centre(link._from)
+            target_centre = _LinkItem._true_centre(link._to)
+            cross = ((source_centre.y() + target_centre.y()) / 2.0
+                     if axis.axis == "x"
+                     else (source_centre.x() + target_centre.x()) / 2.0)
+        centre = (QPointF(plan.center, cross) if axis.axis == "x"
+                  else QPointF(cross, plan.center))
+        return centre, plan.shift
+
+    def _grip_entries_for(self, link) -> list[dict]:
+        return [dict(entry) for entry in
+                getattr(self._rbd_ref, "link_grips", [])
+                if _safe_int(entry.get("link")) == link._link_num]
+
+    def _plan_grip_split(self, link
+                         ) -> tuple[list[dict], list[dict], list[dict]]:
+        """Split the link's routing points into upstream/downstream groups.
+
+        The path midpoint decides the split, so the new element really is
+        inserted between the existing dog-legs. Routing points at the exact
+        split point are dropped (undo restores them). Inactive points are
+        not part of the drawn route and are dropped as well.
+        """
+        active = [g for g in link._grips
+                  if isValid(g) and getattr(g, "_active", True)]
+        entries = self._grip_entries_for(link)
+        by_id = {_safe_int(entry.get("id")): entry for entry in entries}
+        if not active:
+            return ([], [], entries)
+        points = [link._p0, *[g.pos() for g in active], link._p3]
+        cumulative = [0.0]
+        for a, b in itertools.pairwise(points):
+            cumulative.append(cumulative[-1] + math.hypot(
+                b.x() - a.x(), b.y() - a.y()))
+        total = cumulative[-1]
+        if total <= 1e-9:
+            return ([], [], entries)
+        midpoint = total / 2.0
+        upstream_active: list[Any] = []
+        downstream_active: list[Any] = []
+        dropped_active: list[Any] = []
+        exact = next((i for i, value in enumerate(cumulative)
+                      if abs(value - midpoint) <= 1e-6), None)
+        if exact is not None:
+            if 1 <= exact <= len(active):
+                dropped_active.append(active[exact - 1])
+                upstream_active = active[:exact - 1]
+                downstream_active = active[exact:]
+            else:
+                upstream_active = active
+        else:
+            segment = next(i for i in range(len(cumulative) - 1)
+                           if cumulative[i] < midpoint < cumulative[i + 1])
+            upstream_active = active[:segment]
+            downstream_active = active[segment:]
+        matched = {_safe_int(g._entry_id) for g in active}
+        upstream = [by_id[_safe_int(g._entry_id)]
+                    for g in upstream_active
+                    if _safe_int(g._entry_id) in by_id]
+        downstream = [by_id[_safe_int(g._entry_id)]
+                      for g in downstream_active
+                      if _safe_int(g._entry_id) in by_id]
+        dropped = [entry for entry in entries
+                   if _safe_int(entry.get("id")) not in matched]
+        dropped.extend(by_id[_safe_int(g._entry_id)]
+                       for g in dropped_active
+                       if _safe_int(g._entry_id) in by_id)
+        return (upstream, downstream, dropped)
+
+    def _split_link_rows(self, link, kind_token: str, new_id: int,
+                         upstream_id: int,
+                         downstream_id: int) -> list[dict]:
+        section = self._link_section()
+        if section is None:
+            raise RuntimeError("no LINK_DATA section")
+        row = next((r for r in section.rows
+                    if _safe_int(r.get("ID")) == link._link_num), None)
+        if row is None:
+            raise RuntimeError("the connector row is gone")
+        p_id = row.get("pID", "0")
+        return [
+            self._make_link_row(row.get("FromType", "Node"),
+                                _safe_int(row.get("FromID")), kind_token,
+                                new_id, upstream_id, p_id=p_id),
+            self._make_link_row(kind_token, new_id,
+                                row.get("ToType", "Block"),
+                                _safe_int(row.get("ToID")), downstream_id,
+                                p_id=p_id),
+        ]
+
+    def _grip_moves_for_split(self, upstream: list[dict],
+                              downstream: list[dict], dropped: list[dict],
+                              upstream_id: int, downstream_id: int,
+                              delta: tuple[float, float]):
+        moves: list[tuple[dict, dict | None, int | None]] = []
+        for entry in upstream:
+            new = dict(entry)
+            new["link"] = upstream_id
+            moves.append((dict(entry), new, upstream_id))
+        dx, dy = delta
+        for entry in downstream:
+            new = dict(entry)
+            new["link"] = downstream_id
+            new["x"] = round(float(entry.get("x", 0.0)) + dx, 2)
+            new["y"] = round(float(entry.get("y", 0.0)) + dy, 2)
+            moves.append((dict(entry), new, downstream_id))
+        for entry in dropped:
+            moves.append((dict(entry), None, None))
+        return moves
+
+    def _insert_moves(self, link, new_item, final_centre: QPointF,
+                      delta: tuple[float, float]):
+        moves: list[tuple[str, int, tuple[float, float],
+                          tuple[float, float]]] = []
+        if delta != (0.0, 0.0):
+            for kind, oid, item in self._downstream_items(
+                    link._to, exclude=link._from):
+                old = item.scenePos()
+                new = (old.x() + delta[0], old.y() + delta[1])
+                moves.append((kind, oid, (old.x(), old.y()), new))
+        key = self._item_key(new_item)
+        if key is not None:
+            old = new_item.scenePos()
+            if key[0] == "block":
+                new = (final_centre.x() - BLOCK_W / 2.0,
+                       final_centre.y() - BLOCK_H / 2.0)
+            else:
+                new = (final_centre.x(), final_centre.y())
+            if (abs(new[0] - old.x()) > 0.5
+                    or abs(new[1] - old.y()) > 0.5):
+                moves.append((key[0], key[1], (old.x(), old.y()), new))
+        return moves
+
+    def _create_inserted_element(self, kind: str, centre: QPointF) -> int:
+        mx, my = self.scene_to_model(centre)
+        if kind == "block":
+            return self.add_block(f"Block_{len(self.blocks) + 1}", mx, my)
+        if kind == "node":
+            return self.add_node(f"node_{len(self.nodes) + 1}", mx, my)
+        if kind == "event":
+            return self.add_event("P=0.5", mx, my)
+        return self.add_hierarchy(f"Hierarchy_{len(self.hiers) + 1}", mx, my)
+
+    def _item_for_insert_kind(self, kind: str, oid: int):
+        table = {"block": self._block_items, "node": self._node_items,
+                 "event": self._event_items,
+                 "hier": getattr(self, "_hier_items", {})}.get(kind, {})
+        return table.get(oid)
+
+    def insert_element_on_link(self, kind: str, link_num: int) -> int | None:
+        """Insert a new block/node/event/hierarchy in series on one link.
+
+        One undo step: create the element, move it and the downstream
+        subgraph, replace the link with two fresh rows, and split the link's
+        routing points. Returns the new element id, or None if refused.
+        """
+        info = {"block": ("block", "Block", "Block"),
+                "node": ("node", "Node", "Node"),
+                "event": ("event", "Event", "Event"),
+                "hier": ("hier", "Hier", "Hierarchy")}.get(kind)
+        if info is None or self._rbd_ref is None:
+            return None
+        link = next((item for item in self._links
+                     if item._link_num == link_num), None)
+        if link is None:
+            _view_status(self, "Cannot insert here: connector not found")
+            return None
+        refusal = self._link_insert_refusal(link, info)
+        if refusal:
+            _view_status(self, f"Cannot insert {info[2]}: {refusal}")
+            return None
+        axis = self._link_flow_axis(link)
+        if axis is None:
+            _view_status(self, f"Cannot insert {info[2]}: no flow direction")
+            return None
+        section = self._link_section()
+        if section is None:
+            return None
+        old_row = next((dict(row) for row in section.rows
+                        if _safe_int(row.get("ID")) == link_num), None)
+        if old_row is None:
+            _view_status(self, "Cannot insert here: connector row not found")
+            return None
+        old_index = next((i for i, row in enumerate(section.rows)
+                          if _safe_int(row.get("ID")) == link_num), 0)
+        upstream, downstream, dropped = self._plan_grip_split(link)
+        provisional = self._provisional_insert_center(link)
+        endpoint_label = self._link_endpoint_label(link)
+        self._clear_link_insert_hover()
+
+        oid = 0
+        self._stack.beginMacro(f"Insert {info[2]} on link")
+        try:
+            oid = self._create_inserted_element(kind, provisional)
+            item = self._item_for_insert_kind(kind, oid)
+            if item is None:
+                raise RuntimeError("the new element was not created")
+            final_centre, shift = self._final_insert_center(link, item, axis)
+            delta = axis.delta(shift)
+            moves = self._insert_moves(link, item, final_centre, delta)
+            if moves:
+                self._stack.push(MoveCmd(self, moves))
+            upstream_id = self._next_link_id()
+            downstream_id = upstream_id + 1
+            new_rows = self._split_link_rows(
+                link, info[1], oid, upstream_id, downstream_id)
+            grip_moves = self._grip_moves_for_split(
+                upstream, downstream, dropped, upstream_id, downstream_id,
+                delta)
+            self._stack.push(SplitLinkCmd(
+                self, old_row, old_index, new_rows, grip_moves))
+        finally:
+            self._stack.endMacro()
+        item = self._item_for_insert_kind(kind, oid)
+        if item is not None:
+            self._scene.clearSelection()
+            item.setSelected(True)
+        self.element_created.emit(kind, oid)
+        _view_status(self, f"{info[2]} inserted on {endpoint_label}")
+        return oid
 
     def add_event(self, name: str, model_x: float, model_y: float,
                   probability: float = 0.5) -> int:
@@ -4695,8 +5073,244 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 best, best_d = it, d
         return best
 
+    # ------------------------------------------------------ insert on link
+    #
+    # The add tools can place an element *in series* on a connector. The
+    # interaction is deliberately the same hover/click gesture as ordinary
+    # canvas placement; only the target changes. The geometry rules live in
+    # `raptor.gui.link_insert` (Qt-free) so they are unit-testable.
+    def _insert_tool_info(self) -> tuple[str, str, str] | None:
+        return self._INSERT_TOOL_KINDS.get(self.tool_mode)
+
+    @staticmethod
+    def _element_shape_rect(item) -> QRectF:
+        """The item's true drawn shape box, without label/badge padding."""
+        centre = _LinkItem._true_centre(item)
+        hw, hh = _LinkItem._half_extents(item)
+        return QRectF(centre.x() - hw, centre.y() - hh, hw * 2.0, hh * 2.0)
+
+    @staticmethod
+    def _span_of(rect: QRectF, axis: str) -> tuple[float, float]:
+        if axis == "x":
+            return (rect.left(), rect.right())
+        return (rect.top(), rect.bottom())
+
+    def _standard_insert_gap(self) -> float:
+        """Scene-pixel gap used between the new element and its neighbours.
+
+        `MIN_ELEMENT_GAP` is the canvas's standard minimum; the user's
+        Auto Layout spacing scales it so insertion follows the same density
+        preference as Auto Layout.
+        """
+        try:
+            spacing = float(app_settings.get("layout/spacing", 1.0) or 1.0)
+        except (TypeError, ValueError, OverflowError):
+            spacing = 1.0
+        spacing = max(0.25, min(spacing, 3.0))
+        return MIN_ELEMENT_GAP * spacing * self._INSERT_GAP_SCALE
+
+    def _element_body_at(self, scene_pos: QPointF):
+        """The topmost block/node/event/hierarchy whose body contains the
+        point, without `_element_at`'s generous 15px near-miss fallback."""
+        for it in self._scene.items(scene_pos):
+            node: Any = it
+            while node is not None and node.parentItem() is not None:
+                node = node.parentItem()
+            if isinstance(node, (_BlockItem, _NodeItem, _EventItem,
+                                 _HierItem)):
+                return node
+        return None
+
+    def _page_flow(self) -> str:
+        """The page flow used to choose an insertion axis.
+
+        Explicit LR/RL/TB/BT (Auto Layout) wins. In auto mode the visible
+        links vote, weighted by length. The result is cached against the
+        layout generation so hovering does not walk every link on every
+        mouse move.
+        """
+        configured = flow_direction()
+        if configured in link_insert.FLOW_DIRECTIONS:
+            return configured
+        key = (self._layout_generation, len(self._links),
+               self._current_parent)
+        cached = self._page_flow_cache
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        vectors: list[tuple[float, float]] = []
+        for link in self._links:
+            try:
+                if not (isValid(link) and isValid(link._from)
+                        and isValid(link._to)):
+                    continue
+                source = _LinkItem._true_centre(link._from)
+                target = _LinkItem._true_centre(link._to)
+            except RuntimeError:
+                continue
+            vectors.append((target.x() - source.x(),
+                            target.y() - source.y()))
+        inferred = link_insert.dominant_flow(vectors, configured)
+        self._page_flow_cache = (key, inferred)
+        return inferred
+
+    def _link_flow_axis(self, link) -> link_insert.FlowAxis | None:
+        try:
+            if not (isValid(link) and isValid(link._from)
+                    and isValid(link._to)):
+                return None
+            source = _LinkItem._true_centre(link._from)
+            target = _LinkItem._true_centre(link._to)
+        except RuntimeError:
+            return None
+        return link_insert.choose_flow_axis(
+            target.x() - source.x(), target.y() - source.y(),
+            self._page_flow())
+
+    def _link_insert_refusal(self, link, info: tuple[str, str, str]
+                             ) -> str | None:
+        if self._rbd_ref is None:
+            return "Open a model first"
+        if getattr(link, "_link_num", None) is None:
+            return "This connector has no model row"
+        if link._from is link._to:
+            return "A connector that loops to itself cannot be split"
+        axis = self._link_flow_axis(link)
+        if axis is None:
+            return "This connector has no clear flow direction"
+        if info[0] == "hier":
+            from raptor.core.input_rules import MAX_HIERARCHY_DEPTH
+            if self._current_depth() >= MAX_HIERARCHY_DEPTH:
+                return (f"Hierarchies can nest at most "
+                        f"{MAX_HIERARCHY_DEPTH} levels deep")
+        return None
+
+    def _link_candidate_distance(self, link, scene_pos: QPointF) -> float:
+        point = link.nearest_point(scene_pos)
+        return math.hypot(point.x() - scene_pos.x(),
+                          point.y() - scene_pos.y())
+
+    def _resolve_link_insert_target(self, scene_pos: QPointF
+                                    ) -> tuple[Any | None, str, str]:
+        """(link item, "none"|"allowed"|"blocked", reason)."""
+        info = self._insert_tool_info()
+        if info is None or self._rbd_ref is None:
+            return (None, "none", "")
+        if self._element_body_at(scene_pos) is not None:
+            return (None, "none", "")
+        scale = abs(self.transform().m11()) or 1.0
+        pick_radius = self._LINK_PICK_RADIUS_PX / scale
+        margin = self._LINK_AMBIGUITY_PX / scale
+        # The spatial query uses the link's own 10px stroke shape; widen
+        # the rectangle so a link just outside the visible stroke but
+        # inside the pick radius is still measured exactly.
+        query = pick_radius + 12.0 / scale
+        rect = QRectF(scene_pos.x() - query, scene_pos.y() - query,
+                      query * 2.0, query * 2.0)
+        candidates = [
+            item for item in self._scene.items(
+                rect, Qt.ItemSelectionMode.IntersectsItemShape)
+            if isinstance(item, _LinkItem) and isValid(item)
+            and getattr(item, "_link_num", None) is not None
+        ]
+        if not candidates:
+            return (None, "none", "")
+        distances = [self._link_candidate_distance(item, scene_pos)
+                     for item in candidates]
+        pick = link_insert.pick_hover(distances, pick_radius, margin)
+        if pick.index is None:
+            return (None, "none", "")
+        link = candidates[pick.index]
+        if pick.state == "blocked":
+            return (link, "blocked", pick.reason)
+        reason = self._link_insert_refusal(link, info)
+        if reason:
+            return (link, "blocked", reason)
+        return (link, "allowed", "")
+
+    def _endpoint_text(self, item) -> str:
+        if isinstance(item, _BlockItem):
+            return self._endpoint_name("Block", item._block_id)
+        if isinstance(item, _NodeItem):
+            return self._endpoint_name("Node", item._node_id)
+        if isinstance(item, _EventItem):
+            return self._endpoint_name("Event", item._event_id)
+        return self._endpoint_name("Hier", item._hier_id)
+
+    def _link_endpoint_label(self, link) -> str:
+        return f"{self._endpoint_text(link._from)} → {self._endpoint_text(link._to)}"
+
+    def _set_insert_hover(self, link, state: str, reason: str = "") -> None:
+        old = self._insert_hover_link
+        if old is not link and old is not None:
+            try:
+                if isValid(old):
+                    old.set_insert_highlight(None)
+            except RuntimeError:
+                pass
+        self._insert_hover_link = link
+        self._insert_hover_state = state
+        if link is None:
+            return
+        link.set_insert_highlight(state)
+        info = self._insert_tool_info()
+        noun = info[2] if info is not None else "Element"
+        if state == "blocked":
+            message = f"Cannot insert {noun}: {reason}"
+        else:
+            message = (f"Insert {noun} on {self._link_endpoint_label(link)}"
+                       f" — click to place")
+        if message != self._insert_hover_status:
+            self._insert_hover_status = message
+            _view_status(self, message)
+
+    def _clear_link_insert_hover(self) -> None:
+        link = self._insert_hover_link
+        self._insert_hover_link = None
+        self._insert_hover_state = None
+        self._insert_hover_status = ""
+        if link is not None:
+            try:
+                if isValid(link):
+                    link.set_insert_highlight(None)
+            except RuntimeError:
+                pass
+
+    def _update_link_insert_hover(self, event) -> None:
+        if self._insert_tool_info() is None or self._rbd_ref is None:
+            self._clear_link_insert_hover()
+            return
+        if event.buttons():
+            self._clear_link_insert_hover()
+            return
+        scene_pos = self.mapToScene(event.position().toPoint())
+        link, state, reason = self._resolve_link_insert_target(scene_pos)
+        if link is None:
+            self._clear_link_insert_hover()
+            return
+        self._set_insert_hover(link, state, reason)
+
     #: Cursor shown per build tool. Built from painted glyphs, theme-aware.
     _TOOL_CURSORS: dict[str, Any] = {}
+
+    #: Add tools that may insert in series on a connector: tool-mode ->
+    #: (model kind, LINK_DATA endpoint token, status noun).
+    _INSERT_TOOL_KINDS: dict[str, tuple[str, str, str]] = {
+        "add_block": ("block", "Block", "Block"),
+        "add_node": ("node", "Node", "Node"),
+        "add_event": ("event", "Event", "Event"),
+        "add_hierarchy": ("hier", "Hier", "Hierarchy"),
+    }
+
+    #: Screen-pixel pick radius for add-tool link hover, and the margin
+    #: inside which two links count as ambiguous. Both convert through the
+    #: view scale so the feel is the same at every zoom.
+    _LINK_PICK_RADIUS_PX = 14.0
+    _LINK_AMBIGUITY_PX = 5.0
+    #: Insert-on-link side gaps are deliberately roomier than Auto Layout's
+    #: minimum: an inserted element sits between two existing symbols and
+    #: reads cramped at the bare minimum, even though the same gap is fine
+    #: when Auto Layout places a whole chain.
+    _INSERT_GAP_SCALE = 1.5
 
     @property
     def tool_mode(self) -> str:
@@ -4706,6 +5320,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def tool_mode(self, mode: str):
         changed = mode != self._tool_mode
         self._tool_mode = mode
+        if changed:
+            self._clear_link_insert_hover()
         if mode != "select":
             self._delete_armed = False
             self._fev_armed_mode = None
@@ -4953,6 +5569,18 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         if self.tool_mode in ("add_block", "add_node", "add_event",
                               "add_hierarchy"):
+            info = self._insert_tool_info()
+            if info is not None:
+                link, state, block_reason = self._resolve_link_insert_target(
+                    scene_pos)
+                if link is not None:
+                    if state == "blocked":
+                        _view_status(self, f"Cannot insert {info[2]}: "
+                                     f"{block_reason}")
+                        return
+                    if self.insert_element_on_link(
+                            info[0], link._link_num) is not None:
+                        return
             mx, my = self.scene_to_model(scene_pos)
             if self.tool_mode == "add_block":
                 bid = self.add_block(f"Block_{len(self.blocks) + 1}", mx, my)
@@ -5113,6 +5741,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # pans; left-drag rubber-band selects.
         factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
         self.zoom_by(factor)
+
+    def leaveEvent(self, event):
+        self._clear_link_insert_hover()
+        super().leaveEvent(event)
 
     # Middle-click-drag panning: the rubber-band drag mode owns the left
     # button (multi-select) and Ctrl+wheel owns zoom, so the middle button
@@ -5841,6 +6473,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 self.verticalScrollBar().value() - round(delta.y()))
             event.accept()
             return
+        if self._insert_tool_info() is not None:
+            self._update_link_insert_hover(event)
         # Connect rubber-band: while a source is armed, draw a line from
         # it to the cursor.
         if self.tool_mode == "connect" and self._connect_from is not None:
