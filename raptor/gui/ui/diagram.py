@@ -3615,10 +3615,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                  if it.isSelected() and self.nodes[nid].type_node == 2]
         sel_e = [eid for eid, it in self._event_items.items()
                  if it.isSelected()]
-        if not (sel_b or sel_n or sel_e):
+        # A selected hierarchy oval moves in whole (with everything inside
+        # it). It used to be ignored: the collapse wrapped only the other
+        # elements, or miscounted the boundary and refused.
+        sel_h = [hid for hid, it in self._hier_items.items()
+                 if it.isSelected()]
+        if not (sel_b or sel_n or sel_e or sel_h):
             return None
         keys = ({("Block", str(i)) for i in sel_b} | {("Node", str(i)) for i in sel_n}
-                | {("Event", str(i)) for i in sel_e})
+                | {("Event", str(i)) for i in sel_e}
+                | {("Hier", str(i)) for i in sel_h})
         crossing = [((r.get("FromType", "").replace("RBD", "", 1), str(r.get("FromID"))) in keys,
                      (r.get("ToType", "").replace("RBD", "", 1), str(r.get("ToID"))) in keys)
                     for r in self._rbd_ref.sections["LINK_DATA"].rows
@@ -3637,7 +3643,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Oval lands at the selection's centroid.
         points = []
         for items in ((self._block_items, sel_b), (self._node_items, sel_n),
-                      (self._event_items, sel_e)):
+                      (self._event_items, sel_e), (self._hier_items, sel_h)):
             table, ids = items
             for oid in ids:
                 c = table[oid].sceneBoundingRect().center()
@@ -3659,7 +3665,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         plan = plan_collapse(
             preview, hid=hid, in_id=_safe_int(hier_row["in"]),
             out_id=_safe_int(hier_row["out"]), parent=self._current_parent,
-            blocks=sel_b, nodes=sel_n, events=sel_e)
+            blocks=sel_b, nodes=sel_n, events=sel_e, hiers=sel_h)
         parent_moves, link_ops = plan.parent_moves, plan.link_ops
         if plan.unrebuildable:
             from raptor.gui.ui import msgbox
@@ -3682,11 +3688,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     old_parent = int(a.get("parent", 0))
                     moved_annos.append((int(a.get("id", 0)), old_parent, hid))
         selected: dict[str, list[int]] = {
-            "BLOCK_DATA": sel_b, "NODE_DATA": sel_n, "EVENT_DATA": sel_e}
+            "BLOCK_DATA": sel_b, "NODE_DATA": sel_n, "EVENT_DATA": sel_e,
+            "HIERARCHY_DATA": sel_h}
         apply_collapse_plan(
             preview, hrows=[hier_row, in_row, out_row],
             parent_moves=parent_moves, link_ops=link_ops,
-            moved_annotations=moved_annos)
+            moved_annotations=moved_annos, level_moves=plan.level_moves)
         problems = collapse_new_violations(
             self._rbd_ref, preview, hid=hid, selected=selected,
             in_id=_safe_int(hier_row["in"]),
@@ -3704,7 +3711,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return None
         self._stack.push(CollapseCmd(self, [hier_row, in_row, out_row],
                                      parent_moves, link_ops,
-                                     moved_annotations=moved_annos))
+                                     moved_annotations=moved_annos,
+                                     level_moves=plan.level_moves))
         return hid
 
     def _insert_node(self, row: dict) -> int:

@@ -59,8 +59,8 @@ class AppState:
     #: Selected model elements (blocks, regular nodes, events, hierarchies):
     #: what Mass Edit acts on.
     selected_elements: int = 0
-    #: Selected elements Collapse can move into a new hierarchy (blocks,
-    #: regular nodes and events). A hierarchy oval is not one of them.
+    #: Selected elements Collapse can move into a new hierarchy: blocks,
+    #: regular nodes, events and hierarchy ovals (moved in whole).
     selected_structural: int = 0
     #: Hierarchy ovals on the level being viewed, and how many are selected.
     hierarchies_here: int = 0
@@ -224,7 +224,7 @@ UNMET: dict[str, str | Callable[[AppState], str]] = {
     "can_collapse": lambda s: (
         "open or create a model first" if not s.model_open else
         _too_deep(s) if not _room_to_nest(s) else
-        "select at least one block, node or event first"),
+        "select at least one block, node, event or hierarchy first"),
     "can_mass_edit": lambda s: (
         "open or create a model first" if not s.model_open else
         "select two or more elements first"),

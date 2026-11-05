@@ -220,7 +220,7 @@ def plan_dissolve(rbd: Any, hier: Any, hid: int) -> DissolvePlan:
 
 #: Which column of each section names an element's parent level.
 PARENT_COLS = {"BLOCK_DATA": "ParentId", "NODE_DATA": "parent",
-               "EVENT_DATA": "ParentId"}
+               "EVENT_DATA": "ParentId", "HIERARCHY_DATA": "Parent"}
 
 
 @dataclass
@@ -233,18 +233,22 @@ class CollapsePlan:
     #: links touching the selection that belong to another level, so the
     #: rewire cannot reach them. Any entry makes the collapse refuse.
     unrebuildable: list[dict] = field(default_factory=list)
+    #: (hierarchy id, old `level` cell) for every hierarchy that moves one
+    #: level down: a selected hierarchy and everything nested in it.
+    level_moves: list[tuple[int, str]] = field(default_factory=list)
 
 
 def _parent_moves(rbd: Any, selected: dict[str, list[int]]) -> list:
     moves = []
-    for section in ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA"):
+    for section in ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA",
+                    "HIERARCHY_DATA"):
         sec = rbd.sections.get(section)
         if sec is None:
             continue
         by_id: dict[int, dict] = {}
         for r in sec.rows:
             by_id.setdefault(_int(r.get("ID")), r)
-        for oid in selected[section]:
+        for oid in selected.get(section, ()):
             row = by_id.get(oid)
             old = row.get(PARENT_COLS[section], "0") if row else "0"
             moves.append((section, oid, old))
@@ -275,19 +279,42 @@ def _collapse_link(row: dict, idx: int, f_in: bool, t_in: bool, hid: int,
     return [("del", row, idx), ("add", outside, -1), ("add", inside, -1)]
 
 
+def _subtree_levels(rbd: Any, roots: Collection[int]) -> list[tuple[int, str]]:
+    """(id, `level` cell) of each hierarchy in `roots` and every hierarchy
+    nested inside them, in file order."""
+    sec = rbd.sections.get("HIERARCHY_DATA")
+    rows = [r for r in (sec.rows if sec else []) if _int(r.get("ID")) > 0]
+    parent_of = {_int(r.get("ID")): _int(r.get("Parent")) for r in rows}
+    inside: set[int] = set()
+    for hid in parent_of:
+        at, seen = hid, set()
+        while at and at not in seen:
+            if at in roots:
+                inside.add(hid)
+                break
+            seen.add(at)
+            at = parent_of.get(at, 0)
+    return [(_int(r.get("ID")), str(r.get("level", "1")))
+            for r in rows if _int(r.get("ID")) in inside]
+
+
 def plan_collapse(rbd: Any, *, hid: int, in_id: int, out_id: int,
                   parent: int, blocks: list[int], nodes: list[int],
-                  events: list[int]) -> CollapsePlan:
+                  events: list[int], hiers: Collection[int] = ()
+                  ) -> CollapsePlan:
     """The row changes for collapsing the given elements of level `parent`
     into the new hierarchy `hid` (whose In/Out markers are `in_id` and
     `out_id`). Internal links move into it; boundary links are split into
     an outside half referencing the oval (the file convention: `Node ->
     Hier` / `Hier -> Node` rows on the parent level) and an inside half on
-    the marker."""
+    the marker. A selected hierarchy moves in whole: its oval is re-parented
+    and it, and every hierarchy inside it, goes one level deeper."""
     selected = {"BLOCK_DATA": blocks, "NODE_DATA": nodes,
-                "EVENT_DATA": events}
-    by_ref = {"Block": set(blocks), "Node": set(nodes), "Event": set(events)}
-    plan = CollapsePlan(parent_moves=_parent_moves(rbd, selected))
+                "EVENT_DATA": events, "HIERARCHY_DATA": list(hiers)}
+    by_ref = {"Block": set(blocks), "Node": set(nodes), "Event": set(events),
+              "Hier": set(hiers)}
+    plan = CollapsePlan(parent_moves=_parent_moves(rbd, selected),
+                        level_moves=_subtree_levels(rbd, set(hiers)))
     link_section = rbd.sections.get("LINK_DATA")
     if link_section is None:
         return plan
@@ -320,7 +347,8 @@ def plan_collapse(rbd: Any, *, hid: int, in_id: int, out_id: int,
 #: (selected section, Raptor 7's kind title) -- the names violations use.
 _SELECTED_KINDS = (("BLOCK_DATA", "block", "Block"),
                    ("NODE_DATA", "node", "Node"),
-                   ("EVENT_DATA", "event", "Event"))
+                   ("EVENT_DATA", "event", "Event"),
+                   ("HIERARCHY_DATA", "hier", "Hier"))
 
 
 def _row_by_id(section: Any, oid: int) -> dict | None:
@@ -334,6 +362,7 @@ def apply_collapse_plan(rbd: Any, *, hrows: list[dict],
                         parent_moves: list[tuple[str, int, str]],
                         link_ops: list[tuple[str, dict, int]],
                         moved_annotations: Collection[tuple[int, Any, Any]] = (),
+                        level_moves: Collection[tuple[int, str]] = (),
                         ) -> None:
     """Write a collapse plan into *rbd*, in place.
 
@@ -354,6 +383,10 @@ def apply_collapse_plan(rbd: Any, *, hrows: list[dict],
         row = _row_by_id(rbd.sections[section], oid)
         if row is not None:
             row[PARENT_COLS[section]] = str(hid)
+    for moved, old_level in level_moves:
+        row = _row_by_id(hier_section, moved)
+        if row is not None:
+            row["level"] = str(_int(old_level) + 1)
     dead = {_int(r.get("ID")) for op, r, _idx in link_ops if op == "del"}
     adds = [dict(r) for op, r, _idx in link_ops if op == "add"]
     rows = link_section.rows
@@ -370,6 +403,7 @@ def revert_collapse_plan(rbd: Any, *, hrows: list[dict],
                          parent_moves: list[tuple[str, int, str]],
                          link_ops: list[tuple[str, dict, int]],
                          moved_annotations: Collection[tuple[int, Any, Any]] = (),
+                         level_moves: Collection[tuple[int, str]] = (),
                          ) -> None:
     """Undo `apply_collapse_plan`: the exact inverse, including the byte
     order of the link rows that were split."""
@@ -386,6 +420,10 @@ def revert_collapse_plan(rbd: Any, *, hrows: list[dict],
         row = _row_by_id(rbd.sections[section], oid)
         if row is not None:
             row[PARENT_COLS[section]] = str(old_parent)
+    for moved, old_level in level_moves:
+        row = _row_by_id(hier_section, moved)
+        if row is not None:
+            row["level"] = old_level
     for aid, old_parent, _new_parent in moved_annotations:
         for a in getattr(rbd, "annotations", None) or []:
             if int(a.get("id", 0)) == aid:

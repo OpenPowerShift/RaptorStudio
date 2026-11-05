@@ -841,9 +841,10 @@ def collapse_selection(
     stays complete (the outside half keeps its id, an inside half is added
     off the In/Out marker).
 
-    Start/End/In/Out nodes and existing hierarchies are refused -- a
-    hierarchy cannot contain the model's own terminators, and nesting one
-    hierarchy inside another needs the boundary wired by hand.
+    An existing hierarchy (by name or `Hier:N`) can be part of the
+    selection: it moves in whole, with everything inside it, one level
+    deeper. Start/End/In/Out nodes are refused -- a hierarchy cannot
+    contain the model's own terminators.
 
     This is the one-call way to wrap a branch you have already built, and
     the way to reproduce the book's "three ovals" figures. Read
@@ -861,7 +862,7 @@ def collapse_selection(
     from raptor.api.build import collapse_selection as _collapse
     result = _collapse(ws, model_id, selectors, name, parent=parent)
     moved = [r.get("blockName") or r.get("Name") or r.get("eventName")
-             for r in result.get("moved", [])]
+             or r.get("hierarchyName") for r in result.get("moved", [])]
     data = {
         "hier_id": result["ID"],
         "name": result["hierarchyName"],

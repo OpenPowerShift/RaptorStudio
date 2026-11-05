@@ -285,6 +285,9 @@ breakdown within that.
 
 * Every level that exists can be opened (double-click the oval, or use
   the Model Explorer).
+* **Collapse Selection** can include hierarchy ovals: each moves into the
+  new hierarchy whole, with everything inside it, one level deeper. A
+  collapse that would push anything past the eighth level is refused.
 * On the eighth level, **Add Hierarchy** and **Collapse Selection** are
   unavailable; their tooltip says the level is already eight deep.
 * A paste or **Import RBD** that would nest deeper is refused with a

@@ -448,10 +448,15 @@ class TestHierarchies:
         with pytest.raises(BuildError, match="cannot contain"):
             collapse_selection(workspace, nested, ["nEnd"])
 
-    def test_collapse_refuses_a_hierarchy(self, workspace, nested):
+    def test_collapse_moves_a_hierarchy_in_whole(self, workspace, nested):
+        """A selected hierarchy goes inside the new one, one level deeper,
+        with everything it holds."""
         from raptor.api.build import collapse_selection
-        with pytest.raises(BuildError, match="is a hierarchy"):
-            collapse_selection(workspace, nested, ["Sub"])
+        res = collapse_selection(workspace, nested, ["Sub"], name="Outer")
+        rows = {r["hierarchyName"]: r for r in
+                workspace.get(nested).rbd.section("HIERARCHY_DATA").rows}
+        assert rows["Sub"]["Parent"] == str(res["ID"])
+        assert rows["Sub"]["level"] == "2"
 
     def test_collapse_needs_a_selection(self, workspace, nested):
         from raptor.api.build import collapse_selection

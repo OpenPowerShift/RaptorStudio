@@ -2049,9 +2049,10 @@ def collapse_selection(
     represents a sub-model's edges (``Node -> Hier`` / ``Hier -> Node`` on
     the enclosing level).
 
-    Start/End nodes and existing hierarchies are refused: a hierarchy
-    cannot contain the model's own terminators, and nesting one hierarchy
-    inside another needs the boundary rewiring done by hand.
+    An existing hierarchy can be part of the selection: it moves in whole,
+    one level deeper, with everything inside it (within the eight-level
+    nesting limit). Start/End/In/Out nodes are refused: a hierarchy cannot
+    contain the model's own terminators.
 
     Returns ``{hier_id, in_id, out_id, name, moved}``.
     """
@@ -2067,12 +2068,10 @@ def collapse_selection(
     chosen: list[tuple[str, dict]] = []
     for selector in selectors:
         section, row = resolve_element(rbd, selector)
-        if section == "HIERARCHY_DATA":
+        if section == "HIERARCHY_DATA" and _as_int_id(row.get("Parent")) != parent:
             raise BuildError(
-                f"{selector!r} is a hierarchy; collapse_selection moves "
-                "blocks, nodes and events. Use add_hierarchy to make an "
-                "empty one, or address its members individually."
-            )
+                f"{selector!r} is a hierarchy on another level; "
+                f"collapse_selection works on level {parent}.")
         if section == "NODE_DATA" and str(row.get("Type", "2")) != "2":
             raise BuildError(
                 f"{selector!r} is a Start/End/In/Out node, which a "
@@ -2115,7 +2114,8 @@ def collapse_selection(
     # (issue #72).
     saved_model = copy.deepcopy(rbd)
     selected_ids: dict[str, list[int]] = {
-        "BLOCK_DATA": [], "NODE_DATA": [], "EVENT_DATA": []}
+        "BLOCK_DATA": [], "NODE_DATA": [], "EVENT_DATA": [],
+        "HIERARCHY_DATA": []}
     for section, row in chosen:
         selected_ids[section].append(_as_int_id(row.get("ID")))
 
@@ -2136,10 +2136,12 @@ def collapse_selection(
     plan = plan_collapse(
         rbd, hid=hid, in_id=in_id, out_id=out_id, parent=parent,
         blocks=selected_ids["BLOCK_DATA"], nodes=selected_ids["NODE_DATA"],
-        events=selected_ids["EVENT_DATA"])
+        events=selected_ids["EVENT_DATA"],
+        hiers=selected_ids["HIERARCHY_DATA"])
     apply_collapse_plan(rbd, hrows=list(hrows),
                         parent_moves=plan.parent_moves,
-                        link_ops=plan.link_ops)
+                        link_ops=plan.link_ops,
+                        level_moves=plan.level_moves)
 
     from raptor.core.input_rules import refusal_text
     from raptor.gui.hierarchy_plan import collapse_new_violations
