@@ -7743,6 +7743,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return 0
         return max(self.blocks)
 
+    def add_blocks_from_templates(self, rows: list[dict],
+                                  centre: QPointF) -> list[int]:
+        """Insert several library templates as new blocks, laid out in a
+        grid (at most four across) around the scene point `centre`, as one
+        undo step. Returns the new block ids."""
+        across = min(len(rows), 4)
+        step_x, step_y = BLOCK_W + 40.0, BLOCK_H + 30.0
+        down = -(-len(rows) // across) if rows else 0
+        ids: list[int] = []
+        self._stack.beginMacro(f"Add {len(rows)} blocks")
+        try:
+            for i, row in enumerate(rows):
+                col, line = i % across, i // across
+                at = QPointF(
+                    centre.x() + (col - (across - 1) / 2.0) * step_x,
+                    centre.y() + (line - (down - 1) / 2.0) * step_y)
+                bid = self.add_block_from_template(
+                    row, at_model=self.scene_to_model(at))
+                if bid:
+                    ids.append(bid)
+        finally:
+            self._stack.endMacro()
+        return ids
+
     def update_blocks_from_library(self, templates: list[dict]) -> int:
         """Overwrite the F/R distribution+param+stream columns of every
         block whose name matches a template (Raptor 7's monthly data

@@ -134,8 +134,8 @@ def import_block_library(win):
     all_btn.setToolTip("Select every template, to update all the blocks "
                        "that share a name with one.")
     add_btn = QPushButton("Add Block")
-    add_btn.setToolTip("Add the selected template as a new block "
-                       "(the first one, if several are selected).")
+    add_btn.setToolTip("Add each selected template as a new block, side "
+                       "by side in the middle of the view.")
     upd_btn = QPushButton("Update Matching")
     upd_btn.setToolTip("Overwrite the failure, repair, LDT and dependency "
                        "data of every block that has the name of a "
@@ -150,31 +150,28 @@ def import_block_library(win):
         rows = sorted(i.row() for i in items.selectedIndexes())
         return [templates[r] for r in rows if 0 <= r < len(templates)]
 
-    def selected_template():
-        chosen = selected_templates()
-        return chosen[0] if chosen else None
-
     def sync_buttons() -> None:
         n = len(selected_templates())
         upd_btn.setEnabled(n > 0)
         add_btn.setEnabled(n > 0)
         upd_btn.setText("Update Matching" if n <= 1
                         else f"Update Matching ({n})")
+        add_btn.setText("Add Block" if n <= 1 else f"Add Blocks ({n})")
     items.itemSelectionChanged.connect(sync_buttons)
     sync_buttons()
 
     def do_add():
-        t = selected_template()
-        if t is None:
+        chosen = selected_templates()
+        if not chosen:
             return
         v = win._diagram_dock.view
         centre = v.mapToScene(v.viewport().rect().center())
-        bid = v.add_block_from_template(
-            t["row"], at_model=v.scene_to_model(centre))
-        if bid:
+        ids = v.add_blocks_from_templates([t["row"] for t in chosen], centre)
+        if ids:
             win._mark_dirty()
-            win._statusbar.showMessage(
-                f"Added {t.get('name')} as block {bid}", 6000)
+            what = (f"{chosen[0].get('name')} as block {ids[0]}"
+                    if len(ids) == 1 else f"{len(ids)} blocks")
+            win._statusbar.showMessage(f"Added {what}", 6000)
 
     def do_update():
         chosen = selected_templates()

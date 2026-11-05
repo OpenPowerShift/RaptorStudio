@@ -136,3 +136,34 @@ def test_an_update_that_changes_nothing_does_not_dirty_the_model(
     _open_dialog(win, monkeypatch, path,
                  lambda dlg: _button(dlg, "Update Matching").click())
     assert not win._dirty
+
+
+def test_add_block_adds_every_selected_template(win, monkeypatch, tmp_path):
+    names = ["Attitude", "Thermal", "LowGain"]
+    path = _library(win, tmp_path, names)
+    view = win._diagram_dock.view
+    before = set(view.blocks)
+    seen = {}
+
+    def act(dlg):
+        lst = dlg.findChild(QListWidget)
+        lst.clearSelection()
+        lst.item(0).setSelected(True)
+        seen["one"] = _button(dlg, "Add Block").text()
+        _button(dlg, "Select All").click()
+        btn = _button(dlg, "Add Block")
+        seen["many"] = btn.text()
+        btn.click()
+    _open_dialog(win, monkeypatch, path, act)
+
+    assert seen == {"one": "Add Block", "many": "Add Blocks (3)"}
+    added = set(view.blocks) - before
+    assert len(added) == 3
+    assert sorted(view.blocks[i].name for i in added) == sorted(names)
+    # laid out apart, not stacked
+    spots = {(round(view._block_items[i].pos().x()),
+              round(view._block_items[i].pos().y())) for i in added}
+    assert len(spots) == 3
+    assert "3 blocks" in win._statusbar.currentMessage()
+    view._stack.undo()                      # one undo step removes all three
+    assert set(view.blocks) == before
