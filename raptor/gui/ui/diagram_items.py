@@ -1059,6 +1059,10 @@ class _LinkItem(QGraphicsPathItem):
         #: GUI-only dog-leg points dragged onto this link. They never enter
         #: the model: the link still connects the same two elements.
         self._grips: list[_RouteGripItem] = []
+        #: Add-tool hover feedback: None, "allowed" or "blocked". Drawn as
+        #: a wide translucent halo under the normal stroke so selection and
+        #: live-sim colours keep their own meanings.
+        self._insert_highlight: str | None = None
         _LINK_GEN[0] += 1
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setAcceptHoverEvents(True)
@@ -1109,6 +1113,14 @@ class _LinkItem(QGraphicsPathItem):
             if d < best_d:
                 best_d, best = d, QPointF(px, py)
         return best
+
+    def set_insert_highlight(self, state: str | None) -> None:
+        """Add-tool hover state: None, "allowed" or "blocked"."""
+        if state not in (None, "allowed", "blocked"):
+            raise ValueError(f"unknown insert highlight {state!r}")
+        if self._insert_highlight != state:
+            self._insert_highlight = state
+            self.update()
 
     def add_grip(self, grip) -> None:
         """Attach a draggable routing point.
@@ -1714,6 +1726,21 @@ class _LinkItem(QGraphicsPathItem):
         return super().itemChange(change, value)
 
     def paint(self, painter: QPainter, option, widget=None):
+        if self._insert_highlight:
+            # A wide translucent halo under the normal stroke. It follows
+            # the whole orthogonal/dog-leg path, not a straight endpoint
+            # line, so the hover feedback matches what will actually split.
+            colour = (COLOUR["accent"] if self._insert_highlight == "allowed"
+                      else COLOUR["failed"])
+            painter.save()
+            pen = QPen(QColor(colour), max(8.0, self.pen().widthF() + 7.0))
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            painter.setOpacity(0.32)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(self.path())
+            painter.restore()
         pen = self.pen()
         painter.setPen(pen)
         painter.setBrush(QBrush())

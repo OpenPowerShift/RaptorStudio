@@ -159,6 +159,11 @@ Then check your work: `validate_model` reports anything illegal, and
 . Click *Model → Connect*, then click the source and then the target:
   Battery_Pack → Switch, Switch → LED_Panel, LED_Panel → End. Right-click
   empty canvas to cancel a connection in progress.
++
+TIP: Once you know the steps, there is a shortcut. With *Add Block* on,
+point at a link: it lights up, and a click puts the new block in series
+on it, splitting the link in two and making room. The
+xref:../docs/manual.html#canvas-editing[manual] has the details.
 . Give each block its failure rule from the table below, in the
   *Inspector*'s *Failure* tab: pick the distribution, then fill in its
   parameters. Take the parameter order from the field labels, not from

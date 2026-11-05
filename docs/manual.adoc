@@ -136,6 +136,55 @@ apply. Each tab has a *Rename* row with three modes:
 
 Leave the text blank to keep all names. The whole edit is one undo step.
 
+[[canvas-editing]]
+== Building on the canvas
+
+The canvas tools are on the *Model* tab: *Select* (Q), *Connect*, and
+*Add Block*, *Add Node*, *Add Event* and *Add Hierarchy*. An Add tool
+stays on after each placement, so one click on the button places as many
+elements as you need. Press *Q* or *Esc*, or right-click, to go back to
+*Select*.
+
+=== Insert an element on a link
+
+With an Add tool on, point at a link instead of empty canvas:
+
+* **Accent halo:** the link can take the new element. Click to put it in
+  series on that link. The status bar names the two ends.
+* **Red halo:** the click is refused, and the status bar says why. Most
+  often two links overlap under the pointer (zoom in, or move along the
+  link to where they part), or a hierarchy would nest more than eight
+  levels deep.
+
+What the insert does:
+
+* **The link is split in two.** The old link goes, and two new ones join
+  the new element to the old link's ends.
+* **Only the downstream part moves.** If the gap is too small, the
+  target and everything reachable from it move along the flow just far
+  enough for a comfortable gap on both sides; upstream elements and
+  other branches stay put. If the gap is already wide enough, nothing
+  moves and the element is centred.
+* **Dog-legs are kept.** On a link with routing points, the element
+  goes at the midpoint of the drawn route, and each half keeps its own
+  points.
+* **One undo.** *Ctrl+Z* puts back the original link, its routing
+  points and every position.
+
+The flow direction comes from *Arrange → Auto Layout*'s direction when one
+is set; otherwise RAPTOR Studio reads it from the way the links run.
+
+[NOTE]
+====
+Inserting is the same as deleting the link and drawing two new ones with
+*Connect*, so the two new links get *Connect*'s settings: Raptor 7's
+defaults (standby priority 50, automatic switching with probability 1
+and no switch time, capacity priority 50, even-share nominal flow, full
+maximum flow). If the old link carried standby settings (into a cold
+standby node) or capacity settings (out of a capacity node), set them
+again on the new link.
+====
+
 [[input-rules]]
 == Values and links Raptor 7 refuses
 
