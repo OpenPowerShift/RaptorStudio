@@ -84,7 +84,7 @@ def test_probability_cards_show_at_least_four_places(real_results):
     """A reliability of exactly 0 (or 0.5) read "0" ("0.5") on the card:
     probabilities keep at least four decimal places."""
     from raptor.api.presentation import probability_text
-    dock, report_data = real_results
+    dock, _report_data = real_results
     rel = dock._cards["Reliability"]._value.text()
     whole, _, frac = rel.partition(".")
     assert whole in ("0", "1") and len(frac) >= 4, rel
