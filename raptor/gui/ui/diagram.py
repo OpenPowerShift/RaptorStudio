@@ -806,12 +806,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # validation -- never by a double-click that silently does nothing.
         self._set_level(hier_id)
 
-    def go_up(self):
-        """Ascend one level (Up button / double-click the Out marker)."""
-        if not self._current_parent:
+    def go_up(self, from_level: int | None = None):
+        """Ascend one level (Up button / double-click the Out marker).
+
+        `from_level` is the hierarchy to leave, when it is not the one on
+        screen: the Explorer lists every level, so an Out marker it shows
+        can belong to any hierarchy."""
+        level = self._current_parent if from_level is None else from_level
+        if not level:
             return
-        parent = self.hiers[self._current_parent].parent_id \
-            if self._current_parent in self.hiers else 0
+        parent = self.hiers[level].parent_id if level in self.hiers else 0
         self._set_level(parent)
 
     def go_home(self):
@@ -924,6 +928,37 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self.centerOn(item.boundingRect().center())
             return True
         return False
+
+    def reveal_element(self, kind: str, oid: int) -> bool:
+        """Show the level `kind`/`oid` lives on ("block", "node", "event"
+        or "hier") if it is not the one on screen. The element tables are
+        level-scoped, so an element from another level (picked in the
+        Explorer, which lists the whole model) has no item until then.
+        Returns whether the element is on screen afterwards."""
+        def on_screen() -> bool:
+            table = {"block": self._block_items, "node": self._node_items,
+                     "event": self._event_items,
+                     "hier": getattr(self, "_hier_items", {})}.get(kind, {})
+            return oid in table
+
+        if on_screen():
+            return True
+        rbd = self._rbd_ref
+        section = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                   "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}.get(kind)
+        if rbd is None or section is None or section not in rbd.sections:
+            return False
+        parent_col = _PARENT_COLS[section]
+        row = next((r for r in rbd.sections[section].rows
+                    if _safe_int(r.get("ID")) == oid), None)
+        if row is None:
+            return False
+        parent = _safe_int(row.get(parent_col))
+        if parent and parent not in self.hiers:
+            return False
+        if parent != self._current_parent:
+            self._set_level(parent)
+        return on_screen()
 
     def locate_element(self, kind: str, name: str) -> bool:
         """Select `name` (a block or node) and centre the view on it,

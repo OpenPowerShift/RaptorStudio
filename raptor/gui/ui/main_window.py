@@ -1430,8 +1430,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._diagram_dock.view.annotation_selected.connect(
             self._on_annotation_selected)
         self._diagram_dock.view.level_changed.connect(self._on_level_changed)
+        # The Explorer lists the whole model, so a level change only opens
+        # the folders down to the new level; nothing is rebuilt (which also
+        # keeps the row being clicked alive when a click changes level).
+        # (A lambda: the Explorer is built later, in `_setup_docks`.)
         self._diagram_dock.view.level_changed.connect(
-            lambda _pid: self._explorer.refresh())
+            lambda pid: self._explorer.reveal_level(pid))
         # Data Tables are per-hierarchy too: refresh them on a level
         # change so they don't keep showing the parent level's rows.
         self._diagram_dock.view.level_changed.connect(
@@ -2300,6 +2304,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._explorer.block_selected.connect(self._on_explorer_block_selected)
         self._explorer.node_selected.connect(self._on_explorer_node_selected)
         self._explorer.event_selected.connect(self._on_explorer_event_selected)
+        self._explorer.hier_selected.connect(self._on_explorer_hier_selected)
         self._explorer.system_config_selected.connect(self._on_explorer_sysconfig_selected)
         self._inspector.block_renamed.connect(self._on_block_renamed)
         self._inspector.block_comment_changed.connect(
@@ -3738,9 +3743,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._results_float_action.setEnabled(False)
         self._sync_overlay_actions([])
         self._reset_status_summary()
-        self._explorer.refresh()
-        # The placeholder model above must not leave a Data Tables row
-        # or a live Run panel behind with no model underneath.
+        # The placeholder model above must not leave an Explorer tree (it
+        # lists the model's rows, which the placeholder still has), a Data
+        # Tables row or a live Run panel behind with no model underneath.
+        self._explorer.set_view(None)
         self._data_tables.set_view(None)
         self._run_panel.set_enabled(False)
         self._run_panel.set_units("", None)
@@ -9751,20 +9757,37 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         item.setSelected(True)
         v.centerOn(item)
 
+    # The Explorer lists the whole model; the canvas and the Inspector work
+    # on the level on screen. Each handler first opens the element's own
+    # level (`reveal_element`), then selects it.
     def _on_explorer_block_selected(self, block_id: int):
         self._cancel_pending_block_selection()
         v = self._diagram_dock.view
+        if not v.reveal_element("block", block_id):
+            return
         self._inspector.show_block(block_id, v.blocks)
         self._select_canvas_item(v._block_items.get(block_id))
 
     def _on_explorer_node_selected(self, node_id: int):
         self._cancel_pending_block_selection()
         v = self._diagram_dock.view
+        if not v.reveal_element("node", node_id):
+            return
         self._inspector.show_node(node_id, v.nodes)
         self._select_canvas_item(v._node_items.get(node_id))
 
+    def _on_explorer_hier_selected(self, hier_id: int):
+        """A hierarchy row selects its oval on the level that holds it; the
+        canvas selection queues the Inspector, as a click on the oval does."""
+        self._cancel_pending_block_selection()
+        v = self._diagram_dock.view
+        if v.reveal_element("hier", hier_id):
+            self._select_canvas_item(v._hier_items.get(hier_id))
+
     def _on_explorer_event_selected(self, event_id: int):
         v = self._diagram_dock.view
+        if not v.reveal_element("event", event_id):
+            return
         event = v.events.get(event_id)
         if event is not None:
             self._inspector.show_event(event)

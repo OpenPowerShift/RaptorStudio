@@ -438,6 +438,38 @@ def collapse_icon(colour: str) -> QIcon:
     return _icon("collapse", colour, draw)
 
 
+def expand_all_icon(colour: str) -> QIcon:
+    """Expand all: two chevrons pointing apart (open everything)."""
+    def draw(p: QPainter, c: QColor):
+        from PySide6.QtGui import QPen as _QP
+        pen = _QP(c, 4)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolyline(QPolygonF([QPointF(14, 18), QPointF(24, 8),
+                                  QPointF(34, 18)]))
+        p.drawPolyline(QPolygonF([QPointF(14, 30), QPointF(24, 40),
+                                  QPointF(34, 30)]))
+    return _icon("expand_all", colour, draw)
+
+
+def collapse_all_icon(colour: str) -> QIcon:
+    """Collapse all: two chevrons pointing together (close everything)."""
+    def draw(p: QPainter, c: QColor):
+        from PySide6.QtGui import QPen as _QP
+        pen = _QP(c, 4)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolyline(QPolygonF([QPointF(14, 8), QPointF(24, 18),
+                                  QPointF(34, 8)]))
+        p.drawPolyline(QPolygonF([QPointF(14, 40), QPointF(24, 30),
+                                  QPointF(34, 40)]))
+    return _icon("collapse_all", colour, draw)
+
+
 # --- Annotation glyphs --------------------------------------------------
 #: Distinct from block_icon/node_icon/event_icon -- reusing those icons
 #: for annotations would make an annotation button and a model-element
