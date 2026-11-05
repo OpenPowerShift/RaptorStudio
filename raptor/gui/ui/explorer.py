@@ -5,13 +5,17 @@ Reads from DiagramView.blocks/nodes/links (live model objects), not raw RbdFile.
 from __future__ import annotations
 from collections import deque
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
-    QHBoxLayout, QPushButton, QTreeWidget, QTreeWidgetItem,
+    QHBoxLayout, QToolButton, QTreeWidget, QTreeWidgetItem,
     QTreeWidgetItemIterator, QVBoxLayout, QWidget,
 )
 
+from raptor.core.fileio.typed import row_int
 from raptor.gui.ui.diagram import DiagramView
+
+#: Node type -> the tag shown before a node's name.
+_NODE_TYPE_LABELS = {1: "Start", 2: "Reg", 3: "End", 4: "HIn", 5: "HOut"}
 
 
 class ExplorerDock(QWidget):
@@ -44,17 +48,20 @@ class ExplorerDock(QWidget):
         # window while Qt lays every row out at once.
         bar = QHBoxLayout()
         bar.setContentsMargins(4, 4, 4, 0)
-        self._expand_button = QPushButton("Expand all")
-        self._expand_button.setToolTip(
-            "Expand every hierarchy folder in the explorer")
+        bar.setSpacing(2)
+        self._expand_button = self._tool_button(
+            "Expand all",
+            "Expand every hierarchy folder, so the whole model is listed")
         self._expand_button.clicked.connect(self.expand_all)
-        self._collapse_button = QPushButton("Collapse all")
-        self._collapse_button.setToolTip(
-            "Collapse every hierarchy folder in the explorer")
+        self._collapse_button = self._tool_button(
+            "Collapse all", "Collapse every hierarchy folder")
         self._collapse_button.clicked.connect(self.collapse_all)
         bar.addWidget(self._expand_button)
         bar.addWidget(self._collapse_button)
         bar.addStretch(1)
+        self._retheme_buttons()
+        from raptor.gui.resources.design_tokens import ThemeManager
+        ThemeManager.instance().on_changed(self._retheme_buttons)
         self._layout.addLayout(bar)
         self._layout.addWidget(self._tree)
 
@@ -62,6 +69,22 @@ class ExplorerDock(QWidget):
         self._expand_timer = QTimer(self)
         self._expand_timer.setInterval(0)
         self._expand_timer.timeout.connect(self._expand_chunk)
+
+    @staticmethod
+    def _tool_button(name: str, tip: str) -> QToolButton:
+        button = QToolButton()
+        button.setAutoRaise(True)
+        button.setIconSize(QSize(18, 18))
+        button.setToolTip(tip)
+        button.setAccessibleName(name)
+        return button
+
+    def _retheme_buttons(self) -> None:
+        from raptor.gui.resources import icons
+        from raptor.gui.resources.design_tokens import active_colour
+        colour = active_colour()["text"]
+        self._expand_button.setIcon(icons.expand_all_icon(colour))
+        self._collapse_button.setIcon(icons.collapse_all_icon(colour))
 
     def set_search_widget(self, widget) -> None:
         """Install `widget` (MainWindow's own Find combo, built and wired
@@ -152,12 +175,10 @@ class ExplorerDock(QWidget):
             def show_all(item):
                 item.setHidden(False)
                 item.setForeground(0, normal)
-                if item.text(0).startswith("⬭"):
-                    item.setExpanded(True)
                 for i in range(item.childCount()):
                     show_all(item.child(i))
             show_all(root)
-            root.setExpanded(True)
+            self._apply_default_expansion()
             return
 
         def keep(item) -> bool:
@@ -181,110 +202,153 @@ class ExplorerDock(QWidget):
         root.setExpanded(True)
 
     def refresh(self):
-        """Re-read the view's CURRENT level (called after hierarchy
-        navigation -- `_rebuild_scene` runs under `_loading`, so its
-        `model_changed` never fires and the tree would go stale)."""
+        """Rebuild the tree from the whole model (after edits that bypass
+        `model_changed`, such as renames and file loads)."""
         self._refresh()
+
+    def _model_elements(self) -> dict[str, dict[int, tuple[str, int, int]]]:
+        """Every block, node and event in the WHOLE model:
+        kind -> {id: (name, parent hierarchy id, node type)}.
+
+        The canvas's element tables are level-scoped (only the level on
+        screen), so building the tree from them listed one level and left
+        Expand all and Find blind to everything inside the hierarchies.
+        The model rows hold every level. Only the four columns the tree
+        shows are read -- not a full parse, which would cost seconds per
+        refresh on a large model. The level on screen comes from the live
+        objects instead, so an edit not yet written back still shows."""
+        view = self._view
+        out: dict[str, dict[int, tuple[str, int, int]]] = {
+            "block": {}, "node": {}, "event": {}}
+        if view is None:
+            return out
+        rbd = getattr(view, "_rbd_ref", None)
+        columns = (("block", "BLOCK_DATA", "blockName", "ParentId",
+                    view.blocks, "name"),
+                   ("node", "NODE_DATA", "Name", "parent",
+                    view.nodes, "node_name"),
+                   ("event", "EVENT_DATA", "eventName", "ParentId",
+                    getattr(view, "events", {}) or {}, "name"))
+        for kind, section, name_col, parent_col, live, attr in columns:
+            table = out[kind]
+            sec = rbd.sections.get(section) if rbd is not None else None
+            for row in (sec.rows if sec is not None else ()):
+                oid = row_int(row.get("ID"), 0)
+                if oid <= 0:            # ID 0 is the file's column template
+                    continue
+                table[oid] = (row.get(name_col, ""),
+                              row_int(row.get(parent_col), 0),
+                              row_int(row.get("Type"), 0)
+                              if kind == "node" else 0)
+            for oid, obj in live.items():
+                table[oid] = (getattr(obj, attr, "") or "",
+                              getattr(obj, "parent_id", 0) or 0,
+                              getattr(obj, "type_node", 0) or 0)
+        return out
 
     def _refresh(self):
         # A rebuild deletes the items an in-progress Expand all still holds.
         self._cancel_expand()
         self._tree.clear()
+        self._hier_tree_items: dict[int, QTreeWidgetItem] = {}
         if self._view is None:
             return
 
-        # Hierarchy-aware tree: elements nest under their ParentId, hier
-        # ovals become folders.
+        # Hierarchy-aware tree of the whole model: elements nest under
+        # their ParentId, hierarchy ovals become folders.
         hiers = getattr(self._view, "hiers", {}) or {}
         children: dict[int, list] = {0: [], **{hid: [] for hid in hiers}}
 
-        def bucket(parent_id: int, make_item):
+        def bucket(parent_id: int, entry):
             key = parent_id if parent_id in children else 0
-            children[key].append(make_item())
+            children[key].append(entry)
 
-        # EVERY row shows its id, in brackets. It was only blocks whose name
-        # happened to repeat that got one, so `Find` could not be used to
-        # look an element up by id at all -- and ids are how the rest of
-        # the app (the canvas context menu, the Inspector, the exported
-        # tables, the engine's own messages) identifies an element. Showing
-        # it on the row also makes the id searchable, since the filter
-        # matches the row text.
-        def block_label(b, bid):
-            return f"{b.name} ({bid})"
-
-        for bid in sorted(self._view.blocks):
-            b = self._view.blocks[bid]
-            bucket(b.parent_id, lambda b=b, bid=bid: (
-                QTreeWidgetItem([block_label(b, bid)]),
-                f"block:{bid}", f"Block ID {bid}: {b.name}"))
-        type_labels = {1: "Start", 2: "Reg", 3: "End", 4: "HIn", 5: "HOut"}
-        for nid in sorted(self._view.nodes):
-            n = self._view.nodes[nid]
-            t = type_labels.get(n.type_node, "?")
-            bucket(n.parent_id, lambda n=n, t=t, nid=nid: (
-                QTreeWidgetItem([f"[{t}] {n.node_name} ({nid})"]),
-                f"node:{nid}", f"Node ID {nid}: {n.node_name} (type={t})"))
-        for eid in sorted(getattr(self._view, "events", {})):
-            e = self._view.events[eid]
-            bucket(e.parent_id, lambda e=e, eid=eid: (
-                QTreeWidgetItem([f"⬡ {e.name} ({eid})"]),
-                f"event:{eid}", f"Event ID {eid}: {e.name}"))
-        hier_items: dict[int, QTreeWidgetItem] = {}
+        # EVERY row shows its id, in brackets: ids are how the rest of the
+        # app (context menu, Inspector, exported tables, engine messages)
+        # identifies an element, and showing it makes it searchable.
+        # Items are made lazily (`make`) only for rows that get placed.
+        elements = self._model_elements()
+        if not hiers and not any(elements.values()):
+            return                  # no model open: an empty workbench
+        for bid, (name, parent, _t) in sorted(elements["block"].items()):
+            bucket(parent, (f"{name} ({bid})", f"block:{bid}",
+                            f"Block ID {bid}: {name}"))
+        for nid, (name, parent, ntype) in sorted(elements["node"].items()):
+            t = _NODE_TYPE_LABELS.get(ntype, "?")
+            bucket(parent, (f"[{t}] {name} ({nid})", f"node:{nid}",
+                            f"Node ID {nid}: {name} (type={t})"))
+        for eid, (name, parent, _t) in sorted(elements["event"].items()):
+            bucket(parent, (f"⬡ {name} ({eid})", f"event:{eid}",
+                            f"Event ID {eid}: {name}"))
         for hid in sorted(hiers):
             h = hiers[hid]
-
-            def make(h=h, hid=hid):
-                item = QTreeWidgetItem([f"⬭ {h.name} ({hid})"])
-                hier_items[hid] = item
-                return (item, f"hier:{hid}", f"Hierarchy ID {hid}: {h.name} "
-                        f"(level {h.level})")
-            bucket(h.parent_id, make)
+            bucket(h.parent_id, (f"⬭ {h.name} ({hid})", f"hier:{hid}",
+                                 f"Hierarchy ID {hid}: {h.name} "
+                                 f"(level {h.level})"))
         # No link/wire rows: the diagram is the link's own presentation, and
         # in the tree they would be unreadable id pairs that drown the
         # elements.
 
-        def build(key: int) -> QTreeWidgetItem | None:
-            entries = children.get(key, [])
-            if not entries:
-                return None
-            if key == 0:
-                folder = QTreeWidgetItem(["Model"])
-                folder.setData(0, Qt.ItemDataRole.UserRole, "root")
-                font = folder.font(0)
-                font.setBold(True)
-                folder.setFont(0, font)
-            else:
-                # Reuse the hierarchy's own tree item as its folder rather
-                # than creating a second item with the same name, which
-                # would show every hierarchy's name twice.
-                folder = hier_items[key]
-            for item, role, tip in entries:
+        def build(key: int, folder: QTreeWidgetItem) -> None:
+            items = []
+            for label, role, tip in children.get(key, ()):
+                item = QTreeWidgetItem([label])
                 item.setData(0, Qt.ItemDataRole.UserRole, role)
                 if tip:
                     item.setToolTip(0, tip)
                 if role.startswith("hier:"):
-                    build(int(role.split(":")[1]))
-                    item.setExpanded(True)
-                folder.addChild(item)
-            return folder
+                    hid = int(role.split(":")[1])
+                    self._hier_tree_items[hid] = item
+                    build(hid, item)
+                items.append(item)
+            folder.addChildren(items)       # one insert per folder
 
-        root = build(0)
-        if root is not None:
-            # Project Settings stays a first-class entry.
-            sys = QTreeWidgetItem(["Project Settings"])
-            sys.setData(0, Qt.ItemDataRole.UserRole, "system")
-            root.insertChild(0, sys)
-            self._tree.addTopLevelItem(root)
-            root.setExpanded(True)
-            for i in range(root.childCount()):
-                child = root.child(i)
-                if child.text(0).startswith("⬭"):
-                    child.setExpanded(True)
+        root = QTreeWidgetItem(["Model"])
+        root.setData(0, Qt.ItemDataRole.UserRole, "root")
+        font = root.font(0)
+        font.setBold(True)
+        root.setFont(0, font)
+        # Project Settings stays a first-class entry.
+        system = QTreeWidgetItem(["Project Settings"])
+        system.setData(0, Qt.ItemDataRole.UserRole, "system")
+        root.addChild(system)
+        build(0, root)
+        self._tree.addTopLevelItem(root)
+        self._apply_default_expansion()
         # Re-apply the Find box's live filter after a rebuild, so an
         # active search survives model edits / hierarchy navigation.
         sw = getattr(self, "_search_widget", None)
         if sw is not None and sw.text():
             self.filter_items(sw.text())
+
+    def _apply_default_expansion(self) -> None:
+        """Open the root, the top-level hierarchies and the chain down to
+        the level on screen. Not every folder: with the whole model listed,
+        a large model would lay out thousands of rows on every refresh.
+        Expand all opens the rest, in chunks."""
+        root = self._tree.topLevelItem(0)
+        if root is None:
+            return
+        root.setExpanded(True)
+        for i in range(root.childCount()):
+            child = root.child(i)
+            role = child.data(0, Qt.ItemDataRole.UserRole)
+            if isinstance(role, str) and role.startswith("hier:"):
+                child.setExpanded(True)
+        self.reveal_level(getattr(self._view, "_current_parent", 0) or 0)
+
+    def reveal_level(self, parent_id: int) -> None:
+        """Expand the folders from the root down to hierarchy `parent_id`
+        (the level on screen). Nothing is rebuilt: the tree lists the whole
+        model whichever level is shown."""
+        hiers = getattr(self._view, "hiers", {}) or {}
+        items = getattr(self, "_hier_tree_items", {})
+        seen: set[int] = set()
+        hid = parent_id
+        while hid and hid in items and hid not in seen:
+            seen.add(hid)
+            items[hid].setExpanded(True)
+            hid = getattr(hiers.get(hid), "parent_id", 0) or 0
 
     def _on_item_clicked(self, item: QTreeWidgetItem, column: int):
         role = item.data(0, Qt.ItemDataRole.UserRole)
