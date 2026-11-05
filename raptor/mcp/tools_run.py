@@ -738,7 +738,7 @@ def failure_effects(
     analysis, `capacity`: {flow_generated, delivered, lost,
     delivered_fraction, system_capacity, nodes: [{id, name, flow,
     capacity}]} -- the flow the state delivers, as capacity analysis would
-    record it (Raptor 7's view shows no flow).
+    record it.
 
     Each call is an **independent scenario starting from the all-good
     state**: it does not accumulate failures across calls.  To test

@@ -1453,7 +1453,7 @@ class BlockProcess:
             if pool.resources <= 0:
                 raise NotImplementedError(
                     f"block {block.name!r} starts the run in post-LDT with an empty spare pool "
-                    "-- what Raptor 7's Repair does then (its spare-check ELSE arm) is not captured")
+                    "-- what repair does then is not supported yet")
             spare = SpareRequest(held=False)
             yield from self._enter_repair(scheduler.time, spare, seam_pending=False)
             if spare.pool_slo:

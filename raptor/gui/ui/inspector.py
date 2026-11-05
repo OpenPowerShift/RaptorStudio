@@ -1748,7 +1748,7 @@ class InspectorDock(QWidget):
             self._row(fl, "% complete", f"{block.amount_exhausted:.3f}")
         elif block.sim_start_type in (3,):
             self._row(fl, "Amount exhausted", f"{block.amount_exhausted:.3f}",
-                      "Life already used at time 0 (Raptor 7's setting). It "
+                      "Life already used at time 0. It "
                       "adds to Start age.")
         if block.sim_start_type == 3:
             age_edit = self._float_row(
@@ -2124,7 +2124,7 @@ class InspectorDock(QWidget):
             "A resource (e.g. technicians) a block borrows during "
             "repair/PM and returns afterward -- a fixed shared pool, "
             "unlike a spare (consumed permanently). A block uses at "
-            "most one resource pool, as in Raptor 7.")
+            "most one resource pool.")
         res_combo = QComboBox()
         res_combo.addItem("(none)", "")
         res_sec = (self._rbd.sections.get("RESOURCE_DATA")

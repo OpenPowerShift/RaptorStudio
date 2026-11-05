@@ -11,7 +11,7 @@ sd = "5513:0d5a74bb9429481884f7"
 capacity = "0:e3b0c44298fc1c149afb"
 
 [model."tests/fixtures/CS_DepOnColdBlock/input.rbd"]
-error = "1:d5637a505c888d305844"
+error = "1:cf16cce1cf391656fb53"
 
 [model."tests/fixtures/CS_DepOnStandbyPeer/input.rbd"]
 events = "4082:afa3fe99edc36e90327b"

@@ -183,9 +183,9 @@ STAT_COLUMN_TOOLTIPS = {
     "Min Cap (worst)": "Lowest capacity in the worst run — the envelope "
                        "across runs.",
     "Min Cap (avg runs)": "Average of each run's own minimum capacity — "
-                          "Raptor 7's Final Results aggregation.",
+                          "as the Final Results report aggregates it.",
     "Max Cap (avg runs)": "Average of each run's own maximum capacity — "
-                          "Raptor 7's Final Results aggregation.",
+                          "as the Final Results report aggregates it.",
     "Max Cap (best)": "Highest capacity in the best run — the envelope "
                       "across runs.",
 }

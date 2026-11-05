@@ -306,7 +306,7 @@ class TestScriptedConversation:
                                  {"name": "Islands", "spec": island})
             assert bad["validation"]["runnable"] is False
             # Raptor 7's own message (ValidateRBD, /3328).
-            assert any("To simulate, block 'B' must connect to something!" in str(e)
+            assert any("The block 'B' needs a link out before the model can run." in str(e)
                        for e in bad["validation"]["errors"])
 
     def test_step_04_estimate_runtime(self):

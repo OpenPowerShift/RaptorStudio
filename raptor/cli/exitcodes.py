@@ -15,7 +15,7 @@ DESCRIPTIONS = {
     RUNTIME: "runtime error",
     USAGE: "usage error",
     INVALID: "model invalid (validation errors)",
-    REFUSED: "model refused: a shape Raptor 7 cannot run",
+    REFUSED: "model refused: a shape that cannot be run",
     TIMEOUT: "timed out or aborted; partial results written",
     OUTPUT: "output could not be written",
     INTERRUPTED: "interrupted (Ctrl-C); partial results written",

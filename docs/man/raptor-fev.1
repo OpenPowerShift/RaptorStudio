@@ -25,16 +25,16 @@ click an element, as the mouse does: cycles a hatched (induced) block (repeatabl
 read actions from FILE, one per line (\- for stdin); each `write` line records the text at that point
 .TP
 \fB\-\-log\fR \fIFILE\fR
-write the Raptor 7\-format Failure Effects log (CRLF, the file Write To Failure Effects Log appends to)
+write the legacy\-format Failure Effects log (CRLF, the file Write To Failure Effects Log appends to)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
 
 .TP
 \fB\-\-criticality\fR
-add the Criticality line (Raptor 7's developer option)
+add the Criticality line (a developer option)
 .TP
 \fB\-\-capacity\fR
-also show the flow delivered, and the flow and capacity of each capacity node (models with capacity analysis; not in Raptor 7)
+also show the flow delivered, and the flow and capacity of each capacity node (models with capacity analysis)
 .SH EXAMPLES
 .PP
 Fail one block and read what it does to the system.

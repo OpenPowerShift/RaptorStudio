@@ -234,7 +234,7 @@ class TestDelegatedChecks:
             rbd = self._one_block_fanning_out_to(n)
             found = [v for v in check(rbd) if v.rule == "link.block_out"]
             assert found and found[0].severity == "warning", (n, found)
-            assert found[0].message.startswith("A block can only connect to one object!")
+            assert found[0].message.startswith("A block can only connect to one object.")
             assert not [m for m in preflight_issues(rbd, None, _named)
                         if "can only connect to one object" in m]
 
@@ -249,7 +249,7 @@ class TestDelegatedChecks:
         kept the GUI and MCP agreeing; they now agree on Raptor 7's answer."""
         from raptor.api.validate import issues
         rbd = self._one_block_fanning_out_to(1)   # In=0
-        message = "To simulate, block 'FanOutBlock' must connect from something!"
+        message = "The block 'FanOutBlock' needs a link in before the model can run."
         assert [i for i in issues(rbd) if i.severity == "error" and message in i.message]
         assert any(message in m for m in preflight_issues(rbd, None, _named))
 
@@ -258,7 +258,7 @@ class TestDelegatedChecks:
         rbd = self._one_block_fanning_out_to(3)
         found = preflight_issues(rbd, None, _named)
         assert all(isinstance(m, str) for m in found)
-        assert any("must connect from something" in m for m in found), found
+        assert any("needs a link in" in m for m in found), found
 
 
 class TestDelegatedChecksAgreeWithTheValidator:
@@ -384,14 +384,14 @@ class TestRefusedShapes:
 
     def test_the_cold_standby_crash_shape_is_flagged(self):
         path = os.path.join(REPO, "tests", "fixtures", "CS_DepOnColdBlock", "input.rbd")
-        found = [m for m in preflight_issues(load_rbd(path), None, _named) if "Access Violation" in m]
+        found = [m for m in preflight_issues(load_rbd(path), None, _named) if "cold-standby paths" in m]
         assert len(found) == 1
         assert "'DepBlk'" in found[0] and "'Comm'" in found[0]
 
     def test_the_working_neighbour_is_not_flagged(self):
         path = os.path.join(REPO, "tests", "fixtures", "CS_DepOnStandbyPeer", "input.rbd")
         assert not [m for m in preflight_issues(load_rbd(path), None, _named)
-                    if "Access Violation" in m]
+                    if "cold-standby paths" in m]
 
     def test_a_dependency_cycle_does_not_block_a_run(self):
         """Cycles only warn (real runs them), so they are not in the blocking list."""

@@ -56,7 +56,7 @@ def reconfigure_after_block_change(
     one "from" bucket and one "to" bucket changed (the normal single-
     transition case) and triggers the cascade; a sum of 0 means no real
     transition (e.g. Cut/Linked bookkeeping) and is a silent no-op; any
-    other sum is the source's `"Error2 in ChangeBlockState!"` case (should
+    other sum is the source's `"internal error: a block reached a state it cannot be in"` case (should
     not happen with well-formed transitions). Returns `None` for the sum-0
     no-op case, same as `reconfigure_node` returning `None` when nothing
     changed.
@@ -73,7 +73,7 @@ def reconfigure_after_block_change(
     if delta_sum == 0:
         return None
     if delta_sum != 2:
-        raise ValueError("Error2 in ChangeBlockState!")
+        raise ValueError("internal error: a block reached a state it cannot be in")
 
     return reconfigure_node(
         node, links_by_id, run_change, fail_change, idle_change, standby_change, pm_change,
@@ -111,7 +111,7 @@ def reconfigure_after_node_change(
     triggers the cascade (looping all downstream connections), sum of 0
     is a silent no-op (matches the source: there is no `ELSIF` for the
     sum-0 case, only the sum-2 cascade and a sum-elsewhere error), any
-    other sum is the source's `"Error in ChangeNodeState!"` case.
+    other sum is the source's `"internal error: a node reached a state it cannot be in"` case.
 
     `hier_names_by_node_id`: `{downstream node id: parent RBDHier.name}`
     for any downstream node with `type_node == 5` in this fan-out (see
@@ -122,7 +122,7 @@ def reconfigure_after_node_change(
     if delta_sum == 0:
         return []
     if delta_sum != 2:
-        raise ValueError("Error in ChangeNodeState!")
+        raise ValueError("internal error: a node reached a state it cannot be in")
 
     results = []
     for downstream_id, path_link in zip(node.propagates_to_node_ids, node.propagates_to_link_ids):

@@ -1578,8 +1578,7 @@ class DataTablesDock(QWidget):
                     self._reload_keyed_row(table, row_idx, sec, key_col, key)
                     self.validation_failed.emit(
                         f"{key}: {DISTRO_NAMES.get(code, f'#{code}')} is not "
-                        "available for a phase or trigger distribution (Raptor 7 "
-                        "offers it only where its distribution lists include it).")
+                        "available for a phase or trigger distribution.")
                     return
                 value = str(code)
             else:

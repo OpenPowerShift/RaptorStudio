@@ -176,8 +176,7 @@ def _integer_token(section: str, column: str, text: str) -> str:
     if whole != value:
         log.warning(
             "%s.%s holds %s, which the legacy .rbd format cannot represent; "
-            "writing %d (Raptor 7 reads the column with ReadInt and crashes "
-            "on a decimal)", section, column, text, whole)
+            "writing %d (the column must hold a whole number)", section, column, text, whole)
     return str(whole)
 
 
@@ -384,9 +383,8 @@ def parse_rbd(text: str) -> RbdFile:
         # back-fill in Raptor 7; the port
         # has no such migration, so accepting them would misparse.
         raise ValueError(
-            f"unsupported RAPTOR file version {version!r}: only Version 7 "
-            f"files can be opened (open Version 5/6 files in Raptor 7 "
-            f"RAPTOR to migrate them first)")
+            f"unsupported .rbd file version {version!r}: only version 7 "
+            f"files can be opened (convert older files to version 7 first)")
     # remainder of the header line is one of
     #   "<app_name>   <file_name>   <timestamp>"  (Student saves) or
     #   "<file_name>   <timestamp>"               (release saves, no

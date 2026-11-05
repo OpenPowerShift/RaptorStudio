@@ -586,9 +586,7 @@ def run_simulation(
         ctx.mission_lines = []
     if cumulative_time_path is not None and cumulative_time_mesh > 0.0:
         if model.termination_type != "TimeSim":
-            raise ValueError("the cumulative-by-time file needs a time-terminated run (Raptor 7 "
-                             "warns 'You are attempting to write a reliability file on a non-time "
-                             "terminated sim')")
+            raise ValueError("the cumulative-by-time file needs a time-terminated run")
         from raptor.core.engine.cumulative import CumulativeByTime
         ctx.cum_time = CumulativeByTime(model.run_length, cumulative_time_mesh, runs)
     drivers: list[SingleRunDriver] = []

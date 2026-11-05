@@ -635,7 +635,7 @@ def show_preferences(win):
         work_form, "Cores for full-speed runs:", workers,
         "Also set from the Cores box beside Run on the Simulate tab. "
         "Automatic uses every core. Any number from 2 up gives the same "
-        "results; one core gives Raptor 7's exact sequence, statistically "
+        "results; one core gives a different random sequence: statistically "
         "the same answer but not bit-identical. "
         "An animated run always uses one core.", "app",
         reset=lambda w: w.setValue(0), builtins=("Automatic",))
@@ -723,12 +723,12 @@ def show_preferences(win):
     digits.setSuffix(" digits")
     digits.setToolTip(
         "Decimal places on the Weak Link value printed under each "
-        "element. Raptor 7's default is 3.")
+        "element. The default is 3.")
     _pref_row(
         adv_form, "Weak Link value digits:", digits,
         "How many digits after the decimal point are shown under blocks, "
-        "nodes, events and hierarchies when Weak Links is on. Three "
-        "matches Raptor 7.", "app",
+        "nodes, events and hierarchies when Weak Links is on. The "
+        "default is three.", "app",
         reset=lambda w: w.setValue(3), builtins=("3 digits",))
     tabs.addTab(adv_page, "Advanced")
 

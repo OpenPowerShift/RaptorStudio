@@ -1030,7 +1030,7 @@ class _Cascade:
         if node.type_node != 3:
             delta_sum = sum(abs(d) for d in node_deltas)
             if delta_sum not in (0, 2):
-                raise ValueError("Error in ChangeNodeState!")
+                raise ValueError("internal error: a node reached a state it cannot be in")
             if delta_sum == 2:
                 for downstream_id, path_link in zip(node.propagates_to_node_ids, node.propagates_to_link_ids):
                     downstream_node = self.model.nodes_by_id[downstream_id]

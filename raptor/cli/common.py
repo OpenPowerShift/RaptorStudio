@@ -77,7 +77,7 @@ def require_runnable(ws: Any, model_id: str, strict: bool = False) -> list[str]:
 
 def _is_refusal(issue: Any) -> bool:
     msg = getattr(issue, "message", "")
-    return "cannot be run" in msg or "Raptor 7" in msg
+    return "cannot be run" in msg or "is refused" in msg
 
 
 def emit_json(obj: Any, dest: str | None, *, indent: int | None = 2) -> None:

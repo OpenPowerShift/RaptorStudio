@@ -828,7 +828,7 @@ def test_a_block_delta_the_state_machine_cannot_produce_is_the_error2_case() -> 
     block_a = next(b for b in model.blocks_by_id.values() if b.name == "A")
     end = _node(model, "End")
 
-    with pytest.raises(ValueError, match=r"^Error2 in ChangeBlockState!$"):
+    with pytest.raises(ValueError, match=r"^internal error: a block reached a state it cannot be in$"):
         reconfigure_after_block_change(block_a, end, model.links_by_id,
                                        -1, 0, 0, 0, 0, 10.0, events_file=True)
 
@@ -854,7 +854,7 @@ def test_a_node_delta_the_state_machine_cannot_produce_is_the_change_node_state_
     model = _fresh(_fan_out_join())
     join = _node(model, "J")
 
-    with pytest.raises(ValueError, match=r"^Error in ChangeNodeState!$"):
+    with pytest.raises(ValueError, match=r"^internal error: a node reached a state it cannot be in$"):
         reconfigure_after_node_change(join, model.nodes_by_id, model.links_by_id,
                                       1, 1, 1, 0, 0, 10.0, events_file=True)
 

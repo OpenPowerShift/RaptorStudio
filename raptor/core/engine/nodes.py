@@ -294,7 +294,7 @@ def determine_node_status(
     elif fails > 0:
         new_status, status_string = NodeStatus.DOWN, "Bad"
     else:
-        raise ValueError("Error in node status logic!")
+        raise ValueError("internal error: a node's status could not be worked out")
 
     log_line = None
     if events_file:
@@ -379,7 +379,7 @@ def reconfigure_node(
 
     if in_path != 0:
         if in_path not in node.in_paths_array:
-            raise ValueError("Error in ReconfigureNode!")
+            raise ValueError("internal error: a node could not be reconfigured")
         array_index = node.in_paths_array.index(in_path)
         for values in (
             node.path_fail_value, node.path_idle_value,

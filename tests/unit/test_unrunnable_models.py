@@ -42,7 +42,7 @@ def test_cold_path_that_depends_on_another_path_is_refused() -> None:
     [problem] = excinfo.value.problems
     assert "'DepBlk'" in problem.element
     assert "'Comm'" in problem.message and "'LowGain'" in problem.message
-    assert "Access Violation" in problem.message
+    assert "is refused" in problem.message
 
 
 def test_the_engine_refuses_to_run_it() -> None:
@@ -95,7 +95,7 @@ def test_the_same_dependencies_without_the_loop_are_fine() -> None:
 
 
 def test_validate_reports_the_cold_shape_as_an_error() -> None:
-    found = [i for i in issues(_rbd(FIXTURES / "CS_DepOnColdBlock")) if "Access Violation" in i.message]
+    found = [i for i in issues(_rbd(FIXTURES / "CS_DepOnColdBlock")) if "cold-standby paths" in i.message]
     assert len(found) == 1 and found[0].severity == "error"
 
 
@@ -107,7 +107,7 @@ def test_validate_warns_about_a_cycle_without_an_error() -> None:
 
 def test_validate_is_quiet_for_a_runnable_model() -> None:
     assert not [i for i in issues(_rbd(FIXTURES / "CS_DepOnStandbyPeer"))
-                if "Access Violation" in i.message or "circular" in i.message]
+                if "cold-standby paths" in i.message or "circular" in i.message]
 
 
 def _cycle_sim_without_phases() -> RbdFile:

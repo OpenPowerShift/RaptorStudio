@@ -68,11 +68,11 @@ def add_parser(sub: Any) -> None:
                         f"{SCHEMA}) to PATH ('-' = stdout)")
     o.add_argument("-r", "--report", action="append", default=[],
                    metavar="NAME",
-                   help="also write a Raptor 7-format text file, "
+                   help="also write a legacy-format text report, "
                         "repeatable: " + ", ".join(sorted(set(REPORTS))) +
                         ", all")
     o.add_argument("--legacy-names", action="store_true",
-                   help="name files as Raptor 7 does "
+                   help="use the legacy report file names "
                         "(rpt_events_<Model>.txt ...); the default")
     o.add_argument("--metrics", metavar="LIST",
                    help="limit the summary, e.g. Availability,MTBDE,MDT")

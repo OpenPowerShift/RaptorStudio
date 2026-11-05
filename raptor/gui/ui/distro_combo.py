@@ -85,7 +85,7 @@ def fill_distro_combo(combo: Any, current: int | None, *,
         combo.addItem(distro_display_name(code, is_failure=is_failure), code)
     if current is not None and current not in codes and current in DISTRO_NAMES:
         combo.addItem(distro_display_name(current, is_failure=is_failure)
-                      + " (not offered by Raptor 7 here)", current)
+                      + " (not offered here)", current)
     if current is None:
         combo.setCurrentIndex(0)
         return combo

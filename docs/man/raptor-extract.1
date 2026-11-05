@@ -1,10 +1,10 @@
 .TH "RAPTOR-EXTRACT" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-extract \- Build a standalone model from one hierarchy (its In node becomes Start, its Out node End) and save it, or list what crosses its boundary. A port extension: Raptor 7 has no such feature, but the saved .rbd opens in it.
+raptor\-extract \- Build a standalone model from one hierarchy (its In node becomes Start, its Out node End) and save it, or list what crosses its boundary. The saved .rbd is an ordinary model file.
 .SH SYNOPSIS
 \fBraptor extract\fR [\-h] \-\-hierarchy NAME|ID [\-o FILE] [\-\-report\-hazards] [\-f {text,json}] [\-\-deps {up,system,refuse}] [\-\-pools {full,share,refuse}] [\-\-streams {keep,separate}] [\-\-treat KEY=VALUE] MODEL
 .SH DESCRIPTION
-Build a standalone model from one hierarchy (its In node becomes Start, its Out node End) and save it, or list what crosses its boundary. A port extension: Raptor 7 has no such feature, but the saved .rbd opens in it.
+Build a standalone model from one hierarchy (its In node becomes Start, its Out node End) and save it, or list what crosses its boundary. The saved .rbd is an ordinary model file.
 .SH OPTIONS
 .SS Options
 .TP
@@ -41,7 +41,7 @@ List what crosses the Cooling hierarchy's boundary and what would be done about 
 .fi
 .RE
 .PP
-Save Cooling as a standalone model that opens in Raptor 7.
+Save Cooling as a standalone .rbd model.
 .RS
 .nf
 \fBraptor extract plant.rbd \-\-hierarchy Cooling \-o cooling.rbd \-\-deps system \-\-pools share\fR
