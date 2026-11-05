@@ -151,16 +151,23 @@ def build_hierarchy_rows(rbd: Any, *, name: str, x: float, y: float,
     None at the top). Rows clone the ID=0 templates so every positional
     column of the .rbd format is present."""
     ensure_section(rbd, "HIERARCHY_DATA")
-    used = set(used_ids)     # one shared id namespace across sections
-    hid = 1
-    while hid in used:
-        hid += 1
-    in_id = next_id(rbd, "NODE_DATA", "ID", node_ids)
-    while in_id in used or in_id == hid:
-        in_id += 1
-    out_id = next_id(rbd, "NODE_DATA", "ID", node_ids)
-    while out_id in used or out_id in (hid, in_id):
-        out_id += 1
+    # One id pool for every element kind, every level and the links -- the
+    # core builder's (`builder.used_ids`/`next_id`), shared with the API
+    # and MCP. `used_ids`/`node_ids` are the level on screen; on their own
+    # they let new markers land on ids other levels' rows already held (a
+    # collapse three levels down reused the parent hierarchy's In/Out ids
+    # and was refused as invalid).
+    from raptor.core.fileio.builder import next_id as pooled_next_id
+    from raptor.core.fileio.builder import used_ids as pooled_used_ids
+    used = set(used_ids) | set(node_ids) | pooled_used_ids(rbd)
+
+    def take(section: str) -> int:
+        new = pooled_next_id(rbd, section, used=used)
+        used.add(new)
+        return new
+
+    hid = take("HIERARCHY_DATA")
+    in_id, out_id = take("NODE_DATA"), take("NODE_DATA")
 
     level = (parent_level + 1) if parent_level is not None else 1
     # No template row (freshly ensured empty section): seed numeric columns
@@ -168,8 +175,12 @@ def build_hierarchy_rows(rbd: Any, *, name: str, x: float, y: float,
     # whitespace-delimited format, misaligning the reader's positional
     # sequence on this row and every row after it; hierarchyName is the
     # section's only string column.
-    hbase = template_row(rbd, "HIERARCHY_DATA", "ID") or {
-        c: ("none" if c == "hierarchyName" else "0") for c in HIER_COLUMNS}
+    # Seeded from the section's ID=0 template row when the file has one,
+    # else from rbdlib's documented defaults (a spec-built model has no
+    # templates), so every positional column of the .rbd format is set.
+    from raptor.core.fileio.rbdlib import make_hierarchy_row, make_node_row
+    hbase = template_row(rbd, "HIERARCHY_DATA", "ID") or make_hierarchy_row(
+        hid, sanitize_name(name), x, y, parent=parent)
     hier_row = {**dict(hbase),
             "hierarchyName": sanitize_name(name),
             "ID": str(hid),
@@ -178,7 +189,8 @@ def build_hierarchy_rows(rbd: Any, *, name: str, x: float, y: float,
             "In": "1", "Out": "1", "isCNd": "1",
             "zoom": "14.00", "xCenter": "0.000000", "yCenter": "0.000000",
             "in": str(in_id), "out": str(out_id), "level": str(level)}
-    nbase = template_row(rbd, "NODE_DATA", "ID") or {}
+    nbase = template_row(rbd, "NODE_DATA", "ID") or make_node_row(
+        0, "in", x, y)
 
     def marker_row(mid: int, mtype: int, k: str, n: str, out: str,
                    mx: float) -> dict:

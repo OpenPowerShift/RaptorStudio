@@ -1926,15 +1926,6 @@ def add_event(
 # Hierarchies
 # ---------------------------------------------------------------------------
 
-#: Node `Type` codes for a hierarchy's boundary markers, and the k/n/Out
-#: triple each needs.  Mirrors `DiagramView._build_hierarchy_rows` so a
-#: hierarchy created here is byte-for-byte the shape the GUI produces.
-_HIER_MARKERS = (
-    ("in", 4, "1", "0", "1", -10.0),
-    ("out", 5, "-1", "1", "0", 10.0),
-)
-
-
 def _container_centre(rbd: RbdFile, parent: int) -> tuple[float, float] | None:
     """Mean position of the elements already in container *parent*."""
     points: list[tuple[float, float]] = []
@@ -1956,49 +1947,36 @@ def _container_centre(rbd: RbdFile, parent: int) -> tuple[float, float] | None:
             sum(p[1] for p in points) / len(points))
 
 
-def _build_hierarchy(rbd: RbdFile, name: str, parent: int,
-                     x: float, y: float) -> tuple[int, int, int]:
-    """Append a hierarchy row plus its In/Out marker nodes.
-
-    Returns ``(hier_id, in_id, out_id)``.  Each marker's own ``parent`` is
-    the *hierarchy's* id, not the enclosing level -- that is the file
-    format's convention and getting it wrong crashes graph building with
-    an unhelpful KeyError, so it is set here rather than left to the
-    caller.
-    """
-    from raptor.core.fileio.rbdlib import make_hierarchy_row, make_node_row
+def _hierarchy_rows(rbd: RbdFile, name: str, parent: int,
+                    x: float, y: float) -> tuple[dict, dict, dict]:
+    """``(hier_row, in_row, out_row)`` for a new hierarchy on level
+    *parent*, not yet in the model: the GUI's own builder
+    (`row_ops.build_hierarchy_rows`), so a hierarchy made here has exactly
+    the shape and ids one made on the canvas would. Each marker's
+    ``parent`` is the hierarchy's id (the file format's convention), and
+    ``level`` is one more than the container's (Raptor's
+    `NestedHierarchyCost` reads it)."""
+    from raptor.gui.row_ops import build_hierarchy_rows
 
     _reject_duplicate_name(rbd, "HIERARCHY_DATA", name)
-    hid = next_id(rbd, "HIERARCHY_DATA")
+    parent_row = next((r for r in rbd.section("HIERARCHY_DATA").rows
+                       if str(r.get("ID")) == str(parent)), None)
+    parent_level = (int(float(parent_row.get("level", 1) or 1))
+                    if parent_row is not None else None)
+    return build_hierarchy_rows(
+        rbd, name=name, x=x, y=y, parent=parent, parent_level=parent_level,
+        used_ids=(), node_ids=())
 
-    # `next_id` reads the file to find the lowest unused id and does not
-    # reserve it, so each id has to be *inserted* before the next is asked
-    # for -- otherwise the hierarchy and both markers all get the same one.
-    hier_row = _append_new_row(rbd, "HIERARCHY_DATA",
-                           lambda: make_hierarchy_row(hid, name, x, y, parent=parent),
-                           ID=hid, hierarchyName=name, Parent=parent,
-                           In=1, Out=1, isCNd=1, **{"in": 0, "out": 0})
-    # `level` is the hierarchy's own nesting depth: 1 at the top, one more than its container's otherwise (Raptor 7's
-    #`NestedHierarchyCost`: a hierarchy inside `500path` has level 2). Left at 1, a nested hierarchy's costs landed
-    # in the wrong report rows (`LadL8A`).
-    parent_row = next((r for r in rbd.section("HIERARCHY_DATA").rows if str(r.get("ID")) == str(parent)), None)
-    set_fields(hier_row, level=(int(float(parent_row.get("level", 1) or 1)) + 1) if parent_row is not None else 1)
-    marker_ids: list[int] = []
-    for marker, ntype, k, n, out, dx in _HIER_MARKERS:
-        mid = next_id(rbd, "NODE_DATA")
-        _append_new_row(
-            rbd, "NODE_DATA",
-            lambda mid=mid, marker=marker, ntype=ntype, k=k, n=n, out=out, dx=dx:
-                make_node_row(mid, marker, x + dx, y + 1.25),
-            ID=mid, Name=marker, Type=ntype, k=k, n=n, Out=out, parent=hid,
-        )
-        marker_ids.append(mid)
-    in_id, out_id = marker_ids
-    # Every other column in the file is a string; writing ints here would
-    # leave the validator comparing `4` against `'4'` and reporting the
-    # marker as missing.
-    set_fields(hier_row, **{"in": in_id, "out": out_id})
-    return int(float(hier_row["ID"])), in_id, out_id
+
+def _build_hierarchy(rbd: RbdFile, name: str, parent: int,
+                     x: float, y: float) -> tuple[int, int, int]:
+    """Append a hierarchy row plus its In/Out marker nodes; returns
+    ``(hier_id, in_id, out_id)``."""
+    hier_row, in_row, out_row = _hierarchy_rows(rbd, name, parent, x, y)
+    rbd.section("HIERARCHY_DATA").rows.append(hier_row)
+    rbd.section("NODE_DATA").rows.extend([in_row, out_row])
+    return (int(float(hier_row["ID"])), int(float(in_row["ID"])),
+            int(float(out_row["ID"])))
 
 
 def add_hierarchy(
@@ -2133,66 +2111,25 @@ def collapse_selection(
 
     label = name or f"Hierarchy_{len(rbd.section('HIERARCHY_DATA').rows) + 1}"
     centre = _container_centre(rbd, parent)
-    hid, in_id, out_id = _build_hierarchy(
+    hrows = _hierarchy_rows(
         rbd, label, parent, *(centre if centre is not None else (0.0, 0.0)))
-
-    # Re-parent the chosen elements, and record where each came from.
+    hid = int(float(hrows[0]["ID"]))
+    in_id, out_id = int(float(hrows[1]["ID"])), int(float(hrows[2]["ID"]))
     owner = {(_SECTION_KIND_TITLE.get(sec, sec), str(r.get("ID"))): r
              for sec, r in chosen}
-    inside = {(_SECTION_KIND_TITLE.get(sec, sec), str(r.get("ID")))
-              for sec, r in chosen}
-    col = {"NODE_DATA": "parent"}
-    for sec, row in chosen:
-        row[col.get(sec, "ParentId")] = str(hid)
 
-    # Rewire every link on the enclosing level that touches the selection,
-    # exactly as the GUI's Collapse Selection does: an internal link just
-    # moves down a level, and a boundary link SPLITS -- keeping its id on
-    # the outside half and adding an inside half off the In/Out marker, so
-    # the sub-model's own graph stays complete.
-    link_sec = rbd.section("LINK_DATA")
-    used_link = {_as_int_id(link.get("ID")) for link in link_sec.rows}
-
-    def fresh_link_id() -> str:
-        n = (max(used_link) + 1) if used_link else 1
-        while n in used_link:
-            n += 1
-        used_link.add(n)
-        return str(n)
-
-    def on_this_level(link: dict) -> bool:
-        return _as_int_id(link.get("pID")) == parent
-
-    for link in list(link_sec.rows):
-        if not on_this_level(link):
-            continue
-        from_key = (link.get("FromType", ""), str(link.get("FromID", "")))
-        to_key = (link.get("ToType", ""), str(link.get("ToID", "")))
-        f_in, t_in = from_key in inside, to_key in inside
-        if not (f_in or t_in):
-            continue
-        if f_in and t_in:
-            link["pID"] = str(hid)            # travels with the selection
-        elif t_in:
-            # X -> S   becomes   X -> Hier   (outside, keeps its id)
-            #                     In -> S    (inside,  new id)
-            inside_link = dict(link)
-            link["ToType"], link["ToID"] = "Hier", str(hid)
-            link["pID"] = str(parent)
-            inside_link["FromType"], inside_link["FromID"] = "Node", str(in_id)
-            inside_link["pID"] = str(hid)
-            inside_link["ID"] = fresh_link_id()
-            link_sec.rows.append(inside_link)
-        else:
-            # S -> X   becomes   S -> Out    (inside,  new id)
-            #                     Hier -> X  (outside, keeps its id)
-            inside_link = dict(link)
-            link["FromType"], link["FromID"] = "Hier", str(hid)
-            link["pID"] = str(parent)
-            inside_link["ToType"], inside_link["ToID"] = "Node", str(out_id)
-            inside_link["pID"] = str(hid)
-            inside_link["ID"] = fresh_link_id()
-            link_sec.rows.append(inside_link)
+    # The GUI's Collapse Selection plan and writer (`hierarchy_plan`): the
+    # selection moves into the hierarchy, internal links travel with it,
+    # and each boundary link SPLITS into an outside half on the oval and
+    # an inside half on the In/Out marker.
+    from raptor.gui.hierarchy_plan import apply_collapse_plan, plan_collapse
+    plan = plan_collapse(
+        rbd, hid=hid, in_id=in_id, out_id=out_id, parent=parent,
+        blocks=selected_ids["BLOCK_DATA"], nodes=selected_ids["NODE_DATA"],
+        events=selected_ids["EVENT_DATA"])
+    apply_collapse_plan(rbd, hrows=list(hrows),
+                        parent_moves=plan.parent_moves,
+                        link_ops=plan.link_ops)
 
     from raptor.core.input_rules import refusal_text
     from raptor.gui.hierarchy_plan import collapse_new_violations
