@@ -204,10 +204,6 @@ class RbdFile:
     #: never enter the simulation graph; legacy .rbd has no representation
     #: and drops them with the rest of the drawing layer.
     link_grips: list = field(default_factory=list)
-    #: .rbds-only GUI link style per hierarchy level: `{str(parent id):
-    #: "straight" | "angled" | "orthogonal"}`. A level absent here is drawn
-    #: straight. Legacy .rbd drops it with the rest of the drawing layer.
-    link_styles: dict = field(default_factory=dict)
     #: .rbds-only page-flow direction Auto Layout last used per hierarchy
     #: level, `{str(parent id): "LR" | "RL" | "TB" | "BT"}`. It decides which
     #: side of an element a link attaches to; a level absent here infers it

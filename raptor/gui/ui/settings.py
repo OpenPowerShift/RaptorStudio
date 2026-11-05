@@ -73,6 +73,7 @@ DEFAULTS: dict[str, Any] = {
     "appearance/block_labels": "mean",
     # How links are drawn: "straight", "angled" or "orthogonal"
     # (right angles round other elements). Never moves a block.
+    "appearance/link_routing": "straight",
     # files/
     "files/autosave": False,
     "files/autosave_min": 5,

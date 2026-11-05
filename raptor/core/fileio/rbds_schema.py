@@ -212,8 +212,6 @@ def build_schema() -> dict[str, Any]:
             "annotations": {"type": "array", "items": annotation},
             "flow_directions": {"type": "object",
                                 "additionalProperties": {"type": "string"}},
-            "link_styles": {"type": "object",
-                            "additionalProperties": {"type": "string"}},
             "link_grips": {"type": "array", "items": {
                 "type": "object",
                 "required": ["link", "x", "y"],
