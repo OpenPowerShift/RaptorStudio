@@ -4344,15 +4344,27 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     if _safe_int(r.get("ID")) == link._link_num), None)
         if row is None:
             raise RuntimeError("the connector row is gone")
-        p_id = row.get("pID", "0")
+        # Both halves are clones of the split link's own row, NOT of the
+        # Connect template (the first LINK_DATA row). A link's columns carry
+        # simulation inputs: ColdPri/AProb/AutoTime/ManTime matter when its
+        # To end is a cold-standby node, CapPri/nomFlow/MaxFlow when its
+        # From end is a node. The upstream half keeps the original From
+        # end and the downstream half keeps the original To end, so each
+        # end's settings keep the same meaning they had before the split.
+        def half(from_type, from_id, to_type, to_id, link_id) -> dict:
+            out = dict(row)
+            out["ID"] = str(link_id)
+            out["FromType"] = from_type.replace("RBD", "", 1)
+            out["FromID"] = str(from_id)
+            out["ToType"] = to_type.replace("RBD", "", 1)
+            out["ToID"] = str(to_id)
+            return out
+
         return [
-            self._make_link_row(row.get("FromType", "Node"),
-                                _safe_int(row.get("FromID")), kind_token,
-                                new_id, upstream_id, p_id=p_id),
-            self._make_link_row(kind_token, new_id,
-                                row.get("ToType", "Block"),
-                                _safe_int(row.get("ToID")), downstream_id,
-                                p_id=p_id),
+            half(row.get("FromType", "Node"), _safe_int(row.get("FromID")),
+                 kind_token, new_id, upstream_id),
+            half(kind_token, new_id, row.get("ToType", "Block"),
+                 _safe_int(row.get("ToID")), downstream_id),
         ]
 
     def _grip_moves_for_split(self, upstream: list[dict],

@@ -257,23 +257,28 @@ def test_dog_legs_are_split_and_undo_restores_them(qapp):
     assert restored == {entry["id"]: entry for entry in old_entries}
 
 
-def test_new_links_follow_the_manual_connect_template(qapp):
+def test_new_links_keep_the_split_links_settings(qapp):
+    """Link columns are simulation inputs (cold-standby priority and
+    switching, capacity priority and flows). Splitting must keep the clicked
+    link's values, not reset them to the first LINK_DATA row's."""
     rbd = build_from_spec(_chain_spec(), auto_layout=True)
     section = rbd.sections["LINK_DATA"]
-    template = section.rows[0]
-    template["ColdPri"] = "7"
-    template["AProb"] = "0.250000"
-    template["AutoTime"] = "1.500000"
-    template["ManTime"] = "2.500000"
-    template["CapPri"] = "3"
-    template["nomFlow"] = "123"
-    template["MaxFlow"] = "456"
     target = next(row for row in section.rows
                   if row.get("FromType") == "Block"
                   and row.get("FromID") == "1"
                   and row.get("ToType") == "Block"
                   and row.get("ToID") == "2")
-    target["pID"] = "42"
+    assert section.rows[0] is not target
+    # The first row (the Connect template) gets different values, so the
+    # test fails if the halves are cloned from it.
+    section.rows[0].update({
+        "ColdPri": "50", "AProb": "1.000000", "AutoTime": "0.000000",
+        "ManTime": "0.000000", "CapPri": "50", "nomFlow": "-2",
+        "MaxFlow": "-1"})
+    target.update({
+        "ColdPri": "7", "AProb": "0.250000", "AutoTime": "1.500000",
+        "ManTime": "2.500000", "CapPri": "3", "nomFlow": "123",
+        "MaxFlow": "456", "pID": "42"})
     view = _view(rbd, show=False)
     link = _link_between(view, "A", "B")
     old_id = link._link_num

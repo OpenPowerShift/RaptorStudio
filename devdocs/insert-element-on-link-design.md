@@ -66,14 +66,24 @@ the normal `MoveCmd`, so annotations anchored to moved elements follow.
 ## Link rewrite
 
 The original connector is removed and two new rows are created with fresh
-ids, exactly as a manual "delete the link and draw two new ones" would
-produce: the new rows are cloned from the first `LINK_DATA` row, as
-`connect_elements` already does. The old row's `pID` is copied so the new
-links stay on the same hierarchy level. The old link id is not reused.
+ids. Both rows are clones of the **split link's own row**, with only `ID`
+and the endpoints changed; `pID` therefore keeps the new links on the same
+hierarchy level. The old link id is not reused.
 
-This is deliberately the manual-reconnect behaviour rather than a special
-inheritance rule. It keeps the feature consistent with how the Connect
-tool builds links today.
+The link's other columns are simulation inputs, not decoration:
+`ColdPri`/`AProb`/`AutoTime`/`ManTime` set a cold-standby node's switching
+order and switch-over behaviour on links *into* it, and
+`CapPri`/`nomFlow`/`MaxFlow` set capacity priority and flow on links *out
+of* a node. The upstream half keeps the original From end and the
+downstream half keeps the original To end, so each setting keeps the
+meaning it had. An earlier draft cloned the first `LINK_DATA` row (the
+Connect tool's template), which silently reset those values and could
+change results.
+
+Residual caveat: the engine orders a node's in/out links partly by link id
+(e.g. equal cold priorities, positional capacity priority when "any path"
+is ticked). The halves get new, higher ids, so in those tie cases the
+order can change, exactly as it would after a manual delete-and-redraw.
 
 ## Undo
 
@@ -87,5 +97,5 @@ index, its routing points and all positions.
   all four directions, ambiguity sorting.
 - GUI: allowed and blocked hover; click inserts for all four element
   kinds; only the downstream subgraph moves; undo/redo; dog-leg split and
-  restore; duplicate/overlapping links are blocked; link rows follow the
-  manual-reconnect template.
+  restore; duplicate/overlapping links are blocked; the new link rows keep
+  the split link's settings.
