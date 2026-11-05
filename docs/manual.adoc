@@ -185,6 +185,53 @@ standby node) or capacity settings (out of a capacity node), set them
 again on the new link.
 ====
 
+=== Add an element in parallel
+
+With *Add Block*, *Add Event* or *Add Hierarchy* on, point at a block, an
+event or a hierarchy that already has one link in and one link out. An
+accent outline means a click adds the new element in parallel with it; a
+red outline means it is refused (the element is not connected yet, or
+*Add Node* is on: a node cannot be in parallel), and the status bar says
+why. When the new element will join an existing group, the group's split
+and join nodes and its other branches get a lighter outline, and the
+status bar says which branch it becomes and the join node's new vote,
+e.g. "as branch 3 between node_3 and node_4 (node_4 becomes 1/3)".
+
+What the click does:
+
+* **Split and join nodes are reused when they can be.** If the element's
+  link in comes from an ordinary node, the new branch starts there; if its
+  link out goes to an ordinary node, the new branch ends there. So adding
+  beside one branch of an existing parallel group gives that group one
+  more branch.
+* **Otherwise a node is added.** A Start node, a hierarchy's In marker or
+  another element before it gets a new split node; an End node, an Out
+  marker or another element after it gets a new join node. Each is
+  inserted on the link the same way as *Insert an element on a link*,
+  with the same spacing.
+* **The join node's k is left as it is.** A new join node starts at 1 of 2
+  (either branch will do). A reused join node keeps its k, so a 2-of-3
+  node becomes 2-of-4: the click adds one more branch, and you decide the
+  vote.
+* **The group is laid out again.** The split node, the join node and every
+  branch between them are arranged by *Auto Layout*, with the split node
+  kept where it is. If the group grows along the flow, everything after
+  the join node moves along with it. Elements beside the group are not
+  moved, so check for overlaps when a group is next to another branch.
+* **One undo** puts back the links, the nodes and every position.
+
+The new links get *Connect*'s defaults, as in the note above.
+
+=== Auto Layout a selection
+
+*Arrange → Auto Layout* (Ctrl+L) arranges the whole level shown, or, when
+some but not all of its elements are selected, only those, centred where
+they are now. Its tooltip says which: with three elements selected it
+reads "Auto Layout the 3 selected items only". When it finishes, the
+status bar says how many items it arranged and where, e.g. "Auto Layout
+done: 3 selected items on Home" or "Auto Layout done: 12 items in
+hierarchy Pumps".
+
 [[input-rules]]
 == Values and links Raptor 7 refuses
 

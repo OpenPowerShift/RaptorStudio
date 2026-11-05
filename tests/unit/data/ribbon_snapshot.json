@@ -18,7 +18,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Add Block",
-   "tooltip": "Click the canvas to place a new block, or hover a link and click to insert it in series\n\nUnavailable: open or create a model first"
+   "tooltip": "Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel\n\nUnavailable: open or create a model first"
   },
   "_add_event_tool": {
    "checkable": true,
@@ -28,7 +28,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Add Event",
-   "tooltip": "Click the canvas to place a new Bernoulli event (P=0.5 \u2014 edit it in the Inspector or Data Tables), or hover a link and click to insert it in series\n\nUnavailable: open or create a model first"
+   "tooltip": "Click the canvas to place a new Bernoulli event (P=0.5 \u2014 edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel\n\nUnavailable: open or create a model first"
   },
   "_add_hier_tool": {
    "checkable": true,
@@ -38,7 +38,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Add Hierarchy",
-   "tooltip": "Click the canvas to place a new hierarchy (with its In/Out markers), or hover a link and click to insert it in series\n\nUnavailable: open or create a model first"
+   "tooltip": "Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel\n\nUnavailable: open or create a model first"
   },
   "_add_node_tool": {
    "checkable": true,
@@ -48,7 +48,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Add Node",
-   "tooltip": "Click the canvas to place a new Regular node, or hover a link and click to insert it in series\n\nUnavailable: open or create a model first"
+   "tooltip": "Click the canvas to place a new Regular node, or click a link to insert it in series\n\nUnavailable: open or create a model first"
   },
   "_align_action": {
    "checkable": false,

@@ -2326,12 +2326,14 @@ def _apply_hover_cursor(item):
     item.setCursor(_hover_cursor_for(view))
 
 def _hover_cursor_for(view):
-    """Cursor items should show on hover, based on the armed tool:
-    cross for Connect (click to link), open-hand for others."""
+    """Cursor an element shows on hover: the view's element cursor, which
+    is the armed tool's cursor (Add Block, Connect...) or the pointing
+    hand with no tool armed. A fixed hand here replaced the tool cursor
+    whenever a block or node came under the pointer, e.g. while zooming."""
     from PySide6.QtCore import Qt as _Qt
-    if view is not None and getattr(view, "tool_mode", "select") \
-            == "connect":
-        return _Qt.CursorShape.CrossCursor
+    cursor_for = getattr(view, "element_cursor", None)
+    if callable(cursor_for):
+        return cursor_for()
     return _Qt.CursorShape.PointingHandCursor
 
 def _view_status(view, msg: str):

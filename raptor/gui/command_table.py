@@ -295,8 +295,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_add_block_tool",
         text="Add Block",
         icon="block_icon:accent",
-        tooltip=("Click the canvas to place a new block, or hover a link "
-                 "and click to insert it in series"),
+        tooltip=("Click the canvas to place a new block. Click a link to "
+                 "insert it in series, or a block, event or hierarchy to "
+                 "add it in parallel"),
         handler="_set_tool",
         args=("add_block",),
         on="toggled",
@@ -307,8 +308,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_add_node_tool",
         text="Add Node",
         icon="node_icon:accent",
-        tooltip=("Click the canvas to place a new Regular node, or hover a "
-                 "link and click to insert it in series"),
+        tooltip=("Click the canvas to place a new Regular node, or click a "
+                 "link to insert it in series"),
         handler="_set_tool",
         args=("add_node",),
         on="toggled",
@@ -321,8 +322,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         icon="event_icon:accent",
         tooltip=(
             "Click the canvas to place a new Bernoulli event (P=0.5 — edit it in "
-            "the Inspector or Data Tables), or hover a link and click to insert "
-            "it in series"),
+            "the Inspector or Data Tables). Click a link to insert it in "
+            "series, or a block, event or hierarchy to add it in parallel"),
         handler="_set_tool",
         args=("add_event",),
         on="toggled",
@@ -334,7 +335,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Add Hierarchy",
         icon="hierarchy_icon:accent",
         tooltip=("Click the canvas to place a new hierarchy (with its In/Out "
-                 "markers), or hover a link and click to insert it in series"),
+                 "markers). Click a link to insert it in series, or a block, "
+                 "event or hierarchy to add it in parallel"),
         handler="_set_tool",
         args=("add_hierarchy",),
         on="toggled",
