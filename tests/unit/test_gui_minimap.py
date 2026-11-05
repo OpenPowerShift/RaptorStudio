@@ -438,3 +438,44 @@ def test_the_layout_generation_follows_a_move(dock):
     item.setPos(item.pos().x() + 15, item.pos().y())
     assert v._layout_generation > before
     assert mm._scene_signature()[1] == v._layout_generation
+
+
+class _Recorder:
+    """A painter stand-in that keeps the link paths drawn."""
+
+    def __init__(self):
+        self.paths = []
+
+    def drawPath(self, path):
+        self.paths.append(path)
+
+    def __getattr__(self, name):
+        return lambda *a, **k: None
+
+
+@pytest.fixture
+def link_style():
+    from raptor.gui.ui.diagram_items import link_routing, set_link_routing
+    before = link_routing()
+    yield set_link_routing
+    set_link_routing(before)
+
+
+def test_minimap_draws_each_links_route_and_redraws_on_a_style_change(
+        dock, link_style):
+    """It drew a straight line between a link's ports whatever the link
+    style, and the style change did not redraw it."""
+    from raptor.gui.ui.diagram_items import _LinkItem
+    view, mm = dock.view, dock._minimap
+    link_style("orthogonal")
+    before = mm._scene_signature()
+    view.reroute_links()
+    assert mm._scene_signature() != before          # the minimap redraws
+    rec = _Recorder()
+    mm._paint_shapes(rec, 1.0)
+    routed = [it.mapToScene(it.path()) for it in view.scene().items()
+              if isinstance(it, _LinkItem)]
+    assert len(rec.paths) == len(routed)
+    assert {p.elementCount() for p in rec.paths} == \
+        {p.elementCount() for p in routed}
+    assert any(p.elementCount() > 2 for p in rec.paths)   # a bend drawn
