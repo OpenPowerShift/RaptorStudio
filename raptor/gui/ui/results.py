@@ -26,6 +26,7 @@ import itertools
 import os
 import re
 
+from raptor.api.presentation import probability_text
 from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QAbstractItemView
@@ -3231,18 +3232,17 @@ class ResultsDock(QWidget):
         fails_m, fails_lo, fails_hi = stat(lambda d: float(d.num_system_failures),
                                            fmt=lambda v: f"{v:,.0f}")
 
-        # Availability/Dependability as a full-precision decimal (like
-        # the report's own 9-decimal REALTOSTR values, e.g. 0.998884325);
-        # rounding to a percent would hide the digits reliability work
-        # turns on.
+        # Availability/Dependability as a decimal with at least four places
+        # and up to the report's nine (0.998884325); rounding to a percent
+        # would hide the digits reliability work turns on.
         self._cards["Availability"].set_value(
-            f"{avail_m:.9f}".rstrip("0").rstrip(".") or "0",
+            probability_text(avail_m),
             f"min {avail_lo:.9f} · max {avail_hi:.9f}")
         # Reliability card: same full-precision treatment as the
         # Availability card.
         if rel_m is not None:
             self._cards["Reliability"].set_value(
-                f"{rel_m:.9f}".rstrip("0").rstrip(".") or "0",
+                probability_text(rel_m),
                 f"min {rel_lo:.9f} · max {rel_hi:.9f}")
         # SI/engineering notation for these headline time values:
         # MTBDE/MDT/MTBM/MMT can span anywhere from fractions of an hour
