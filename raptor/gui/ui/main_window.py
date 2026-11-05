@@ -3950,15 +3950,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         tool is spent and the next canvas click does something the user
         no longer asked for.
         """
+        # Exactly one tool button is lit, and it is the view's mode: Select
+        # is a member of the set, so arming an Add tool unlights Select and
+        # disarming one (Esc, a one-shot placement) lights it again.
         for action, m in self._tool_actions():
-            if m != mode and action.isChecked():
+            want = m == mode
+            if action.isChecked() != want:
                 action.blockSignals(True)
-                action.setChecked(False)
+                action.setChecked(want)
                 action.blockSignals(False)
 
     def _tool_actions(self):
-        """(action, tool-mode) for every mutually-exclusive build tool."""
-        return ((self._add_block_tool, "add_block"),
+        """(action, tool-mode) for every mutually-exclusive canvas tool,
+        Select included."""
+        return ((self._select_action, "select"),
+                (self._add_block_tool, "add_block"),
                 (self._add_node_tool, "add_node"),
                 (self._add_event_tool, "add_event"),
                 (self._add_hier_tool, "add_hierarchy"),
@@ -3971,15 +3977,16 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _set_tool(self, mode: str, on: bool):
         """Exclusive build-tool selection; 'select' is the fallback."""
         v = self._diagram_dock.view
-        if not on:
-            if v.tool_mode == mode:
-                v.tool_mode = "select"
-            return
-        # `_on_tool_mode_changed` does the unchecking now that the view
-        # broadcasts every mode change, so the two can never disagree
-        # about which tool is armed.
-        v.tool_mode = mode
-        self._on_tool_mode_changed(mode)
+        if on:
+            v.tool_mode = mode
+        elif v.tool_mode == mode:
+            # Unchecking the armed tool falls back to Select. Unchecking
+            # Select itself leaves the mode at "select": there is no
+            # "no tool" state, so the sync below re-lights it.
+            v.tool_mode = "select"
+        # The view only broadcasts a CHANGED mode, so sync here as well;
+        # the buttons then always match the view's one armed tool.
+        self._on_tool_mode_changed(v.tool_mode)
 
     # ------------------------------------------------------------------
     # Busy indicator for known-slow, main-thread work (Open / New)
@@ -6539,16 +6546,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if index in (getattr(self, "_simulate_page_index", -1),
                      getattr(self, "_results_page_index", -1)) \
                 and v.tool_mode != "select":
-            for t in (self._add_block_tool, self._add_node_tool,
-                      self._add_event_tool, self._add_hier_tool,
-                      self._connect_tool, self._anno_text_tool,
-                      self._anno_rect_tool,
-                      self._anno_ellipse_tool,
-                      self._anno_arrow_tool):
-                t.blockSignals(True)
-                t.setChecked(False)
-                t.blockSignals(False)
             v.tool_mode = "select"
+            self._on_tool_mode_changed("select")
         self._sync_annotation_order_actions()
         # Data Tables and Results are tabified into one bottom dock slot
         # (see the setup comment near `tabifyDockWidget`) -- raise

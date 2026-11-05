@@ -174,6 +174,57 @@ def test_esc_cancels_the_connect_tool(win):
     assert v.tool_mode == "select"
 
 
+def _lit_tools(win):
+    """The canvas-tool buttons that are checked, by tool mode."""
+    return [mode for action, mode in win._tool_actions() if action.isChecked()]
+
+
+def _click_ribbon(win, action):
+    QTest.mouseClick(_ribbon_button(win, action), Qt.MouseButton.LeftButton)
+    QApplication.processEvents()
+
+
+def test_select_and_an_add_tool_are_never_lit_together(win):
+    """Select is one of the exclusive canvas tools: exactly one tool button
+    is lit, and it is the view's mode."""
+    v = win._diagram_dock.view
+    assert v.tool_mode == "select"
+    assert _lit_tools(win) == ["select"]
+
+    _click_ribbon(win, win._add_block_tool)
+    assert v.tool_mode == "add_block"
+    assert _lit_tools(win) == ["add_block"]
+
+    _click_ribbon(win, win._add_node_tool)
+    assert v.tool_mode == "add_node"
+    assert _lit_tools(win) == ["add_node"]
+
+    # Clicking Select disarms the Add tool.
+    _click_ribbon(win, win._select_action)
+    assert v.tool_mode == "select"
+    assert _lit_tools(win) == ["select"]
+
+    # Clicking the lit Select again cannot leave no tool armed.
+    _click_ribbon(win, win._select_action)
+    assert v.tool_mode == "select"
+    assert _lit_tools(win) == ["select"]
+
+
+def test_unchecking_or_escaping_an_add_tool_lights_select(win):
+    v = win._diagram_dock.view
+    _click_ribbon(win, win._add_block_tool)
+    _click_ribbon(win, win._add_block_tool)      # click it off again
+    assert v.tool_mode == "select"
+    assert _lit_tools(win) == ["select"]
+
+    _click_ribbon(win, win._add_event_tool)
+    v.setFocus()
+    QTest.keyClick(v.viewport(), Qt.Key.Key_Escape)
+    QApplication.processEvents()
+    assert v.tool_mode == "select"
+    assert _lit_tools(win) == ["select"]
+
+
 def test_clicking_empty_canvas_clears_the_inspector(win):
     v = win._diagram_dock.view
     _click_item(v, next(iter(v._block_items.values())))
