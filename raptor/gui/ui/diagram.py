@@ -3513,15 +3513,21 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def import_rbd_as_hierarchy(self, path: str,
                                 name: str | None = None) -> int:
-        """Merge an existing .rbd file in as one hierarchy: default name = the file's own
+        """Merge an existing .rbds or .rbd file in as one hierarchy: default name = the file's own
         name; the imported model's Start/End nodes become the wrapper's
         In/Out markers; every id is remapped into a fresh range; the
         imported home level hangs directly under the new hier. One macro
         undo step."""
         if self._rbd_ref is None:
             raise RuntimeError("no file loaded")
-        from raptor.core.fileio.rbd import load_rbd
-        imported = load_rbd(path)
+        # .rbds or .rbd, by extension: the legacy reader alone refused every
+        # .rbds file at its first line.
+        from raptor.core.fileio.model_file import load_model_file
+        imported = load_model_file(path)
+        # Its positions are in its own drawing units: re-express them in
+        # this model's, or every spacing inside the hierarchy changes.
+        view_transform.rebase(imported, view_transform.ensure(imported),
+                              self._vt)
         if not name:
             stem = os.path.basename(path)
             name = os.path.splitext(stem)[0]
@@ -3692,15 +3698,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         from raptor.core.fileio.typed import node_from_row
         nid = _safe_int(row.get("ID"))
         node = node_from_row(row)
-        # In/Out hierarchy markers are always canvas-visible on their
-        # hierarchy's parent level (they sit beside the oval there,
-        # Raptor 7) even though their `parent` column names the
-        # hierarchy itself -- the user double-clicks them to
-        # ascend/descend from the parent side. Only skip other kinds of
-        # foreign-level rows.
-        is_hier_marker = node.type_node in (4, 5)
-        if not is_hier_marker and \
-                _safe_int(row.get("parent", "0")) != self._current_parent:
+        # Drawn only on its own level, the rule a level rebuild follows: a
+        # hierarchy's In/Out markers belong inside it, not beside its oval
+        # on the parent level (an added or imported hierarchy showed them
+        # there until the next rebuild).
+        if _safe_int(row.get("parent", "0")) != self._current_parent:
             return nid   # another level's row -- file only (see _insert_block)
         self.nodes[nid] = node
         item = _NodeItem(nid, node.node_name, node.type_node,

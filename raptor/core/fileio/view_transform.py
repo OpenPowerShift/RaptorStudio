@@ -265,6 +265,24 @@ def _uniform_grid_unit(vals: Sequence[float], origin: float,
     return unit
 
 
+def rebase(rbd: Any, source: ViewTransform, target: ViewTransform) -> None:
+    """Re-express every element position in `rbd` from `source`'s units in
+    `target`'s, so the elements land at the same on-screen spacing under
+    `target`. For content merged into another model (Import as hierarchy),
+    whose positions were written for its own transform."""
+    for name in (*_SECTIONS, "EVENT_DATA"):
+        sec = rbd.sections.get(name)
+        if not sec:
+            continue
+        for r in sec.rows:
+            try:
+                x, y = float(r["xPos"]), float(r["yPos"])
+            except (TypeError, ValueError, KeyError):
+                continue
+            mx, my = target.to_model(*source.to_scene(x, y))
+            r["xPos"], r["yPos"] = f"{mx:.6f}", f"{my:.6f}"
+
+
 def derive(rbd: Any) -> ViewTransform:
     """Derive a transform from the positions currently in the file rows."""
     xs, ys = collect_positions(rbd)

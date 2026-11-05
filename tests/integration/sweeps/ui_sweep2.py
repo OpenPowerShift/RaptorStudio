@@ -556,10 +556,17 @@ def t_i_persistence():
     exp_counts = {
         "blocks": dict((k, (vv.name, vv.parent_id)) for k, vv in v.blocks.items()),
         "nodes": dict((k, (vv.node_name, vv.parent_id)) for k, vv in v.nodes.items()),
+        # A hierarchy's In/Out markers live inside it, not on this level's
+        # canvas: take them from the model rows.
+        "markers": {int(float(r["ID"])): (r.get("Name", ""), int(float(r.get("parent", 0))))
+                    for r in w._rbd.sections["NODE_DATA"].rows
+                    if r.get("Type") in ("4", "5")
+                    and int(float(r.get("parent", 0))) in v.hiers},
         "events": dict((k, (vv.name, vv.parent_id)) for k, vv in v.events.items()),
         "links": len(v.links),
         "hiers": dict((k, (vv.name, vv.parent_id)) for k, vv in v.hiers.items()),
     }
+    exp_counts["nodes"].update(exp_counts.pop("markers"))
     v.write_back_to_rbd(w._rbd)
     # The native .rbds format preserves full names; the legacy .rbd
     # format caps names at Raptor's 20-char convention
