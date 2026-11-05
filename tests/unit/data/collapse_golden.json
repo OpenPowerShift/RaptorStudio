@@ -24,7 +24,7 @@
     [
      [
       {
-       "ID": "1",
+       "ID": "13",
        "In": "1",
        "Out": "1",
        "Parent": "10",
@@ -34,11 +34,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_2",
-       "in": "3",
+       "in": "14",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "4",
+       "out": "15",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "10.000000",
@@ -50,7 +50,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "3",
+       "ID": "14",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -63,7 +63,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "1",
+       "parent": "13",
        "repCap": "0",
        "repNA": "0",
        "xPos": "0.000000",
@@ -72,7 +72,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "4",
+       "ID": "15",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -85,7 +85,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "1",
+       "parent": "13",
        "repCap": "0",
        "repNA": "0",
        "xPos": "20.000000",
@@ -131,7 +131,7 @@
         "ID": "8",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "1",
+        "ToID": "13",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "10"
@@ -145,7 +145,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "3",
+        "FromID": "14",
         "FromType": "Node",
         "ID": "10",
         "ManTime": "0.000000",
@@ -153,7 +153,7 @@
         "ToID": "5",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "13"
        },
        -1
       ],
@@ -183,7 +183,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "1",
+        "FromID": "13",
         "FromType": "Hier",
         "ID": "9",
         "ManTime": "0.000000",
@@ -207,10 +207,10 @@
         "ID": "11",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "15",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "13"
        },
        -1
       ]
@@ -221,7 +221,7 @@
     }
    ]
   ],
-  "hid": 1,
+  "hid": 13,
   "hier_rows_now": 1,
   "refused": false,
   "sections": [
@@ -263,7 +263,7 @@
     [
      [
       {
-       "ID": "5",
+       "ID": "13",
        "In": "1",
        "Out": "1",
        "Parent": "0",
@@ -273,11 +273,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_2",
-       "in": "7",
+       "in": "14",
        "isCNd": "1",
        "level": "1",
        "myDepth": "0",
-       "out": "8",
+       "out": "15",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "10.000000",
@@ -289,7 +289,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "7",
+       "ID": "14",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -302,7 +302,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "5",
+       "parent": "13",
        "repCap": "0",
        "repNA": "0",
        "xPos": "0.000000",
@@ -311,7 +311,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "8",
+       "ID": "15",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -324,7 +324,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "5",
+       "parent": "13",
        "repCap": "0",
        "repNA": "0",
        "xPos": "20.000000",
@@ -370,7 +370,7 @@
         "ID": "1",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "5",
+        "ToID": "13",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "0"
@@ -384,7 +384,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "7",
+        "FromID": "14",
         "FromType": "Node",
         "ID": "10",
         "ManTime": "0.000000",
@@ -392,7 +392,7 @@
         "ToID": "3",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "5"
+        "pID": "13"
        },
        -1
       ],
@@ -422,7 +422,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "5",
+        "FromID": "13",
         "FromType": "Hier",
         "ID": "2",
         "ManTime": "0.000000",
@@ -446,10 +446,10 @@
         "ID": "11",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "8",
+        "ToID": "15",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "5"
+        "pID": "13"
        },
        -1
       ]
@@ -460,7 +460,7 @@
     }
    ]
   ],
-  "hid": 5,
+  "hid": 13,
   "hier_rows_now": 1,
   "refused": false,
   "sections": [
@@ -483,7 +483,7 @@
     [
      [
       {
-       "ID": "1",
+       "ID": "13",
        "In": "1",
        "Out": "1",
        "Parent": "10",
@@ -493,11 +493,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_2",
-       "in": "3",
+       "in": "14",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "4",
+       "out": "15",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "10.000000",
@@ -509,7 +509,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "3",
+       "ID": "14",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -522,7 +522,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "1",
+       "parent": "13",
        "repCap": "0",
        "repNA": "0",
        "xPos": "0.000000",
@@ -531,7 +531,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "4",
+       "ID": "15",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -544,7 +544,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "1",
+       "parent": "13",
        "repCap": "0",
        "repNA": "0",
        "xPos": "20.000000",
@@ -590,7 +590,7 @@
         "ID": "8",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "1",
+        "ToID": "13",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "10"
@@ -604,7 +604,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "3",
+        "FromID": "14",
         "FromType": "Node",
         "ID": "10",
         "ManTime": "0.000000",
@@ -612,7 +612,7 @@
         "ToID": "5",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "13"
        },
        -1
       ],
@@ -642,7 +642,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "1",
+        "FromID": "13",
         "FromType": "Hier",
         "ID": "9",
         "ManTime": "0.000000",
@@ -666,10 +666,10 @@
         "ID": "11",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "15",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "13"
        },
        -1
       ]
@@ -680,7 +680,7 @@
     }
    ]
   ],
-  "hid": 1,
+  "hid": 13,
   "hier_rows_now": 1,
   "refused": false,
   "sections": [
@@ -722,7 +722,7 @@
     [
      [
       {
-       "ID": "1",
+       "ID": "13",
        "In": "1",
        "Out": "1",
        "Parent": "10",
@@ -732,11 +732,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_2",
-       "in": "3",
+       "in": "14",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "4",
+       "out": "15",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "10.000000",
@@ -748,7 +748,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "3",
+       "ID": "14",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -761,7 +761,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "1",
+       "parent": "13",
        "repCap": "0",
        "repNA": "0",
        "xPos": "0.000000",
@@ -770,7 +770,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "4",
+       "ID": "15",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -783,7 +783,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "1",
+       "parent": "13",
        "repCap": "0",
        "repNA": "0",
        "xPos": "20.000000",
@@ -829,7 +829,7 @@
         "ID": "8",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "1",
+        "ToID": "13",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "10"
@@ -843,7 +843,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "3",
+        "FromID": "14",
         "FromType": "Node",
         "ID": "10",
         "ManTime": "0.000000",
@@ -851,7 +851,7 @@
         "ToID": "5",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "13"
        },
        -1
       ],
@@ -881,7 +881,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "1",
+        "FromID": "13",
         "FromType": "Hier",
         "ID": "9",
         "ManTime": "0.000000",
@@ -905,10 +905,10 @@
         "ID": "11",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "15",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "13"
        },
        -1
       ]
@@ -919,7 +919,7 @@
     }
    ]
   ],
-  "hid": 1,
+  "hid": 13,
   "hier_rows_now": 1,
   "refused": false,
   "sections": [
@@ -980,29 +980,33 @@
     [
      [
       {
-       "ID": "6",
+       "ID": "7",
        "In": "1",
        "Out": "1",
        "Parent": "0",
        "Phs": "0",
+       "extraInt1": "7",
+       "extraInt2": "7",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_1",
-       "in": "7",
+       "in": "8",
        "isCNd": "1",
        "level": "1",
        "myDepth": "0",
-       "out": "8",
+       "out": "9",
        "xCenter": "0.000000",
-       "xOrigin": "0",
+       "xOrigin": "0.000000",
        "xPos": "-0.023668",
        "yCenter": "0.000000",
-       "yOrigin": "0",
+       "yOrigin": "80.000000",
        "yPos": "0.000000",
        "zoom": "14.00"
       },
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "7",
+       "ID": "8",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -1015,7 +1019,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "6",
+       "parent": "7",
        "repCap": "0",
        "repNA": "0",
        "xPos": "-10.023668",
@@ -1024,7 +1028,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "8",
+       "ID": "9",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -1037,7 +1041,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "6",
+       "parent": "7",
        "repCap": "0",
        "repNA": "0",
        "xPos": "9.976332",
@@ -1083,7 +1087,7 @@
         "ID": "1",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "6",
+        "ToID": "7",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "0"
@@ -1097,7 +1101,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "7",
+        "FromID": "8",
         "FromType": "Node",
         "ID": "7",
         "ManTime": "0.000000",
@@ -1105,7 +1109,7 @@
         "ToID": "1",
         "ToType": "Event",
         "nomFlow": "-2",
-        "pID": "6"
+        "pID": "7"
        },
        -1
       ],
@@ -1135,7 +1139,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "6",
+        "FromID": "7",
         "FromType": "Hier",
         "ID": "6",
         "ManTime": "0.000000",
@@ -1159,10 +1163,10 @@
         "ID": "8",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "8",
+        "ToID": "9",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "6"
+        "pID": "7"
        },
        -1
       ]
@@ -1173,7 +1177,7 @@
     }
    ]
   ],
-  "hid": 6,
+  "hid": 7,
   "hier_rows_now": 0,
   "refused": false,
   "sections": [
@@ -1196,29 +1200,33 @@
     [
      [
       {
-       "ID": "6",
+       "ID": "7",
        "In": "1",
        "Out": "1",
        "Parent": "0",
        "Phs": "0",
+       "extraInt1": "7",
+       "extraInt2": "7",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_1",
-       "in": "7",
+       "in": "8",
        "isCNd": "1",
        "level": "1",
        "myDepth": "0",
-       "out": "8",
+       "out": "9",
        "xCenter": "0.000000",
-       "xOrigin": "0",
+       "xOrigin": "0.000000",
        "xPos": "10.000000",
        "yCenter": "0.000000",
-       "yOrigin": "0",
+       "yOrigin": "80.000000",
        "yPos": "91.250000",
        "zoom": "14.00"
       },
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "7",
+       "ID": "8",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -1231,7 +1239,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "6",
+       "parent": "7",
        "repCap": "0",
        "repNA": "0",
        "xPos": "0.000000",
@@ -1240,7 +1248,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "8",
+       "ID": "9",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -1253,7 +1261,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "6",
+       "parent": "7",
        "repCap": "0",
        "repNA": "0",
        "xPos": "20.000000",
@@ -1294,7 +1302,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "6",
+        "FromID": "7",
         "FromType": "Hier",
         "ID": "2",
         "ManTime": "0.000000",
@@ -1318,10 +1326,10 @@
         "ID": "7",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "8",
+        "ToID": "9",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "6"
+        "pID": "7"
        },
        -1
       ],
@@ -1356,7 +1364,7 @@
         "ID": "6",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "6",
+        "ToID": "7",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "0"
@@ -1370,7 +1378,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "7",
+        "FromID": "8",
         "FromType": "Node",
         "ID": "8",
         "ManTime": "0.000000",
@@ -1378,7 +1386,7 @@
         "ToID": "3",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "6"
+        "pID": "7"
        },
        -1
       ]
@@ -1389,7 +1397,7 @@
     }
    ]
   ],
-  "hid": 6,
+  "hid": 7,
   "hier_rows_now": 0,
   "refused": false,
   "sections": [
@@ -1450,7 +1458,7 @@
     [
      [
       {
-       "ID": "4",
+       "ID": "32",
        "In": "1",
        "Out": "1",
        "Parent": "23",
@@ -1460,11 +1468,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "5",
+       "in": "33",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "6",
+       "out": "34",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "6.250000",
@@ -1476,7 +1484,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "5",
+       "ID": "33",
        "Name": "in",
        "Out": "1",
        "PR": "1",
@@ -1489,7 +1497,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "4",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "-3.750000",
@@ -1498,7 +1506,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "6",
+       "ID": "34",
        "Name": "out",
        "Out": "0",
        "PR": "1",
@@ -1511,7 +1519,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "4",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "16.250000",
@@ -1570,7 +1578,7 @@
         "ToID": "2",
         "ToType": "Block",
         "nomFlow": "-1",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -1608,7 +1616,7 @@
         "ToID": "3",
         "ToType": "Block",
         "nomFlow": "-1",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -1638,7 +1646,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "4",
+        "FromID": "32",
         "FromType": "Hier",
         "ID": "16",
         "ManTime": "0.000000",
@@ -1662,10 +1670,10 @@
         "ID": "31",
         "ManTime": "0.000000",
         "MaxFlow": "500",
-        "ToID": "6",
+        "ToID": "34",
         "ToType": "Node",
         "nomFlow": "500",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -1700,7 +1708,7 @@
         "ID": "25",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "32",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "23"
@@ -1714,7 +1722,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "5",
+        "FromID": "33",
         "FromType": "Node",
         "ID": "32",
         "ManTime": "0.000000",
@@ -1722,7 +1730,7 @@
         "ToID": "1",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ]
@@ -1733,7 +1741,7 @@
     }
    ]
   ],
-  "hid": 4,
+  "hid": 32,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -1775,7 +1783,7 @@
     [
      [
       {
-       "ID": "4",
+       "ID": "32",
        "In": "1",
        "Out": "1",
        "Parent": "23",
@@ -1785,11 +1793,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "5",
+       "in": "33",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "6",
+       "out": "34",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "7.481729",
@@ -1801,7 +1809,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "5",
+       "ID": "33",
        "Name": "in",
        "Out": "1",
        "PR": "1",
@@ -1814,7 +1822,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "4",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "-2.518271",
@@ -1823,7 +1831,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "6",
+       "ID": "34",
        "Name": "out",
        "Out": "0",
        "PR": "1",
@@ -1836,7 +1844,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "4",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "17.481729",
@@ -1900,7 +1908,7 @@
         "ToID": "2",
         "ToType": "Block",
         "nomFlow": "-1",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -1938,7 +1946,7 @@
         "ToID": "3",
         "ToType": "Block",
         "nomFlow": "-1",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -1976,7 +1984,7 @@
         "ToID": "20",
         "ToType": "Node",
         "nomFlow": "500",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -2011,7 +2019,7 @@
         "ID": "25",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "32",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "23"
@@ -2025,7 +2033,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "5",
+        "FromID": "33",
         "FromType": "Node",
         "ID": "31",
         "ManTime": "0.000000",
@@ -2033,7 +2041,7 @@
         "ToID": "1",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -2063,7 +2071,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "4",
+        "FromID": "32",
         "FromType": "Hier",
         "ID": "26",
         "ManTime": "0.000000",
@@ -2087,10 +2095,10 @@
         "ID": "32",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "6",
+        "ToID": "34",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ]
@@ -2101,7 +2109,7 @@
     }
    ]
   ],
-  "hid": 4,
+  "hid": 32,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -2124,7 +2132,7 @@
     [
      [
       {
-       "ID": "1",
+       "ID": "32",
        "In": "1",
        "Out": "1",
        "Parent": "0",
@@ -2134,11 +2142,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "2",
+       "in": "33",
        "isCNd": "1",
        "level": "1",
        "myDepth": "0",
-       "out": "3",
+       "out": "34",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "18.750000",
@@ -2150,7 +2158,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "2",
+       "ID": "33",
        "Name": "in",
        "Out": "1",
        "PR": "1",
@@ -2163,7 +2171,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "1",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "8.750000",
@@ -2172,7 +2180,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "3",
+       "ID": "34",
        "Name": "out",
        "Out": "0",
        "PR": "1",
@@ -2185,7 +2193,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "1",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "28.750000",
@@ -2226,7 +2234,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "1",
+        "FromID": "32",
         "FromType": "Hier",
         "ID": "5",
         "ManTime": "0.000000",
@@ -2250,10 +2258,10 @@
         "ID": "31",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "3",
+        "ToID": "34",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "32"
        },
        -1
       ],
@@ -2288,7 +2296,7 @@
         "ID": "13",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "1",
+        "ToID": "32",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "0"
@@ -2302,7 +2310,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "2",
+        "FromID": "33",
         "FromType": "Node",
         "ID": "32",
         "ManTime": "0.000000",
@@ -2310,7 +2318,7 @@
         "ToID": "4",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "32"
        },
        -1
       ]
@@ -2321,7 +2329,7 @@
     }
    ]
   ],
-  "hid": 1,
+  "hid": 32,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -2344,7 +2352,7 @@
     [
      [
       {
-       "ID": "4",
+       "ID": "32",
        "In": "1",
        "Out": "1",
        "Parent": "23",
@@ -2354,11 +2362,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "5",
+       "in": "33",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "6",
+       "out": "34",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "3.750000",
@@ -2370,7 +2378,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "5",
+       "ID": "33",
        "Name": "in",
        "Out": "1",
        "PR": "1",
@@ -2383,7 +2391,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "4",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "-6.250000",
@@ -2392,7 +2400,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "6",
+       "ID": "34",
        "Name": "out",
        "Out": "0",
        "PR": "1",
@@ -2405,7 +2413,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "4",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "13.750000",
@@ -2446,7 +2454,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "4",
+        "FromID": "32",
         "FromType": "Hier",
         "ID": "1",
         "ManTime": "1.000000",
@@ -2470,10 +2478,10 @@
         "ID": "31",
         "ManTime": "1.000000",
         "MaxFlow": "-1",
-        "ToID": "6",
+        "ToID": "34",
         "ToType": "Node",
         "nomFlow": "-1",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -2508,7 +2516,7 @@
         "ID": "25",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "32",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "23"
@@ -2522,7 +2530,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "5",
+        "FromID": "33",
         "FromType": "Node",
         "ID": "32",
         "ManTime": "0.000000",
@@ -2530,7 +2538,7 @@
         "ToID": "1",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ]
@@ -2541,7 +2549,7 @@
     }
    ]
   ],
-  "hid": 4,
+  "hid": 32,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -2583,7 +2591,7 @@
     [
      [
       {
-       "ID": "4",
+       "ID": "32",
        "In": "1",
        "Out": "1",
        "Parent": "23",
@@ -2593,11 +2601,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "5",
+       "in": "33",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "6",
+       "out": "34",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "5.000000",
@@ -2609,7 +2617,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "5",
+       "ID": "33",
        "Name": "in",
        "Out": "1",
        "PR": "1",
@@ -2622,7 +2630,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "4",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "-5.000000",
@@ -2631,7 +2639,7 @@
       {
        "Autos": "1",
        "Cold": "0",
-       "ID": "6",
+       "ID": "34",
        "Name": "out",
        "Out": "0",
        "PR": "1",
@@ -2644,7 +2652,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "4",
+       "parent": "32",
        "repCap": "0",
        "repNA": "0",
        "xPos": "15.000000",
@@ -2698,7 +2706,7 @@
         "ToID": "2",
         "ToType": "Block",
         "nomFlow": "-1",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -2728,7 +2736,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "4",
+        "FromID": "32",
         "FromType": "Hier",
         "ID": "2",
         "ManTime": "1.000000",
@@ -2752,10 +2760,10 @@
         "ID": "31",
         "ManTime": "1.000000",
         "MaxFlow": "-1",
-        "ToID": "6",
+        "ToID": "34",
         "ToType": "Node",
         "nomFlow": "-1",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ],
@@ -2790,7 +2798,7 @@
         "ID": "25",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "32",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "23"
@@ -2804,7 +2812,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "5",
+        "FromID": "33",
         "FromType": "Node",
         "ID": "32",
         "ManTime": "0.000000",
@@ -2812,7 +2820,7 @@
         "ToID": "1",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "32"
        },
        -1
       ]
@@ -2823,7 +2831,7 @@
     }
    ]
   ],
-  "hid": 4,
+  "hid": 32,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -2865,7 +2873,7 @@
     [
      [
       {
-       "ID": "4",
+       "ID": "41",
        "In": "1",
        "Out": "1",
        "Parent": "23",
@@ -2875,11 +2883,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "5",
+       "in": "42",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "6",
+       "out": "43",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "6.250000",
@@ -2891,7 +2899,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "5",
+       "ID": "42",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -2904,7 +2912,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "4",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "-3.750000",
@@ -2913,7 +2921,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "6",
+       "ID": "43",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -2926,7 +2934,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "4",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "16.250000",
@@ -2982,7 +2990,7 @@
         "ID": "1",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "41",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "23"
@@ -2996,7 +3004,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "5",
+        "FromID": "42",
         "FromType": "Node",
         "ID": "41",
         "ManTime": "0.000000",
@@ -3004,7 +3012,7 @@
         "ToID": "1",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -3042,7 +3050,7 @@
         "ToID": "2",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -3080,7 +3088,7 @@
         "ToID": "3",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -3110,7 +3118,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "4",
+        "FromID": "41",
         "FromType": "Hier",
         "ID": "4",
         "ManTime": "0.000000",
@@ -3134,10 +3142,10 @@
         "ID": "42",
         "ManTime": "0.000000",
         "MaxFlow": "500",
-        "ToID": "6",
+        "ToID": "43",
         "ToType": "Node",
         "nomFlow": "500",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ]
@@ -3148,7 +3156,7 @@
     }
    ]
   ],
-  "hid": 4,
+  "hid": 41,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -3190,7 +3198,7 @@
     [
      [
       {
-       "ID": "4",
+       "ID": "41",
        "In": "1",
        "Out": "1",
        "Parent": "23",
@@ -3200,11 +3208,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "5",
+       "in": "42",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "6",
+       "out": "43",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "7.485840",
@@ -3216,7 +3224,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "5",
+       "ID": "42",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -3229,7 +3237,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "4",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "-2.514160",
@@ -3238,7 +3246,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "6",
+       "ID": "43",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -3251,7 +3259,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "4",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "17.485840",
@@ -3312,7 +3320,7 @@
         "ID": "1",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "41",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "23"
@@ -3326,7 +3334,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "5",
+        "FromID": "42",
         "FromType": "Node",
         "ID": "41",
         "ManTime": "0.000000",
@@ -3334,7 +3342,7 @@
         "ToID": "1",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -3372,7 +3380,7 @@
         "ToID": "2",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -3410,7 +3418,7 @@
         "ToID": "3",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -3448,7 +3456,7 @@
         "ToID": "20",
         "ToType": "Node",
         "nomFlow": "500",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -3478,7 +3486,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "4",
+        "FromID": "41",
         "FromType": "Hier",
         "ID": "5",
         "ManTime": "0.000000",
@@ -3502,10 +3510,10 @@
         "ID": "42",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "6",
+        "ToID": "43",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ]
@@ -3516,7 +3524,7 @@
     }
    ]
   ],
-  "hid": 4,
+  "hid": 41,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -3558,7 +3566,7 @@
     [
      [
       {
-       "ID": "1",
+       "ID": "41",
        "In": "1",
        "Out": "1",
        "Parent": "0",
@@ -3568,11 +3576,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "2",
+       "in": "42",
        "isCNd": "1",
        "level": "1",
        "myDepth": "0",
-       "out": "3",
+       "out": "43",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "18.750000",
@@ -3584,7 +3592,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "2",
+       "ID": "42",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -3597,7 +3605,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "1",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "8.750000",
@@ -3606,7 +3614,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "3",
+       "ID": "43",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -3619,7 +3627,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "1",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "28.750000",
@@ -3665,7 +3673,7 @@
         "ID": "24",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "1",
+        "ToID": "41",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "0"
@@ -3679,7 +3687,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "2",
+        "FromID": "42",
         "FromType": "Node",
         "ID": "41",
         "ManTime": "0.000000",
@@ -3687,7 +3695,7 @@
         "ToID": "4",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "41"
        },
        -1
       ],
@@ -3717,7 +3725,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "1",
+        "FromID": "41",
         "FromType": "Hier",
         "ID": "25",
         "ManTime": "0.000000",
@@ -3741,10 +3749,10 @@
         "ID": "42",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "3",
+        "ToID": "43",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "1"
+        "pID": "41"
        },
        -1
       ]
@@ -3755,7 +3763,7 @@
     }
    ]
   ],
-  "hid": 1,
+  "hid": 41,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -3778,7 +3786,7 @@
     [
      [
       {
-       "ID": "4",
+       "ID": "41",
        "In": "1",
        "Out": "1",
        "Parent": "23",
@@ -3788,11 +3796,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "5",
+       "in": "42",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "6",
+       "out": "43",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "3.750000",
@@ -3804,7 +3812,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "5",
+       "ID": "42",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -3817,7 +3825,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "4",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "-6.250000",
@@ -3826,7 +3834,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "6",
+       "ID": "43",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -3839,7 +3847,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "4",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "13.750000",
@@ -3885,7 +3893,7 @@
         "ID": "1",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "41",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "23"
@@ -3899,7 +3907,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "5",
+        "FromID": "42",
         "FromType": "Node",
         "ID": "41",
         "ManTime": "0.000000",
@@ -3907,7 +3915,7 @@
         "ToID": "1",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -3937,7 +3945,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "4",
+        "FromID": "41",
         "FromType": "Hier",
         "ID": "2",
         "ManTime": "0.000000",
@@ -3961,10 +3969,10 @@
         "ID": "42",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "6",
+        "ToID": "43",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ]
@@ -3975,7 +3983,7 @@
     }
    ]
   ],
-  "hid": 4,
+  "hid": 41,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -4017,7 +4025,7 @@
     [
      [
       {
-       "ID": "4",
+       "ID": "41",
        "In": "1",
        "Out": "1",
        "Parent": "23",
@@ -4027,11 +4035,11 @@
        "extraReal1": "0.000000",
        "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_4",
-       "in": "5",
+       "in": "42",
        "isCNd": "1",
        "level": "2",
        "myDepth": "0",
-       "out": "6",
+       "out": "43",
        "xCenter": "0.000000",
        "xOrigin": "0.000000",
        "xPos": "5.000000",
@@ -4043,7 +4051,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "5",
+       "ID": "42",
        "Name": "in",
        "Out": "1",
        "PR": "0",
@@ -4056,7 +4064,7 @@
        "k": "1",
        "k*": "0",
        "n": "0",
-       "parent": "4",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "-5.000000",
@@ -4065,7 +4073,7 @@
       {
        "Autos": "0",
        "Cold": "0",
-       "ID": "6",
+       "ID": "43",
        "Name": "out",
        "Out": "0",
        "PR": "0",
@@ -4078,7 +4086,7 @@
        "k": "-1",
        "k*": "0",
        "n": "1",
-       "parent": "4",
+       "parent": "41",
        "repCap": "0",
        "repNA": "0",
        "xPos": "15.000000",
@@ -4129,7 +4137,7 @@
         "ID": "1",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "4",
+        "ToID": "41",
         "ToType": "Hier",
         "nomFlow": "-2",
         "pID": "23"
@@ -4143,7 +4151,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "5",
+        "FromID": "42",
         "FromType": "Node",
         "ID": "41",
         "ManTime": "0.000000",
@@ -4151,7 +4159,7 @@
         "ToID": "1",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -4189,7 +4197,7 @@
         "ToID": "2",
         "ToType": "Block",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ],
@@ -4219,7 +4227,7 @@
         "AutoTime": "0.000000",
         "CapPri": "50",
         "ColdPri": "50",
-        "FromID": "4",
+        "FromID": "41",
         "FromType": "Hier",
         "ID": "3",
         "ManTime": "0.000000",
@@ -4243,10 +4251,10 @@
         "ID": "42",
         "ManTime": "0.000000",
         "MaxFlow": "-1",
-        "ToID": "6",
+        "ToID": "43",
         "ToType": "Node",
         "nomFlow": "-2",
-        "pID": "4"
+        "pID": "41"
        },
        -1
       ]
@@ -4257,7 +4265,7 @@
     }
    ]
   ],
-  "hid": 4,
+  "hid": 41,
   "hier_rows_now": 3,
   "refused": false,
   "sections": [
@@ -4323,6 +4331,10 @@
        "Out": "1",
        "Parent": "0",
        "Phs": "0",
+       "extraInt1": "6",
+       "extraInt2": "6",
+       "extraReal1": "0.000000",
+       "extraReal2": "80.000000",
        "hierarchyName": "Hierarchy_1",
        "in": "7",
        "isCNd": "1",
@@ -4330,10 +4342,10 @@
        "myDepth": "0",
        "out": "8",
        "xCenter": "0.000000",
-       "xOrigin": "0",
+       "xOrigin": "0.000000",
        "xPos": "10.000000",
        "yCenter": "0.000000",
-       "yOrigin": "0",
+       "yOrigin": "80.000000",
        "yPos": "91.250000",
        "zoom": "14.00"
       },
