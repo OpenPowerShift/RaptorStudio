@@ -257,10 +257,24 @@ def test_dog_legs_are_split_and_undo_restores_them(qapp):
     assert restored == {entry["id"]: entry for entry in old_entries}
 
 
-def test_new_links_keep_the_split_links_settings(qapp):
-    """Link columns are simulation inputs (cold-standby priority and
-    switching, capacity priority and flows). Splitting must keep the clicked
-    link's values, not reset them to the first LINK_DATA row's."""
+#: What real Raptor's Connect tool gives every drawn link (IDisplay.mod,
+#: the connect handler hard-codes these before `LinkInit`).
+_RAPTOR_CONNECT_DEFAULTS = {
+    "ColdPri": "50", "CapPri": "50", "nomFlow": "-2", "MaxFlow": "-1",
+    "AProb": "1.000000", "AutoTime": "0.000000", "ManTime": "0.000000",
+}
+
+_CUSTOM_LINK_SETTINGS = {
+    "ColdPri": "7", "AProb": "0.250000", "AutoTime": "1.500000",
+    "ManTime": "2.500000", "CapPri": "3", "nomFlow": "123",
+    "MaxFlow": "456",
+}
+
+
+def test_new_links_use_raptors_connect_defaults(qapp):
+    """Insert-on-link automates "delete the link, draw two new ones", so
+    the halves get Raptor's Connect defaults: neither the split link's own
+    settings nor the first LINK_DATA row's are copied."""
     rbd = build_from_spec(_chain_spec(), auto_layout=True)
     section = rbd.sections["LINK_DATA"]
     target = next(row for row in section.rows
@@ -269,35 +283,52 @@ def test_new_links_keep_the_split_links_settings(qapp):
                   and row.get("ToType") == "Block"
                   and row.get("ToID") == "2")
     assert section.rows[0] is not target
-    # The first row (the Connect template) gets different values, so the
-    # test fails if the halves are cloned from it.
-    section.rows[0].update({
-        "ColdPri": "50", "AProb": "1.000000", "AutoTime": "0.000000",
-        "ManTime": "0.000000", "CapPri": "50", "nomFlow": "-2",
-        "MaxFlow": "-1"})
-    target.update({
-        "ColdPri": "7", "AProb": "0.250000", "AutoTime": "1.500000",
-        "ManTime": "2.500000", "CapPri": "3", "nomFlow": "123",
-        "MaxFlow": "456", "pID": "42"})
+    section.rows[0].update(_CUSTOM_LINK_SETTINGS)
+    target.update(_CUSTOM_LINK_SETTINGS)
     view = _view(rbd, show=False)
     link = _link_between(view, "A", "B")
     old_id = link._link_num
     before_ids = {row["ID"] for row in section.rows}
 
-    assert view.insert_element_on_link("block", link._link_num) is not None
+    new_id = view.insert_element_on_link("block", link._link_num)
+    assert new_id is not None
 
     created = [row for row in section.rows if row["ID"] not in before_ids]
     assert len(created) == 2
+    assert {(r["FromType"], r["FromID"], r["ToType"], r["ToID"])
+            for r in created} == {("Block", "1", "Block", str(new_id)),
+                                  ("Block", str(new_id), "Block", "2")}
     for row in created:
         assert row["ID"] != str(old_id)
-        assert row["ColdPri"] == "7"
-        assert row["AProb"] == "0.250000"
-        assert row["AutoTime"] == "1.500000"
-        assert row["ManTime"] == "2.500000"
-        assert row["CapPri"] == "3"
-        assert row["nomFlow"] == "123"
-        assert row["MaxFlow"] == "456"
-        assert row["pID"] == "42"
+        assert row["pID"] == "0"
+        for column, value in _RAPTOR_CONNECT_DEFAULTS.items():
+            assert row[column] == value, column
+
+
+def test_connect_uses_raptors_defaults_and_the_open_level(qapp):
+    """A drawn link must not inherit the first LINK_DATA row's settings
+    or level: Raptor's Connect uses fixed defaults and
+    `SetParentID(activeWindow)`."""
+    rbd = build_from_spec(_chain_spec(), auto_layout=True)
+    section = rbd.sections["LINK_DATA"]
+    section.rows[0].update(_CUSTOM_LINK_SETTINGS)
+    section.rows[0]["pID"] = "9"
+    view = _view(rbd, show=False)
+    c_id = view.add_block("C", 0.0, 0.0)
+    # A fresh Regular node: Start/End nodes allow only one link each way.
+    start_id = view.add_node("N", 0.0, 0.0)
+    link_id = view.connect_elements("RBDNode", start_id, "RBDBlock", c_id)
+    assert link_id is not None
+    row = next(r for r in section.rows if r["ID"] == str(link_id))
+    assert (row["FromType"], row["FromID"], row["ToType"], row["ToID"]) == (
+        "Node", str(start_id), "Block", str(c_id))
+    assert row["pID"] == "0"
+    for column, value in _RAPTOR_CONNECT_DEFAULTS.items():
+        assert row[column] == value, column
+    # The level comes from the open hierarchy, not from another row.
+    view._current_parent = 7
+    assert view._make_link_row("RBDNode", start_id, "RBDBlock", c_id,
+                               99)["pID"] == "7"
 
 
 @pytest.mark.parametrize("direction", ["RL", "TB", "BT"])

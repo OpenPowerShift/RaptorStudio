@@ -3786,23 +3786,6 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return None
         return self._rbd_ref.sections.get("LINK_DATA")
 
-    def _link_row_template(self) -> dict:
-        """The template a manual Connect uses: the first LINK_DATA row.
-
-        This is deliberately shared with `connect_elements` so insert-on-
-        link creates the same row a user would get by deleting a link and
-        drawing two replacements.
-        """
-        section = self._link_section()
-        if section is not None and section.rows:
-            return dict(section.rows[0])
-        return {
-            "ID": "0", "FromType": "Node", "FromID": "0", "ToType": "Block",
-            "ToID": "0", "pID": "0", "ColdPri": "50", "AProb": "1.000000",
-            "AutoTime": "0.000000", "ManTime": "0.000000", "CapPri": "50",
-            "nomFlow": "-2", "MaxFlow": "-1",
-        }
-
     def _next_link_id(self) -> int:
         """The next free LINK_DATA id, across every hierarchy level."""
         section = self._link_section()
@@ -3812,22 +3795,26 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         return max(nums) + 1 if nums else 1
 
     def _make_link_row(self, from_type: str, from_id: int,
-                       to_type: str, to_id: int, link_id: int,
-                       p_id: Any | None = None) -> dict:
-        row = self._link_row_template()
-        row["ID"] = str(link_id)
+                       to_type: str, to_id: int, link_id: int) -> dict:
+        """A new LINK_DATA row exactly as Raptor's Connect tool makes one.
+
+        Real Raptor (IDisplay.mod, the connect handler) gives every drawn
+        link fixed defaults -- ColdPri 50, CapPri 50, nomFlow -2, MaxFlow
+        -1, AProb 1, AutoTime 0, ManTime 0 -- and parents it to the level
+        that is open (`SetParentID(activeWindow)`). It does NOT copy
+        another link's settings; only copy/paste carries a link's values.
+        `make_link_row` holds those defaults (the API builder uses it too).
+        """
+        from raptor.core.fileio.rbdlib import make_link_row
         # File tokens: LINK_DATA stores unprefixed kinds ("Block",
         # "Node", "Hier") -- link_from_row adds the RBD prefix on parse.
         # Storing caller-style "RBDBlock" here would produce RBDRBDBlock
         # refs that the engine's forward walk rejects ("no outgoing link
         # found").
-        row["FromType"] = from_type.replace("RBD", "", 1)
-        row["FromID"] = str(from_id)
-        row["ToType"] = to_type.replace("RBD", "", 1)
-        row["ToID"] = str(to_id)
-        if p_id is not None:
-            row["pID"] = str(p_id)
-        return row
+        return make_link_row(
+            link_id, from_type.replace("RBD", "", 1), from_id,
+            to_type.replace("RBD", "", 1), to_id,
+            pid=_safe_int(self._current_parent))
 
     def connect_elements(self, from_type: str, from_id: int,
                          to_type: str, to_id: int) -> int | None:
@@ -4344,27 +4331,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     if _safe_int(r.get("ID")) == link._link_num), None)
         if row is None:
             raise RuntimeError("the connector row is gone")
-        # Both halves are clones of the split link's own row, NOT of the
-        # Connect template (the first LINK_DATA row). A link's columns carry
-        # simulation inputs: ColdPri/AProb/AutoTime/ManTime matter when its
-        # To end is a cold-standby node, CapPri/nomFlow/MaxFlow when its
-        # From end is a node. The upstream half keeps the original From
-        # end and the downstream half keeps the original To end, so each
-        # end's settings keep the same meaning they had before the split.
-        def half(from_type, from_id, to_type, to_id, link_id) -> dict:
-            out = dict(row)
-            out["ID"] = str(link_id)
-            out["FromType"] = from_type.replace("RBD", "", 1)
-            out["FromID"] = str(from_id)
-            out["ToType"] = to_type.replace("RBD", "", 1)
-            out["ToID"] = str(to_id)
-            return out
-
+        # Insert-on-link automates the manual steps (delete the link, draw
+        # two new ones), so both halves are built exactly as Connect builds
+        # a link: Raptor's fixed defaults, not the split link's settings.
         return [
-            half(row.get("FromType", "Node"), _safe_int(row.get("FromID")),
-                 kind_token, new_id, upstream_id),
-            half(kind_token, new_id, row.get("ToType", "Block"),
-                 _safe_int(row.get("ToID")), downstream_id),
+            self._make_link_row(row.get("FromType", "Node"),
+                                _safe_int(row.get("FromID")), kind_token,
+                                new_id, upstream_id),
+            self._make_link_row(kind_token, new_id,
+                                row.get("ToType", "Block"),
+                                _safe_int(row.get("ToID")), downstream_id),
         ]
 
     def _grip_moves_for_split(self, upstream: list[dict],

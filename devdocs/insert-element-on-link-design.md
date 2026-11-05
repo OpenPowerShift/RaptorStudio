@@ -65,25 +65,26 @@ the normal `MoveCmd`, so annotations anchored to moved elements follow.
 
 ## Link rewrite
 
-The original connector is removed and two new rows are created with fresh
-ids. Both rows are clones of the **split link's own row**, with only `ID`
-and the endpoints changed; `pID` therefore keeps the new links on the same
-hierarchy level. The old link id is not reused.
+Insert-on-link is automation of the manual steps: delete the link, then
+draw two new ones with Connect. The original row is removed and two new
+rows are created with fresh ids, built exactly as Connect builds a link.
+The old link id is not reused.
 
-The link's other columns are simulation inputs, not decoration:
-`ColdPri`/`AProb`/`AutoTime`/`ManTime` set a cold-standby node's switching
-order and switch-over behaviour on links *into* it, and
-`CapPri`/`nomFlow`/`MaxFlow` set capacity priority and flow on links *out
-of* a node. The upstream half keeps the original From end and the
-downstream half keeps the original To end, so each setting keeps the
-meaning it had. An earlier draft cloned the first `LINK_DATA` row (the
-Connect tool's template), which silently reset those values and could
-change results.
+Connect matches real Raptor. The connect handler in `IDisplay.mod` gives
+every drawn link fixed defaults before `LinkInit` -- `ColdPri` 50,
+`CapPri` 50, `nomFlow` -2, `MaxFlow` -1, `AProb` 1, `AutoTime` 0,
+`ManTime` 0 -- and parents it to the open level
+(`SetParentID(activeWindow)`). Only copy/paste carries a link's own
+values. `make_link_row` holds those defaults and is shared with the API
+builder. (Before this change, Connect cloned the first `LINK_DATA` row,
+inheriting that row's settings and its `pID`; that was a fidelity bug.)
 
-Residual caveat: the engine orders a node's in/out links partly by link id
-(e.g. equal cold priorities, positional capacity priority when "any path"
-is ticked). The halves get new, higher ids, so in those tie cases the
-order can change, exactly as it would after a manual delete-and-redraw.
+Consequence, accepted deliberately: a split link's standby
+(`ColdPri`/`AProb`/`AutoTime`/`ManTime`) and capacity
+(`CapPri`/`nomFlow`/`MaxFlow`) settings are reset to the defaults, the
+same as after a manual delete-and-redraw in Raptor. Re-enter them on the
+new link if they mattered. Link ids also change, which can reorder ties
+the engine breaks by link id, again as in the manual case.
 
 ## Undo
 
@@ -97,5 +98,5 @@ index, its routing points and all positions.
   all four directions, ambiguity sorting.
 - GUI: allowed and blocked hover; click inserts for all four element
   kinds; only the downstream subgraph moves; undo/redo; dog-leg split and
-  restore; duplicate/overlapping links are blocked; the new link rows keep
-  the split link's settings.
+  restore; duplicate/overlapping links are blocked; the new link rows use
+  Raptor's Connect defaults and the open level.
