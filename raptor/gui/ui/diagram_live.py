@@ -706,7 +706,8 @@ class LiveOverlayMixin:
                 return c["result_yellow"], "Yellow"
             return c["result_red"], "Red"
 
-        def apply(item, values: dict[int, float], oid: int, name: str) -> None:
+        def apply(item: Any, values: dict[int, float], oid: int,
+                  name: str) -> None:
             v = values.get(oid)
             if v is None:
                 item.set_anal_label(None)
@@ -731,6 +732,7 @@ class LiveOverlayMixin:
                 item._inner_label.setToolTip(
                     f"{name} — {metric_name} {shown} → {label} band")
 
+        item: Any
         for bid, item in self._block_items.items():
             block = self.blocks.get(bid)
             apply(item, metric, bid,
