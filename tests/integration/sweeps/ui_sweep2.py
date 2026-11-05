@@ -503,7 +503,9 @@ def t_l_explorer_nav():
     ex._on_item_double_clicked(hier_item, 0); app.processEvents()
     assert v._current_parent == hid, \
         f"double-click hier -> level {v._current_parent}, want {hid}"
-    hout_item = find_by_role(ex._tree.topLevelItem(0), "hout")
+    # The tree lists the whole model: take the Out marker of the
+    # hierarchy just entered, not the first [HOut] of any level.
+    hout_item = find_by_role(hier_item, "hout")
     if hout_item is not None:
         ex._on_item_double_clicked(hout_item, 0); app.processEvents()
         assert v._current_parent == 0, \

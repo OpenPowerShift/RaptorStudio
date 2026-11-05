@@ -132,3 +132,40 @@ def test_expand_and_collapse_are_icon_buttons(win):
         assert button.text() == ""
         assert button.toolTip()
         assert button.accessibleName()
+
+
+def test_double_clicking_an_out_marker_leaves_its_own_hierarchy(win):
+    """The tree lists every level, so an Out marker it shows may belong to
+    a hierarchy that is not on screen; double-clicking it opens the level
+    that holds that hierarchy, as the marker does on the canvas."""
+    view = win._diagram_dock.view
+    rbd = load_rbd(MODEL)
+    outs = {int(float(r["ID"])): int(float(r["parent"]))
+            for r in rbd.sections["NODE_DATA"].rows
+            if int(float(r["ID"])) > 0 and int(float(r["Type"])) == 5}
+    nid, hid = next(iter(sorted(outs.items())))
+    row = next(r for r in _rows(win) if _role(r) == f"node:{nid}")
+    assert view._current_parent == 0          # the marker is not on screen
+    win._explorer._on_item_double_clicked(row, 0)
+    QApplication.processEvents()
+    assert view._current_parent == view.hiers[hid].parent_id
+
+    # On screen too: enter the hierarchy, then its own marker goes up.
+    view.enter_level(hid)
+    QApplication.processEvents()
+    win._explorer._on_item_double_clicked(row, 0)
+    QApplication.processEvents()
+    assert view._current_parent == view.hiers[hid].parent_id
+
+
+def test_switching_theme_repaints_the_icon_buttons(win):
+    """ThemeManager passes the new theme to its callbacks."""
+    from raptor.gui.resources.design_tokens import ThemeManager
+    tm = ThemeManager.instance()
+    was_dark = tm.is_dark
+    before = win._explorer._expand_button.icon().cacheKey()
+    try:
+        tm.set_dark(not was_dark)
+        assert win._explorer._expand_button.icon().cacheKey() != before
+    finally:
+        tm.set_dark(was_dark)

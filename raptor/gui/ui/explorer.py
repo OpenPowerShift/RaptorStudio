@@ -29,7 +29,7 @@ class ExplorerDock(QWidget):
     #: Double-click a hierarchy folder (descend) or an HOut marker
     #: (ascend) — MainWindow wires these to the diagram's navigation.
     hier_activated = Signal(int)  # descend into this hierarchy id
-    ascend_requested = Signal()   # leave the current level
+    ascend_requested = Signal(int)  # leave this hierarchy (the marker's own)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -79,7 +79,7 @@ class ExplorerDock(QWidget):
         button.setAccessibleName(name)
         return button
 
-    def _retheme_buttons(self) -> None:
+    def _retheme_buttons(self, *_theme) -> None:
         from raptor.gui.resources import icons
         from raptor.gui.resources.design_tokens import active_colour
         colour = active_colour()["text"]
@@ -251,6 +251,8 @@ class ExplorerDock(QWidget):
         self._cancel_expand()
         self._tree.clear()
         self._hier_tree_items: dict[int, QTreeWidgetItem] = {}
+        #: node id -> (node type, parent hierarchy id), for double-click.
+        self._node_info: dict[int, tuple[int, int]] = {}
         if self._view is None:
             return
 
@@ -273,6 +275,8 @@ class ExplorerDock(QWidget):
         for bid, (name, parent, _t) in sorted(elements["block"].items()):
             bucket(parent, (f"{name} ({bid})", f"block:{bid}",
                             f"Block ID {bid}: {name}"))
+        self._node_info = {nid: (ntype, parent) for nid, (_n, parent, ntype)
+                           in elements["node"].items()}
         for nid, (name, parent, ntype) in sorted(elements["node"].items()):
             t = _NODE_TYPE_LABELS.get(ntype, "?")
             bucket(parent, (f"[{t}] {name} ({nid})", f"node:{nid}",
@@ -369,8 +373,9 @@ class ExplorerDock(QWidget):
             self.hier_activated.emit(int(role.split(":", 1)[1]))
         elif isinstance(role, str) and role.startswith("node:"):
             nid = int(role.split(":", 1)[1])
-            n = (self._view.nodes.get(nid) if self._view is not None
-                 else None)
-            # Double-clicking an Out marker ascends — same as the canvas.
-            if n is not None and getattr(n, "type_node", 0) == 5:
-                self.ascend_requested.emit()
+            # Double-clicking an Out marker ascends — same as the canvas —
+            # from the marker's OWN hierarchy, which need not be the level
+            # on screen: the tree lists the whole model.
+            ntype, parent = self._node_info.get(nid, (0, 0))
+            if ntype == 5 and parent:
+                self.ascend_requested.emit(parent)

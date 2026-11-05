@@ -796,12 +796,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # validation -- never by a double-click that silently does nothing.
         self._set_level(hier_id)
 
-    def go_up(self):
-        """Ascend one level (Up button / double-click the Out marker)."""
-        if not self._current_parent:
+    def go_up(self, from_level: int | None = None):
+        """Ascend one level (Up button / double-click the Out marker).
+
+        `from_level` is the hierarchy to leave, when it is not the one on
+        screen: the Explorer lists every level, so an Out marker it shows
+        can belong to any hierarchy."""
+        level = self._current_parent if from_level is None else from_level
+        if not level:
             return
-        parent = self.hiers[self._current_parent].parent_id \
-            if self._current_parent in self.hiers else 0
+        parent = self.hiers[level].parent_id if level in self.hiers else 0
         self._set_level(parent)
 
     def go_home(self):
