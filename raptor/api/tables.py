@@ -28,6 +28,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from raptor.core.engine.report_rows import ElementLine, element_of
+
 INPUTS = "Inputs"
 RESULTS = "Results"
 
@@ -215,6 +217,16 @@ def _name_line(token: str, part: str | None
     return part, token
 
 
+def _carry_element(parsed: tuple[str, list[str]], raw: str
+                   ) -> tuple[str, list[str]]:
+    """The row with its element (`report_rows`) on its label, if the
+    report line carried one."""
+    element = element_of(raw)
+    if element is None:
+        return parsed
+    return ElementLine(parsed[0], *element), parsed[1]
+
+
 def parse_final_sections(lines: Iterable[str]
                          ) -> list[tuple[str, list[str],
                                          list[tuple[str, list[str]]]]]:
@@ -310,7 +322,7 @@ def parse_final_sections(lines: Iterable[str]
             parsed = _row_values(tokens, None)
             if parsed is None:
                 continue
-        groups[-1][2].append(parsed)
+        groups[-1][2].append(_carry_element(parsed, raw))
     _emit_section(sections, title, groups)
     return sections
 
@@ -704,8 +716,14 @@ def _section_table(title: str, columns: list[str],
             return label
         return with_unit(humanise(label), kind_of(label), units)
 
-    body = [[label_text(label)] + [_clean_number(v) for v in values]
-            for label, values in rows]
+    body: list[list[Any]] = [
+        [label_text(label)] + [_clean_number(v) for v in values]
+        for label, values in rows]
+    # Names are not unique: a row about an element carries its ID too.
+    ids = [element_of(label) for label, _values in rows]
+    if any(ids) and not measures:
+        headers = headers[:1] + ["ID"] + headers[1:]
+        body = [r[:1] + [e[1] if e else ""] + r[1:] for r, e in zip(body, ids)]
     if body and all(r[0] == "" for r in body):
         # Capacity's lost-flow row has no label: drop the empty column.
         headers, body = headers[1:], [r[1:] for r in body]
@@ -811,12 +829,16 @@ def _event_log_table(per_run: Sequence[Sequence[str]]) -> Table | None:
     for n, log in enumerate(per_run, 1):
         for line in log:
             row = parse_event_log_line(line)
-            body.append([n, row[0], row[1], row[2], row[3], row[4]])
+            # Names are not unique: the block, node or event's id too.
+            element = element_of(line)
+            body.append([n, row[0], row[1], row[2],
+                         element[1] if element else "", row[3], row[4]])
     if not body:
         return None
+    headers = list(EVENT_LOG_HEADERS)
     return Table("results.event_log", "Event Log", RESULTS,
-                 ["Run"] + list(EVENT_LOG_HEADERS), body,
-                 text_cols={3, 4, 5})
+                 ["Run", *headers[:3], "ID", *headers[3:]], body,
+                 text_cols={3, 5, 6})
 
 
 def result_tables(bundle: ResultsBundle) -> list[Table]:

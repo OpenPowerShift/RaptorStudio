@@ -789,7 +789,7 @@ class BlockProcess:
                 self.spawn_order_stock(1)
         if self.events_file:
             self.logs.append(format_event_log_line(
-                now, "Block", self.block.name, "Sparing", "Spare_Arrived",
+                now, "Block", self.block.name, "Sparing", "Spare_Arrived", element_id=self.block.id
             ))
 
     def _observe_wake(self, site: WaitSite, resume: object) -> None:
@@ -1468,7 +1468,7 @@ class BlockProcess:
         yield wait
         if self.events_file:
             self.logs.append(format_event_log_line(
-                scheduler.time, "Block", block.name, "End_Partial_post-LDT", f"Time={wait:.6f}"))
+                scheduler.time, "Block", block.name, "End_Partial_post-LDT", f"Time={wait:.6f}", element_id=block.id))
         self._apply_maintenance_completed(scheduler.time, [], {})
         block.run_state.defer_pm = False
         self.hops.run_hop_taken = True
@@ -2037,7 +2037,7 @@ class BlockProcess:
                 if events_file and self.clock.stress != 1.0 and not self.hops.quiet_rewait:
                     logs.append(format_event_log_line(
                         scheduler.time, "Block", block.name, "StessLevel",
-                        f"CombStress={self.clock.stress:.6f}",
+                        f"CombStress={self.clock.stress:.6f}", element_id=block.id
                     ))
 
                 turn_end = yield from self._fail_wait()
@@ -2261,7 +2261,7 @@ class BlockProcess:
         if self.events_file:
             self.logs.append(format_event_log_line(
                 sim_time, "Block", block.name, "Failed-deferring",
-                f"Operating_time={self.clock.operating_time:.6f}"))
+                f"Operating_time={self.clock.operating_time:.6f}", element_id=block.id))
         block.run_state.no_cold_check = True
         try:
             self._transition(BlockStatus.REP_HOLD, block.active_status, "deferred maintenance", sim_time)
@@ -2374,7 +2374,7 @@ class BlockProcess:
                          and system_state.mission_status is MissionStatus.MISSION))):
             if events_file:
                 logs.append(format_event_log_line(
-                    sim_time, "Block", block.name, "PM_is_due", self.pm.reason,
+                    sim_time, "Block", block.name, "PM_is_due", self.pm.reason, element_id=block.id
                 ))
             if not block.run_state.defer_pm:
                 block.run_state.pm_defer_order = next(_DEFER_SEQ)
@@ -2404,7 +2404,7 @@ class BlockProcess:
         # -> `PerformPM`. Beyond the zero-length TELL-boundary
         # yield below, not otherwise interrupt-aware.
             if events_file and not self.pm.spare_pickup:
-                logs.append(format_event_log_line(sim_time, "Block", block.name, "PM_is_due", self.pm.reason))
+                logs.append(format_event_log_line(sim_time, "Block", block.name, "PM_is_due", self.pm.reason, element_id=block.id))
             self.pm.spare_pickup_pass = self.pm.spare_pickup
             self.pm.spare_pickup = False
 
@@ -2621,7 +2621,7 @@ class BlockProcess:
                     if events_file:
                         logs.append(format_event_log_line(
                             sim_time, "Block", block.name, "pmReqDefer",
-                            f"No_spare_in_stock-{block.pool_name}",
+                            f"No_spare_in_stock-{block.pool_name}", element_id=block.id
                         ))
                     # SPARE-pool registration -- tracked on
                     # `pm.spare_pending`, not the resource
@@ -2651,7 +2651,7 @@ class BlockProcess:
                     spare_pool.num_emer_ordered -= 1      # `DecNumEmerOrdered` after the Give 
                 if events_file:
                     logs.append(format_event_log_line(
-                        sim_time, "Block", block.name, "Sparing", "Spare_Arrived",
+                        sim_time, "Block", block.name, "Sparing", "Spare_Arrived", element_id=block.id
                     ))
             block.run_state.spares_used += 1
             # SLO re-order check, same shape as
@@ -2749,7 +2749,7 @@ class BlockProcess:
                     if events_file:
                         logs.append(format_event_log_line(
                             sim_time, "Block", block.name, "pmReqDefer",
-                            "No_spare_in_stock-Custom",
+                            "No_spare_in_stock-Custom", element_id=block.id
                         ))
                     # SPARE-pool registration on
                     # `pm.spare_pending` (not the resource
@@ -2771,7 +2771,7 @@ class BlockProcess:
                 sim_time = scheduler.time
                 if events_file:
                     logs.append(format_event_log_line(
-                        sim_time, "Block", block.name, "Sparing", "Spare_Arrived",
+                        sim_time, "Block", block.name, "Sparing", "Spare_Arrived", element_id=block.id
                     ))
             block.run_state.spares_used += 1
             if block.stock_level_ordering:
@@ -2969,7 +2969,7 @@ class BlockProcess:
             if events_file:
                 logs.append(format_event_log_line(
                     sim_time, "Block", block.name, "Resources",
-                    f"Returned_{block.pm_resources_needed}_Resource(s)"))
+                    f"Returned_{block.pm_resources_needed}_Resource(s)", element_id=block.id))
             if cost_analysis and pool_stats is not None:
                 pool_stats.es_cost -= _res_fixed_per_use(block) * float(block.pm_resources_needed)
         if self.clock.race_raw_life is not None and not self.hops.pm_async_pickup:
@@ -3067,7 +3067,7 @@ class BlockProcess:
                 if events_file and not self.pm.spare_pickup_pass:
                     logs.append(format_event_log_line(
                         sim_time, "Block", block.name, "pmReqDefer",
-                        f"No_resource_in_stock-{block.resource_pool_name}",
+                        f"No_resource_in_stock-{block.resource_pool_name}", element_id=block.id
                     ))
                 # `+= 1`, not `= True`: a second deferral before the
                 # first is reconciled must not forget the first is
@@ -3104,7 +3104,7 @@ class BlockProcess:
             self.hops.pm_async_pickup = bool(pm_res_waiting)
             if pm_res_waiting and events_file:
                 logs.append(format_event_log_line(
-                    sim_time, "Block", block.name, "Resources", f"Obtained_{block.pm_resources_needed}_Resource(s)",
+                    sim_time, "Block", block.name, "Resources", f"Obtained_{block.pm_resources_needed}_Resource(s)", element_id=block.id
                 ))
         else:
             # Port of `ObtainPMprereqs`'s `IF WaitingForResource:
@@ -3117,7 +3117,7 @@ class BlockProcess:
             self.hops.pm_async_pickup = True
             if events_file:
                 logs.append(format_event_log_line(
-                    sim_time, "Block", block.name, "Resources", f"Obtained_{block.pm_resources_needed}_Resource(s)",
+                    sim_time, "Block", block.name, "Resources", f"Obtained_{block.pm_resources_needed}_Resource(s)", element_id=block.id
                 ))
         return sim_time
 
@@ -3179,7 +3179,7 @@ class BlockProcess:
             pm_pending_wake_kinds = dict(pm_pending_grants)
 
         if events_file:
-            logs.append(format_event_log_line(sim_time, "Block", block.name, "PM_complete", f"MaintTime={maint_time:.6f}"))
+            logs.append(format_event_log_line(sim_time, "Block", block.name, "PM_complete", f"MaintTime={maint_time:.6f}", element_id=block.id))
             # `PerformPM` completing restarts the frequency clock --
             # not `_pm_race`. The next race hits the `<= 0` refill and
             # takes a fresh `pm_freq`.
@@ -3343,7 +3343,7 @@ class BlockProcess:
         if spare.custom_was_empty:
             if events_file:
                 logs.append(format_event_log_line(
-                    sim_time, "Block", block.name, "Sparing", "No_spare_in_stock-Custom",
+                    sim_time, "Block", block.name, "Sparing", "No_spare_in_stock-Custom", element_id=block.id
                 ))
             if block.emergency_spare_ordering:
                 # `tell`, not `schedule_process`: the real
@@ -3394,7 +3394,7 @@ class BlockProcess:
         if resources_was_zero:
             if events_file:
                 logs.append(format_event_log_line(
-                    sim_time, "Block", block.name, "Sparing", f"No_spare_in_stock-{block.pool_name}",
+                    sim_time, "Block", block.name, "Sparing", f"No_spare_in_stock-{block.pool_name}", element_id=block.id
                 ))
             if spare_pool_config.emergency_spare_ordering:
                 # Always orders (`CheckForSpare`). An earlier "ESO grace" (no order when a
@@ -3421,7 +3421,7 @@ class BlockProcess:
                 # count, matching CheckForSpare's own read.
                 if events_file:
                     logs.append(format_event_log_line(
-                        sim_time, "Block", block.name, "Sparing", f"Used_Ordered_Spare-{block.pool_name}",
+                        sim_time, "Block", block.name, "Sparing", f"Used_Ordered_Spare-{block.pool_name}", element_id=block.id
                     ))
                 if spawn_order_a_spare is not None:
                     spawn_order_a_spare(deferred=True)
@@ -3503,7 +3503,7 @@ class BlockProcess:
             sim_time = scheduler.time
 
         if spare.custom_was_empty and events_file:
-            logs.append(format_event_log_line(sim_time, "Block", block.name, "Sparing", "Spare_Arrived"))
+            logs.append(format_event_log_line(sim_time, "Block", block.name, "Sparing", "Spare_Arrived", element_id=block.id))
 
         # Port of Repair's own Custom-branch SLO re-order check -- mirrors
         # the SparePool one below. The order line lands after this block's
@@ -3612,7 +3612,7 @@ class BlockProcess:
             # `OrderStock`'s first `WriteEvents` the way block/link TELLs
             # do.
             if waiting_for_spare and events_file:
-                logs.append(format_event_log_line(sim_time, "Block", block.name, "Sparing", "Spare_Arrived"))
+                logs.append(format_event_log_line(sim_time, "Block", block.name, "Sparing", "Spare_Arrived", element_id=block.id))
 
             if spare_pool_config.stock_level_ordering:
                 if spare_pool.resources == spare_pool_config.slo_order_level:
@@ -3655,7 +3655,7 @@ class BlockProcess:
             sim_time = scheduler.time
             if events_file:
                 logs.append(format_event_log_line(
-                    sim_time, "Block", block.name, "End_Partial_pre-LDT", f"Time={require(start_val, 'start_val'):.6f}"))
+                    sim_time, "Block", block.name, "End_Partial_pre-LDT", f"Time={require(start_val, 'start_val'):.6f}", element_id=block.id))
         elif start_val is None and _has_ldt(block.pre_dist, block.pre_params):
             if block.op_status != BlockStatus.REP_HOLD:
                 # `IF opStatus<>RepHold`: a block released from the defer trigger's
@@ -3669,7 +3669,7 @@ class BlockProcess:
             yield ldt_wait
             sim_time = scheduler.time
             if events_file:
-                logs.append(format_event_log_line(sim_time, "Block", block.name, "End_Pre-LDT", f"Time={ldt_wait:.6f}"))
+                logs.append(format_event_log_line(sim_time, "Block", block.name, "End_Pre-LDT", f"Time={ldt_wait:.6f}", element_id=block.id))
         return sim_time
 
     def _obtain_repair_resource(self, sim_time: float) -> Generator[float | Wait, Wake | None, tuple[float, str]]:
@@ -3763,7 +3763,7 @@ class BlockProcess:
             yield 0.0
             if waiting_for_resource and events_file:
                 logs.append(format_event_log_line(
-                    sim_time, "Block", block.name, "Sparing", f"Obtained_{block.repair_resources_needed}_Resource(s)",
+                    sim_time, "Block", block.name, "Sparing", f"Obtained_{block.repair_resources_needed}_Resource(s)", element_id=block.id
                 ))
             repair_comment = f"{block.repair_resources_needed}{block.resource_pool_name}"
         return sim_time, repair_comment
@@ -4017,7 +4017,7 @@ class BlockProcess:
             record_component_repair(system_state, repair_time)
 
         if events_file:
-            logs.append(format_event_log_line(sim_time, "Block", block.name, "Repaired", f"MaintTime={repair_time:.6f}"))
+            logs.append(format_event_log_line(sim_time, "Block", block.name, "Repaired", f"MaintTime={repair_time:.6f}", element_id=block.id))
 
         if _has_ldt(block.post_dist, block.post_params):
             self._transition(BlockStatus.REP_HOLD, block.active_status, "postLDT", sim_time,
@@ -4032,7 +4032,7 @@ class BlockProcess:
             yield ldt_wait
             sim_time = scheduler.time
             if events_file:
-                logs.append(format_event_log_line(sim_time, "Block", block.name, "End_Post-LDT", f"Time={ldt_wait:.6f}"))
+                logs.append(format_event_log_line(sim_time, "Block", block.name, "End_Post-LDT", f"Time={ldt_wait:.6f}", element_id=block.id))
 
         # Restoration (Type I/II): after a failure, the repair leaves a
         # residual age and the next life is drawn conditionally on having

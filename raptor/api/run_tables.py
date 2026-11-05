@@ -94,6 +94,21 @@ def read_per_run(runs_dir: Path, run_id: str) -> list[dict] | None:
     return rows
 
 
+def _tagged(runs_dir: Path, lines: list[str],
+            section: str = "final_results_ids") -> list[str]:
+    """`lines` (Final Results, or the event log) with their saved element
+    tags put back. An older run without the tag file keeps plain lines."""
+    path = section_path(runs_dir, section)
+    if path is None or not path.is_file():
+        return lines
+    from raptor.core.engine.report_rows import apply_tags
+    try:
+        tags = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return lines
+    return apply_tags(lines, tags if isinstance(tags, list) else [])
+
+
 def bundle_from_run(workspace: Workspace, run_id: str,
                     model_id: str | None = None) -> ResultsBundle:
     """The stored run `run_id` as a results bundle. Raises
@@ -124,11 +139,13 @@ def bundle_from_run(workspace: Workspace, run_id: str,
         model_name=str(summary.get("model_name", "")),
         num_runs=num_runs,
         units=str(summary.get("units", "")),
-        final_lines=_read_lines(section_path(runs_dir, "final_results")),
+        final_lines=_tagged(runs_dir, _read_lines(
+            section_path(runs_dir, "final_results"))),
         end_of_run_lines=_read_lines(section_path(runs_dir, "end_of_run")),
         per_run=per_run,
         capacity_lines=_read_lines(section_path(runs_dir, "capacity")),
         cost_lines=_read_lines(section_path(runs_dir, "cost")),
         event_logs=_split_events(
-            _read_lines(section_path(runs_dir, "events"))),
+            _tagged(runs_dir, _read_lines(section_path(runs_dir, "events")),
+                    "events_ids")),
     )

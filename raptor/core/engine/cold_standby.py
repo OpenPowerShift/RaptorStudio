@@ -269,7 +269,7 @@ def _switch_failed(
     if events_file:
         logs.append(format_event_log_line(
             sim_time, "Node", node.report_name, "Switch_Failed",
-            f"Unable_to_switch_to_{name2}",
+            f"Unable_to_switch_to_{name2}", element_id=node.id
         ))
     # The source block's Run process is dead from here on: with its cold
     # link permanently DONE/`active=False` it can never return to service
@@ -828,7 +828,7 @@ def run_cold_logic(
     logs: list[str] = list(extra_logs)
     if events_file:
         logs.append(format_event_log_line(
-            sim_time, "Node", node.node_name, status_string, f"{up_paths}/{resolved_in_link_count}{link_string}",
+            sim_time, "Node", node.node_name, status_string, f"{up_paths}/{resolved_in_link_count}{link_string}", element_id=node.id
         ))
     return logs, new_status, stressed_blocks
 

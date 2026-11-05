@@ -27,6 +27,7 @@ from raptor.core.engine.report_format import (
     format_stats, get_display_str, int_to_str, pop_to_sample, real_to_sn, real_to_str,
 )
 from raptor.core.engine.extended_results import build_extended_results_section
+from raptor.core.engine.report_rows import tag as tag_row
 from raptor.core.engine.stats import RunningStat
 from raptor.core.model import RBDBlock, SparingType
 from raptor.core.engine.errors import EngineInvariantError
@@ -290,7 +291,7 @@ def _cost_table_lines(
            "pm": 0.0, "pmh": 0.0, "sb": 0.0, "done": 0.0}
     # `InHier` column is the block's parentID -- always 0 for a
     # top-level block; printed via WriteInt(parentID,4).
-    for row in sorted(cost.blocks.values(), key=lambda r: r.name.lower()):
+    for bid, row in sorted(cost.blocks.items(), key=lambda kv: kv[1].name.lower()):
         lines.append(
             # Source: `SUBSTR(1,20,name+" ")+" "` then WriteInt(parentID,4)
             # then `" "+REALTOSN(...)` -- one space AFTER
@@ -305,6 +306,7 @@ def _cost_table_lines(
             + _money(row.sb_cost) + " "
             + _money(row.done_cost) + " "
         )
+        lines[-1] = tag_row(lines[-1], "block", bid)
         tot["op"] += row.op_cost
         tot["rep"] += row.rep_cost
         tot["idle"] += row.idle_cost
@@ -330,7 +332,7 @@ def _cost_table_lines(
 
     lines.append("Block                 InitSpares   NewSpares    EmerShip")
     bsict = bspct = besct = 0.0
-    for row in sorted(cost.blocks.values(), key=lambda r: r.name.lower()):
+    for bid, row in sorted(cost.blocks.items(), key=lambda kv: kv[1].name.lower()):
         bsict += row.init_spare_cost
         bspct += row.new_spares_cost
         besct += row.emer_ship_cost
@@ -342,6 +344,7 @@ def _cost_table_lines(
             + _money(row.new_spares_cost) + " "
             + _money(row.emer_ship_cost) + " "
         )
+        lines[-1] = tag_row(lines[-1], "block", bid)
     lines.append("")
     lines.append("Totals" + " " * max(0, sp_w - 6)
                  + _money(bsict) + " " + _money(bspct) + " " + _money(besct) + " ")
@@ -352,7 +355,7 @@ def _cost_table_lines(
     lines.append("")
     lines.append("Block                   Purchase   Operating     Sparing    Disposal       Total")
     bict = btoct = btsct = bdfct = btct = 0.0
-    for row in sorted(cost.blocks.values(), key=lambda r: r.name.lower()):
+    for bid, row in sorted(cost.blocks.items(), key=lambda kv: kv[1].name.lower()):
         bict += row.purchase
         btoct += row.operating
         btsct += row.sparing
@@ -367,6 +370,7 @@ def _cost_table_lines(
             + _money(row.disposal) + " "
             + _money(row.total) + " "
         )
+        lines[-1] = tag_row(lines[-1], "block", bid)
     lines.append("")
     lines.append("Block_Totals" + " " * max(0, op_w - 12)
                  + _money(bict) + " " + _money(btoct) + " " + _money(btsct) + " "
@@ -382,7 +386,7 @@ def _cost_table_lines(
         event_total_cost = sum(r.total for r in cost.events.values())
         lines.append("Event                 InHier     Initial     Success     Failure       Total" if interim
                      else "Event                 InHier    Initial     Success     Failure       Total")
-        for event_row in sorted(cost.events.values(), key=lambda r: r.name.lower()):
+        for eid, event_row in sorted(cost.events.items(), key=lambda kv: kv[1].name.lower()):
             lines.append(
                 _pad(event_row.name, event_width) + str(event_row.parent_id).rjust(4) + ("    " if interim else "   ")
                 + _money(event_row.initial) + " "
@@ -390,6 +394,7 @@ def _cost_table_lines(
                 + _money(event_row.failure) + " "
                 + _money(event_row.total) + " "
             )
+            lines[-1] = tag_row(lines[-1], "event", eid)
         lines.append("")
         lines.append(("Event_Totals                 " if interim else "Event_Totals                ")
                      + _money(event_initial_cost) + " " + _money(event_success_cost) + " " + _money(event_failure_cost) + " " + _money(event_total_cost) + " ")
@@ -1397,7 +1402,7 @@ def build_final_results_report(
             else:
                 # Trailing space, same as the StDev branch above.
                 row += " " * 9 + "N/A "
-            lines.append(row)
+            lines.append(tag_row(row, "block", block.id))
         # Two blanks here (source's `WriteLn; WriteLn` after the utilization
         # FOR, Raptor 7). The third blank is the unconditional
         # `WriteLn` that closes the Custom_Sparing section below
@@ -1466,6 +1471,7 @@ def _build_fr_weak_section(all_run_data: list[RunReportData]) -> list[str]:
         keys = sorted(items, key=lambda k: items[k][0][0]["name"].lower())
         out = [title, ""]
         state_keys = _NODE_STATE_KEYS if label == "Node" else _BLOCK_STATE_KEYS
+        kind = "node" if label == "Node" else "block"
         # One metric computation per (element, run). The four output tables
         # used to call `metrics()` again for every column -- the state table
         # once per state key -- so a large final report paid about eleven
@@ -1494,8 +1500,9 @@ def _build_fr_weak_section(all_run_data: list[RunReportData]) -> list[str]:
                        + _pad(tag + "Max", 14) + _pad(tag + "StdDev", 14) + tag + "SEM")
             for k in keys:
                 rows_data = computed[k]
-                out.append(_fr_weak_stat_row(
-                    rows_data[0][1], [m[col] for m, _name in rows_data]))
+                out.append(tag_row(_fr_weak_stat_row(
+                    rows_data[0][1], [m[col] for m, _name in rows_data]),
+                    kind, k))
             out.append("")
         out.append("State_Data")
         if label == "Node":
@@ -1510,7 +1517,7 @@ def _build_fr_weak_section(all_run_data: list[RunReportData]) -> list[str]:
             means = state_means[k]
             for sk in state_keys:
                 row += real_to_sn(means[sk], 12, 6, 1)
-            out.append(row)
+            out.append(tag_row(row, kind, k))
         return out
 
     lines = ["***WEAK_LINK_ANALYSIS***", ""]
@@ -1541,6 +1548,7 @@ def _build_fr_weak_event_hier(runs: list[RunReportData]) -> list[str]:
         return acc
 
     def stat_tables(label: str, items: dict, keys: list, metrics) -> list[str]:
+        kind = "event" if label == "Event" else "hier"
         lines: list[str] = []
         for sub, col, tag in (("Availability_Data", 0, "Ao"), ("Dependability_Data", 1, "Do"),
                               ("Reliability_Data", 2, "R")):
@@ -1550,7 +1558,8 @@ def _build_fr_weak_event_hier(runs: list[RunReportData]) -> list[str]:
                          + _pad(tag + "Max", 14) + _pad(tag + "StdDev", 14) + tag + "SEM")
             for k in keys:
                 rows = items[k]
-                lines.append(_fr_weak_stat_row(rows[0][0]["name"], [metrics(v, ma)[col] for v, ma in rows]))
+                lines.append(tag_row(_fr_weak_stat_row(
+                    rows[0][0]["name"], [metrics(v, ma)[col] for v, ma in rows]), kind, k))
             lines.append("")
         return lines
 
@@ -1566,7 +1575,7 @@ def _build_fr_weak_event_hier(runs: list[RunReportData]) -> list[str]:
             row = _pad(rows[0][0]["name"], 20)
             for sk in ("success", "armed", "failure"):
                 row += real_to_sn(_fr_mean(_weak_event_metrics(v, ma)[3][sk] for v, ma in rows), 14, 6, 1)
-            out.append(row)
+            out.append(tag_row(row, "event", k))
         out.append("")
         out.append("")
 
@@ -1590,7 +1599,7 @@ def _build_fr_weak_event_hier(runs: list[RunReportData]) -> list[str]:
                     mtbde.append(uptime)
             row = _pad(rows[0][0]["name"], 23) + real_to_sn(_fr_mean(mtbde), 10, 2, 0) + "    "
             row += real_to_sn(_fr_mean(mdt), 10, 2, 0) if mdt else "N/A"
-            out.append(row)
+            out.append(tag_row(row, "hier", k))
         out.append("")
         out += stat_tables("Hierarchy", hiers, keys, _weak_node_metrics)
         out.append("State_Data")
@@ -1600,7 +1609,7 @@ def _build_fr_weak_event_hier(runs: list[RunReportData]) -> list[str]:
             row = _pad(rows[0][0]["name"], 20)
             for sk in ("green", "yellow", "red", "blue", "brown", "orange"):
                 row += real_to_sn(_fr_mean(_weak_node_metrics(v, ma)[3][sk] for v, ma in rows), 12, 6, 1)
-            out.append(row)
+            out.append(tag_row(row, "hier", k))
         out.append("")
     return out
 

@@ -169,7 +169,7 @@ def write_block_failed_line(block: RBDBlock, sim_time: float, operating_time: fl
     unrepairable), so it documents the failure at the block's still-running
     moment rather than a `ChangeBlockState`-driven transition."""
     return format_event_log_line(
-        sim_time, "Block", block.name, "Failed", f"Operating_time={operating_time:.6f}"
+        sim_time, "Block", block.name, "Failed", f"Operating_time={operating_time:.6f}", element_id=block.id
     )
 
 
@@ -255,7 +255,7 @@ def change_block_state(
             logs.append(
                 format_event_log_line(
                     sim_time, "Block", block.name, action_string,
-                    comment_string if comment_string else "change_block_state",
+                    comment_string if comment_string else "change_block_state", element_id=block.id
                 )
             )
 

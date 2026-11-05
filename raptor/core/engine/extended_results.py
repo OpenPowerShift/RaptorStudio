@@ -13,6 +13,8 @@ per run like every other Final Results statistic.
 """
 from __future__ import annotations
 
+from raptor.core.engine.report_rows import tag
+
 import math
 from collections.abc import Sequence
 
@@ -155,7 +157,8 @@ def _criticality_table(runs: list[RunReportData]) -> list[str]:
     for bid in sorted(means, key=order):
         cells = ["N/A" if (v := means[bid][key]) is None else f"{100.0 * v:.2f}"
                  for key in _SHARES]
-        lines.append(f"{names[bid]:<21} " + "".join(f"{c:>14}" for c in cells))
+        lines.append(tag(f"{names[bid]:<21} " + "".join(f"{c:>14}" for c in cells),
+                         "block", bid))
     hints = []
     if all(means[bid]["downtime"] is None for bid in means):
         hints.append("Downtime shares need Weak Link analysis.")

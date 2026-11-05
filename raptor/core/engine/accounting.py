@@ -94,7 +94,7 @@ class CostAccountant:
             # that clears it, in `block_lifecycle.block_run_process`).
             if events_file and block.run_state.rep_wait:
                 logs.append(format_event_log_line(
-                    sim_time, "Block", block.name, "Partial_Repair", f"RepairTime={state_time:.6f}",
+                    sim_time, "Block", block.name, "Partial_Repair", f"RepairTime={state_time:.6f}", element_id=block.id
                 ))
         elif old_op_status == BlockStatus.RUNNING:
             stats.op_cost += block.operating_cost * state_time

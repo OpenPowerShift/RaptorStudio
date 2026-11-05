@@ -32,38 +32,51 @@ class LogLine(str):
     `name`, `action` and `comment` are the `WriteEvents` arguments.
     """
 
-    __slots__ = ("action", "comment", "name", "time", "type")
+    __slots__ = ("action", "comment", "element", "name", "time", "type")
     time: float
     type: str
     name: str
     action: str
     comment: str
+    #: `(kind, id)` of the block, node or event the line is about, or None
+    #: (names are not unique; see `report_rows`).
+    element: tuple[str, int] | None
 
     def __new__(cls, text: str, time: float, type_string: str, name_string: str,
-                action_string: str, comment_string: str) -> LogLine:
+                action_string: str, comment_string: str,
+                element: tuple[str, int] | None = None) -> LogLine:
         line = super().__new__(cls, text)
         line.time = time
         line.type = type_string
         line.name = name_string
         line.action = action_string
         line.comment = comment_string
+        line.element = element
         return line
 
     def __reduce__(self):
         # Worker processes return their runs' lines to the parent.
-        return (LogLine, (str(self), self.time, self.type, self.name, self.action, self.comment))
+        return (LogLine, (str(self), self.time, self.type, self.name, self.action, self.comment,
+                          self.element))
+
+
+#: Event-log element types that name a model element (and so carry its id).
+_ELEMENT_KINDS = {"Block": "block", "Node": "node", "Event": "event"}
 
 
 def format_event_log_line(
-    time: float, type_string: str, name_string: str, action_string: str, comment_string: str
+    time: float, type_string: str, name_string: str, action_string: str, comment_string: str,
+    element_id: int | None = None,
 ) -> LogLine:
-    """Port of `WriteEvents`."""
+    """Port of `WriteEvents`. `element_id` is the block, node or event's id."""
     time_str = _pad(f"{time:.6f}", 16) + "  " + TAB
     type_str = _pad(type_string, 7) + "  " + TAB
     name_str = _pad(name_string, 20) + "  " + TAB
     action_str = _pad(action_string, 15) + "  " + TAB
+    kind = _ELEMENT_KINDS.get(type_string)
+    element = (kind, int(element_id)) if kind and element_id is not None else None
     return LogLine(time_str + type_str + name_str + action_str + comment_string,
-                   time, type_string, name_string, action_string, comment_string)
+                   time, type_string, name_string, action_string, comment_string, element)
 
 
 #: Told about each line added to an `EventLog`.

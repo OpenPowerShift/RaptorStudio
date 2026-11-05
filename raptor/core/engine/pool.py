@@ -488,7 +488,7 @@ def generate_custom_spares_process(
         if events_file:
             logs.append(format_event_log_line(
                 scheduler.time, "Block", block.name, "Sparing",
-                f"{block.new_spares}_new_spare(s)_arrived_(stock={custom_spares.resources})",
+                f"{block.new_spares}_new_spare(s)_arrived_(stock={custom_spares.resources})", element_id=block.id
             ))
         for granted_id, granted_kind in granted_ids:
             wake_block(granted_id, InterruptReason.POOL_AVAILABLE, granted_kind)
@@ -520,7 +520,7 @@ def order_a_custom_spare_process(
     if events_file:
         logs.append(format_event_log_line(
             scheduler.time, "Block", block.name, "Sparing",
-            f"Spare_ordered_(stock={custom_spares.resources})",
+            f"Spare_ordered_(stock={custom_spares.resources})", element_id=block.id
         ))
     yield block.emer_time
     custom_spares.arrivals += 1
@@ -528,7 +528,7 @@ def order_a_custom_spare_process(
     if events_file:
         logs.append(format_event_log_line(
             scheduler.time, "Block", block.name, "Sparing",
-            f"Ordered_spare_arrives_(stock={custom_spares.resources})",
+            f"Ordered_spare_arrives_(stock={custom_spares.resources})", element_id=block.id
         ))
     for granted_id, granted_kind in granted_ids:
         wake_block(granted_id, InterruptReason.POOL_AVAILABLE, granted_kind)
@@ -556,7 +556,7 @@ def order_custom_stock_process(
     if events_file:
         logs.append(format_event_log_line(
             scheduler.time, "Block", block.name, "Sparing",
-            f"{quantity}_Spare(s)_ordered_(stock={custom_spares.resources})",
+            f"{quantity}_Spare(s)_ordered_(stock={custom_spares.resources})", element_id=block.id
         ))
     yield block.slo_time
     custom_spares.arrivals += quantity
@@ -564,7 +564,7 @@ def order_custom_stock_process(
     if events_file:
         logs.append(format_event_log_line(
             scheduler.time, "Block", block.name, "Sparing",
-            f"{quantity}_Spare(s)_arrived_(stock={custom_spares.resources})",
+            f"{quantity}_Spare(s)_arrived_(stock={custom_spares.resources})", element_id=block.id
         ))
     for granted_id, granted_kind in granted_ids:
         wake_block(granted_id, InterruptReason.POOL_AVAILABLE, granted_kind)
