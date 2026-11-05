@@ -730,7 +730,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # do again -- twice per click, over every item map on the
             # level. Sum the answer we already have.
             selected_elements=sum(len(ids) for ids in selected),
-            selected_structural=sum(len(ids) for ids in selected[:3]),
+            # Collapse moves blocks, regular nodes, events and whole
+            # hierarchies: everything `selected_elements` returns.
+            selected_structural=sum(len(ids) for ids in selected),
             hierarchies_here=view.hierarchy_count() if view else 0,
             level_depth=view._current_depth() if view else 0,
             selected_hierarchies=len(selected[3]),

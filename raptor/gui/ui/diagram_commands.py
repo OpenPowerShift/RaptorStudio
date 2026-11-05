@@ -970,8 +970,11 @@ class CollapseCmd(_ViewCmd):
     would not validate."""
 
     def __init__(self, view, hrows, parent_moves, link_ops,
-                 moved_annotations=None):
+                 moved_annotations=None, level_moves=None):
         super().__init__(view, "Collapse into hierarchy")
+        # [(hier_id, old_level)] -- a collapsed hierarchy's subtree goes
+        # one level deeper
+        self.level_moves = list(level_moves or [])
         # [(anno_id, old_parent, new_parent)] -- selected annotations follow in
         self.moved_annotations = list(moved_annotations or [])
         # [hier_row, in_row, out_row] -- fresh rows to add.
@@ -990,12 +993,14 @@ class CollapseCmd(_ViewCmd):
             apply_collapse_plan(
                 rbd, hrows=self.hrows, parent_moves=self.parent_moves,
                 link_ops=self.link_ops,
-                moved_annotations=self.moved_annotations)
+                moved_annotations=self.moved_annotations,
+                level_moves=self.level_moves)
         else:
             revert_collapse_plan(
                 rbd, hrows=self.hrows, parent_moves=self.parent_moves,
                 link_ops=self.link_ops,
-                moved_annotations=self.moved_annotations)
+                moved_annotations=self.moved_annotations,
+                level_moves=self.level_moves)
         v._rebuild_scene()
 
     def redo(self):

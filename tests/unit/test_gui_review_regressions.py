@@ -167,8 +167,8 @@ def test_weak_table_counts_an_empty_denominator_as_one():
 
 
 def test_collapse_and_zoom_selection_follow_what_they_can_act_on():
-    """A hierarchy oval is selectable but Collapse cannot move it, and
-    Zoom to Selection needs something selected at all."""
+    """Collapse acts on blocks, nodes, events and hierarchy ovals (moved in
+    whole), and Zoom to Selection needs something selected at all."""
     from raptor.core.fileio.rbds import load_rbds
     from raptor.gui.ui.main_window import MainWindow
 
@@ -187,7 +187,7 @@ def test_collapse_and_zoom_selection_follow_what_they_can_act_on():
     hid = next(iter(view._hier_items))
     view._hier_items[hid].setSelected(True)
     win._refresh_commands()
-    assert win._collapse_action.isEnabled() is False
+    assert win._collapse_action.isEnabled() is True
     assert win._zoom_selection_action.isEnabled() is True
 
     bid = next(iter(view._block_items))
