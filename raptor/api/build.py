@@ -1133,7 +1133,7 @@ def build_from_spec(spec: dict[str, Any],
             f"{MAX_ASSIGNMENT_CELLS}")
     if "rbds_text" in spec:
         from raptor.core.fileio.rbds import parse_rbds
-        return parse_rbds(spec["rbds_text"])
+        return _refuse_too_deep(parse_rbds(spec["rbds_text"]))
 
     from raptor.core.fileio.rbdlib import (
         make_system_row, make_block_row, make_node_row, make_event_row, make_hierarchy_row, make_link_row,
@@ -1353,6 +1353,16 @@ def build_from_spec(spec: dict[str, Any],
         from raptor.core.fileio.legacy_layout import normalize_legacy_layout
         normalize_legacy_layout(rbd, force=True)
     _add_spec_annotations(rbd, spec)
+    return _refuse_too_deep(rbd)
+
+
+def _refuse_too_deep(rbd: RbdFile) -> RbdFile:
+    """A built model may not nest hierarchies deeper than can be opened
+    (`input_rules.MAX_HIERARCHY_DEPTH`)."""
+    from raptor.core.input_rules import hierarchy_depth_violations, refusal_text
+    too_deep = hierarchy_depth_violations(rbd)
+    if too_deep:
+        raise BuildError(refusal_text(too_deep))
     return rbd
 
 

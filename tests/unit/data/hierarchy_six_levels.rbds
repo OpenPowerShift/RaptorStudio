@@ -1,0 +1,499 @@
+{
+ "format": "raptor-studio",
+ "version": 4,
+ "meta": {
+  "generator": "RAPTOR Studio 0.9.0"
+ },
+ "system": {
+  "red_cost": 0.0,
+  "lost_cost": 0.0,
+  "flow_generated": 1
+ },
+ "experiment": {
+  "trials": 10,
+  "termination_type": "TimeSim",
+  "term_condition": 48.0,
+  "start_stats": 0.0,
+  "analyses": [],
+  "importance": "none",
+  "recording": {
+   "event_log": true,
+   "ao_plot": false,
+   "capacity_plot": false,
+   "cost_plot": false,
+   "ao_interval": 10.0,
+   "cost_interval": 720.0
+  }
+ },
+ "links": [
+  {
+   "id": 1,
+   "from": [
+    "Node",
+    14
+   ],
+   "to": [
+    "Hier",
+    5
+   ]
+  },
+  {
+   "id": 4,
+   "from": [
+    "Hier",
+    5
+   ],
+   "to": [
+    "Node",
+    15
+   ]
+  },
+  {
+   "id": 5,
+   "from": [
+    "Node",
+    6
+   ],
+   "to": [
+    "Hier",
+    8
+   ]
+  },
+  {
+   "id": 6,
+   "from": [
+    "Hier",
+    8
+   ],
+   "to": [
+    "Node",
+    7
+   ]
+  },
+  {
+   "id": 7,
+   "from": [
+    "Node",
+    9
+   ],
+   "to": [
+    "Hier",
+    11
+   ]
+  },
+  {
+   "id": 9,
+   "from": [
+    "Node",
+    12
+   ],
+   "to": [
+    "Block",
+    1
+   ]
+  },
+  {
+   "id": 8,
+   "from": [
+    "Hier",
+    11
+   ],
+   "to": [
+    "Node",
+    10
+   ]
+  },
+  {
+   "id": 2,
+   "from": [
+    "Block",
+    1
+   ],
+   "to": [
+    "Hier",
+    16
+   ]
+  },
+  {
+   "id": 10,
+   "from": [
+    "Hier",
+    16
+   ],
+   "to": [
+    "Node",
+    13
+   ]
+  },
+  {
+   "id": 11,
+   "from": [
+    "Node",
+    17
+   ],
+   "to": [
+    "Hier",
+    19
+   ]
+  },
+  {
+   "id": 12,
+   "from": [
+    "Hier",
+    19
+   ],
+   "to": [
+    "Node",
+    18
+   ]
+  },
+  {
+   "id": 14,
+   "from": [
+    "Block",
+    3
+   ],
+   "to": [
+    "Node",
+    21
+   ]
+  },
+  {
+   "id": 13,
+   "from": [
+    "Node",
+    20
+   ],
+   "to": [
+    "Hier",
+    22
+   ]
+  },
+  {
+   "id": 15,
+   "from": [
+    "Node",
+    23
+   ],
+   "to": [
+    "Block",
+    2
+   ]
+  },
+  {
+   "id": 3,
+   "from": [
+    "Hier",
+    22
+   ],
+   "to": [
+    "Block",
+    3
+   ]
+  },
+  {
+   "id": 16,
+   "from": [
+    "Block",
+    2
+   ],
+   "to": [
+    "Node",
+    24
+   ]
+  }
+ ],
+ "elements": {
+  "blocks": [
+   {
+    "id": 1,
+    "name": "Battery_Pack",
+    "parent": 11,
+    "x": 3.75,
+    "y": 91.25,
+    "fail_dist": 15,
+    "fail_params": [
+     1.5,
+     60.0,
+     0.0
+    ],
+    "repair_dist": 18,
+    "repair_params": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "eso": 0
+   },
+   {
+    "id": 2,
+    "name": "Switch",
+    "parent": 22,
+    "x": 6.25,
+    "y": 91.25,
+    "fail_params": [
+     200.0,
+     0.0,
+     0.0
+    ],
+    "repair_dist": 18,
+    "repair_params": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "eso": 0
+   },
+   {
+    "id": 3,
+    "name": "LED_Panel",
+    "parent": 19,
+    "x": 8.75,
+    "y": 91.25,
+    "fail_dist": 8,
+    "fail_params": [
+     100.0,
+     10.0,
+     0.0
+    ],
+    "repair_dist": 18,
+    "repair_params": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "eso": 0
+   }
+  ],
+  "nodes": [
+   {
+    "id": 14,
+    "name": "start",
+    "type": 1,
+    "parent": 0,
+    "x": 1.25,
+    "y": 91.25
+   },
+   {
+    "id": 15,
+    "name": "end",
+    "type": 3,
+    "parent": 0,
+    "x": 12.5,
+    "y": 91.25
+   },
+   {
+    "id": 6,
+    "name": "in",
+    "type": 4,
+    "parent": 5,
+    "x": -3.75,
+    "y": 92.5,
+    "k": 1
+   },
+   {
+    "id": 7,
+    "name": "out",
+    "type": 5,
+    "parent": 5,
+    "x": 16.25,
+    "y": 92.5
+   },
+   {
+    "id": 9,
+    "name": "in",
+    "type": 4,
+    "parent": 8,
+    "x": -3.75,
+    "y": 92.5,
+    "k": 1
+   },
+   {
+    "id": 10,
+    "name": "out",
+    "type": 5,
+    "parent": 8,
+    "x": 16.25,
+    "y": 92.5
+   },
+   {
+    "id": 12,
+    "name": "in",
+    "type": 4,
+    "parent": 11,
+    "x": -3.75,
+    "y": 92.5,
+    "k": 1
+   },
+   {
+    "id": 13,
+    "name": "out",
+    "type": 5,
+    "parent": 11,
+    "x": 16.25,
+    "y": 92.5
+   },
+   {
+    "id": 17,
+    "name": "in",
+    "type": 4,
+    "parent": 16,
+    "x": -2.5,
+    "y": 92.5,
+    "k": 1
+   },
+   {
+    "id": 18,
+    "name": "out",
+    "type": 5,
+    "parent": 16,
+    "x": 17.5,
+    "y": 92.5
+   },
+   {
+    "id": 20,
+    "name": "in",
+    "type": 4,
+    "parent": 19,
+    "x": -2.5,
+    "y": 92.5,
+    "k": 1
+   },
+   {
+    "id": 21,
+    "name": "out",
+    "type": 5,
+    "parent": 19,
+    "x": 17.5,
+    "y": 92.5
+   },
+   {
+    "id": 23,
+    "name": "in",
+    "type": 4,
+    "parent": 22,
+    "x": -3.75,
+    "y": 92.5,
+    "k": 1
+   },
+   {
+    "id": 24,
+    "name": "out",
+    "type": 5,
+    "parent": 22,
+    "x": 16.25,
+    "y": 92.5
+   }
+  ],
+  "events": [],
+  "hierarchies": [
+   {
+    "id": 5,
+    "name": "Hierarchy_1",
+    "parent": 0,
+    "in_id": 6,
+    "out_id": 7,
+    "x": 6.25,
+    "y": 91.25,
+    "legacy": {
+     "extraInt1": "5",
+     "extraInt2": "5"
+    }
+   },
+   {
+    "id": 8,
+    "name": "Hierarchy_2",
+    "parent": 5,
+    "in_id": 9,
+    "out_id": 10,
+    "x": 6.25,
+    "y": 91.25,
+    "legacy": {
+     "extraInt1": "5",
+     "extraInt2": "5"
+    }
+   },
+   {
+    "id": 11,
+    "name": "Hierarchy_3",
+    "parent": 8,
+    "in_id": 12,
+    "out_id": 13,
+    "x": 6.25,
+    "y": 91.25,
+    "legacy": {
+     "extraInt1": "5",
+     "extraInt2": "5"
+    }
+   },
+   {
+    "id": 16,
+    "name": "Hierarchy_4",
+    "parent": 11,
+    "in_id": 17,
+    "out_id": 18,
+    "x": 7.5,
+    "y": 91.25,
+    "legacy": {
+     "extraInt1": "5",
+     "extraInt2": "5"
+    }
+   },
+   {
+    "id": 19,
+    "name": "Hierarchy_5",
+    "parent": 16,
+    "in_id": 20,
+    "out_id": 21,
+    "x": 7.5,
+    "y": 91.25,
+    "legacy": {
+     "extraInt1": "5",
+     "extraInt2": "5"
+    }
+   },
+   {
+    "id": 22,
+    "name": "Hierarchy_6",
+    "parent": 19,
+    "in_id": 23,
+    "out_id": 24,
+    "x": 6.25,
+    "y": 91.25,
+    "legacy": {
+     "extraInt1": "5",
+     "extraInt2": "5"
+    }
+   }
+  ]
+ },
+ "defaults": {
+  "blocks": {
+   "id": 0,
+   "name": "unnamed",
+   "parent": 0,
+   "x": 0.0,
+   "y": 0.0,
+   "growth_decay_limit": 1.0,
+   "rso": 1,
+   "eso": 1,
+   "pm_spare": true,
+   "pm_refresh": true,
+   "pm_fail_reset": true,
+   "pm_req_defer": true,
+   "at": 3
+  }
+ },
+ "spare_pools": [],
+ "resources": [],
+ "triggers": [],
+ "phases": [],
+ "view_transform": {
+  "scale": 64.0,
+  "origin_x": 1.25,
+  "flip_base": 91.25,
+  "dx_min": 0.0,
+  "dy_min": 0.0
+ },
+ "comments": []
+}

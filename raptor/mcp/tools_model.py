@@ -339,6 +339,8 @@ def build_model(name: str, spec: dict[str, Any] | None = None,
     directory). Exactly one of the two. To open a finished `.rbds` or
     `.rbd` file instead, use `open_model`, which takes the same kind of path.
 
+    Hierarchies in a spec nest at most 8 deep; a deeper spec is refused.
+
     `build_model` always creates a NEW model. `model_id` is accepted only
     to reject it with a clear message: it used to be ignored silently, so
     a caller that passed one believed it was appending to that model.
@@ -768,7 +770,13 @@ def add_hierarchy(
     the Out marker. To build a hierarchy *around* elements you already
     have, use `collapse_selection` instead -- it does all the rewiring.
 
-    Returns {hier_id, name, in_id, out_id}.
+    **Hierarchies nest at most 8 deep** (a hierarchy inside seven others is
+    the deepest allowed): plan the levels before building. A hierarchy
+    whose `parent` is already 8 deep is refused. The result's `depth` is
+    the new hierarchy's level (1 = on the home level) and `levels_below`
+    how many more can still go inside it.
+
+    Returns {hier_id, name, in_id, out_id, parent, depth, levels_below}.
     """
     context.require_write()
     ws = context.workspace()
@@ -780,17 +788,38 @@ def add_hierarchy(
         "in_id": row["in"],
         "out_id": row["out"],
         "parent": row["Parent"],
+        **_depth_fields(ws, model_id, row["ID"]),
     }
     return ok(
         data,
         markdown=f"Added hierarchy **{data['name']}** (id {data['hier_id']}), "
                  f"with In marker {data['in_id']} and Out marker "
                  f"{data['out_id']}.\n\n"
+                 f"{_depth_sentence(data)}\n\n"
                  f"It is empty and not connected to anything yet. Add "
                  f"contents with `add_block(parent={data['hier_id']}, ...)` "
                  f"and wire it up with `connect`. To wrap elements that "
                  f"already exist, use `collapse_selection` instead.",
     )
+
+
+def _depth_fields(ws, model_id: str, hier_id) -> dict[str, int]:
+    """`depth` of a new hierarchy (1 = on the home level) and how many
+    more levels fit inside it (`input_rules.MAX_HIERARCHY_DEPTH`)."""
+    from raptor.core.input_rules import MAX_HIERARCHY_DEPTH, hierarchy_depths
+    depth = hierarchy_depths(ws.get(model_id).rbd).get(int(float(hier_id)), 1)
+    return {"depth": depth,
+            "levels_below": max(0, MAX_HIERARCHY_DEPTH - depth)}
+
+
+def _depth_sentence(data: dict) -> str:
+    left = data["levels_below"]
+    where = f"It is {data['depth']} level(s) deep"
+    if left == 0:
+        return (f"{where}, the deepest allowed: no hierarchy can be added "
+                "inside it.")
+    return (f"{where}; {left} more level(s) can still go inside it "
+            "(hierarchies nest at most 8 deep).")
 
 
 @mcp.tool(annotations=EDIT("Collapse selection"))
@@ -820,7 +849,12 @@ def collapse_selection(
     the way to reproduce the book's "three ovals" figures. Read
     `describe_model(detail='full')` afterwards to see the new level.
 
-    Returns {hier_id, name, in_id, out_id, moved}.
+    **Hierarchies nest at most 8 deep**: collapsing on a level that is
+    already 8 deep is refused. The result's `depth` and `levels_below`
+    say where the new hierarchy sits and how many more fit inside it.
+
+    Returns {hier_id, name, in_id, out_id, parent, moved, depth,
+    levels_below}.
     """
     context.require_write()
     ws = context.workspace()
@@ -835,13 +869,14 @@ def collapse_selection(
         "out_id": result["out"],
         "parent": result["Parent"],
         "moved": moved,
+        **_depth_fields(ws, model_id, result["ID"]),
     }
     rows = [[s, "yes"] for s in selectors]
     return ok(
         data,
         markdown=f"Collapsed {len(selectors)} element(s) into hierarchy "
                  f"**{data['name']}** (id {data['hier_id']}); boundary links "
-                 f"rewired to the hierarchy.\n\n"
+                 f"rewired to the hierarchy. {_depth_sentence(data)}\n\n"
                  + markdown_table(["element", "moved in"], rows)
                  + f"\n\nSee the inside with `render_diagram(level="
                    f"{data['hier_id']})`, or navigate it with "

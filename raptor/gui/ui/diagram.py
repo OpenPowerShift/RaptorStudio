@@ -759,10 +759,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def _current_depth(self) -> int:
         """How many hierarchy levels deep `self._current_parent` is,
         walked fresh from the model's own `parent_id` chain each time --
-        used only for `enter_level`'s "max 5 levels of indenturing" cap
-        (manual). Computed fresh rather than from a maintained
+        Computed fresh rather than from a maintained
         counter/stack, so it cannot desync from direct level jumps such
-        as `locate_element`'s.
+        as `locate_element`'s. Gates Add Hierarchy and Collapse at
+        `input_rules.MAX_HIERARCHY_DEPTH`.
         """
         depth = 0
         seen: set[int] = set()
@@ -777,8 +777,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         """Descend into a hierarchy's child level (double-click oval)."""
         if hier_id not in self.hiers or hier_id == self._current_parent:
             return
-        if self._current_depth() >= 5:
-            return  # manual: max five levels of indenturing
+        # No depth cap here: any hierarchy that exists can be opened. The
+        # nesting limit (`input_rules.MAX_HIERARCHY_DEPTH`) is enforced
+        # where hierarchies are made, and a deeper file is reported by
+        # validation -- never by a double-click that silently does nothing.
         self._set_level(hier_id)
 
     def go_up(self):
@@ -3531,6 +3533,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if not name:
             stem = os.path.basename(path)
             name = os.path.splitext(stem)[0]
+        # The wrapper sits one level below this one, and the imported
+        # model's own hierarchies below that: all within the nesting limit.
+        from raptor.core.input_rules import (
+            MAX_HIERARCHY_DEPTH, hierarchy_depths)
+        deepest = (self._current_depth() + 1
+                   + max(hierarchy_depths(imported).values(), default=0))
+        if deepest > MAX_HIERARCHY_DEPTH:
+            raise ValueError(
+                f"importing {name} here would nest hierarchies {deepest} "
+                f"deep; at most {MAX_HIERARCHY_DEPTH} are allowed. Import it "
+                "at a shallower level.")
 
         # Wrapper first so the import remap avoids its ids too.
         hier_row, in_row, out_row = self._build_hierarchy_rows(name, 50.0, 50.0)

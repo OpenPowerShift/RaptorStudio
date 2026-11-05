@@ -732,6 +732,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             selected_elements=sum(len(ids) for ids in selected),
             selected_structural=sum(len(ids) for ids in selected[:3]),
             hierarchies_here=view.hierarchy_count() if view else 0,
+            level_depth=view._current_depth() if view else 0,
             selected_hierarchies=len(selected[3]),
             fev_active=getattr(self, "_fev", None) is not None,
             fev_phased=bool(getattr(getattr(self, "_fev", None), "phased", False)),
@@ -1477,6 +1478,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             lambda: self._refresh_commands(
                 self._command_state(reuse_validity=True),
                 only={"has_selection", "has_structural_selection",
+                      "can_collapse",
                       "has_movable_selection", "can_align", "can_mass_edit",
                       "can_zoom_hierarchy", "can_extract_hierarchy"}))
         # The view disarms its own tools (Esc, and the end of a
@@ -1834,6 +1836,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._results.set_hierarchy_options(
                 {h: hh.name for h, hh in v3.hiers.items()}, parent_id)
         self._refresh_goto_combo()
+        # Add Hierarchy and Collapse depend on how deep this level is.
+        self._refresh_commands(self._command_state(reuse_validity=True),
+                               only={"can_add_hierarchy", "can_collapse"})
         if inside and name is not None:
             self._statusbar.showMessage(
                 f"Viewing hierarchy level: {name.name} (double-click an "

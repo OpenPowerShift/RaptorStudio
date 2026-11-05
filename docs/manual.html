@@ -22,6 +22,7 @@
 <li><a href="#results">Results dock</a>
 <ul class="sectlevel2">
 <li><a href="#_analytical_analysis">Analytical analysis</a></li>
+<li><a href="#hierarchy-depth">Nesting hierarchies: at most eight levels</a></li>
 <li><a href="#_a_hierarchys_body_and_its_dsi">A hierarchy&#8217;s body and its DSI</a></li>
 <li><a href="#_editing_while_results_are_showing">Editing while results are showing</a></li>
 </ul>
@@ -517,6 +518,35 @@ percentage share of failures, downtime and cost. They close the Final
 Results report too, in its <code><strong><strong>EXTENDED_RESULTS</strong></strong></code> section, and Export
 Tables writes them like any other result table. Downtime shares need Weak
 Link analysis and cost shares need Cost analysis.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="hierarchy-depth">Nesting hierarchies: at most eight levels</h3>
+<div class="paragraph">
+<p>A hierarchy can contain hierarchies, <strong>at most eight levels deep</strong>: a
+hierarchy inside seven others is the deepest allowed. Plan a design&#8217;s
+breakdown within that.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Every level that exists can be opened (double-click the oval, or use
+the Model Explorer).</p>
+</li>
+<li>
+<p>On the eighth level, <strong>Add Hierarchy</strong> and <strong>Collapse Selection</strong> are
+unavailable; their tooltip says the level is already eight deep.</p>
+</li>
+<li>
+<p>A paste or <strong>Import RBD</strong> that would nest deeper is refused with a
+message, and so is an MCP or API edit (<code>add_hierarchy</code>,
+<code>collapse_selection</code>, <code>build_model</code>). The MCP tools report each new
+hierarchy&#8217;s <code>depth</code> and how many <code>levels_below</code> remain.</p>
+</li>
+<li>
+<p>Validation reports a file nested deeper than eight when it is opened.</p>
+</li>
+</ul>
 </div>
 </div>
 <div class="sect2">
@@ -1500,6 +1530,13 @@ Raptor 7 runs files that use it.</p>
 <li>
 <p>Collapse Selection reconnects the links around the group; Raptor 7
 deletes them.</p>
+</li>
+<li>
+<p>Hierarchies nest up to eight deep, where Raptor 7 allowed five. Every
+level that exists can be opened; at the eighth level Add Hierarchy and
+Collapse Selection are unavailable (their tooltip says why), a paste or
+import that would go deeper is refused, and validation reports a file
+nested deeper.</p>
 </li>
 <li>
 <p>A cold-standby partner that depends on another partner of the same node is

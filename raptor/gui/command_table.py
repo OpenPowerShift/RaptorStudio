@@ -277,7 +277,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
             "Move the selected elements into a NEW hierarchy; boundary links are "
             "rewired to the hierarchy oval"),
         handler="_on_collapse_selection",
-        enabled_when="has_structural_selection"),
+        enabled_when="can_collapse"),
     CommandSpec(
         id="model.delete",
         attr="_delete_tool",
@@ -332,7 +332,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         args=("add_hierarchy",),
         on="toggled",
         checkable=True,
-        enabled_when="model_open"),
+        enabled_when="can_add_hierarchy"),
     CommandSpec(
         id="model.connect",
         attr="_connect_tool",

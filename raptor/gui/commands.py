@@ -65,6 +65,9 @@ class AppState:
     #: Hierarchy ovals on the level being viewed, and how many are selected.
     hierarchies_here: int = 0
     selected_hierarchies: int = 0
+    #: How many hierarchies deep the level being viewed is (0 = home). A
+    #: new hierarchy here would be one deeper; see `MAX_HIERARCHY_DEPTH`.
+    level_depth: int = 0
     #: Failure Effects View is open, and the open model has phases.
     fev_active: bool = False
     fev_phased: bool = False
@@ -132,6 +135,10 @@ PREDICATES: dict[str, Callable[[AppState], bool]] = {
         s.model_open and s.selected_structural >= 1),
     "has_movable_selection": lambda s: (
         s.model_open and s.selected_movable >= 1),
+    # A new hierarchy must fit within the nesting limit.
+    "can_add_hierarchy": lambda s: s.model_open and _room_to_nest(s),
+    "can_collapse": lambda s: (s.model_open and s.selected_structural >= 1
+                               and _room_to_nest(s)),
     "can_mass_edit": lambda s: s.model_open and s.selected_elements >= 2,
     "has_results": lambda s: s.has_results,
     "run_settings_available": lambda s: s.model_open and not s.run_page,
@@ -142,6 +149,17 @@ PREDICATES: dict[str, Callable[[AppState], bool]] = {
     "can_extract_hierarchy": lambda s: (s.model_open and s.run == "idle"
                                         and s.selected_hierarchies == 1),
 }
+
+
+def _room_to_nest(s: AppState) -> bool:
+    from raptor.core.input_rules import MAX_HIERARCHY_DEPTH
+    return s.level_depth < MAX_HIERARCHY_DEPTH
+
+
+def _too_deep(s: AppState) -> str:
+    from raptor.core.input_rules import MAX_HIERARCHY_DEPTH
+    return (f"this level is already {s.level_depth} hierarchies deep; "
+            f"hierarchies can be nested at most {MAX_HIERARCHY_DEPTH} deep")
 
 
 def _why_cannot_simulate(s: AppState) -> str:
@@ -201,6 +219,12 @@ UNMET: dict[str, str | Callable[[AppState], str]] = {
     "can_align": lambda s: (
         "open or create a model first" if not s.model_open else
         "select two or more items first"),
+    "can_add_hierarchy": lambda s: (
+        "open or create a model first" if not s.model_open else _too_deep(s)),
+    "can_collapse": lambda s: (
+        "open or create a model first" if not s.model_open else
+        _too_deep(s) if not _room_to_nest(s) else
+        "select at least one block, node or event first"),
     "can_mass_edit": lambda s: (
         "open or create a model first" if not s.model_open else
         "select two or more elements first"),

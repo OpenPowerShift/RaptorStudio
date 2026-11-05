@@ -42,6 +42,11 @@ redundancy: a "backup" that depends on the unit it backs up sits idle exactly
 when it is needed.  get_element(...)['dependency'] explains a block's setting
 in plain English; read_doc('dependency') is the full guide.
 
+Hierarchies (sub-models drawn as an oval) nest at most 8 deep: plan the
+levels before building.  add_hierarchy and collapse_selection report each new
+hierarchy's depth and how many levels can still go inside it, and refuse a
+ninth level.
+
 Large models (hundreds of blocks or more): set-up can take minutes before the
 first replication, so use start_run and poll run_status rather than a blocking
 simulate; run_status reports phase (setting_up, then simulating) and set-up
