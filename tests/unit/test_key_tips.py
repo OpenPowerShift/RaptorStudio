@@ -147,9 +147,10 @@ def test_a_letter_reaches_the_tips_from_whichever_widget_has_focus(win, qapp):
     QTest.qWait(20)
     win._show_key_tips()
     QTest.qWait(10)
-    ev = QKeyEvent(QEvent.Type.KeyPress, getattr(Qt.Key, f"Key_{FILE_KEY_TIP}"),
-                   Qt.KeyboardModifier.NoModifier, FILE_KEY_TIP.lower())
-    qapp.sendEvent(view.viewport(), ev)
+    assert QApplication.focusWidget() is not win
+    # Through the window system, as a real key press: Qt routes it to the
+    # focused widget unless something holds the keyboard.
+    QTest.keyClick(win.windowHandle(), getattr(Qt.Key, f"Key_{FILE_KEY_TIP}"))
     assert getattr(win, "_backstage", None) is not None and win._backstage.isVisible()
     assert not win._key_tips_active
     win._backstage.close_view()
@@ -271,3 +272,38 @@ def test_every_command_shortcut_is_in_the_shortcuts_page():
                    getattr(c, "more_shortcuts", ()) or ())
                if k and k not in md]
     assert not missing, missing
+
+
+@pytest.mark.gui
+def test_a_key_that_dismisses_the_tips_still_reaches_the_focused_widget(win):
+    """The tips grab the keyboard; a key that is not a tip (an arrow)
+    turns them off and is handed on to the widget it was meant for."""
+    from PySide6.QtTest import QTest
+    from PySide6.QtWidgets import QLineEdit
+    box = QLineEdit(win)
+    box.show()
+    win.activateWindow()
+    QTest.qWaitForWindowActive(win, 2000)
+    box.setFocus()
+    QTest.qWait(10)
+    win._show_key_tips()
+    assert QWidget_grabber() is win
+    QTest.keyClick(win.windowHandle(), Qt.Key.Key_1)
+    assert not win._key_tips_active
+    assert QWidget_grabber() is None
+    assert box.text() == "1"
+
+
+@pytest.mark.gui
+def test_switching_away_turns_the_tips_off_and_releases_the_keyboard(win):
+    win._show_key_tips()
+    win.changeEvent(QEvent(QEvent.Type.ActivationChange))
+    if not win.isActiveWindow():
+        assert not win._key_tips_active
+        assert QWidget_grabber() is None
+    win._dismiss_key_tips()
+
+
+def QWidget_grabber():                                  # noqa: N802
+    from PySide6.QtWidgets import QWidget
+    return QWidget.keyboardGrabber()

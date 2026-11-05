@@ -12,15 +12,16 @@ The dialogs also use a plain icon provider. The desktop's own provider asks the 
 file type; for an AsciiDoc file that is an icon called `asciidoctor`, which a theme without it turns into a path
 relative to the working directory and the console fills with
 `qt.svg: Cannot open file '<cwd>/asciidoctor.svg'`. A file, a folder and a drive need no lookup. Every wrapper
-here sets it; an application-wide event filter also sets it on any QFileDialog that Qt or a future call site
-creates directly, so one missed constructor cannot bring the warning back.
+here sets it, and so does every `QFileDialog(...)` built elsewhere in the GUI (`theme_file_dialog`);
+`tests/unit/test_file_dialog_icons.py` checks that none is missed. There is deliberately no
+application-wide event filter to catch stragglers: a Python filter on the QApplication sees
+QtWebEngine's internal objects and PySide segfaults on them (#142).
 """
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QFileInfo, QObject, QSize
+from PySide6.QtCore import QFileInfo, QSize
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (QApplication, QFileDialog, QFileIconProvider,
-                               QToolButton)
+from PySide6.QtWidgets import QFileDialog, QFileIconProvider, QToolButton
 
 from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import active_colour
@@ -45,32 +46,6 @@ def plain_icons(dlg: QFileDialog) -> QFileDialog:
     """Give `dlg` the plain icon provider (and return it)."""
     dlg.setIconProvider(_PROVIDER)
     return dlg
-
-
-class _PlainIconFilter(QObject):
-    """Apply the plain provider to every QFileDialog just before Qt populates
-    it. The wrappers in this module already do so; this covers dialogs Qt
-    creates itself (for example a web view's save/open chooser) and any
-    call site that constructs QFileDialog directly."""
-
-    def eventFilter(self, obj, event) -> bool:      # noqa: N802 - Qt's name
-        if isinstance(obj, QFileDialog) and event.type() in (
-                QEvent.Type.Show, QEvent.Type.Polish):
-            plain_icons(obj)
-        return False
-
-
-_FILTER: _PlainIconFilter | None = None
-
-
-def install_plain_icons(app: QApplication | None = None) -> None:
-    """Install the dialog-wide safety net once per QApplication."""
-    global _FILTER
-    app = app or QApplication.instance()
-    if app is None or (_FILTER is not None and _FILTER.parent() is app):
-        return
-    _FILTER = _PlainIconFilter(app)
-    app.installEventFilter(_FILTER)
 
 
 def theme_file_dialog(dlg: QFileDialog) -> QFileDialog:
@@ -144,7 +119,6 @@ __all__ = [
     "getExistingDirectory",
     "getOpenFileName",
     "getSaveFileName",
-    "install_plain_icons",
     "plain_icons",
     "theme_file_dialog",
 ]

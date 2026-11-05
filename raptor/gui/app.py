@@ -16,7 +16,7 @@ import tempfile
 from typing import cast
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QObject, QTimer
+from PySide6.QtCore import QEvent, QTimer
 from PySide6.QtWidgets import QApplication
 from raptor.gui.ui.main_window import MainWindow
 
@@ -105,12 +105,19 @@ def _schedule_startup_actions(window, args) -> None:
         QTimer.singleShot(0, window._new_file)
 
 
-class _FileOpenFilter(QObject):
-    """macOS delivers a Finder double-click as a QFileOpenEvent, not argv.
-    Paths that arrive before the window exists are held until `attach`."""
+class RaptorApplication(QApplication):
+    """The app object. macOS delivers a Finder double-click as a
+    QFileOpenEvent sent to the application itself, not argv; paths that
+    arrive before the window exists are held until `attach`.
 
-    def __init__(self) -> None:
-        super().__init__()
+    Handled in `event()`, which sees only events addressed to the app,
+    NOT with `installEventFilter` on the app: an application-wide Python
+    filter receives every event in the process, including QtWebEngine's
+    internal Quick items, and PySide segfaults resolving a wrapper for
+    those (#142). Keep it that way: no Python filter on the QApplication."""
+
+    def __init__(self, argv: list[str]) -> None:
+        super().__init__(argv)
         self._window = None
         self._pending: list[str] = []
 
@@ -120,7 +127,7 @@ class _FileOpenFilter(QObject):
             QTimer.singleShot(0, lambda p=path: window._open_path(p))
         self._pending.clear()
 
-    def eventFilter(self, obj, event) -> bool:      # noqa: N802
+    def event(self, event) -> bool:                 # noqa: N802 - Qt's name
         if event.type() == QEvent.Type.FileOpen:
             path = event.file()
             if path:
@@ -129,7 +136,7 @@ class _FileOpenFilter(QObject):
                 else:
                     self._window._open_path(path)
             return True
-        return False
+        return super().event(event)
 
 
 def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
@@ -168,7 +175,8 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
     # already exists (a test harness's own `qapp` fixture, or `main()`
     # somehow called twice) instead of Qt raising on a second
     # construction attempt.
-    app = cast(QApplication, QApplication.instance() or QApplication([argv[0], *qt_argv]))
+    app = cast(QApplication,
+               QApplication.instance() or RaptorApplication([argv[0], *qt_argv]))
     # Force Fusion: the platform's own style paints native selected-tab
     # corner "arcs" and scroller-arrow bitmaps that ignore the stylesheet
     # and palette. The design is tuned against Fusion, so this keeps all
@@ -176,8 +184,6 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
     from PySide6.QtWidgets import QStyleFactory
     app.setStyle(QStyleFactory.create("Fusion"))
     app.setOrganizationName("OpenPowerShift")
-    file_open_filter = _FileOpenFilter()
-    app.installEventFilter(file_open_filter)
     app.setApplicationName("RAPTOR Studio")
     _install_excepthook()
     # A native crash (segfault) prints the Python stack of every thread
@@ -204,7 +210,8 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
 
     window = MainWindow()
     window.enable_layout_persistence()
-    file_open_filter.attach(window)
+    # A pre-existing QApplication (a test harness's) has no `attach`.
+    getattr(app, "attach", lambda _w: None)(window)
     _schedule_startup_actions(window, args)
     def show_window() -> None:
         window.show()

@@ -20,7 +20,7 @@ import time
 from typing import Any, cast
 from pathlib import Path
 from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal,
-                            QEventLoop)
+                            QEvent, QEventLoop)
 from PySide6.QtGui import (QCursor, QKeySequence, QPainter, QColor, QPixmap, QDesktopServices,
                            QShortcut)
 from PySide6.QtCore import QRectF
@@ -112,21 +112,6 @@ _ANALYSIS_ICONS = {
 #: still feels immediate, and well under the ~9 ms rebuild on a large
 #: model, so it removes the per-click cost without adding perceived lag.
 INSPECTOR_SELECT_DEBOUNCE_MS = 80
-
-
-class _KeyTipFilter(QObject):
-    """While key tips show: hand every key press, whichever widget it was
-    sent to, to the window's key-tip handler (see `_show_key_tips`)."""
-
-    def __init__(self, window):
-        super().__init__(window)
-        self._win = window
-
-    def eventFilter(self, obj, event):
-        from PySide6.QtCore import QEvent
-        if event.type() == QEvent.Type.KeyPress and self._win.isActiveWindow():
-            return self._win._key_press_event_filter(self._win, event)
-        return False
 
 
 class _NoMinimumWidth(QWidget):
@@ -396,10 +381,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         qapp = cast(QApplication | None, QApplication.instance())
         if qapp is not None and qapp.style().objectName().lower() != "fusion":
             qapp.setStyle(QStyleFactory.create("Fusion"))
-        # File dialogs: never ask the desktop MIME database for a per-file
-        # icon (see ui/filedialogs.py -- the missing `asciidoctor.svg`).
-        from raptor.gui.ui.filedialogs import install_plain_icons
-        install_plain_icons(qapp)
 
         self._setup_ribbon()
         self._setup_central()
@@ -453,11 +434,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Alt+<letter> arrives as an ordinary key press (a lone Alt
         # QShortcut does not compose in Qt), delivered to whichever widget
         # has focus -- usually the canvas, not the window. So while the
-        # tips show, an application-wide filter catches it (installed then
-        # and removed after: a PERMANENT app-wide filter was taken out to
-        # avoid a WebEngine crash). The window filtering itself, as it did,
-        # never saw the key: the tips showed and no letter did anything.
-        self._key_tip_filter = _KeyTipFilter(self)
+        # tips show, the window grabs the keyboard and every key comes to
+        # its own keyPressEvent. NOT an application-wide event filter: a
+        # Python filter on the QApplication also sees QtWebEngine's
+        # internal objects and PySide segfaults on them (#142).
 
         self._tooltip_keeper = _TooltipKeeper(self)
         self._tooltip_keeper.install(QApplication.instance())
@@ -512,7 +492,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if btn.property("ribbonKeyTip"):
                 btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         self._ribbon.file_button.setText(f"File  ({FILE_KEY_TIP})")
-        QApplication.instance().installEventFilter(self._key_tip_filter)
+        self.grabKeyboard()
         self._statusbar.showMessage(
             "Key tips on — press a letter, or Alt again to hide", 4000)
 
@@ -578,7 +558,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if not self._key_tips_active:
             return
         self._key_tips_active = False
-        QApplication.instance().removeEventFilter(self._key_tip_filter)
+        self.releaseKeyboard()
         for btn in self._ribbon.findChildren(RibbonButton):
             text = btn.property("ribbonActionText") or ""
             btn.setText(text)
@@ -2114,6 +2094,16 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # key tips. Qt never matches a shortcut made of a modifier alone,
         # so the QShortcut on Alt this replaced could not fire from a real
         # keyboard. A child that does not use Alt passes it up to here.
+        if self._key_tips_active:
+            if self._key_press_event_filter(self, event):
+                return
+            if not self._key_tips_active:
+                # The key turned the tips off (an arrow, Esc...): it was
+                # meant for the focused widget, which the grab bypassed.
+                focus = QApplication.focusWidget()
+                if focus is not None and focus is not self:
+                    QApplication.sendEvent(focus, event)
+                    return
         import time
         self._alt_alone = event.key() == _Qt.Key.Key_Alt
         self._alt_down_at = time.monotonic()
@@ -2121,6 +2111,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if self._handle_escape():
                 return
         super().keyPressEvent(event)
+
+    def changeEvent(self, event):                       # noqa: N802
+        # The tips hold a keyboard grab: switching away (another window
+        # of this app, or another app) turns them off rather than leave
+        # the keys captured.
+        if (event.type() == QEvent.Type.ActivationChange
+                and not self.isActiveWindow()):
+            self._dismiss_key_tips()
+        super().changeEvent(event)
 
     def keyReleaseEvent(self, event):
         import time
