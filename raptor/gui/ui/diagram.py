@@ -45,7 +45,12 @@ from raptor.core.annotations import (
 from raptor.gui import row_ops
 from raptor.gui.clipboard_plan import count_elements, plan_copy, plan_paste
 from raptor.core.fileio.band_handover import handover_points
-from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
+from raptor.gui.ui.diagram_items import (
+    link_routing,
+    links_affected_by_moving,
+    routing_batch,
+    set_link_routing,
+)
 from raptor.gui.hierarchy_plan import (apply_collapse_plan,
                                        collapse_new_violations,
                                        plan_collapse, plan_dissolve,
@@ -1216,6 +1221,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
         cur = self._current_parent
         log.debug("_rebuild_scene: level=%s", cur)
+        # The level's own link style, so a level nobody touched is not
+        # restyled by whatever another level was last set to.
+        set_link_routing(self.level_link_style())
         # Stable transform: origin/scale/flip come from the whole model
         # (computed once in load_rbd), so every element renders exactly
         # where its file row says -- same on every open, and identical
@@ -3120,6 +3128,32 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         self._label_phase = phase
         self.refresh_block_labels()
+
+    def level_link_style(self) -> str:
+        """The link style saved for the level on screen (straight if none)."""
+        styles = getattr(self._rbd_ref, "link_styles", None) or {}
+        return str(styles.get(str(self._current_parent), "straight"))
+
+    def set_level_link_style(self, mode: str) -> None:
+        """Draw this level's links in `mode`, and keep it for the file.
+        Only this level's links are re-routed."""
+        set_link_routing(mode)
+        if self._remember_link_style():
+            self.layout_changed.emit()
+        self.reroute_links()
+
+    def _remember_link_style(self) -> bool:
+        """Store the active style for the current level; True if it changed."""
+        rbd = self._rbd_ref
+        if rbd is None:
+            return False
+        if not isinstance(getattr(rbd, "link_styles", None), dict):
+            rbd.link_styles = {}
+        key, mode = str(self._current_parent), link_routing()
+        if rbd.link_styles.get(key, "straight") == mode:
+            return False
+        rbd.link_styles[key] = mode
+        return True
 
     def reroute_links(self) -> None:
         """Redraw every link (after the routing style changes). Layout only:
@@ -8028,6 +8062,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             for link in self._links:
                 link._update_route()
         self._user_arranged = True
+        # The level now keeps the style it was just laid out in.
+        self._remember_link_style()
         # sync only (not write_back): the position overlay reads the
         # typed objects on level rebuilds, so traversal keeps the
         # arrangement; rows are written on Save like any other edit.

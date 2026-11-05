@@ -168,7 +168,7 @@ _ELEMENT_KEYS = ("blocks", "nodes", "events", "hierarchies")
 TOP_LEVEL_KEYS = frozenset({
     "format", "version", "meta", "system", "experiment", "elements", "links",
     "defaults", "spare_pools", "resources", "triggers", "phases",
-    "annotations", "link_grips", "rates", "formulas", "display_unit",
+    "annotations", "link_grips", "link_styles", "rates", "formulas", "display_unit",
     "project_meta", "view_transform", "comments",
     # an early layout put the element lists at the top level; still read
     "blocks", "nodes", "events", "hierarchies"})
@@ -627,6 +627,9 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
         doc["annotations"] = anns
     if getattr(rbd, "link_grips", None):
         doc["link_grips"] = [dict(g) for g in rbd.link_grips]
+    if getattr(rbd, "link_styles", None):
+        doc["link_styles"] = {str(k): str(v)
+                              for k, v in rbd.link_styles.items()}
     # A rate's value follows from its expression, and a linked field's
     # value is the field itself: neither is stored (the reader computes
     # them), so editing an expression by hand cannot leave a stale number.
@@ -1031,6 +1034,8 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
                   timestamp=base.timestamp, counts=dict(base.counts),
                   sections=merged, annotations=_read_annotations(doc),
                   link_grips=[dict(g) for g in (doc.get("link_grips") or [])],
+                  link_styles={str(k): str(v) for k, v in
+                               (doc.get("link_styles") or {}).items()},
                   rates=[dict(r) for r in (doc.get("rates") or [])],
                   formulas={k: dict(v) for k, v in
                             (doc.get("formulas") or {}).items()},

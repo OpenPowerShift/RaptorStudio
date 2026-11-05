@@ -1815,6 +1815,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # A queued Inspector rebuild belongs to the level we just left;
         # letting it fire would show an element the user can no longer see.
         self._cancel_pending_block_selection()
+        self._sync_link_routing()
         inside = parent_id != 0
         name = self._diagram_dock.view.hiers.get(parent_id)
         self._hier_up_action.setEnabled(inside)
@@ -2602,10 +2603,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             view.fix_annotation_contrast(view.find_low_contrast_annotations())
 
     def _sync_link_routing(self) -> None:
-        """Apply the saved link style and show it in the View combo."""
-        from raptor.gui.ui.diagram_items import set_link_routing
-        mode = str(settings.get("appearance/link_routing", "straight"))
-        set_link_routing(mode)
+        """Show the on-screen level's link style in the View combo. The
+        style belongs to the level (saved with the file), not to the app."""
         self._sync_link_routing_combo()
 
     def _toggle_theme(self, checked: bool):

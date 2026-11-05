@@ -552,14 +552,13 @@ class RibbonBuilders(_Base):
         combo.blockSignals(False)
 
     def _on_link_routing_changed(self) -> None:
-        from raptor.gui.ui import settings as app_settings
         from raptor.gui.ui.diagram_items import set_link_routing
         key = self._link_routing_combo.currentData()
-        set_link_routing(key)
-        app_settings.set_value("appearance/link_routing", key)
         view = getattr(getattr(self, "_diagram_dock", None), "view", None)
         if view is not None:
-            view.reroute_links()
+            view.set_level_link_style(key)
+        else:
+            set_link_routing(key)
 
     def _build_layout_settings(self, group) -> None:
         """View > Appearance: Auto Layout direction and column limit."""
