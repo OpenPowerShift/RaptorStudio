@@ -425,7 +425,10 @@ def u16_block_library():
     t0 = load_library(os.path.join(TMPDIR, "u16.json"))[0]
     bid = v.add_block_from_template(t0["row"])
     assert bid and v.blocks[bid].name == t0["row"]["blockName"]
-    assert v.blocks[bid].fail_stream == int(t0["row"]["FStream"]) == -6
+    # The file keeps the stream, but reading a library applies only what an
+    # .rbl holds (#147): the new block gets the default stream, not -6.
+    assert "FStream" not in t0["row"]
+    assert v.blocks[bid].fail_stream != -6
     v._stack.undo(); pe()
     assert len(v.blocks) == 1
 run_check("U16.library.roundtrip", u16_block_library)
