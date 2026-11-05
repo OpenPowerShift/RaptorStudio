@@ -4042,6 +4042,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         QTimer.singleShot(0, self._give_canvas_room)
         self._bump_model_revision()      # a different model entirely
         self._cancel_pending_block_selection()
+        # A build tool armed on the previous model (Add Node, Connect...)
+        # must not carry over: the new model showed its cursor and the
+        # first click placed an element. The view's mode change also
+        # unchecks the ribbon button.
+        self._diagram_dock.view.tool_mode = "select"
         self._rbd = rbd
         # a stepped session belongs to the previous model -- stepping
         # after an Open must never touch the old engine context
