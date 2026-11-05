@@ -3069,6 +3069,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             for it in list(self.scene().items()):
                 if isinstance(it, _LinkItem):
                     it._update_route()
+        # The minimap redraws when the layout generation moves.
+        self._layout_generation += 1
 
     def refresh_block_labels(self) -> None:
         """Re-apply the label setting to every visible block (mode/phase)."""
@@ -7343,9 +7345,12 @@ class _MinimapView(QGraphicsView):
         link_pen = QPen(QColor(COLOUR["muted"]), 1.4)
         link_pen.setCosmetic(True)
         painter.setPen(link_pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         for it in items:
             if isinstance(it, _LinkItem):
-                painter.drawLine(it._p0, it._p3)
+                # The link's own route -- straight, angled, right-angle or
+                # through routing points -- not a line between its ports.
+                painter.drawPath(it.mapToScene(it.path()))
         edge = QPen(QColor(COLOUR["text"]), 1.0)
         edge.setCosmetic(True)
         accent = QColor(COLOUR["accent"])

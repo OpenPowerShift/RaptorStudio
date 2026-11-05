@@ -1805,6 +1805,9 @@ class _RouteGripItem(QGraphicsEllipseItem):
                             entry["active"] = True
                             break
                     view._user_arranged = True
+                if view is not None and hasattr(view, "_layout_generation"):
+                    # The link's route changed: the minimap draws routes.
+                    view._layout_generation += 1
         return super().itemChange(change, value)
 
 
