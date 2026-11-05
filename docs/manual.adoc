@@ -276,6 +276,23 @@ Results report too, in its `***EXTENDED_RESULTS***` section, and Export
 Tables writes them like any other result table. Downtime shares need Weak
 Link analysis and cost shares need Cost analysis.
 
+[[hierarchy-depth]]
+=== Nesting hierarchies: at most eight levels
+
+A hierarchy can contain hierarchies, **at most eight levels deep**: a
+hierarchy inside seven others is the deepest allowed. Plan a design's
+breakdown within that.
+
+* Every level that exists can be opened (double-click the oval, or use
+  the Model Explorer).
+* On the eighth level, **Add Hierarchy** and **Collapse Selection** are
+  unavailable; their tooltip says the level is already eight deep.
+* A paste or **Import RBD** that would nest deeper is refused with a
+  message, and so is an MCP or API edit (`add_hierarchy`,
+  `collapse_selection`, `build_model`). The MCP tools report each new
+  hierarchy's `depth` and how many `levels_below` remain.
+* Validation reports a file nested deeper than eight when it is opened.
+
 === A hierarchy's body and its DSI
 
 A hierarchy oval carries **two** pieces of state, and they answer

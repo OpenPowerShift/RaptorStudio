@@ -5782,6 +5782,9 @@ why structure is not behaviour.</strong></p>
 <p>The one rule every modeler must memorize: collapsing changes
 the picture, never the numbers.</p>
 </li>
+<li>
+<p>The design limit: hierarchies nest <strong>at most eight levels deep</strong>.</p>
+</li>
 </ul>
 </div>
 </div>
@@ -5861,6 +5864,31 @@ descend into <strong>Tires_sub</strong> instead:</p>
 <p>Every hierarchy has two special markers. <strong>In</strong> is the door where flow
 enters; <strong>Out</strong> is where it leaves. Anything between them is invisible
 from outside — the parent diagram only sees one oval.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Important</div>
+</td>
+<td class="content">
+<div class="title">Plan for at most eight levels</div>
+<div class="paragraph">
+<p>Hierarchies can sit inside hierarchies, but only <strong>eight deep</strong>: a
+hierarchy inside seven others is the deepest allowed. Plan the
+breakdown with that in mind, for example system, subsystem, assembly,
+module, part, rather than one level per drawing page.</p>
+</div>
+<div class="paragraph">
+<p>At the eighth level, <strong>Add Hierarchy</strong> and <strong>Collapse Selection</strong> are
+greyed out and their tooltip says why; a paste or import that would go
+deeper is refused, and an AI assistant using the MCP server is told how
+many levels remain each time it adds one. A file nested deeper is
+reported when it is opened.</p>
 </div>
 </td>
 </tr>

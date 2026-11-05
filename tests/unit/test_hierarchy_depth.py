@@ -137,3 +137,37 @@ def test_a_file_nested_too_deep_is_reported_on_load(deep):
     assert [v.element for v in check(rbd) if v.rule == "hier.depth"] == [
         "Hier 99 'TooDeep'"]
     assert any("at most 8 deep" in str(i) for i in issues(rbd))
+
+
+def test_mcp_says_how_many_levels_remain(tmp_path):
+    """Adding hierarchies over MCP reports each one's depth and the levels
+    left, and the ninth is refused with the limit in the message."""
+    import shutil
+    from raptor.mcp.server import mcp
+    from raptor.mcp.tools_model import add_hierarchy, open_model
+    shutil.copy(MODEL, tmp_path / "six.rbds")
+    mcp._raptor_args = type("A", (), {"workspace": str(tmp_path)})()
+    mcp._raptor_ws = None
+    mid = open_model("six.rbds").structured_content["model_id"]
+    seventh = add_hierarchy(mid, "Seventh", parent=CHAIN[-1]).structured_content
+    assert (seventh["depth"], seventh["levels_below"]) == (7, 1)
+    eighth = add_hierarchy(mid, "Eighth", parent=int(seventh["hier_id"]))
+    data = eighth.structured_content
+    assert (data["depth"], data["levels_below"]) == (8, 0)
+    assert "the deepest allowed" in eighth.content[0].text
+    ninth = add_hierarchy(mid, "Ninth", parent=int(data["hier_id"]))
+    assert ninth.is_error and "at most 8 deep" in ninth.content[0].text
+
+
+def test_build_model_refuses_a_spec_nested_too_deep(deep):
+    from raptor.api.build import BuildError, build_from_spec
+    from raptor.core.fileio.rbds import render_rbds
+    ws, mid, chain = deep
+    rbd = ws.get(mid).rbd
+    assert build_from_spec({"rbds_text": render_rbds(rbd)}) is not None
+    row = dict(next(r for r in rbd.sections["HIERARCHY_DATA"].rows
+                    if r["ID"] == str(chain[-1])))
+    row.update(ID="99", Parent=str(chain[-1]), hierarchyName="TooDeep")
+    rbd.sections["HIERARCHY_DATA"].rows.append(row)
+    with pytest.raises(BuildError, match="at most 8 deep"):
+        build_from_spec({"rbds_text": render_rbds(rbd)})

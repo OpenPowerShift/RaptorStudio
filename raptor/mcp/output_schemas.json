@@ -54,10 +54,16 @@
  },
  "add_hierarchy": {
   "properties": {
+   "depth": {
+    "type": "integer"
+   },
    "hier_id": {
     "type": "string"
    },
    "in_id": {
+    "type": "integer"
+   },
+   "levels_below": {
     "type": "integer"
    },
    "name": {
@@ -71,8 +77,10 @@
    }
   },
   "required": [
+   "depth",
    "hier_id",
    "in_id",
+   "levels_below",
    "name",
    "out_id",
    "parent"
@@ -277,10 +285,16 @@
  },
  "collapse_selection": {
   "properties": {
+   "depth": {
+    "type": "integer"
+   },
    "hier_id": {
     "type": "string"
    },
    "in_id": {
+    "type": "integer"
+   },
+   "levels_below": {
     "type": "integer"
    },
    "moved": {
@@ -297,8 +311,10 @@
    }
   },
   "required": [
+   "depth",
    "hier_id",
    "in_id",
+   "levels_below",
    "moved",
    "name",
    "out_id",
