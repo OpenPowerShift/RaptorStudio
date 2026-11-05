@@ -137,7 +137,8 @@ def collect_levels(rbd: Any) -> dict[int, tuple[list[float], list[float]]]:
     return levels
 
 
-def _column_pitch_scale(rbd: Any, spacing: float = 1.0) -> float:
+def _column_pitch_scale(rbd: Any, spacing: float = 1.0,
+                        band_aware: bool = False) -> float:
     """The scale that keeps every pair of horizontally ADJACENT columns on
     a level clear: their widest elements' half-widths plus the gap.
 
@@ -147,8 +148,13 @@ def _column_pitch_scale(rbd: Any, spacing: float = 1.0) -> float:
     across; two of them need 36 + NODE_GAP. Hierarchy ovals count as
     blocks, as before."""
     needed = 0.0
-    for cols in _levels_by_kind(rbd).values():
+    ys: dict[int, dict[float, list[float]]] | None = \
+        {} if band_aware else None
+    for parent, cols in _levels_by_kind(rbd, ys).items():
         for a, b in itertools.pairwise(sorted(cols)):
+            if ys is not None and not _share_a_band(ys[parent][a],
+                                                    ys[parent][b]):
+                continue
             ha, hb = cols[a], cols[b]
             gap = (NODE_GAP if max(ha, hb) <= NODE_NARROW_HALF_PX
                    else MIN_ELEMENT_GAP) * spacing
@@ -156,7 +162,19 @@ def _column_pitch_scale(rbd: Any, spacing: float = 1.0) -> float:
     return needed
 
 
-def _levels_by_kind(rbd: Any) -> dict[int, dict[float, float]]:
+#: Two elements whose y differ by less than this (model units) overlap in
+#: height at the layout's nominal scale, so side-by-side columns of them
+#: need the horizontal gap; further apart they are never neighbours.
+_BAND = 1.5
+
+
+def _share_a_band(ys_a: list[float], ys_b: list[float]) -> bool:
+    return any(abs(ya - yb) < _BAND for ya in ys_a for yb in ys_b)
+
+
+def _levels_by_kind(rbd: Any,
+                    ys_out: dict[int, dict[float, list[float]]] | None = None
+                    ) -> dict[int, dict[float, float]]:
     """Per level, per column x: the widest element's half-width there.
 
     Widths come from the shared Qt-free estimate, or from exact
@@ -181,9 +199,12 @@ def _levels_by_kind(rbd: Any) -> dict[int, dict[float, float]]:
                 if ident == 0:
                     continue
                 x = float(r["xPos"])
+                y = float(r["yPos"])
                 parent = int(float(r.get(_PARENT_COL[name], 0) or 0))
             except (TypeError, ValueError, KeyError, OverflowError):
                 continue
+            if ys_out is not None:
+                ys_out.setdefault(parent, {}).setdefault(x, []).append(y)
             width = exact.get((name, str(ident)), hw)
             if isinstance(width, (tuple, list)):
                 width = width[0]
@@ -283,13 +304,20 @@ def rebase(rbd: Any, source: ViewTransform, target: ViewTransform) -> None:
             r["xPos"], r["yPos"] = f"{mx:.6f}", f"{my:.6f}"
 
 
-def derive(rbd: Any, spacing: float = 1.0) -> ViewTransform:
+def derive(rbd: Any, spacing: float = 1.0,
+           band_aware: bool = False) -> ViewTransform:
     """Derive a transform from the positions currently in the file rows.
 
     `spacing` is Auto Layout's spacing factor. The scale is chosen so the
     closest pair keeps its minimum gap, and that gap is what the factor
     sets: left at the fixed 52 px, a layout built at 0.5 or 2.0 was drawn at
-    the scale that restored 52 px, and the factor did nothing."""
+    the scale that restored 52 px, and the factor did nothing.
+
+    `band_aware` (Auto Layout) charges the side-by-side gap only between
+    columns that share a height band. A top-to-bottom layout puts a column
+    of two beside a column of one a grid step apart in x but a whole row
+    apart in y; charging those as neighbours inflated the scale to 145 and
+    drew the rows 300 px apart."""
     xs, ys = collect_positions(rbd)
     origin_x = min(xs) if xs else 0.0
     flip_base = max(ys) if ys else 0.0
@@ -302,7 +330,8 @@ def derive(rbd: Any, spacing: float = 1.0) -> ViewTransform:
     dy_col = _column_pitch(rbd) or dy_min
     grid_x = _uniform_grid_unit(xs, origin_x, dx_min)
     grid_y = _uniform_grid_unit(ys, flip_base, dy_min)
-    needed = max(float(LEGACY_SCALE), _column_pitch_scale(rbd, spacing))
+    needed = max(float(LEGACY_SCALE),
+                 _column_pitch_scale(rbd, spacing, band_aware))
     if dy_col > 0:
         # Centre-to-centre budget for two elements ADJACENT in a column:
         # half the taller one plus the gap. The term used to be
@@ -342,11 +371,12 @@ def frozen(rbd: Any) -> ViewTransform | None:
     return None
 
 
-def ensure(rbd: Any, spacing: float = 1.0) -> ViewTransform:
+def ensure(rbd: Any, spacing: float = 1.0,
+           band_aware: bool = False) -> ViewTransform:
     """The file's frozen transform, deriving and freezing one if it has
     none. The single entry point for both the GUI and the API."""
     vt = frozen(rbd)
     if vt is None:
-        vt = derive(rbd, spacing)
+        vt = derive(rbd, spacing, band_aware)
         rbd.view_transform = vt.as_dict()
     return vt

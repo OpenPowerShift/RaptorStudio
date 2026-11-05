@@ -71,3 +71,36 @@ def test_gap_grows_with_the_spacing_factor_on_every_level(win):
     large = _layout_every_level(win, 2.0)
     for level in nominal:
         assert small[level] < nominal[level] < large[level], level
+
+
+def test_top_to_bottom_levels_are_drawn_at_one_spacing(win):
+    """Top-to-bottom, a column of two beside a column of one used to look
+    like neighbours, the scale went to ~145 and a hierarchy's rows were 300 px
+    apart against ~25 px on Home."""
+    from raptor.gui.ui import settings
+    settings.set_value("layout/direction", "TB")
+    try:
+        view = win._diagram_dock.view
+        levels = [0] + list(view.hiers)
+        scales = set()
+        tall = {}
+        # Two sweeps: the first lets every level's drawn widths be seen.
+        for hid in levels + levels:
+            scales.clear()
+            while view._current_parent:
+                view.go_up()
+            if hid:
+                view.enter_level(hid)
+            QApplication.processEvents()
+            view.auto_layout()
+            QApplication.processEvents()
+            scales.add(round(view._vt.scale, 1))
+            rects = [it.sceneBoundingRect() for table in
+                     (view._block_items, view._node_items, view._hier_items)
+                     for it in table.values()]
+            rows = sorted({round(r.center().y()) for r in rects})
+            tall[hid] = max(b - a for a, b in itertools.pairwise(rows))
+        assert len(scales) == 1, scales
+        assert max(tall.values()) < 1.6 * min(tall.values()), tall
+    finally:
+        settings.set_value("layout/direction", "LR")
