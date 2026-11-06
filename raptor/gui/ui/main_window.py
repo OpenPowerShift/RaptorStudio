@@ -1490,8 +1490,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Paste follows the clipboard, which changes outside any selection
         # (another model, another window, any other application).
         QApplication.clipboard().dataChanged.connect(self._on_clipboard_changed)
-        qapp = QApplication.instance()
-        if qapp is not None:
+        if isinstance(qapp := QApplication.instance(), QApplication):
             qapp.focusChanged.connect(self._on_focus_changed)
         self._diagram_dock.view.paste_state_changed.connect(
             self._on_clipboard_changed)
