@@ -3172,14 +3172,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # against the old width and would now sit inside the block.
             if item.rect().width() != width:
                 resized.append(item)
-        if resized and not self._loading:
+        if resized:
+            # Also while a level is still being built: the deferred
+            # sub-labels are applied at the end of `_rebuild_scene`, after
+            # the links were routed against the unlabelled 108 px boxes.
+            # Skipping this then left every route 2 px off its port, so
+            # the next re-route (a link-style change) moved them.
             self._clear_route_caches()
             affected: dict[int, Any] = {}
             for item in resized:
                 for link in links_affected_by_moving(item):
                     affected[id(link)] = link
-            for link in affected.values():
-                link._update_route()
+            with routing_batch(self._scene):
+                for link in affected.values():
+                    link._update_route()
 
     def _block_row_by_id(self, bid: int):
         return self._editor.block_row(bid)
