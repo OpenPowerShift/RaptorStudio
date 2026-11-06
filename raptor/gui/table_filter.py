@@ -83,7 +83,9 @@ def _cell_number(text: str, raw: float | None) -> float | None:
 
 def _split_or(expr: str) -> list[str]:
     """Split on | and , outside double quotes."""
-    parts, cur, quoted = [], [], False
+    parts: list[str] = []
+    cur: list[str] = []
+    quoted = False
     for ch in expr:
         if ch == '"':
             quoted = not quoted

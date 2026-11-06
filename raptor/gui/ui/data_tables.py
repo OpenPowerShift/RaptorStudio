@@ -919,7 +919,7 @@ class DataTablesDock(QWidget):
         input data."""
         import csv
         table = self._tabs.currentWidget()
-        if table is None or not hasattr(table, "rowCount"):
+        if not isinstance(table, QTableWidget):
             return
         tab_name = self._tabs.tabText(self._tabs.currentIndex())
         default = tab_name.replace(" ", "_").lower() + ".csv"
