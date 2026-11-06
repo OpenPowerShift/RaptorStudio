@@ -2657,6 +2657,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         rbd = self._rbd
         if rbd is None or getattr(self, "_loading_model", False):
             return
+        scene = self._diagram_dock.view.scene()
+        if scene is not None and scene.mouseGrabberItem() is not None:
+            # An element is being dragged: leave the badge, the status bar
+            # and the Issues list alone until it is dropped, so nothing in
+            # the window changes under the user's hand mid-gesture.
+            self._schedule_stack_check()
+            return
         cached = getattr(self, "_validation_cache", None)
         if cached is None or cached[0] != getattr(self, "_model_revision", 0):
             # No answer for this revision to patch: the full pass covers it.
