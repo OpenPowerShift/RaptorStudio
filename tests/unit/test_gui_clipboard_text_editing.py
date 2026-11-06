@@ -128,3 +128,19 @@ def test_a_line_edit_with_the_focus_gets_cut_copy_paste(win):
     assert win._copy_action.isEnabled() and win._cut_action.isEnabled()
     win._edit_cut()
     assert box.text() == "" and QApplication.clipboard().text() == "name"
+
+
+def test_focusing_any_widget_never_raises(win):
+    """Item views, trees, combos, text boxes, buttons: none may break the
+    focus hook (an item view's `selectionChanged` is a method, not a signal)."""
+    from PySide6.QtWidgets import (
+        QComboBox, QListWidget, QPushButton, QTableWidget, QTextEdit,
+        QTreeWidget)
+    widgets = [QTableWidget(2, 2), QTreeWidget(), QListWidget(), QComboBox(),
+               QTextEdit(), QPushButton("x"), QLineEdit()]
+    for w in widgets:
+        win._on_focus_changed(None, w)
+        win._on_focus_changed(w, w)           # twice: the hook is only added once
+    win._on_focus_changed(widgets[0], None)   # focus leaving the app
+    for w in widgets:
+        w.deleteLater()

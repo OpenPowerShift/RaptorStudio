@@ -1534,7 +1534,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         including its selection."""
         for signal in ("selectionChanged", "copyAvailable"):
             sig = getattr(new, signal, None)
-            if sig is not None and not new.property("_clip_hooked"):
+            # Only a real signal: on an item view `selectionChanged` is a
+            # protected method, which has no `connect`.
+            if (sig is not None and hasattr(sig, "connect")
+                    and not new.property("_clip_hooked")):
                 new.setProperty("_clip_hooked", True)
                 sig.connect(self._on_clipboard_changed)
         self._on_clipboard_changed()
