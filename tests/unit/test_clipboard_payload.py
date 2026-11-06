@@ -53,13 +53,13 @@ def test_same_model_paste_is_unchanged():
     assert out.buffer == [("block", row)] and out.notes == []
 
 
-def test_missing_definitions_and_dependencies_are_dropped_with_a_note():
+def test_missing_definitions_are_dropped_with_a_note():
     rbd = load_rbd(MODEL)
     row = _block(rbd)
     row.update({"SpType": "Pooled", "SparePoolName": "Foreign_Pool",
                 "NumRes": "1", "Resource1Name": "Foreign_Crew",
                 "pmTriggered": "1", "pmTrig": "Foreign_Trig",
-                "DepNum": "5", "DepType": "Block", "P 001": "A"})
+                "P 001": "A"})
     p = cp.Payload([("block", row)], "x", "tok", "other-process")
     out = cp.adapt_for_target(rbd, p, same_model=False)
     (_, got), = out.buffer
@@ -69,12 +69,11 @@ def test_missing_definitions_and_dependencies_are_dropped_with_a_note():
     assert got["NumRes"] == tpl["NumRes"]
     assert got["Resource1Name"] == tpl["Resource1Name"]
     assert got["pmTriggered"] == tpl["pmTriggered"]
-    assert got["DepNum"] == "0" and got["DepType"] == "None"
     assert "P 001" not in got                 # the target has no phases
     assert set(got) == set(tpl)
     text = " ".join(out.notes)
     assert "Foreign_Pool" in text and "Foreign_Crew" in text
-    assert "Foreign_Trig" in text and "dependency" in text
+    assert "Foreign_Trig" in text
 
 
 def test_annotation_anchors_are_cleared_across_models():

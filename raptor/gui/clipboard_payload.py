@@ -20,8 +20,10 @@ ask to change:
   pool of that name, else the block takes the target's default sparing;
 * repair resource (`Resource1Name`, `NumRes`): same, against RESOURCE_DATA;
 * PM trigger (`pmTrig`, `pmTriggered`): same, against TRIGGERS;
-* a dependency on another element (`DepNum` > 0): that id means nothing in
-  the target, so the copy becomes independent. "Whole system" (-2) stays;
+* a dependency between elements copied together is remapped to the pasted
+  copies (`clipboard_plan.remap_dependencies`, in or out of the model); one
+  on an element that was not copied means nothing in another model, so the
+  copy becomes independent there. Own-node (-1) and whole-system (-2) stay;
 * columns the target does not have (another phase count) are dropped and
   columns the target has that the copy lacks take the target's defaults;
 * annotation anchors are cleared (they name source elements).
@@ -176,10 +178,6 @@ class _Target:
     def notes(self) -> list[str]:
         out = []
         for what, names in self.dropped.items():
-            if what == "dependency":
-                out.append(f"{len(names)} dependency(ies) on other elements "
-                           "were not carried over")
-                continue
             shown = ", ".join(sorted(n for n in names if n)[:3])
             out.append(f"{what} {shown or '(unnamed)'} is not in this "
                        "model; the copy uses the default")
@@ -207,19 +205,6 @@ def _fit_block(row: dict, tpl: dict, t: _Target) -> None:
         _reset(row, tpl, ("pmTriggered", "pmTrig"))
 
 
-_DEPENDENCY = {"block": ("DepNum", "DepType", "blockName"),
-               "node": ("depNum", "depType", "Name"),
-               "event": ("depNum", "depType", "Name")}
-
-
-def _fit_dependency(kind: str, row: dict, t: _Target) -> None:
-    cols = _DEPENDENCY.get(kind)
-    if cols is None or _num(row.get(cols[0])) <= 0:
-        return
-    t.drop("dependency", str(row.get(cols[2], "")))
-    row[cols[0]], row[cols[1]] = "0", "None"
-
-
 def _fit_row(kind: str, row: dict, t: _Target) -> dict:
     row = dict(row)
     section = _SECTION_OF.get(kind)
@@ -229,7 +214,6 @@ def _fit_row(kind: str, row: dict, t: _Target) -> dict:
         row = {c: row.get(c, tpl[c]) for c in tpl}
     if kind == "block":
         _fit_block(row, tpl, t)
-    _fit_dependency(kind, row, t)
     return row
 
 

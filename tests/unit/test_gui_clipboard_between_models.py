@@ -62,7 +62,7 @@ def test_pasted_block_fits_the_target_model(two):
     _select(va, {"Attitude"})
     row = next(r for r in a._rbd.sections["BLOCK_DATA"].rows
                if r.get("blockName") == "Attitude")
-    row["DepNum"], row["DepType"] = "3", "Block"      # a dependency elsewhere
+    row["DepNum"], row["DepType"] = "3", "RBDBlock"   # on a block not copied
     va.copy_selection()
     notes = []
     vb.status_message_sink = notes.append
@@ -187,3 +187,52 @@ def test_a_hierarchy_with_its_contents_pastes_into_another_model():
         for w in (src, dst):
             w._dirty = False
             w.close()
+
+
+def test_dependent_blocks_copied_together_stay_dependent_in_another_model(two):
+    a, b = two
+    va, vb = a._diagram_dock.view, b._diagram_dock.view
+    rows = {r["blockName"]: r for r in a._rbd.sections["BLOCK_DATA"].rows}
+    master, follower = rows["Attitude"], rows["Thermal"]
+    follower["DepNum"], follower["DepType"] = master["ID"], "RBDBlock"
+    _select(va, {"Attitude", "Thermal"})
+    va.copy_selection()
+    notes = []
+    vb.status_message_sink = notes.append
+    vb.paste()
+    new = {r["blockName"]: r for r in b._rbd.sections["BLOCK_DATA"].rows
+           if r["blockName"] in ("Attitude", "Thermal")}
+    assert new["Thermal"]["DepNum"] == new["Attitude"]["ID"]
+    assert not any("dependenc" in n for n in notes)
+
+
+def test_a_partial_copy_drops_the_dependency_and_says_so(two):
+    a, b = two
+    va, vb = a._diagram_dock.view, b._diagram_dock.view
+    rows = {r["blockName"]: r for r in a._rbd.sections["BLOCK_DATA"].rows}
+    rows["Thermal"]["DepNum"] = rows["Attitude"]["ID"]
+    rows["Thermal"]["DepType"] = "RBDBlock"
+    _select(va, {"Thermal"})                       # the master stays behind
+    va.copy_selection()
+    notes = []
+    vb.status_message_sink = notes.append
+    vb.paste()
+    new = [r for r in b._rbd.sections["BLOCK_DATA"].rows
+           if r["blockName"] == "Thermal"][-1]
+    assert new["DepNum"] == "0" and new["DepType"] == "None"
+    assert any("dependenc" in n for n in notes)
+
+
+def test_copy_paste_in_one_model_remaps_copied_pairs(two):
+    a, _b = two
+    va = a._diagram_dock.view
+    rows = {r["blockName"]: r for r in a._rbd.sections["BLOCK_DATA"].rows}
+    rows["Thermal"]["DepNum"] = rows["Attitude"]["ID"]
+    rows["Thermal"]["DepType"] = "RBDBlock"
+    _select(va, {"Attitude", "Thermal"})
+    va.copy_selection()
+    va.paste()
+    news = {r["blockName"]: r for r in a._rbd.sections["BLOCK_DATA"].rows
+            if r["ID"] not in (rows["Attitude"]["ID"], rows["Thermal"]["ID"])
+            and r["blockName"] in ("Attitude", "Thermal")}
+    assert news["Thermal"]["DepNum"] == news["Attitude"]["ID"] != rows["Attitude"]["ID"]

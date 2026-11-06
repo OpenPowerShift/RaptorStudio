@@ -44,7 +44,8 @@ from raptor.core.annotations import (
     annotation_label,
 )
 from raptor.gui import clipboard_payload, row_ops
-from raptor.gui.clipboard_plan import count_elements, plan_copy, plan_paste
+from raptor.gui.clipboard_plan import (
+    count_elements, plan_copy, plan_paste, remap_dependencies)
 from raptor.core.fileio.band_handover import handover_points
 from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 from raptor.gui.hierarchy_plan import (apply_collapse_plan,
@@ -5001,16 +5002,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if self._rbd_ref is None:
             return 0
         notes: list[str] = []
+        same_model_paste = True
         if buffer is None:
             # The system clipboard first: it carries copies made in other
             # models and other windows. Anything else on it, or nothing,
             # falls back to this view's own last copy.
             payload = self._clipboard_payload()
             if payload is not None:
+                same_model_paste = clipboard_payload.same_model(
+                    payload, self._model_token)
                 adapted = clipboard_payload.adapt_for_target(
-                    self._rbd_ref, payload,
-                    same_model=clipboard_payload.same_model(
-                        payload, self._model_token))
+                    self._rbd_ref, payload, same_model=same_model_paste)
                 buffer, notes = adapted.buffer, adapted.notes
             else:
                 mime = QApplication.clipboard().mimeData()
@@ -5091,6 +5093,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             parent_level=(self.hiers[parent].level
                           if parent in self.hiers else None))
         new_rows = plan.new_rows
+        # Dependencies among the pasted elements follow their copies; ones on
+        # elements left behind survive only in the model they came from.
+        lost = remap_dependencies(plan, keep_external=same_model_paste)
+        if lost:
+            notes.append(f"{lost} dependency(ies) on elements that were not "
+                         "copied were dropped")
 
         # Pasted content, not typed input: Raptor 7's PasteObject checks only
         # the edition's block limit and hierarchy depth, not the dialog or
