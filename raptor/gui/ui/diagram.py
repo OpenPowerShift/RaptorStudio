@@ -43,7 +43,7 @@ from raptor.core.annotations import (
     annotation_geometry,
     annotation_label,
 )
-from raptor.gui import clipboard_payload, row_ops
+from raptor.gui import clipboard_payload, row_ops, text_editing
 from raptor.gui.clipboard_plan import (
     count_elements, plan_copy, plan_paste, remap_dependencies)
 from raptor.core.fileio.band_handover import handover_points
@@ -6996,7 +6996,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Scoped clipboard shortcuts: only when the canvas has focus, so
         # text fields keep their own Ctrl+C/V semantics.
         mods = event.modifiers() & Qt.KeyboardModifier.ControlModifier
-        if mods and self.hasFocus():
+        if mods and self.hasFocus() and text_editing.active_editor() is None:
             if event.key() == Qt.Key.Key_C:
                 self.copy_selection()
                 event.accept()

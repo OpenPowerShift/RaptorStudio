@@ -62,6 +62,12 @@ class AppState:
     #: Selected elements Collapse can move into a new hierarchy: blocks,
     #: regular nodes, events and hierarchy ovals (moved in whole).
     selected_structural: int = 0
+    #: A text editor has the keyboard (an annotation being edited, a rename
+    #: box, a table cell ...): Cut/Copy/Paste then act on its text.
+    text_editing: bool = False
+    #: ... and it has text Copy/Cut can take / the clipboard has text.
+    text_can_copy: bool = False
+    clipboard_has_text: bool = False
     #: Selected items Copy/Cut take: elements and annotations.
     selected_copyable: int = 0
     #: Paste has something to paste: a Raptor payload on the system
@@ -138,8 +144,11 @@ PREDICATES: dict[str, Callable[[AppState], bool]] = {
     "has_selection": lambda s: s.model_open and s.selected_elements >= 1,
     "has_structural_selection": lambda s: (
         s.model_open and s.selected_structural >= 1),
-    "can_copy": lambda s: s.model_open and s.selected_copyable >= 1,
-    "can_paste": lambda s: s.model_open and s.clipboard_pastable,
+    "can_copy": lambda s: (s.text_can_copy if s.text_editing else
+                           s.model_open and s.selected_copyable >= 1),
+    "can_paste": lambda s: (s.clipboard_has_text if s.text_editing else
+                            s.model_open and s.clipboard_pastable),
+    "has_deletable": lambda s: s.model_open and s.selected_copyable >= 1,
     "has_movable_selection": lambda s: (
         s.model_open and s.selected_movable >= 1),
     # A new hierarchy must fit within the nesting limit.
@@ -223,6 +232,9 @@ UNMET: dict[str, str | Callable[[AppState], str]] = {
     "can_copy": lambda s: (
         "open or create a model first" if not s.model_open else
         "select something to copy first"),
+    "has_deletable": lambda s: (
+        "open or create a model first" if not s.model_open else
+        "select something to delete first"),
     "can_paste": lambda s: (
         "open or create a model first" if not s.model_open else
         "nothing to paste: copy elements from this or another model first"),
