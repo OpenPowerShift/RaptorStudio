@@ -123,12 +123,29 @@ def import_block_library(win):
     # Several at once for Update Matching (Ctrl/Shift-click, Ctrl+A): a
     # monthly data refresh touches many blocks.
     items.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+    from raptor.api.distributions import dist_name
     for t in templates:
         row = t.get("row", {})
-        items.addItem(f"{t.get('name', '?')}   "
-                    f"(FDist {row.get('FDist', '?')})")
-    items.setCurrentRow(0)
+        try:
+            fail = dist_name(int(float(row.get("FDist", ""))))
+        except (TypeError, ValueError):
+            fail = "?"
+        items.addItem(f"{t.get('name', '?')}   ({fail})")
+    # Nothing is selected on opening, so Enter cannot add a block by accident.
     lay.addWidget(items, 1)
+    hint = QLabel("Ctrl-click or Shift-click to pick several; "
+                  "Ctrl+A selects all.")
+    hint.setStyleSheet("color: gray;")
+    lay.addWidget(hint)
+    names = [str(t.get("name", "")) for t in templates]
+    dupes = sorted({n for n in names if names.count(n) > 1})
+    if dupes:
+        warn = QLabel(
+            f"{len(dupes)} name(s) appear more than once "
+            f"({', '.join(dupes[:3])}{'...' if len(dupes) > 3 else ''}); "
+            "Update Matching uses the last of each.")
+        warn.setWordWrap(True)
+        lay.addWidget(warn)
     buttons = QHBoxLayout()
     all_btn = QPushButton("Select All")
     all_btn.setToolTip("Select every template, to update all the blocks "
@@ -172,6 +189,8 @@ def import_block_library(win):
             what = (f"{chosen[0].get('name')} as block {ids[0]}"
                     if len(ids) == 1 else f"{len(ids)} blocks")
             win._statusbar.showMessage(f"Added {what}", 6000)
+        else:
+            win._statusbar.showMessage("Nothing was added.", 6000)
 
     def do_update():
         chosen = selected_templates()
