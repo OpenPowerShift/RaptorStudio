@@ -27,7 +27,8 @@ from PySide6.QtWidgets import (
 
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.resources.design_tokens import ThemeManager, SPACING
-from raptor.gui.ui.distro_combo import fill_distro_combo
+from raptor.gui.ui.distro_combo import distro_display_name, fill_distro_combo
+from raptor.gui.ui.table_filter_bar import FilterBar
 from raptor.gui.ui import param_entry
 from raptor.core.distro_rules import (
     DISTRO_PARAM_LABELS, validate_distro_params,
@@ -393,6 +394,7 @@ class DataTablesDock(QWidget):
             table.horizontalHeader().sortIndicatorChanged.connect(
                 lambda *_a, t=table: QTimer.singleShot(
                     0, lambda t=t: self._realize_visible(t)))
+        self._attach_filters()
         self._tabs.currentChanged.connect(self._on_tab_changed)
 
         # Click a row -> jump to it on the canvas (entering its hierarchy
@@ -694,6 +696,15 @@ class DataTablesDock(QWidget):
                             self._events_table) else 0)
                 item = current.item(row, key_col)
                 keep_key = item.text() if item is not None else None
+            # An edit that makes this row stop matching a filter must not
+            # hide it under the cursor: keep it shown until the next time
+            # the user types in a filter box.
+            bar = getattr(self, "_filter_bars", {}).get(current)
+            if bar is not None and bar.is_active() and keep_key is not None:
+                try:
+                    bar.keep_visible = {int(keep_key)}
+                except ValueError:
+                    pass
         # Sorting OFF while rows are being inserted (an active sort
         # indicator + insertRow = scattered rows); back on after.
         _all_tables: list[QTableWidget] = [
@@ -912,8 +923,12 @@ class DataTablesDock(QWidget):
             return
         tab_name = self._tabs.tabText(self._tabs.currentIndex())
         default = tab_name.replace(" ", "_").lower() + ".csv"
-        path, _f = fdg.getSaveFileName(
-            self, "Export CSV", default, "CSV (*.csv)")
+        title = "Export CSV"
+        if self._filter_active(table):
+            shown, total = self._filter_bars[table].rows_shown_of_total()
+            title = (f"Export CSV: only the {shown:,} of {total:,} rows "
+                     "the filter shows")
+        path, _f = fdg.getSaveFileName(self, title, default, "CSV (*.csv)")
         if not path:
             return
 
@@ -971,6 +986,94 @@ class DataTablesDock(QWidget):
     # Cell widgets on demand (#146)
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Filter row (the grids with many rows)
+    # ------------------------------------------------------------------
+
+    #: Sparing-table columns a filter can read without the row's cell
+    #: widgets: Name, ID and Sparing Type (from the model).
+    _SPARING_FILTER_COLS = {0, 1, 2}
+
+    def _attach_filters(self) -> None:
+        """A per-column filter row on the grids that can grow long. It reads
+        the model objects the rows were filled from, not the cell widgets, so
+        a row the filter hides never gets its widgets built."""
+        self._filter_bars: dict[QTableWidget, FilterBar] = {}
+        for table, matcher, cols in (
+                (self._blocks_table, self._block_matcher, None),
+                (self._nodes_table, None, None),
+                (self._events_table, None, None),
+                (self._sparing_table, self._sparing_matcher,
+                 self._SPARING_FILTER_COLS),
+                (self._pm_table, None, None)):
+            bar = FilterBar.attach(
+                table, matcher=matcher, filter_columns=cols,
+                row_key=lambda r, t=table: self._row_key(t, r))
+            bar.changed.connect(
+                lambda *_a, t=table: self._after_filter(t))
+            self._filter_bars[table] = bar
+
+    def _after_filter(self, t: QTableWidget) -> None:
+        """Rows came and went: build the widgets of the ones now in view."""
+        if t in self._lazy_pending:
+            self._realize_visible(t)
+
+    def _filter_active(self, t: QTableWidget) -> bool:
+        bar = getattr(self, "_filter_bars", {}).get(t)
+        return bar is not None and bar.is_active()
+
+    def _block_cell(self, t: QTableWidget, row: int, col: int,
+                    bid: int | None) -> tuple[str, float | None]:
+        """What the Blocks grid shows in a cell, from the model (the widget
+        columns) or the cell's item."""
+        b = self._view.blocks.get(bid) if self._view is not None \
+            and bid is not None else None
+        if b is not None and col in (2, 7):
+            code = b.fail_distro if col == 2 else b.repair_distro
+            return distro_display_name(code, is_failure=col == 2), None
+        if b is not None and col in (3, 4, 5, 8, 9, 10):
+            which = "F" if col < 7 else "R"
+            code = b.fail_distro if which == "F" else b.repair_distro
+            vals = b.fail_values if which == "F" else b.repair_values
+            i = col - 3 if which == "F" else col - 8
+            shown = self._entry_values(code, list(vals))
+            if i < len(shown):
+                return f"{shown[i]:.6g}", float(shown[i])
+            return "", None
+        if b is not None and col == 12:
+            from raptor.gui.ui.units_conv import native_to_display
+            v = native_to_display(
+                b.pm_freq, getattr(self, "_native_units", "") or "",
+                getattr(self, "_display_unit", None))
+            return f"{v:.6g}", float(v)
+        item = t.item(row, col)
+        return (item.text() if item is not None else ""), None
+
+    def _block_matcher(self, row: int, filters) -> bool:
+        t = self._blocks_table
+        bid = self._row_key(t, row)
+        for col, f in filters:
+            text, raw = self._block_cell(t, row, col, bid)
+            if not f(text, raw):
+                return False
+        return True
+
+    def _sparing_matcher(self, row: int, filters) -> bool:
+        from raptor.core.fileio.typed import SPARING_TYPE_TO_FILE_STRING
+        t = self._sparing_table
+        bid = self._row_key(t, row)
+        b = self._view.blocks.get(bid) if self._view is not None \
+            and bid is not None else None
+        for col, f in filters:
+            if col == 2 and b is not None:
+                text = SPARING_TYPE_TO_FILE_STRING.get(b.sparing_type, "None")
+            else:
+                item = t.item(row, col)
+                text = item.text() if item is not None else ""
+            if not f(text, None):
+                return False
+        return True
+
     @staticmethod
     def _row_key(t: QTableWidget, r: int) -> int | None:
         """The block id of a row, read from its ID cell (rows move when the
@@ -1011,7 +1114,11 @@ class DataTablesDock(QWidget):
             return
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
-            self._realize_rows(t, range(t.rowCount()))
+            # A filtered grid exports (and copies) the rows it shows, so the
+            # hidden ones need no widgets.
+            rows = [r for r in range(t.rowCount()) if not t.isRowHidden(r)] \
+                if self._filter_active(t) else range(t.rowCount())
+            self._realize_rows(t, rows)
         finally:
             QApplication.restoreOverrideCursor()
 

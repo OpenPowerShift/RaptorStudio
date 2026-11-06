@@ -42,6 +42,7 @@ from raptor.core.analytical.errors import BddTooLarge
 from raptor.core.analytical.limits import max_bdd_nodes_allowed, memory_text
 from raptor.core.analytical.errors import AnalyticalError
 from raptor.core.analytical.network import MAX_VARIABLES
+from raptor.gui.ui.table_filter_bar import FilterBar
 from raptor.gui.ui import msgbox
 from raptor.gui.resources.design_tokens import (
     RADIUS, SPACING, TYPE, ThemeManager, active_colour)
@@ -150,6 +151,9 @@ class _NumItem(QTableWidgetItem):
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         if value is not None:
             self.setToolTip(_fmt_full(value))
+            # The exact number, for the table's filter row (>0.99 compares
+            # this, not the rounded text).
+            self.setData(Qt.ItemDataRole.UserRole + 1, float(value))
 
     def __lt__(self, other: QTableWidgetItem) -> bool:
         mine = self._value
@@ -848,6 +852,9 @@ class AnalyticDialog(QDialog):
         table.setHorizontalScrollMode(
             QAbstractItemView.ScrollMode.ScrollPerPixel)
         table.viewport().installEventFilter(self)
+        # Thousands of elements: a per-column filter row (shown on request,
+        # and only when there are more than a handful of rows).
+        FilterBar.attach(table, raw_role=Qt.ItemDataRole.UserRole + 1)
         return table
 
     def _wrap_with_phase_picker(self, tabs: QWidget) -> QWidget:
