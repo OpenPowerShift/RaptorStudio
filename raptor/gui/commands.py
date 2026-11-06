@@ -429,6 +429,7 @@ class CommandRegistry:
         if spec.tooltip:
             action.setToolTip(spec.tooltip)
         self._apply_shortcuts(action, spec)
+        self._show_shortcut_in_tooltip(action, spec)
         if spec.key_tip:
             action.setProperty("keyTip", spec.key_tip)
         if spec.checkable:
@@ -438,6 +439,21 @@ class CommandRegistry:
             getattr(action, spec.on).connect(self._slot(spec))
         self._apply_initial_state(action, spec)
         return action
+
+    @staticmethod
+    def _show_shortcut_in_tooltip(action: QAction, spec: CommandSpec) -> None:
+        """Name the shortcut in the tooltip ("Name (Ctrl+X)"), unless the
+        tooltip already does. A factory-made action (undo / redo) is left
+        alone: Qt words those itself."""
+        if spec.factory or not action.shortcut().toString():
+            return
+        keys = action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
+        tip = spec.tooltip or spec.text
+        portable = action.shortcut().toString()
+        if any(f"({k}" in tip or f"{k})" in tip or f", {k}" in tip
+               for k in (keys, portable)):
+            return
+        action.setToolTip(f"{tip} ({keys})")
 
     @staticmethod
     def _apply_shortcuts(action: QAction, spec: CommandSpec) -> None:

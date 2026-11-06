@@ -71,6 +71,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="not_running"),
     CommandSpec(
         id="file.close_file",
+        shortcut="Ctrl+W",
         attr="_close_file_action",
         text="Close",
         icon="close_file_icon:text",
@@ -237,11 +238,12 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_select_action",
         text="Select",
         icon="mouse_arrow_icon:accent",
-        tooltip="Select tool (Q)",
+        tooltip="Select tool (Q, Ctrl+1)",
         handler="_set_tool",
         args=("select",),
         on="toggled",
         shortcut="Q",
+        more_shortcuts=("Ctrl+1",),
         checkable=True,
         checked=True,),
     CommandSpec(
@@ -257,6 +259,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.hier_up",
+        shortcut="Alt+Up",
         attr="_hier_up_action",
         text="Up",
         icon="up_filled_icon:accent",
@@ -273,6 +276,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled=False),
     CommandSpec(
         id="model.collapse",
+        shortcut="Ctrl+G",
         attr="_collapse_action",
         text="Collapse Selection",
         icon="collapse_icon:accent",
@@ -292,6 +296,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="has_deletable"),
     CommandSpec(
         id="model.add_block",
+        shortcut="Ctrl+2",
         attr="_add_block_tool",
         text="Add Block",
         icon="block_icon:accent",
@@ -305,6 +310,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.add_node",
+        shortcut="Ctrl+3",
         attr="_add_node_tool",
         text="Add Node",
         icon="node_icon:accent",
@@ -317,6 +323,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.add_event",
+        shortcut="Ctrl+4",
         attr="_add_event_tool",
         text="Add Event",
         icon="event_icon:accent",
@@ -331,6 +338,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.add_hier",
+        shortcut="Ctrl+5",
         attr="_add_hier_tool",
         text="Add Hierarchy",
         icon="hierarchy_icon:accent",
@@ -344,6 +352,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_add_hierarchy"),
     CommandSpec(
         id="model.connect",
+        shortcut="Ctrl+6",
         attr="_connect_tool",
         text="Connect",
         icon="connect_icon:accent",
@@ -1022,6 +1031,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checked=True),
     CommandSpec(
         id="view.data_tables",
+        shortcut="Ctrl+Shift+D",
         attr="_data_tables_action",
         text="Data Tables",
         icon="table_grid_icon:text",
@@ -1039,6 +1049,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checkable=True,),
     CommandSpec(
         id="view.prefs",
+        shortcut="Ctrl+,",
         attr="_prefs_action",
         text="Preferences…",
         icon="preferences_icon:text",
@@ -1046,12 +1057,14 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_show_preferences"),
     CommandSpec(
         id="view.explorer_toggle",
+        shortcut="Ctrl+Shift+E",
         attr="_explorer_toggle_action",
         text="Explorer",
         icon="explorer_dock_icon:text",
         checkable=True),
     CommandSpec(
         id="view.inspector_toggle",
+        shortcut="Ctrl+Shift+I",
         attr="_inspector_toggle_action",
         text="Inspector",
         icon="inspector_dock_icon:text",

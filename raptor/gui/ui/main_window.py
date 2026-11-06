@@ -1542,6 +1542,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 sig.connect(self._on_clipboard_changed)
         self._on_clipboard_changed()
 
+    def _focus_find(self) -> None:
+        """Ctrl+F: put the cursor in the Find item box."""
+        if not self._find_edit.isEnabled():
+            self._statusbar.showMessage(
+                "Open a model to find items in it.", 4000)
+            return
+        self._find_edit.setFocus()
+        self._find_edit.selectAll()
+
     def _on_clipboard_changed(self) -> None:
         self._refresh_commands(self._command_state(reuse_validity=True),
                                only={"can_copy", "can_paste", "has_deletable"})
@@ -1555,6 +1564,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Re-parents the ribbon-built Find combo into this dock's own
         # layout (see _setup_ribbon's own comment on it).
         self._explorer.set_search_widget(self._find_edit)
+        # Ctrl+F = Find item, from the canvas or the Explorer only. Tables
+        # keep their own Ctrl+F (the filter bar); two shortcuts with the
+        # same keys active at once would cancel each other out.
+        for owner in (self._diagram_dock, self._explorer):
+            find_sc = QShortcut(QKeySequence.StandardKey.Find, owner)
+            find_sc.setContext(
+                Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            find_sc.activated.connect(self._focus_find)
         dock_left = QDockWidget("Model Explorer", self)
         self._set_dock_icon(dock_left, "explorer_dock_icon")
         dock_left.setWidget(self._explorer)
