@@ -217,6 +217,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     #: already at the front). The per-kind signals above stay for
     #: anything that needs to know *which* element.
     selection_changed = Signal()
+    #: The paste buffer changed: Paste may have become (un)available.
+    paste_state_changed = Signal()
     #: (mode) -- the armed build tool CHANGED, from either side: the user
     #: clicking a ribbon tool, or the view disarming itself (Esc, or the
     #: end of a one-shot placement). MainWindow unchecks the ribbon
@@ -2146,7 +2148,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         menu = QMenu(self)
         mx, my = self.scene_to_model(scene_pos)
         paste_act = menu.addAction("Paste Here (at pointer)")
-        paste_act.setEnabled(bool(self._paste_buffer))
+        paste_act.setEnabled(self.can_paste())
         menu.addSeparator()
         select_all_act = menu.addAction("Select All")
         select_all_act.setShortcut(QKeySequence("Ctrl+A"))
@@ -4896,10 +4898,25 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     # --- Cut / Copy / Paste ------
 
+    def copyable_count(self) -> int:
+        """Selected things Copy/Cut take: elements and annotations."""
+        try:
+            n = self.selected_element_count()
+            return n + sum(1 for it in getattr(self, "_anno_items", {}).values()
+                           if it.isSelected())
+        except RuntimeError:        # scene torn down during shutdown
+            return 0
+
+    def can_paste(self) -> bool:
+        """Paste has something to paste."""
+        return self._rbd_ref is not None and bool(self._paste_buffer)
+
     def copy_selection(self) -> int:
         """Snapshot the selected elements (+ their fully-internal links)
-        into the paste buffer. Returns the element count."""
-        if self._rbd_ref is None:
+        into the paste buffer. Returns the element count. With nothing
+        selected it does nothing, so it cannot empty a buffer that holds
+        an earlier copy."""
+        if self._rbd_ref is None or not self.copyable_count():
             return 0
         sel_b = [bid for bid, it in self._block_items.items()
                  if it.isSelected() and bid != 0]
@@ -4924,6 +4941,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         for a in sel_annos:
             buffer.append(("annotation", dict(a)))
         self._paste_buffer = buffer
+        self.paste_state_changed.emit()
         return count_elements(buffer)
 
     def cut_selection(self) -> int:

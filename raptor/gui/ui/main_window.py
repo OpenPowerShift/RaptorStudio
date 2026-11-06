@@ -718,6 +718,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             valid=valid,
             run=run,
             selected_movable=view.selected_movable_count() if view else 0,
+            selected_copyable=view.copyable_count() if view else 0,
+            clipboard_pastable=view.can_paste() if view else False,
             # `selected` is the same walk `selected_element_count()` would
             # do again -- twice per click, over every item map on the
             # level. Sum the answer we already have.
@@ -1476,9 +1478,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             lambda: self._refresh_commands(
                 self._command_state(reuse_validity=True),
                 only={"has_selection", "has_structural_selection",
-                      "can_collapse",
+                      "can_copy", "can_paste", "can_collapse",
                       "has_movable_selection", "can_align", "can_mass_edit",
                       "can_zoom_hierarchy", "can_extract_hierarchy"}))
+        # Paste follows the clipboard, which changes outside any selection
+        # (another model, another window, any other application).
+        QApplication.clipboard().dataChanged.connect(self._on_clipboard_changed)
+        self._diagram_dock.view.paste_state_changed.connect(
+            self._on_clipboard_changed)
         # The view disarms its own tools (Esc, and the end of a
         # one-shot annotation placement). Mirror that back onto the
         # ribbon so a button does not stay lit while the tool it arms
@@ -1492,6 +1499,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._diagram_dock.view.default_annotation_props = (
             self._annotation_style_defaults())
         self.setCentralWidget(self._diagram_dock)
+
+    def _on_clipboard_changed(self) -> None:
+        self._refresh_commands(self._command_state(reuse_validity=True),
+                               only={"can_paste"})
 
     def _setup_docks(self):
         self._explorer = ExplorerDock()
