@@ -7788,8 +7788,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         gate checks the whole add once, and refuses it as a whole."""
         # The lowest free ids (gaps left by deleted blocks and ids held at
         # other levels are skipped), found in one pass over the rows.
+        rbd = req(self._rbd_ref)
         used = set(self.blocks)
-        for r in self._rbd_ref.sections["BLOCK_DATA"].rows:
+        for r in rbd.sections["BLOCK_DATA"].rows:
             used.add(_safe_int(r.get("ID")))
         new_ids: list[int] = []
         nid = 1
@@ -7807,9 +7808,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             new_rows.append(full)
         cmd = AddCmd(self, "block", new_rows)
         cmd.setText(text)
-        before = len(self._rbd_ref.sections["BLOCK_DATA"].rows)
+        before = len(rbd.sections["BLOCK_DATA"].rows)
         self._stack.push(cmd)
-        if len(self._rbd_ref.sections["BLOCK_DATA"].rows) == before:
+        if len(rbd.sections["BLOCK_DATA"].rows) == before:
             return []                  # the gate refused it
         return new_ids
 
