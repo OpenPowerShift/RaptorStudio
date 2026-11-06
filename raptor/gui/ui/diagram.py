@@ -2597,6 +2597,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         self._stack.push(CommentCmd(self, etype, oid, old, stored))
 
+    def _note_duplicate_name(self, kind: str, eid: int, name: str) -> None:
+        """Status-bar notice (not a refusal: Raptor 7 allows a shared name)
+        when another element of the same kind already has this name, ignoring
+        case. Reports and messages quote names, so a repeat is ambiguous."""
+        pool = {"block": lambda: {i: b.name for i, b in self.blocks.items()},
+                "node": lambda: {i: n.node_name for i, n in self.nodes.items()},
+                "event": lambda: {i: e.name for i, e in self.events.items()},
+                "hier": lambda: {i: h.name for i, h in self.hiers.items()}}[kind]()
+        key = name.casefold()
+        same = [i for i, n in pool.items()
+                if i != eid and str(n).casefold() == key]
+        if same:
+            others = ", ".join(str(i) for i in same[:3])
+            _view_status(self, f"Note: another {kind} ({others}) is already "
+                         f"named '{name}' (compared ignoring case "
+                         "— reports will show both the same")
+
     def rename_block(self, block_id: int, name: str):
         if block_id not in self.blocks:
             return
@@ -2604,6 +2621,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if name == old:
             return
         self._stack.push(RenameCmd(self, "block", block_id, old, name))
+        self._note_duplicate_name("block", block_id, name)
 
     def rename_node(self, node_id: int, name: str):
         if node_id not in self.nodes:
@@ -2612,6 +2630,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if name == old:
             return
         self._stack.push(RenameCmd(self, "node", node_id, old, name))
+        self._note_duplicate_name("node", node_id, name)
 
     #: Distribution setters always take CANONICAL values (Exponential =
     #: mean, Lognormal = mean + standard deviation). Raptor's lambda /
@@ -3070,6 +3089,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if h is None or name == h.name:
             return
         self._stack.push(RenameCmd(self, "hier", hid, h.name, name))
+        self._note_duplicate_name("hier", hid, name)
 
     def _sync_event_row(self, eid: int):
         self._editor.sync_event_row(eid)
@@ -3079,6 +3099,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if event is None or name == event.name:
             return
         self._stack.push(RenameCmd(self, "event", eid, event.name, name))
+        self._note_duplicate_name("event", eid, name)
 
     def set_event_field(self, eid: int, field: str, value):
         """field: 'dist' | 'param' | 'stream' (EVENT_DATA's Distro /
@@ -3895,7 +3916,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # LINK_DATA id.
         num = self._next_link_id()
         row = self._make_link_row(from_type, from_id, to_type, to_id, num)
+        before = len(section.rows)
         self._stack.push(AddCmd(self, "link", [row]))
+        if len(section.rows) == before:
+            return None             # the input-rule gate refused the link
         return num
 
     @staticmethod
@@ -6086,6 +6110,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                              f"click (left or right) the target element")
                 return
             src_kind, src_id = self._connect_from
+            if (src_kind, src_id) == (kind, eid):
+                _view_status(self, "An element cannot be linked to itself "
+                             "— click a different target")
             if (src_kind, src_id) != (kind, eid):
                 reason = self._connect_refusal_reason(src_kind, src_id,
                                                       kind, eid)

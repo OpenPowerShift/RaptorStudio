@@ -147,8 +147,7 @@ def preflight_issues(rbd, view, elem_name, api_issues=None) -> list[str]:
     # Cyclic graphs: the engine's TestFail walk raises
     # "TestFail loop detected" mid-run (real MODSIM crashes itself --
     # LoopError). Any directed cycle among links is suspect; flag
-    # cycles reachable from a block/event start (node-only rings
-    # behind hierarchy are not exercised by any fixture).
+    # cycles reachable from any block, event or node.
     adj: dict[tuple[str, int], list[tuple[str, int]]] = {}
     for l in v.links:
         adj.setdefault((l.connect_f_ref, l.connect_from_id), []).append(
@@ -181,7 +180,11 @@ def preflight_issues(rbd, view, elem_name, api_issues=None) -> list[str]:
         state[k] = 2
         return False
 
-    for kind, pool in (("Block", v.blocks), ("Event", v.events)):
+    # Nodes seed it too: a ring of nodes (or a node linked to itself) is a
+    # loop the engine's TestFail walk meets on its own origin node and
+    # refuses ("TestFail loop detected").
+    for kind, pool in (("Block", v.blocks), ("Event", v.events),
+                       ("Node", v.nodes)):
         for oid in pool:
             if oid and _dfs((f"RBD{kind}", oid), []):
                 break
@@ -280,3 +283,14 @@ def preflight_warnings(rbd) -> list[str]:
 
     return [f"{i.element}: {user_text(i.message)}" for i in issues(rbd)
             if i.severity == "warning"]
+
+
+def run_dialog_text(issues: list[str], shown: int = 5) -> str:
+    """The Run box's body: how many problems, then the first few, then "and
+    N more" (the full list is the box's detailed text)."""
+    n = len(issues)
+    head = f"{n} problem{'s' if n != 1 else ''} found:"
+    lines = list(issues[:shown])
+    if n > shown:
+        lines.append(f"… and {n - shown} more (see Show Details)")
+    return "\n".join([head, *lines])

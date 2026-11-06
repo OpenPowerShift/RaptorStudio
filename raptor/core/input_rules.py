@@ -166,10 +166,11 @@ class _Scope:
 
     def name(self, name: str, blank: str, spaces: str, length: str, rule: str = "name") -> None:
         """The name check every dialog repeats: not blank, no spaces, <= 20."""
+        hint = " Names are at most 20 characters."
         if name == "":
-            self.add(rule, blank)
+            self.add(rule, blank + hint)
         elif has_blank(name):
-            self.add(rule, spaces)
+            self.add(rule, spaces + hint)
         elif len(name) > 20:
             self.add(rule, length)
 
@@ -239,21 +240,21 @@ def _check_markers_and_elements(rbd, out: list[Violation]) -> None:
     into, links_out = _link_counts(rbd)
     for node in _rows(rbd, "NODE_DATA"):
         t, nid, name = _int(node, "Type"), str(node.get("ID")), node.get("Name", "")
-        s = _Scope(out, "run", "run", f"Node {nid} '{name}'")
+        s = _Scope(out, "run", "run", f"Node {nid} '{_short(name)}'")
         if into.get(("node", nid), 0) < 1 and t not in (1, 4):
-            s.add("node_from", f"Node '{name}' needs a link in before the model can run.")
+            s.add("node_from", f"Node '{_short(name)}' needs a link in before the model can run.")
         if links_out.get(("node", nid), 0) < 1 and t not in (3, 5):
-            s.add("node_to", f"Node '{name}' needs a link out before the model can run.")
+            s.add("node_to", f"Node '{_short(name)}' needs a link out before the model can run.")
     for section, kind, col in (("BLOCK_DATA", "block", "blockName"),
                                      ("EVENT_DATA", "event", "eventName"),
                                      ("HIERARCHY_DATA", "hier", "hierarchyName")):
         for row in _rows(rbd, section):
             oid, name = str(row.get("ID")), row.get(col, "")
-            s = _Scope(out, "run", "run", f"{kind.capitalize()} {oid} '{name}'")
+            s = _Scope(out, "run", "run", f"{kind.capitalize()} {oid} '{_short(name)}'")
             if into.get((kind, oid), 0) < 1:
-                s.add(f"{kind}_from", f"The {kind} '{name}' needs a link in before the model can run.")
+                s.add(f"{kind}_from", f"The {kind} '{_short(name)}' needs a link in before the model can run.")
             if links_out.get((kind, oid), 0) < 1:
-                s.add(f"{kind}_to", f"The {kind} '{name}' needs a link out before the model can run.")
+                s.add(f"{kind}_to", f"The {kind} '{_short(name)}' needs a link out before the model can run.")
 
 
 def _term_type(make_system_row: dict) -> int:
@@ -367,7 +368,7 @@ def _check_links(rbd, out: list[Violation]) -> None:
         a, to = _ELEMENT_LINK_RULES[kind]
         for row in _rows(rbd, section):
             oid = str(row.get("ID"))
-            s = _Scope(out, "link", "link", f"{kind.capitalize()} {oid} '{row.get(col, '')}'")
+            s = _Scope(out, "link", "link", f"{kind.capitalize()} {oid} '{_short(row.get(col, ''))}'")
             if links_out.get((kind, oid), 0) > 1:
                 s.add(f"{kind}_out", f"{a} can only connect to one object. Route the branch through a node to fan out.")
             if into.get((kind, oid), 0) > 1:
@@ -378,7 +379,7 @@ def _check_links(rbd, out: list[Violation]) -> None:
             continue
         nid = str(node.get("ID"))
         n_in, n_out = into.get(("node", nid), 0), links_out.get(("node", nid), 0)
-        s = _Scope(out, "link", "link", f"Node {nid} '{node.get('Name', '')}'")
+        s = _Scope(out, "link", "link", f"Node {nid} '{_short(node.get('Name', ''))}'")
         forbidden, f_msg, limited, l_msg = rule
         if (n_in if forbidden == "into" else n_out):
             s.add(f"marker_{forbidden}", f_msg)
@@ -575,7 +576,7 @@ def _block_start_standby_resources(row: dict, pools: dict, s: _Scope) -> None:
 def _check_block(row: dict, pools: dict, out: list[Violation]) -> None:
     """`BlockPropObj.ReceiveData`."""
     name = str(row.get("blockName", ""))
-    s = _Scope(out, "block", "dialog", f"Block {row.get('ID')} '{name}'")
+    s = _Scope(out, "block", "dialog", f"Block {row.get('ID')} '{_short(name)}'")
     s.name(name, "Block name cannot be blank or contain spaces.",
            "Block name cannot be blank or contain spaces.",
            "Block name must be at most 20 characters.")
@@ -625,7 +626,7 @@ def _block_age_features(row: dict, s: _Scope) -> None:
 def _check_event(row: dict, out: list[Violation]) -> None:
     """`EventsBoxObj.ReceiveData`."""
     name = str(row.get("eventName", ""))
-    s = _Scope(out, "event", "dialog", f"Event {row.get('ID')} '{name}'")
+    s = _Scope(out, "event", "dialog", f"Event {row.get('ID')} '{_short(name)}'")
     s.name(name, "Event name cannot be blank or contain spaces.",
            "Event name cannot be blank or contain spaces.",
            "Event name must be at most 20 characters.")
@@ -642,9 +643,9 @@ def _check_node(row: dict, n_in: int, out: list[Violation]) -> None:
     if _int(row, "Type") != 2:
         return
     name = str(row.get("Name", ""))
-    s = _Scope(out, "node", "dialog", f"Node {row.get('ID')} '{name}'")
+    s = _Scope(out, "node", "dialog", f"Node {row.get('ID')} '{_short(name)}'")
     if has_blank(name):     # a node may be unnamed
-        s.add("name", "Node name cannot be blank or contain spaces.")
+        s.add("name", "Node name cannot be blank or contain spaces. Names are at most 20 characters.")
     elif len(name) > 20:
         s.add("name", "Node name must be at most 20 characters.")
     elif name.lower() in ("start", "end"):
@@ -823,7 +824,7 @@ def _check_phases(rbd, n_in: dict, out: list[Violation]) -> None:
     """`PhaseBoxObj.BeSelected`."""
     for row in _all_rows(rbd, "PHASES"):
         name = str(row.get("PhaseName", ""))
-        s = _Scope(out, "phase", "dialog", f"Phase '{name}'")
+        s = _Scope(out, "phase", "dialog", f"Phase '{_short(name)}'")
         s.name(name, "Phase name cannot be blank or contain spaces.",
                "Phase name cannot be blank or contain spaces.",
                "Phase name must be at most 20 characters.")
@@ -841,18 +842,18 @@ def _check_phases(rbd, n_in: dict, out: list[Violation]) -> None:
                 "event_p", "The probability must be between 0 and 1.")
     for row in _rows(rbd, "NODE_DATA"):
         n, name, ks = n_in.get(str(row.get("ID")), 0), row.get("Name", ""), _node_phase_ks(row)
-        s = _Scope(out, "phase", "dialog", f"Node {row.get('ID')} '{name}'")
+        s = _Scope(out, "phase", "dialog", f"Node {row.get('ID')} '{_short(name)}'")
         if n == 0 and any(k != 0 for k in ks):
-            s.add("node_k_zero", f"Required good (k) for node '{name}' must be 0 in every phase: it has no paths in.")
+            s.add("node_k_zero", f"Required good (k) for node '{_short(name)}' must be 0 in every phase: it has no paths in.")
         elif any(k < 0 or k > n or k > 9999 for k in ks):
-            s.add("node_k", f"Required good (k) for node '{name}' must be between 0 and {n}, its number of paths in, in every phase.")
+            s.add("node_k", f"Required good (k) for node '{_short(name)}' must be between 0 and {n}, its number of paths in, in every phase.")
 
 
 def _check_triggers(rbd, out: list[Violation]) -> None:
     """`TrigBoxObj.BeSelected`."""
     for row in _all_rows(rbd, "TRIGGERS"):
         name = str(row.get("TriggerName", ""))
-        s = _Scope(out, "trigger", "dialog", f"Trigger '{name}'")
+        s = _Scope(out, "trigger", "dialog", f"Trigger '{_short(name)}'")
         s.name(name, "The trigger name cannot be blank.",
                "A trigger name can't have blank spaces.", "The trigger name must be at most 20 characters.")
         s.outside("stagger", _num(row, "InitUsed"), 0.0, _BIG,
@@ -866,7 +867,7 @@ def _check_triggers(rbd, out: list[Violation]) -> None:
 def _check_spare_pool(row: dict, out: list[Violation]) -> None:
     """`SparePoolsBoxObj.BeSelected`."""
     name = str(row.get("PoolName", ""))
-    s = _Scope(out, "spare_pool", "dialog", f"Spare pool '{name}'")
+    s = _Scope(out, "spare_pool", "dialog", f"Spare pool '{_short(name)}'")
     s.name(name, "The spare pool name cannot be blank.",
            "A spare pool name can't have blank spaces.", "The spare pool name must be at most 20 characters.")
     s.outside("stock", _num(row, "Stock"), 0.0, 999999999.0,
@@ -895,7 +896,7 @@ def _check_spare_pool(row: dict, out: list[Violation]) -> None:
 def _check_resource(row: dict, units: str, out: list[Violation]) -> None:
     """`ResPoolsBoxObj.BeSelected`."""
     name = str(row.get("PoolName", ""))
-    s = _Scope(out, "resource", "dialog", f"Resource pool '{name}'")
+    s = _Scope(out, "resource", "dialog", f"Resource pool '{_short(name)}'")
     s.name(name, "The resource pool name cannot be blank.",
            "A resource pool name can't have blank spaces.",
            "The resource pool name must be at most 20 characters.")
@@ -1113,8 +1114,35 @@ def new_violations(before, after) -> list[Violation]:
             if v.kind != "run" and v.key not in old]
 
 
-def refusal_text(violations: list[Violation]) -> str:
-    """One message for a refused edit, in Raptor 7's numbered-list style."""
+def _short(name: object, width: int = 40) -> str:
+    """A name for a message: a very long one is cut with an ellipsis."""
+    text = str(name)
+    return text if len(text) <= width else text[:width - 1] + "…"
+
+
+def refusal_text(violations: list[Violation], limit: int | None = None) -> str:
+    """One message for a refused edit, in Raptor 7's numbered-list style.
+
+    With `limit` (the GUI's message box), violations that share a message are
+    grouped ("Block 3 'A' and 16 more: ...") and at most `limit` entries are
+    listed, then "and N more"."""
+    if limit is not None:
+        groups: dict[str, list[Violation]] = {}
+        for v in violations:
+            groups.setdefault(v.message, []).append(v)
+        if len(groups) < len(violations) or len(violations) > limit:
+            entries = []
+            for msg, vs in groups.items():
+                who = vs[0].element if len(vs) == 1 else (
+                    f"{vs[0].element} and {len(vs) - 1} more")
+                entries.append(f"{who}: {msg}")
+            if len(entries) == 1:
+                return entries[0]
+            lines = ["The following errors must be corrected:"]
+            lines += [f"   {i}. {e}" for i, e in enumerate(entries[:limit], 1)]
+            if len(entries) > limit:
+                lines.append(f"   … and {len(entries) - limit} more")
+            return "\n".join(lines)
     if len(violations) == 1:
         v = violations[0]
         return f"{v.element}: {v.message}"

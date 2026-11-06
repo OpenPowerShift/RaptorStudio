@@ -1622,7 +1622,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # controls.
         self.tabifyDockWidget(dock_tables, dock_bottom)
         dock_bottom.raise_()
-        dock_tables.setMinimumHeight(120)
+        dock_tables.setMinimumHeight(160)
 
         # Run panel: the third tab in the same bottom strip. Deliberately
         # NOT a new right-side panel -- at 1280px, Explorer (260) +
@@ -5227,12 +5227,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Warning)
             box.setWindowTitle("Unsupported Model Features")
-            box.setText(
-                "This model uses features the simulation engine doesn't "
-                "support yet:")
             box.setDetailedText("\n".join(preflight))
-            box.setText("\n".join(preflight[:6])
-                        + ("\n…" if len(preflight) > 6 else ""))
+            from raptor.gui.ui.preflight import run_dialog_text
+            box.setText(run_dialog_text(preflight))
             run_btn = box.addButton("Run Anyway", QMessageBox.ButtonRole.AcceptRole)
             box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
             box.exec()
@@ -6794,6 +6791,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             QTimer.singleShot(0, run.fit_height)
         else:
             QTimer.singleShot(0, self._release_bottom_strip_ceiling)
+            if dock is getattr(self, "_data_tables_dock", None):
+                QTimer.singleShot(0, self._ensure_data_tables_height)
+
+    #: Shortest the Data Tables tab may open at: header plus several rows
+    #: (it used to open as one row and a scrollbar under the other docks).
+    DATA_TABLES_OPEN_HEIGHT = 260
+
+    def _ensure_data_tables_height(self) -> None:
+        dock = getattr(self, "_data_tables_dock", None)
+        if dock is None:
+            return
+        try:
+            if dock.isFloating() or not dock.isVisible():
+                return
+            if dock.height() < self.DATA_TABLES_OPEN_HEIGHT:
+                self._release_bottom_strip_ceiling()
+                self.resizeDocks([dock], [self.DATA_TABLES_OPEN_HEIGHT],
+                                 Qt.Orientation.Vertical)
+        except RuntimeError:
+            pass
 
     def _release_bottom_strip_ceiling(self) -> None:
         """Lift the height cap on every tab in the shared bottom slot.

@@ -917,10 +917,11 @@ class DataTablesDock(QWidget):
             generic = (f"{which} parameter {i+1} of this block's "
                        f"{_DN.get(distro, '?')} distribution "
                        "(units follow the model's time setting)")
-            it = t.item(row, base + i)
-            if it is None:
+            # The param cells are line edits in cell widgets, not items.
+            target = t.cellWidget(row, base + i) or t.item(row, base + i)
+            if target is None:
                 continue
-            it.setToolTip(tips[i] or generic)
+            target.setToolTip(tips[i] or generic)
 
     def _populate_blocks(self):
         t = self._blocks_table
@@ -942,7 +943,6 @@ class DataTablesDock(QWidget):
             name_item.setBackground(name_item.background())  # keep default
             self._distro_cell(t, r, 2, b.fail_distro,
                               lambda code, bid=bid: self._set_dist(bid, "F", code))
-            self._apply_param_tips(t, r, b.fail_distro, "F")
             f_labels = DISTRO_PARAM_LABELS.get(b.fail_distro, ("", "", ""))
             f_entry = self._entry_values(b.fail_distro, b.fail_values)
             for i in range(3):
@@ -957,7 +957,6 @@ class DataTablesDock(QWidget):
             self._distro_cell(t, r, 7, b.repair_distro,
                               lambda code, bid=bid: self._set_dist(bid, "R", code),
                               is_failure=False)
-            self._apply_param_tips(t, r, b.repair_distro, "R")
             r_labels = DISTRO_PARAM_LABELS.get(b.repair_distro, ("", "", ""))
             r_entry = self._entry_values(b.repair_distro, b.repair_values)
             for i in range(3):
@@ -996,6 +995,9 @@ class DataTablesDock(QWidget):
 
             for col, val in ((13, fmean), (14, fsd), (15, rmean), (16, rsd)):
                 t.setItem(r, col, self._ro(stat_text(val)))
+            # After the cells exist: the tips go on the param items.
+            self._apply_param_tips(t, r, b.fail_distro, "F")
+            self._apply_param_tips(t, r, b.repair_distro, "R")
             self._tag_row_with_name(t, r, b.name)
         t.setUpdatesEnabled(True)
 
@@ -1064,6 +1066,7 @@ class DataTablesDock(QWidget):
         item = _SortItem(text)
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         item.setForeground(Qt.GlobalColor.gray)
+        item.setToolTip("Read-only, computed from the other columns")
         return item
 
     def _distro_cell(self, table, row, col, current: int, on_change,
