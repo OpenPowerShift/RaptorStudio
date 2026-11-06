@@ -22,6 +22,13 @@
 | Del / Backspace | Delete selection (nothing selected: arms click-to-delete) |
 | Esc | Cancel armed tool / delete mode / connect / Failure Effects fail-repair targeting; cancels a running batch |
 
+## Tables
+| Shortcut | Action |
+|---|---|
+| Ctrl+F | Show or hide the filter row of the table that has the focus (tables of more than 10 rows) |
+| Ctrl+D | Data Tables: fill down, the top selected row's value goes to the other selected rows in the current column |
+| Ctrl+V | Data Tables, on the grid itself: paste one value into the current column of every selected row |
+
 ## Annotation z-order (Model view)
 Needs one or more annotations selected. Each command is greyed out when
 it would not move anything, so a note already at the front has *Bring to

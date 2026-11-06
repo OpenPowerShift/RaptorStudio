@@ -1610,6 +1610,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._data_tables.export_tables_requested.connect(self._export_tables)
         self._data_tables.element_locate_requested.connect(
             self._on_result_element_clicked)
+        self._data_tables.element_locate_id_requested.connect(
+            self._on_fev_element_locate)
+        self._data_tables.status_message.connect(
+            lambda text: self._statusbar.showMessage(text, 8000))
         self._data_tables.validation_failed.connect(
             lambda msg: self._statusbar.showMessage(f"Invalid value — {msg}", 8000))
         dock_tables = QDockWidget("Data Tables", self)

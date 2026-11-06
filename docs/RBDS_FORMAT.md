@@ -545,6 +545,15 @@ element positions and annotation geometry stay put between sessions. A
 hand-authored file without it has one derived on open, deterministically,
 from the element positions.
 
+**`view`.** `.rbds`-only view options, written once for the whole file
+(never per level) so reopening restores the look exactly: `link_routing`
+(`straight`, `angled` or `orthogonal`) and `block_labels` (what a block
+shows under its name: `mean`, `spread`, `rate` or `off`). A value is written
+only when it was set; a file without `view` leaves the viewer's current
+settings alone, and an unknown value is ignored. The page flow used by Auto
+Layout is per level and lives in `flow_directions` (key: the hierarchy id,
+`0` for the top level).
+
 **Anchors.** An annotation placed next to an element or another
 annotation (`adjacent_to`, or an arrow's `from_`/`to`) carries an
 `anchor` —

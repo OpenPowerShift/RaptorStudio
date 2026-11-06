@@ -114,9 +114,13 @@ def table_to_grid(table: Any, *, raw: bool = True,
     realize_all = getattr(table, "realize_all", None)
     if realize_all is not None and cell_widgets:
         realize_all()
-    column_count = table.columnCount()
+    # A column the user has hidden (the Data Tables' Level column outside
+    # Whole model) is not exported either.
+    cols = [c for c in range(table.columnCount())
+            if not (hasattr(table, "isColumnHidden")
+                    and table.isColumnHidden(c))]
     headers = []
-    for c in range(column_count):
+    for c in cols:
         head = table.horizontalHeaderItem(c)
         headers.append(head.text() if head is not None else "")
     # Respect the active hierarchy/filter: exporting rows the user cannot
@@ -124,19 +128,20 @@ def table_to_grid(table: Any, *, raw: bool = True,
     visible = [r for r in range(table.rowCount())
                if not table.isRowHidden(r)]
     rows = [[cell_text(table, r, c, raw=raw, cell_widgets=cell_widgets)
-             for c in range(column_count)]
+             for c in cols]
             for r in visible]
     # A ">" display prefix is not a number. Keep the numeric value in its
     # column and add a parallel flag column so a spreadsheet can both sum
     # the value and know it is a lower bound.
     censor_cols = [
-        c for c in range(column_count)
+        c for c in cols
         if any((table.item(r, c) is not None
                 and table.item(r, c).data(CENSOR_ROLE))
                for r in visible)
     ]
     if censor_cols:
-        headers = headers + [f"{headers[c]} (censored)" for c in censor_cols]
+        headers = headers + [f"{headers[cols.index(c)]} (censored)"
+                             for c in censor_cols]
         for row, r in zip(rows, visible):
             row.extend(
                 ">" if (table.item(r, c) is not None
