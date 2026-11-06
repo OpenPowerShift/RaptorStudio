@@ -22,7 +22,8 @@ from typing import Any, cast
 
 from shiboken6 import isValid
 from PySide6.QtCore import (
-    Qt, Signal, QEvent, QRectF, QPointF, QLineF, QSize, QTimer,
+    Qt, Signal, QByteArray, QEvent, QMimeData, QRectF, QPointF, QLineF, QSize,
+    QTimer,
 )
 from PySide6.QtGui import (
     QPen, QBrush, QColor, QFont, QPainter, QPixmap, QUndoStack, QKeySequence,
@@ -42,7 +43,7 @@ from raptor.core.annotations import (
     annotation_geometry,
     annotation_label,
 )
-from raptor.gui import row_ops
+from raptor.gui import clipboard_payload, row_ops
 from raptor.gui.clipboard_plan import count_elements, plan_copy, plan_paste
 from raptor.core.fileio.band_handover import handover_points
 from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
@@ -366,6 +367,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: QSettings by MainWindow; empty means "factory look".
         self.default_annotation_props: dict[str, dict] = {}
         self._paste_buffer: list = []
+        self._model_token = clipboard_payload.new_model_token()
         self._connect_ghost: QGraphicsLineItem | None = None
         self._anno_drag_start: QPointF | None = None
         self._connect_from: tuple[str, int] | None = None
@@ -729,6 +731,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         used = {int(a.get("id", 0)) for a in self.annotations}
         self._anno_seq = (max(used) + 1) if used else 1
         self._rbd_ref = rbd   # kept so element creation can clone real rows
+        self._model_token = clipboard_payload.new_model_token()
         # Units for the canvas labels, read once: the per-block label
         # formatter must not re-parse SYSTEM_DATA on every refresh.
         self._label_units = ""
@@ -4907,9 +4910,36 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         except RuntimeError:        # scene torn down during shutdown
             return 0
 
+    def _clipboard_payload(self) -> clipboard_payload.Payload | None:
+        """The Raptor Studio clip on the system clipboard, if there is one
+        (copied in another model, another window or another running app)."""
+        mime = QApplication.clipboard().mimeData()
+        if mime is None or not mime.hasFormat(clipboard_payload.MIME):
+            return None
+        return clipboard_payload.decode(
+            bytes(mime.data(clipboard_payload.MIME).data()))
+
     def can_paste(self) -> bool:
-        """Paste has something to paste."""
-        return self._rbd_ref is not None and bool(self._paste_buffer)
+        """Paste has something to paste: a Raptor clip on the system
+        clipboard, or (when the clipboard is empty or unavailable) this
+        view's own earlier copy. Something else on the clipboard (text from
+        another program) means there is nothing of ours to paste."""
+        if self._rbd_ref is None:
+            return False
+        mime = QApplication.clipboard().mimeData()
+        if mime is not None and mime.formats():
+            return self._clipboard_payload() is not None
+        return bool(self._paste_buffer)
+
+    def _publish_clip(self, buffer) -> None:
+        """Put `buffer` on the system clipboard beside the in-app copy."""
+        mime = QMimeData()
+        name = getattr(self._rbd_ref, "file_name", "") or ""
+        mime.setData(clipboard_payload.MIME, QByteArray(
+            clipboard_payload.encode(buffer, source_name=name,
+                                     model_token=self._model_token)))
+        mime.setText(clipboard_payload.summary_text(buffer, name))
+        QApplication.clipboard().setMimeData(mime)
 
     def copy_selection(self) -> int:
         """Snapshot the selected elements (+ their fully-internal links)
@@ -4941,6 +4971,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         for a in sel_annos:
             buffer.append(("annotation", dict(a)))
         self._paste_buffer = buffer
+        if buffer:
+            self._publish_clip(buffer)
         self.paste_state_changed.emit()
         return count_elements(buffer)
 
@@ -4961,19 +4993,37 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self.delete_selected()
         return n
 
-    def paste(self, at_model=None, offset=(8.0, 6.0)):
+    def paste(self, at_model=None, offset=(8.0, 6.0), buffer=None):
         """Re-insert buffered elements with fresh ids; internal links are
         remapped to the new ids. `at_model` anchors the cluster's top-left
         to a model point (context-menu paste). One macro undo step.
         Returns the number of elements pasted."""
-        if not self._paste_buffer or self._rbd_ref is None:
+        if self._rbd_ref is None:
+            return 0
+        notes: list[str] = []
+        if buffer is None:
+            # The system clipboard first: it carries copies made in other
+            # models and other windows. Anything else on it, or nothing,
+            # falls back to this view's own last copy.
+            payload = self._clipboard_payload()
+            if payload is not None:
+                adapted = clipboard_payload.adapt_for_target(
+                    self._rbd_ref, payload,
+                    same_model=clipboard_payload.same_model(
+                        payload, self._model_token))
+                buffer, notes = adapted.buffer, adapted.notes
+            else:
+                mime = QApplication.clipboard().mimeData()
+                if mime is not None and mime.formats():
+                    return 0       # something foreign is on the clipboard
+                buffer = self._paste_buffer
+        if not buffer:
             return 0
         parent = self._current_parent
 
-        anno_entries = [r for k, r in self._paste_buffer
-                        if k == "annotation"]
-        elements = [(k, r) for k, r in self._paste_buffer
-                 if k not in ("link", "annotation")]
+        anno_entries = [r for k, r in buffer if k == "annotation"]
+        elements = [(k, r) for k, r in buffer
+                    if k not in ("link", "annotation")]
 
         # Anchor and target, both in SCENE coordinates, then converted
         # per-kind. This used to compute the anchor from the elements'
@@ -5034,7 +5084,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         dx = sdx / self._scale
         dy = -sdy / self._scale
         plan = plan_paste(
-            self._rbd_ref, self._paste_buffer,
+            self._rbd_ref, buffer,
             {"block": self.blocks, "node": self.nodes,
              "event": self.events, "hier": self.hiers},
             dx=dx, dy=dy, parent=parent,
@@ -5086,6 +5136,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     self._stack.push(AnnoCmd(self, a2, add=True))
             finally:
                 self._stack.endMacro()
+        if notes:
+            sink = getattr(self, "status_message_sink", None)
+            if sink is not None:
+                sink("Pasted. " + "; ".join(notes) + ".")
         # Select the pasted elements.
         self._scene.clearSelection()
         for kind, rows in new_rows.items():
@@ -7782,8 +7836,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         """Insert a library template as a new block (fresh id, undoable,
         placed at `at_model` or near the viewport centre). Returns the
         new block id."""
-        self._paste_buffer = [("block", dict(row))]
-        n = self.paste(at_model=at_model)
+        n = self.paste(at_model=at_model, buffer=[("block", dict(row))])
         if n != 1:
             return 0
         return max(self.blocks)

@@ -34,6 +34,7 @@ def test_nothing_selected_greys_cut_copy_delete_and_paste(win):
     view = win._diagram_dock.view
     view._scene.clearSelection()
     view._paste_buffer = []
+    QApplication.clipboard().clear()        # nothing of ours anywhere
     win._on_clipboard_changed()
     assert _states(win) == (False, False, False, False)
 
@@ -54,6 +55,7 @@ def test_copying_enables_paste(win):
     view = win._diagram_dock.view
     view._scene.clearSelection()
     view._paste_buffer = []
+    QApplication.clipboard().clear()        # nothing of ours anywhere
     win._on_clipboard_changed()
     assert not win._paste_action.isEnabled()
     next(iter(view._block_items.values())).setSelected(True)
