@@ -126,7 +126,65 @@ def issues(rbd: RbdFile) -> list[Issue]:
     result.extend(_check_start_to_end_reachable(rbd))
     result.extend(_check_link_cycle(rbd))
     result.extend(_check_annotation_anchors(rbd))
+    result.extend(_check_stacked_blocks(rbd))
 
+    return result
+
+
+def _check_stacked_blocks(rbd: RbdFile) -> list[Issue]:
+    """Blocks drawn on top of each other (a warning; nothing is moved).
+
+    Two blocks on one level whose centres are within half a block of each
+    other hide one another, which is rarely what the author meant. The
+    block drawn last (the later row) is on top, so it is the one named, with
+    the blocks it covers. Sizes are the layout's own
+    (`element_size`), at the file's view scale."""
+    sec = rbd.sections.get("BLOCK_DATA")
+    if sec is None:
+        return []
+    from raptor.core.fileio.element_size import half_height_px, half_width_px
+    from raptor.core.fileio.view_transform import derive, frozen
+    try:
+        vt = frozen(rbd) or derive(rbd)
+    except Exception:  # noqa: BLE001 - a malformed layout is reported elsewhere
+        return []
+    levels: dict[int, list[tuple[int, int, str, float, float, float, float]]] = {}
+    for order, row in enumerate(sec.rows):
+        try:
+            bid = int(float(row.get("ID", 0)))
+            if bid == 0:
+                continue
+            name = str(row.get("blockName", ""))
+            x, y = vt.to_scene(float(row["xPos"]), float(row["yPos"]))
+            parent = int(float(row.get("ParentId", 0) or 0))
+        except (TypeError, ValueError, KeyError, OverflowError):
+            continue
+        levels.setdefault(parent, []).append(
+            (order, bid, name, x, y, half_width_px("BLOCK_DATA", name),
+             half_height_px("BLOCK_DATA", name)))
+    result: list[Issue] = []
+    for blocks in levels.values():
+        blocks.sort(key=lambda b: b[3])             # sweep along x
+        covers: dict[int, list[tuple[int, int, str]]] = {}
+        for i, a in enumerate(blocks):
+            for b in blocks[i + 1:]:
+                if b[3] - a[3] > a[5] + b[5]:
+                    break
+                if (abs(a[3] - b[3]) < min(a[5], b[5])
+                        and abs(a[4] - b[4]) < min(a[6], b[6])):
+                    top, under = (a, b) if a[0] > b[0] else (b, a)
+                    covers.setdefault(top[1], []).append(
+                        (under[0], under[1], under[2]))
+        names = {b[1]: b[2] for b in blocks}
+        for top_id, hidden in sorted(covers.items()):
+            hidden.sort()
+            shown = ", ".join(f"'{n}'" for _o, _i, n in hidden[:3])
+            more = f" and {len(hidden) - 3} more" if len(hidden) > 3 else ""
+            result.append(Issue(
+                "warning", f"Block {top_id} '{names[top_id]}'",
+                f"is drawn on top of {shown}{more}, hiding "
+                f"{'it' if len(hidden) == 1 else 'them'}; move one of them "
+                "apart or run Auto Layout."))
     return result
 
 

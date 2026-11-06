@@ -2634,6 +2634,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # path; keep its Position rows in step (notably after undo/redo).
         self._inspector.refresh_position_display()
 
+    def _mark_view_dirty(self) -> None:
+        """A view option changed (link style, block labels): the file now
+        differs from what is on disk, but no model data changed."""
+        if getattr(self, "_loading_model", False) or self._rbd is None:
+            return
+        self._dirty = True
+        self._update_title()
+
     def _mark_dirty(self):
         # First, before any early return: whatever the run guard does
         # about a mid-run edit, the model has changed, so the memoised
@@ -4129,7 +4137,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         v.default_block_rdist = defaults["rdist"]
         v.default_block_rparams = defaults["rparams"]
         v.default_block_sparing = defaults["sparing"]
+        # The view options the file was saved with, before the canvas draws
+        # (link routes depend on them); a file without any keeps ours.
+        v.apply_view_options(getattr(rbd, "view", None) or {})
+        self._sync_link_routing_combo()
         v.load_rbd(rbd)
+        self._sync_block_label_controls()
         # The canvas rebuild is the one long block the indicator can be
         # repainted after: without a yield it stays as the first frame
         # (or, on some platforms, an unpainted window) until the end.
