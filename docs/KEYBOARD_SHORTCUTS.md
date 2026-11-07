@@ -19,9 +19,12 @@
 | Ctrl+C | Copy selection (elements, links, annotations, hierarchy subtrees) |
 | Ctrl+X | Cut selection |
 | Ctrl+V | Paste at mouse cursor |
-| Arrow keys / Shift+Arrow | Nudge the selection one grid step / 1 px. Selected routing points move too, and the routing points of a link whose two ends both move go with them. One undo step |
 | Del / Backspace | Delete selection (nothing selected: arms click-to-delete) |
 | Esc | Cancel armed tool / delete mode / connect / Failure Effects fail-repair targeting; cancels a running batch |
+
+Nudging with the arrow keys (one grid step; Shift: 1 px) also moves selected
+routing points, and the routing points of a link whose two ends both move go
+with them. One undo step.
 
 ## Annotation z-order (Model view)
 Needs one or more annotations selected. Each command is greyed out when
