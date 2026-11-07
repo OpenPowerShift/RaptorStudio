@@ -167,3 +167,67 @@ def test_add_block_adds_every_selected_template(win, monkeypatch, tmp_path):
     assert "3 blocks" in win._statusbar.currentMessage()
     view._stack.undo()                      # one undo step removes all three
     assert set(view.blocks) == before
+
+
+def _rbl_row(name, fdist="15"):
+    """A template as an .rbl gives it: the library columns only, no PM."""
+    from raptor.core.fileio.rbl import LibEntry, template_row
+    return template_row(LibEntry(name, fail_dist=int(fdist),
+                                 fail_values=["100", "2", "0"]))
+
+
+def test_a_library_block_gets_the_defaults_a_fresh_block_has(win):
+    view = win._diagram_dock.view
+    ids = view.add_blocks_from_templates([_rbl_row("Lib_A")],
+                                         view.mapToScene(0, 0))
+    assert len(ids) == 1
+    row = next(r for r in win._rbd.sections["BLOCK_DATA"].rows
+               if r.get("ID") == str(ids[0]))
+    assert float(row["PMFreq"]) > 0           # PM, which an .rbl never carries
+    assert row["FDist"] == "15"               # the template's own columns win
+    assert row["ParentId"] == str(view._current_parent)
+
+
+def test_many_templates_are_one_undo_step_and_one_gate_pass(win, monkeypatch):
+    view = win._diagram_dock.view
+    gate = view._stack
+    passes = []
+    real = gate._keys
+    monkeypatch.setattr(gate, "_keys", lambda: passes.append(1) or real())
+    rows = [_rbl_row(f"Lib_{i}") for i in range(40)]
+    before = len(view.blocks)
+    ids = view.add_blocks_from_templates(rows, view.mapToScene(0, 0))
+    assert len(ids) == 40 and len(view.blocks) == before + 40
+    assert len(passes) == 1                    # the rule gate ran once
+    view._stack.undo()
+    assert len(view.blocks) == before
+    view._stack.redo()
+    assert len(view.blocks) == before + 40
+
+
+def test_a_refused_add_says_nothing_was_added(win, monkeypatch):
+    from raptor.gui.ui import msgbox
+    shown = []
+    monkeypatch.setattr(msgbox, "warning", lambda *a, **k: shown.append(a))
+    view = win._diagram_dock.view
+    bad = _rbl_row("Bad")
+    bad["PMFreq"] = "-5"                      # a template that breaks a rule
+    bad["pmTriggered"] = "0"
+    before = len(view.blocks)
+    assert view.add_blocks_from_templates([bad], view.mapToScene(0, 0)) == []
+    assert len(view.blocks) == before and shown
+
+
+def test_dialog_opens_with_nothing_selected_and_shows_dist_names(
+        win, monkeypatch, tmp_path):
+    path = _library(win, tmp_path, ["Attitude", "Thermal"])
+    seen = {}
+
+    def act(dlg):
+        lst = dlg.findChild(QListWidget)
+        seen["sel"] = len(lst.selectedIndexes())
+        seen["text"] = lst.item(0).text()
+        seen["add"] = _button(dlg, "Add Block").isEnabled()
+    _open_dialog(win, monkeypatch, path, act)
+    assert seen["sel"] == 0 and seen["add"] is False
+    assert "FDist" not in seen["text"] and "(" in seen["text"]
