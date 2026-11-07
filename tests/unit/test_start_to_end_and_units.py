@@ -178,7 +178,8 @@ class TestDistroEditorUnitConversion:
     the SHOWN unit, like every parameter field in the same form."""
 
     @pytest.fixture(scope="module")
-    def qapp(self):
+    @classmethod
+    def qapp(cls):
         import os
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
