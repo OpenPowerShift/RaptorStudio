@@ -51,8 +51,9 @@ colour change. Watch three things move together:
 
 * the **diagram** — blocks re-colour live: green running, red
   repairing, blue standby;
-* the **event log** in the Results dock — one new coloured row per
-  press, the same rows <<ch-redundancy>> taught you to read;
+* the **Live Log** tab beside the Inspector — one new coloured row per
+  press, the same rows <<ch-redundancy>> taught you to read, the newest
+  ones tinted so the event you just witnessed stands out;
 * the **status bar** — plain words about the event you just witnessed,
   e.g. `Node end → Bad  (t = 180.974304)`.
 
@@ -139,6 +140,9 @@ events, closing bookkeeping — and then every later run the model is set
 to make, and presents the full reports, exactly like a batch run:
 summary, event log, the works. A stepped session covers all the model's runs: **Jump** lets the current run go by without stopping and pauses at
 the next run's first change, with the dice carried on from where the run before left them.
+The Live Log follows the run being stepped; its run selector
+(*Run 2 of 3*) brings back the runs already finished, so you can reread
+run 1 while stepping run 2.
 The session is single-use; the next Step starts a fresh one with fresh dice.
 
 .Limits of this model — verification is not validation

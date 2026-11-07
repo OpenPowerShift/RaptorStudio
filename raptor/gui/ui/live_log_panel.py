@@ -1,0 +1,316 @@
+"""The Live Log page: the event log of a stepped simulation, run by run.
+
+A stepped session spans every configured run. The page follows the run on
+screen (new rows land as each step happens, the rows of the latest step are
+highlighted and scrolled into view) and keeps the earlier runs reachable
+through a run selector, so a finished run can be read again while the next
+one is stepped.
+
+Only the rows on screen live in the tree: the session keeps every run's
+lines, the tree shows at most `ROW_CAP` of the chosen run (the newest), and
+says so when it is cutting.
+"""
+from __future__ import annotations
+
+from collections.abc import Sequence
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QBrush, QColor, QFont
+from PySide6.QtWidgets import (
+    QComboBox, QHBoxLayout, QLabel, QToolButton, QTreeWidget,
+    QTreeWidgetItem, QVBoxLayout, QWidget,
+)
+
+from raptor.api.tables import parse_event_log_line
+from raptor.gui.resources.design_tokens import active_colour
+
+#: Most rows the tree holds for one run (the newest are kept).
+ROW_CAP = 5000
+#: Opacity of the "this step" tint over the row (0-255), so the State
+#: colouring and the alternating rows underneath stay readable.
+_HIGHLIGHT_ALPHA = 80
+
+
+class LiveLogPanel(QWidget):
+    """Run selector, status line and the event-log tree."""
+
+    #: The run on screen was changed by the user (0-based index).
+    run_selected = Signal(int)
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+
+        self.caption = QLabel("Live event log — stepping / animated run")
+        self.caption.setObjectName("SectionNote")
+        self.caption.setWordWrap(True)
+        lay.addWidget(self.caption)
+
+        bar = QHBoxLayout()
+        bar.setContentsMargins(0, 0, 0, 0)
+        self.prev_button = QToolButton()
+        self.prev_button.setText("◀")
+        self.prev_button.setAccessibleName("Previous run")
+        self.prev_button.setToolTip("Show the previous run's event log")
+        self.next_button = QToolButton()
+        self.next_button.setText("▶")
+        self.next_button.setAccessibleName("Next run")
+        self.next_button.setToolTip("Show the next run's event log")
+        self.run_combo = QComboBox()
+        self.run_combo.setAccessibleName("Run shown in the live log")
+        self.run_combo.setToolTip(
+            "Which run's events are listed. The run being stepped is the "
+            "last one; earlier runs stay here to read.")
+        self.run_combo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToContents)
+        bar.addWidget(self.prev_button)
+        bar.addWidget(self.run_combo, 1)
+        bar.addWidget(self.next_button)
+        lay.addLayout(bar)
+
+        self.status = QLabel("")
+        self.status.setObjectName("SectionNote")
+        self.status.setWordWrap(True)
+        self.status.setAccessibleName("Live log position")
+        lay.addWidget(self.status)
+
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels(["Time", "Type", "Element", "State", "Detail"])
+        self.tree.setRootIsDecorated(False)
+        self.tree.setUniformRowHeights(True)
+        self.tree.setAlternatingRowColors(True)
+        self.tree.setAccessibleName("Live event log")
+        lay.addWidget(self.tree, 1)
+
+        # Whole-run state, all reset by `clear()`.
+        self._runs: list[Sequence[str]] = []     # finished runs' lines
+        self._current: Sequence[str] = []        # the run being stepped
+        self._total = 0
+        self._shown = 0                          # run index on screen
+        self._fed = 0                            # lines of `_shown` in tree
+        self._highlighted: list[QTreeWidgetItem] = []
+        self._cut = 0                            # rows dropped from the top
+        self._t = 0.0
+        self._building = False
+
+        self.run_combo.currentIndexChanged.connect(self._on_combo)
+        self.prev_button.clicked.connect(lambda: self._step_run(-1))
+        self.next_button.clicked.connect(lambda: self._step_run(+1))
+        self._sync_buttons()
+
+    # -- public ---------------------------------------------------------
+    @property
+    def current_index(self) -> int:
+        """0-based index of the run being stepped (the newest)."""
+        return len(self._runs)
+
+    @property
+    def shown_index(self) -> int:
+        return self._shown
+
+    @property
+    def following(self) -> bool:
+        """True when the run on screen is the one being stepped."""
+        return self._shown == self.current_index
+
+    def clear(self) -> None:
+        self._runs = []
+        self._current = []
+        self._total = 0
+        self._shown = 0
+        self._fed = 0
+        self._cut = 0
+        self._highlighted = []
+        self.tree.clear()
+        self._building = True
+        self.run_combo.clear()
+        self._building = False
+        self.status.setText("")
+        self._sync_buttons()
+
+    def update_session(self, finished: Sequence[Sequence[str]],
+                       current: Sequence[str], total_runs: int,
+                       time: float) -> None:
+        """Called after every step: `finished` are the runs already done,
+        `current` is the live line list of the run being stepped."""
+        had_runs = len(self._runs)
+        was_following = self.following or not self.run_combo.count()
+        self._runs = list(finished)
+        self._current = current
+        self._total = max(int(total_runs), len(self._runs) + 1)
+        self._t = float(time)
+        if len(self._runs) != had_runs or not self.run_combo.count():
+            self._rebuild_combo()
+        if was_following:
+            # A new run started while its predecessor was on screen: move
+            # on to it (the tree must not keep showing the old run's rows).
+            if self._shown != self.current_index:
+                self._show_run(self.current_index)
+            else:
+                self._set_combo_index(self._shown)
+                self._append_new_lines()
+        self._update_status()
+        self._sync_buttons()
+
+    def refresh_colours(self) -> None:
+        """Re-tint the highlighted rows after a theme change."""
+        self._apply_highlight(self._highlighted)
+
+    # -- run selection --------------------------------------------------
+    def _rebuild_combo(self) -> None:
+        self._building = True
+        self.run_combo.clear()
+        n = self.current_index + 1
+        for i in range(n):
+            label = f"Run {i + 1} of {self._total}"
+            if i < n - 1:
+                label += " (finished)"
+            else:
+                label += " (stepping)"
+            self.run_combo.addItem(label, i)
+        self._building = False
+        self._set_combo_index(self._shown)
+
+    def _set_combo_index(self, i: int) -> None:
+        self._building = True
+        self.run_combo.setCurrentIndex(min(i, self.run_combo.count() - 1))
+        self._building = False
+
+    def _on_combo(self, idx: int) -> None:
+        if self._building or idx < 0:
+            return
+        self._show_run(idx)
+        self._update_status()
+        self._sync_buttons()
+        self.run_selected.emit(idx)
+
+    def _step_run(self, delta: int) -> None:
+        target = self.run_combo.currentIndex() + delta
+        if 0 <= target < self.run_combo.count():
+            self.run_combo.setCurrentIndex(target)
+
+    def _sync_buttons(self) -> None:
+        i = self.run_combo.currentIndex()
+        n = self.run_combo.count()
+        self.prev_button.setEnabled(i > 0)
+        self.next_button.setEnabled(0 <= i < n - 1)
+
+    # -- rows -----------------------------------------------------------
+    def _lines_of(self, run: int) -> Sequence[str]:
+        if run < len(self._runs):
+            return self._runs[run]
+        return self._current
+
+    def _show_run(self, run: int) -> None:
+        """Rebuild the tree from the chosen run (the newest ROW_CAP rows)."""
+        self._shown = run
+        self._set_combo_index(run)
+        self.tree.setUpdatesEnabled(False)
+        try:
+            self.tree.clear()
+            self._highlighted = []
+            lines = self._lines_of(run)
+            start = max(0, len(lines) - ROW_CAP)
+            self._cut = start
+            self._fed = start
+            self._add_rows(lines[start:])
+            self._fed = len(lines)
+            if self.following:
+                self._apply_highlight(self._last_step_rows(len(lines)))
+        finally:
+            self.tree.setUpdatesEnabled(True)
+        self.tree.scrollToBottom() if self.following else self.tree.scrollToTop()
+
+    def _append_new_lines(self) -> None:
+        lines = self._current
+        if len(lines) < self._fed:           # the run restarted under us
+            self._show_run(self.current_index)
+            return
+        new = lines[self._fed:]
+        if not new:
+            return
+        self._add_rows(new)
+        self._fed = len(lines)
+        # Keep the tree bounded: the session still holds every line.
+        extra = self.tree.topLevelItemCount() - ROW_CAP
+        if extra > 0:
+            for _ in range(extra):
+                self.tree.takeTopLevelItem(0)
+            self._cut += extra
+        self._apply_highlight(self._last_step_rows(len(lines), len(new)))
+        self.tree.scrollToBottom()
+
+    def _rows(self) -> list[QTreeWidgetItem]:
+        out = []
+        for i in range(self.tree.topLevelItemCount()):
+            it = self.tree.topLevelItem(i)
+            if it is not None:
+                out.append(it)
+        return out
+
+    def _last_step_rows(self, total: int, n_new: int = 0) -> list[QTreeWidgetItem]:
+        """The rows the latest step added (or, on a rebuild, the rows of the
+        newest instant)."""
+        rows = self._rows()
+        if not rows:
+            return []
+        if n_new:
+            return rows[-min(n_new, len(rows)):]
+        # Rebuild of the run being stepped: the rows stamped with the
+        # newest time.
+        stamp = rows[-1].text(0)
+        newest = []
+        for it in reversed(rows):
+            if it.text(0) != stamp:
+                break
+            newest.append(it)
+        return newest[::-1]
+
+    def _add_rows(self, lines: Sequence[str]) -> None:
+        from raptor.gui.ui.results import ResultsDock
+        c = active_colour()
+        for line in lines:
+            item = QTreeWidgetItem(self.tree, list(parse_event_log_line(line)))
+            colour = ResultsDock._state_colour(item.text(3), c)
+            if colour is not None:
+                item.setForeground(3, colour)
+                # The element name gets the same tint so a state change is
+                # visible when the columns are narrow.
+                item.setForeground(2, colour)
+
+    def _apply_highlight(self, items: Sequence[QTreeWidgetItem]) -> None:
+        """Tint the latest step's rows (and bold them); clear the old ones."""
+        for it in self._highlighted:
+            try:
+                for col in range(self.tree.columnCount()):
+                    it.setData(col, Qt.ItemDataRole.BackgroundRole, None)
+                    f = it.font(col)
+                    f.setBold(False)
+                    it.setFont(col, f)
+            except RuntimeError:            # row already trimmed away
+                continue
+        tint = QColor(active_colour()["accent"])
+        tint.setAlpha(_HIGHLIGHT_ALPHA)
+        brush = QBrush(tint)
+        for it in items:
+            for col in range(self.tree.columnCount()):
+                it.setBackground(col, brush)
+                f = QFont(it.font(col))
+                f.setBold(True)
+                it.setFont(col, f)
+        self._highlighted = list(items)
+
+    def _update_status(self) -> None:
+        total_lines = len(self._lines_of(self._shown))
+        parts = [f"Run {self._shown + 1} of {self._total}"]
+        if self.following:
+            parts.append(f"t = {self._t:.3f}")
+        else:
+            parts.append("finished")
+        parts.append(f"{total_lines:,} events")
+        text = " · ".join(parts)
+        if self._cut:
+            text += (f" — showing the newest {total_lines - self._cut:,}; "
+                     "the full log is in the Results Event Log when the runs end")
+        self.status.setText(text)

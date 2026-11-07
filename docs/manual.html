@@ -1481,6 +1481,18 @@ finalizes at the current sim time and keeps partial results; <strong>Finish</str
 completes the run and produces full reports.</p>
 </div>
 <div class="paragraph">
+<p>While you step, the <strong>Live Log</strong> tab (beside the Inspector) lists the
+events of the run on screen. It follows every step: the rows the latest
+step added are tinted and in bold, and the newest row is kept in view.
+The selector above the list reads <strong>Run 2 of 5 (stepping)</strong>; its arrows
+and drop-down bring back any run that has already finished, so you can
+read run 1 again while run 2 is stepped. Stepping on leaves a finished
+run alone; choose the last entry to follow the live run again. The list
+holds the newest 5,000 rows of a run and says so when it is cutting; the
+full log is in the Results Event Log when the runs end. Clicking a row
+finds its element on the diagram.</p>
+</div>
+<div class="paragraph">
 <p>While <strong>Animate</strong> is on, the status bar carries a live
 <strong>system-status square</strong> (green = fully working, yellow = degraded,
 red = fully down) and cumulative readouts — Ao, MTBDE, MDT, tracked
