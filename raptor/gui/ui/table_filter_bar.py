@@ -20,6 +20,7 @@ passes its own ``matcher``.
 """
 from __future__ import annotations
 
+import weakref
 from collections.abc import Callable
 from typing import Any
 
@@ -62,6 +63,13 @@ class FilterBar(QObject):
     #: (rows still shown, rows in the table), after every filter pass.
     changed = Signal(int, int)
 
+    @property
+    def _table(self) -> QTableWidget:
+        table = self._table_ref()
+        if table is None:
+            raise RuntimeError("the filtered table is gone")
+        return table
+
     @classmethod
     def attach(cls, table: QTableWidget, **kw: Any) -> FilterBar:
         """A bar for `table` (kept alive by the table). Safe to call twice."""
@@ -78,7 +86,11 @@ class FilterBar(QObject):
                  filter_columns: set[int] | None = None,
                  row_key: Callable[[int], Any] | None = None) -> None:
         super().__init__(table)
-        self._table = table
+        # A weak reference: the table owns the bar (`table._filter_bar`), so a
+        # strong one back makes a Python cycle that only the cyclic collector
+        # frees -- and it then tears a shown table down mid-collection, with
+        # this object's Python event filter still installed on it.
+        self._table_ref = weakref.ref(table)
         self._matcher = matcher
         #: Columns that can be filtered (None = all). The others get a
         #: disabled box: their text is not known without their cell widgets.
@@ -227,7 +239,7 @@ class FilterBar(QObject):
                                 else f"Filter column {c + 1}")
 
     def _place(self, *_a: object) -> None:
-        if not self._shown:
+        if not self._shown or self._table_ref() is None:
             return
         header = self._table.horizontalHeader()
         y = max(header.height() - _EDIT_H, 0)
@@ -247,12 +259,12 @@ class FilterBar(QObject):
         self._timer.start()
 
     def _model_changed(self, *_a: object) -> None:
-        if self._shown:
+        if self._shown and self._table_ref() is not None:
             self._refilter.start()        # one pass for a burst of changes
 
     def _settle(self) -> None:
         """After a refill or sort has finished (not in the middle of one)."""
-        if not self._shown:
+        if not self._shown or self._table_ref() is None:
             return
         if not self.available():
             self.set_shown(False)         # shrank to a table worth no filter
@@ -263,7 +275,7 @@ class FilterBar(QObject):
 
     def _columns_changed(self, *_a: object) -> None:
         """A refill with other columns: one edit per column again."""
-        if not self._shown:
+        if not self._shown or self._table_ref() is None:
             return
         self._build_editors()
         for c, e in enumerate(self._editors):
@@ -385,8 +397,11 @@ class FilterBar(QObject):
             max(t.height() - self._badge.height() - y_off - 6, 0))
 
     def eventFilter(self, obj: QObject, ev: QEvent) -> bool:  # noqa: N802
-        if obj is self._table and ev.type() == QEvent.Type.Resize \
-                and self._badge.isVisible():
+        # Called while the table is being torn down too: touch nothing then.
+        if ev.type() != QEvent.Type.Resize:
+            return False
+        table = self._table_ref()
+        if table is not None and obj is table and self._badge.isVisible():
             self._position_badge()
         return False
 
