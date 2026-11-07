@@ -62,6 +62,11 @@ class AppState:
     #: Selected elements Collapse can move into a new hierarchy: blocks,
     #: regular nodes, events and hierarchy ovals (moved in whole).
     selected_structural: int = 0
+    #: Selected items Copy/Cut take: elements and annotations.
+    selected_copyable: int = 0
+    #: Paste has something to paste: a Raptor payload on the system
+    #: clipboard (another model, another window) or the view's own buffer.
+    clipboard_pastable: bool = False
     #: Hierarchy ovals on the level being viewed, and how many are selected.
     hierarchies_here: int = 0
     selected_hierarchies: int = 0
@@ -133,6 +138,8 @@ PREDICATES: dict[str, Callable[[AppState], bool]] = {
     "has_selection": lambda s: s.model_open and s.selected_elements >= 1,
     "has_structural_selection": lambda s: (
         s.model_open and s.selected_structural >= 1),
+    "can_copy": lambda s: s.model_open and s.selected_copyable >= 1,
+    "can_paste": lambda s: s.model_open and s.clipboard_pastable,
     "has_movable_selection": lambda s: (
         s.model_open and s.selected_movable >= 1),
     # A new hierarchy must fit within the nesting limit.
@@ -213,6 +220,12 @@ UNMET: dict[str, str | Callable[[AppState], str]] = {
     "has_structural_selection": lambda s: (
         "open or create a model first" if not s.model_open else
         "select at least one block, node or event first"),
+    "can_copy": lambda s: (
+        "open or create a model first" if not s.model_open else
+        "select something to copy first"),
+    "can_paste": lambda s: (
+        "open or create a model first" if not s.model_open else
+        "nothing to paste: copy elements from this or another model first"),
     "has_movable_selection": lambda s: (
         "open or create a model first" if not s.model_open else
         "select at least one element first"),

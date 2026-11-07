@@ -1219,6 +1219,7 @@ class DataTablesDock(QWidget):
         item = _SortItem(text)
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         item.setForeground(Qt.GlobalColor.gray)
+        item.setToolTip("Read-only, computed from the other columns")
         return item
 
     def _distro_cell(self, table, row, col, current: int, on_change,

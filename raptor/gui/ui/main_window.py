@@ -754,6 +754,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             valid=valid,
             run=run,
             selected_movable=view.selected_movable_count() if view else 0,
+            selected_copyable=view.copyable_count() if view else 0,
+            clipboard_pastable=view.can_paste() if view else False,
             # `selected` is the same walk `selected_element_count()` would
             # do again -- twice per click, over every item map on the
             # level. Sum the answer we already have.
@@ -1512,9 +1514,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             lambda: self._refresh_commands(
                 self._command_state(reuse_validity=True),
                 only={"has_selection", "has_structural_selection",
-                      "can_collapse",
+                      "can_copy", "can_paste", "can_collapse",
                       "has_movable_selection", "can_align", "can_mass_edit",
                       "can_zoom_hierarchy", "can_extract_hierarchy"}))
+        # Paste follows the clipboard, which changes outside any selection
+        # (another model, another window, any other application).
+        QApplication.clipboard().dataChanged.connect(self._on_clipboard_changed)
+        self._diagram_dock.view.paste_state_changed.connect(
+            self._on_clipboard_changed)
         # The view disarms its own tools (Esc, and the end of a
         # one-shot annotation placement). Mirror that back onto the
         # ribbon so a button does not stay lit while the tool it arms
@@ -1528,6 +1535,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._diagram_dock.view.default_annotation_props = (
             self._annotation_style_defaults())
         self.setCentralWidget(self._diagram_dock)
+
+    def _on_clipboard_changed(self) -> None:
+        self._refresh_commands(self._command_state(reuse_validity=True),
+                               only={"can_paste"})
 
     def _setup_docks(self):
         self._explorer = ExplorerDock()
@@ -1658,7 +1669,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # controls.
         self.tabifyDockWidget(dock_tables, dock_bottom)
         dock_bottom.raise_()
-        dock_tables.setMinimumHeight(120)
+        dock_tables.setMinimumHeight(160)
 
         # Run panel: the third tab in the same bottom strip. Deliberately
         # NOT a new right-side panel -- at 1280px, Explorer (260) +
@@ -5298,12 +5309,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Warning)
             box.setWindowTitle("Unsupported Model Features")
-            box.setText(
-                "This model uses features the simulation engine doesn't "
-                "support yet:")
             box.setDetailedText("\n".join(preflight))
-            box.setText("\n".join(preflight[:6])
-                        + ("\n…" if len(preflight) > 6 else ""))
+            from raptor.gui.ui.preflight import run_dialog_text
+            box.setText(run_dialog_text(preflight))
             run_btn = box.addButton("Run Anyway", QMessageBox.ButtonRole.AcceptRole)
             box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
             box.exec()
@@ -6865,6 +6873,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             QTimer.singleShot(0, run.fit_height)
         else:
             QTimer.singleShot(0, self._release_bottom_strip_ceiling)
+            if dock is getattr(self, "_data_tables_dock", None):
+                QTimer.singleShot(0, self._ensure_data_tables_height)
+
+    #: Shortest the Data Tables tab may open at: header plus several rows
+    #: (it used to open as one row and a scrollbar under the other docks).
+    DATA_TABLES_OPEN_HEIGHT = 260
+
+    def _ensure_data_tables_height(self) -> None:
+        dock = getattr(self, "_data_tables_dock", None)
+        if dock is None:
+            return
+        try:
+            if dock.isFloating() or not dock.isVisible():
+                return
+            if dock.height() < self.DATA_TABLES_OPEN_HEIGHT:
+                self._release_bottom_strip_ceiling()
+                self.resizeDocks([dock], [self.DATA_TABLES_OPEN_HEIGHT],
+                                 Qt.Orientation.Vertical)
+        except RuntimeError:
+            pass
 
     def _release_bottom_strip_ceiling(self) -> None:
         """Lift the height cap on every tab in the shared bottom slot.
