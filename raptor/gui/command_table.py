@@ -177,7 +177,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Copy",
         icon="copy_icon:text",
         tooltip="Copy the selected elements",
-        handler="_diagram_dock.view.copy_selection",
+        handler="_edit_copy",
         enabled_when="can_copy"),
     CommandSpec(
         id="home.cut",
@@ -185,7 +185,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Cut",
         icon="cut_icon:text",
         tooltip="Copy and delete the selected elements",
-        handler="_diagram_dock.view.cut_selection",
+        handler="_edit_cut",
         enabled_when="can_copy"),
     CommandSpec(
         id="home.paste",
@@ -193,7 +193,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Paste",
         icon="paste_icon:text",
         tooltip="Paste previously copied elements with fresh ids",
-        handler="_diagram_dock.view.paste",
+        handler="_edit_paste",
         enabled_when="can_paste"),
     CommandSpec(
         id="home.syscfg",
@@ -283,7 +283,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         tooltip="Delete selected blocks/nodes (Del)",
         handler="_diagram_dock.view.delete_selected",
         shortcut="Del",
-        enabled_when="can_copy"),
+        enabled_when="has_deletable"),
     CommandSpec(
         id="model.add_block",
         attr="_add_block_tool",

@@ -10,6 +10,7 @@ from raptor.gui.ui.modality import exec_dialog
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
+from raptor.gui import text_editing
 from raptor.bundled import candidate_roots
 import logging
 import math
@@ -733,6 +734,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         dock = getattr(self, "_diagram_dock", None)
         view = dock.view if dock is not None else None
         selected = view.selected_elements() if view else ([], [], [], [])
+        editor = text_editing.active_editor()
         # A selection cannot change validity, so selection-driven refreshes
         # reuse the last applied answer instead of re-walking the model.
         # An edit since that answer was computed makes it a claim about a
@@ -755,6 +757,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             run=run,
             selected_movable=view.selected_movable_count() if view else 0,
             selected_copyable=view.copyable_count() if view else 0,
+            text_editing=editor is not None,
+            text_can_copy=editor is not None and text_editing.can_copy(editor),
+            clipboard_has_text=text_editing.clipboard_has_text(),
             clipboard_pastable=view.can_paste() if view else False,
             # `selected` is the same walk `selected_element_count()` would
             # do again -- twice per click, over every item map on the
@@ -1514,12 +1519,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             lambda: self._refresh_commands(
                 self._command_state(reuse_validity=True),
                 only={"has_selection", "has_structural_selection",
-                      "can_copy", "can_paste", "can_collapse",
+                      "can_copy", "can_paste", "has_deletable",
+                      "can_collapse",
                       "has_movable_selection", "can_align", "can_mass_edit",
                       "can_zoom_hierarchy", "can_extract_hierarchy"}))
         # Paste follows the clipboard, which changes outside any selection
         # (another model, another window, any other application).
         QApplication.clipboard().dataChanged.connect(self._on_clipboard_changed)
+        if isinstance(qapp := QApplication.instance(), QApplication):
+            qapp.focusChanged.connect(self._on_focus_changed)
         self._diagram_dock.view.paste_state_changed.connect(
             self._on_clipboard_changed)
         # The view disarms its own tools (Esc, and the end of a
@@ -1536,9 +1544,43 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._annotation_style_defaults())
         self.setCentralWidget(self._diagram_dock)
 
+    def _edit_copy(self) -> None:
+        editor = text_editing.active_editor()
+        if editor is not None:
+            text_editing.copy(editor)
+        else:
+            self._diagram_dock.view.copy_selection()
+
+    def _edit_cut(self) -> None:
+        editor = text_editing.active_editor()
+        if editor is not None:
+            text_editing.cut(editor)
+        else:
+            self._diagram_dock.view.cut_selection()
+
+    def _edit_paste(self) -> None:
+        editor = text_editing.active_editor()
+        if editor is not None:
+            text_editing.paste(editor)
+        else:
+            self._diagram_dock.view.paste()
+
+    def _on_focus_changed(self, _old, new) -> None:
+        """Cut/Copy/Paste follow the text editor that has the keyboard,
+        including its selection."""
+        for signal in ("selectionChanged", "copyAvailable"):
+            sig = getattr(new, signal, None)
+            # Only a real signal: on an item view `selectionChanged` is a
+            # protected method, which has no `connect`.
+            if (sig is not None and hasattr(sig, "connect")
+                    and not new.property("_clip_hooked")):
+                new.setProperty("_clip_hooked", True)
+                sig.connect(self._on_clipboard_changed)
+        self._on_clipboard_changed()
+
     def _on_clipboard_changed(self) -> None:
         self._refresh_commands(self._command_state(reuse_validity=True),
-                               only={"can_paste"})
+                               only={"can_copy", "can_paste", "has_deletable"})
 
     def _setup_docks(self):
         self._explorer = ExplorerDock()
