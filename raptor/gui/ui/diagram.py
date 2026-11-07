@@ -6426,7 +6426,18 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # empty canvas armed the band under an item drag, so every
             # element the dragged one passed over was selected and dragged
             # along (outside the gesture's undo record).
-            owner = hit.topLevelItem() if hit is not None else None
+            # The nearest movable item at or above the one pressed: a
+            # block's label is a child of the (movable) block, and a routing
+            # point on a link is movable itself though its parent link is
+            # not. Taking the top-level item made a grip drag arm the band,
+            # which selected whatever the grip passed over, and Qt then
+            # dragged those along with it.
+            owner = hit
+            while (owner is not None and not owner.flags()
+                   & QGraphicsItem.GraphicsItemFlag.ItemIsMovable):
+                owner = owner.parentItem()
+            if owner is None and hit is not None:
+                owner = hit.topLevelItem()
             self._band_anchor = (
                 None if (owner is not None
                          and owner.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
