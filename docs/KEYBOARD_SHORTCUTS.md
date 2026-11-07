@@ -8,6 +8,7 @@
 | Ctrl+S | Save (works anywhere in the app) |
 | Ctrl+Shift+S | Save As… |
 | Ctrl+P | Print… (diagram / results / weak link, with title block) |
+| Ctrl+W | Close the current model (asks to save first) |
 | Ctrl+Q* | Quit |
 
 ## Editing (Model view)
@@ -20,6 +21,10 @@
 | Ctrl+X | Cut selection |
 | Ctrl+V | Paste at mouse cursor |
 | Del / Backspace | Delete selection (nothing selected: arms click-to-delete) |
+| Arrow keys | Nudge the selection one grid step |
+| Shift+Arrow keys | Nudge the selection 1 px, off the grid |
+| F2 | Edit the text of the selected text annotation |
+| Ctrl+F | Find item: the cursor goes to the Find box (from the canvas or the Explorer) |
 | Esc | Cancel armed tool / delete mode / connect / Failure Effects fail-repair targeting; cancels a running batch |
 
 ## Tables
@@ -43,11 +48,28 @@ Front* and *Bring Forward* disabled.
 ## Model view
 | Shortcut | Action |
 |---|---|
-| Q | Select tool |
+| Q / Ctrl+1 | Select tool |
+| Ctrl+2 | Add Block tool |
+| Ctrl+3 | Add Node tool |
+| Ctrl+4 | Add Event tool |
+| Ctrl+5 | Add Hierarchy tool |
+| Ctrl+6 | Connect tool |
+| Ctrl+G | Collapse the selection into a hierarchy |
+| Alt+Up | Up one hierarchy level |
 | Ctrl+L | Auto Layout (columns by flow; selection alone if selected) |
 | Ctrl+= / Ctrl+- | Zoom in / out (also Ctrl+wheel) |
 | Ctrl+0 | Zoom to fit |
 | Ctrl+Shift+0 | Zoom to the selection |
+
+## Panels and settings
+| Shortcut | Action |
+|---|---|
+| Ctrl+Shift+E | Show or hide the Model Explorer |
+| Ctrl+Shift+I | Show or hide the Inspector |
+| Ctrl+Shift+D | Show or hide the Data Tables |
+| Ctrl+, | Preferences… |
+
+Ctrl+Shift+R (Simulation, below) shows the Results panel.
 
 ## Connect tool
 Left-click the source element, then click (left or right) the target.

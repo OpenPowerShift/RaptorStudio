@@ -361,11 +361,21 @@ class AddCmd(_ViewCmd):
                   "link": ("LINK_DATA", "ID"),
                   "hier": ("HIERARCHY_DATA", "ID")}[self.kind]
         section = self._v._rbd_ref.sections[id_col[0]]
+        have = {id(r) for r in section.rows}
         for row in self.rows:
-            if row not in section.rows:
+            if id(row) not in have:
                 section.rows.append(row)
         inserter = getattr(self._v, f"_insert_{self.kind}")
-        self.ids = [inserter(row) for row in self.rows]
+        if self.kind == "block" and len(self.rows) > 1:
+            # LOD and link counts once for the batch, not once per block.
+            self._v._defer_block_refresh = True
+            try:
+                self.ids = [inserter(row) for row in self.rows]
+            finally:
+                self._v._defer_block_refresh = False
+            self._v.refresh_after_block_insert()
+        else:
+            self.ids = [inserter(row) for row in self.rows]
         if self.kind in ("block", "node", "event"):
             # The canvas snaps a new element to the grid; the row keeps the
             # snapped position too (it held the unsnapped one until the

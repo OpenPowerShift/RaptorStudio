@@ -62,6 +62,17 @@ class AppState:
     #: Selected elements Collapse can move into a new hierarchy: blocks,
     #: regular nodes, events and hierarchy ovals (moved in whole).
     selected_structural: int = 0
+    #: A text editor has the keyboard (an annotation being edited, a rename
+    #: box, a table cell ...): Cut/Copy/Paste then act on its text.
+    text_editing: bool = False
+    #: ... and it has text Copy/Cut can take / the clipboard has text.
+    text_can_copy: bool = False
+    clipboard_has_text: bool = False
+    #: Selected items Copy/Cut take: elements and annotations.
+    selected_copyable: int = 0
+    #: Paste has something to paste: a Raptor payload on the system
+    #: clipboard (another model, another window) or the view's own buffer.
+    clipboard_pastable: bool = False
     #: Hierarchy ovals on the level being viewed, and how many are selected.
     hierarchies_here: int = 0
     selected_hierarchies: int = 0
@@ -133,6 +144,11 @@ PREDICATES: dict[str, Callable[[AppState], bool]] = {
     "has_selection": lambda s: s.model_open and s.selected_elements >= 1,
     "has_structural_selection": lambda s: (
         s.model_open and s.selected_structural >= 1),
+    "can_copy": lambda s: (s.text_can_copy if s.text_editing else
+                           s.model_open and s.selected_copyable >= 1),
+    "can_paste": lambda s: (s.clipboard_has_text if s.text_editing else
+                            s.model_open and s.clipboard_pastable),
+    "has_deletable": lambda s: s.model_open and s.selected_copyable >= 1,
     "has_movable_selection": lambda s: (
         s.model_open and s.selected_movable >= 1),
     # A new hierarchy must fit within the nesting limit.
@@ -213,6 +229,15 @@ UNMET: dict[str, str | Callable[[AppState], str]] = {
     "has_structural_selection": lambda s: (
         "open or create a model first" if not s.model_open else
         "select at least one block, node or event first"),
+    "can_copy": lambda s: (
+        "open or create a model first" if not s.model_open else
+        "select something to copy first"),
+    "has_deletable": lambda s: (
+        "open or create a model first" if not s.model_open else
+        "select something to delete first"),
+    "can_paste": lambda s: (
+        "open or create a model first" if not s.model_open else
+        "nothing to paste: copy elements from this or another model first"),
     "has_movable_selection": lambda s: (
         "open or create a model first" if not s.model_open else
         "select at least one element first"),
@@ -404,6 +429,7 @@ class CommandRegistry:
         if spec.tooltip:
             action.setToolTip(spec.tooltip)
         self._apply_shortcuts(action, spec)
+        self._show_shortcut_in_tooltip(action, spec)
         if spec.key_tip:
             action.setProperty("keyTip", spec.key_tip)
         if spec.checkable:
@@ -413,6 +439,21 @@ class CommandRegistry:
             getattr(action, spec.on).connect(self._slot(spec))
         self._apply_initial_state(action, spec)
         return action
+
+    @staticmethod
+    def _show_shortcut_in_tooltip(action: QAction, spec: CommandSpec) -> None:
+        """Name the shortcut in the tooltip ("Name (Ctrl+X)"), unless the
+        tooltip already does. A factory-made action (undo / redo) is left
+        alone: Qt words those itself."""
+        if spec.factory or not action.shortcut().toString():
+            return
+        keys = action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
+        tip = spec.tooltip or spec.text
+        portable = action.shortcut().toString()
+        if any(f"({k}" in tip or f"{k})" in tip or f", {k}" in tip
+               for k in (keys, portable)):
+            return
+        action.setToolTip(f"{tip} ({keys})")
 
     @staticmethod
     def _apply_shortcuts(action: QAction, spec: CommandSpec) -> None:
