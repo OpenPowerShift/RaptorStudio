@@ -63,7 +63,10 @@ spreadsheets, one tab per element type or per section of the `.rbds`
 file. Only some cells are editable; invalid values revert on entry.
 Blocks, Nodes and Events show the hierarchy level currently on the
 canvas; the header says “current level: 8 of 17 blocks…” when the model
-has nested levels. Use Model Explorer to reach the others.
+has nested levels. Use Model Explorer to reach the others. Model Explorer
+highlights the level on screen (Home, or the hierarchy you are inside) and
+the window title ends with its name and id, for example
+“— Pump_Hierarchy (id 20)”.
 
 [cols="2,6",options="header"]
 |===

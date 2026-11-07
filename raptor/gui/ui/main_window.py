@@ -1817,6 +1817,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._cancel_pending_block_selection()
         inside = parent_id != 0
         name = self._diagram_dock.view.hiers.get(parent_id)
+        self._update_title()
         self._hier_up_action.setEnabled(inside)
         self._hier_home_action.setEnabled(inside)
         # A level switch rebuilds the annotation items, so a selection
@@ -3245,6 +3246,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def _update_title(self):
         star = "*" if self._dirty else ""
+        level = self._level_title()
         if self._rbd is None:
             self.setWindowTitle("RAPTOR Studio")
         elif self._current_file is None:
@@ -3255,10 +3257,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             name = (f"{stem} (not saved)"
                     if stem and stem not in ("NewModel", "Untitled")
                     else "Untitled")
-            self.setWindowTitle(f"RAPTOR Studio — {name}{star}")
+            self.setWindowTitle(f"RAPTOR Studio — {name}{star}{level}")
         else:
             filename = Path(self._current_file).name
-            self.setWindowTitle(f"RAPTOR Studio — {filename}{star}")
+            self.setWindowTitle(f"RAPTOR Studio — {filename}{star}{level}")
         results = getattr(self, "_results_dock", None)
         if results is not None and results.isFloating():
             results.setWindowTitle(self._results_window_title())
@@ -3269,6 +3271,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         else:
             tip = "Save — not saved yet, so choose where (Ctrl+S)"
         self._commands.set_tooltip(self._save_action, tip)
+
+    #: Longest hierarchy name the title bar spells out.
+    _TITLE_LEVEL_CHARS = 40
+
+    def _level_title(self) -> str:
+        """" — Home" or " — <hierarchy name> (id N)": the level on screen,
+        for the title bar (empty with no model). Long names are elided; the
+        Explorer's tooltip has the full one."""
+        dock = getattr(self, "_diagram_dock", None)
+        view = getattr(dock, "view", None)
+        if self._rbd is None or view is None:
+            return ""
+        parent = getattr(view, "_current_parent", 0) or 0
+        if not parent:
+            return " — Home"
+        hier = view.hiers.get(parent)
+        name = str(getattr(hier, "name", "") or "")
+        if len(name) > self._TITLE_LEVEL_CHARS:
+            name = name[:self._TITLE_LEVEL_CHARS - 1] + "…"
+        return f" — {name} (id {parent})" if name else f" — hierarchy {parent}"
 
     def _confirm_discard_unsaved(self, *, closing: bool = False) -> bool:
         """Returns True if it's OK to proceed (no unsaved changes, or the
