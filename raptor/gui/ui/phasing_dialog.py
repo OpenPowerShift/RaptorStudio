@@ -220,6 +220,7 @@ class PhasingDialog(QDialog):
 
         # ---- Fill row/column toolbar -----------------------------
         bar = QHBoxLayout()
+        bar.setSpacing(SPACING["sm"])
         tip = ("Stamp the PALETTE's armed mode+value (or, if none is "
                "armed, the selected cell's own mode+value) across its "
                "whole row (this element, every phase)")

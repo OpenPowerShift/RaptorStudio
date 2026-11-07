@@ -628,6 +628,7 @@ class AnalyticDialog(QDialog):
         form.addRow("Hierarchy:", self._hierarchy)
 
         limits = QHBoxLayout()
+        limits.setSpacing(SPACING["sm"])
         limits.setContentsMargins(0, 0, 0, 0)
         self._max_variables = QSpinBox()
         self._max_variables.setRange(1, 1_000_000)

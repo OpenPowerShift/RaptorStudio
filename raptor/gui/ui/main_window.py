@@ -1562,8 +1562,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         editor = text_editing.active_editor()
         if editor is not None:
             text_editing.paste(editor)
-        else:
-            self._diagram_dock.view.paste()
+            return
+        # A Data Tables grid takes one pasted value for its selected rows.
+        grid_paste = getattr(QApplication.focusWidget(), "paste_text", None)
+        if callable(grid_paste) and grid_paste(
+                QApplication.clipboard().text()):
+            return
+        self._diagram_dock.view.paste()
 
     def _on_focus_changed(self, _old, new) -> None:
         """Cut/Copy/Paste follow the text editor that has the keyboard,
@@ -1716,6 +1721,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._data_tables.export_tables_requested.connect(self._export_tables)
         self._data_tables.element_locate_requested.connect(
             self._on_result_element_clicked)
+        self._data_tables.element_locate_id_requested.connect(
+            self._on_fev_element_locate)
+        self._data_tables.status_message.connect(
+            lambda text: self._statusbar.showMessage(text, 8000))
         self._data_tables.validation_failed.connect(
             lambda msg: self._statusbar.showMessage(f"Invalid value — {msg}", 8000))
         dock_tables = QDockWidget("Data Tables", self)

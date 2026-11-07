@@ -16,6 +16,7 @@ from raptor.core.fileio.rbd import load_rbd, save_rbd
 from raptor.core.fileio.rbds import load_rbds, save_rbds
 from raptor.core.fileio.model_file import load_model_file
 from raptor.gui.ui.diagram import DiagramView
+from tests.unit.qt_cleanup import dispose
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 FIXTURE = REPO / "tests/golden/TwoBlockRedundancy/input.rbd"
@@ -27,8 +28,20 @@ def qapp():
     return QApplication.instance() or QApplication([])
 
 
+_made: list[DiagramView] = []
+
+
+@pytest.fixture(autouse=True)
+def _dispose_views():
+    """Every canvas a test builds is deleted with Qt afterwards."""
+    yield
+    dispose(_made)
+    _made.clear()
+
+
 def _view(path=FIXTURE):
     v = DiagramView()
+    _made.append(v)
     v.load_rbd(load_model_file(str(path)))
     return v
 

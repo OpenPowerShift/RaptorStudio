@@ -52,6 +52,7 @@ def open_empirical_dialog(parent, values: list[float],
     v.addLayout(entry_row)
 
     file_row = QHBoxLayout()
+    file_row.setSpacing(8)
     file_row.addWidget(load_b)
     file_row.addWidget(del_b)
     file_row.addStretch(1)
@@ -162,6 +163,7 @@ def open_empirical_dialog(parent, values: list[float],
     load_b.clicked.connect(load_file)
 
     buttons = QHBoxLayout()
+    buttons.setSpacing(8)
     ok_b = QPushButton("OK")
     widgets["ok_b"] = ok_b
     cancel_b = QPushButton("Cancel")

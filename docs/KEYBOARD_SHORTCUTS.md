@@ -31,6 +31,13 @@ Nudging with the arrow keys (one grid step; Shift: 1 px) also moves selected
 routing points, and the routing points of a link whose two ends both move go
 with them. One undo step.
 
+## Tables
+| Shortcut | Action |
+|---|---|
+| Ctrl+F | Show or hide the filter row of the table that has the focus (tables of more than 10 rows) |
+| Ctrl+D | Data Tables: fill down, the top selected row's value goes to the other selected rows in the current column |
+| Ctrl+V | Data Tables, on the grid itself: paste one value into the current column of every selected row |
+
 ## Annotation z-order (Model view)
 Needs one or more annotations selected. Each command is greyed out when
 it would not move anything, so a note already at the front has *Bring to

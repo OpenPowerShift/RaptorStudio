@@ -25,6 +25,25 @@ from raptor.gui.ui.diagram_commands import apply_row_edits
 from raptor.gui.ui.main_window import _TERMINATION_CHOICES
 
 
+def ask_apply_to_rows(parent, n: int) -> tuple[bool, bool]:
+    """The first multi-row edit of a session: 'Apply to N rows?' with a
+    'Don't ask again' box (this session only). Returns (apply, dont_ask)."""
+    from PySide6.QtWidgets import QCheckBox, QStyle
+    box = QMessageBox(QMessageBox.Icon.Question, "Edit several rows",
+                      f"Apply to {n} rows?", QMessageBox.StandardButton.NoButton,
+                      parent)
+    style = box.style()
+    yes = box.addButton(f"Change {n} rows", QMessageBox.ButtonRole.YesRole)
+    yes.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DialogYesButton))
+    no = box.addButton("Cancel", QMessageBox.ButtonRole.NoRole)
+    no.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DialogNoButton))
+    again = QCheckBox("Don't ask again")
+    box.setCheckBox(again)
+    box.setDefaultButton(yes)
+    box.exec()
+    return box.clickedButton() is yes, again.isChecked()
+
+
 def question_box(parent, title: str, text: str, *,
                  yes_text: str = "Yes", no_text: str = "No",
                  default_yes: bool = False) -> bool:
@@ -147,6 +166,7 @@ def import_block_library(win):
         warn.setWordWrap(True)
         lay.addWidget(warn)
     buttons = QHBoxLayout()
+    buttons.setSpacing(8)
     all_btn = QPushButton("Select All")
     all_btn.setToolTip("Select every template, to update all the blocks "
                        "that share a name with one.")
@@ -245,6 +265,7 @@ def show_spof_dialog(win):
         items.addItem(f"{where}{d['name']}  ({d['kind']} #{d['id']})")
     lay.addWidget(items, 1)
     buttons = QHBoxLayout()
+    buttons.setSpacing(8)
     export_btn = QPushButton("Export…")
     close_btn = QPushButton("Close")
     close_btn.clicked.connect(dlg.reject)

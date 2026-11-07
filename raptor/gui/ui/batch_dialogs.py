@@ -341,6 +341,7 @@ class _BatchDialog(QDialog):
         close = QPushButton("Close")
         close.clicked.connect(self.close)
         self._buttons = QHBoxLayout()
+        self._buttons.setSpacing(8)
         self._buttons.addWidget(self._export_btn)
         self._buttons.addStretch(1)
         self._buttons.addWidget(self._run_btn)

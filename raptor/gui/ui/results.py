@@ -652,6 +652,7 @@ class ResultsDock(QWidget):
         self._details_tabs.currentChanged.connect(self._remember_details_tab)
 
         bar = QHBoxLayout()
+        bar.setSpacing(SPACING["sm"])
         bar.setContentsMargins(SPACING["md"], SPACING["xs"], SPACING["md"], 0)
         from PySide6.QtWidgets import QPushButton
         copy_btn = QPushButton("Copy Table")
@@ -2408,6 +2409,7 @@ class ResultsDock(QWidget):
                              SPACING["md"], SPACING["md"])
         v.setSpacing(SPACING["sm"])
         top = QHBoxLayout()
+        top.setSpacing(SPACING["sm"])
         self._graph_mode = QComboBox()
         self._graph_mode.addItems(["Per Trial Ao", "Interval Ao",
                                    "Multi-run Ao", "Capacity (Flow)",
@@ -2697,6 +2699,7 @@ class ResultsDock(QWidget):
         outer.setSpacing(0)
 
         bar = QHBoxLayout()
+        bar.setSpacing(SPACING["sm"])
         bar.setContentsMargins(SPACING["md"], SPACING["xs"],
                                SPACING["md"], 0)
         from PySide6.QtWidgets import QPushButton

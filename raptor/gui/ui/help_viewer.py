@@ -256,6 +256,7 @@ if WEBENGINE_OK:
 
             # ---- find bar -------------------------------------------
             frow = QHBoxLayout()
+            frow.setSpacing(8)
             frow.setContentsMargins(6, 4, 6, 4)
             self._find_edit = QLineEdit()
             self._find_edit.setPlaceholderText(

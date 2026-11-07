@@ -15,17 +15,25 @@
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
 <li><a href="#system-settings">Model tab → Project Settings</a></li>
-<li><a href="#data-tables">Data Tables</a></li>
+<li><a href="#data-tables">Data Tables</a>
+<ul class="sectlevel2">
+<li><a href="#data-tables-whole-model">Whole model</a></li>
+<li><a href="#table-filters">Filtering a table</a></li>
+<li><a href="#data-tables-multi-edit">Changing several rows at once</a></li>
+</ul>
+</li>
 <li><a href="#block-defaults">Block Defaults</a></li>
 <li><a href="#mass-edit">Mass Edit</a></li>
 <li><a href="#canvas-editing">Building on the canvas</a>
 <ul class="sectlevel2">
+<li><a href="#_copy_cut_and_paste">Copy, cut and paste</a></li>
 <li><a href="#_insert_an_element_on_a_link">Insert an element on a link</a></li>
 <li><a href="#_add_an_element_in_parallel">Add an element in parallel</a></li>
 <li><a href="#_auto_layout_a_selection">Auto Layout a selection</a></li>
 </ul>
 </li>
-<li><a href="#input-rules">Values and links Raptor 7 refuses</a></li>
+<li><a href="#stacked-elements">Elements on top of each other</a></li>
+<li><a href="#_values_and_links_raptor_7_refuses">Values and links Raptor 7 refuses</a></li>
 <li><a href="#results">Results dock</a>
 <ul class="sectlevel2">
 <li><a href="#_analytical_analysis">Analytical analysis</a></li>
@@ -236,11 +244,13 @@ the Inspector shows read-only echoes for those fields. Model-wide fields
 <p>Open from <strong>View → Panels → Data Tables</strong>. It edits the model as
 spreadsheets, one tab per element type or per section of the <code>.rbds</code>
 file. Only some cells are editable; invalid values revert on entry.
-Blocks, Nodes and Events show the hierarchy level currently on the
-canvas; the header says “current level: 8 of 17 blocks…” when the model
-has nested levels. Use Model Explorer to reach the others. Model Explorer
-highlights the level on screen (Home, or the hierarchy you are inside) and
-the window title ends with its name and id, for example
+Blocks, Nodes, Events, Sparing and Preventive Maintenance show the
+hierarchy level currently on the canvas; the header says “current level:
+8 of 17 blocks…” when the model has nested levels. Tick <strong>Whole model</strong>
+to see every level at once (see below), or use Model Explorer to reach
+the others.
+Model Explorer highlights the level on screen (Home, or the hierarchy you
+are inside) and the window title ends with its name and id, for example
 “— Pump_Hierarchy (id 20)”.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
@@ -302,6 +312,151 @@ above</p></td>
 </tr>
 </tbody>
 </table>
+<div class="sect2">
+<h3 id="data-tables-whole-model">Whole model</h3>
+<div class="paragraph">
+<p>The <strong>Whole model</strong> box in the bar above the tabs shows the blocks, nodes
+and events of <strong>every</strong> level in the same grids, with an extra <strong>Level</strong>
+column (<code>Home</code>, <code>Pump Bank</code>, <code>Pump Bank / Stage 2</code>). The header reads
+“Whole model (14 blocks across 4 levels)”. Nothing is drawn on the canvas
+for the other levels, so it stays quick on large models. Rows on the level
+that is open on the canvas stay editable; rows of other levels are
+read-only (greyed, with a tooltip) because their edits would act on
+elements that are not on screen. Right-click such a row and choose <strong>Go to
+level</strong> to open its level and select it on the canvas. The setting lasts
+for the session and is not saved in the model. Sorting, filtering and CSV
+export work in both modes, and the Level column is exported only while it
+is shown.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="table-filters">Filtering a table</h3>
+<div class="paragraph">
+<p>Tables with more than 10 rows have a filter row under the column headings.
+It is hidden until you ask for it: press <strong>Ctrl+F</strong> while the table has the
+focus, or right-click the column headings and choose <strong>Filter</strong>. The
+Results tables (Capacity, Weak link, Cost, Importance, the per-element
+table of the analytical results) and the Data Tables (Blocks, Nodes,
+Events, Sparing, Preventive Maintenance) have it. Short tables and the
+event log (which has its own filter box) do not.</p>
+</div>
+<div class="paragraph">
+<p>Type in the box above a column to keep only the rows that match that
+column; boxes in several columns must all match. Filtering hides rows
+rather than copying data, so it is fast on large tables, and it waits a
+moment (about 0.15 s) after you stop typing before it runs. A badge shows
+“Showing N of M”. A box that cannot be understood turns red and the table
+is left unfiltered. <strong>Clear</strong> empties every box, and closing the filter row
+clears the filter.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 71.4286%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Type</th>
+<th class="tableblock halign-left valign-top">Matches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>pump</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">cells containing “pump”, ignoring case</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"main pump"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">a phrase, spaces included</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Pump*</code>, <code>*_B</code>, <code>P?mp</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">wildcards: <code><strong></code> is any run of characters, <code>?</code> is one character. With a
+wildcard the whole cell must match, so <code>Pump</strong></code> means “starts with Pump”
+and <code><strong>pump</strong></code> means “contains”</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>=Pump_A</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">the whole cell equals the text (<code>=5</code> compares numerically)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>!pump</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">does not match: cells that do not contain “pump”</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>&gt;0.9</code>, <code>&gt;=5</code>, <code>&lt;100</code>, <code>&#8656;2</code>, <code>=3</code>, <code>!=0</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">number comparisons</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>5..10</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">a number from 5 to 10, inclusive</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>blank</code>, <code>nonblank</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">empty, or non-empty, cells</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Separate terms with a space for AND (all must match) and with <code>|</code> or <code>,</code>
+for OR, which binds loosest: <code>&gt;5 &lt;10 | blank</code> means “(more than 5 and less
+than 10) or empty”. A number term compares the cell&#8217;s raw value; where a
+cell only has text, the number is read from it, ignoring thousands commas,
+a <code>%</code>, a leading <code>&gt;</code> (a censored result) and a trailing unit such as
+“hours”. A cell with no number never matches a number term.</p>
+</div>
+<div class="paragraph">
+<p>In the Data Tables the filter reads the model&#8217;s own values (names,
+distribution names, parameters, means), not the cell editors, so rows that
+are filtered out never build their editors. In the Sparing table only
+Name, ID and Sparing Type can be filtered. Export CSV writes only the rows
+the filter shows (the dialog says “only N of M rows”). Editing a cell so
+that its row stops matching does not hide the row from under your cursor;
+it goes at the next filter pass.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="data-tables-multi-edit">Changing several rows at once</h3>
+<div class="paragraph">
+<p>Select several rows (click row headings with <strong>Ctrl</strong> or <strong>Shift</strong>, or select
+a filtered set), then edit one cell in a selected row: the change is
+applied to that column on <strong>every</strong> selected row, in one undo step. While
+more than one row is selected the bar says “N rows selected. Editing a
+cell will change all N.” and the status bar reports “Set &lt;column&gt; to
+&lt;value&gt; on N rows” afterwards. Editing a cell in a row that is not selected
+changes that row only. The first time in a session you are asked “Apply to
+N rows?” (with a Don&#8217;t ask again box, which lasts until you quit).</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Only rows that are shown are changed: rows hidden by a filter are never
+touched, and in Whole model only rows of the open level are (others are
+skipped and counted).</p>
+</li>
+<li>
+<p>Changing a distribution gives each row that distribution, re-seeding the
+parameters where the old ones no longer fit; a Param <strong>k</strong> edit skips rows
+whose distribution has no <strong>k</strong>-th parameter and says so.</p>
+</li>
+<li>
+<p>Read-only and computed columns (means, standard deviations, # Params)
+and names are never multi-edited.</p>
+</li>
+<li>
+<p>All the rows are checked together by the input rules (see
+<a href="#input-rules">[input-rules]</a>): if one value is refused the whole change is refused
+and every row reverts.</p>
+</li>
+<li>
+<p><strong>Ctrl+D</strong> (Fill Down) copies the top selected row&#8217;s value in the current
+column to the other selected rows. Pasting a single value with <strong>Ctrl+V</strong>
+while the grid (not a cell editor) has the focus fills that column of
+all selected rows. In a cell editor Ctrl+V pastes text as usual.</p>
+</li>
+</ul>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -360,6 +515,25 @@ use it on a single kind of thing you genuinely want identically named.</p>
 stays on after each placement, so one click on the button places as many
 elements as you need. Press <strong>Q</strong> or <strong>Esc</strong>, or right-click, to go back to
 <strong>Select</strong>.</p>
+</div>
+<div class="sect2">
+<h3 id="_copy_cut_and_paste">Copy, cut and paste</h3>
+<div class="paragraph">
+<p>Copy and Cut are greyed out until something is selected, and Paste is
+greyed out unless there is something Raptor can paste. Copying puts the
+selection (elements, the links between them, annotations, hierarchies with
+their contents) on the system clipboard as well as in the window, so you
+can paste into <strong>another model</strong> open in the same window or into <strong>another
+copy of RAPTOR Studio</strong>. Pasted elements get new ids and keep the
+dependencies between the elements copied together (remapped to the
+copies); a dependency on an element that was not copied is dropped. Into a
+different model, a block keeps a spare pool, resource or PM trigger only
+if the target model also defines one of that name; otherwise the status
+bar names what was dropped. Pasting other text into the diagram does
+nothing. While you are editing text (an annotation, a rename box, a table
+cell) Cut, Copy and Paste work on that text, and pasting a RAPTOR clip
+there inserts its plain-text summary.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_insert_an_element_on_a_link">Insert an element on a link</h3>
@@ -522,7 +696,20 @@ hierarchy Pumps".</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="input-rules">Values and links Raptor 7 refuses</h2>
+<h2 id="stacked-elements">Elements on top of each other</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Validation warns (it never blocks) when elements on one level are drawn on
+top of each other so that the topology cannot be read: blocks, nodes,
+events and hierarchies all count, including a node on a block. The warning
+names the element drawn last, which is the one on top, and what it
+covers, for example “Node 'N3' is drawn on top of Block 'Pump_A'”. Move
+one of them apart, or run Auto Layout.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_values_and_links_raptor_7_refuses">Values and links Raptor 7 refuses</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>RAPTOR Studio applies Raptor 7&#8217;s own input checks, with Raptor 7&#8217;s own
@@ -3049,7 +3236,7 @@ documentation.</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Blocks</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev, Level</p></td>
 </tr>
 </tbody>
 </table>
