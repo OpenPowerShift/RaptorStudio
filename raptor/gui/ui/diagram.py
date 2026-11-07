@@ -235,12 +235,6 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def __init__(self, parent=None):
         self._scene = QGraphicsScene()
         super().__init__(self._scene, parent)
-        # The scene belongs to the view in Qt's tree, not to this Python
-        # attribute alone: otherwise a view dropped without close() is freed
-        # by the cyclic garbage collector, which may destroy the scene (and
-        # its items) before the view, and the view then paints or detaches
-        # from a freed scene -- a segfault inside gc.collect().
-        self._scene.setParent(self)
         # This canvas's grid-snap step, read by its items through their
         # scene. It was one module-wide dict, so two open windows would
         # have snapped to each other's grid.
