@@ -95,9 +95,7 @@ def _engine_version() -> str:
     return f"raptor-studio {_APP_VERSION}"
 
 
-#: Alt key tip for the File button. Not F: that is Finish's, and a
-#: shipped letter is never reassigned (`test_key_tips.py`).
-FILE_KEY_TIP = "E"
+from raptor.gui.key_tips import FILE_KEY_TIP, TAB_KEY_TIPS  # noqa: E402
 
 #: The Simulate tab's analysis toggles (built in `ribbon_builders`).
 _ANALYSIS_ICONS = {
@@ -425,10 +423,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # "key tips shown after Alt" (`blueprint:146`), and with the
         # Simulate ribbon down to 15 controls the run settings now live in
         # a panel, so a keyboard route that does not require finding a
-        # dock matters. Letters are `key_tip` on the command's table entry
-        # (command_table.py), never derived from the label, so renaming
+        # dock matters. Letters are in `key_tips.py`, never derived from the label, so renaming
         # a button cannot reassign a key somebody already learned.
         self._key_tips_active = False
+        self._key_tip_page: str | None = None
+        self._key_tip_badges: list = []
         # (Alt itself is caught in keyPressEvent/keyReleaseEvent: Qt does
         # not match a shortcut made of a modifier alone.)
         # Alt+<letter> arrives as an ordinary key press (a lone Alt
@@ -469,40 +468,76 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._refresh_commands(only={"stepping", "jump_available"})
 
     def _show_key_tips(self) -> None:
-        """Alt: reveal the key tips on every ribbon button of the current
-        page, and arm Alt+<letter>.
-
-        The spec wants "Alt key tips and keyboard focus [to] traverse all
-        commands" (`blueprint:675`); the visible part is a tip on each
-        button, and the invisible part is that the next key press runs
-        the matching action. Toggled by Alt again, or by any other key.
-        """
+        """Alt: put a letter over the File button and every ribbon tab, and
+        arm the keyboard. That letter opens the tab and shows a letter over
+        each of its buttons (`_show_page_tips`); the next one runs the
+        command (Alt, R, S = Results > Show Results). Toggled by Alt again,
+        and ended by any key that is not a tip (`key_tips.py`)."""
         if self._key_tips_active:
             self._dismiss_key_tips()
             return
         self._key_tips_active = True
-        for btn in self._ribbon.findChildren(RibbonButton):
-            text = btn.property("ribbonActionText") or ""
-            tip = btn.property("ribbonKeyTip")
-            if tip:
-                btn.setText(f"{text}  ({tip})")
-        # Large buttons already sit text-under-icon; small ones flip to
-        # it so the tip has room without truncating the label.
-        for btn in self._ribbon.findChildren(RibbonButton):
-            if btn.property("ribbonKeyTip"):
-                btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        self._ribbon.file_button.setText(f"File  ({FILE_KEY_TIP})")
+        self._key_tip_page = None
+        self._show_tab_tips()
         self.grabKeyboard()
         self._statusbar.showMessage(
             "Key tips on — press a letter, or Alt again to hide", 4000)
 
-    def _restore_ribbon_button_styles(self) -> None:
-        for btn in self._ribbon.findChildren(RibbonButton):
-            btn.reapply_mode()
-        self._ribbon.file_button.setText("File")
+    def _clear_key_tip_badges(self) -> None:
+        for badge in getattr(self, "_key_tip_badges", []):
+            badge.hide()
+            badge.deleteLater()
+        self._key_tip_badges = []
+
+    def _show_tab_tips(self) -> None:
+        """Level 1: File and the tabs."""
+        from PySide6.QtCore import QPoint
+        from raptor.gui.widgets.key_tip_badge import KeyTipBadge
+        self._clear_key_tip_badges()
+        self._key_tip_page = None
+        ribbon = self._ribbon
+        badges = [KeyTipBadge(FILE_KEY_TIP, ribbon.file_button, self)]
+        bar = ribbon.tab_bar
+        for i in range(bar.count()):
+            tip = TAB_KEY_TIPS.get(bar.tabText(i))
+            if tip:
+                r = bar.tabRect(i)
+                badges.append(KeyTipBadge(
+                    tip, bar, self, QPoint(r.center().x(), r.bottom() + 2)))
+        self._key_tip_badges = badges
+
+    def _page_buttons(self):
+        page = self._ribbon._current_page()
+        return page.findChildren(RibbonButton) if page is not None else []
+
+    @staticmethod
+    def _icon_centre(btn):
+        """Where a button's badge sits: on its icon, so the label stays
+        readable (large buttons: icon over label; small: icon at left)."""
+        from PySide6.QtCore import QPoint
+        from raptor.gui.widgets.ribbon import LARGE
+        icon = btn.iconSize()
+        if btn.mode() == LARGE:
+            return QPoint(btn.width() // 2, 6 + icon.height() // 2)
+        return QPoint(4 + icon.width() // 2, btn.height() // 2)
+
+    def _show_page_tips(self, title: str) -> None:
+        """Level 2: open the tab and letter its buttons."""
+        from PySide6.QtCore import QEvent
+        from raptor.gui.widgets.key_tip_badge import KeyTipBadge
+        self._ribbon.select_page(title)
+        # The page's geometry settles on the next layout pass; badges are
+        # placed from it, so run that pass now.
+        QApplication.sendPostedEvents(None, QEvent.Type.LayoutRequest)
+        self._clear_key_tip_badges()
+        self._key_tip_page = title
+        self._key_tip_badges = [
+            KeyTipBadge(tip, btn, self, self._icon_centre(btn))
+            for btn in self._page_buttons()
+            if (tip := btn.property("ribbonKeyTip")) and btn.isVisible()]
 
     def _key_press_event_filter(self, obj, event):
-        """Catch Alt+<letter> while key tips are showing.
+        """Handle a key press while key tips are showing.
 
         Needed because a single `QShortcut` on Alt alone does not
         compose into a two-key sequence in Qt; the second key arrives as
@@ -513,22 +548,25 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         from PySide6.QtCore import QEvent
         if event.type() != QEvent.Type.KeyPress:
             return False
-        if event.key() in (Qt.Key.Key_Alt, Qt.Key.Key_Shift,
-                           Qt.Key.Key_Control, Qt.Key.Key_Meta,
-                           Qt.Key.Key_AltGr):
+        key = event.key()
+        if key in (Qt.Key.Key_Alt, Qt.Key.Key_Shift, Qt.Key.Key_Control,
+                   Qt.Key.Key_Meta, Qt.Key.Key_AltGr):
             return False      # a modifier on its own is not a choice
+        if key == Qt.Key.Key_Backspace and self._key_tip_page is not None:
+            self._show_tab_tips()             # back up one level
+            return True
         text = event.text().upper()
+        if Qt.Key.Key_A <= key <= Qt.Key.Key_Z:
+            text = chr(key)                   # Alt held: text may be empty
         if not text or not text.isalpha():
             # Any other key dismisses the tips, as in every other app.
             self._dismiss_key_tips()
             return False
-        if text == FILE_KEY_TIP:
-            self._dismiss_key_tips()
-            self._show_backstage()
-            return True
-        for btn in self._ribbon.findChildren(RibbonButton):
-            label = btn.property("ribbonActionText") or ""
+        if self._key_tip_page is None:
+            return self._key_tip_tab_letter(text)
+        for btn in self._page_buttons():
             if btn.property("ribbonKeyTip") == text:
+                label = btn.property("ribbonActionText") or ""
                 self._dismiss_key_tips()
                 if btn.isEnabled():
                     btn.click()
@@ -536,33 +574,32 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     self._statusbar.showMessage(
                         f"{label} is not available right now", 3000)
                 return True
-        # A tipped command that lives in the File view, not on a ribbon
-        # page (Open, Save, New, Copy View): its letter still works from
-        # any tab, as it did when they were on the File tab.
-        for spec in self._commands.specs.values():
-            if spec.key_tip == text:
-                self._dismiss_key_tips()
-                action = self._commands.action(spec.id)
-                if action.isEnabled():
-                    action.trigger()
-                else:
-                    self._statusbar.showMessage(
-                        f"{action.text()} is not available right now", 3000)
+        self._statusbar.showMessage(
+            f"No key tip {text} on {self._key_tip_page} — "
+            "Backspace goes back", 3000)
+        return True
+
+    def _key_tip_tab_letter(self, text: str) -> bool:
+        if text == FILE_KEY_TIP:
+            self._dismiss_key_tips()
+            self._show_backstage()
+            return True
+        for title, tip in TAB_KEY_TIPS.items():
+            if tip == text:
+                self._show_page_tips(title)
                 return True
-        self._dismiss_key_tips()
-        return False
+        self._statusbar.showMessage(f"No key tip {text}", 3000)
+        return True
 
     def _dismiss_key_tips(self) -> None:
         """Turn the tips off WITHOUT re-toggling, so a key press that
-        consumed a tip cannot leave the labels showing."""
+        consumed a tip cannot leave the badges showing."""
         if not self._key_tips_active:
             return
         self._key_tips_active = False
+        self._key_tip_page = None
         self.releaseKeyboard()
-        for btn in self._ribbon.findChildren(RibbonButton):
-            text = btn.property("ribbonActionText") or ""
-            btn.setText(text)
-        self._restore_ribbon_button_styles()
+        self._clear_key_tip_badges()
         self._statusbar.showMessage("Key tips off", 2000)
 
     def _apply_action_icons(self):
@@ -2108,6 +2145,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 if focus is not None and focus is not self:
                     QApplication.sendEvent(focus, event)
                     return
+        if (not self._key_tips_active
+                and event.modifiers() == _Qt.KeyboardModifier.AltModifier
+                and _Qt.Key.Key_A <= event.key() <= _Qt.Key.Key_Z):
+            # Alt held while the letter goes down: the same route as
+            # Alt, release, letter -- for the people who chord it.
+            letter = chr(event.key())
+            if letter == FILE_KEY_TIP or letter in TAB_KEY_TIPS.values():
+                self._alt_alone = False
+                self._show_key_tips()
+                self._key_press_event_filter(self, event)
+                return
         import time
         self._alt_alone = event.key() == _Qt.Key.Key_Alt
         self._alt_down_at = time.monotonic()

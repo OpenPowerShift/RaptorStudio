@@ -978,6 +978,18 @@ with `list_tables`, `get_table` and `export_tables`; see the xref:../new_docs/bo
 of the User Guide.
 
 [[preferences]]
+== Keyboard: Alt key tips
+
+Press and release *Alt* to put a letter over *File* and each ribbon tab.
+Press a tab's letter (for example *R* for Results) to open it and show a
+letter over each of its buttons, then press a button's letter to run it:
+*Alt, R, S* is Results → Show Results. *Alt+R* held together goes straight
+to the Results letters. *F* opens the File view. *Backspace* goes back one
+step; *Alt* again, *Esc* or any other key hides the tips. Controls that are
+not plain buttons (combo boxes, spin boxes) have no letter and are reached
+with *Tab* or the mouse. The complete list of shortcuts is in the
+Keyboard Shortcuts page (Help tab).
+
 == Preferences
 
 *View ▸ Appearance ▸ Preferences…* is one scrolling page of sections: *New models*,
