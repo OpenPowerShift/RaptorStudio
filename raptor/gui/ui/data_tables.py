@@ -61,6 +61,8 @@ _COMMON_COL_TIPS = {
     "Name": "The element's name",
     "ID": "The element's id, as the Explorer, the Inspector and exported "
           "tables show it in brackets (read-only)",
+    "Level": "The hierarchy level this element is on (Whole model only; "
+             "read-only)",
 }
 
 
@@ -1558,9 +1560,8 @@ class DataTablesDock(QWidget):
         t.setRowCount(len(bids))
         for r, bid in enumerate(bids):
             b = src.blocks[bid]
-            if self._whole:
-                t.setItem(r, t.columnCount() - 1,
-                          self._level_item("block", bid))
+            t.setItem(r, t.columnCount() - 1,
+                      self._level_item("block", bid))
             # ID first (read-only anchor used by commits).
             id_item = _SortItem(str(bid))
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -1642,9 +1643,8 @@ class DataTablesDock(QWidget):
         t.setRowCount(len(node_ids))
         for r, nid in enumerate(node_ids):
             n = src.nodes[nid]
-            if self._whole:
-                t.setItem(r, t.columnCount() - 1,
-                          self._level_item("node", nid))
+            t.setItem(r, t.columnCount() - 1,
+                      self._level_item("node", nid))
             id_item = _SortItem(str(nid))
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             t.setItem(r, 1, id_item)
@@ -1840,9 +1840,8 @@ class DataTablesDock(QWidget):
         t.setRowCount(len(event_ids))
         for r, eid in enumerate(event_ids):
             event = src.events[eid]
-            if self._whole:
-                t.setItem(r, t.columnCount() - 1,
-                          self._level_item("event", eid))
+            t.setItem(r, t.columnCount() - 1,
+                      self._level_item("event", eid))
             id_item = _SortItem(str(eid))
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             t.setItem(r, 1, id_item)
@@ -1956,9 +1955,8 @@ class DataTablesDock(QWidget):
         t.setRowCount(len(bids))
         for r, bid in enumerate(bids):
             b = src.blocks[bid]
-            if self._whole:
-                t.setItem(r, t.columnCount() - 1,
-                          self._level_item("block", bid))
+            t.setItem(r, t.columnCount() - 1,
+                      self._level_item("block", bid))
             name_item = _SortItem(b.name)
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             t.setItem(r, 0, name_item)
@@ -2069,9 +2067,8 @@ class DataTablesDock(QWidget):
         t.setRowCount(len(bids))
         for r, bid in enumerate(bids):
             b = src.blocks[bid]
-            if self._whole:
-                t.setItem(r, t.columnCount() - 1,
-                          self._level_item("block", bid))
+            t.setItem(r, t.columnCount() - 1,
+                      self._level_item("block", bid))
             name_item = _SortItem(b.name)
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             t.setItem(r, 0, name_item)
