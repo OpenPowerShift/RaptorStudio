@@ -65,6 +65,10 @@ class ExplorerDock(QWidget):
         self._layout.addLayout(bar)
         self._layout.addWidget(self._tree)
 
+        #: The tree item marked as the level on screen (see `mark_current`).
+        self._current_item: QTreeWidgetItem | None = None
+        self._current_parent_id = 0
+        ThemeManager.instance().on_changed(self._restyle_current)
         self._expand_queue: deque = deque()
         self._expand_timer = QTimer(self)
         self._expand_timer.setInterval(0)
@@ -353,6 +357,56 @@ class ExplorerDock(QWidget):
             seen.add(hid)
             items[hid].setExpanded(True)
             hid = getattr(hiers.get(hid), "parent_id", 0) or 0
+        self.mark_current(parent_id)
+
+    # ------------------------------------------------- the level on screen
+    def _current_tree_item(self, parent_id: int) -> QTreeWidgetItem | None:
+        if parent_id:
+            return getattr(self, "_hier_tree_items", {}).get(parent_id)
+        return self._tree.topLevelItem(0)           # Home is the "Model" root
+
+    def mark_current(self, parent_id: int) -> None:
+        """Highlight the hierarchy (or Home) shown on the canvas: bold, a
+        tinted background and a tooltip note, apart from the selection
+        colour. Only the previous and the new item are touched; the tree is
+        not rebuilt, and the item is scrolled into view."""
+        from shiboken6 import isValid
+        self._current_parent_id = parent_id or 0
+        previous = self._current_item
+        if previous is not None and isValid(previous):
+            self._style_item(previous, False)
+        item = self._current_tree_item(self._current_parent_id)
+        self._current_item = item
+        if item is None:
+            return
+        self._style_item(item, True)
+        self._tree.scrollToItem(item)
+
+    def _restyle_current(self, *_theme) -> None:
+        """A theme change: repaint the mark in the new colours."""
+        from shiboken6 import isValid
+        item = self._current_item
+        if item is not None and isValid(item):
+            self._style_item(item, True)
+
+    @staticmethod
+    def _style_item(item: QTreeWidgetItem, current: bool) -> None:
+        from PySide6.QtGui import QBrush, QColor
+        from raptor.gui.resources.design_tokens import active_colour
+        font = item.font(0)
+        role = item.data(0, Qt.ItemDataRole.UserRole)
+        # The root is always bold; a hierarchy is bold only while current.
+        font.setBold(bool(current or role == "root"))
+        item.setFont(0, font)
+        tip = item.toolTip(0).replace("  (current level)", "")
+        if current:
+            tint = QColor(active_colour()["accent"])
+            tint.setAlpha(80)
+            item.setBackground(0, QBrush(tint))
+            item.setToolTip(0, (tip or item.text(0)) + "  (current level)")
+        else:
+            item.setData(0, Qt.ItemDataRole.BackgroundRole, None)
+            item.setToolTip(0, tip)
 
     def _on_item_clicked(self, item: QTreeWidgetItem, column: int):
         role = item.data(0, Qt.ItemDataRole.UserRole)

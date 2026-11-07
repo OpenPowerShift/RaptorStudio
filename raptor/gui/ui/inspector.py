@@ -3547,13 +3547,13 @@ class InspectorDock(QWidget):
             # share the stored sentinels, but accepting the wrong one made
             # the cell re-render with this column's spelling, which read as
             # "it picked the other one".
-            new_v, problem = parse_flow_cell(text, label, len(rows))
+            parsed, problem = parse_flow_cell(text, label, len(rows))
             if problem is not None:
                 self.validation_failed.emit(problem)
                 item.setText(self._flow_cell_text(
                     row.get(col, ""), label, len(rows)))
                 return
-            new = str(new_v)
+            new = str(parsed)
             if row.get(col, "") == new:
                 return
             if self.flow_cell_changed is not None:
@@ -4003,7 +4003,9 @@ class InspectorDock(QWidget):
         # `editingFinished` is a typed value. Both go through one commit,
         # which is a no-op when nothing changed, so the two cannot fight.
         units_edit.activated.connect(commit_units)
-        units_edit.lineEdit().editingFinished.connect(commit_units)
+        units_line = units_edit.lineEdit()
+        if units_line is not None:
+            units_line.editingFinished.connect(commit_units)
         fl.addRow("Units:", units_edit)
 
         # No Display or Analysis group here. Zoom belongs to View ▸ Zoom,

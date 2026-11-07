@@ -709,10 +709,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     # open, and consistent across level switches (no per-level fit).
     LEGACY_SCALE = view_transform.LEGACY_SCALE
 
-    def _compute_model_transform(self, rbd: RbdFile):
+    def _compute_model_transform(self, rbd: RbdFile, spacing: float = 1.0,
+                                 band_aware: bool = False):
         """Whole-model origin/flip/scale, computed once per load and then
         frozen on the file (see `raptor.core.fileio.view_transform`)."""
-        vt = view_transform.ensure(rbd)
+        vt = view_transform.ensure(rbd, spacing, band_aware)
         self._vt = vt
         self._origin_x = vt.origin_x
         self._flip_base = vt.flip_base
@@ -1223,6 +1224,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
         cur = self._current_parent
         log.debug("_rebuild_scene: level=%s", cur)
+        # The page flow is per level: a level Auto Layout never touched
+        # must not take its port sides from another level's direction.
+        set_flow_direction(self.level_flow_direction())
         # Stable transform: origin/scale/flip come from the whole model
         # (computed once in load_rbd), so every element renders exactly
         # where its file row says -- same on every open, and identical
@@ -1460,6 +1464,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                   len(self._event_items), len(self._hier_items),
                   len(self._links))
         self._apply_scene_layout()
+        self._remember_render_extents()
         log.debug("_rebuild_scene: _apply_scene_layout done")
         self._apply_tool_cursor()       # the new items show the armed tool
 
@@ -3149,6 +3154,39 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._label_phase = phase
         self.refresh_block_labels()
 
+    def level_flow_direction(self) -> str:
+        """The page flow Auto Layout last used on the level on screen, or
+        "auto" (infer it from the level's own links)."""
+        flows = getattr(self._rbd_ref, "flow_directions", None) or {}
+        return str(flows.get(str(self._current_parent), "auto"))
+
+    def _remember_flow_direction(self) -> None:
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        if not isinstance(getattr(rbd, "flow_directions", None), dict):
+            rbd.flow_directions = {}
+        rbd.flow_directions[str(self._current_parent)] = flow_direction()
+
+    def _remember_render_extents(self) -> None:
+        """Record how wide this level's elements are drawn, for the
+        file-wide scale `view_transform.derive` picks after an Auto Layout."""
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        seen = getattr(rbd, "_render_extents", None)
+        if not isinstance(seen, dict):
+            seen = {}
+            rbd._render_extents = seen  # type: ignore[attr-defined]
+        for section, table in (("BLOCK_DATA", self._block_items),
+                               ("NODE_DATA", self._node_items),
+                               ("HIERARCHY_DATA",
+                                getattr(self, "_hier_items", {}))):
+            for oid, item in cast("dict[int, Any]", table).items():
+                rect = item.sceneBoundingRect()
+                seen[(section, str(oid))] = (rect.width() / 2.0,
+                                             rect.height() / 2.0)
+
     def reroute_links(self) -> None:
         """Redraw every link (after the routing style changes). Layout only:
         no element moves and the model is not marked changed."""
@@ -3183,14 +3221,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # against the old width and would now sit inside the block.
             if item.rect().width() != width:
                 resized.append(item)
-        if resized and not self._loading:
+        if resized:
+            # Also while a level is still being built: the deferred
+            # sub-labels are applied at the end of `_rebuild_scene`, after
+            # the links were routed against the unlabelled 108 px boxes.
+            # Skipping this then left every route 2 px off its port, so
+            # the next re-route (a link-style change) moved them.
             self._clear_route_caches()
             affected: dict[int, Any] = {}
             for item in resized:
                 for link in links_affected_by_moving(item):
                     affected[id(link)] = link
-            for link in affected.values():
-                link._update_route()
+            with routing_batch(self._scene):
+                for link in affected.values():
+                    link._update_route()
 
     def _block_row_by_id(self, bid: int):
         return self._editor.block_row(bid)
@@ -6549,7 +6593,18 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # empty canvas armed the band under an item drag, so every
             # element the dragged one passed over was selected and dragged
             # along (outside the gesture's undo record).
-            owner = hit.topLevelItem() if hit is not None else None
+            # The nearest movable item at or above the one pressed: a
+            # block's label is a child of the (movable) block, and a routing
+            # point on a link is movable itself though its parent link is
+            # not. Taking the top-level item made a grip drag arm the band,
+            # which selected whatever the grip passed over, and Qt then
+            # dragged those along with it.
+            owner = hit
+            while (owner is not None and not owner.flags()
+                   & QGraphicsItem.GraphicsItemFlag.ItemIsMovable):
+                owner = owner.parentItem()
+            if owner is None and hit is not None:
+                owner = hit.topLevelItem()
             self._band_anchor = (
                 None if (owner is not None
                          and owner.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
@@ -6639,10 +6694,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         finally:
             self._snap_state["x"], self._snap_state["y"] = saved
 
-    def _layout_state(self) -> tuple[dict, dict | None]:
+    def _layout_state(self) -> tuple[dict, dict | None, tuple[str, str | None]]:
         """This level's element positions in model units (from the typed
-        objects -- call `sync_model_positions` first) and the canvas
-        transform: what Auto Layout changes, for its undo record."""
+        objects -- call `sync_model_positions` first), the canvas transform
+        and the level's saved page flow: what Auto Layout changes, for its
+        undo record."""
         pos: dict = {}
         for kind, table in (("block", self.blocks), ("node", self.nodes),
                             ("event", self.events), ("hier", self.hiers)):
@@ -6656,16 +6712,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 (k, a.get(k)) for k in ("x", "y", "x1", "y1", "x2", "y2") if k in a)
         rbd = self._rbd_ref
         vt = getattr(rbd, "view_transform", None) if rbd is not None else None
-        return pos, (dict(vt) if vt else None)
+        flows = getattr(rbd, "flow_directions", None) or {}
+        key = str(self._current_parent)
+        flow = (key, flows.get(key))
+        return pos, (dict(vt) if vt else None), flow
 
-    def _restore_layout(self, state: tuple[dict, dict | None]) -> None:
+    def _restore_layout(
+            self, state: tuple[dict, dict | None, tuple[str, str | None]]
+    ) -> None:
         """Put back a `_layout_state`: the rows and the overlay take the
         positions, the transform is restored (or re-derived from those
         rows), and the level is rebuilt from them."""
-        pos, vt = state
+        pos, vt, (flow_key, flow) = state
         rbd = self._rbd_ref
         if rbd is None:
             return
+        # The level's page flow is part of what Auto Layout changed: put it
+        # back too, or the link sides stay as the undone layout had them
+        # and a later save keeps them. (`_rebuild_scene` applies it.)
+        if not isinstance(getattr(rbd, "flow_directions", None), dict):
+            rbd.flow_directions = {}
+        if flow is None:
+            rbd.flow_directions.pop(flow_key, None)
+        else:
+            rbd.flow_directions[flow_key] = flow
         cols = {"block": ("BLOCK_DATA", "ID"), "node": ("NODE_DATA", "ID"),
                 "event": ("EVENT_DATA", "ID"), "hier": ("HIERARCHY_DATA", "ID")}
         annos = {aid: dict(geom) for (kind, aid), geom in pos.items() if kind == "anno"}
@@ -8080,6 +8150,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
         selected = {k for k, it in members.items() if it.isSelected()}
         if selected and len(selected) < len(members):
+            sink: Any = getattr(self, "status_message_sink", None)
+            if sink is not None:
+                sink(f"Auto Layout moved only the {len(selected)} selected "
+                     f"element(s); the other {len(members) - len(selected)} "
+                     "stay where they are. Deselect all to lay out the "
+                     "whole level.")
             return self._auto_layout_selection(
                 selected, members, edges, direction=direction,
                 max_columns=max_columns, spacing=spacing)
@@ -8206,6 +8282,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             for link in self._links:
                 link._update_route()
         self._user_arranged = True
+        self._remember_flow_direction()
         # sync only (not write_back): the position overlay reads the
         # typed objects on level rebuilds, so traversal keeps the
         # arrangement; rows are written on Save like any other edit.
@@ -8254,8 +8331,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # Exact drawn extents for this layout. `view_transform.derive`
             # uses them for the scale; without this it would reserve the
             # fixed 108 px block and let a 216 px name overlap.
-            rbd._render_extents = render_extents  # type: ignore[attr-defined]
-            self._compute_model_transform(rbd)
+            # Merged with the other levels' extents seen so far: the scale
+            # is file-wide, so a level laid out later must not forget how
+            # wide the rest are drawn, or its scale (and every level's
+            # spacing with it) would depend on which level was laid out last.
+            rbd._render_extents = {  # type: ignore[attr-defined]
+                **getattr(rbd, "_render_extents", {}), **render_extents}
+            self._compute_model_transform(rbd, spacing, band_aware=True)
             # Annotations go with the diagram: anchored ones next to their
             # element again, the others at the same place in the model.
             from raptor.api.annotations import (
