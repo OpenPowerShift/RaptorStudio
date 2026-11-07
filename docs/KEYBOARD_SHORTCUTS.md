@@ -19,6 +19,7 @@
 | Ctrl+C | Copy selection (elements, links, annotations, hierarchy subtrees) |
 | Ctrl+X | Cut selection |
 | Ctrl+V | Paste at mouse cursor |
+| Arrow keys / Shift+Arrow | Nudge the selection one grid step / 1 px. Selected routing points move too, and the routing points of a link whose two ends both move go with them. One undo step |
 | Del / Backspace | Delete selection (nothing selected: arms click-to-delete) |
 | Esc | Cancel armed tool / delete mode / connect / Failure Effects fail-repair targeting; cancels a running batch |
 

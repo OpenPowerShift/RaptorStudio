@@ -1059,6 +1059,8 @@ class _LinkItem(QGraphicsPathItem):
         #: GUI-only dog-leg points dragged onto this link. They never enter
         #: the model: the link still connects the same two elements.
         self._grips: list[_RouteGripItem] = []
+        #: The (exit, entry) sides last chosen to face the routing points.
+        self._grip_sides: tuple[str | None, str | None] = (None, None)
         #: Add-tool hover feedback: None, "allowed" or "blocked". Drawn as
         #: a wide translucent halo under the normal stroke so selection and
         #: live-sim colours keep their own meanings.
@@ -1194,16 +1196,24 @@ class _LinkItem(QGraphicsPathItem):
                   if isValid(g) and getattr(g, "_active", True)]
         pinned = False
         if active:
-            out_side = self._side_beside(from_item, active[0])
-            in_side = self._side_beside(to_item, active[-1])
-            if out_side is not None:
-                exit_side = out_side
-                p0 = self._port_point(from_item, exit_side)
-                pinned = True
-            if in_side is not None:
-                entry = in_side
-                p3 = self._port_point(to_item, entry)
-                pinned = True
+            # Each end leaves/enters by the side that faces the routing
+            # point next to it: directly beside the element it pins that
+            # edge, otherwise the same facing rule every link uses, with a
+            # little stickiness so dragging a point across a boundary does
+            # not make the end flicker between two sides.
+            prev_out, prev_in = self._grip_sides
+            out_side = (self._side_beside(from_item, active[0])
+                        or self._sticky_side(from_item, active[0], prev_out))
+            in_side = (self._side_beside(to_item, active[-1])
+                       or self._sticky_side(to_item, active[-1], prev_in))
+            self._grip_sides = (out_side, in_side)
+            exit_side = out_side
+            p0 = self._port_point(from_item, exit_side)
+            entry = in_side
+            p3 = self._port_point(to_item, entry)
+            pinned = True
+        else:
+            self._grip_sides = (None, None)
         for _ in range(0 if pinned else 3):
             changed = False
             if self._segment_crosses(to_item, p0, p3):
@@ -1343,6 +1353,26 @@ class _LinkItem(QGraphicsPathItem):
         if abs(dx) >= bias * abs(dy):
             return "right" if dx >= 0 else "left"
         return "bottom" if dy >= 0 else "top"
+
+    #: How far past a side boundary a routing point has to be dragged
+    #: before the link end changes side (a band of +-8% of the slope).
+    _SIDE_STICKY = 1.08
+
+    @staticmethod
+    def _sticky_side(item, toward: QPointF, previous: str | None) -> str:
+        """`_side`, but keeping `previous` while `toward` is within a small
+        band of the boundary between two sides."""
+        side = _LinkItem._side(item, toward)
+        if previous is None or previous == side:
+            return side
+        c = _LinkItem._true_centre(item)
+        dx, dy = toward.x() - c.x(), toward.y() - c.y()
+        k = _LinkItem._SIDE_STICKY
+        for fx, fy in ((k, 1 / k), (1 / k, k)):
+            if _LinkItem._side(item, QPointF(c.x() + dx * fx,
+                                             c.y() + dy * fy)) == previous:
+                return previous
+        return side
 
     _OPPOSITE = {"left": "right", "right": "left",
                  "top": "bottom", "bottom": "top"}
