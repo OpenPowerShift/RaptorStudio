@@ -368,6 +368,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: QSettings by MainWindow; empty means "factory look".
         self.default_annotation_props: dict[str, dict] = {}
         self._paste_buffer: list = []
+        self._defer_block_refresh = False   # True while a batch is inserted
         self._model_token = clipboard_payload.new_model_token()
         self._connect_ghost: QGraphicsLineItem | None = None
         self._anno_drag_start: QPointF | None = None
@@ -3457,15 +3458,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._dependency_visual(block.dependency_num, block.dep_type))
         self._scene.addItem(item)
         self._block_items[bid] = item
+        if not self._defer_block_refresh:
+            self.refresh_after_block_insert()
+        return bid
+
+    def refresh_after_block_insert(self) -> None:
+        """What a block insert needs once per batch, not once per block."""
         self._refresh_lod()
         self._recount_link_ends()
-        return bid
 
     def add_block(self, name: str, model_x: float, model_y: float,
                   fdist: int | None = None,
                   fparam: float | None = None) -> int:
         """Create a block at model coordinates; defaults come from the
         Block Defaults unless given."""
+        row = self._new_block_row(name, model_x, model_y, fdist, fparam)
+        self._stack.push(AddCmd(self, "block", [row]))
+        return _safe_int(row["ID"])
+
+    def _new_block_row(self, name: str, model_x: float, model_y: float,
+                       fdist: int | None = None,
+                       fparam: float | None = None,
+                       bid: int | None = None) -> dict:
+        """A full BLOCK_DATA row for a fresh block (Block Defaults, every
+        column a new block has, PM included), not yet added."""
         if self._rbd_ref is None:
             raise RuntimeError("no file loaded")
         if fdist is None:
@@ -3477,7 +3493,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         repair_params = list(self.default_block_rparams)
         sparing = self.default_block_sparing
         row = self._template_row("BLOCK_DATA", "ID") or {}
-        bid = self._next_id("BLOCK_DATA", "ID", self.blocks)
+        if bid is None:
+            bid = self._next_id("BLOCK_DATA", "ID", self.blocks)
         row["blockName"] = self._sanitize_name(name)
         row["ID"] = str(bid)
         # On the level being shown. The template row says 0, so a block
@@ -3503,8 +3520,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         for i in range(3):
             row[f"RParam{i + 1}"] = f"{repair_params[i] if i < _dist_param_count(repair_dist) else 0.0:.6f}"
         row["SpType"] = sparing
-        self._stack.push(AddCmd(self, "block", [row]))
-        return bid
+        return row
 
     def add_node(self, name: str, model_x: float, model_y: float,
                  node_type: int = 2) -> int:
@@ -7844,10 +7860,66 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         """Insert a library template as a new block (fresh id, undoable,
         placed at `at_model` or near the viewport centre). Returns the
         new block id."""
-        n = self.paste(at_model=at_model, buffer=[("block", dict(row))])
-        if n != 1:
-            return 0
-        return max(self.blocks)
+        if at_model is None:
+            at_model = self.scene_to_model(
+                self.mapToScene(self.viewport().rect().center()))
+        ids = self._add_template_rows([row], [at_model], "Add block")
+        return ids[0] if ids else 0
+
+    def add_blocks_from_templates(self, rows: list[dict],
+                                  centre: QPointF) -> list[int]:
+        """Insert several library templates as new blocks, laid out in a
+        grid (at most four across) around the scene point `centre`, as one
+        undo step and one pass of the input-rule gate. Returns the new
+        block ids (empty if the edit was refused)."""
+        if not rows:
+            return []
+        across = min(len(rows), 4)
+        step_x, step_y = BLOCK_W + 40.0, BLOCK_H + 30.0
+        down = -(-len(rows) // across)
+        spots = []
+        for i in range(len(rows)):
+            col, line = i % across, i // across
+            spots.append(self.scene_to_model(QPointF(
+                centre.x() + (col - (across - 1) / 2.0) * step_x,
+                centre.y() + (line - (down - 1) / 2.0) * step_y)))
+        return self._add_template_rows(
+            rows, spots, "Add block" if len(rows) == 1
+            else f"Add {len(rows)} blocks")
+
+    def _add_template_rows(self, rows: list[dict], spots: list,
+                           text: str) -> list[int]:
+        """The template columns laid over a fresh block's full row (a library
+        carries failure, repair, LDT and dependency data only; the rest of a
+        block is the Block Defaults), added by one command. The input-rule
+        gate checks the whole add once, and refuses it as a whole."""
+        # The lowest free ids (gaps left by deleted blocks and ids held at
+        # other levels are skipped), found in one pass over the rows.
+        rbd = req(self._rbd_ref)
+        used = set(self.blocks)
+        for r in rbd.sections["BLOCK_DATA"].rows:
+            used.add(_safe_int(r.get("ID")))
+        new_ids: list[int] = []
+        nid = 1
+        while len(new_ids) < len(rows):
+            if nid not in used:
+                new_ids.append(nid)
+            nid += 1
+        new_rows = []
+        for bid, tpl, (mx, my) in zip(new_ids, rows, spots):
+            full = self._new_block_row(tpl.get("blockName", ""), mx, my,
+                                       bid=bid)
+            for col, val in tpl.items():
+                if col not in ("blockName", "ID", "ParentId", "xPos", "yPos"):
+                    full[col] = val
+            new_rows.append(full)
+        cmd = AddCmd(self, "block", new_rows)
+        cmd.setText(text)
+        before = len(rbd.sections["BLOCK_DATA"].rows)
+        self._stack.push(cmd)
+        if len(rbd.sections["BLOCK_DATA"].rows) == before:
+            return []                  # the gate refused it
+        return new_ids
 
     def update_blocks_from_library(self, templates: list[dict]) -> int:
         """Overwrite the F/R distribution+param+stream columns of every
