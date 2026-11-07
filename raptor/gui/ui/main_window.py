@@ -1525,8 +1525,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         editor = text_editing.active_editor()
         if editor is not None:
             text_editing.paste(editor)
-        else:
-            self._diagram_dock.view.paste()
+            return
+        # A Data Tables grid takes one pasted value for its selected rows.
+        grid_paste = getattr(QApplication.focusWidget(), "paste_text", None)
+        if callable(grid_paste) and grid_paste(
+                QApplication.clipboard().text()):
+            return
+        self._diagram_dock.view.paste()
 
     def _on_focus_changed(self, _old, new) -> None:
         """Cut/Copy/Paste follow the text editor that has the keyboard,

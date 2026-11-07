@@ -230,3 +230,28 @@ def test_read_only_columns_are_never_multi_edited(win):
     name_before = view.blocks[_bid(t, 1)].name
     t.item(0, 0).setText("Same")                   # a name is per row
     assert view.blocks[_bid(t, 1)].name == name_before
+
+
+def test_the_window_paste_offers_the_focused_grid_its_value_first(monkeypatch):
+    """Ctrl+V reaches the window's Paste command, not the grid's key handler:
+    a focused Data Tables grid must get the clipboard text before the canvas."""
+    from PySide6.QtWidgets import QApplication
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.main_window import MainWindow
+    QApplication.instance() or QApplication([])
+    settings.set_value("startup/show_start_page", False)
+    win = MainWindow()
+    got = []
+    grid = win._data_tables._blocks_table
+    grid.paste_text = lambda text: got.append(text) or True
+    canvas_pastes = []
+    monkeypatch.setattr(win._diagram_dock.view, "paste",
+                        lambda *a, **k: canvas_pastes.append(1))
+    monkeypatch.setattr(QApplication, "focusWidget", staticmethod(lambda: grid))
+    QApplication.clipboard().setText("42")
+    win._edit_paste()
+    assert got == ["42"] and canvas_pastes == []
+    grid.paste_text = lambda text: False          # the grid declines
+    win._edit_paste()
+    assert canvas_pastes == [1]
+    win.close()

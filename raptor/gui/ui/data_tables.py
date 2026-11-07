@@ -14,13 +14,13 @@ population pass can write them back without conversion.
 from __future__ import annotations
 
 from bisect import bisect_left
-from typing import Any
+from collections.abc import Callable
+from typing import Any, cast
 
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
 
-from typing import Any
 from PySide6.QtCore import Qt, Signal, QTimer, QEvent
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
@@ -74,7 +74,7 @@ class _DataTable(QTableWidget):
 
     #: Set by the dock: called with the clipboard's text when Ctrl+V is
     #: pressed on the grid itself (not in a cell's editor). True = handled.
-    paste_text = None
+    paste_text: Callable[[str], bool] | None = None
 
     def keyPressEvent(self, event) -> None:
         from PySide6.QtGui import QKeySequence
@@ -428,7 +428,7 @@ class DataTablesDock(QWidget):
         fill.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         fill.activated.connect(self.fill_down)
         for _t, _k in self._level_tables():
-            _t.paste_text = self.paste_into_selection
+            cast(_DataTable, _t).paste_text = self.paste_into_selection
             _t.selectionModel().selectionChanged.connect(self._update_banner)
         self._tabs.currentChanged.connect(self._update_banner)
         self._tabs.addTab(self._blocks_table, "Blocks")
@@ -442,7 +442,7 @@ class DataTablesDock(QWidget):
         self._tabs.addTab(self._pm_table, "Preventive Maintenance")
 
         # Keyed-row tables: column -> kind for commit validation.
-        self._keyed = {
+        self._keyed: dict[QTableWidget, tuple[str, str, dict[str, type]]] = {
             self._spares_table: ("SPARE_POOL_DATA", "PoolName",
                                  {"PoolName": str, "RSO": int,
                                   "Stock": int, "NewSp": int,
@@ -477,7 +477,7 @@ class DataTablesDock(QWidget):
         ]
         # Grids whose cell widgets are built on demand: table -> builder,
         # and the row keys (block ids) still waiting for theirs.
-        self._lazy_builders = {
+        self._lazy_builders: dict[QTableWidget, Callable[[Any, int, int], None]] = {
             self._blocks_table: self._build_block_widgets,
             self._sparing_table: self._build_sparing_widgets,
         }
@@ -660,10 +660,10 @@ class DataTablesDock(QWidget):
                 item = table.horizontalHeaderItem(col)
                 if item is not None and item.text().split(" (")[0] == name:
                     item.setText(f"{name} ({unit})" if unit else name)
-        for table, (section, _key, _kinds) in self._keyed.items():
+        for ktable, (section, _key, _kinds) in self._keyed.items():
             fields = self._KEYED_TIME_FIELDS.get(section, set())
-            for col in range(table.columnCount()):
-                item = table.horizontalHeaderItem(col)
+            for col in range(ktable.columnCount()):
+                item = ktable.horizontalHeaderItem(col)
                 if item is None:
                     continue
                 base = item.text().split(" (")[0]
