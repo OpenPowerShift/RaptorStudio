@@ -31,7 +31,8 @@ Project Settings is the Inspector page (Model ▸ Project Settings, or the
 Project Settings entry in Model Explorer). It is not a modal: the page
 stays open beside the canvas. Run settings are edited in the Run panel;
 the Inspector shows read-only echoes for those fields. Model-wide fields
-(units, flow generated, costs, flags) are edited here.
+(units and flags) are edited here. Flow generated and the system costs
+live in the Run panel, beside the Capacity and Cost analyses they feed.
 
 [cols="3,4,3",options="header"]
 |===
@@ -41,9 +42,6 @@ the Inspector shows read-only echoes for those fields. Model-wide fields
 |Term condition |The mission length (TimeSim) or failure count (FailSim) |See xref:../new_docs/book.html#ch-first-model[Your First Model]
 |Statistics start time |Discard everything before this time from the statistics |Warm-up / transient removal
 |Number of runs |Read-only echo of trials per simulation |Edit in the Run panel; more runs give tighter SEMs (xref:../new_docs/book.html#ch-trials[Many Trials])
-|Flow generated |Demand offered at the Start node each hour |xref:../new_docs/book.html#ch-capacity[Capacity analysis]
-|System red cost |Cost per hour the system is fully down |xref:../new_docs/book.html#ch-cost[Cost analysis]
-|Cost of lost flow |Price per unit of unmet demand |Billed against capacity shortfall
 |Green/Yellow threshold |Read-only echo; edit in Results ▸ Bands |Default 0.95
 |Yellow/Red threshold |Read-only echo; edit in Results ▸ Bands |Default 0.90
 |Ignore negative-value warning |Suppress the warning when a parameter is set negative |Off by default
@@ -702,7 +700,9 @@ greyed, with the reason, while Animate is on or a run is going.
 
 |Analysis
 |Weak Link, Cost and Capacity. Each is a switch with its purpose
-written beside it.
+written beside it. Flow generated appears here once Capacity is on; the
+system red cost is always editable, and the cost of lost flow appears
+once both Capacity and Cost are on.
 
 |Recording
 |Which outputs a run collects. Additive rather than a single "level",

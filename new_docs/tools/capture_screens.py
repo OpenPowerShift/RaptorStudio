@@ -274,20 +274,6 @@ shot("van-tires-inside")
 load("Water1")
 shot("water-loaded")
 
-# 22b. ch-cost: Project Settings is the Inspector page, not a dialog.
-load("Water2")
-w._open_project_settings()
-# A tall window so the whole page fits without scrolling; let the layout
-# settle before the grab (one event pass leaves the rows half laid out).
-w.resize(1600, 1500)
-for _ in range(3):
-    app.processEvents()
-w._inspector_dock.widget().grab().copy(0, 0, 400, 830).save(
-    os.path.join(IMG, "water2-sysconfig.png"), "PNG")
-w.resize(1600, 1000)
-app.processEvents()
-print("shot water2-sysconfig")
-
 # 23-24. ch-capstone (data centre): home level, then inside Power_sub.
 load("DC1")
 shot("dc-loaded")

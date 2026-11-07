@@ -254,18 +254,25 @@ class RunExperimentMixin:
             self._sync_run_panel_units()
 
     def _sync_run_panel_units(self) -> None:
-        """Show the model's time unit on the panel's time-valued rows."""
+        """Show the model's time unit and system-level values on the panel."""
         panel = getattr(self, "_run_panel", None)
         if panel is None:
             return
         if self._rbd is None:
             # Called during dock setup, before any model is open.
             panel.set_units("", None)
+            panel.set_system_config(None)
             if hasattr(panel, "set_importance_blocks"):
                 panel.set_importance_blocks(0)
             return
         units = self._current_units() or ""
         panel.set_units(units, getattr(self._rbd, "display_unit", None))
+        sec = self._rbd.sections.get("SYSTEM_DATA")
+        if sec and sec.rows:
+            from raptor.core.fileio.typed import system_config_from_row
+            panel.set_system_config(system_config_from_row(sec.rows[0]))
+        else:
+            panel.set_system_config(None)
         # The importance cost estimate is per block, so the panel needs the
         # count of the open model. `block_rows` is the same list the
         # analysis walks, so the estimate cannot disagree with the work.

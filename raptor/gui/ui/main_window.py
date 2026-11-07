@@ -1773,6 +1773,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         dock_bottom.raise_()
         self._setup_dock_toggle(self._run_toggle_action, self._run_dock)
         self._run_panel.experiment_changed.connect(self._on_panel_experiment)
+        self._run_panel.system_config_changed.connect(
+            self._on_system_config_changed)
         self._run_panel.dependency_blocked.connect(self._on_panel_dependency)
         self._run_panel.cores_changed.connect(self._on_cores_changed)
         self._sync_cores_box()
@@ -2145,8 +2147,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             "Set Weak Link bands")
 
     def _on_system_config_changed(self, updates: dict) -> None:
-        """Apply Inspector Project Settings edits through the undoable
-        row writer, then refresh every dependent readout."""
+        """Apply Project Settings / Run panel SYSTEM_DATA edits through the
+        undoable row writer, then refresh every dependent readout."""
         if not updates or self._rbd is None:
             return
         sec = self._rbd.sections.get("SYSTEM_DATA")
