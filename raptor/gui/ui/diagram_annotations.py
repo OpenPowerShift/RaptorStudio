@@ -509,6 +509,15 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
             Qt.TextInteractionFlag.TextEditorInteraction)
         self.setCursor(Qt.CursorShape.IBeamCursor)
         self.setFocus()
+        self._announce_edit_state()
+
+    def _announce_edit_state(self) -> None:
+        """Tell the window Cut/Copy/Paste now mean text (or elements)."""
+        scene = self.scene()
+        for view in (scene.views() if scene is not None else []):
+            signal = getattr(view, "paste_state_changed", None)
+            if signal is not None:
+                signal.emit()
 
     def _finish_edit(self):
         """Leave edit mode exactly once, committing the text and restoring
@@ -523,6 +532,7 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
         self._text_editing = False
         self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self._announce_edit_state()
         self.prepareGeometryChange()   # re-measure after edits
         # don't leave a lingering selection inside the box
         c = self.textCursor()

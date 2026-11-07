@@ -109,6 +109,11 @@ def table_to_grid(table: Any, *, raw: bool = True,
     knew about cell widgets. Defaulting them on is what makes the remaining
     five paths correct rather than merely consistent.
     """
+    # A grid that builds its cell widgets on demand has to have built them
+    # all before they are read (`data_tables`, #146).
+    realize_all = getattr(table, "realize_all", None)
+    if realize_all is not None and cell_widgets:
+        realize_all()
     column_count = table.columnCount()
     headers = []
     for c in range(column_count):
