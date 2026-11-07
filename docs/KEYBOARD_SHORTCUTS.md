@@ -94,14 +94,31 @@ sessions.
 | Esc | Stop a running batch |
 
 ## Key tips
-Not every ribbon button has a shortcut letter. Press **Alt** to show the
-letters that do exist — **File (E)**, Open (O), Save (V), New (W),
-Copy View (Y), Project Settings (C), Issues (L), Run (R), Step (S),
-Next Time (N), Finish (F), Restart (X), Pause (A), Stop (P), Jump (J)
-and Animate (M) — then Alt + that letter to run it. A button with no
-letter keeps its plain label and is reached with its own shortcut (see
-above) or the mouse. Press Alt again (or any other key) to hide the
-tips. The **Run** panel is under View ▸ Panels ▸ Run Panel.
+Press **Alt** (and release) to put a letter over **File** and each ribbon
+tab, then press the tab's letter to open it and see a letter over each of
+its buttons, then the button's letter to run it, as in Office. So
+**Alt, R, S** is Results ▸ Show Results, and **Alt, M, B** is Model ▸ Add
+Block. You can also chord the first step: **Alt+R** goes straight to the
+Results letters.
+
+| Alt, then | Opens |
+|---|---|
+| F | File view |
+| M | Model |
+| A | Arrange |
+| D | Data |
+| S | Simulate |
+| B | Debug |
+| R | Results |
+| V | View |
+| H | Help |
+
+The button letters are shown over the buttons themselves (a button that
+has none, such as a box or combo, is reached with Tab or the mouse). A
+command that is unavailable right now says so in the status bar rather
+than doing nothing. **Backspace** goes back from a tab's letters to the
+tab letters; Alt again, Esc or any other key hides the tips. The **Run**
+panel is under View ▸ Panels ▸ Run Panel.
 
 ## Help
 | Shortcut | Action |

@@ -203,9 +203,10 @@ def test_save_works_on_a_model_never_saved(win, qapp, monkeypatch):
 
 def test_an_unsaved_model_says_so_in_the_title(win, qapp):
     win._new_file()
-    assert win.windowTitle().endswith("Untitled")
+    assert win.windowTitle().startswith("RAPTOR Studio — Untitled")
+    assert "Untitled*" not in win.windowTitle()
     win._mark_dirty()
-    assert win.windowTitle().endswith("Untitled*")
+    assert "Untitled*" in win.windowTitle()
 
 
 def test_undo_and_redo_follow_the_undo_stack_not_the_registry(win):

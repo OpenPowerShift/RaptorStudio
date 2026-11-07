@@ -17,9 +17,11 @@ from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
 
+from typing import Any
 from PySide6.QtCore import Qt, Signal, QTimer, QEvent
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
+    QApplication,
     QWidget, QVBoxLayout, QTabWidget, QTableWidget, QTableWidgetItem,
     QComboBox, QLabel, QHeaderView, QHBoxLayout, QPushButton,
 )
@@ -43,6 +45,20 @@ def _fmt_stat(val) -> str:
     return f"{val:.4g}"
 
 
+#: A grid with more rows than this builds its cell widgets (combos, entry
+#: fields) only for the rows on screen plus a margin, and the rest as they
+#: scroll into view (#146): a widget costs ~1 ms, a row has up to 9.
+_LAZY_ROWS = 60
+_LAZY_MARGIN = 12
+
+#: Columns every grid shares; a grid's own tip for the same name wins.
+_COMMON_COL_TIPS = {
+    "Name": "The element's name",
+    "ID": "The element's id, as the Explorer, the Inspector and exported "
+          "tables show it in brackets (read-only)",
+}
+
+
 class _DataTable(QTableWidget):
     """A grid that refuses a sort on a cell-widget column.
 
@@ -51,7 +67,8 @@ class _DataTable(QTableWidget):
     those headers as non-sortable.
     """
 
-    def sortItems(self, column: int, order: Qt.SortOrder) -> None:
+    def sortItems(self, column: int,
+                  order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
         if any(self.cellWidget(row, column) is not None
                for row in range(self.rowCount())):
             self.horizontalHeader().setSortIndicator(
@@ -350,6 +367,22 @@ class DataTablesDock(QWidget):
             self._triggers_table, self._phases_table,
             self._sparing_table, self._pm_table,
         ]
+        # Grids whose cell widgets are built on demand: table -> builder,
+        # and the row keys (block ids) still waiting for theirs.
+        self._lazy_builders = {
+            self._blocks_table: self._build_block_widgets,
+            self._sparing_table: self._build_sparing_widgets,
+        }
+        self._lazy_pending: dict[QTableWidget, set[int]] = {
+            t: set() for t in self._lazy_builders}
+        for lazy_table in self._lazy_builders:
+            lazy_table.verticalScrollBar().valueChanged.connect(
+                lambda _v, t=lazy_table: self._realize_visible(t))
+            lazy_table.viewport().installEventFilter(self)
+            # Anything that reads every row's widgets (CSV and table
+            # export) builds the rest first: see `table_export`.
+            lazy_table.realize_all = (    # type: ignore[attr-defined]
+                lambda t=lazy_table: self._realize_all(t))
         self._sort_choice: dict[QTableWidget, tuple[int, Qt.SortOrder]] = {}
         self._sort_restoring = False
         for table in self._all_tables:
@@ -359,6 +392,9 @@ class DataTablesDock(QWidget):
             table.horizontalHeader().sortIndicatorChanged.connect(
                 lambda *_a, t=table: QTimer.singleShot(
                     0, lambda t=t: self._sync_row_headers(t)))
+            table.horizontalHeader().sortIndicatorChanged.connect(
+                lambda *_a, t=table: QTimer.singleShot(
+                    0, lambda t=t: self._realize_visible(t)))
         self._tabs.currentChanged.connect(self._on_tab_changed)
 
         # Click a row -> jump to it on the canvas (entering its hierarchy
@@ -438,7 +474,7 @@ class DataTablesDock(QWidget):
             item = t.horizontalHeaderItem(col)
             if item is None:
                 continue
-            tip = (tips or {}).get(name)
+            tip = (tips or {}).get(name) or _COMMON_COL_TIPS.get(name)
             if tip:
                 item.setToolTip(tip)
             width = (wide_cols or {}).get(name)
@@ -713,6 +749,7 @@ class DataTablesDock(QWidget):
                     current.verticalScrollBar().setValue(keep_scroll)
                     break
         for table in fill:
+            self._realize_visible(table)        # the sort moved rows
             self._ensure_header_widths(table)
             self._sync_row_headers(table)
             self._update_empty_state(table)
@@ -748,9 +785,8 @@ class DataTablesDock(QWidget):
 
     def _update_empty_state(self, table: QTableWidget) -> None:
         """Explain an empty grid instead of showing a blank pane."""
-        labels = getattr(self, "_empty_labels", None)
-        if labels is None:
-            labels = self._empty_labels = {}
+        labels: dict[QTableWidget, QLabel] = self.__dict__.setdefault(
+            "_empty_labels", {})
         label = labels.get(table)
         if table.rowCount():
             if label is not None:
@@ -778,7 +814,14 @@ class DataTablesDock(QWidget):
         label.show()
 
     def eventFilter(self, watched, event):
-        """Keep each empty-state note the size of its table viewport."""
+        """Keep each empty-state note the size of its table viewport, and
+        build the widgets of rows a resize or first show uncovers."""
+        if event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            for table in self._lazy_builders:
+                if watched is table.viewport():
+                    QTimer.singleShot(
+                        0, lambda t=table: self._realize_visible(t))
+                    break
         if event.type() == QEvent.Type.Resize:
             for table, label in getattr(self, "_empty_labels", {}).items():
                 if watched is table.viewport():
@@ -829,31 +872,36 @@ class DataTablesDock(QWidget):
         model. Named from CONTENT (column header + the row's first-column
         text), not position, so the name stays right when the user sorts
         and the widgets end up on different rows."""
-        from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox,
-                                       QLineEdit, QSpinBox)
-        editors = (QLineEdit, QComboBox, QCheckBox, QSpinBox, QDoubleSpinBox)
-        inner_of = (QComboBox, QSpinBox, QDoubleSpinBox)
         tab = self._tabs.tabText(self._tabs.indexOf(table))
         if tab and not table.accessibleName():
             table.setAccessibleName(f"{tab} table")
         for r in range(table.rowCount()):
-            first = table.item(r, 0)
-            who = first.text() if first is not None and first.text() \
-                else f"row {r + 1}"
-            for c in range(table.columnCount()):
-                w = table.cellWidget(r, c)
-                if w is None:
-                    continue
-                head = table.horizontalHeaderItem(c)
-                col = head.text() if head is not None else f"column {c + 1}"
-                found = [w] if isinstance(w, editors) else []
-                for kind in editors:
-                    found += w.findChildren(kind)
-                for e in found:
-                    if isinstance(e.parent(), inner_of):
-                        continue          # a combo's / spin box's own edit
-                    if not e.accessibleName():
-                        e.setAccessibleName(f"{col}, {who}")
+            self._label_row_widgets(table, r)
+
+    def _label_row_widgets(self, table: QTableWidget, r: int) -> None:
+        """`_label_cell_widgets` for one row: its widgets are named from
+        the column header and the row's first-column text."""
+        from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox,
+                                       QLineEdit, QSpinBox)
+        editors = (QLineEdit, QComboBox, QCheckBox, QSpinBox, QDoubleSpinBox)
+        inner_of = (QComboBox, QSpinBox, QDoubleSpinBox)
+        first = table.item(r, 0)
+        who = first.text() if first is not None and first.text() \
+            else f"row {r + 1}"
+        for c in range(table.columnCount()):
+            w = table.cellWidget(r, c)
+            if w is None:
+                continue
+            head = table.horizontalHeaderItem(c)
+            col = head.text() if head is not None else f"column {c + 1}"
+            found = [w] if isinstance(w, editors) else []
+            for kind in editors:
+                found += w.findChildren(kind)
+            for e in found:
+                if isinstance(e.parent(), inner_of):
+                    continue          # a combo's / spin box's own edit
+                if not e.accessibleName():
+                    e.setAccessibleName(f"{col}, {who}")
 
     def _export_current_table_csv(self) -> None:
         """The currently visible grid tab (Blocks/Nodes/Events/Spare
@@ -896,7 +944,7 @@ class DataTablesDock(QWidget):
         model's time-units setting."""
         from raptor.core.distro_rules import DISTRO_NAMES as _DN
         base = 3 if which == "F" else 8
-        labels = self._PARAM_TIPS.get(distro)
+        labels: tuple[str, ...] | None = self._PARAM_TIPS.get(distro)
         units = getattr(self, "_display_unit", None) or \
             getattr(self, "_native_units", "") or ""
         base_labels = DISTRO_PARAM_LABELS.get(distro, ("", "", ""))
@@ -910,26 +958,103 @@ class DataTablesDock(QWidget):
         transformed = bool(param_entry.is_rate_field(distro, 0)
                            or param_entry.is_mu_sigma(distro))
         labels = entry_labels if transformed else labels
-        tips = ([f"{lbl} ({which.lower()} param)"
-                 if lbl else "" for lbl in labels]
+        side = "failure" if which == "F" else "repair"
+        tips = ([f"{lbl} ({side} parameter {i + 1})"
+                 if lbl else "" for i, lbl in enumerate(labels)]
                 if labels else ["", "", ""])
         for i in range(3):
             generic = (f"{which} parameter {i+1} of this block's "
                        f"{_DN.get(distro, '?')} distribution "
                        "(units follow the model's time setting)")
-            # The param cells are line edits in cell widgets, not items.
-            target = t.cellWidget(row, base + i) or t.item(row, base + i)
-            if target is None:
-                continue
-            target.setToolTip(tips[i] or generic)
+            self._set_cell_tip(t, row, base + i, tips[i] or generic)
+
+    # ------------------------------------------------------------------
+    # Cell widgets on demand (#146)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _row_key(t: QTableWidget, r: int) -> int | None:
+        """The block id of a row, read from its ID cell (rows move when the
+        grid is sorted; the ID cell moves with them)."""
+        item = t.item(r, 1)
+        try:
+            return int(item.text()) if item is not None else None
+        except ValueError:
+            return None
+
+    def _realize_initial(self, t: QTableWidget) -> None:
+        """After filling a grid: a small one builds everything, as it
+        always did; a large one only what is on screen."""
+        if t.rowCount() <= _LAZY_ROWS:
+            self._realize_rows(t, range(t.rowCount()))
+        else:
+            self._realize_visible(t)
+
+    def _realize_visible(self, t: QTableWidget) -> None:
+        """Build the widgets of the rows in view, plus a margin."""
+        from shiboken6 import isValid
+        # Deferred calls (sort, resize) can land after the grid is gone.
+        if not isValid(t) or not self._lazy_pending.get(t):
+            return
+        n = t.rowCount()
+        top = max(t.rowAt(0), 0)
+        bottom = t.rowAt(max(t.viewport().height() - 1, 0))
+        if bottom < 0:
+            bottom = n - 1
+        # Not yet laid out (hidden tab, first show): take a screenful.
+        bottom = max(bottom, top + 30)
+        self._realize_rows(t, range(max(top - _LAZY_MARGIN, 0),
+                                    min(bottom + _LAZY_MARGIN + 1, n)))
+
+    def _realize_all(self, t: QTableWidget) -> None:
+        """Every row: before anything that reads all the widgets (export)."""
+        if not self._lazy_pending.get(t):
+            return
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            self._realize_rows(t, range(t.rowCount()))
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _realize_rows(self, t: QTableWidget, rows) -> None:
+        from raptor.gui.ui import param_entry
+        pending = self._lazy_pending[t]
+        build = self._lazy_builders[t]
+        todo = []
+        for r in rows:
+            key = self._row_key(t, r)
+            if key in pending:
+                todo.append((r, key))
+        if not todo:
+            return
+        t.setUpdatesEnabled(False)
+        try:
+            with param_entry.cached_modes():
+                for r, key in todo:
+                    pending.discard(key)
+                    build(t, r, key)
+        finally:
+            t.setUpdatesEnabled(True)
 
     def _populate_blocks(self):
         t = self._blocks_table
         t.setUpdatesEnabled(False)
         t.setRowCount(0)
+        self._lazy_pending[t] = set()
         if self._view is None:
             t.setUpdatesEnabled(True)
             return
+        from raptor.gui.ui.units_conv import native_to_display
+        native_u = getattr(self, "_native_units", "") or ""
+        display_u = getattr(self, "_display_unit", None)
+
+        def stat_text(val):
+            if val is None or isinstance(val, str):
+                return _fmt_stat(val)
+            shown = native_to_display(val, native_u, display_u) \
+                if display_u else val
+            return _fmt_stat(shown)
+
         bids = sorted(self._view.blocks)
         t.setRowCount(len(bids))
         for r, bid in enumerate(bids):
@@ -941,35 +1066,8 @@ class DataTablesDock(QWidget):
             name_item = _SortItem(b.name)
             t.setItem(r, 0, name_item)
             name_item.setBackground(name_item.background())  # keep default
-            self._distro_cell(t, r, 2, b.fail_distro,
-                              lambda code, bid=bid: self._set_dist(bid, "F", code))
-            f_labels = DISTRO_PARAM_LABELS.get(b.fail_distro, ("", "", ""))
-            f_entry = self._entry_values(b.fail_distro, b.fail_values)
-            for i in range(3):
-                self._param_cell(
-                    t, r, 3 + i, b.fail_values[i],
-                    lambda v, bid=bid, i=i: self._set_param(bid, "F", i, v),
-                    is_time=_is_time_param(f_labels[i]),
-                    shown_value=f_entry[i],
-                    on_commit_entry=lambda v, bid=bid, i=i:
-                    self._set_param_entry(bid, "F", i, v))
             t.setItem(r, 6, self._ro(str(_NUM_PARAMS.get(b.fail_distro, "?"))))
-            self._distro_cell(t, r, 7, b.repair_distro,
-                              lambda code, bid=bid: self._set_dist(bid, "R", code),
-                              is_failure=False)
-            r_labels = DISTRO_PARAM_LABELS.get(b.repair_distro, ("", "", ""))
-            r_entry = self._entry_values(b.repair_distro, b.repair_values)
-            for i in range(3):
-                self._param_cell(
-                    t, r, 8 + i, b.repair_values[i],
-                    lambda v, bid=bid, i=i: self._set_param(bid, "R", i, v),
-                    is_time=_is_time_param(r_labels[i]),
-                    shown_value=r_entry[i],
-                    on_commit_entry=lambda v, bid=bid, i=i:
-                    self._set_param_entry(bid, "R", i, v))
             t.setItem(r, 11, self._ro(str(_NUM_PARAMS.get(b.repair_distro, "?"))))
-            self._param_cell(t, r, 12, b.pm_freq,
-                             lambda v, bid=bid: self._set_pm(bid, v))
             # Computed Mean/Std Dev, the same maths the Inspector shows
             # under each distribution's param row. `compute_stats`
             # returns a bare None (not a 2-tuple) for an invalid or
@@ -982,24 +1080,51 @@ class DataTablesDock(QWidget):
             fmean, fsd = fail_stats if fail_stats is not None else (None, None)
             rmean, rsd = repair_stats if repair_stats is not None \
                 else (None, None)
-            from raptor.gui.ui.units_conv import native_to_display
-            native_u = getattr(self, "_native_units", "") or ""
-            display_u = getattr(self, "_display_unit", None)
-
-            def stat_text(val, native_u=native_u, display_u=display_u):
-                if val is None or isinstance(val, str):
-                    return _fmt_stat(val)
-                shown = native_to_display(val, native_u, display_u) \
-                    if display_u else val
-                return _fmt_stat(shown)
-
             for col, val in ((13, fmean), (14, fsd), (15, rmean), (16, rsd)):
                 t.setItem(r, col, self._ro(stat_text(val)))
-            # After the cells exist: the tips go on the param items.
-            self._apply_param_tips(t, r, b.fail_distro, "F")
-            self._apply_param_tips(t, r, b.repair_distro, "R")
-            self._tag_row_with_name(t, r, b.name)
+        self._lazy_pending[t] = set(bids)
         t.setUpdatesEnabled(True)
+        self._realize_initial(t)
+
+    def _build_block_widgets(self, t, r: int, bid: int) -> None:
+        """The cell widgets of one Blocks row (distribution combos and
+        parameter fields), their hover text and their accessible names."""
+        b = req(self._view).blocks.get(bid)
+        if b is None:
+            return
+        self._distro_cell(t, r, 2, b.fail_distro,
+                          lambda code, bid=bid: self._set_dist(bid, "F", code))
+        f_labels = DISTRO_PARAM_LABELS.get(b.fail_distro, ("", "", ""))
+        f_entry = self._entry_values(b.fail_distro, b.fail_values)
+        for i in range(3):
+            self._param_cell(
+                t, r, 3 + i, b.fail_values[i],
+                lambda v, bid=bid, i=i: self._set_param(bid, "F", i, v),
+                is_time=_is_time_param(f_labels[i]),
+                shown_value=f_entry[i],
+                on_commit_entry=lambda v, bid=bid, i=i:
+                self._set_param_entry(bid, "F", i, v))
+        self._distro_cell(t, r, 7, b.repair_distro,
+                          lambda code, bid=bid: self._set_dist(bid, "R", code),
+                          is_failure=False)
+        r_labels = DISTRO_PARAM_LABELS.get(b.repair_distro, ("", "", ""))
+        r_entry = self._entry_values(b.repair_distro, b.repair_values)
+        for i in range(3):
+            self._param_cell(
+                t, r, 8 + i, b.repair_values[i],
+                lambda v, bid=bid, i=i: self._set_param(bid, "R", i, v),
+                is_time=_is_time_param(r_labels[i]),
+                shown_value=r_entry[i],
+                on_commit_entry=lambda v, bid=bid, i=i:
+                self._set_param_entry(bid, "R", i, v))
+        self._param_cell(t, r, 12, b.pm_freq,
+                         lambda v, bid=bid: self._set_pm(bid, v))
+        # After the cells exist: the parameter cells are widgets, so the
+        # per-distribution meaning has to be set on them, not on items.
+        self._apply_param_tips(t, r, b.fail_distro, "F")
+        self._apply_param_tips(t, r, b.repair_distro, "R")
+        self._tag_row_with_name(t, r, b.name)
+        self._label_row_widgets(t, r)
 
     def _populate_nodes(self):
         t = self._nodes_table
@@ -1049,17 +1174,45 @@ class DataTablesDock(QWidget):
         menu.exec(table.viewport().mapToGlobal(pos))
 
     @staticmethod
-    def _tag_row_with_name(t: QTableWidget, row: int, name: str) -> None:
+    def _set_cell_tip(t: QTableWidget, row: int, col: int, text: str) -> None:
+        """Hover text for one cell, whether it is an item or a cell widget.
+
+        A cell widget (distribution combo, parameter and PM fields) sits on
+        top of its cell, so the hover reaches the widget and never the item
+        beneath: the text has to be on the widget and the field inside it."""
+        item = t.item(row, col)
+        if item is not None:
+            item.setToolTip(text)
+        widget = t.cellWidget(row, col)
+        if widget is not None:
+            for target in (widget, *widget.findChildren(QWidget)):
+                target.setToolTip(text)
+
+    @staticmethod
+    def _cell_tip(t: QTableWidget, row: int, col: int, *,
+                  header: bool = True) -> str:
+        """The tip a cell has now: its own, else (`header`) its column's."""
+        item = t.item(row, col)
+        widget = t.cellWidget(row, col)
+        own = item.toolTip() if item is not None else (
+            widget.toolTip() if widget is not None else "")
+        if own or not header:
+            return own
+        head = t.horizontalHeaderItem(col)
+        return head.toolTip() if head is not None else ""
+
+    @classmethod
+    def _tag_row_with_name(cls, t: QTableWidget, row: int, name: str) -> None:
         """Prefix every cell's tooltip in this row with the element's
         name, so hovering any cell tells you which block/node it belongs
-        to, not just column 0 -- easy to lose track once you have
-        scrolled past the Name column."""
+        to -- easy to lose track once you have scrolled past the Name
+        column -- followed by what the cell means: its own tip (a
+        parameter's meaning for this row's distribution) or else its
+        column's. Widget cells included."""
         for col in range(t.columnCount()):
-            item = t.item(row, col)
-            if item is None:
-                continue
-            existing = item.toolTip()
-            item.setToolTip(f"{name}\n{existing}" if existing else name)
+            meaning = cls._cell_tip(t, row, col)
+            cls._set_cell_tip(t, row, col,
+                              f"{name}\n{meaning}" if meaning else name)
 
     @staticmethod
     def _ro(text: str) -> QTableWidgetItem:
@@ -1111,7 +1264,8 @@ class DataTablesDock(QWidget):
         edit = QLineEdit(f"{shown0:.6g}")
         edit.setValidator(QDoubleValidator())
         edit.setFrame(False)
-        committed = {"v": shown0 if on_commit_entry is not None else value}
+        committed: dict[str, Any] = {
+            "v": shown0 if on_commit_entry is not None else value}
 
         def commit():
             try:
@@ -1257,15 +1411,10 @@ class DataTablesDock(QWidget):
         t = self._sparing_table
         t.setUpdatesEnabled(False)
         t.setRowCount(0)
+        self._lazy_pending[t] = set()
         if self._view is None:
             t.setUpdatesEnabled(True)
             return
-        from PySide6.QtWidgets import QLineEdit
-        from raptor.core.fileio.typed import (
-            _SPARING_TYPE_BY_NAME, SPARING_TYPE_TO_FILE_STRING)
-        from raptor.gui.ui.units_conv import native_to_display, display_to_native
-        native_u = getattr(self, "_native_units", "") or ""
-        display_u = getattr(self, "_display_unit", None)
         bids = sorted(self._view.blocks)
         t.setRowCount(len(bids))
         for r, bid in enumerate(bids):
@@ -1276,69 +1425,83 @@ class DataTablesDock(QWidget):
             id_item = _SortItem(str(bid))
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             t.setItem(r, 1, id_item)
-
-            combo = QComboBox()
-            # Only the 4 sparing types a file can carry; ColdPool/Resource
-            # strings load as None, so they are not offered.
-            current_file_string = SPARING_TYPE_TO_FILE_STRING.get(
-                b.sparing_type, "None")
-            offered = ["None", "Infinite", "Custom", "Pooled"]
-            if current_file_string not in offered:
-                # Show an unexpected stored value accurately rather
-                # than silently mislabeling the cell as "None".
-                offered.append(current_file_string)
-            for file_string in offered:
-                combo.addItem(file_string, file_string)
-            idx = combo.findData(current_file_string)
-            combo.setCurrentIndex(max(idx, 0))
-
-            def commit_sparing(file_string, bid=bid, cmb=combo):
-                req(self._view).set_block_sparing_type(
-                    bid, _SPARING_TYPE_BY_NAME[file_string].name)
-                self.model_edited.emit()
-            combo.currentIndexChanged.connect(
-                lambda _i, cmb=combo, cb=commit_sparing:
-                cb(cmb.currentData()))
-            t.setCellWidget(r, 2, combo)
-
-            self._text_cell(
-                t, r, 3, b.pool_name,
-                lambda text, bid=bid: (
-                    self._view.set_block_pool_name(bid, text) or True))
-            self._text_cell(
-                t, r, 4, b.resource_pool_name,
-                lambda text, bid=bid: (
-                    self._view.set_block_resource_pool(bid, text) or True))
-
-            def commit_new_spares(bid=bid, row=r):
-                cw_c = t.cellWidget(row, 5)
-                cw_i = t.cellWidget(row, 6)
-                if cw_c is None or cw_i is None:
-                    return
-                c_edit = cw_c.findChild(QLineEdit)
-                i_edit = cw_i.findChild(QLineEdit)
-                try:
-                    count = int(req(c_edit).text().strip())
-                    interval = float(req(i_edit).text().strip())
-                except ValueError:
-                    return
-                if display_u:
-                    interval = display_to_native(
-                        interval, native_u, display_u)
-                req(self._view).set_block_new_spares(bid, count, interval)
-                self.model_edited.emit()
-
-            self._text_cell(t, r, 5, str(int(b.new_spares)),
-                            lambda text, cb=commit_new_spares:
-                            (cb() or True))
-            shown_interval = (native_to_display(
-                b.new_spares_arrival, native_u, display_u)
-                if display_u else b.new_spares_arrival)
-            self._text_cell(t, r, 6, f"{shown_interval:.6g}",
-                            lambda text, cb=commit_new_spares:
-                            (cb() or True))
-            self._tag_row_with_name(t, r, b.name)
+        self._lazy_pending[t] = set(bids)
         t.setUpdatesEnabled(True)
+        self._realize_initial(t)
+
+    def _build_sparing_widgets(self, t, r: int, bid: int) -> None:
+        """The cell widgets of one Sparing row, their hover text and names."""
+        b = req(self._view).blocks.get(bid)
+        if b is None:
+            return
+        from PySide6.QtWidgets import QLineEdit
+        from raptor.core.fileio.typed import (
+            _SPARING_TYPE_BY_NAME, SPARING_TYPE_TO_FILE_STRING)
+        from raptor.gui.ui.units_conv import native_to_display, display_to_native
+        native_u = getattr(self, "_native_units", "") or ""
+        display_u = getattr(self, "_display_unit", None)
+        combo = QComboBox()
+        # Only the 4 sparing types a file can carry; ColdPool/Resource
+        # strings load as None, so they are not offered.
+        current_file_string = SPARING_TYPE_TO_FILE_STRING.get(
+            b.sparing_type, "None")
+        offered = ["None", "Infinite", "Custom", "Pooled"]
+        if current_file_string not in offered:
+            # Show an unexpected stored value accurately rather
+            # than silently mislabeling the cell as "None".
+            offered.append(current_file_string)
+        for file_string in offered:
+            combo.addItem(file_string, file_string)
+        idx = combo.findData(current_file_string)
+        combo.setCurrentIndex(max(idx, 0))
+
+        def commit_sparing(file_string, bid=bid, cmb=combo):
+            req(self._view).set_block_sparing_type(
+                bid, _SPARING_TYPE_BY_NAME[file_string].name)
+            self.model_edited.emit()
+        combo.currentIndexChanged.connect(
+            lambda _i, cmb=combo, cb=commit_sparing:
+            cb(cmb.currentData()))
+        t.setCellWidget(r, 2, combo)
+
+        self._text_cell(
+            t, r, 3, b.pool_name,
+            lambda text, bid=bid: (
+                req(self._view).set_block_pool_name(bid, text) or True))
+        self._text_cell(
+            t, r, 4, b.resource_pool_name,
+            lambda text, bid=bid: (
+                req(self._view).set_block_resource_pool(bid, text) or True))
+
+        def commit_new_spares(bid=bid, row=r):
+            cw_c = t.cellWidget(row, 5)
+            cw_i = t.cellWidget(row, 6)
+            if cw_c is None or cw_i is None:
+                return
+            c_edit = cw_c.findChild(QLineEdit)
+            i_edit = cw_i.findChild(QLineEdit)
+            try:
+                count = int(req(c_edit).text().strip())
+                interval = float(req(i_edit).text().strip())
+            except ValueError:
+                return
+            if display_u:
+                interval = display_to_native(
+                    interval, native_u, display_u)
+            req(self._view).set_block_new_spares(bid, count, interval)
+            self.model_edited.emit()
+
+        self._text_cell(t, r, 5, str(int(b.new_spares)),
+                        lambda text, cb=commit_new_spares:
+                        (cb() or True))
+        shown_interval = (native_to_display(
+            b.new_spares_arrival, native_u, display_u)
+            if display_u else b.new_spares_arrival)
+        self._text_cell(t, r, 6, f"{shown_interval:.6g}",
+                        lambda text, cb=commit_new_spares:
+                        (cb() or True))
+        self._tag_row_with_name(t, r, b.name)
+        self._label_row_widgets(t, r)
 
     def _populate_pm(self):
         """Preventive Maintenance tab: "only the
@@ -1466,6 +1629,23 @@ class DataTablesDock(QWidget):
                             if sentence:
                                 item2.setToolTip(sentence)
                     table.setItem(row_idx, ci, item2)
+                # Hover meaning for the cells that have none yet: a
+                # Param's meaning for THIS row's distribution, else the
+                # column's own. (Widget cells included.)
+                dname = DISTRO_NAMES.get(dist_code or 0, "?")
+                for ci, col in enumerate(sec.columns):
+                    if self._cell_tip(table, row_idx, ci, header=False):
+                        continue            # the pool-name sentence, etc.
+                    if col in ("Param1", "Param2", "Param3") \
+                            and dist_code is not None:
+                        label = plabels[int(col[-1]) - 1]
+                        tip = (f"{label} of this row's {dname} distribution"
+                               if label else
+                               f"Not used by this row's {dname} distribution")
+                    else:
+                        tip = self._cell_tip(table, row_idx, ci)
+                    if tip:
+                        self._set_cell_tip(table, row_idx, ci, tip)
         # Readability: generous first column, content-sized rest.
         table.resizeColumnsToContents()
         if table.columnCount() > 0:
@@ -1650,7 +1830,7 @@ class DataTablesDock(QWidget):
         try:
             self._view.set_keyed_cell(section_name, key_col, target_key,
                                       col, value)
-            if seeded is not None:
+            if seeded is not None and row is not None:
                 for i, pv in enumerate(seeded, start=1):
                     if row.get(f"Param{i}") != f"{pv:.6f}":
                         self._view.set_keyed_cell(
