@@ -56,7 +56,7 @@ def test_builds_an_action_and_stores_it_under_its_attr(qapp):
         shortcut="Ctrl+O", checkable=True, checked=True))
     a = w._open_action
     assert a is reg.action("t.open")
-    assert (a.text(), a.toolTip()) == ("Open", "Open it")
+    assert (a.text(), a.toolTip()) == ("Open", "Open it (Ctrl+O)")  # the shortcut is named
     assert a.shortcut().toString() == "Ctrl+O"
     assert a.isCheckable() and a.isChecked()
 

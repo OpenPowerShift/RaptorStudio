@@ -368,8 +368,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: QSettings by MainWindow; empty means "factory look".
         self.default_annotation_props: dict[str, dict] = {}
         self._paste_buffer: list = []
-        self._model_token = clipboard_payload.new_model_token()
         self._defer_block_refresh = False   # True while a batch is inserted
+        self._model_token = clipboard_payload.new_model_token()
         self._connect_ghost: QGraphicsLineItem | None = None
         self._anno_drag_start: QPointF | None = None
         self._connect_from: tuple[str, int] | None = None
