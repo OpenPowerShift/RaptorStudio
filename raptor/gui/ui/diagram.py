@@ -705,10 +705,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     # open, and consistent across level switches (no per-level fit).
     LEGACY_SCALE = view_transform.LEGACY_SCALE
 
-    def _compute_model_transform(self, rbd: RbdFile):
+    def _compute_model_transform(self, rbd: RbdFile, spacing: float = 1.0,
+                                 band_aware: bool = False):
         """Whole-model origin/flip/scale, computed once per load and then
         frozen on the file (see `raptor.core.fileio.view_transform`)."""
-        vt = view_transform.ensure(rbd)
+        vt = view_transform.ensure(rbd, spacing, band_aware)
         self._vt = vt
         self._origin_x = vt.origin_x
         self._flip_base = vt.flip_base
@@ -1455,6 +1456,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                   len(self._event_items), len(self._hier_items),
                   len(self._links))
         self._apply_scene_layout()
+        self._remember_render_extents()
         log.debug("_rebuild_scene: _apply_scene_layout done")
         self._apply_tool_cursor()       # the new items show the armed tool
 
@@ -3144,6 +3146,25 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._label_phase = phase
         self.refresh_block_labels()
 
+    def _remember_render_extents(self) -> None:
+        """Record how wide this level's elements are drawn, for the
+        file-wide scale `view_transform.derive` picks after an Auto Layout."""
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        seen = getattr(rbd, "_render_extents", None)
+        if not isinstance(seen, dict):
+            seen = {}
+            rbd._render_extents = seen  # type: ignore[attr-defined]
+        for section, table in (("BLOCK_DATA", self._block_items),
+                               ("NODE_DATA", self._node_items),
+                               ("HIERARCHY_DATA",
+                                getattr(self, "_hier_items", {}))):
+            for oid, item in cast("dict[int, Any]", table).items():
+                rect = item.sceneBoundingRect()
+                seen[(section, str(oid))] = (rect.width() / 2.0,
+                                             rect.height() / 2.0)
+
     def reroute_links(self) -> None:
         """Redraw every link (after the routing style changes). Layout only:
         no element moves and the model is not marked changed."""
@@ -3178,14 +3199,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # against the old width and would now sit inside the block.
             if item.rect().width() != width:
                 resized.append(item)
-        if resized and not self._loading:
+        if resized:
+            # Also while a level is still being built: the deferred
+            # sub-labels are applied at the end of `_rebuild_scene`, after
+            # the links were routed against the unlabelled 108 px boxes.
+            # Skipping this then left every route 2 px off its port, so
+            # the next re-route (a link-style change) moved them.
             self._clear_route_caches()
             affected: dict[int, Any] = {}
             for item in resized:
                 for link in links_affected_by_moving(item):
                     affected[id(link)] = link
-            for link in affected.values():
-                link._update_route()
+            with routing_batch(self._scene):
+                for link in affected.values():
+                    link._update_route()
 
     def _block_row_by_id(self, bid: int):
         return self._editor.block_row(bid)
@@ -6471,7 +6498,18 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # empty canvas armed the band under an item drag, so every
             # element the dragged one passed over was selected and dragged
             # along (outside the gesture's undo record).
-            owner = hit.topLevelItem() if hit is not None else None
+            # The nearest movable item at or above the one pressed: a
+            # block's label is a child of the (movable) block, and a routing
+            # point on a link is movable itself though its parent link is
+            # not. Taking the top-level item made a grip drag arm the band,
+            # which selected whatever the grip passed over, and Qt then
+            # dragged those along with it.
+            owner = hit
+            while (owner is not None and not owner.flags()
+                   & QGraphicsItem.GraphicsItemFlag.ItemIsMovable):
+                owner = owner.parentItem()
+            if owner is None and hit is not None:
+                owner = hit.topLevelItem()
             self._band_anchor = (
                 None if (owner is not None
                          and owner.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
@@ -7788,6 +7826,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return 0
         return max(self.blocks)
 
+    def add_blocks_from_templates(self, rows: list[dict],
+                                  centre: QPointF) -> list[int]:
+        """Insert several library templates as new blocks, laid out in a
+        grid (at most four across) around the scene point `centre`, as one
+        undo step. Returns the new block ids."""
+        across = min(len(rows), 4)
+        step_x, step_y = BLOCK_W + 40.0, BLOCK_H + 30.0
+        down = -(-len(rows) // across) if rows else 0
+        ids: list[int] = []
+        self._stack.beginMacro(f"Add {len(rows)} blocks")
+        try:
+            for i, row in enumerate(rows):
+                col, line = i % across, i // across
+                at = QPointF(
+                    centre.x() + (col - (across - 1) / 2.0) * step_x,
+                    centre.y() + (line - (down - 1) / 2.0) * step_y)
+                bid = self.add_block_from_template(
+                    row, at_model=self.scene_to_model(at))
+                if bid:
+                    ids.append(bid)
+        finally:
+            self._stack.endMacro()
+        return ids
+
     def update_blocks_from_library(self, templates: list[dict]) -> int:
         """Overwrite the F/R distribution+param+stream columns of every
         block whose name matches a template (Raptor 7's monthly data
@@ -8121,8 +8183,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # Exact drawn extents for this layout. `view_transform.derive`
             # uses them for the scale; without this it would reserve the
             # fixed 108 px block and let a 216 px name overlap.
-            rbd._render_extents = render_extents  # type: ignore[attr-defined]
-            self._compute_model_transform(rbd)
+            # Merged with the other levels' extents seen so far: the scale
+            # is file-wide, so a level laid out later must not forget how
+            # wide the rest are drawn, or its scale (and every level's
+            # spacing with it) would depend on which level was laid out last.
+            rbd._render_extents = {  # type: ignore[attr-defined]
+                **getattr(rbd, "_render_extents", {}), **render_extents}
+            self._compute_model_transform(rbd, spacing, band_aware=True)
             # Annotations go with the diagram: anchored ones next to their
             # element again, the others at the same place in the model.
             from raptor.api.annotations import (

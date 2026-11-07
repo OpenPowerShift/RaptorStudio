@@ -16,7 +16,7 @@ from PySide6.QtGui import (QColor, QFont, QFontMetrics, QIcon, QPainter,
 import itertools
 
 _SIZE = 48
-_cache: dict[tuple[str, str], QIcon] = {}
+_cache: dict[tuple[str, str, str], QIcon] = {}
 
 
 def _painter(pm: QPixmap) -> QPainter:
