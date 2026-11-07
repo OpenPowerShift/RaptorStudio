@@ -52,7 +52,7 @@ def test_add_block_from_template_undoable(qapp):
     blk = v.blocks[bid]
     assert blk.name == "HighGain"
     assert blk.fail_distro == int(t0["row"]["FDist"])
-    assert blk.fail_stream == int(t0["row"]["FStream"])
+    assert "FStream" not in t0["row"]       # an .rbl has no streams (#147)
     v._stack.undo()
     assert len(v.blocks) == n0
 
