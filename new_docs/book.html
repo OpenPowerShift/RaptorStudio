@@ -6408,13 +6408,14 @@ the GUI starts as "share everything evenly".</p>
 <div class="sect2">
 <h3 id="_open_the_model_4">15.5. Open the model</h3>
 <div class="paragraph">
-<p>Load <code>models/Water1.rbds</code>. In <strong>Model → Project Settings</strong> notice
-two settings that were never there before:</p>
+<p>Load <code>models/Water1.rbds</code>. In the <strong>Run</strong> panel, tick <strong>Capacity</strong> under
+Analysis and look at the two settings that make it work:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>Flow generated: 180</strong> — the demand, offered at the start every hour.</p>
+<p><strong>Flow generated: 180</strong> — the demand, offered at the start every hour
+(in the same Analysis section).</p>
 </li>
 <li>
 <p><strong>Capacity analysis: checked</strong> — tells the engine to track flow,
@@ -6714,12 +6715,9 @@ the arithmetic.</p>
 <div class="sect2">
 <h3 id="_three_places_money_lives">16.4. Three places money lives</h3>
 <div class="paragraph">
-<p>Open <code>models/Water2.rbds</code> and choose <strong>Model → Project Settings</strong>:</p>
-</div>
-<div class="imageblock">
-<div class="content">
-<img src="images/water2-sysconfig.png" alt="Project Settings: cost fields for the water utility">
-</div>
+<p>Open <code>models/Water2.rbds</code> and open the <strong>Run</strong> panel. With <strong>Cost</strong> on
+(and <strong>Capacity</strong> on as well, for the lost-flow price), the Analysis
+section carries the two system costs:</p>
 </div>
 <div class="paragraph">
 <p>Money is configured in three places:</p>

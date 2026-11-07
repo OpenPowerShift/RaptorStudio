@@ -132,7 +132,8 @@ engine reports, as an equation, one page.</p>
 Project Settings entry in Model Explorer). It is not a modal: the page
 stays open beside the canvas. Run settings are edited in the Run panel;
 the Inspector shows read-only echoes for those fields. Model-wide fields
-(units, flow generated, costs, flags) are edited here.</p>
+(units and flags) are edited here. Flow generated and the system costs
+live in the Run panel, beside the Capacity and Cost analyses they feed.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -172,21 +173,6 @@ the Inspector shows read-only echoes for those fields. Model-wide fields
 <td class="tableblock halign-left valign-top"><p class="tableblock">Number of runs</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Read-only echo of trials per simulation</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Edit in the Run panel; more runs give tighter SEMs (<a href="../new_docs/book.html#ch-trials">Many Trials</a>)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Flow generated</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Demand offered at the Start node each hour</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../new_docs/book.html#ch-capacity">Capacity analysis</a></p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">System red cost</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Cost per hour the system is fully down</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../new_docs/book.html#ch-cost">Cost analysis</a></p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Cost of lost flow</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Price per unit of unmet demand</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Billed against capacity shortfall</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Green/Yellow threshold</p></td>
@@ -1152,7 +1138,9 @@ greyed, with the reason, while Animate is on or a run is going.</p></td>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Analysis</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Weak Link, Cost and Capacity. Each is a switch with its purpose
-written beside it.</p></td>
+written beside it. Flow generated appears here once Capacity is on; the
+system red cost is always editable, and the cost of lost flow appears
+once both Capacity and Cost are on.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Recording</p></td>

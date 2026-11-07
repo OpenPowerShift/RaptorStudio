@@ -34,9 +34,9 @@ the arithmetic.
 
 === Three places money lives
 
-Open `models/Water2.rbds` and choose **Model → Project Settings**:
-
-image::water2-sysconfig.png[Project Settings: cost fields for the water utility]
+Open `models/Water2.rbds` and open the **Run** panel. With **Cost** on
+(and **Capacity** on as well, for the lost-flow price), the Analysis
+section carries the two system costs:
 
 Money is configured in three places:
 

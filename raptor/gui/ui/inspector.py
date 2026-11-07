@@ -4078,10 +4078,6 @@ class InspectorDock(QWidget):
             lambda on: self.system_config_changed.emit(
                 {"IgnoreStartFail": "1" if on else "0"}))
         fl.addRow(startfail_cb)
-        self._int_row(
-            fl, "Flow generated", int(cfg.flow_generated),
-            lambda v: self.system_config_changed.emit(
-                {"flowGenerated": str(v)}), minimum=0)
         neg_cb = QCheckBox("Ignore negative-value warning")
         neg_cb.setAccessibleName("Ignore negative-value warning")
         neg_cb.setChecked(bool(cfg.show_neg_err_msg))
@@ -4089,16 +4085,6 @@ class InspectorDock(QWidget):
             lambda on: self.system_config_changed.emit(
                 {"ShowNegErrMsg": "1" if on else "0"}))
         fl.addRow(neg_cb)
-
-        _gb, fl = self._group("System Costs", layout)
-        self._float_row(
-            fl, "System red cost", cfg.system_red_cost,
-            lambda v: self.system_config_changed.emit(
-                {"systemRedCost": f"{v:.6f}"}))
-        self._float_row(
-            fl, "Cost of lost flow", cfg.lost_flow_unit_cost,
-            lambda v: self.system_config_changed.emit(
-                {"sysLostCost": f"{v:.6f}"}))
 
         self._restore_tab()
 

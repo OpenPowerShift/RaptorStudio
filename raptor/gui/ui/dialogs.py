@@ -934,11 +934,6 @@ def show_system_config(win):
     num_runs = QSpinBox()
     num_runs.setRange(1, 1_000_000)
     num_runs.setValue(cfg.num_runs)
-    flow_gen = QSpinBox()
-    flow_gen.setRange(0, 1_000_000_000)
-    flow_gen.setValue(int(cfg.flow_generated))
-    red_cost = fspin(cfg.system_red_cost)
-    lost_cost = fspin(cfg.lost_flow_unit_cost)
     gy = fspin(cfg.gy_threshold)
     yr = fspin(cfg.yr_threshold)
     # Original ranges (Raptor 7's own validation): GY in 0.01..1.0,
@@ -952,9 +947,6 @@ def show_system_config(win):
     form.addRow(f"Statistics start time ({shown_units}):" if shown_units
                else "Statistics start time:", start_stats)
     form.addRow("Number of runs:", num_runs)
-    form.addRow("Flow generated:", flow_gen)
-    form.addRow("System red cost:", red_cost)
-    form.addRow("Cost of lost flow:", lost_cost)
     form.addRow("Green/Yellow threshold:", gy)
     form.addRow("Yellow/Red threshold:", yr)
 
@@ -1057,9 +1049,6 @@ def show_system_config(win):
         ("TermCondition", f"{term_cond.value():.6f}"),
         ("StartStats", f"{display_to_native(start_stats.value(), native_units, display_unit):.6f}"),
         ("NumRuns", str(num_runs.value())),
-        ("flowGenerated", str(flow_gen.value())),
-        ("systemRedCost", f"{red_cost.value():.6f}"),
-        ("sysLostCost", f"{lost_cost.value():.6f}"),
         ("GYthreshold", f"{gy.value():.6f}"),
         ("YRthreshold", f"{yr.value():.6f}"),
         ("weakAnalysis", "1" if checks["weak_analysis"][0].isChecked()

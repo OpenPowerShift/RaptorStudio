@@ -44,6 +44,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.core import run_experiment as rx
+from raptor.core.model import SystemConfig
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 
 
@@ -56,6 +57,11 @@ class RunPanel(QWidget):
     column mirror all stay in one place)."""
 
     experiment_changed = Signal(dict)
+    #: A model-level system value edited here (flowGenerated/systemRedCost/
+    #: sysLostCost). Kept separate from `experiment_changed`: these are
+    #: SYSTEM_DATA columns, not experiment fields, even though the panel
+    #: is where they are now edited.
+    system_config_changed = Signal(dict)
     #: Emitted when a dependent plot is requested without its analysis.
     dependency_blocked = Signal(str, str)   # (plot key, analysis label)
     #: The Cores field changed. Not part of the experiment: how many cores
@@ -72,6 +78,13 @@ class RunPanel(QWidget):
         self._exp = rx.defaults()
         self._loading = False
         self._enabled = True
+        # Mirrors of the SYSTEM_DATA cells shown in this panel. Kept here
+        # (not in `_exp`) so the experiment stays a run-settings object;
+        # MainWindow remains the writer of the row.
+        self._flow_generated = 0
+        self._system_red_cost = 0.0
+        self._lost_flow_unit_cost = 0.0
+        self._system_rows_visible: tuple[bool, bool] | None = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(SPACING["sm"], SPACING["sm"],
@@ -338,7 +351,51 @@ class RunPanel(QWidget):
                        Qt.AlignmentFlag.AlignLeft)
         self._importance_blocks = 0
         self._sync_importance_rows()
+
+        # --- system flow/cost values ----------------------------------
+        # These were Project Settings fields. They are run-wide model
+        # values (SYSTEM_DATA) but belong beside the analyses that spend
+        # them: flow generated is the demand Capacity distributes, the
+        # red cost prices failed time, and the lost-flow cost only means
+        # anything when capacity is tracked too.
+        self._system_form = QFormLayout()
+        self._system_form.setContentsMargins(0, 4, 0, 0)
+        self._flow_gen = QSpinBox()
+        self._flow_gen.setRange(0, 1_000_000_000)
+        self._flow_gen.setValue(int(self._flow_generated))
+        self._flow_gen.setAccessibleName("Flow generated")
+        self._flow_gen.setToolTip(
+            "Demand offered at the Start node each time unit; the "
+            "capacity analysis distributes it across the network.")
+        self._flow_gen.editingFinished.connect(self._on_flow_generated)
+        self._system_form.addRow("Flow generated:", self._flow_gen)
+        self._system_red_cost_field = self._cost_field(
+            "System red cost", self._system_red_cost,
+            self._on_system_red_cost,
+            "Cost per time unit while the whole system is down.")
+        self._system_form.addRow("System red cost:",
+                                 self._system_red_cost_field)
+        self._lost_flow_cost_field = self._cost_field(
+            "Cost of lost flow", self._lost_flow_unit_cost,
+            self._on_lost_flow_cost,
+            "Price per unit of demand the capacity analysis cannot "
+            "deliver. Needs Capacity and Cost.")
+        self._system_form.addRow("Cost of lost flow:",
+                                 self._lost_flow_cost_field)
+        outer.addLayout(self._system_form)
         return box
+
+    def _cost_field(self, name: str, value: float, on_commit,
+                    tooltip: str) -> QDoubleSpinBox:
+        """A compact cost field with the dialog's old numeric range."""
+        spin = QDoubleSpinBox()
+        spin.setDecimals(6)
+        spin.setRange(-1e15, 1e15)
+        spin.setValue(float(value))
+        spin.setAccessibleName(name)
+        spin.setToolTip(tooltip)
+        spin.editingFinished.connect(on_commit)
+        return spin
 
     def _sync_importance_rows(self) -> None:
         """Show/hide the mode picker and state the cost for this model."""
@@ -506,6 +563,9 @@ class RunPanel(QWidget):
             (self._start_stats, "Statistics start time"),
             (self._ao_interval, "Availability plot sample interval"),
             (self._cost_interval, "Interim cost sample interval"),
+            (self._flow_gen, "Flow generated"),
+            (self._system_red_cost_field, "System red cost"),
+            (self._lost_flow_cost_field, "Cost of lost flow"),
         )
         for w, name in pairs:
             w.setAccessibleName(name)
@@ -646,6 +706,28 @@ class RunPanel(QWidget):
         self.set_enabled(enabled)
         self._refresh()
 
+    def set_system_config(self, cfg: SystemConfig | None) -> None:
+        """Show the model's system values without emitting edits back.
+
+        `None` (no model open) resets the three fields to their neutral
+        defaults. Called by MainWindow after every row/undo sync, so the
+        panel and the model cannot drift apart.
+        """
+        self._loading = True
+        try:
+            self._flow_generated = int(
+                getattr(cfg, "flow_generated", 0) or 0)
+            self._system_red_cost = float(
+                getattr(cfg, "system_red_cost", 0.0) or 0.0)
+            self._lost_flow_unit_cost = float(
+                getattr(cfg, "lost_flow_unit_cost", 0.0) or 0.0)
+            self._flow_gen.setValue(self._flow_generated)
+            self._system_red_cost_field.setValue(self._system_red_cost)
+            self._lost_flow_cost_field.setValue(self._lost_flow_unit_cost)
+        finally:
+            self._loading = False
+        self._refresh()
+
     def experiment(self) -> dict:
         return rx.normalise(self._exp)
 
@@ -782,6 +864,8 @@ class RunPanel(QWidget):
         for w in (self._profile, self._trials, self._term_type,
                   self._term_value, self._start_stats,
                   self._ao_interval, self._cost_interval,
+                  self._flow_gen, self._system_red_cost_field,
+                  self._lost_flow_cost_field,
                   self._importance_check, self._importance_mode,
                   *self._analysis_checks.values(),
                   *self._recording_checks.values()):
@@ -803,6 +887,39 @@ class RunPanel(QWidget):
         self._exp = experiment
         self._refresh()
         self.experiment_changed.emit(experiment)
+
+    def _emit_system_change(self, column: str, value: str) -> None:
+        """One SYSTEM_DATA cell edited here -> the model's single writer."""
+        if self._loading or not self._enabled:
+            return
+        self.system_config_changed.emit({column: value})
+
+    def _on_flow_generated(self) -> None:
+        if self._loading or not self._enabled:
+            return
+        value = int(self._flow_gen.value())
+        if value == self._flow_generated:
+            return
+        self._flow_generated = value
+        self._emit_system_change("flowGenerated", str(value))
+
+    def _on_system_red_cost(self) -> None:
+        if self._loading or not self._enabled:
+            return
+        value = float(self._system_red_cost_field.value())
+        if value == self._system_red_cost:
+            return
+        self._system_red_cost = value
+        self._emit_system_change("systemRedCost", f"{value:.6f}")
+
+    def _on_lost_flow_cost(self) -> None:
+        if self._loading or not self._enabled:
+            return
+        value = float(self._lost_flow_cost_field.value())
+        if value == self._lost_flow_unit_cost:
+            return
+        self._lost_flow_unit_cost = value
+        self._emit_system_change("sysLostCost", f"{value:.6f}")
 
     def _on_profile(self) -> None:
         if self._loading or not self._enabled:
@@ -958,6 +1075,24 @@ class RunPanel(QWidget):
             bool(self._enabled and experiment["recording"].get("ao_plot")))
         self._cost_interval.setEnabled(
             bool(self._enabled and experiment["recording"].get("cost_plot")))
+
+        # Capacity-dependent values. Flow generation is the demand the
+        # capacity analysis distributes; the lost-flow cost only has a
+        # meaning when both capacity and cost are tracked. Hide rows
+        # rather than disable them: an irrelevant number is still a
+        # misleading one. The red cost stays visible -- it applies to
+        # any run that accumulates cost, including a cost-only run.
+        lost_cost_on = ("capacity" in experiment["analyses"]
+                        and "cost" in experiment["analyses"])
+        flow_on = "capacity" in experiment["analyses"]
+        visible = (lost_cost_on, flow_on)
+        if visible != self._system_rows_visible:
+            self._system_rows_visible = visible
+            self._system_form.setRowVisible(0, flow_on)
+            self._system_form.setRowVisible(2, lost_cost_on)
+            # Hiding a row changes the panel's preferred height, and the
+            # dock caps itself to that height.
+            self.size_changed.emit()
 
 
 class RunPanelDock(QDockWidget):

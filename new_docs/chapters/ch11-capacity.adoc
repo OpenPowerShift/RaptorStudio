@@ -65,10 +65,11 @@ the GUI starts as "share everything evenly".
 
 === Open the model
 
-Load `models/Water1.rbds`. In **Model → Project Settings** notice
-two settings that were never there before:
+Load `models/Water1.rbds`. In the **Run** panel, tick **Capacity** under
+Analysis and look at the two settings that make it work:
 
-* **Flow generated: 180** — the demand, offered at the start every hour.
+* **Flow generated: 180** — the demand, offered at the start every hour
+  (in the same Analysis section).
 * **Capacity analysis: checked** — tells the engine to track flow,
   not just up/down.
 

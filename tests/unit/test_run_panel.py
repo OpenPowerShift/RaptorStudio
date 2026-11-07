@@ -21,6 +21,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 from raptor.core import run_experiment as rx
+from raptor.core.model import SystemConfig
 from raptor.gui.ui.run_panel import RunPanel
 
 pytestmark = pytest.mark.gui
@@ -137,6 +138,78 @@ class TestIntervalsFollowTheirPlot:
         assert panel._ao_interval.isEnabled()
 
 
+class TestSystemValues:
+    """Flow/cost values moved out of Project Settings and into the sections
+    whose analyses consume them. Visibility is the point: a lost-flow cost
+    with no capacity model, or no cost analysis, is a number with no
+    meaning."""
+
+    def _cfg(self, **changes):
+        cfg = SystemConfig(flow_generated=120,
+                           system_red_cost=45.5,
+                           lost_flow_unit_cost=7.25)
+        for key, value in changes.items():
+            setattr(cfg, key, value)
+        return cfg
+
+    def test_values_load_without_emitting(self, panel):
+        got = []
+        panel.system_config_changed.connect(got.append)
+        panel.set_system_config(self._cfg())
+        assert panel._flow_gen.value() == 120
+        assert panel._system_red_cost_field.value() == pytest.approx(45.5)
+        assert panel._lost_flow_cost_field.value() == pytest.approx(7.25)
+        assert got == []
+
+    def test_flow_generated_writes_the_system_row_column(self, panel):
+        got = []
+        panel.system_config_changed.connect(got.append)
+        panel._flow_gen.setValue(250)
+        panel._flow_gen.editingFinished.emit()
+        assert got[-1] == {"flowGenerated": "250"}
+
+    def test_costs_write_their_system_row_columns(self, panel):
+        got = []
+        panel.system_config_changed.connect(got.append)
+        panel._system_red_cost_field.setValue(12.5)
+        panel._system_red_cost_field.editingFinished.emit()
+        panel._lost_flow_cost_field.setValue(3.75)
+        panel._lost_flow_cost_field.editingFinished.emit()
+        assert got == [{"systemRedCost": "12.500000"},
+                       {"sysLostCost": "3.750000"}]
+
+    def test_system_red_cost_is_always_visible(self, panel):
+        panel.set_experiment(rx.normalise({"analyses": []}))
+        assert panel._system_form.isRowVisible(1)
+
+    def test_flow_generated_needs_capacity(self, panel):
+        panel.set_experiment(rx.normalise({"analyses": []}))
+        assert not panel._system_form.isRowVisible(0)
+        panel.set_experiment(rx.normalise({"analyses": ["capacity"]}))
+        assert panel._system_form.isRowVisible(0)
+
+    def test_lost_flow_cost_needs_capacity_and_cost(self, panel):
+        panel.set_experiment(rx.normalise({"analyses": ["capacity"]}))
+        assert not panel._system_form.isRowVisible(2)
+        panel._analysis_checks["cost"].setChecked(True)
+        assert panel._system_form.isRowVisible(2)
+
+    def test_turning_capacity_off_hides_its_values_again(self, panel):
+        panel.set_experiment(
+            rx.normalise({"analyses": ["capacity", "cost"]}))
+        panel._analysis_checks["capacity"].setChecked(False)
+        assert not panel._system_form.isRowVisible(0)
+        assert not panel._system_form.isRowVisible(2)
+
+    def test_a_locked_panel_does_not_write_system_values(self, panel):
+        got = []
+        panel.system_config_changed.connect(got.append)
+        panel.set_enabled(False)
+        panel._flow_gen.setValue(999)
+        panel._flow_gen.editingFinished.emit()
+        assert got == []
+
+
 class TestTerminationRelabelling:
     @pytest.mark.parametrize("term,label", [
         ("TimeSim", "Run length:"),
@@ -232,6 +305,8 @@ class TestAccessibility:
                    panel._start_stats, panel._profile, panel._step_count,
                    panel._run_to, panel._breakpoint, panel._ao_interval,
                    panel._cost_interval, panel._readiness,
+                   panel._flow_gen, panel._system_red_cost_field,
+                   panel._lost_flow_cost_field,
                    *panel._analysis_checks.values(),
                    *panel._recording_checks.values()]
         for w in widgets:
