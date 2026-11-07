@@ -320,6 +320,21 @@ def _install_modal_guard(monkeypatch) -> None:
                 monkeypatch.setattr(cls, fn_name, refuse(cls_name, fn_name))
 
 
+_DBG_FH = None
+
+
+def _dbg_out():  # DEBUG: remove
+    """The xdist controller's stderr (the CI log); pytest's capture would
+    swallow a crashing worker's own."""
+    global _DBG_FH
+    if _DBG_FH is None:
+        try:
+            _DBG_FH = open(f"/proc/{os.getppid()}/fd/2", "w", buffering=1)
+        except OSError:
+            _DBG_FH = open(os.devnull, "w")
+    return _DBG_FH
+
+
 @pytest.fixture(autouse=True)
 def _test_hygiene(request):
     # Qt window reaping is only meaningful for tests that can create windows; skipping it for
@@ -354,8 +369,29 @@ def _test_hygiene(request):
         # engine -- and tearing a QObject down off the GUI thread segfaults
         # ("Fatal Python error" under "Garbage-collecting", in unrelated
         # engine code, in the shard that happened to schedule it there).
-        gc.collect()
+        # DEBUG: remove
+        import faulthandler as _fh
+        import sys as _sys
+        _out = _dbg_out()
+        _fh.enable(file=_out, all_threads=True)
+        print(f"GCDBG test={request.node.nodeid}", file=_out, flush=True)
 
+        def _cb(phase, info):
+            if phase == "start":
+                print(f"GCDBG start gen={info.get('generation')}",
+                      file=_out, flush=True)
+        gc.callbacks.append(_cb)
+        gc.set_debug(gc.DEBUG_COLLECTABLE)
+        _real = _sys.stderr
+        _sys.stderr = _out
+        try:
+            gc.collect()
+        finally:
+            gc.set_debug(0)
+            _sys.stderr = _real
+            gc.callbacks.remove(_cb)
+        print("GCDBG done", file=_out, flush=True)
+        # END DEBUG
 
 
 # --- automatic `gui` marker -------------------------------------------------------------
