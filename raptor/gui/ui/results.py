@@ -51,6 +51,7 @@ from raptor.core.engine import weak_metric
 from raptor.core.engine.reports import flow_loss_across_runs
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.ui.event_log_model import HEADERS, EventLogModel
+from raptor.gui.ui.table_filter_bar import attach_if_large
 from raptor.gui.resources.design_tokens import ThemeManager, SPACING, TYPE, active_colour
 
 
@@ -1032,6 +1033,9 @@ class ResultsDock(QWidget):
                                   "measure, so the true value is at least "
                                   "this large.")
                     item.setToolTip(_GT_NOTE + "\n\n" + reason)
+        # A long table (one row per block in a big model) can be filtered
+        # by column; a short one is read at a glance and gets no bar.
+        attach_if_large(table, raw_role=RAW_VALUE_ROLE)
         return table
 
     #: Last details sub-tab the user viewed, by name -- survives

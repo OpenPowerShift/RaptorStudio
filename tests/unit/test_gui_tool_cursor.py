@@ -10,7 +10,7 @@ pytest.importorskip("PySide6")
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import QApplication, QGraphicsSceneHoverEvent
 
 from raptor.api.build import build_from_spec
@@ -38,6 +38,18 @@ def _view() -> DiagramView:
     return view
 
 
+@pytest.fixture
+def view(qapp):
+    """A shown canvas, deleted with Qt (not left to the cyclic collector,
+    which tore its scene, items and custom cursors down in whatever order
+    `gc.collect()` reached them and segfaulted CI in the test hygiene)."""
+    v = _view()
+    yield v
+    v.close()
+    v.deleteLater()
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
 def _hover(item) -> None:
     item.hoverEnterEvent(QGraphicsSceneHoverEvent(
         QGraphicsSceneHoverEvent.Type.GraphicsSceneHoverEnter))
@@ -45,8 +57,7 @@ def _hover(item) -> None:
 
 @pytest.mark.parametrize("mode", ["add_block", "add_node", "add_event",
                                   "add_hierarchy", "connect"])
-def test_hovering_an_element_keeps_the_tool_cursor(qapp, mode):
-    view = _view()
+def test_hovering_an_element_keeps_the_tool_cursor(view, mode):
     view.tool_mode = mode
     tool = view.viewport().cursor()
     assert tool.shape() == Qt.CursorShape.BitmapCursor
@@ -58,8 +69,7 @@ def test_hovering_an_element_keeps_the_tool_cursor(qapp, mode):
             tool.pixmap().cacheKey()
 
 
-def test_select_mode_hover_still_shows_the_hand(qapp):
-    view = _view()
+def test_select_mode_hover_still_shows_the_hand(view):
     view.tool_mode = "add_block"
     view.tool_mode = "select"
     block = next(iter(view._block_items.values()))
@@ -67,11 +77,10 @@ def test_select_mode_hover_still_shows_the_hand(qapp):
     assert block.cursor().shape() == Qt.CursorShape.PointingHandCursor
 
 
-def test_a_middle_button_pan_restores_the_tool_cursor(qapp):
+def test_a_middle_button_pan_restores_the_tool_cursor(view):
     """Releasing a middle-button pan used to set a plain arrow."""
-    from PySide6.QtCore import QEvent, QPointF
+    from PySide6.QtCore import QPointF
     from PySide6.QtGui import QMouseEvent
-    view = _view()
     view.tool_mode = "add_block"
     point = QPointF(20, 20)
     view.mousePressEvent(QMouseEvent(
