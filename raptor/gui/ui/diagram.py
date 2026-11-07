@@ -393,6 +393,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: the rest of a multi-selection by the same delta Qt moves it.
         self._drag_primary = None
         self._drag_primary_start: QPointF | None = None
+        #: A routing point pressed for a drag: {entry id: (x, y) at press}.
+        self._grip_press: dict[int, tuple[float, float]] = {}
         self._drag_last_delta: tuple[float, float] = (0.0, 0.0)
         #: Position overrides, keyed (kind, id) in model units.
         #: The typed blocks/nodes/events dicts are level-scoped (rebuilt
@@ -4057,6 +4059,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         grips = self._route_grips.get(link_id) or []
         return grips[-1] if grips else None
 
+    def route_grip_by_entry(self, entry_id: int):
+        """The live routing-point item with `entry_id`, or None."""
+        for grips in self._route_grips.values():
+            for grip in grips:
+                if isValid(grip) and grip._entry_id == entry_id:
+                    return grip
+        return None
+
     def delete_route_grip(self, grip) -> None:
         """Delete one clicked routing point; the link itself is untouched."""
         if grip is None or self._rbd_ref is None:
@@ -6588,6 +6598,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     if state is not None:
                         self._drag_start.append(("anno", aid, state))
             hit = self.itemAt(event.position().toPoint())
+            self._grip_press = ({hit._entry_id: (hit.pos().x(), hit.pos().y())}
+                                if isinstance(hit, _RouteGripItem) else {})
             primary = self._element_at(
                 self.mapToScene(event.position().toPoint()))
             if primary is None and isinstance(hit, _AnnotationBase):
@@ -6965,6 +6977,63 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._drop_shape_ghost()
         self._shape_anno_from = None
 
+    def _nudge_route_grips(self, chosen, moves, dxs, dys, off_grid,
+                           step_x, step_y):
+        """Routing points for an arrow-key nudge: [(entry id, old, new)].
+
+        A selected point moves by one grid step (1 px with Shift) like any
+        element. A point on a link whose BOTH ends are being nudged goes
+        with them by the same distance, so the dog-leg keeps its shape;
+        only points already drawn (active) follow, so a point that has not
+        been dragged yet does not start changing a route."""
+        by_id: dict[int, tuple[float, float]] = {}
+        shift: dict[int, tuple[float, float]] = {}
+        for kind, oid, old, new in moves:
+            item = (self._block_items.get(oid) if kind == "block"
+                    else self._node_items.get(oid) if kind == "node"
+                    else self._event_items.get(oid) if kind == "event"
+                    else self._hier_items.get(oid))
+            if item is not None:
+                shift[id(item)] = (new[0] - old[0], new[1] - old[1])
+        for link in self._links:
+            a, b = shift.get(id(link._from)), shift.get(id(link._to))
+            if a is None or b is None:
+                continue
+            for grip in link.grip_items():
+                if getattr(grip, "_active", True):
+                    by_id[grip._entry_id] = a
+        out = []
+        done: set[int] = set()
+        for grip in list(chosen) + [self.route_grip_by_entry(i)
+                                    for i in by_id]:
+            if grip is None or not isValid(grip) or grip._entry_id in done:
+                continue
+            done.add(grip._entry_id)
+            old = (grip.pos().x(), grip.pos().y())
+            follow = by_id.get(grip._entry_id)
+            if follow is not None:
+                new = (old[0] + follow[0], old[1] + follow[1])
+            else:
+                nx = old[0] + dxs if (off_grid or step_x <= 0) \
+                    else (_next_grid_line(old[0], step_x, dxs)
+                          if dxs else old[0])
+                ny = old[1] + dys if (off_grid or step_y <= 0) \
+                    else (_next_grid_line(old[1], step_y, dys)
+                          if dys else old[1])
+                new = (nx, ny)
+            if new != old:
+                out.append((grip._entry_id, old, new))
+        saved = (self._snap_state["x"], self._snap_state["y"])
+        self._snap_state["x"] = self._snap_state["y"] = 0.0
+        try:
+            for entry_id, _old, new in out:
+                grip = self.route_grip_by_entry(entry_id)
+                if grip is not None:
+                    grip.setPos(*new)
+        finally:
+            self._snap_state["x"], self._snap_state["y"] = saved
+        return out
+
     def keyPressEvent(self, event):
         # A text annotation being edited owns Backspace/Delete.
         focus = QApplication.focusWidget()
@@ -7005,7 +7074,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if event.key() in _NUDGE_DIRS:
             selected = [it for it in self._scene.selectedItems()
                        if isinstance(it, (_BlockItem, _NodeItem, _EventItem,
-                                          _HierItem, _AnnotationBase))]
+                                          _HierItem, _AnnotationBase,
+                                          _RouteGripItem))]
             if selected:
                 dxs, dys = _NUDGE_DIRS[event.key()]
                 off_grid = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
@@ -7023,7 +7093,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 moves = []
                 anno_edits = []
                 item: Any
+                chosen_grips = [it for it in selected
+                                if isinstance(it, _RouteGripItem)]
                 for item in selected:
+                    if isinstance(item, _RouteGripItem):
+                        continue                 # placed with the others below
                     if isinstance(item, _AnnotationBase):
                         # Annotations aren't grid-snapped, so an
                         # arrow-key nudge moves by one snap increment (or
@@ -7080,6 +7154,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     new = (item.pos().x(), item.pos().y())
                     if old != new:
                         moves.append((kind, oid, old, new))
+                grip_moves = self._nudge_route_grips(
+                    chosen_grips, moves, dxs, dys, off_grid, step_x, step_y)
                 if saved_snap is not None:
                     self._snap_state["x"], self._snap_state["y"] = saved_snap
                 moved_keys = {(k, i) for k, i, _o, _n in moves}
@@ -7095,8 +7171,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if anno_edits:
                     self.follow_anchors({("annotation", aid)
                                          for aid, _old, _new in anno_edits})
-                if moves:
-                    self._stack.push(MoveCmd(self, moves))
+                if moves or grip_moves:
+                    self._stack.push(MoveCmd(self, moves, grips=grip_moves))
                 event.accept()
                 return
         # Scoped clipboard shortcuts: only when the canvas has focus, so
@@ -7295,6 +7371,21 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._pan_anchor = None
             event.accept()
             return
+        if event.button() == Qt.MouseButton.LeftButton and self._grip_press:
+            # A routing point was dragged: one undo step puts it back.
+            pressed, self._grip_press = self._grip_press, {}
+            grip_moves = []
+            for entry_id, old in pressed.items():
+                grip = self.route_grip_by_entry(entry_id)
+                if grip is None:
+                    continue
+                new = (grip.pos().x(), grip.pos().y())
+                if abs(new[0] - old[0]) > 0.5 or abs(new[1] - old[1]) > 0.5:
+                    grip_moves.append((entry_id, old, new))
+            if grip_moves:
+                cmd = MoveCmd(self, [], grips=grip_moves)
+                cmd.setText("Move routing point")
+                self._stack.push(cmd)
         if event.button() == Qt.MouseButton.LeftButton and self._drag_start:
             # A drag gesture just ended: one MoveCmd for every element
             # whose scene position actually changed.

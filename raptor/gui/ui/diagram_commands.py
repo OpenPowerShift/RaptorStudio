@@ -176,9 +176,12 @@ class MoveCmd(_ViewCmd):
     changed_signal = "layout_changed"
     needs_rule_check = False
 
-    def __init__(self, view, moves):
+    def __init__(self, view, moves, grips=None):
         super().__init__(view, "Move elements")
         self.moves = moves  # [(kind, id, (old_sx, old_sy), (new_sx, new_sy))]
+        #: Routing points that go with the gesture:
+        #: [(grip entry id, (old_x, old_y), (new_x, new_y))], scene pixels.
+        self.grips = list(grips or [])
         #: (kind, id) of every element this gesture places -- all of them
         #: need their file row updated, on undo/redo too.
         self.keys = {(kind, oid) for kind, oid, _old, _new in moves}
@@ -258,12 +261,32 @@ class MoveCmd(_ViewCmd):
         if follow is not None:
             follow({(kind, oid) for kind, oid, _ in poses})
 
+    def _place_grips(self, which: int) -> None:
+        """Put the routing points at their old (1) or new (2) positions.
+        A point writes its own row (`_RouteGripItem.itemChange`); snap is off
+        so the recorded coordinates are restored exactly."""
+        v = self._v
+        if not self.grips:
+            return
+        saved = (v._snap_state["x"], v._snap_state["y"])
+        v._snap_state["x"] = v._snap_state["y"] = 0.0
+        try:
+            for entry_id, old, new in self.grips:
+                grip = v.route_grip_by_entry(entry_id)
+                if grip is not None:
+                    x, y = old if which == 1 else new
+                    grip.setPos(x, y)
+        finally:
+            v._snap_state["x"], v._snap_state["y"] = saved
+
     def redo(self):
         self._place(self.moves_new)
+        self._place_grips(2)
         self._done()
 
     def undo(self):
         self._place([(k, i, o) for k, i, o, _ in self.moves])
+        self._place_grips(1)
         self._done()
 
     @property

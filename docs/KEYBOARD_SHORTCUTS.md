@@ -27,6 +27,10 @@
 | Ctrl+F | Find item: the cursor goes to the Find box (from the canvas or the Explorer) |
 | Esc | Cancel armed tool / delete mode / connect / Failure Effects fail-repair targeting; cancels a running batch |
 
+Nudging with the arrow keys (one grid step; Shift: 1 px) also moves selected
+routing points, and the routing points of a link whose two ends both move go
+with them. One undo step.
+
 ## Annotation z-order (Model view)
 Needs one or more annotations selected. Each command is greyed out when
 it would not move anything, so a note already at the front has *Bring to
