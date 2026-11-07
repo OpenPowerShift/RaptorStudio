@@ -105,7 +105,7 @@ def from_entry(distro: int, values: list[float],
         unchanged = (old is not None and old[0] > 0.0
                      and math.isclose(out[0], 1.0 / old[0],
                                       rel_tol=1e-5, abs_tol=0.0))
-        if unchanged:
+        if unchanged and old is not None:
             out[0] = old[0]
         elif out[0] > 0.0:
             out[0] = 1.0 / out[0]
@@ -119,7 +119,7 @@ def from_entry(distro: int, values: list[float],
                                       abs_tol=1e-9)
                          and math.isclose(out[1], shown[1], rel_tol=1e-5,
                                           abs_tol=1e-9))
-        if unchanged:
+        if unchanged and old is not None:
             out[0], out[1] = old[0], old[1]
         else:
             mu, sigma = out[0], out[1]

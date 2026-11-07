@@ -316,7 +316,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     #: event loop at Max speed.
     _BG_POLL_INTERVAL_FLOOR = 30
     #: the stepping session, the background-run thread and its last progress/bar keys (None when idle)
-    _step_session: Any = None
     _bg_thread: Any = None
     _bg_last_progress: Any = None
     _bg_last_bar: Any = None
@@ -1698,10 +1697,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # same signal releases the constraints a DOCKED panel needs
             # (reported: "when it's detached I should be able to expand it
             # and resize it too").
-            d.topLevelChanged.connect(
-                lambda floating, dock=d:
-                (QTimer.singleShot(0, self._sync_dock_tab_bars),
-                 self._on_dock_top_level_changed(dock, floating)))
+            def _on_floating(floating: bool, dock: Any = d) -> None:
+                QTimer.singleShot(0, self._sync_dock_tab_bars)
+                self._on_dock_top_level_changed(dock, floating)
+            d.topLevelChanged.connect(_on_floating)
         # Setup snapshots visibility before the window is shown, so
         # tabified panels looked unchecked although present. Re-sync once
         # the layout is live (also after reset).
@@ -4033,7 +4032,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
         dlg.setMinimumWidth(380)
         dlg.show()
-        self._busy_dialog = dlg
+        self._busy_dialog: QProgressDialog | None = dlg
         QApplication.processEvents()
         return True
 
@@ -4223,8 +4222,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if self._rbd is None:
             return (0, 0, 0, 0)
 
+        rbd = self._rbd
+
         def n(section: str, skip_default_block: bool = False) -> int:
-            sec = self._rbd.sections.get(section)
+            sec = rbd.sections.get(section)
             if sec is None:
                 return 0
             if not skip_default_block:
@@ -4943,7 +4944,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _start_run_eta(self) -> None:
         """Begin timing a batch for the "approximately N left" readout."""
         from raptor.gui.ui.run_eta import RunEstimate
-        self._run_eta = RunEstimate(
+        self._run_eta: RunEstimate | None = RunEstimate(
             extra_batches=self._importance_extra_batches())
         self._bg_last_paused = False
 
@@ -6014,9 +6015,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         survives a rename and is refreshed after every edit."""
         rbd = self._rbd
         hier_name: dict[int, tuple[str, int]] = {}
-        for r in (rbd.sections.get("HIERARCHY_DATA").rows
-                  if rbd is not None and rbd.sections.get("HIERARCHY_DATA")
-                  else []):
+        hier_section = (rbd.sections.get("HIERARCHY_DATA")
+                        if rbd is not None else None)
+        for r in (hier_section.rows if hier_section else []):
             try:
                 hier_name[int(float(r["ID"]))] = (
                     r.get("hierarchyName", ""), int(float(r.get("Parent", 0) or 0)))
@@ -7209,8 +7210,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # The bottom strip sizes itself from the panel that is showing.
         for attr in ("_run_dock", "_results_dock"):
             panel_dock = getattr(self, attr, None)
-            if panel_dock is dock and hasattr(dock, "fit_height"):
-                QTimer.singleShot(0, dock.fit_height)
+            fit = getattr(dock, "fit_height", None)
+            if panel_dock is dock and fit is not None:
+                QTimer.singleShot(0, fit)
 
     def _sync_dock_tab_bars(self):
         """QMainWindow's tabified-dock tab bars default to
@@ -7524,11 +7526,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _compute_validation_issues(self, api_issues) -> list[str]:
         """The GUI's own findings, plus every ERROR from `api_issues`."""
         issues: list[str] = []
-        if "SYSTEM_DATA" not in self._rbd.sections or \
-                not self._rbd.sections["SYSTEM_DATA"].rows:
+        rbd = self._rbd
+        if rbd is None:
+            return issues
+        if "SYSTEM_DATA" not in rbd.sections or \
+                not rbd.sections["SYSTEM_DATA"].rows:
             issues.append("Missing SYSTEM_DATA section")
         try:
-            block_rows = [r for r in self._rbd.sections["BLOCK_DATA"].rows
+            block_rows = [r for r in rbd.sections["BLOCK_DATA"].rows
                         if int(float(r.get("ID", "0"))) != 0]
         except (KeyError, ValueError):
             block_rows = []
@@ -7537,7 +7542,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # zero blocks -- tests/golden/Events is exactly this shape.
         # Flagging "No blocks defined" for it is a false positive.
         try:
-            event_rows = self._rbd.sections["EVENT_DATA"].rows
+            event_rows = rbd.sections["EVENT_DATA"].rows
         except KeyError:
             event_rows = []
         if not block_rows and not event_rows:
@@ -7561,8 +7566,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # here turned the same warning into a blocking issue and showed
         # it twice (once under problems, once under warnings).
         issues.extend(i.message for i in _check_start_to_end_reachable(
-            self._rbd) if i.severity == "error")
-        node_rows = self._rbd.sections.get("NODE_DATA")
+            rbd) if i.severity == "error")
+        node_rows = rbd.sections.get("NODE_DATA")
         n_nodes = len(node_rows.rows) if node_rows else 0
         types = {r.get("Type") for r in node_rows.rows} if node_rows \
             else set()
@@ -7573,7 +7578,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # caller already holds their answer (see `preflight_issues`).
         from raptor.gui.ui.preflight import preflight_issues
         issues.extend(preflight_issues(
-            self._rbd, self._diagram_dock.view,
+            rbd, self._diagram_dock.view,
             self._preflight_elem_name, api_issues=api_issues))
         # The API validator owns distribution-parameter and other
         # domain checks the GUI's own input rules do not cover. Without
@@ -7688,7 +7693,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if m:
             return v.locate_id(kinds[m.group(1).lower()], int(m.group(2)))
         m = re.search(r"\b(block|node)\s+'([^']+)'", text, re.IGNORECASE)
-        return bool(m) and v.locate_element(m.group(1).lower(), m.group(2))
+        return m is not None and v.locate_element(m.group(1).lower(),
+                                                  m.group(2))
 
     def _locate_link(self, link_id: int) -> bool:
         """Navigate to a link: its source element, then the connector.
@@ -8383,7 +8389,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         v.clear_result_overlays()
         v.apply_importance_colors(values, measure=measure,
                                   metric_name=metric)
-        top_bid = max(values, key=values.get)
+        top_bid = max(values, key=lambda k: values[k])
         top_name = next((r["block"] for r in rows
                          if int(r["block_id"]) == top_bid), str(top_bid))
         self._statusbar.showMessage(
@@ -9431,7 +9437,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             holder.raise_()
             holder.activateWindow()
             holder._statusbar.showMessage(
-                f"{os.path.basename(path)} is open in this window", 6000)
+                f"{os.path.basename(path or '')} is open in this window", 6000)
             return None
         if self._rbd is None or (self._current_file is None
                                  and not self._dirty):
