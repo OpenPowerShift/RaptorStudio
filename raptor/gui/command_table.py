@@ -29,7 +29,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
     # ---- File --------------------------------------------------------
     CommandSpec(
         id="file.open",
-        key_tip="O",
         attr="_open_action",
         text="Open",
         icon="folder_open_icon:text",
@@ -39,7 +38,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="not_running"),
     CommandSpec(
         id="file.save",
-        key_tip="V",
         attr="_save_action",
         text="Save",
         icon="save_icon:text",
@@ -61,7 +59,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="file.new",
-        key_tip="W",
         attr="_new_action",
         text="New",
         icon="new_file_icon:text",
@@ -158,7 +155,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="file.copy_view",
-        key_tip="Y",
         attr="_copy_view_action",
         text="Copy View",
         icon="copy_view_icon:text",
@@ -181,27 +177,26 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Copy",
         icon="copy_icon:text",
         tooltip="Copy the selected elements",
-        handler="_diagram_dock.view.copy_selection",
-        enabled_when="model_open"),
+        handler="_edit_copy",
+        enabled_when="can_copy"),
     CommandSpec(
         id="home.cut",
         attr="_cut_action",
         text="Cut",
         icon="cut_icon:text",
         tooltip="Copy and delete the selected elements",
-        handler="_diagram_dock.view.cut_selection",
-        enabled_when="model_open"),
+        handler="_edit_cut",
+        enabled_when="can_copy"),
     CommandSpec(
         id="home.paste",
         attr="_paste_action",
         text="Paste",
         icon="paste_icon:text",
         tooltip="Paste previously copied elements with fresh ids",
-        handler="_diagram_dock.view.paste",
-        enabled_when="model_open"),
+        handler="_edit_paste",
+        enabled_when="can_paste"),
     CommandSpec(
         id="home.syscfg",
-        key_tip="C",
         attr="_syscfg_action",
         text="Project Settings",
         icon="model_info_icon:text",
@@ -210,7 +205,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="home.validate",
-        key_tip="L",
         attr="_validate_action",
         text="Issues",
         icon="check_badge_icon:go",
@@ -289,7 +283,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         tooltip="Delete selected blocks/nodes (Del)",
         handler="_diagram_dock.view.delete_selected",
         shortcut="Del",
-        enabled_when="has_selection"),
+        enabled_when="has_deletable"),
     CommandSpec(
         id="model.add_block",
         attr="_add_block_tool",
@@ -570,7 +564,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
     # ---- Simulate ----------------------------------------------------
     CommandSpec(
         id="sim.run",
-        key_tip="R",
         attr="_run_action",
         text="Run",
         icon="play_icon:go",
@@ -582,7 +575,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_start_batch"),
     CommandSpec(
         id="sim.step",
-        key_tip="S",
         attr="_step_action",
         text="Step",
         icon="step_icon:accent",
@@ -594,7 +586,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_simulate"),
     CommandSpec(
         id="sim.step_next_time",
-        key_tip="N",
         attr="_step_next_time_action",
         text="Next Time",
         icon="next_time_icon:accent",
@@ -606,7 +597,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_simulate"),
     CommandSpec(
         id="sim.step_finish",
-        key_tip="F",
         attr="_step_finish_action",
         text="Finish",
         icon="finish_flag_icon:go",
@@ -635,7 +625,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="stepping"),
     CommandSpec(
         id="sim.restart_step",
-        key_tip="X",
         attr="_restart_step_action",
         text="Restart",
         icon="restart_icon:text",
@@ -691,7 +680,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_extract_hierarchy"),
     CommandSpec(
         id="sim.pause",
-        key_tip="A",
         attr="_pause_action",
         text="Pause",
         icon="_bars:text",
@@ -699,7 +687,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="background_run"),
     CommandSpec(
         id="sim.stop_run",
-        key_tip="P",
         attr="_stop_run_action",
         text="Stop",
         icon="_stop_sq:stop",
@@ -707,7 +694,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="run_active"),
     CommandSpec(
         id="sim.jump",
-        key_tip="J",
         attr="_jump_action",
         text="Jump",
         icon="_skip_end:text",
@@ -717,7 +703,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="jump_available"),
     CommandSpec(
         id="sim.live_sim",
-        key_tip="M",
         attr="_live_sim_action",
         text="Animate",
         icon="animate_icon:accent",

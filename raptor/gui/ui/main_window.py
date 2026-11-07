@@ -10,6 +10,7 @@ from raptor.gui.ui.modality import exec_dialog
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
+from raptor.gui import text_editing
 from raptor.bundled import candidate_roots
 import logging
 import math
@@ -95,9 +96,7 @@ def _engine_version() -> str:
     return f"raptor-studio {_APP_VERSION}"
 
 
-#: Alt key tip for the File button. Not F: that is Finish's, and a
-#: shipped letter is never reassigned (`test_key_tips.py`).
-FILE_KEY_TIP = "E"
+from raptor.gui.key_tips import FILE_KEY_TIP, TAB_KEY_TIPS  # noqa: E402
 
 #: The Simulate tab's analysis toggles (built in `ribbon_builders`).
 _ANALYSIS_ICONS = {
@@ -316,7 +315,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     #: event loop at Max speed.
     _BG_POLL_INTERVAL_FLOOR = 30
     #: the stepping session, the background-run thread and its last progress/bar keys (None when idle)
-    _step_session: Any = None
     _bg_thread: Any = None
     _bg_last_progress: Any = None
     _bg_last_bar: Any = None
@@ -425,10 +423,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # "key tips shown after Alt" (`blueprint:146`), and with the
         # Simulate ribbon down to 15 controls the run settings now live in
         # a panel, so a keyboard route that does not require finding a
-        # dock matters. Letters are `key_tip` on the command's table entry
-        # (command_table.py), never derived from the label, so renaming
+        # dock matters. Letters are in `key_tips.py`, never derived from the label, so renaming
         # a button cannot reassign a key somebody already learned.
         self._key_tips_active = False
+        self._key_tip_page: str | None = None
+        self._key_tip_badges: list = []
         # (Alt itself is caught in keyPressEvent/keyReleaseEvent: Qt does
         # not match a shortcut made of a modifier alone.)
         # Alt+<letter> arrives as an ordinary key press (a lone Alt
@@ -469,40 +468,76 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._refresh_commands(only={"stepping", "jump_available"})
 
     def _show_key_tips(self) -> None:
-        """Alt: reveal the key tips on every ribbon button of the current
-        page, and arm Alt+<letter>.
-
-        The spec wants "Alt key tips and keyboard focus [to] traverse all
-        commands" (`blueprint:675`); the visible part is a tip on each
-        button, and the invisible part is that the next key press runs
-        the matching action. Toggled by Alt again, or by any other key.
-        """
+        """Alt: put a letter over the File button and every ribbon tab, and
+        arm the keyboard. That letter opens the tab and shows a letter over
+        each of its buttons (`_show_page_tips`); the next one runs the
+        command (Alt, R, S = Results > Show Results). Toggled by Alt again,
+        and ended by any key that is not a tip (`key_tips.py`)."""
         if self._key_tips_active:
             self._dismiss_key_tips()
             return
         self._key_tips_active = True
-        for btn in self._ribbon.findChildren(RibbonButton):
-            text = btn.property("ribbonActionText") or ""
-            tip = btn.property("ribbonKeyTip")
-            if tip:
-                btn.setText(f"{text}  ({tip})")
-        # Large buttons already sit text-under-icon; small ones flip to
-        # it so the tip has room without truncating the label.
-        for btn in self._ribbon.findChildren(RibbonButton):
-            if btn.property("ribbonKeyTip"):
-                btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        self._ribbon.file_button.setText(f"File  ({FILE_KEY_TIP})")
+        self._key_tip_page = None
+        self._show_tab_tips()
         self.grabKeyboard()
         self._statusbar.showMessage(
             "Key tips on — press a letter, or Alt again to hide", 4000)
 
-    def _restore_ribbon_button_styles(self) -> None:
-        for btn in self._ribbon.findChildren(RibbonButton):
-            btn.reapply_mode()
-        self._ribbon.file_button.setText("File")
+    def _clear_key_tip_badges(self) -> None:
+        for badge in getattr(self, "_key_tip_badges", []):
+            badge.hide()
+            badge.deleteLater()
+        self._key_tip_badges = []
+
+    def _show_tab_tips(self) -> None:
+        """Level 1: File and the tabs."""
+        from PySide6.QtCore import QPoint
+        from raptor.gui.widgets.key_tip_badge import KeyTipBadge
+        self._clear_key_tip_badges()
+        self._key_tip_page = None
+        ribbon = self._ribbon
+        badges = [KeyTipBadge(FILE_KEY_TIP, ribbon.file_button, self)]
+        bar = ribbon.tab_bar
+        for i in range(bar.count()):
+            tip = TAB_KEY_TIPS.get(bar.tabText(i))
+            if tip:
+                r = bar.tabRect(i)
+                badges.append(KeyTipBadge(
+                    tip, bar, self, QPoint(r.center().x(), r.bottom() + 2)))
+        self._key_tip_badges = badges
+
+    def _page_buttons(self):
+        page = self._ribbon._current_page()
+        return page.findChildren(RibbonButton) if page is not None else []
+
+    @staticmethod
+    def _icon_centre(btn):
+        """Where a button's badge sits: on its icon, so the label stays
+        readable (large buttons: icon over label; small: icon at left)."""
+        from PySide6.QtCore import QPoint
+        from raptor.gui.widgets.ribbon import LARGE
+        icon = btn.iconSize()
+        if btn.mode() == LARGE:
+            return QPoint(btn.width() // 2, 6 + icon.height() // 2)
+        return QPoint(4 + icon.width() // 2, btn.height() // 2)
+
+    def _show_page_tips(self, title: str) -> None:
+        """Level 2: open the tab and letter its buttons."""
+        from PySide6.QtCore import QEvent
+        from raptor.gui.widgets.key_tip_badge import KeyTipBadge
+        self._ribbon.select_page(title)
+        # The page's geometry settles on the next layout pass; badges are
+        # placed from it, so run that pass now.
+        QApplication.sendPostedEvents(None, QEvent.Type.LayoutRequest)
+        self._clear_key_tip_badges()
+        self._key_tip_page = title
+        self._key_tip_badges = [
+            KeyTipBadge(tip, btn, self, self._icon_centre(btn))
+            for btn in self._page_buttons()
+            if (tip := btn.property("ribbonKeyTip")) and btn.isVisible()]
 
     def _key_press_event_filter(self, obj, event):
-        """Catch Alt+<letter> while key tips are showing.
+        """Handle a key press while key tips are showing.
 
         Needed because a single `QShortcut` on Alt alone does not
         compose into a two-key sequence in Qt; the second key arrives as
@@ -513,22 +548,25 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         from PySide6.QtCore import QEvent
         if event.type() != QEvent.Type.KeyPress:
             return False
-        if event.key() in (Qt.Key.Key_Alt, Qt.Key.Key_Shift,
-                           Qt.Key.Key_Control, Qt.Key.Key_Meta,
-                           Qt.Key.Key_AltGr):
+        key = event.key()
+        if key in (Qt.Key.Key_Alt, Qt.Key.Key_Shift, Qt.Key.Key_Control,
+                   Qt.Key.Key_Meta, Qt.Key.Key_AltGr):
             return False      # a modifier on its own is not a choice
+        if key == Qt.Key.Key_Backspace and self._key_tip_page is not None:
+            self._show_tab_tips()             # back up one level
+            return True
         text = event.text().upper()
+        if Qt.Key.Key_A <= key <= Qt.Key.Key_Z:
+            text = chr(key)                   # Alt held: text may be empty
         if not text or not text.isalpha():
             # Any other key dismisses the tips, as in every other app.
             self._dismiss_key_tips()
             return False
-        if text == FILE_KEY_TIP:
-            self._dismiss_key_tips()
-            self._show_backstage()
-            return True
-        for btn in self._ribbon.findChildren(RibbonButton):
-            label = btn.property("ribbonActionText") or ""
+        if self._key_tip_page is None:
+            return self._key_tip_tab_letter(text)
+        for btn in self._page_buttons():
             if btn.property("ribbonKeyTip") == text:
+                label = btn.property("ribbonActionText") or ""
                 self._dismiss_key_tips()
                 if btn.isEnabled():
                     btn.click()
@@ -536,33 +574,32 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     self._statusbar.showMessage(
                         f"{label} is not available right now", 3000)
                 return True
-        # A tipped command that lives in the File view, not on a ribbon
-        # page (Open, Save, New, Copy View): its letter still works from
-        # any tab, as it did when they were on the File tab.
-        for spec in self._commands.specs.values():
-            if spec.key_tip == text:
-                self._dismiss_key_tips()
-                action = self._commands.action(spec.id)
-                if action.isEnabled():
-                    action.trigger()
-                else:
-                    self._statusbar.showMessage(
-                        f"{action.text()} is not available right now", 3000)
+        self._statusbar.showMessage(
+            f"No key tip {text} on {self._key_tip_page} — "
+            "Backspace goes back", 3000)
+        return True
+
+    def _key_tip_tab_letter(self, text: str) -> bool:
+        if text == FILE_KEY_TIP:
+            self._dismiss_key_tips()
+            self._show_backstage()
+            return True
+        for title, tip in TAB_KEY_TIPS.items():
+            if tip == text:
+                self._show_page_tips(title)
                 return True
-        self._dismiss_key_tips()
-        return False
+        self._statusbar.showMessage(f"No key tip {text}", 3000)
+        return True
 
     def _dismiss_key_tips(self) -> None:
         """Turn the tips off WITHOUT re-toggling, so a key press that
-        consumed a tip cannot leave the labels showing."""
+        consumed a tip cannot leave the badges showing."""
         if not self._key_tips_active:
             return
         self._key_tips_active = False
+        self._key_tip_page = None
         self.releaseKeyboard()
-        for btn in self._ribbon.findChildren(RibbonButton):
-            text = btn.property("ribbonActionText") or ""
-            btn.setText(text)
-        self._restore_ribbon_button_styles()
+        self._clear_key_tip_badges()
         self._statusbar.showMessage("Key tips off", 2000)
 
     def _apply_action_icons(self):
@@ -697,6 +734,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         dock = getattr(self, "_diagram_dock", None)
         view = dock.view if dock is not None else None
         selected = view.selected_elements() if view else ([], [], [], [])
+        editor = text_editing.active_editor()
         # A selection cannot change validity, so selection-driven refreshes
         # reuse the last applied answer instead of re-walking the model.
         # An edit since that answer was computed makes it a claim about a
@@ -718,6 +756,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             valid=valid,
             run=run,
             selected_movable=view.selected_movable_count() if view else 0,
+            selected_copyable=view.copyable_count() if view else 0,
+            text_editing=editor is not None,
+            text_can_copy=editor is not None and text_editing.can_copy(editor),
+            clipboard_has_text=text_editing.clipboard_has_text(),
+            clipboard_pastable=view.can_paste() if view else False,
             # `selected` is the same walk `selected_element_count()` would
             # do again -- twice per click, over every item map on the
             # level. Sum the answer we already have.
@@ -1476,9 +1519,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             lambda: self._refresh_commands(
                 self._command_state(reuse_validity=True),
                 only={"has_selection", "has_structural_selection",
+                      "can_copy", "can_paste", "has_deletable",
                       "can_collapse",
                       "has_movable_selection", "can_align", "can_mass_edit",
                       "can_zoom_hierarchy", "can_extract_hierarchy"}))
+        # Paste follows the clipboard, which changes outside any selection
+        # (another model, another window, any other application).
+        QApplication.clipboard().dataChanged.connect(self._on_clipboard_changed)
+        if isinstance(qapp := QApplication.instance(), QApplication):
+            qapp.focusChanged.connect(self._on_focus_changed)
+        self._diagram_dock.view.paste_state_changed.connect(
+            self._on_clipboard_changed)
         # The view disarms its own tools (Esc, and the end of a
         # one-shot annotation placement). Mirror that back onto the
         # ribbon so a button does not stay lit while the tool it arms
@@ -1492,6 +1543,44 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._diagram_dock.view.default_annotation_props = (
             self._annotation_style_defaults())
         self.setCentralWidget(self._diagram_dock)
+
+    def _edit_copy(self) -> None:
+        editor = text_editing.active_editor()
+        if editor is not None:
+            text_editing.copy(editor)
+        else:
+            self._diagram_dock.view.copy_selection()
+
+    def _edit_cut(self) -> None:
+        editor = text_editing.active_editor()
+        if editor is not None:
+            text_editing.cut(editor)
+        else:
+            self._diagram_dock.view.cut_selection()
+
+    def _edit_paste(self) -> None:
+        editor = text_editing.active_editor()
+        if editor is not None:
+            text_editing.paste(editor)
+        else:
+            self._diagram_dock.view.paste()
+
+    def _on_focus_changed(self, _old, new) -> None:
+        """Cut/Copy/Paste follow the text editor that has the keyboard,
+        including its selection."""
+        for signal in ("selectionChanged", "copyAvailable"):
+            sig = getattr(new, signal, None)
+            # Only a real signal: on an item view `selectionChanged` is a
+            # protected method, which has no `connect`.
+            if (sig is not None and hasattr(sig, "connect")
+                    and not new.property("_clip_hooked")):
+                new.setProperty("_clip_hooked", True)
+                sig.connect(self._on_clipboard_changed)
+        self._on_clipboard_changed()
+
+    def _on_clipboard_changed(self) -> None:
+        self._refresh_commands(self._command_state(reuse_validity=True),
+                               only={"can_copy", "can_paste", "has_deletable"})
 
     def _setup_docks(self):
         self._explorer = ExplorerDock()
@@ -1622,7 +1711,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # controls.
         self.tabifyDockWidget(dock_tables, dock_bottom)
         dock_bottom.raise_()
-        dock_tables.setMinimumHeight(120)
+        dock_tables.setMinimumHeight(160)
 
         # Run panel: the third tab in the same bottom strip. Deliberately
         # NOT a new right-side panel -- at 1280px, Explorer (260) +
@@ -1698,10 +1787,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # same signal releases the constraints a DOCKED panel needs
             # (reported: "when it's detached I should be able to expand it
             # and resize it too").
-            d.topLevelChanged.connect(
-                lambda floating, dock=d:
-                (QTimer.singleShot(0, self._sync_dock_tab_bars),
-                 self._on_dock_top_level_changed(dock, floating)))
+            def _on_floating(floating: bool, dock: Any = d) -> None:
+                QTimer.singleShot(0, self._sync_dock_tab_bars)
+                self._on_dock_top_level_changed(dock, floating)
+            d.topLevelChanged.connect(_on_floating)
         # Setup snapshots visibility before the window is shown, so
         # tabified panels looked unchecked although present. Re-sync once
         # the layout is live (also after reset).
@@ -1817,6 +1906,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._cancel_pending_block_selection()
         inside = parent_id != 0
         name = self._diagram_dock.view.hiers.get(parent_id)
+        self._update_title()
         self._hier_up_action.setEnabled(inside)
         self._hier_home_action.setEnabled(inside)
         # A level switch rebuilds the annotation items, so a selection
@@ -2108,6 +2198,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 if focus is not None and focus is not self:
                     QApplication.sendEvent(focus, event)
                     return
+        if (not self._key_tips_active
+                and event.modifiers() == _Qt.KeyboardModifier.AltModifier
+                and _Qt.Key.Key_A <= event.key() <= _Qt.Key.Key_Z):
+            # Alt held while the letter goes down: the same route as
+            # Alt, release, letter -- for the people who chord it.
+            letter = chr(event.key())
+            if letter == FILE_KEY_TIP or letter in TAB_KEY_TIPS.values():
+                self._alt_alone = False
+                self._show_key_tips()
+                self._key_press_event_filter(self, event)
+                return
         import time
         self._alt_alone = event.key() == _Qt.Key.Key_Alt
         self._alt_down_at = time.monotonic()
@@ -3296,6 +3397,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def _update_title(self):
         star = "*" if self._dirty else ""
+        level = self._level_title()
         if self._rbd is None:
             self.setWindowTitle("RAPTOR Studio")
         elif self._current_file is None:
@@ -3306,10 +3408,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             name = (f"{stem} (not saved)"
                     if stem and stem not in ("NewModel", "Untitled")
                     else "Untitled")
-            self.setWindowTitle(f"RAPTOR Studio — {name}{star}")
+            self.setWindowTitle(f"RAPTOR Studio — {name}{star}{level}")
         else:
             filename = Path(self._current_file).name
-            self.setWindowTitle(f"RAPTOR Studio — {filename}{star}")
+            self.setWindowTitle(f"RAPTOR Studio — {filename}{star}{level}")
         results = getattr(self, "_results_dock", None)
         if results is not None and results.isFloating():
             results.setWindowTitle(self._results_window_title())
@@ -3320,6 +3422,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         else:
             tip = "Save — not saved yet, so choose where (Ctrl+S)"
         self._commands.set_tooltip(self._save_action, tip)
+
+    #: Longest hierarchy name the title bar spells out.
+    _TITLE_LEVEL_CHARS = 40
+
+    def _level_title(self) -> str:
+        """" — Home" or " — <hierarchy name> (id N)": the level on screen,
+        for the title bar (empty with no model). Long names are elided; the
+        Explorer's tooltip has the full one."""
+        dock = getattr(self, "_diagram_dock", None)
+        view = getattr(dock, "view", None)
+        if self._rbd is None or view is None:
+            return ""
+        parent = getattr(view, "_current_parent", 0) or 0
+        if not parent:
+            return " — Home"
+        hier = view.hiers.get(parent)
+        name = str(getattr(hier, "name", "") or "")
+        if len(name) > self._TITLE_LEVEL_CHARS:
+            name = name[:self._TITLE_LEVEL_CHARS - 1] + "…"
+        return f" — {name} (id {parent})" if name else f" — hierarchy {parent}"
 
     def _confirm_discard_unsaved(self, *, closing: bool = False) -> bool:
         """Returns True if it's OK to proceed (no unsaved changes, or the
@@ -4084,7 +4206,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
         dlg.setMinimumWidth(380)
         dlg.show()
-        self._busy_dialog = dlg
+        self._busy_dialog: QProgressDialog | None = dlg
         QApplication.processEvents()
         return True
 
@@ -4279,8 +4401,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if self._rbd is None:
             return (0, 0, 0, 0)
 
+        rbd = self._rbd
+
         def n(section: str, skip_default_block: bool = False) -> int:
-            sec = self._rbd.sections.get(section)
+            sec = rbd.sections.get(section)
             if sec is None:
                 return 0
             if not skip_default_block:
@@ -4999,7 +5123,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _start_run_eta(self) -> None:
         """Begin timing a batch for the "approximately N left" readout."""
         from raptor.gui.ui.run_eta import RunEstimate
-        self._run_eta = RunEstimate(
+        self._run_eta: RunEstimate | None = RunEstimate(
             extra_batches=self._importance_extra_batches())
         self._bg_last_paused = False
 
@@ -5283,12 +5407,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Warning)
             box.setWindowTitle("Unsupported Model Features")
-            box.setText(
-                "This model uses features the simulation engine doesn't "
-                "support yet:")
             box.setDetailedText("\n".join(preflight))
-            box.setText("\n".join(preflight[:6])
-                        + ("\n…" if len(preflight) > 6 else ""))
+            from raptor.gui.ui.preflight import run_dialog_text
+            box.setText(run_dialog_text(preflight))
             run_btn = box.addButton("Run Anyway", QMessageBox.ButtonRole.AcceptRole)
             box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
             box.exec()
@@ -6070,9 +6191,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         survives a rename and is refreshed after every edit."""
         rbd = self._rbd
         hier_name: dict[int, tuple[str, int]] = {}
-        for r in (rbd.sections.get("HIERARCHY_DATA").rows
-                  if rbd is not None and rbd.sections.get("HIERARCHY_DATA")
-                  else []):
+        hier_section = (rbd.sections.get("HIERARCHY_DATA")
+                        if rbd is not None else None)
+        for r in (hier_section.rows if hier_section else []):
             try:
                 hier_name[int(float(r["ID"]))] = (
                     r.get("hierarchyName", ""), int(float(r.get("Parent", 0) or 0)))
@@ -6850,6 +6971,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             QTimer.singleShot(0, run.fit_height)
         else:
             QTimer.singleShot(0, self._release_bottom_strip_ceiling)
+            if dock is getattr(self, "_data_tables_dock", None):
+                QTimer.singleShot(0, self._ensure_data_tables_height)
+
+    #: Shortest the Data Tables tab may open at: header plus several rows
+    #: (it used to open as one row and a scrollbar under the other docks).
+    DATA_TABLES_OPEN_HEIGHT = 260
+
+    def _ensure_data_tables_height(self) -> None:
+        dock = getattr(self, "_data_tables_dock", None)
+        if dock is None:
+            return
+        try:
+            if dock.isFloating() or not dock.isVisible():
+                return
+            if dock.height() < self.DATA_TABLES_OPEN_HEIGHT:
+                self._release_bottom_strip_ceiling()
+                self.resizeDocks([dock], [self.DATA_TABLES_OPEN_HEIGHT],
+                                 Qt.Orientation.Vertical)
+        except RuntimeError:
+            pass
 
     def _release_bottom_strip_ceiling(self) -> None:
         """Lift the height cap on every tab in the shared bottom slot.
@@ -7265,8 +7406,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # The bottom strip sizes itself from the panel that is showing.
         for attr in ("_run_dock", "_results_dock"):
             panel_dock = getattr(self, attr, None)
-            if panel_dock is dock and hasattr(dock, "fit_height"):
-                QTimer.singleShot(0, dock.fit_height)
+            fit = getattr(dock, "fit_height", None)
+            if panel_dock is dock and fit is not None:
+                QTimer.singleShot(0, fit)
 
     def _sync_dock_tab_bars(self):
         """QMainWindow's tabified-dock tab bars default to
@@ -7580,11 +7722,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _compute_validation_issues(self, api_issues) -> list[str]:
         """The GUI's own findings, plus every ERROR from `api_issues`."""
         issues: list[str] = []
-        if "SYSTEM_DATA" not in self._rbd.sections or \
-                not self._rbd.sections["SYSTEM_DATA"].rows:
+        rbd = self._rbd
+        if rbd is None:
+            return issues
+        if "SYSTEM_DATA" not in rbd.sections or \
+                not rbd.sections["SYSTEM_DATA"].rows:
             issues.append("Missing SYSTEM_DATA section")
         try:
-            block_rows = [r for r in self._rbd.sections["BLOCK_DATA"].rows
+            block_rows = [r for r in rbd.sections["BLOCK_DATA"].rows
                         if int(float(r.get("ID", "0"))) != 0]
         except (KeyError, ValueError):
             block_rows = []
@@ -7593,7 +7738,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # zero blocks -- tests/golden/Events is exactly this shape.
         # Flagging "No blocks defined" for it is a false positive.
         try:
-            event_rows = self._rbd.sections["EVENT_DATA"].rows
+            event_rows = rbd.sections["EVENT_DATA"].rows
         except KeyError:
             event_rows = []
         if not block_rows and not event_rows:
@@ -7617,8 +7762,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # here turned the same warning into a blocking issue and showed
         # it twice (once under problems, once under warnings).
         issues.extend(i.message for i in _check_start_to_end_reachable(
-            self._rbd) if i.severity == "error")
-        node_rows = self._rbd.sections.get("NODE_DATA")
+            rbd) if i.severity == "error")
+        node_rows = rbd.sections.get("NODE_DATA")
         n_nodes = len(node_rows.rows) if node_rows else 0
         types = {r.get("Type") for r in node_rows.rows} if node_rows \
             else set()
@@ -7629,7 +7774,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # caller already holds their answer (see `preflight_issues`).
         from raptor.gui.ui.preflight import preflight_issues
         issues.extend(preflight_issues(
-            self._rbd, self._diagram_dock.view,
+            rbd, self._diagram_dock.view,
             self._preflight_elem_name, api_issues=api_issues))
         # The API validator owns distribution-parameter and other
         # domain checks the GUI's own input rules do not cover. Without
@@ -7744,7 +7889,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if m:
             return v.locate_id(kinds[m.group(1).lower()], int(m.group(2)))
         m = re.search(r"\b(block|node)\s+'([^']+)'", text, re.IGNORECASE)
-        return bool(m) and v.locate_element(m.group(1).lower(), m.group(2))
+        return m is not None and v.locate_element(m.group(1).lower(),
+                                                  m.group(2))
 
     def _locate_link(self, link_id: int) -> bool:
         """Navigate to a link: its source element, then the connector.
@@ -8439,7 +8585,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         v.clear_result_overlays()
         v.apply_importance_colors(values, measure=measure,
                                   metric_name=metric)
-        top_bid = max(values, key=values.get)
+        top_bid = max(values, key=lambda k: values[k])
         top_name = next((r["block"] for r in rows
                          if int(r["block_id"]) == top_bid), str(top_bid))
         self._statusbar.showMessage(
@@ -9487,7 +9633,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             holder.raise_()
             holder.activateWindow()
             holder._statusbar.showMessage(
-                f"{os.path.basename(path)} is open in this window", 6000)
+                f"{os.path.basename(path or '')} is open in this window", 6000)
             return None
         if self._rbd is None or (self._current_file is None
                                  and not self._dirty):
