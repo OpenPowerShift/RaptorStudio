@@ -175,4 +175,4 @@ def test_sides_do_not_flicker_at_a_boundary():
         assert _LinkItem._sticky_side(item, QPointF(100, 400), "right") == "bottom"
         assert _LinkItem._sticky_side(item, below, None) == "bottom"
     finally:
-        _LinkItem._true_centre = orig
+        _LinkItem._true_centre = staticmethod(orig)
