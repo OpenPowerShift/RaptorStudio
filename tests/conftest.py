@@ -85,6 +85,17 @@ def _open_models_in_new_windows():
 
 
 @pytest.fixture(autouse=True)
+def _empty_clipboard():
+    """Nothing on the system clipboard between tests: Copy puts a Raptor
+    clip there, and Paste is only available while one is, so a clip left by
+    one test would enable Paste in the next test's fresh window."""
+    yield
+    from PySide6.QtGui import QGuiApplication
+    if QGuiApplication.instance() is not None:
+        QGuiApplication.clipboard().clear()
+
+
+@pytest.fixture(autouse=True)
 def _default_link_routing():
     """The canvas's page-flow direction and link style back to their
     defaults after each test. Both are module-wide (`diagram_items._FLOW`,

@@ -22,7 +22,8 @@ from typing import Any, cast
 
 from shiboken6 import isValid
 from PySide6.QtCore import (
-    Qt, Signal, QEvent, QRectF, QPointF, QLineF, QSize, QTimer,
+    Qt, Signal, QByteArray, QEvent, QMimeData, QRectF, QPointF, QLineF, QSize,
+    QTimer,
 )
 from PySide6.QtGui import (
     QPen, QBrush, QColor, QFont, QPainter, QPixmap, QUndoStack, QKeySequence,
@@ -42,8 +43,9 @@ from raptor.core.annotations import (
     annotation_geometry,
     annotation_label,
 )
-from raptor.gui import row_ops
-from raptor.gui.clipboard_plan import count_elements, plan_copy, plan_paste
+from raptor.gui import clipboard_payload, row_ops, text_editing
+from raptor.gui.clipboard_plan import (
+    count_elements, plan_copy, plan_paste, remap_dependencies)
 from raptor.core.fileio.band_handover import handover_points
 from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 from raptor.gui.hierarchy_plan import (apply_collapse_plan,
@@ -217,6 +219,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     #: already at the front). The per-kind signals above stay for
     #: anything that needs to know *which* element.
     selection_changed = Signal()
+    #: The paste buffer changed: Paste may have become (un)available.
+    paste_state_changed = Signal()
     #: (mode) -- the armed build tool CHANGED, from either side: the user
     #: clicking a ribbon tool, or the view disarming itself (Esc, or the
     #: end of a one-shot placement). MainWindow unchecks the ribbon
@@ -364,6 +368,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: QSettings by MainWindow; empty means "factory look".
         self.default_annotation_props: dict[str, dict] = {}
         self._paste_buffer: list = []
+        self._defer_block_refresh = False   # True while a batch is inserted
+        self._model_token = clipboard_payload.new_model_token()
         self._connect_ghost: QGraphicsLineItem | None = None
         self._anno_drag_start: QPointF | None = None
         self._connect_from: tuple[str, int] | None = None
@@ -705,10 +711,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     # open, and consistent across level switches (no per-level fit).
     LEGACY_SCALE = view_transform.LEGACY_SCALE
 
-    def _compute_model_transform(self, rbd: RbdFile):
+    def _compute_model_transform(self, rbd: RbdFile, spacing: float = 1.0,
+                                 band_aware: bool = False):
         """Whole-model origin/flip/scale, computed once per load and then
         frozen on the file (see `raptor.core.fileio.view_transform`)."""
-        vt = view_transform.ensure(rbd)
+        vt = view_transform.ensure(rbd, spacing, band_aware)
         self._vt = vt
         self._origin_x = vt.origin_x
         self._flip_base = vt.flip_base
@@ -729,6 +736,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         used = {int(a.get("id", 0)) for a in self.annotations}
         self._anno_seq = (max(used) + 1) if used else 1
         self._rbd_ref = rbd   # kept so element creation can clone real rows
+        self._model_token = clipboard_payload.new_model_token()
         # Units for the canvas labels, read once: the per-block label
         # formatter must not re-parse SYSTEM_DATA on every refresh.
         self._label_units = ""
@@ -1218,6 +1226,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
         cur = self._current_parent
         log.debug("_rebuild_scene: level=%s", cur)
+        # The page flow is per level: a level Auto Layout never touched
+        # must not take its port sides from another level's direction.
+        set_flow_direction(self.level_flow_direction())
         # Stable transform: origin/scale/flip come from the whole model
         # (computed once in load_rbd), so every element renders exactly
         # where its file row says -- same on every open, and identical
@@ -1455,6 +1466,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                   len(self._event_items), len(self._hier_items),
                   len(self._links))
         self._apply_scene_layout()
+        self._remember_render_extents()
         log.debug("_rebuild_scene: _apply_scene_layout done")
         self._apply_tool_cursor()       # the new items show the armed tool
 
@@ -2148,7 +2160,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         menu = QMenu(self)
         mx, my = self.scene_to_model(scene_pos)
         paste_act = menu.addAction("Paste Here (at pointer)")
-        paste_act.setEnabled(bool(self._paste_buffer))
+        paste_act.setEnabled(self.can_paste())
         menu.addSeparator()
         select_all_act = menu.addAction("Select All")
         select_all_act.setShortcut(QKeySequence("Ctrl+A"))
@@ -2505,7 +2517,27 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     continue
                 row["xPos"], row["yPos"] = _pos(xy[0]), _pos(xy[1])
 
+    def view_options(self) -> dict:
+        """The view-wide options a saved file carries (see `RbdFile.view`)."""
+        from raptor.gui.ui.diagram_items import link_routing
+        return {"link_routing": link_routing(),
+                "block_labels": self._block_label_mode()}
+
+    def apply_view_options(self, opts: dict) -> None:
+        """Take a file's saved view options. Unknown or missing values leave
+        the current setting."""
+        from raptor.core.routing import ROUTING_MODES
+        from raptor.gui.ui.diagram_items import set_link_routing
+        mode = opts.get("link_routing")
+        if mode in ROUTING_MODES:
+            set_link_routing(mode)
+        labels = opts.get("block_labels")
+        if labels in dict(block_labels.MODES):
+            app_settings.set_value("appearance/block_labels", labels)
+            self._label_mode_cache = None
+
     def write_back_to_rbd(self, rbd: RbdFile):
+        rbd.view = self.view_options()
         self.sync_model_positions()
         self._sync_event_hier_positions(rbd)
         self._editor.write_back(rbd, hier_ids=set(self._hier_items))
@@ -2599,6 +2631,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         self._stack.push(CommentCmd(self, etype, oid, old, stored))
 
+    def _note_duplicate_name(self, kind: str, eid: int, name: str) -> None:
+        """Status-bar notice (not a refusal: Raptor 7 allows a shared name)
+        when another element of the same kind already has this name, ignoring
+        case. Reports and messages quote names, so a repeat is ambiguous."""
+        pool = {"block": lambda: {i: b.name for i, b in self.blocks.items()},
+                "node": lambda: {i: n.node_name for i, n in self.nodes.items()},
+                "event": lambda: {i: e.name for i, e in self.events.items()},
+                "hier": lambda: {i: h.name for i, h in self.hiers.items()}}[kind]()
+        key = name.casefold()
+        same = [i for i, n in pool.items()
+                if i != eid and str(n).casefold() == key]
+        if same:
+            others = ", ".join(str(i) for i in same[:3])
+            _view_status(self, f"Note: another {kind} ({others}) is already "
+                         f"named '{name}' (compared ignoring case "
+                         "— reports will show both the same")
+
     def rename_block(self, block_id: int, name: str):
         if block_id not in self.blocks:
             return
@@ -2606,6 +2655,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if name == old:
             return
         self._stack.push(RenameCmd(self, "block", block_id, old, name))
+        self._note_duplicate_name("block", block_id, name)
 
     def rename_node(self, node_id: int, name: str):
         if node_id not in self.nodes:
@@ -2614,6 +2664,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if name == old:
             return
         self._stack.push(RenameCmd(self, "node", node_id, old, name))
+        self._note_duplicate_name("node", node_id, name)
 
     #: Distribution setters always take CANONICAL values (Exponential =
     #: mean, Lognormal = mean + standard deviation). Raptor's lambda /
@@ -3072,6 +3123,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if h is None or name == h.name:
             return
         self._stack.push(RenameCmd(self, "hier", hid, h.name, name))
+        self._note_duplicate_name("hier", hid, name)
 
     def _sync_event_row(self, eid: int):
         self._editor.sync_event_row(eid)
@@ -3081,6 +3133,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if event is None or name == event.name:
             return
         self._stack.push(RenameCmd(self, "event", eid, event.name, name))
+        self._note_duplicate_name("event", eid, name)
 
     def set_event_field(self, eid: int, field: str, value):
         """field: 'dist' | 'param' | 'stream' (EVENT_DATA's Distro /
@@ -3123,6 +3176,39 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._label_phase = phase
         self.refresh_block_labels()
 
+    def level_flow_direction(self) -> str:
+        """The page flow Auto Layout last used on the level on screen, or
+        "auto" (infer it from the level's own links)."""
+        flows = getattr(self._rbd_ref, "flow_directions", None) or {}
+        return str(flows.get(str(self._current_parent), "auto"))
+
+    def _remember_flow_direction(self) -> None:
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        if not isinstance(getattr(rbd, "flow_directions", None), dict):
+            rbd.flow_directions = {}
+        rbd.flow_directions[str(self._current_parent)] = flow_direction()
+
+    def _remember_render_extents(self) -> None:
+        """Record how wide this level's elements are drawn, for the
+        file-wide scale `view_transform.derive` picks after an Auto Layout."""
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        seen = getattr(rbd, "_render_extents", None)
+        if not isinstance(seen, dict):
+            seen = {}
+            rbd._render_extents = seen  # type: ignore[attr-defined]
+        for section, table in (("BLOCK_DATA", self._block_items),
+                               ("NODE_DATA", self._node_items),
+                               ("HIERARCHY_DATA",
+                                getattr(self, "_hier_items", {}))):
+            for oid, item in cast("dict[int, Any]", table).items():
+                rect = item.sceneBoundingRect()
+                seen[(section, str(oid))] = (rect.width() / 2.0,
+                                             rect.height() / 2.0)
+
     def reroute_links(self) -> None:
         """Redraw every link (after the routing style changes). Layout only:
         no element moves and the model is not marked changed."""
@@ -3157,14 +3243,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # against the old width and would now sit inside the block.
             if item.rect().width() != width:
                 resized.append(item)
-        if resized and not self._loading:
+        if resized:
+            # Also while a level is still being built: the deferred
+            # sub-labels are applied at the end of `_rebuild_scene`, after
+            # the links were routed against the unlabelled 108 px boxes.
+            # Skipping this then left every route 2 px off its port, so
+            # the next re-route (a link-style change) moved them.
             self._clear_route_caches()
             affected: dict[int, Any] = {}
             for item in resized:
                 for link in links_affected_by_moving(item):
                     affected[id(link)] = link
-            for link in affected.values():
-                link._update_route()
+            with routing_batch(self._scene):
+                for link in affected.values():
+                    link._update_route()
 
     def _block_row_by_id(self, bid: int):
         return self._editor.block_row(bid)
@@ -3432,15 +3524,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._dependency_visual(block.dependency_num, block.dep_type))
         self._scene.addItem(item)
         self._block_items[bid] = item
+        if not self._defer_block_refresh:
+            self.refresh_after_block_insert()
+        return bid
+
+    def refresh_after_block_insert(self) -> None:
+        """What a block insert needs once per batch, not once per block."""
         self._refresh_lod()
         self._recount_link_ends()
-        return bid
 
     def add_block(self, name: str, model_x: float, model_y: float,
                   fdist: int | None = None,
                   fparam: float | None = None) -> int:
         """Create a block at model coordinates; defaults come from the
         Block Defaults unless given."""
+        row = self._new_block_row(name, model_x, model_y, fdist, fparam)
+        self._stack.push(AddCmd(self, "block", [row]))
+        return _safe_int(row["ID"])
+
+    def _new_block_row(self, name: str, model_x: float, model_y: float,
+                       fdist: int | None = None,
+                       fparam: float | None = None,
+                       bid: int | None = None) -> dict:
+        """A full BLOCK_DATA row for a fresh block (Block Defaults, every
+        column a new block has, PM included), not yet added."""
         if self._rbd_ref is None:
             raise RuntimeError("no file loaded")
         if fdist is None:
@@ -3452,7 +3559,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         repair_params = list(self.default_block_rparams)
         sparing = self.default_block_sparing
         row = self._template_row("BLOCK_DATA", "ID") or {}
-        bid = self._next_id("BLOCK_DATA", "ID", self.blocks)
+        if bid is None:
+            bid = self._next_id("BLOCK_DATA", "ID", self.blocks)
         row["blockName"] = self._sanitize_name(name)
         row["ID"] = str(bid)
         # On the level being shown. The template row says 0, so a block
@@ -3478,8 +3586,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         for i in range(3):
             row[f"RParam{i + 1}"] = f"{repair_params[i] if i < _dist_param_count(repair_dist) else 0.0:.6f}"
         row["SpType"] = sparing
-        self._stack.push(AddCmd(self, "block", [row]))
-        return bid
+        return row
 
     def add_node(self, name: str, model_x: float, model_y: float,
                  node_type: int = 2) -> int:
@@ -3897,7 +4004,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # LINK_DATA id.
         num = self._next_link_id()
         row = self._make_link_row(from_type, from_id, to_type, to_id, num)
+        before = len(section.rows)
         self._stack.push(AddCmd(self, "link", [row]))
+        if len(section.rows) == before:
+            return None             # the input-rule gate refused the link
         return num
 
     @staticmethod
@@ -4882,10 +4992,52 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     # --- Cut / Copy / Paste ------
 
+    def copyable_count(self) -> int:
+        """Selected things Copy/Cut take: elements and annotations."""
+        try:
+            n = self.selected_element_count()
+            return n + sum(1 for it in getattr(self, "_anno_items", {}).values()
+                           if it.isSelected())
+        except RuntimeError:        # scene torn down during shutdown
+            return 0
+
+    def _clipboard_payload(self) -> clipboard_payload.Payload | None:
+        """The Raptor Studio clip on the system clipboard, if there is one
+        (copied in another model, another window or another running app)."""
+        mime = QApplication.clipboard().mimeData()
+        if mime is None or not mime.hasFormat(clipboard_payload.MIME):
+            return None
+        return clipboard_payload.decode(
+            bytes(mime.data(clipboard_payload.MIME).data()))
+
+    def can_paste(self) -> bool:
+        """Paste has something to paste: a Raptor clip on the system
+        clipboard, or (when the clipboard is empty or unavailable) this
+        view's own earlier copy. Something else on the clipboard (text from
+        another program) means there is nothing of ours to paste."""
+        if self._rbd_ref is None:
+            return False
+        mime = QApplication.clipboard().mimeData()
+        if mime is not None and mime.formats():
+            return self._clipboard_payload() is not None
+        return bool(self._paste_buffer)
+
+    def _publish_clip(self, buffer) -> None:
+        """Put `buffer` on the system clipboard beside the in-app copy."""
+        mime = QMimeData()
+        name = getattr(self._rbd_ref, "file_name", "") or ""
+        mime.setData(clipboard_payload.MIME, QByteArray(
+            clipboard_payload.encode(buffer, source_name=name,
+                                     model_token=self._model_token)))
+        mime.setText(clipboard_payload.summary_text(buffer, name))
+        QApplication.clipboard().setMimeData(mime)
+
     def copy_selection(self) -> int:
         """Snapshot the selected elements (+ their fully-internal links)
-        into the paste buffer. Returns the element count."""
-        if self._rbd_ref is None:
+        into the paste buffer. Returns the element count. With nothing
+        selected it does nothing, so it cannot empty a buffer that holds
+        an earlier copy."""
+        if self._rbd_ref is None or not self.copyable_count():
             return 0
         sel_b = [bid for bid, it in self._block_items.items()
                  if it.isSelected() and bid != 0]
@@ -4910,6 +5062,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         for a in sel_annos:
             buffer.append(("annotation", dict(a)))
         self._paste_buffer = buffer
+        if buffer:
+            self._publish_clip(buffer)
+        self.paste_state_changed.emit()
         return count_elements(buffer)
 
     def cut_selection(self) -> int:
@@ -4929,19 +5084,38 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self.delete_selected()
         return n
 
-    def paste(self, at_model=None, offset=(8.0, 6.0)):
+    def paste(self, at_model=None, offset=(8.0, 6.0), buffer=None):
         """Re-insert buffered elements with fresh ids; internal links are
         remapped to the new ids. `at_model` anchors the cluster's top-left
         to a model point (context-menu paste). One macro undo step.
         Returns the number of elements pasted."""
-        if not self._paste_buffer or self._rbd_ref is None:
+        if self._rbd_ref is None:
+            return 0
+        notes: list[str] = []
+        same_model_paste = True
+        if buffer is None:
+            # The system clipboard first: it carries copies made in other
+            # models and other windows. Anything else on it, or nothing,
+            # falls back to this view's own last copy.
+            payload = self._clipboard_payload()
+            if payload is not None:
+                same_model_paste = clipboard_payload.same_model(
+                    payload, self._model_token)
+                adapted = clipboard_payload.adapt_for_target(
+                    self._rbd_ref, payload, same_model=same_model_paste)
+                buffer, notes = adapted.buffer, adapted.notes
+            else:
+                mime = QApplication.clipboard().mimeData()
+                if mime is not None and mime.formats():
+                    return 0       # something foreign is on the clipboard
+                buffer = self._paste_buffer
+        if not buffer:
             return 0
         parent = self._current_parent
 
-        anno_entries = [r for k, r in self._paste_buffer
-                        if k == "annotation"]
-        elements = [(k, r) for k, r in self._paste_buffer
-                 if k not in ("link", "annotation")]
+        anno_entries = [r for k, r in buffer if k == "annotation"]
+        elements = [(k, r) for k, r in buffer
+                    if k not in ("link", "annotation")]
 
         # Anchor and target, both in SCENE coordinates, then converted
         # per-kind. This used to compute the anchor from the elements'
@@ -5002,13 +5176,19 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         dx = sdx / self._scale
         dy = -sdy / self._scale
         plan = plan_paste(
-            self._rbd_ref, self._paste_buffer,
+            self._rbd_ref, buffer,
             {"block": self.blocks, "node": self.nodes,
              "event": self.events, "hier": self.hiers},
             dx=dx, dy=dy, parent=parent,
             parent_level=(self.hiers[parent].level
                           if parent in self.hiers else None))
         new_rows = plan.new_rows
+        # Dependencies among the pasted elements follow their copies; ones on
+        # elements left behind survive only in the model they came from.
+        lost = remap_dependencies(plan, keep_external=same_model_paste)
+        if lost:
+            notes.append(f"{lost} dependency(ies) on elements that were not "
+                         "copied were dropped")
 
         # Pasted content, not typed input: Raptor 7's PasteObject checks only
         # the edition's block limit and hierarchy depth, not the dialog or
@@ -5054,6 +5234,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     self._stack.push(AnnoCmd(self, a2, add=True))
             finally:
                 self._stack.endMacro()
+        if notes:
+            sink = getattr(self, "status_message_sink", None)
+            if sink is not None:
+                sink("Pasted. " + "; ".join(notes) + ".")
         # Select the pasted elements.
         self._scene.clearSelection()
         for kind, rows in new_rows.items():
@@ -6096,6 +6280,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                              f"click (left or right) the target element")
                 return
             src_kind, src_id = self._connect_from
+            if (src_kind, src_id) == (kind, eid):
+                _view_status(self, "An element cannot be linked to itself "
+                             "— click a different target")
             if (src_kind, src_id) != (kind, eid):
                 reason = self._connect_refusal_reason(src_kind, src_id,
                                                       kind, eid)
@@ -6539,10 +6726,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         finally:
             self._snap_state["x"], self._snap_state["y"] = saved
 
-    def _layout_state(self) -> tuple[dict, dict | None]:
+    def _layout_state(self) -> tuple[dict, dict | None, tuple[str, str | None]]:
         """This level's element positions in model units (from the typed
-        objects -- call `sync_model_positions` first) and the canvas
-        transform: what Auto Layout changes, for its undo record."""
+        objects -- call `sync_model_positions` first), the canvas transform
+        and the level's saved page flow: what Auto Layout changes, for its
+        undo record."""
         pos: dict = {}
         for kind, table in (("block", self.blocks), ("node", self.nodes),
                             ("event", self.events), ("hier", self.hiers)):
@@ -6556,16 +6744,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 (k, a.get(k)) for k in ("x", "y", "x1", "y1", "x2", "y2") if k in a)
         rbd = self._rbd_ref
         vt = getattr(rbd, "view_transform", None) if rbd is not None else None
-        return pos, (dict(vt) if vt else None)
+        flows = getattr(rbd, "flow_directions", None) or {}
+        key = str(self._current_parent)
+        flow = (key, flows.get(key))
+        return pos, (dict(vt) if vt else None), flow
 
-    def _restore_layout(self, state: tuple[dict, dict | None]) -> None:
+    def _restore_layout(
+            self, state: tuple[dict, dict | None, tuple[str, str | None]]
+    ) -> None:
         """Put back a `_layout_state`: the rows and the overlay take the
         positions, the transform is restored (or re-derived from those
         rows), and the level is rebuilt from them."""
-        pos, vt = state
+        pos, vt, (flow_key, flow) = state
         rbd = self._rbd_ref
         if rbd is None:
             return
+        # The level's page flow is part of what Auto Layout changed: put it
+        # back too, or the link sides stay as the undone layout had them
+        # and a later save keeps them. (`_rebuild_scene` applies it.)
+        if not isinstance(getattr(rbd, "flow_directions", None), dict):
+            rbd.flow_directions = {}
+        if flow is None:
+            rbd.flow_directions.pop(flow_key, None)
+        else:
+            rbd.flow_directions[flow_key] = flow
         cols = {"block": ("BLOCK_DATA", "ID"), "node": ("NODE_DATA", "ID"),
                 "event": ("EVENT_DATA", "ID"), "hier": ("HIERARCHY_DATA", "ID")}
         annos = {aid: dict(geom) for (kind, aid), geom in pos.items() if kind == "anno"}
@@ -6976,7 +7178,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Scoped clipboard shortcuts: only when the canvas has focus, so
         # text fields keep their own Ctrl+C/V semantics.
         mods = event.modifiers() & Qt.KeyboardModifier.ControlModifier
-        if mods and self.hasFocus():
+        if mods and self.hasFocus() and text_editing.active_editor() is None:
             if event.key() == Qt.Key.Key_C:
                 self.copy_selection()
                 event.accept()
@@ -7839,11 +8041,66 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         """Insert a library template as a new block (fresh id, undoable,
         placed at `at_model` or near the viewport centre). Returns the
         new block id."""
-        self._paste_buffer = [("block", dict(row))]
-        n = self.paste(at_model=at_model)
-        if n != 1:
-            return 0
-        return max(self.blocks)
+        if at_model is None:
+            at_model = self.scene_to_model(
+                self.mapToScene(self.viewport().rect().center()))
+        ids = self._add_template_rows([row], [at_model], "Add block")
+        return ids[0] if ids else 0
+
+    def add_blocks_from_templates(self, rows: list[dict],
+                                  centre: QPointF) -> list[int]:
+        """Insert several library templates as new blocks, laid out in a
+        grid (at most four across) around the scene point `centre`, as one
+        undo step and one pass of the input-rule gate. Returns the new
+        block ids (empty if the edit was refused)."""
+        if not rows:
+            return []
+        across = min(len(rows), 4)
+        step_x, step_y = BLOCK_W + 40.0, BLOCK_H + 30.0
+        down = -(-len(rows) // across)
+        spots = []
+        for i in range(len(rows)):
+            col, line = i % across, i // across
+            spots.append(self.scene_to_model(QPointF(
+                centre.x() + (col - (across - 1) / 2.0) * step_x,
+                centre.y() + (line - (down - 1) / 2.0) * step_y)))
+        return self._add_template_rows(
+            rows, spots, "Add block" if len(rows) == 1
+            else f"Add {len(rows)} blocks")
+
+    def _add_template_rows(self, rows: list[dict], spots: list,
+                           text: str) -> list[int]:
+        """The template columns laid over a fresh block's full row (a library
+        carries failure, repair, LDT and dependency data only; the rest of a
+        block is the Block Defaults), added by one command. The input-rule
+        gate checks the whole add once, and refuses it as a whole."""
+        # The lowest free ids (gaps left by deleted blocks and ids held at
+        # other levels are skipped), found in one pass over the rows.
+        rbd = req(self._rbd_ref)
+        used = set(self.blocks)
+        for r in rbd.sections["BLOCK_DATA"].rows:
+            used.add(_safe_int(r.get("ID")))
+        new_ids: list[int] = []
+        nid = 1
+        while len(new_ids) < len(rows):
+            if nid not in used:
+                new_ids.append(nid)
+            nid += 1
+        new_rows = []
+        for bid, tpl, (mx, my) in zip(new_ids, rows, spots):
+            full = self._new_block_row(tpl.get("blockName", ""), mx, my,
+                                       bid=bid)
+            for col, val in tpl.items():
+                if col not in ("blockName", "ID", "ParentId", "xPos", "yPos"):
+                    full[col] = val
+            new_rows.append(full)
+        cmd = AddCmd(self, "block", new_rows)
+        cmd.setText(text)
+        before = len(rbd.sections["BLOCK_DATA"].rows)
+        self._stack.push(cmd)
+        if len(rbd.sections["BLOCK_DATA"].rows) == before:
+            return []                  # the gate refused it
+        return new_ids
 
     def update_blocks_from_library(self, templates: list[dict]) -> int:
         """Overwrite the F/R distribution+param+stream columns of every
@@ -8004,6 +8261,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
         selected = {k for k, it in members.items() if it.isSelected()}
         if selected and len(selected) < len(members):
+            sink: Any = getattr(self, "status_message_sink", None)
+            if sink is not None:
+                sink(f"Auto Layout moved only the {len(selected)} selected "
+                     f"element(s); the other {len(members) - len(selected)} "
+                     "stay where they are. Deselect all to lay out the "
+                     "whole level.")
             return self._auto_layout_selection(
                 selected, members, edges, direction=direction,
                 max_columns=max_columns, spacing=spacing)
@@ -8130,6 +8393,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             for link in self._links:
                 link._update_route()
         self._user_arranged = True
+        self._remember_flow_direction()
         # sync only (not write_back): the position overlay reads the
         # typed objects on level rebuilds, so traversal keeps the
         # arrangement; rows are written on Save like any other edit.
@@ -8178,8 +8442,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # Exact drawn extents for this layout. `view_transform.derive`
             # uses them for the scale; without this it would reserve the
             # fixed 108 px block and let a 216 px name overlap.
-            rbd._render_extents = render_extents  # type: ignore[attr-defined]
-            self._compute_model_transform(rbd)
+            # Merged with the other levels' extents seen so far: the scale
+            # is file-wide, so a level laid out later must not forget how
+            # wide the rest are drawn, or its scale (and every level's
+            # spacing with it) would depend on which level was laid out last.
+            rbd._render_extents = {  # type: ignore[attr-defined]
+                **getattr(rbd, "_render_extents", {}), **render_extents}
+            self._compute_model_transform(rbd, spacing, band_aware=True)
             # Annotations go with the diagram: anchored ones next to their
             # element again, the others at the same place in the model.
             from raptor.api.annotations import (

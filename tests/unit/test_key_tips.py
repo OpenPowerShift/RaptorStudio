@@ -1,8 +1,6 @@
-"""Alt key tips come from the command table.
+"""Alt key tips: File and each tab, then each button of the tab.
 
-They used to be a second table keyed by label (`ribbon.KEY_TIPS`), so a
-command and its key lived in two places; they are now `key_tip` on the
-command's own entry. The letters are unchanged: somebody has learned them.
+The letters are data (`raptor/gui/key_tips.py`), never derived from a label.
 """
 from __future__ import annotations
 
@@ -11,28 +9,29 @@ from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication
 
-from raptor.gui.command_table import COMMANDS
-
-#: The letters as shipped before the move. Changing one is a user-visible
-#: break, so it should take a deliberate edit here too.
-SHIPPED = {
-    "sim.run": "R", "sim.step": "S", "sim.step_next_time": "N",
-    "sim.step_finish": "F", "sim.restart_step": "X", "sim.stop_run": "P",
-    "sim.pause": "A", "sim.jump": "J", "file.open": "O", "file.save": "V",
-    "file.new": "W", "home.validate": "L", "home.syscfg": "C",
-    "sim.live_sim": "M",
-    "file.copy_view": "Y",
-}
+from raptor.gui.command_table import COMMANDS, LAYOUT
+from raptor.gui.commands import Btn
+from raptor.gui.key_tips import FILE_KEY_TIP, KEY_TIPS, TAB_KEY_TIPS
 
 
-def test_the_letters_are_unchanged():
-    assert {c.id: c.key_tip for c in COMMANDS if c.key_tip} == SHIPPED
+def test_file_is_f_and_the_tab_letters_are_mnemonic_and_unique():
+    assert FILE_KEY_TIP == "F"
+    assert TAB_KEY_TIPS["Results"] == "R" and TAB_KEY_TIPS["Simulate"] == "S"
+    tops = [FILE_KEY_TIP, *TAB_KEY_TIPS.values()]
+    assert len(tops) == len(set(tops))
+    assert set(TAB_KEY_TIPS) == {p.title for p in LAYOUT}
 
 
-def test_a_letter_is_never_shared_or_multi_character():
-    tips = [c.key_tip for c in COMMANDS if c.key_tip]
-    assert len(tips) == len(set(tips))
-    assert all(len(t) == 1 and t.isalpha() and t.isupper() for t in tips)
+def test_every_ribbon_button_has_a_letter_unique_on_its_tab():
+    for page in LAYOUT:
+        ids = [i.id for g in page.groups for i in g.items
+               if isinstance(i, Btn)]
+        tips = KEY_TIPS[page.title]
+        assert set(tips) == set(ids), page.title
+        letters = list(tips.values())
+        assert len(letters) == len(set(letters)), page.title
+        assert all(len(t) == 1 and t.isalpha() and t.isupper()
+                   for t in letters)
 
 
 @pytest.fixture
@@ -55,81 +54,94 @@ def win(qapp):
     w.close()
 
 
-def _buttons_with_tips(win):
-    from raptor.gui.widgets.ribbon import RibbonButton
-    return {b.property("ribbonKeyTip"): b
-            for b in win._ribbon.findChildren(RibbonButton)
-            if b.property("ribbonKeyTip")}
+def _press(win, letter):
+    ev = QKeyEvent(QEvent.Type.KeyPress, getattr(Qt.Key, f"Key_{letter}"),
+                   Qt.KeyboardModifier.NoModifier, letter.lower())
+    return win._key_press_event_filter(win, ev)
 
 
-#: Tipped commands that live in the full-page File view, not on a page.
-IN_FILE_VIEW = {"file.open", "file.save", "file.new", "file.copy_view"}
-
-
-@pytest.mark.gui
-def test_every_tipped_command_reaches_a_ribbon_button(win):
-    got = _buttons_with_tips(win)
-    # Undo/Redo, Stop... are all on the ribbon; each tip is on its button.
-    assert set(got) == {k for cid, k in SHIPPED.items()
-                        if cid not in IN_FILE_VIEW}
+def _badges(win):
+    return sorted(b.text() for b in win._key_tip_badges)
 
 
 @pytest.mark.gui
-def test_a_file_view_letter_still_works_from_any_tab(win, monkeypatch):
-    """Open used to be a button on the File tab; Alt, O must still open."""
-    fired = []
-    monkeypatch.setattr(win._open_action, "trigger", lambda: fired.append(1))
+def test_alt_letters_file_and_every_tab_then_alt_again_hides(win):
     win._show_key_tips()
-    ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_O,
-                   Qt.KeyboardModifier.NoModifier, "o")
-    assert win._key_press_event_filter(win, ev)
-    assert fired == [1]
+    assert _badges(win) == sorted([FILE_KEY_TIP, *TAB_KEY_TIPS.values()])
+    assert all(b.isVisible() for b in win._key_tip_badges)
+    win._show_key_tips()
+    assert not win._key_tips_active and not win._key_tip_badges
 
 
 @pytest.mark.gui
-def test_the_file_letter_opens_the_file_view(win):
-    from raptor.gui.ui.main_window import FILE_KEY_TIP
-    assert FILE_KEY_TIP not in SHIPPED.values()
+def test_f_opens_the_file_view(win):
     win._show_key_tips()
-    assert win._ribbon.file_button.text() == f"File  ({FILE_KEY_TIP})"
-    ev = QKeyEvent(QEvent.Type.KeyPress, getattr(Qt.Key, f"Key_{FILE_KEY_TIP}"),
-                   Qt.KeyboardModifier.NoModifier, FILE_KEY_TIP.lower())
-    assert win._key_press_event_filter(win, ev)
-    assert win._backstage.isVisible()
-    assert win._ribbon.file_button.text() == "File"
+    assert _press(win, "F")
+    assert win._backstage.isVisible() and not win._key_tips_active
     win._backstage.close_view()
 
 
 @pytest.mark.gui
-def test_alt_shows_the_tips_and_alt_again_hides_them(win):
-    b = _buttons_with_tips(win)["M"]
-    label = b.property("ribbonActionText")
+def test_a_tab_letter_opens_the_tab_and_letters_its_buttons(win):
     win._show_key_tips()
-    assert b.text() == f"{label}  (M)"
-    win._show_key_tips()
-    assert b.text() == label
+    assert _press(win, "R")
+    assert win._ribbon.tab_bar.tabText(
+        win._ribbon.tab_bar.currentIndex()) == "Results"
+    assert win._key_tips_active
+    assert "S" in _badges(win) and "C" in _badges(win)
+    win._dismiss_key_tips()
 
 
 @pytest.mark.gui
-def test_a_letter_fires_its_command(win):
-    action = win._live_sim_action if hasattr(win, "_live_sim_action") \
-        else _buttons_with_tips(win)["M"].defaultAction()
+def test_the_model_tab_letters_the_element_tools(win):
+    win._show_key_tips()
+    _press(win, "M")
+    shown = set(_badges(win))
+    for cid in ("model.add_block", "model.add_node", "model.add_event",
+                "model.add_hier", "model.connect"):
+        assert KEY_TIPS["Model"][cid] in shown, cid
+    win._dismiss_key_tips()
+
+
+@pytest.mark.gui
+def test_the_second_letter_runs_the_command(win):
+    action = win._commands.action("sim.live_sim")
     before = action.isChecked()
     win._show_key_tips()
-    ev = QKeyEvent(QEvent.KeyPress, Qt.Key_M, Qt.NoModifier, "m")
-    assert win._key_press_event_filter(win, ev) is True
+    _press(win, "S")
+    assert _press(win, KEY_TIPS["Simulate"]["sim.live_sim"])
     assert action.isChecked() != before
-    assert not win._key_tips_active
+    assert not win._key_tips_active and not win._key_tip_badges
 
 
 @pytest.mark.gui
 def test_a_letter_for_an_unavailable_command_says_so_instead(win):
     win._show_key_tips()
-    stop = _buttons_with_tips(win)["P"]        # Stop: nothing is running
-    assert not stop.isEnabled()
-    ev = QKeyEvent(QEvent.KeyPress, Qt.Key_P, Qt.NoModifier, "p")
-    assert win._key_press_event_filter(win, ev) is True
+    _press(win, "S")
+    assert not win._commands.action("sim.stop_run").isEnabled()
+    assert _press(win, KEY_TIPS["Simulate"]["sim.stop_run"])
     assert "not available" in win._statusbar.currentMessage()
+
+
+@pytest.mark.gui
+def test_an_unknown_letter_stays_and_backspace_goes_up_a_level(win):
+    win._show_key_tips()
+    _press(win, "R")
+    assert _press(win, "J") and win._key_tips_active   # no J on Results
+    ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Backspace,
+                   Qt.KeyboardModifier.NoModifier, "")
+    assert win._key_press_event_filter(win, ev)
+    assert _badges(win) == sorted([FILE_KEY_TIP, *TAB_KEY_TIPS.values()])
+    win._dismiss_key_tips()
+
+
+@pytest.mark.gui
+def test_alt_held_with_a_tab_letter_goes_straight_to_that_tab(win):
+    ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_R,
+                   Qt.KeyboardModifier.AltModifier, "r")
+    win.keyPressEvent(ev)
+    assert win._key_tips_active and win._key_tip_page == "Results"
+    win._dismiss_key_tips()
 
 
 @pytest.mark.gui
@@ -138,7 +150,6 @@ def test_a_letter_reaches_the_tips_from_whichever_widget_has_focus(win, qapp):
     the focused widget (the canvas), so the tips showed and no letter did
     anything. The press is sent to the canvas here, as a user's would be."""
     from PySide6.QtTest import QTest
-    from raptor.gui.ui.main_window import FILE_KEY_TIP
     view = win._diagram_dock.view
     win.raise_()
     win.activateWindow()
