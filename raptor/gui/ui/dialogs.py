@@ -17,7 +17,7 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QDialog, QFormLayout, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QComboBox, QSpinBox, QDoubleSpinBox,
-    QGroupBox, QWidget, QListWidget, QTabWidget, QMessageBox, QScrollArea, QFrame,
+    QGroupBox, QWidget, QListWidget, QAbstractItemView, QTabWidget, QMessageBox, QScrollArea, QFrame,
 )
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.ui import settings
@@ -119,53 +119,100 @@ def import_block_library(win):
     lay.addWidget(QLabel(f"{len(templates)} template(s) in "
                          f"{Path(path).name}"))
     items = QListWidget()
+    items.setAccessibleName("Library templates")
+    # Several at once for Update Matching (Ctrl/Shift-click, Ctrl+A): a
+    # monthly data refresh touches many blocks.
+    items.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+    from raptor.api.distributions import dist_name
     for t in templates:
         row = t.get("row", {})
-        items.addItem(f"{t.get('name', '?')}   "
-                    f"(FDist {row.get('FDist', '?')})")
-    items.setCurrentRow(0)
+        try:
+            fail = dist_name(int(float(row.get("FDist", ""))))
+        except (TypeError, ValueError):
+            fail = "?"
+        items.addItem(f"{t.get('name', '?')}   ({fail})")
+    # Nothing is selected on opening, so Enter cannot add a block by accident.
     lay.addWidget(items, 1)
+    hint = QLabel("Ctrl-click or Shift-click to pick several; "
+                  "Ctrl+A selects all.")
+    hint.setStyleSheet("color: gray;")
+    lay.addWidget(hint)
+    names = [str(t.get("name", "")) for t in templates]
+    dupes = sorted({n for n in names if names.count(n) > 1})
+    if dupes:
+        warn = QLabel(
+            f"{len(dupes)} name(s) appear more than once "
+            f"({', '.join(dupes[:3])}{'...' if len(dupes) > 3 else ''}); "
+            "Update Matching uses the last of each.")
+        warn.setWordWrap(True)
+        lay.addWidget(warn)
     buttons = QHBoxLayout()
+    all_btn = QPushButton("Select All")
+    all_btn.setToolTip("Select every template, to update all the blocks "
+                       "that share a name with one.")
     add_btn = QPushButton("Add Block")
+    add_btn.setToolTip("Add each selected template as a new block, side "
+                       "by side in the middle of the view.")
     upd_btn = QPushButton("Update Matching")
+    upd_btn.setToolTip("Overwrite the failure, repair, LDT and dependency "
+                       "data of every block that has the name of a "
+                       "selected template.")
     close_btn = QPushButton("Close")
     close_btn.clicked.connect(dlg.reject)
+    all_btn.setAutoDefault(False)
+    all_btn.clicked.connect(items.selectAll)
 
-    def selected_template():
-        i = items.currentRow()
-        return templates[i] if 0 <= i < len(templates) else None
+    def selected_templates() -> list[dict]:
+        """The selected templates, in list order."""
+        rows = sorted(i.row() for i in items.selectedIndexes())
+        return [templates[r] for r in rows if 0 <= r < len(templates)]
+
+    def sync_buttons() -> None:
+        n = len(selected_templates())
+        upd_btn.setEnabled(n > 0)
+        add_btn.setEnabled(n > 0)
+        upd_btn.setText("Update Matching" if n <= 1
+                        else f"Update Matching ({n})")
+        add_btn.setText("Add Block" if n <= 1 else f"Add Blocks ({n})")
+    items.itemSelectionChanged.connect(sync_buttons)
+    sync_buttons()
 
     def do_add():
-        t = selected_template()
-        if t is None:
+        chosen = selected_templates()
+        if not chosen:
             return
         v = win._diagram_dock.view
         centre = v.mapToScene(v.viewport().rect().center())
-        bid = v.add_block_from_template(
-            t["row"], at_model=v.scene_to_model(centre))
-        if bid:
+        ids = v.add_blocks_from_templates([t["row"] for t in chosen], centre)
+        if ids:
             win._mark_dirty()
-            win._statusbar.showMessage(
-                f"Added {t.get('name')} as block {bid}", 6000)
+            what = (f"{chosen[0].get('name')} as block {ids[0]}"
+                    if len(ids) == 1 else f"{len(ids)} blocks")
+            win._statusbar.showMessage(f"Added {what}", 6000)
+        else:
+            win._statusbar.showMessage("Nothing was added.", 6000)
 
     def do_update():
-        t = selected_template()
-        if t is None:
+        chosen = selected_templates()
+        if not chosen:
             return
-        n = win._diagram_dock.view.update_blocks_from_library([t])
-        win._mark_dirty()
+        n = win._diagram_dock.view.update_blocks_from_library(chosen)
+        if n:
+            win._mark_dirty()
+        what = (chosen[0].get("name") if len(chosen) == 1
+                else f"{len(chosen)} templates")
         win._statusbar.showMessage(
-            f"Updated {n} same-named block(s) from "
-            f"{t.get('name')}", 6000)
+            f"Updated {n} same-named block(s) from {what}", 6000)
 
     add_btn.clicked.connect(do_add)
     upd_btn.clicked.connect(do_update)
+    buttons.addWidget(all_btn)
     buttons.addStretch(1)
     buttons.addWidget(add_btn)
     buttons.addWidget(upd_btn)
     buttons.addWidget(close_btn)
     lay.addLayout(buttons)
-    dlg.resize(360, 300)
+    dlg.resize(460, 320)
     exec_dialog(dlg)
 
 

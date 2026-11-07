@@ -17,6 +17,7 @@ from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
 
+from typing import Any
 from PySide6.QtCore import Qt, Signal, QTimer, QEvent
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
@@ -67,7 +68,8 @@ class _DataTable(QTableWidget):
     those headers as non-sortable.
     """
 
-    def sortItems(self, column: int, order: Qt.SortOrder) -> None:
+    def sortItems(self, column: int,
+                  order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
         if any(self.cellWidget(row, column) is not None
                for row in range(self.rowCount())):
             self.horizontalHeader().setSortIndicator(
@@ -794,9 +796,8 @@ class DataTablesDock(QWidget):
 
     def _update_empty_state(self, table: QTableWidget) -> None:
         """Explain an empty grid instead of showing a blank pane."""
-        labels = getattr(self, "_empty_labels", None)
-        if labels is None:
-            labels = self._empty_labels = {}
+        labels: dict[QTableWidget, QLabel] = self.__dict__.setdefault(
+            "_empty_labels", {})
         label = labels.get(table)
         if table.rowCount():
             if label is not None:
@@ -958,7 +959,7 @@ class DataTablesDock(QWidget):
         model's time-units setting."""
         from raptor.core.distro_rules import DISTRO_NAMES as _DN
         base = 3 if which == "F" else 8
-        labels = self._PARAM_TIPS.get(distro)
+        labels: tuple[str, ...] | None = self._PARAM_TIPS.get(distro)
         units = getattr(self, "_display_unit", None) or \
             getattr(self, "_native_units", "") or ""
         base_labels = DISTRO_PARAM_LABELS.get(distro, ("", "", ""))
@@ -1325,6 +1326,7 @@ class DataTablesDock(QWidget):
         item = _SortItem(text)
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         item.setForeground(Qt.GlobalColor.gray)
+        item.setToolTip("Read-only, computed from the other columns")
         return item
 
     def _distro_cell(self, table, row, col, current: int, on_change,
@@ -1369,7 +1371,8 @@ class DataTablesDock(QWidget):
         edit = QLineEdit(f"{shown0:.6g}")
         edit.setValidator(QDoubleValidator())
         edit.setFrame(False)
-        committed = {"v": shown0 if on_commit_entry is not None else value}
+        committed: dict[str, Any] = {
+            "v": shown0 if on_commit_entry is not None else value}
 
         def commit():
             try:
@@ -1934,7 +1937,7 @@ class DataTablesDock(QWidget):
         try:
             self._view.set_keyed_cell(section_name, key_col, target_key,
                                       col, value)
-            if seeded is not None:
+            if seeded is not None and row is not None:
                 for i, pv in enumerate(seeded, start=1):
                     if row.get(f"Param{i}") != f"{pv:.6f}":
                         self._view.set_keyed_cell(

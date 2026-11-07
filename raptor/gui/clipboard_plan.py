@@ -149,6 +149,8 @@ class PastePlan:
     new_rows: dict[str, list[dict]] = field(default_factory=lambda: {
         "block": [], "node": [], "event": [], "hier": []})
     link_rows: list[dict] = field(default_factory=list)
+    #: old id -> new id of everything copied, per kind (block/node/event/hier)
+    id_maps: dict[str, dict[int, int]] = field(default_factory=dict)
 
 
 def _used_ids(rbd: Any, live: Mapping[str, Collection[int]]
@@ -268,6 +270,9 @@ def plan_paste(rbd: Any, buffer: Buffer, live: Mapping[str, Collection[int]],
         plan.new_rows[kind].append(nr)
     plan.link_rows = _remap_links(buffer, id_maps, link_ids, parent,
                                   hier_id_map)
+    plan.id_maps = {**id_maps, "hier": {
+        _int(r.get("ID")): hier_id_map[_int(r.get("ID"))]
+        for k, r in elements if k == "hier"}}
     # Hierarchy rows point at their markers via in/out: remap to the fresh
     # marker ids. The copy's top hierarchy goes under the level pasted into;
     # a nested one stays under its own copied parent.
@@ -285,3 +290,35 @@ def plan_paste(rbd: Any, buffer: Buffer, live: Mapping[str, Collection[int]],
                                            parent))
         nr["level"] = str(levels[_int(old_row.get("ID"))])
     return plan
+
+
+#: A dependency's `DepType` -> the kind of element it names. DepNum 0 is
+#: independent, -1 follows the element's own node and -2 the whole system;
+#: only a positive DepNum names another element (by that kind's id).
+_DEP_KIND = {"RBDBlock": "block", "RBDNode": "node", "RBDEvent": "event",
+             "RBDHier": "hier"}
+_DEP_COLUMNS = {"block": ("DepNum", "DepType"), "node": ("depNum", "depType"),
+                "event": ("depNum", "depType")}
+
+
+def remap_dependencies(plan: PastePlan, *, keep_external: bool) -> int:
+    """Point each pasted element's dependency at the pasted copy of what it
+    depended on, when that was copied too. A dependency on something that
+    was not copied is kept when `keep_external` (a paste into the model it
+    came from: the original is still there) and otherwise dropped to
+    independent. Own-node (-1) and whole-system (-2) need no remapping.
+    Returns how many dependencies were dropped."""
+    dropped = 0
+    for kind, (num_col, type_col) in _DEP_COLUMNS.items():
+        for row in plan.new_rows.get(kind, []):
+            num = _int(row.get(num_col, 0))
+            if num <= 0:
+                continue
+            target = _DEP_KIND.get(str(row.get(type_col, "")))
+            new = plan.id_maps.get(target or "", {}).get(num)
+            if new is not None:
+                row[num_col] = str(new)
+            elif not keep_external:
+                row[num_col], row[type_col] = "0", "None"
+                dropped += 1
+    return dropped

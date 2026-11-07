@@ -8,6 +8,7 @@
 | Ctrl+S | Save (works anywhere in the app) |
 | Ctrl+Shift+S | Save As… |
 | Ctrl+P | Print… (diagram / results / weak link, with title block) |
+| Ctrl+W | Close the current model (asks to save first) |
 | Ctrl+Q* | Quit |
 
 ## Editing (Model view)
@@ -20,6 +21,10 @@
 | Ctrl+X | Cut selection |
 | Ctrl+V | Paste at mouse cursor |
 | Del / Backspace | Delete selection (nothing selected: arms click-to-delete) |
+| Arrow keys | Nudge the selection one grid step |
+| Shift+Arrow keys | Nudge the selection 1 px, off the grid |
+| F2 | Edit the text of the selected text annotation |
+| Ctrl+F | Find item: the cursor goes to the Find box (from the canvas or the Explorer) |
 | Esc | Cancel armed tool / delete mode / connect / Failure Effects fail-repair targeting; cancels a running batch |
 
 ## Annotation z-order (Model view)
@@ -36,11 +41,28 @@ Front* and *Bring Forward* disabled.
 ## Model view
 | Shortcut | Action |
 |---|---|
-| Q | Select tool |
+| Q / Ctrl+1 | Select tool |
+| Ctrl+2 | Add Block tool |
+| Ctrl+3 | Add Node tool |
+| Ctrl+4 | Add Event tool |
+| Ctrl+5 | Add Hierarchy tool |
+| Ctrl+6 | Connect tool |
+| Ctrl+G | Collapse the selection into a hierarchy |
+| Alt+Up | Up one hierarchy level |
 | Ctrl+L | Auto Layout (columns by flow; selection alone if selected) |
 | Ctrl+= / Ctrl+- | Zoom in / out (also Ctrl+wheel) |
 | Ctrl+0 | Zoom to fit |
 | Ctrl+Shift+0 | Zoom to the selection |
+
+## Panels and settings
+| Shortcut | Action |
+|---|---|
+| Ctrl+Shift+E | Show or hide the Model Explorer |
+| Ctrl+Shift+I | Show or hide the Inspector |
+| Ctrl+Shift+D | Show or hide the Data Tables |
+| Ctrl+, | Preferences… |
+
+Ctrl+Shift+R (Simulation, below) shows the Results panel.
 
 ## Connect tool
 Left-click the source element, then click (left or right) the target.
@@ -94,14 +116,31 @@ sessions.
 | Esc | Stop a running batch |
 
 ## Key tips
-Not every ribbon button has a shortcut letter. Press **Alt** to show the
-letters that do exist — **File (E)**, Open (O), Save (V), New (W),
-Copy View (Y), Project Settings (C), Issues (L), Run (R), Step (S),
-Next Time (N), Finish (F), Restart (X), Pause (A), Stop (P), Jump (J)
-and Animate (M) — then Alt + that letter to run it. A button with no
-letter keeps its plain label and is reached with its own shortcut (see
-above) or the mouse. Press Alt again (or any other key) to hide the
-tips. The **Run** panel is under View ▸ Panels ▸ Run Panel.
+Press **Alt** (and release) to put a letter over **File** and each ribbon
+tab, then press the tab's letter to open it and see a letter over each of
+its buttons, then the button's letter to run it, as in Office. So
+**Alt, R, S** is Results ▸ Show Results, and **Alt, M, B** is Model ▸ Add
+Block. You can also chord the first step: **Alt+R** goes straight to the
+Results letters.
+
+| Alt, then | Opens |
+|---|---|
+| F | File view |
+| M | Model |
+| A | Arrange |
+| D | Data |
+| S | Simulate |
+| B | Debug |
+| R | Results |
+| V | View |
+| H | Help |
+
+The button letters are shown over the buttons themselves (a button that
+has none, such as a box or combo, is reached with Tab or the mouse). A
+command that is unavailable right now says so in the status bar rather
+than doing nothing. **Backspace** goes back from a tab's letters to the
+tab letters; Alt again, Esc or any other key hides the tips. The **Run**
+panel is under View ▸ Panels ▸ Run Panel.
 
 ## Help
 | Shortcut | Action |

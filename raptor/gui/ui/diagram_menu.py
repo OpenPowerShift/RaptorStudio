@@ -169,7 +169,7 @@ class ContextMenuMixin:
                 cut_act2 = menu2.addAction("Cut")
                 copy_act2 = menu2.addAction("Copy")
                 paste_act2 = menu2.addAction("Paste Here (at pointer)")
-                paste_act2.setEnabled(bool(self._paste_buffer))
+                paste_act2.setEnabled(self.can_paste())
                 menu2.addSeparator()
                 # "&&" not "&": Qt reads a single ampersand in an action
                 # text as a mnemonic marker and underlines the NEXT
@@ -274,7 +274,7 @@ class ContextMenuMixin:
         cut_act = menu.addAction("Cut")
         cut_act.setEnabled(n_sel > 0 or n_annos > 0)
         paste_act = menu.addAction("Paste Here (at pointer)")
-        paste_act.setEnabled(bool(self._paste_buffer))
+        paste_act.setEnabled(self.can_paste())
         out_act = None
         if self._current_parent != 0 and n_sel > 0:
             menu.addSeparator()

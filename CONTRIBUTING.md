@@ -16,7 +16,7 @@ Linux headless runs need the Qt runtime libraries listed in
 |---|---|
 | Tests | `pytest -q` (add `-n 4` locally) |
 | Lint | `python -m ruff check .` |
-| Types | `python tools/mypy_gate.py`: zero mypy errors outside `raptor/gui`, and no GUI file above its count in `tools/mypy_gui_baseline.json` |
+| Types | `python tools/mypy_gate.py`: zero mypy errors; `tools/mypy_gui_baseline.json` is empty, so no `raptor/gui` file may add one |
 | Engine coverage | `python tools/engine_coverage.py run --check-floors`: no engine module's branch coverage below `tools/coverage_floors.json` |
 | State coverage | `python tools/state_coverage.py --check -j 4`: every block state cell listed in `docs/engine-design/state-coverage.adoc` is still reached |
 | Generated pages | `python tools/gen_engine_docs.py --check` and `python tools/gen_mcp_reference.py --check`: `docs/engine-design/` and `docs/MCP.md` match the code |

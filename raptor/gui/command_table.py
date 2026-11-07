@@ -29,7 +29,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
     # ---- File --------------------------------------------------------
     CommandSpec(
         id="file.open",
-        key_tip="O",
         attr="_open_action",
         text="Open",
         icon="folder_open_icon:text",
@@ -39,7 +38,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="not_running"),
     CommandSpec(
         id="file.save",
-        key_tip="V",
         attr="_save_action",
         text="Save",
         icon="save_icon:text",
@@ -61,7 +59,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="file.new",
-        key_tip="W",
         attr="_new_action",
         text="New",
         icon="new_file_icon:text",
@@ -71,6 +68,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="not_running"),
     CommandSpec(
         id="file.close_file",
+        shortcut="Ctrl+W",
         attr="_close_file_action",
         text="Close",
         icon="close_file_icon:text",
@@ -158,7 +156,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="file.copy_view",
-        key_tip="Y",
         attr="_copy_view_action",
         text="Copy View",
         icon="copy_view_icon:text",
@@ -181,27 +178,26 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Copy",
         icon="copy_icon:text",
         tooltip="Copy the selected elements",
-        handler="_diagram_dock.view.copy_selection",
-        enabled_when="model_open"),
+        handler="_edit_copy",
+        enabled_when="can_copy"),
     CommandSpec(
         id="home.cut",
         attr="_cut_action",
         text="Cut",
         icon="cut_icon:text",
         tooltip="Copy and delete the selected elements",
-        handler="_diagram_dock.view.cut_selection",
-        enabled_when="model_open"),
+        handler="_edit_cut",
+        enabled_when="can_copy"),
     CommandSpec(
         id="home.paste",
         attr="_paste_action",
         text="Paste",
         icon="paste_icon:text",
         tooltip="Paste previously copied elements with fresh ids",
-        handler="_diagram_dock.view.paste",
-        enabled_when="model_open"),
+        handler="_edit_paste",
+        enabled_when="can_paste"),
     CommandSpec(
         id="home.syscfg",
-        key_tip="C",
         attr="_syscfg_action",
         text="Project Settings",
         icon="model_info_icon:text",
@@ -210,7 +206,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="home.validate",
-        key_tip="L",
         attr="_validate_action",
         text="Issues",
         icon="check_badge_icon:go",
@@ -237,11 +232,12 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_select_action",
         text="Select",
         icon="mouse_arrow_icon:accent",
-        tooltip="Select tool (Q)",
+        tooltip="Select tool (Q, Ctrl+1)",
         handler="_set_tool",
         args=("select",),
         on="toggled",
         shortcut="Q",
+        more_shortcuts=("Ctrl+1",),
         checkable=True,
         checked=True,),
     CommandSpec(
@@ -257,6 +253,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.hier_up",
+        shortcut="Alt+Up",
         attr="_hier_up_action",
         text="Up",
         icon="up_filled_icon:accent",
@@ -273,6 +270,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled=False),
     CommandSpec(
         id="model.collapse",
+        shortcut="Ctrl+G",
         attr="_collapse_action",
         text="Collapse Selection",
         icon="collapse_icon:accent",
@@ -289,9 +287,10 @@ COMMANDS: tuple[CommandSpec, ...] = (
         tooltip="Delete selected blocks/nodes (Del)",
         handler="_diagram_dock.view.delete_selected",
         shortcut="Del",
-        enabled_when="has_selection"),
+        enabled_when="has_deletable"),
     CommandSpec(
         id="model.add_block",
+        shortcut="Ctrl+2",
         attr="_add_block_tool",
         text="Add Block",
         icon="block_icon:accent",
@@ -305,6 +304,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.add_node",
+        shortcut="Ctrl+3",
         attr="_add_node_tool",
         text="Add Node",
         icon="node_icon:accent",
@@ -317,6 +317,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.add_event",
+        shortcut="Ctrl+4",
         attr="_add_event_tool",
         text="Add Event",
         icon="event_icon:accent",
@@ -331,6 +332,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.add_hier",
+        shortcut="Ctrl+5",
         attr="_add_hier_tool",
         text="Add Hierarchy",
         icon="hierarchy_icon:accent",
@@ -344,6 +346,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_add_hierarchy"),
     CommandSpec(
         id="model.connect",
+        shortcut="Ctrl+6",
         attr="_connect_tool",
         text="Connect",
         icon="connect_icon:accent",
@@ -570,7 +573,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
     # ---- Simulate ----------------------------------------------------
     CommandSpec(
         id="sim.run",
-        key_tip="R",
         attr="_run_action",
         text="Run",
         icon="play_icon:go",
@@ -582,7 +584,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_start_batch"),
     CommandSpec(
         id="sim.step",
-        key_tip="S",
         attr="_step_action",
         text="Step",
         icon="step_icon:accent",
@@ -594,7 +595,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_simulate"),
     CommandSpec(
         id="sim.step_next_time",
-        key_tip="N",
         attr="_step_next_time_action",
         text="Next Time",
         icon="next_time_icon:accent",
@@ -606,7 +606,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_simulate"),
     CommandSpec(
         id="sim.step_finish",
-        key_tip="F",
         attr="_step_finish_action",
         text="Finish",
         icon="finish_flag_icon:go",
@@ -635,7 +634,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="stepping"),
     CommandSpec(
         id="sim.restart_step",
-        key_tip="X",
         attr="_restart_step_action",
         text="Restart",
         icon="restart_icon:text",
@@ -691,7 +689,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="can_extract_hierarchy"),
     CommandSpec(
         id="sim.pause",
-        key_tip="A",
         attr="_pause_action",
         text="Pause",
         icon="_bars:text",
@@ -699,7 +696,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="background_run"),
     CommandSpec(
         id="sim.stop_run",
-        key_tip="P",
         attr="_stop_run_action",
         text="Stop",
         icon="_stop_sq:stop",
@@ -707,7 +703,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="run_active"),
     CommandSpec(
         id="sim.jump",
-        key_tip="J",
         attr="_jump_action",
         text="Jump",
         icon="_skip_end:text",
@@ -717,7 +712,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="jump_available"),
     CommandSpec(
         id="sim.live_sim",
-        key_tip="M",
         attr="_live_sim_action",
         text="Animate",
         icon="animate_icon:accent",
@@ -1022,6 +1016,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checked=True),
     CommandSpec(
         id="view.data_tables",
+        shortcut="Ctrl+Shift+D",
         attr="_data_tables_action",
         text="Data Tables",
         icon="table_grid_icon:text",
@@ -1039,6 +1034,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checkable=True,),
     CommandSpec(
         id="view.prefs",
+        shortcut="Ctrl+,",
         attr="_prefs_action",
         text="Preferences…",
         icon="preferences_icon:text",
@@ -1046,12 +1042,14 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_show_preferences"),
     CommandSpec(
         id="view.explorer_toggle",
+        shortcut="Ctrl+Shift+E",
         attr="_explorer_toggle_action",
         text="Explorer",
         icon="explorer_dock_icon:text",
         checkable=True),
     CommandSpec(
         id="view.inspector_toggle",
+        shortcut="Ctrl+Shift+I",
         attr="_inspector_toggle_action",
         text="Inspector",
         icon="inspector_dock_icon:text",

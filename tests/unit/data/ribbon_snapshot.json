@@ -16,9 +16,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+2"
+   ],
    "text": "Add Block",
-   "tooltip": "Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel\n\nUnavailable: open or create a model first"
+   "tooltip": "Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+2)\n\nUnavailable: open or create a model first"
   },
   "_add_event_tool": {
    "checkable": true,
@@ -26,9 +28,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+4"
+   ],
    "text": "Add Event",
-   "tooltip": "Click the canvas to place a new Bernoulli event (P=0.5 \u2014 edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel\n\nUnavailable: open or create a model first"
+   "tooltip": "Click the canvas to place a new Bernoulli event (P=0.5 \u2014 edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+4)\n\nUnavailable: open or create a model first"
   },
   "_add_hier_tool": {
    "checkable": true,
@@ -36,9 +40,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+5"
+   ],
    "text": "Add Hierarchy",
-   "tooltip": "Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel\n\nUnavailable: open or create a model first"
+   "tooltip": "Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+5)\n\nUnavailable: open or create a model first"
   },
   "_add_node_tool": {
    "checkable": true,
@@ -46,9 +52,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+3"
+   ],
    "text": "Add Node",
-   "tooltip": "Click the canvas to place a new Regular node, or click a link to insert it in series\n\nUnavailable: open or create a model first"
+   "tooltip": "Click the canvas to place a new Regular node, or click a link to insert it in series (Ctrl+3)\n\nUnavailable: open or create a model first"
   },
   "_align_action": {
    "checkable": false,
@@ -284,9 +292,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+W"
+   ],
    "text": "Close",
-   "tooltip": "Close the current model (with save prompt)\n\nUnavailable: open or create a model first"
+   "tooltip": "Close the current model (with save prompt) (Ctrl+W)\n\nUnavailable: open or create a model first"
   },
   "_collapse_action": {
    "checkable": false,
@@ -294,9 +304,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+G"
+   ],
    "text": "Collapse Selection",
-   "tooltip": "Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval\n\nUnavailable: open or create a model first"
+   "tooltip": "Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval (Ctrl+G)\n\nUnavailable: open or create a model first"
   },
   "_compare_action": {
    "checkable": false,
@@ -314,9 +326,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+6"
+   ],
    "text": "Connect",
-   "tooltip": "Click the source element, then the target\n\nUnavailable: open or create a model first"
+   "tooltip": "Click the source element, then the target (Ctrl+6)\n\nUnavailable: open or create a model first"
   },
   "_copy_action": {
    "checkable": false,
@@ -364,9 +378,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+Shift+D"
+   ],
    "text": "Data Tables",
-   "tooltip": "Show the Data Tables panel \u2014 every block/node in an editable grid"
+   "tooltip": "Show the Data Tables panel \u2014 every block/node in an editable grid (Ctrl+Shift+D)"
   },
   "_delete_tool": {
    "checkable": false,
@@ -406,9 +422,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+Shift+E"
+   ],
    "text": "Explorer",
-   "tooltip": "Explorer"
+   "tooltip": "Explorer (Ctrl+Shift+E)"
   },
   "_export_library_action": {
    "checkable": false,
@@ -708,9 +726,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Alt+Up"
+   ],
    "text": "Up",
-   "tooltip": "Ascend one hierarchy level (or double-click an Out marker)"
+   "tooltip": "Ascend one hierarchy level (or double-click an Out marker) (Alt+Up)"
   },
   "_import_library_action": {
    "checkable": false,
@@ -748,9 +768,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+Shift+I"
+   ],
    "text": "Inspector",
-   "tooltip": "Inspector"
+   "tooltip": "Inspector (Ctrl+Shift+I)"
   },
   "_jump_action": {
    "checkable": false,
@@ -892,9 +914,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+,"
+   ],
    "text": "Preferences\u2026",
-   "tooltip": "Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options"
+   "tooltip": "Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options (Ctrl+,)"
   },
   "_print_action": {
    "checkable": false,
@@ -1120,10 +1144,11 @@
    "has_icon": true,
    "has_menu": false,
    "shortcuts": [
-    "Q"
+    "Q",
+    "Ctrl+1"
    ],
    "text": "Select",
-   "tooltip": "Select tool (Q)"
+   "tooltip": "Select tool (Q, Ctrl+1)"
   },
   "_select_all_action": {
    "checkable": false,
@@ -1616,10 +1641,10 @@
    "_collapse_action": false,
    "_compare_action": true,
    "_connect_tool": true,
-   "_copy_action": true,
+   "_copy_action": false,
    "_copy_view_action": true,
    "_cost_overlay_action": false,
-   "_cut_action": true,
+   "_cut_action": false,
    "_data_tables_action": true,
    "_delete_tool": false,
    "_diff_action": true,
@@ -1666,7 +1691,7 @@
    "_mcp_docs_action": true,
    "_new_action": true,
    "_open_action": true,
-   "_paste_action": true,
+   "_paste_action": false,
    "_pause_action": false,
    "_phases_action": true,
    "_pool_actions[RESOURCE_DATA]": true,

@@ -202,3 +202,35 @@ def test_down_arrow_from_the_search_box_moves_into_the_list(win):
     QTest.keyClick(bs._search, Qt.Key.Key_Down)
     assert bs._list.hasFocus() or bs._list.currentItem() is not None
     assert bs._list.currentItem() is bs._list.topLevelItem(0)
+
+
+def test_a_refresh_during_a_press_does_not_lose_the_recent_click(win):
+    """Pressing a Home recent row moves focus, and a focus change refreshes
+    the commands; that used to rebuild the rows, destroying the pressed
+    button so its release never completed and the file did not open."""
+    from PySide6.QtCore import QPoint, Qt
+    from PySide6.QtTest import QTest
+    win.show_start_page()
+    bs = win._backstage
+    row = bs._home_page.findChildren(QPushButton, "BackstageRecentRow")[0]
+    pt = row.mapTo(win, QPoint(row.width() // 2, row.height() // 2))
+    QTest.mousePress(win.windowHandle(), Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.NoModifier, pt)
+    win._refresh_commands()                 # what a focus change triggers
+    QApplication.processEvents()
+    QTest.mouseRelease(win.windowHandle(), Qt.MouseButton.LeftButton,
+                       Qt.KeyboardModifier.NoModifier, pt)
+    QApplication.processEvents()
+    assert win._current_file == MODEL
+    assert not bs.isVisible()
+
+
+def test_a_refresh_with_an_unchanged_list_keeps_the_rows(win):
+    win.show_start_page()
+    bs = win._backstage
+    before = bs._home_page.findChildren(QPushButton, "BackstageRecentRow")
+    win._refresh_commands()
+    QApplication.processEvents()
+    after = bs._home_page.findChildren(QPushButton, "BackstageRecentRow")
+    assert [id(b) for b in before if b.isVisible()] \
+        == [id(b) for b in after if b.isVisible()]
