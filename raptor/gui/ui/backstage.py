@@ -93,6 +93,7 @@ class Backstage(QWidget):
         nl.addWidget(self._back)
         nl.addSpacing(10)
 
+        self._shown_paths: list[str] = []
         self._pages = QStackedWidget()
         self._nav_buttons: list[QPushButton] = []
         self._page_by_name: dict[str, tuple[QWidget, QPushButton]] = {}
@@ -530,6 +531,7 @@ class Backstage(QWidget):
 
     def reload(self) -> None:
         """Rebuild the recent lists from settings."""
+        self._shown_paths = self._win._recent_list()
         self._fill_home_recent()
         self._list.clear()
         for path in self._win._recent_list():
@@ -544,8 +546,13 @@ class Backstage(QWidget):
 
     def sync_state(self) -> None:
         """Called on every command refresh; only the recent list is not an
-        action the registry already keeps current."""
-        if self.isVisible():
+        action the registry already keeps current.
+
+        Rebuilds only when the list changed. A refresh fires on every focus
+        change, and pressing a Home recent row moves focus: rebuilding the
+        rows then destroyed the button under the mouse before its release,
+        so the click never completed and the file did not open."""
+        if self.isVisible() and self._shown_paths != self._win._recent_list():
             self.reload()
 
     def _filter(self, text: str) -> None:
