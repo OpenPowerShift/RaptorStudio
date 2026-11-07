@@ -15,8 +15,8 @@ import os
 import time
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, QObject, QSize, Qt
-from PySide6.QtGui import QAction
+from PySide6.QtCore import QEvent, QModelIndex, QObject, QSize, Qt
+from PySide6.QtGui import QAction, QKeyEvent
 from PySide6.QtWidgets import (
     QAbstractItemView, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
     QMenu, QPushButton, QStackedWidget, QToolButton, QTreeWidget,
@@ -346,7 +346,8 @@ class Backstage(QWidget):
 
     def _fill_home_recent(self) -> None:
         while self._home_recent.count():
-            w = self._home_recent.takeAt(0).widget()
+            taken = self._home_recent.takeAt(0)
+            w = taken.widget() if taken is not None else None
             if w is not None:
                 # Hidden now: deletion waits for the event loop, and until
                 # then the old row still painted over the page below.
@@ -551,16 +552,18 @@ class Backstage(QWidget):
     def _filter(self, text: str) -> None:
         words = text.lower().split()
         shown = 0
-        for i in range(self._list.topLevelItemCount()):
-            item = self._list.topLevelItem(i)
+        for item in self._recent_items():
             path = str(item.data(NAME, Qt.ItemDataRole.UserRole)).lower()
             hit = all(w in path for w in words)
             item.setHidden(not hit)
             shown += hit
-        first = next((self._list.topLevelItem(i)
-                      for i in range(self._list.topLevelItemCount())
-                      if not self._list.topLevelItem(i).isHidden()), None)
-        self._list.setCurrentItem(first)
+        first = next((it for it in self._recent_items()
+                      if not it.isHidden()), None)
+        if first is not None:
+            self._list.setCurrentItem(first)
+        else:
+            self._list.clearSelection()
+            self._list.setCurrentIndex(QModelIndex())
         total = self._list.topLevelItemCount()
         if not total:
             self._empty.setText(
@@ -572,10 +575,15 @@ class Backstage(QWidget):
             self._empty.setText("")
         self._empty.setVisible(bool(self._empty.text()))
 
+    def _recent_items(self) -> list[QTreeWidgetItem]:
+        """The rows of the recent-files list, in order."""
+        items = (self._list.topLevelItem(i)
+                 for i in range(self._list.topLevelItemCount()))
+        return [it for it in items if it is not None]
+
     def visible_paths(self) -> list[str]:
-        return [self._list.topLevelItem(i).data(NAME, Qt.ItemDataRole.UserRole)
-                for i in range(self._list.topLevelItemCount())
-                if not self._list.topLevelItem(i).isHidden()]
+        return [it.data(NAME, Qt.ItemDataRole.UserRole)
+                for it in self._recent_items() if not it.isHidden()]
 
     def _open_first_match(self) -> None:
         item = self._list.currentItem()
@@ -609,12 +617,12 @@ class Backstage(QWidget):
         self.reload()
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        if obj is self._search and event.type() == QEvent.Type.KeyPress \
+        if obj is self._search and isinstance(event, QKeyEvent) \
+                and event.type() == QEvent.Type.KeyPress \
                 and event.key() == Qt.Key.Key_Down:
             # Down from the search box walks into the matches.
-            first = next((self._list.topLevelItem(i)
-                          for i in range(self._list.topLevelItemCount())
-                          if not self._list.topLevelItem(i).isHidden()), None)
+            first = next((it for it in self._recent_items()
+                          if not it.isHidden()), None)
             if first is not None:
                 self._list.setFocus()
                 self._list.setCurrentItem(first)
@@ -645,14 +653,17 @@ class Backstage(QWidget):
                 from PySide6.QtGui import QPixmap
                 pm = QPixmap(str(thumbnail(ex, dark)))
                 pm.setDevicePixelRatio(2.0)
-                pic.setPixmap(pm)
-            else:
+                if pic is not None:
+                    pic.setPixmap(pm)
+            elif pic is not None:
                 pic.setPixmap(icons.new_file_icon(c["accent"]).pixmap(56, 56))
         for btn in self.findChildren(QPushButton, "BackstageLearn"):
             btn.setIcon(getattr(icons, btn.property("learnIcon"))(c["accent"]))
         for tile in self._tiles:
             pm = tile.property("tileAction").icon().pixmap(32, 32)
-            tile.findChild(QLabel, "BackstageTileIcon").setPixmap(pm)
+            tile_icon = tile.findChild(QLabel, "BackstageTileIcon")
+            if tile_icon is not None:
+                tile_icon.setPixmap(pm)
         self.setStyleSheet(f"""
             #Backstage {{ background: {c['surface']}; }}
             #BackstagePage {{ background: {c['surface']}; }}

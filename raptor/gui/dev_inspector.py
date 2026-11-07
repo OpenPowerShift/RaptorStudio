@@ -12,6 +12,8 @@ element under the cursor when launched with `/dev`. The strings are the source's
 """
 from __future__ import annotations
 
+from typing import Any
+
 from raptor.core.fileio.rbd import RbdFile
 
 SEPARATOR = "   |   "
@@ -82,7 +84,7 @@ def _endpoint_name(rbd: RbdFile, kind: str, ident: int) -> str:
 
 def _hier_text(rbd: RbdFile, row: dict, ident: int, parent_id: int,
                parent_name: str, con_out: int,
-               view: object | None) -> str:
+               view: Any) -> str:
     """The `/dev` hierarchy hover: Raptor's display level plus the
     stored hierarchy level, con-out and totals."""
     depths = _hier_depths(rbd)
@@ -91,7 +93,8 @@ def _hier_text(rbd: RbdFile, row: dict, ident: int, parent_id: int,
                      _rows(rbd, "HIERARCHY_DATA"))], default=0)
     level = _int(row, "level") or depths.get(ident, 0)
     try:
-        hier_level = int(view._current_depth()) if view is not None else 0
+        hier_level = (int(view._current_depth())
+                      if view is not None else 0)
     except (AttributeError, TypeError, ValueError):
         hier_level = 0
     parts = [f"parentID = {parent_id}     hierLevel = {hier_level}",

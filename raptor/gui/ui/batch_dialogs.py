@@ -1055,7 +1055,8 @@ class CompareDialog(_BatchDialog):
         if not self._files:
             return "Add at least one more model to compare with this one."
         from raptor.api.workspace import Workspace
-        out = [("This model", _model_copy(self._win), [])]
+        out: list[tuple[str, Any, list]] = [
+            ("This model", _model_copy(self._win), [])]
         for p, label in zip(self._files, model_labels(self._files)):
             if not isinstance(p, str):           # open in another window
                 try:
