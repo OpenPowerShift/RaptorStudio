@@ -70,7 +70,6 @@ from raptor.gui.ui.inspector import InspectorDock
 from raptor.gui.ui.explorer import ExplorerDock
 from raptor.gui.ui.results import ResultsDock
 from raptor.gui.ui.data_tables import DataTablesDock
-from raptor.api.tables import parse_event_log_line
 from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import (
     APPENDIX_D_STATE_COLOURS, ThemeManager, active_colour,
@@ -1664,30 +1663,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Live Log dock: while stepping / live-running, the right dock
         # shows the streaming event log (like the Results Event Log)
         # instead of the Inspector; the Inspector returns after.
-        from PySide6.QtWidgets import QTreeWidget as _QTree
-        live_page = QWidget()
-        lv = QVBoxLayout(live_page)
-        lv.setContentsMargins(0, 0, 0, 0)
-        self._live_log_tree = _QTree()
-        self._live_log_tree.setHeaderLabels(
-            ["Time", "Type", "Element", "State", "Detail"])
-        self._live_log_tree.setRootIsDecorated(False)
-        self._live_log_tree.setUniformRowHeights(True)
-        self._live_log_tree.setAlternatingRowColors(True)
+        # The panel carries a run selector, a position line and the tree.
+        from raptor.gui.ui.live_log_panel import LiveLogPanel
+        self._live_log_panel = LiveLogPanel()
+        live_page = self._live_log_panel
+        self._live_log_tree = self._live_log_panel.tree
+        self._live_log_caption = self._live_log_panel.caption
         # Same affordances as the Results dock's Event Log: the State
         # column coloured green/amber/red, and a click on a Block/Node row
-        # locating that element on the canvas. The live log was a plain
-        # grey tree, so watching a run meant reading it column by column
-        # and then hunting for the element by eye.
+        # locating that element on the canvas.
         self._live_log_tree.itemSelectionChanged.connect(
             self._on_live_log_row_clicked)
-        # Caption above the log.
-        self._live_log_caption = QLabel(
-            "Live event log — stepping / animated run")
-        self._live_log_caption.setObjectName("SectionNote")
-        self._live_log_caption.setWordWrap(True)
-        lv.addWidget(self._live_log_caption)
-        lv.addWidget(self._live_log_tree)
         self._live_log_dock = QDockWidget("Live Log", self)
         self._set_dock_icon(self._live_log_dock, "log_icon")
         self._live_log_dock.setWidget(live_page)
@@ -2681,6 +2667,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._ribbon._refresh_theme(c)
         self._apply_action_icons()
         self._apply_dock_icons()
+        self._live_log_panel.refresh_colours()
         for rethemer in (self._dock_titlebar_rethemers or []):
             rethemer()
         fev_inspector = getattr(self, "_fev_inspector", None)
@@ -3410,9 +3397,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """Clear the stepping Live Log dock and its fed-counter together:
         the counter reset alone would leave the previous run's rows above
         the new session's lines."""
-        if hasattr(self, "_live_log_fed"):
-            self._live_log_fed = 0
-        self._live_log_tree.clear()
+        self._live_log_panel.clear()
         self._live_log_dock.setWindowTitle("Live Log")
 
     def _invalidate_step_session(self):
@@ -5919,30 +5904,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._live_log_dock.hide()
             self._inspector_dock.show()
 
-    def _feed_live_log(self, logs: list[str]):
-        """Append new log lines, coloured like the Results Event Log.
-
-        Five columns (Time/Type/Element/State/Detail) from the engine's own
-        tab-separated line -- `parse_event_log_line` is shared with the
-        export path, so the live log and the spreadsheet can never disagree
-        about a line's shape. The State cell is coloured green/amber/red by
-        `ResultsDock._state_colour`, the same mapping the Event Log tab
-        uses, so a run's health is readable at a glance instead of by
-        reading the text."""
-        from PySide6.QtWidgets import QTreeWidgetItem
-        from raptor.gui.resources.design_tokens import active_colour
-        from raptor.gui.ui.results import ResultsDock
-        c = active_colour()
-        for line in logs:
-            item = QTreeWidgetItem(self._live_log_tree,
-                                   list(parse_event_log_line(line)))
-            colour = ResultsDock._state_colour(item.text(3), c)
-            if colour is not None:
-                item.setForeground(3, colour)
-                # The element name gets the same tint so a state change is
-                # visible when the columns are narrow.
-                item.setForeground(2, colour)
-
     def _on_live_log_row_clicked(self):
         """Focus the canvas on the selected live-log row's element."""
         items = self._live_log_tree.selectedItems()
@@ -5974,12 +5935,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 getattr(getattr(session.cascade, "system_state", None),
                         "color", None))
             self._show_live_log_dock(True)
-            new_logs = getattr(session, "logs", [])
-            prev_n = getattr(self, "_live_log_fed", 0)
-            if len(new_logs) > prev_n:
-                self._feed_live_log(new_logs[prev_n:])
-                self._live_log_fed = len(new_logs)
-                self._live_log_tree.scrollToBottom()
+            # Follows the run being stepped, across run boundaries; the
+            # selector keeps the finished runs readable.
+            self._live_log_panel.update_session(
+                [lg for lg, _ in getattr(session, "completed", [])],
+                session.logs, getattr(session, "num_runs", 1), session.time)
         logs = session.logs
         self._statusbar.showMessage(
             f"Stepping — t = {session.time:.3f} "
@@ -5992,7 +5952,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._live_log_dock.setWindowTitle(
             f"Live Log — t = {session.time:.3f} ({len(logs)} events)")
         if self._results_dock.isVisible() and self._live_sim_action.isChecked():
-            self._results.show_live_logs([logs], 1)
+            self._results.show_live_logs(
+                [lg for lg, _ in session.completed] + [logs],
+                session.num_runs)
         QApplication.processEvents()
 
     def _describe_and_focus_step(self, session, prev_statuses,
