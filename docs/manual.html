@@ -56,7 +56,8 @@
 <li><a href="#spreadsheets">How the spreadsheets are laid out</a></li>
 </ul>
 </li>
-<li><a href="#preferences">Preferences</a></li>
+<li><a href="#preferences">Keyboard: Alt key tips</a></li>
+<li><a href="#_preferences">Preferences</a></li>
 <li><a href="#files">Files and formats</a></li>
 <li><a href="#standards">IEC 61078 and standards alignment</a></li>
 <li><a href="#fidelity">Fidelity and known limits</a></li>
@@ -247,7 +248,10 @@ Blocks, Nodes, Events, Sparing and Preventive Maintenance show the
 hierarchy level currently on the canvas; the header says “current level:
 8 of 17 blocks…” when the model has nested levels. Tick <strong>Whole model</strong>
 to see every level at once (see below), or use Model Explorer to reach
-the others.</p>
+the others.
+Model Explorer highlights the level on screen (Home, or the hierarchy you
+are inside) and the window title ends with its name and id, for example
+“— Pump_Hierarchy (id 20)”.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -576,6 +580,27 @@ points.</p>
 points and every position.</p>
 </li>
 </ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p><strong>Routing points.</strong> Once a routing point has been dragged or nudged, each end of
+the link leaves or enters by the side of its element that faces the nearest
+point (a little hysteresis stops it flicking between two sides). The link is
+drawn straight through the points. Selected routing points move with the arrow
+keys (one grid step; <strong>Shift</strong> for 1 px), and when both ends of a link are
+nudged together its routing points go with them. A routing-point drag or nudge
+is one undo step. Dragging several elements with the mouse does not yet carry
+routing points along.</p>
+</div>
+</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p>The flow direction comes from <strong>Arrange → Auto Layout</strong>'s direction when one
@@ -1695,7 +1720,23 @@ of the User Guide.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="preferences">Preferences</h2>
+<h2 id="preferences">Keyboard: Alt key tips</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Press and release <strong>Alt</strong> to put a letter over <strong>File</strong> and each ribbon tab.
+Press a tab&#8217;s letter (for example <strong>R</strong> for Results) to open it and show a
+letter over each of its buttons, then press a button&#8217;s letter to run it:
+<strong>Alt, R, S</strong> is Results → Show Results. <strong>Alt+R</strong> held together goes straight
+to the Results letters. <strong>F</strong> opens the File view. <strong>Backspace</strong> goes back one
+step; <strong>Alt</strong> again, <strong>Esc</strong> or any other key hides the tips. Controls that are
+not plain buttons (combo boxes, spin boxes) have no letter and are reached
+with <strong>Tab</strong> or the mouse. The complete list of shortcuts is in the
+Keyboard Shortcuts page (Help tab).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_preferences">Preferences</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p><strong>View ▸ Appearance ▸ Preferences…</strong> is one scrolling page of sections: <strong>New models</strong>,
@@ -1990,13 +2031,13 @@ current value).</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Select</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Select tool (Q)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Select tool (Q, Ctrl+1)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Q</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Connect</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Click the source element, then the target</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the source element, then the target (Ctrl+6)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+6</p></td>
 </tr>
 </tbody>
 </table>
@@ -2019,28 +2060,28 @@ current value).</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Block</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+2)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+2</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Node</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Regular node, or click a link to insert it in series</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Regular node, or click a link to insert it in series (Ctrl+3)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+3</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Event</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+4)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+4</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Hierarchy</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+5)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+5</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Collapse Selection</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval (Ctrl+G)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+G</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Delete Selected</p></td>
@@ -2146,8 +2187,8 @@ current value).</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Up</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Ascend one hierarchy level (or double-click an Out marker)</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ascend one hierarchy level (or double-click an Out marker) (Alt+Up)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Alt+Up</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Home</p></td>
@@ -2876,13 +2917,13 @@ current value).</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Explorer</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Explorer</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Explorer (Ctrl+Shift+E)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+E</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Inspector</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Inspector</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inspector (Ctrl+Shift+I)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+I</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Failure Effects</p></td>
@@ -2901,8 +2942,8 @@ current value).</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Data Tables</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Show the Data Tables panel — every block/node in an editable grid</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+D</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Reset Layout</p></td>
@@ -2935,8 +2976,8 @@ current value).</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Preferences…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Preferences: defaults for new models, working habits, this model&#8217;s display unit, advanced and developer options</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Preferences: defaults for new models, working habits, this model&#8217;s display unit, advanced and developer options (Ctrl+,)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+,</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Link style</p></td>
@@ -3079,8 +3120,8 @@ documentation.</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Close</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Close the current model (with save prompt)</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Close the current model (with save prompt) (Ctrl+W)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+W</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Quit</p></td>

@@ -66,6 +66,9 @@ hierarchy level currently on the canvas; the header says “current level:
 8 of 17 blocks…” when the model has nested levels. Tick **Whole model**
 to see every level at once (see below), or use Model Explorer to reach
 the others.
+Model Explorer highlights the level on screen (Home, or the hierarchy you
+are inside) and the window title ends with its name and id, for example
+“— Pump_Hierarchy (id 20)”.
 
 [cols="2,6",options="header"]
 |===
@@ -298,6 +301,19 @@ What the insert does:
   points.
 * **One undo.** *Ctrl+Z* puts back the original link, its routing
   points and every position.
+
+[NOTE]
+====
+*Routing points.* Once a routing point has been dragged or nudged, each end of
+the link leaves or enters by the side of its element that faces the nearest
+point (a little hysteresis stops it flicking between two sides). The link is
+drawn straight through the points. Selected routing points move with the arrow
+keys (one grid step; *Shift* for 1 px), and when both ends of a link are
+nudged together its routing points go with them. A routing-point drag or nudge
+is one undo step. Dragging several elements with the mouse does not yet carry
+routing points along.
+====
+
 
 The flow direction comes from *Arrange → Auto Layout*'s direction when one
 is set; otherwise RAPTOR Studio reads it from the way the links run.
@@ -1116,6 +1132,18 @@ with `list_tables`, `get_table` and `export_tables`; see the xref:../new_docs/bo
 of the User Guide.
 
 [[preferences]]
+== Keyboard: Alt key tips
+
+Press and release *Alt* to put a letter over *File* and each ribbon tab.
+Press a tab's letter (for example *R* for Results) to open it and show a
+letter over each of its buttons, then press a button's letter to run it:
+*Alt, R, S* is Results → Show Results. *Alt+R* held together goes straight
+to the Results letters. *F* opens the File view. *Backspace* goes back one
+step; *Alt* again, *Esc* or any other key hides the tips. Controls that are
+not plain buttons (combo boxes, spin boxes) have no letter and are reached
+with *Tab* or the mouse. The complete list of shortcuts is in the
+Keyboard Shortcuts page (Help tab).
+
 == Preferences
 
 *View ▸ Appearance ▸ Preferences…* is one scrolling page of sections: *New models*,

@@ -308,3 +308,23 @@ def test_small_data_tables_have_no_strip(win):
     dock = win._data_tables
     bar = dock._filter_bars[dock._nodes_table]      # Start + End only
     assert not bar.available()
+
+
+def test_a_filtered_table_is_freed_without_the_cyclic_collector():
+    """The table owns its bar, so the bar must not own the table back: a
+    Python cycle is freed by `gc` mid-run, which tears a shown table down with
+    the bar's event filter still on it (a segfault in CI, in whichever test
+    happened to trigger the collection)."""
+    import gc
+    import weakref
+    gc.collect()
+    gc.disable()
+    try:
+        t = _table(40)
+        bar = FilterBar.attach(t)
+        bar.set_shown(True)
+        t_ref, bar_ref = weakref.ref(t), weakref.ref(bar)
+        del t, bar
+        assert t_ref() is None and bar_ref() is None
+    finally:
+        gc.enable()

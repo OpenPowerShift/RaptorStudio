@@ -154,31 +154,48 @@ def preflight_issues(rbd, view, elem_name, api_issues=None) -> list[str]:
             (l.connect_t_ref, l.connect_to_id))
     state: dict[tuple[str, int], int] = {}  # 1=on stack, 2=done
 
-    def _dfs(k, path):
-        if state.get(k) == 1:
-            cycle = [p for p in path[path.index(k):]] if k in path else [k]
-            names = []
-            for ck, cid in cycle[:5]:
-                pool = (v.nodes if ck.endswith("Node")
-                        else v.events if ck.endswith("Event") else v.blocks)
-                o = pool.get(cid)
-                names.append(getattr(o, "name", None)
-                             or getattr(o, "node_name", None)
-                             or f"{ck} {cid}")
-            issues.append(
-                "cyclic connection: " + " -> ".join(names)
-                + " — a RBD graph must be acyclic (the simulation would abort "
-                  "with a LoopError)")
-            return True
-        if state.get(k) == 2:
-            return False
-        state[k] = 1
-        for nxt in adj.get(k, ()):
-            if _dfs(nxt, path + [k]):
-                state[k] = 2
-                return True
-        state[k] = 2
-        return False
+    def _first_cycle(start):
+        """The first directed cycle reachable from `start`, as the list of
+        elements round it, or None.
+
+        Iterative on purpose: a recursive search needs a Python frame per
+        element along a path, so a model with about a thousand elements in
+        series hit the recursion limit and could not be opened (#150)."""
+        state[start] = 1
+        path = [start]
+        stack = [iter(adj.get(start, ()))]
+        while stack:
+            for nxt in stack[-1]:
+                seen = state.get(nxt)
+                if seen == 1:
+                    cycle = path[path.index(nxt):]
+                    for k in path:          # leave nothing marked "on stack"
+                        state[k] = 2
+                    return cycle
+                if seen == 2:
+                    continue
+                state[nxt] = 1
+                path.append(nxt)
+                stack.append(iter(adj.get(nxt, ())))
+                break
+            else:
+                state[path.pop()] = 2
+                stack.pop()
+        return None
+
+    def _report_cycle(cycle):
+        names = []
+        for ck, cid in cycle[:5]:
+            pool = (v.nodes if ck.endswith("Node")
+                    else v.events if ck.endswith("Event") else v.blocks)
+            o = pool.get(cid)
+            names.append(getattr(o, "name", None)
+                         or getattr(o, "node_name", None)
+                         or f"{ck} {cid}")
+        issues.append(
+            "cyclic connection: " + " -> ".join(names)
+            + " — a RBD graph must be acyclic (the simulation would abort "
+              "with a LoopError)")
 
     # Nodes seed it too: a ring of nodes (or a node linked to itself) is a
     # loop the engine's TestFail walk meets on its own origin node and
@@ -186,7 +203,11 @@ def preflight_issues(rbd, view, elem_name, api_issues=None) -> list[str]:
     for kind, pool in (("Block", v.blocks), ("Event", v.events),
                        ("Node", v.nodes)):
         for oid in pool:
-            if oid and _dfs((f"RBD{kind}", oid), []):
+            if not oid or state.get((f"RBD{kind}", oid)) == 2:
+                continue
+            found = _first_cycle((f"RBD{kind}", oid))
+            if found:
+                _report_cycle(found)
                 break
 
     # In-node targets: a block/event wired into a hierarchy In node

@@ -560,6 +560,7 @@ class RibbonBuilders(_Base):
         view = getattr(getattr(self, "_diagram_dock", None), "view", None)
         if view is not None:
             view.reroute_links()
+        self._mark_view_dirty()
 
     def _build_layout_settings(self, group) -> None:
         """View > Appearance: Auto Layout direction and column limit."""
@@ -720,6 +721,7 @@ class RibbonBuilders(_Base):
         view = getattr(getattr(self, "_diagram_dock", None), "view", None)
         if view is not None:
             view.refresh_block_labels()
+        self._mark_view_dirty()
 
     def _on_block_label_phase_changed(self) -> None:
         view = getattr(getattr(self, "_diagram_dock", None), "view", None)

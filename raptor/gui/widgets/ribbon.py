@@ -82,7 +82,7 @@ class RibbonButton(QToolButton):
         self._mode = ""
         self.setAccessibleName(action.text())
         self.setProperty("ribbonActionText", action.text())
-        self.setProperty("ribbonKeyTip", action.property("keyTip") or "")
+        self.setProperty("ribbonKeyTip", "")
         self.set_mode(LARGE if large else SMALL)
 
     def mode(self) -> str:

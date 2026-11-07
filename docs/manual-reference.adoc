@@ -23,8 +23,8 @@ current value).
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
-|Select |Select tool (Q) |Q
-|Connect |Click the source element, then the target |
+|Select |Select tool (Q, Ctrl+1) |Q
+|Connect |Click the source element, then the target (Ctrl+6) |Ctrl+6
 |===
 
 ==== Build
@@ -32,11 +32,11 @@ current value).
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
-|Add Block |Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel |
-|Add Node |Click the canvas to place a new Regular node, or click a link to insert it in series |
-|Add Event |Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel |
-|Add Hierarchy |Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel |
-|Collapse Selection |Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval |
+|Add Block |Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+2) |Ctrl+2
+|Add Node |Click the canvas to place a new Regular node, or click a link to insert it in series (Ctrl+3) |Ctrl+3
+|Add Event |Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+4) |Ctrl+4
+|Add Hierarchy |Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+5) |Ctrl+5
+|Collapse Selection |Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval (Ctrl+G) |Ctrl+G
 |Delete Selected |Delete selected blocks/nodes (Del) |Del
 |===
 
@@ -67,7 +67,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Import RBD |Merge an existing model file in as one hierarchy: its Start/End markers become the new level's In/Out |
 |Extract Hierarchy… |Save the selected hierarchy as a standalone model (its input always available) and open it to run on its own. Shows what crosses the hierarchy's boundary and how each crossing is treated. |
-|Up |Ascend one hierarchy level (or double-click an Out marker) |
+|Up |Ascend one hierarchy level (or double-click an Out marker) (Alt+Up) |Alt+Up
 |Home |Return to the home level |
 |Go to hierarchy |Go to a hierarchy |choice
 |===
@@ -279,12 +279,12 @@ current value).
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
-|Explorer |Explorer |
-|Inspector |Inspector |
+|Explorer |Explorer (Ctrl+Shift+E) |Ctrl+Shift+E
+|Inspector |Inspector (Ctrl+Shift+I) |Ctrl+Shift+I
 |Failure Effects |Show the Failure Effects panel — the live system state, failures, effects and capacity while Failure Effects View is open |
 |Results |Results |
 |Run Panel |Show the Run panel — trials, termination, analyses and recording for the next run |
-|Data Tables |Show the Data Tables panel — every block/node in an editable grid |
+|Data Tables |Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D) |Ctrl+Shift+D
 |Reset Layout |Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too |
 |===
 
@@ -294,7 +294,7 @@ current value).
 |===
 |Control |What it does |Shortcut / value
 |Dark Theme |Toggle light/dark theme |
-|Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options |
+|Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options (Ctrl+,) |Ctrl+,
 |Link style |How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved. |choice, now Straight
 |Block labels |What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing |choice, now Mean
 |Show phase on block labels |Which phase's law the block labels describe. 'Model' shows the model's own unphased data; a phase shows that phase's stress-adjusted failure time, or that the block is cut. Disabled when the model has no phases. |choice, now Model
@@ -339,7 +339,7 @@ documentation.
 |Open |Open an .rbd or .rbds file (Ctrl+O) |Ctrl+O
 |Save |Save (Ctrl+S) |Ctrl+S
 |Save As |Save to a new .rbds or .rbd file (Ctrl+Shift+S) |Ctrl+Shift+S
-|Close |Close the current model (with save prompt) |
+|Close |Close the current model (with save prompt) (Ctrl+W) |Ctrl+W
 |Quit |Quit RAPTOR Studio (Ctrl+Q) |Ctrl+Q
 |Differences… |What is different between this model and another: its saved file (what you have changed), any model, or a recent one -- parameters and wiring. Nothing is run. |
 |===
@@ -372,6 +372,6 @@ documentation.
 [cols="2,8",options="header"]
 |===
 |Tab |Columns
-|Blocks |Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev
+|Blocks |Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev, Level
 |===
 

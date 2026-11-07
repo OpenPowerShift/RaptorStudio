@@ -393,6 +393,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: the rest of a multi-selection by the same delta Qt moves it.
         self._drag_primary = None
         self._drag_primary_start: QPointF | None = None
+        #: A routing point pressed for a drag: {entry id: (x, y) at press}.
+        self._grip_press: dict[int, tuple[float, float]] = {}
         self._drag_last_delta: tuple[float, float] = (0.0, 0.0)
         #: Position overrides, keyed (kind, id) in model units.
         #: The typed blocks/nodes/events dicts are level-scoped (rebuilt
@@ -709,10 +711,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     # open, and consistent across level switches (no per-level fit).
     LEGACY_SCALE = view_transform.LEGACY_SCALE
 
-    def _compute_model_transform(self, rbd: RbdFile):
+    def _compute_model_transform(self, rbd: RbdFile, spacing: float = 1.0,
+                                 band_aware: bool = False):
         """Whole-model origin/flip/scale, computed once per load and then
         frozen on the file (see `raptor.core.fileio.view_transform`)."""
-        vt = view_transform.ensure(rbd)
+        vt = view_transform.ensure(rbd, spacing, band_aware)
         self._vt = vt
         self._origin_x = vt.origin_x
         self._flip_base = vt.flip_base
@@ -1223,6 +1226,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
         cur = self._current_parent
         log.debug("_rebuild_scene: level=%s", cur)
+        # The page flow is per level: a level Auto Layout never touched
+        # must not take its port sides from another level's direction.
+        set_flow_direction(self.level_flow_direction())
         # Stable transform: origin/scale/flip come from the whole model
         # (computed once in load_rbd), so every element renders exactly
         # where its file row says -- same on every open, and identical
@@ -1460,6 +1466,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                   len(self._event_items), len(self._hier_items),
                   len(self._links))
         self._apply_scene_layout()
+        self._remember_render_extents()
         log.debug("_rebuild_scene: _apply_scene_layout done")
         self._apply_tool_cursor()       # the new items show the armed tool
 
@@ -2510,7 +2517,27 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     continue
                 row["xPos"], row["yPos"] = _pos(xy[0]), _pos(xy[1])
 
+    def view_options(self) -> dict:
+        """The view-wide options a saved file carries (see `RbdFile.view`)."""
+        from raptor.gui.ui.diagram_items import link_routing
+        return {"link_routing": link_routing(),
+                "block_labels": self._block_label_mode()}
+
+    def apply_view_options(self, opts: dict) -> None:
+        """Take a file's saved view options. Unknown or missing values leave
+        the current setting."""
+        from raptor.core.routing import ROUTING_MODES
+        from raptor.gui.ui.diagram_items import set_link_routing
+        mode = opts.get("link_routing")
+        if mode in ROUTING_MODES:
+            set_link_routing(mode)
+        labels = opts.get("block_labels")
+        if labels in dict(block_labels.MODES):
+            app_settings.set_value("appearance/block_labels", labels)
+            self._label_mode_cache = None
+
     def write_back_to_rbd(self, rbd: RbdFile):
+        rbd.view = self.view_options()
         self.sync_model_positions()
         self._sync_event_hier_positions(rbd)
         self._editor.write_back(rbd, hier_ids=set(self._hier_items))
@@ -3149,6 +3176,39 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._label_phase = phase
         self.refresh_block_labels()
 
+    def level_flow_direction(self) -> str:
+        """The page flow Auto Layout last used on the level on screen, or
+        "auto" (infer it from the level's own links)."""
+        flows = getattr(self._rbd_ref, "flow_directions", None) or {}
+        return str(flows.get(str(self._current_parent), "auto"))
+
+    def _remember_flow_direction(self) -> None:
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        if not isinstance(getattr(rbd, "flow_directions", None), dict):
+            rbd.flow_directions = {}
+        rbd.flow_directions[str(self._current_parent)] = flow_direction()
+
+    def _remember_render_extents(self) -> None:
+        """Record how wide this level's elements are drawn, for the
+        file-wide scale `view_transform.derive` picks after an Auto Layout."""
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        seen = getattr(rbd, "_render_extents", None)
+        if not isinstance(seen, dict):
+            seen = {}
+            rbd._render_extents = seen  # type: ignore[attr-defined]
+        for section, table in (("BLOCK_DATA", self._block_items),
+                               ("NODE_DATA", self._node_items),
+                               ("HIERARCHY_DATA",
+                                getattr(self, "_hier_items", {}))):
+            for oid, item in cast("dict[int, Any]", table).items():
+                rect = item.sceneBoundingRect()
+                seen[(section, str(oid))] = (rect.width() / 2.0,
+                                             rect.height() / 2.0)
+
     def reroute_links(self) -> None:
         """Redraw every link (after the routing style changes). Layout only:
         no element moves and the model is not marked changed."""
@@ -3183,14 +3243,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # against the old width and would now sit inside the block.
             if item.rect().width() != width:
                 resized.append(item)
-        if resized and not self._loading:
+        if resized:
+            # Also while a level is still being built: the deferred
+            # sub-labels are applied at the end of `_rebuild_scene`, after
+            # the links were routed against the unlabelled 108 px boxes.
+            # Skipping this then left every route 2 px off its port, so
+            # the next re-route (a link-style change) moved them.
             self._clear_route_caches()
             affected: dict[int, Any] = {}
             for item in resized:
                 for link in links_affected_by_moving(item):
                     affected[id(link)] = link
-            for link in affected.values():
-                link._update_route()
+            with routing_batch(self._scene):
+                for link in affected.values():
+                    link._update_route()
 
     def _block_row_by_id(self, bid: int):
         return self._editor.block_row(bid)
@@ -3992,6 +4058,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._stack.push(RouteGripCmd(self, entry, add=True))
         grips = self._route_grips.get(link_id) or []
         return grips[-1] if grips else None
+
+    def route_grip_by_entry(self, entry_id: int):
+        """The live routing-point item with `entry_id`, or None."""
+        for grips in self._route_grips.values():
+            for grip in grips:
+                if isValid(grip) and grip._entry_id == entry_id:
+                    return grip
+        return None
 
     def delete_route_grip(self, grip) -> None:
         """Delete one clicked routing point; the link itself is untouched."""
@@ -6524,6 +6598,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     if state is not None:
                         self._drag_start.append(("anno", aid, state))
             hit = self.itemAt(event.position().toPoint())
+            self._grip_press = ({hit._entry_id: (hit.pos().x(), hit.pos().y())}
+                                if isinstance(hit, _RouteGripItem) else {})
             primary = self._element_at(
                 self.mapToScene(event.position().toPoint()))
             if primary is None and isinstance(hit, _AnnotationBase):
@@ -6549,7 +6625,18 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # empty canvas armed the band under an item drag, so every
             # element the dragged one passed over was selected and dragged
             # along (outside the gesture's undo record).
-            owner = hit.topLevelItem() if hit is not None else None
+            # The nearest movable item at or above the one pressed: a
+            # block's label is a child of the (movable) block, and a routing
+            # point on a link is movable itself though its parent link is
+            # not. Taking the top-level item made a grip drag arm the band,
+            # which selected whatever the grip passed over, and Qt then
+            # dragged those along with it.
+            owner = hit
+            while (owner is not None and not owner.flags()
+                   & QGraphicsItem.GraphicsItemFlag.ItemIsMovable):
+                owner = owner.parentItem()
+            if owner is None and hit is not None:
+                owner = hit.topLevelItem()
             self._band_anchor = (
                 None if (owner is not None
                          and owner.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
@@ -6639,10 +6726,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         finally:
             self._snap_state["x"], self._snap_state["y"] = saved
 
-    def _layout_state(self) -> tuple[dict, dict | None]:
+    def _layout_state(self) -> tuple[dict, dict | None, tuple[str, str | None]]:
         """This level's element positions in model units (from the typed
-        objects -- call `sync_model_positions` first) and the canvas
-        transform: what Auto Layout changes, for its undo record."""
+        objects -- call `sync_model_positions` first), the canvas transform
+        and the level's saved page flow: what Auto Layout changes, for its
+        undo record."""
         pos: dict = {}
         for kind, table in (("block", self.blocks), ("node", self.nodes),
                             ("event", self.events), ("hier", self.hiers)):
@@ -6656,16 +6744,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 (k, a.get(k)) for k in ("x", "y", "x1", "y1", "x2", "y2") if k in a)
         rbd = self._rbd_ref
         vt = getattr(rbd, "view_transform", None) if rbd is not None else None
-        return pos, (dict(vt) if vt else None)
+        flows = getattr(rbd, "flow_directions", None) or {}
+        key = str(self._current_parent)
+        flow = (key, flows.get(key))
+        return pos, (dict(vt) if vt else None), flow
 
-    def _restore_layout(self, state: tuple[dict, dict | None]) -> None:
+    def _restore_layout(
+            self, state: tuple[dict, dict | None, tuple[str, str | None]]
+    ) -> None:
         """Put back a `_layout_state`: the rows and the overlay take the
         positions, the transform is restored (or re-derived from those
         rows), and the level is rebuilt from them."""
-        pos, vt = state
+        pos, vt, (flow_key, flow) = state
         rbd = self._rbd_ref
         if rbd is None:
             return
+        # The level's page flow is part of what Auto Layout changed: put it
+        # back too, or the link sides stay as the undone layout had them
+        # and a later save keeps them. (`_rebuild_scene` applies it.)
+        if not isinstance(getattr(rbd, "flow_directions", None), dict):
+            rbd.flow_directions = {}
+        if flow is None:
+            rbd.flow_directions.pop(flow_key, None)
+        else:
+            rbd.flow_directions[flow_key] = flow
         cols = {"block": ("BLOCK_DATA", "ID"), "node": ("NODE_DATA", "ID"),
                 "event": ("EVENT_DATA", "ID"), "hier": ("HIERARCHY_DATA", "ID")}
         annos = {aid: dict(geom) for (kind, aid), geom in pos.items() if kind == "anno"}
@@ -6875,6 +6977,63 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._drop_shape_ghost()
         self._shape_anno_from = None
 
+    def _nudge_route_grips(self, chosen, moves, dxs, dys, off_grid,
+                           step_x, step_y):
+        """Routing points for an arrow-key nudge: [(entry id, old, new)].
+
+        A selected point moves by one grid step (1 px with Shift) like any
+        element. A point on a link whose BOTH ends are being nudged goes
+        with them by the same distance, so the dog-leg keeps its shape;
+        only points already drawn (active) follow, so a point that has not
+        been dragged yet does not start changing a route."""
+        by_id: dict[int, tuple[float, float]] = {}
+        shift: dict[int, tuple[float, float]] = {}
+        for kind, oid, old, new in moves:
+            item = (self._block_items.get(oid) if kind == "block"
+                    else self._node_items.get(oid) if kind == "node"
+                    else self._event_items.get(oid) if kind == "event"
+                    else self._hier_items.get(oid))
+            if item is not None:
+                shift[id(item)] = (new[0] - old[0], new[1] - old[1])
+        for link in self._links:
+            a, b = shift.get(id(link._from)), shift.get(id(link._to))
+            if a is None or b is None:
+                continue
+            for grip in link.grip_items():
+                if getattr(grip, "_active", True):
+                    by_id[grip._entry_id] = a
+        out = []
+        done: set[int] = set()
+        for grip in list(chosen) + [self.route_grip_by_entry(i)
+                                    for i in by_id]:
+            if grip is None or not isValid(grip) or grip._entry_id in done:
+                continue
+            done.add(grip._entry_id)
+            old = (grip.pos().x(), grip.pos().y())
+            follow = by_id.get(grip._entry_id)
+            if follow is not None:
+                new = (old[0] + follow[0], old[1] + follow[1])
+            else:
+                nx = old[0] + dxs if (off_grid or step_x <= 0) \
+                    else (_next_grid_line(old[0], step_x, dxs)
+                          if dxs else old[0])
+                ny = old[1] + dys if (off_grid or step_y <= 0) \
+                    else (_next_grid_line(old[1], step_y, dys)
+                          if dys else old[1])
+                new = (nx, ny)
+            if new != old:
+                out.append((grip._entry_id, old, new))
+        saved = (self._snap_state["x"], self._snap_state["y"])
+        self._snap_state["x"] = self._snap_state["y"] = 0.0
+        try:
+            for entry_id, _old, new in out:
+                grip = self.route_grip_by_entry(entry_id)
+                if grip is not None:
+                    grip.setPos(*new)
+        finally:
+            self._snap_state["x"], self._snap_state["y"] = saved
+        return out
+
     def keyPressEvent(self, event):
         # A text annotation being edited owns Backspace/Delete.
         focus = QApplication.focusWidget()
@@ -6915,7 +7074,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if event.key() in _NUDGE_DIRS:
             selected = [it for it in self._scene.selectedItems()
                        if isinstance(it, (_BlockItem, _NodeItem, _EventItem,
-                                          _HierItem, _AnnotationBase))]
+                                          _HierItem, _AnnotationBase,
+                                          _RouteGripItem))]
             if selected:
                 dxs, dys = _NUDGE_DIRS[event.key()]
                 off_grid = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
@@ -6933,7 +7093,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 moves = []
                 anno_edits = []
                 item: Any
+                chosen_grips = [it for it in selected
+                                if isinstance(it, _RouteGripItem)]
                 for item in selected:
+                    if isinstance(item, _RouteGripItem):
+                        continue                 # placed with the others below
                     if isinstance(item, _AnnotationBase):
                         # Annotations aren't grid-snapped, so an
                         # arrow-key nudge moves by one snap increment (or
@@ -6990,6 +7154,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     new = (item.pos().x(), item.pos().y())
                     if old != new:
                         moves.append((kind, oid, old, new))
+                grip_moves = self._nudge_route_grips(
+                    chosen_grips, moves, dxs, dys, off_grid, step_x, step_y)
                 if saved_snap is not None:
                     self._snap_state["x"], self._snap_state["y"] = saved_snap
                 moved_keys = {(k, i) for k, i, _o, _n in moves}
@@ -7005,8 +7171,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if anno_edits:
                     self.follow_anchors({("annotation", aid)
                                          for aid, _old, _new in anno_edits})
-                if moves:
-                    self._stack.push(MoveCmd(self, moves))
+                if moves or grip_moves:
+                    self._stack.push(MoveCmd(self, moves, grips=grip_moves))
                 event.accept()
                 return
         # Scoped clipboard shortcuts: only when the canvas has focus, so
@@ -7205,6 +7371,21 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._pan_anchor = None
             event.accept()
             return
+        if event.button() == Qt.MouseButton.LeftButton and self._grip_press:
+            # A routing point was dragged: one undo step puts it back.
+            pressed, self._grip_press = self._grip_press, {}
+            grip_moves = []
+            for entry_id, old in pressed.items():
+                grip = self.route_grip_by_entry(entry_id)
+                if grip is None:
+                    continue
+                new = (grip.pos().x(), grip.pos().y())
+                if abs(new[0] - old[0]) > 0.5 or abs(new[1] - old[1]) > 0.5:
+                    grip_moves.append((entry_id, old, new))
+            if grip_moves:
+                cmd = MoveCmd(self, [], grips=grip_moves)
+                cmd.setText("Move routing point")
+                self._stack.push(cmd)
         if event.button() == Qt.MouseButton.LeftButton and self._drag_start:
             # A drag gesture just ended: one MoveCmd for every element
             # whose scene position actually changed.
@@ -8080,6 +8261,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
         selected = {k for k, it in members.items() if it.isSelected()}
         if selected and len(selected) < len(members):
+            sink: Any = getattr(self, "status_message_sink", None)
+            if sink is not None:
+                sink(f"Auto Layout moved only the {len(selected)} selected "
+                     f"element(s); the other {len(members) - len(selected)} "
+                     "stay where they are. Deselect all to lay out the "
+                     "whole level.")
             return self._auto_layout_selection(
                 selected, members, edges, direction=direction,
                 max_columns=max_columns, spacing=spacing)
@@ -8206,6 +8393,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             for link in self._links:
                 link._update_route()
         self._user_arranged = True
+        self._remember_flow_direction()
         # sync only (not write_back): the position overlay reads the
         # typed objects on level rebuilds, so traversal keeps the
         # arrangement; rows are written on Save like any other edit.
@@ -8254,8 +8442,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # Exact drawn extents for this layout. `view_transform.derive`
             # uses them for the scale; without this it would reserve the
             # fixed 108 px block and let a 216 px name overlap.
-            rbd._render_extents = render_extents  # type: ignore[attr-defined]
-            self._compute_model_transform(rbd)
+            # Merged with the other levels' extents seen so far: the scale
+            # is file-wide, so a level laid out later must not forget how
+            # wide the rest are drawn, or its scale (and every level's
+            # spacing with it) would depend on which level was laid out last.
+            rbd._render_extents = {  # type: ignore[attr-defined]
+                **getattr(rbd, "_render_extents", {}), **render_extents}
+            self._compute_model_transform(rbd, spacing, band_aware=True)
             # Annotations go with the diagram: anchored ones next to their
             # element again, the others at the same place in the model.
             from raptor.api.annotations import (

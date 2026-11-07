@@ -402,8 +402,15 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
     # drawn ovals clear each other; that false overlap is what zig-zagged
     # a straight chain.
     col_flow: dict = {}
+    #: Largest half-extent on EITHER axis per column, to tell a column of
+    #: plain nodes from one holding blocks or ovals. Judging it by the flow
+    #: axis alone only worked left-to-right: top-to-bottom the flow extent
+    #: is a height, a 46 px block's 23 px half-height looked as narrow as a
+    #: node, and every block row got the node gap.
+    col_big: dict = {}
     for k, c in col_of.items():
         col_flow[c] = max(col_flow.get(c, 0.0), raw_box(k)[flow_i])
+        col_big[c] = max(col_big.get(c, 0.0), *raw_box(k))
 
     # Columns to flow coordinates. A level wider than the available flow
     # span (or than `max_columns`) wraps into bands on the cross axis.
@@ -423,8 +430,8 @@ def layout_container_positions(members, edges, entries, pins=frozenset(),
         # apart, which the transform then had to inflate the scale for.
         # The transform's `_column_pitch_scale` uses the same limit, so
         # the two never charge different gaps for the same columns.
-        narrow = (max(a, b) * px_per_unit
-                  <= NODE_NARROW_HALF_PX + 1e-9)
+        narrow = (max(col_big.get(c0, 0.0), col_big.get(c1, 0.0))
+                  * px_per_unit <= NODE_NARROW_HALF_PX + 1e-9)
         gap_px = (30.0 if narrow else 42.0) * spacing
         floor = node_pitch if narrow else layer_pitch
         pitch = max(floor, a + b + gap_px / px_per_unit)
