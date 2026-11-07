@@ -23,7 +23,8 @@ HANDLED_IN_KEY_EVENTS = {
     "Arrow keys", "Shift+Arrow keys",
 }
 #: Doc cells that are not a key chord at all.
-NOT_KEYS = {"Shortcut"}
+# "Alt, then" is the key-tip table: tab letters, not bindings.
+NOT_KEYS = {"Shortcut", "Alt, then", "F", "M", "A", "D", "S", "B", "R", "V", "H"}
 
 
 @pytest.fixture
