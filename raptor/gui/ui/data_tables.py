@@ -13,6 +13,7 @@ population pass can write them back without conversion.
 """
 from __future__ import annotations
 
+from bisect import bisect_left
 from typing import Any
 
 from raptor.gui.ui.qtcompat import req
@@ -1477,15 +1478,24 @@ class DataTablesDock(QWidget):
         # Deferred calls (sort, resize) can land after the grid is gone.
         if not isValid(t) or not self._lazy_pending.get(t):
             return
-        n = t.rowCount()
-        top = max(t.rowAt(0), 0)
+        # Only rows a filter leaves showing count. `rowAt` answers -1 when
+        # the shown rows do not fill the window (or none match), which used
+        # to be read as "the table runs on", so a selective filter built the
+        # widgets of every hidden row: ~55 s on a 3,800-block model.
+        shown = [r for r in range(t.rowCount()) if not t.isRowHidden(r)]
+        if not shown:
+            return
+        top = t.rowAt(0)
         bottom = t.rowAt(max(t.viewport().height() - 1, 0))
-        if bottom < 0:
-            bottom = n - 1
-        # Not yet laid out (hidden tab, first show): take a screenful.
-        bottom = max(bottom, top + 30)
-        self._realize_rows(t, range(max(top - _LAZY_MARGIN, 0),
-                                    min(bottom + _LAZY_MARGIN + 1, n)))
+        first = bisect_left(shown, top) if top >= 0 else 0
+        # A screenful, at least 30 (not yet laid out: hidden tab, first show).
+        fits = max(t.viewport().height() // max(
+            t.verticalHeader().defaultSectionSize(), 1) + 1, 30)
+        last = (bisect_left(shown, bottom) if bottom >= 0
+                else first + fits)
+        last = min(last, first + fits, len(shown) - 1)
+        self._realize_rows(t, shown[max(first - _LAZY_MARGIN, 0):
+                                    last + _LAZY_MARGIN + 1])
 
     def _realize_all(self, t: QTableWidget) -> None:
         """Every row: before anything that reads all the widgets (export)."""

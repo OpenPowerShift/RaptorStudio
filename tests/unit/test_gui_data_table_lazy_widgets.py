@@ -150,3 +150,31 @@ def test_a_small_model_still_builds_everything_at_once():
     finally:
         w._dirty = False
         w.close()
+
+
+def test_a_selective_filter_builds_only_the_widgets_of_the_rows_it_shows():
+    """A filter that leaves few or no rows showing must not realize the
+    hidden ones (rowAt answers -1 then, which once meant "everything")."""
+    import pytest as _pytest
+    _pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication, QTableWidget
+    from raptor.gui.ui import data_tables as dt
+    QApplication.instance() or QApplication([])
+    dock = dt.DataTablesDock()
+    t = QTableWidget(500, 3)
+    for r in range(500):
+        for c in range(3):
+            t.setItem(r, c, dt.QTableWidgetItem(str(r)))
+    dock._lazy_pending[t] = set(range(500))
+    built = []
+    dock._lazy_builders[t] = lambda tb, r, key: built.append(r)
+    dock._row_key = staticmethod(lambda tb, r: r)
+    for r in range(500):
+        t.setRowHidden(r, r not in (7, 300))
+    dock._realize_visible(t)
+    assert sorted(built) == [7, 300]
+    built.clear()
+    for r in range(500):
+        t.setRowHidden(r, True)
+    dock._realize_visible(t)
+    assert built == []
