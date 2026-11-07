@@ -477,7 +477,7 @@ class RibbonBuilders(_Base):
 
     def _build_analysis_toggles(self, group) -> None:
         """Simulate > Analyses: the three analysis toggles."""
-        self._analysis_actions: dict[str, QAction] = {}
+        self._analysis_actions = {}
         from raptor.gui.ui.main_window import _ANALYSIS_ICONS
         for col, label in (
             ("weakAnalysis", "Weak Link"),

@@ -5,7 +5,7 @@ ThemeManager provides light/dark switching with live stylesheet updates.
 """
 from __future__ import annotations
 from collections.abc import Mapping
-from typing import cast
+from typing import Any, cast
 
 from PySide6.QtGui import QPalette, QColor
 from PySide6.QtWidgets import QApplication
@@ -18,7 +18,7 @@ RADIUS = {
     "control": 6, "card": 10, "dialog": 12,
 }
 
-TYPE = {
+TYPE: dict[str, Any] = {
     "family": "Inter, Segoe UI, Noto Sans, sans-serif",
     "caption": 11, "body": 13, "label": 12, "title": 18, "metric": 28,
 }

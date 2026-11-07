@@ -34,7 +34,7 @@ from PySide6.QtWidgets import QAbstractItemView
 from raptor.gui.ui import msgbox
 
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QStandardItemModel
@@ -808,7 +808,7 @@ class ResultsDock(QWidget):
                     # first table on the page. Copying the first Cost
                     # table while looking at another was misleading.
                     focused = None
-                    w = QApplication.focusWidget()
+                    w: Any = QApplication.focusWidget()
                     while w is not None:
                         if isinstance(w, QTableWidget):
                             focused = w
@@ -924,7 +924,7 @@ class ResultsDock(QWidget):
     #: Rows a results table shows before it needs its own scrollbar.
     _TABLE_ROWS_SHOWN = 40
 
-    def _make_table(self, headers: list[str], rows: list[list[str]],
+    def _make_table(self, headers: list[str], rows: list[list[Any]],
                     first_col_label: str = "Measure") -> QTableWidget:
         table = _FitTable(len(rows), len(headers))
         table.setHorizontalHeaderLabels(headers)
@@ -1289,7 +1289,7 @@ class ResultsDock(QWidget):
         later run used to raise KeyError on caps[0] and lose the tab.
         Unknown names fall back to the id so the sort still works.
         """
-        node_names = {}
+        node_names: dict[int, str] = {}
         for cap in caps:
             for nid, stats in cap.nodes.items():
                 node_names.setdefault(nid, stats.name)
@@ -1431,6 +1431,7 @@ class ResultsDock(QWidget):
     #: Optional filter: callable -> names of the canvas selection
     #: ("selection options": restrict analysis rows to selected blocks).
     _selected_block_names_fn = None
+    _importance_metric: str
 
     @staticmethod
     def _band(value: float, gy: float, yr: float):
@@ -1568,8 +1569,8 @@ class ResultsDock(QWidget):
             "“Selected elements only”.")
         sel_note.setObjectName("SectionNote")
         sel_note.setWordWrap(True)
-        selected = (self._selected_block_names_fn()
-                    if self._selected_block_names_fn else [])
+        selected: list[str] = (self._selected_block_names_fn()
+                               if self._selected_block_names_fn else [])
         sel_note.setVisible(bool(getattr(self, "_weak_sel_only", False)
                                  and not selected))
         v.addWidget(sel_note)
@@ -1838,8 +1839,8 @@ class ResultsDock(QWidget):
         Used by the Cost page's report-section tables, which are created
         by `_section_widget` rather than the cost page's own builder.
         """
-        headers = [(table.horizontalHeaderItem(c).text()
-                    if table.horizontalHeaderItem(c) is not None else "")
+        headers = [(h.text() if (h := table.horizontalHeaderItem(c)) is not None
+                    else "")
                    for c in range(table.columnCount())]
         rows: list[list[str]] = []
         for r in range(table.rowCount()):

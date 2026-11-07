@@ -9,7 +9,7 @@ element; double-click one to find it on the canvas.
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, Literal
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor
@@ -53,6 +53,9 @@ def _ids_here(result: dict) -> dict[tuple[str, str], int]:
 
 class DiffDialog(QDialog):
     """Modeless; compares on every choice (it is quick) and on Refresh."""
+
+    #: The model the dialog was last opened for (see `show_diff`).
+    _model: Any = None
 
     def __init__(self, win, other_path: str | None = None):
         super().__init__(win)
@@ -140,7 +143,7 @@ class DiffDialog(QDialog):
          self._saved if has_file else self._other).setChecked(True)
         self._choice.idClicked.connect(lambda _i: self.compare())
         self._recent_combo.currentIndexChanged.connect(
-            lambda _i: self._recent.isChecked() and self.compare())
+            lambda _i: self.compare() if self._recent.isChecked() else None)
         self._everything.toggled.connect(lambda _on: self.compare())
 
     def _fill_recent(self) -> None:
@@ -192,8 +195,8 @@ class DiffDialog(QDialog):
         self._other.setChecked(True)
         self.compare()
 
-    def _target(self) -> tuple[str, str] | None:
-        """(path, match mode) of the model to compare with."""
+    def _target(self) -> tuple[Any, Literal["auto", "name", "id"]] | None:
+        """(path or open model, match mode) of the model to compare with."""
         if self._saved.isChecked():
             path = self._win._current_file
             return (path, "id") if path else None
