@@ -62,6 +62,11 @@ class AppState:
     #: Selected elements Collapse can move into a new hierarchy: blocks,
     #: regular nodes, events and hierarchy ovals (moved in whole).
     selected_structural: int = 0
+    #: Selected items Copy/Cut take: elements and annotations.
+    selected_copyable: int = 0
+    #: Paste has something to paste: a Raptor payload on the system
+    #: clipboard (another model, another window) or the view's own buffer.
+    clipboard_pastable: bool = False
     #: Hierarchy ovals on the level being viewed, and how many are selected.
     hierarchies_here: int = 0
     selected_hierarchies: int = 0
@@ -133,6 +138,8 @@ PREDICATES: dict[str, Callable[[AppState], bool]] = {
     "has_selection": lambda s: s.model_open and s.selected_elements >= 1,
     "has_structural_selection": lambda s: (
         s.model_open and s.selected_structural >= 1),
+    "can_copy": lambda s: s.model_open and s.selected_copyable >= 1,
+    "can_paste": lambda s: s.model_open and s.clipboard_pastable,
     "has_movable_selection": lambda s: (
         s.model_open and s.selected_movable >= 1),
     # A new hierarchy must fit within the nesting limit.
@@ -213,6 +220,12 @@ UNMET: dict[str, str | Callable[[AppState], str]] = {
     "has_structural_selection": lambda s: (
         "open or create a model first" if not s.model_open else
         "select at least one block, node or event first"),
+    "can_copy": lambda s: (
+        "open or create a model first" if not s.model_open else
+        "select something to copy first"),
+    "can_paste": lambda s: (
+        "open or create a model first" if not s.model_open else
+        "nothing to paste: copy elements from this or another model first"),
     "has_movable_selection": lambda s: (
         "open or create a model first" if not s.model_open else
         "select at least one element first"),
@@ -306,10 +319,6 @@ class CommandSpec:
     icon: str = ""
     #: Initial enabled state for a command NOT governed by `enabled_when`.
     enabled: bool = True
-    #: Alt+<letter> key tip. Fixed per command, so renaming a button can
-    #: never reassign a key somebody already learned; "" = no tip. Only a
-    #: handful of commands get one -- a letter per button would collide.
-    key_tip: str = ""
     #: Name of a predicate in `PREDICATES`; "" = not managed by state.
     enabled_when: str = ""
     #: Overrides the default reason for `enabled_when` in the tooltip.
@@ -404,8 +413,6 @@ class CommandRegistry:
         if spec.tooltip:
             action.setToolTip(spec.tooltip)
         self._apply_shortcuts(action, spec)
-        if spec.key_tip:
-            action.setProperty("keyTip", spec.key_tip)
         if spec.checkable:
             action.setCheckable(True)
             action.setChecked(spec.checked)
@@ -560,6 +567,7 @@ def build_pages(window: Any, registry: CommandRegistry,
 
     Order in `layout` is tab order.
     """
+    from raptor.gui.key_tips import KEY_TIPS
     from raptor.gui.widgets.ribbon import RibbonGroup, RibbonPage
     for page_spec in layout:
         page = RibbonPage()
@@ -569,8 +577,10 @@ def build_pages(window: Any, registry: CommandRegistry,
             page.add_group(group)
             for item in group_spec.items:
                 if isinstance(item, Btn):
-                    group.add_action(registry.action(item.id),
-                                     large=item.large)
+                    button = group.add_action(registry.action(item.id),
+                                              large=item.large)
+                    button.setProperty("ribbonKeyTip", KEY_TIPS.get(
+                        page_spec.title, {}).get(item.id, ""))
                 else:
                     getattr(window, item.builder)(group)
         index = window._ribbon.add_page(page_spec.title, page)

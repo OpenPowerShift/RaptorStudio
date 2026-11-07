@@ -217,6 +217,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     #: already at the front). The per-kind signals above stay for
     #: anything that needs to know *which* element.
     selection_changed = Signal()
+    #: The paste buffer changed: Paste may have become (un)available.
+    paste_state_changed = Signal()
     #: (mode) -- the armed build tool CHANGED, from either side: the user
     #: clicking a ribbon tool, or the view disarming itself (Esc, or the
     #: end of a one-shot placement). MainWindow unchecks the ribbon
@@ -364,6 +366,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: QSettings by MainWindow; empty means "factory look".
         self.default_annotation_props: dict[str, dict] = {}
         self._paste_buffer: list = []
+        self._defer_block_refresh = False   # True while a batch is inserted
         self._connect_ghost: QGraphicsLineItem | None = None
         self._anno_drag_start: QPointF | None = None
         self._connect_from: tuple[str, int] | None = None
@@ -2151,7 +2154,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         menu = QMenu(self)
         mx, my = self.scene_to_model(scene_pos)
         paste_act = menu.addAction("Paste Here (at pointer)")
-        paste_act.setEnabled(bool(self._paste_buffer))
+        paste_act.setEnabled(self.can_paste())
         menu.addSeparator()
         select_all_act = menu.addAction("Select All")
         select_all_act.setShortcut(QKeySequence("Ctrl+A"))
@@ -2602,6 +2605,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         self._stack.push(CommentCmd(self, etype, oid, old, stored))
 
+    def _note_duplicate_name(self, kind: str, eid: int, name: str) -> None:
+        """Status-bar notice (not a refusal: Raptor 7 allows a shared name)
+        when another element of the same kind already has this name, ignoring
+        case. Reports and messages quote names, so a repeat is ambiguous."""
+        pool = {"block": lambda: {i: b.name for i, b in self.blocks.items()},
+                "node": lambda: {i: n.node_name for i, n in self.nodes.items()},
+                "event": lambda: {i: e.name for i, e in self.events.items()},
+                "hier": lambda: {i: h.name for i, h in self.hiers.items()}}[kind]()
+        key = name.casefold()
+        same = [i for i, n in pool.items()
+                if i != eid and str(n).casefold() == key]
+        if same:
+            others = ", ".join(str(i) for i in same[:3])
+            _view_status(self, f"Note: another {kind} ({others}) is already "
+                         f"named '{name}' (compared ignoring case "
+                         "— reports will show both the same")
+
     def rename_block(self, block_id: int, name: str):
         if block_id not in self.blocks:
             return
@@ -2609,6 +2629,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if name == old:
             return
         self._stack.push(RenameCmd(self, "block", block_id, old, name))
+        self._note_duplicate_name("block", block_id, name)
 
     def rename_node(self, node_id: int, name: str):
         if node_id not in self.nodes:
@@ -2617,6 +2638,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if name == old:
             return
         self._stack.push(RenameCmd(self, "node", node_id, old, name))
+        self._note_duplicate_name("node", node_id, name)
 
     #: Distribution setters always take CANONICAL values (Exponential =
     #: mean, Lognormal = mean + standard deviation). Raptor's lambda /
@@ -3075,6 +3097,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if h is None or name == h.name:
             return
         self._stack.push(RenameCmd(self, "hier", hid, h.name, name))
+        self._note_duplicate_name("hier", hid, name)
 
     def _sync_event_row(self, eid: int):
         self._editor.sync_event_row(eid)
@@ -3084,6 +3107,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if event is None or name == event.name:
             return
         self._stack.push(RenameCmd(self, "event", eid, event.name, name))
+        self._note_duplicate_name("event", eid, name)
 
     def set_event_field(self, eid: int, field: str, value):
         """field: 'dist' | 'param' | 'stream' (EVENT_DATA's Distro /
@@ -3474,15 +3498,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._dependency_visual(block.dependency_num, block.dep_type))
         self._scene.addItem(item)
         self._block_items[bid] = item
+        if not self._defer_block_refresh:
+            self.refresh_after_block_insert()
+        return bid
+
+    def refresh_after_block_insert(self) -> None:
+        """What a block insert needs once per batch, not once per block."""
         self._refresh_lod()
         self._recount_link_ends()
-        return bid
 
     def add_block(self, name: str, model_x: float, model_y: float,
                   fdist: int | None = None,
                   fparam: float | None = None) -> int:
         """Create a block at model coordinates; defaults come from the
         Block Defaults unless given."""
+        row = self._new_block_row(name, model_x, model_y, fdist, fparam)
+        self._stack.push(AddCmd(self, "block", [row]))
+        return _safe_int(row["ID"])
+
+    def _new_block_row(self, name: str, model_x: float, model_y: float,
+                       fdist: int | None = None,
+                       fparam: float | None = None,
+                       bid: int | None = None) -> dict:
+        """A full BLOCK_DATA row for a fresh block (Block Defaults, every
+        column a new block has, PM included), not yet added."""
         if self._rbd_ref is None:
             raise RuntimeError("no file loaded")
         if fdist is None:
@@ -3494,7 +3533,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         repair_params = list(self.default_block_rparams)
         sparing = self.default_block_sparing
         row = self._template_row("BLOCK_DATA", "ID") or {}
-        bid = self._next_id("BLOCK_DATA", "ID", self.blocks)
+        if bid is None:
+            bid = self._next_id("BLOCK_DATA", "ID", self.blocks)
         row["blockName"] = self._sanitize_name(name)
         row["ID"] = str(bid)
         # On the level being shown. The template row says 0, so a block
@@ -3520,8 +3560,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         for i in range(3):
             row[f"RParam{i + 1}"] = f"{repair_params[i] if i < _dist_param_count(repair_dist) else 0.0:.6f}"
         row["SpType"] = sparing
-        self._stack.push(AddCmd(self, "block", [row]))
-        return bid
+        return row
 
     def add_node(self, name: str, model_x: float, model_y: float,
                  node_type: int = 2) -> int:
@@ -3939,7 +3978,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # LINK_DATA id.
         num = self._next_link_id()
         row = self._make_link_row(from_type, from_id, to_type, to_id, num)
+        before = len(section.rows)
         self._stack.push(AddCmd(self, "link", [row]))
+        if len(section.rows) == before:
+            return None             # the input-rule gate refused the link
         return num
 
     @staticmethod
@@ -4916,10 +4958,25 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     # --- Cut / Copy / Paste ------
 
+    def copyable_count(self) -> int:
+        """Selected things Copy/Cut take: elements and annotations."""
+        try:
+            n = self.selected_element_count()
+            return n + sum(1 for it in getattr(self, "_anno_items", {}).values()
+                           if it.isSelected())
+        except RuntimeError:        # scene torn down during shutdown
+            return 0
+
+    def can_paste(self) -> bool:
+        """Paste has something to paste."""
+        return self._rbd_ref is not None and bool(self._paste_buffer)
+
     def copy_selection(self) -> int:
         """Snapshot the selected elements (+ their fully-internal links)
-        into the paste buffer. Returns the element count."""
-        if self._rbd_ref is None:
+        into the paste buffer. Returns the element count. With nothing
+        selected it does nothing, so it cannot empty a buffer that holds
+        an earlier copy."""
+        if self._rbd_ref is None or not self.copyable_count():
             return 0
         sel_b = [bid for bid, it in self._block_items.items()
                  if it.isSelected() and bid != 0]
@@ -4944,6 +5001,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         for a in sel_annos:
             buffer.append(("annotation", dict(a)))
         self._paste_buffer = buffer
+        self.paste_state_changed.emit()
         return count_elements(buffer)
 
     def cut_selection(self) -> int:
@@ -6130,6 +6188,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                              f"click (left or right) the target element")
                 return
             src_kind, src_id = self._connect_from
+            if (src_kind, src_id) == (kind, eid):
+                _view_status(self, "An element cannot be linked to itself "
+                             "— click a different target")
             if (src_kind, src_id) != (kind, eid):
                 reason = self._connect_refusal_reason(src_kind, src_id,
                                                       kind, eid)
@@ -6470,7 +6531,18 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # empty canvas armed the band under an item drag, so every
             # element the dragged one passed over was selected and dragged
             # along (outside the gesture's undo record).
-            owner = hit.topLevelItem() if hit is not None else None
+            # The nearest movable item at or above the one pressed: a
+            # block's label is a child of the (movable) block, and a routing
+            # point on a link is movable itself though its parent link is
+            # not. Taking the top-level item made a grip drag arm the band,
+            # which selected whatever the grip passed over, and Qt then
+            # dragged those along with it.
+            owner = hit
+            while (owner is not None and not owner.flags()
+                   & QGraphicsItem.GraphicsItemFlag.ItemIsMovable):
+                owner = owner.parentItem()
+            if owner is None and hit is not None:
+                owner = hit.topLevelItem()
             self._band_anchor = (
                 None if (owner is not None
                          and owner.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
@@ -7796,11 +7868,66 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         """Insert a library template as a new block (fresh id, undoable,
         placed at `at_model` or near the viewport centre). Returns the
         new block id."""
-        self._paste_buffer = [("block", dict(row))]
-        n = self.paste(at_model=at_model)
-        if n != 1:
-            return 0
-        return max(self.blocks)
+        if at_model is None:
+            at_model = self.scene_to_model(
+                self.mapToScene(self.viewport().rect().center()))
+        ids = self._add_template_rows([row], [at_model], "Add block")
+        return ids[0] if ids else 0
+
+    def add_blocks_from_templates(self, rows: list[dict],
+                                  centre: QPointF) -> list[int]:
+        """Insert several library templates as new blocks, laid out in a
+        grid (at most four across) around the scene point `centre`, as one
+        undo step and one pass of the input-rule gate. Returns the new
+        block ids (empty if the edit was refused)."""
+        if not rows:
+            return []
+        across = min(len(rows), 4)
+        step_x, step_y = BLOCK_W + 40.0, BLOCK_H + 30.0
+        down = -(-len(rows) // across)
+        spots = []
+        for i in range(len(rows)):
+            col, line = i % across, i // across
+            spots.append(self.scene_to_model(QPointF(
+                centre.x() + (col - (across - 1) / 2.0) * step_x,
+                centre.y() + (line - (down - 1) / 2.0) * step_y)))
+        return self._add_template_rows(
+            rows, spots, "Add block" if len(rows) == 1
+            else f"Add {len(rows)} blocks")
+
+    def _add_template_rows(self, rows: list[dict], spots: list,
+                           text: str) -> list[int]:
+        """The template columns laid over a fresh block's full row (a library
+        carries failure, repair, LDT and dependency data only; the rest of a
+        block is the Block Defaults), added by one command. The input-rule
+        gate checks the whole add once, and refuses it as a whole."""
+        # The lowest free ids (gaps left by deleted blocks and ids held at
+        # other levels are skipped), found in one pass over the rows.
+        rbd = req(self._rbd_ref)
+        used = set(self.blocks)
+        for r in rbd.sections["BLOCK_DATA"].rows:
+            used.add(_safe_int(r.get("ID")))
+        new_ids: list[int] = []
+        nid = 1
+        while len(new_ids) < len(rows):
+            if nid not in used:
+                new_ids.append(nid)
+            nid += 1
+        new_rows = []
+        for bid, tpl, (mx, my) in zip(new_ids, rows, spots):
+            full = self._new_block_row(tpl.get("blockName", ""), mx, my,
+                                       bid=bid)
+            for col, val in tpl.items():
+                if col not in ("blockName", "ID", "ParentId", "xPos", "yPos"):
+                    full[col] = val
+            new_rows.append(full)
+        cmd = AddCmd(self, "block", new_rows)
+        cmd.setText(text)
+        before = len(rbd.sections["BLOCK_DATA"].rows)
+        self._stack.push(cmd)
+        if len(rbd.sections["BLOCK_DATA"].rows) == before:
+            return []                  # the gate refused it
+        return new_ids
 
     def update_blocks_from_library(self, templates: list[dict]) -> int:
         """Overwrite the F/R distribution+param+stream columns of every
