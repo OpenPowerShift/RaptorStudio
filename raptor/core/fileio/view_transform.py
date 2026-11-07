@@ -304,6 +304,20 @@ def rebase(rbd: Any, source: ViewTransform, target: ViewTransform) -> None:
             r["xPos"], r["yPos"] = f"{mx:.6f}", f"{my:.6f}"
 
 
+#: The least clear space left between two stacked elements at any spacing.
+_MIN_DRAWN_GAP = 6.0
+
+
+def _tallest_half_height(rbd: Any) -> float:
+    """The largest drawn half-height among the elements the GUI measured
+    (`_render_extents`), else the nominal one."""
+    tallest = HALF_ELEMENT_H
+    for ext in (getattr(rbd, "_render_extents", None) or {}).values():
+        if isinstance(ext, (tuple, list)) and len(ext) > 1:
+            tallest = max(tallest, float(ext[1]))
+    return tallest
+
+
 def derive(rbd: Any, spacing: float = 1.0,
            band_aware: bool = False) -> ViewTransform:
     """Derive a transform from the positions currently in the file rows.
@@ -343,6 +357,12 @@ def derive(rbd: Any, spacing: float = 1.0,
         # most of it empty: "auto layout makes the boxes tiny").
         needed = max(needed,
                      (HALF_ELEMENT_H + MIN_ELEMENT_GAP * spacing) / dy_col)
+        # Whatever the spacing factor, two stacked elements must not touch:
+        # a block drawn taller than the nominal 46 px (sub-labels) overlapped
+        # its neighbour at factors below ~0.5, where the gap term above is
+        # smaller than the extra height.
+        needed = max(needed, (2.0 * _tallest_half_height(rbd)
+                              + _MIN_DRAWN_GAP) / dy_col)
     # Clamp on the scene's pixel size, not the scale number: a huge scene
     # segfaults real display drivers, while a compact file can safely use a
     # much higher scale than a sprawling one. SpaceStation.rbd's 2.5-unit

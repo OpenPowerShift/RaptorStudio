@@ -6632,10 +6632,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         finally:
             self._snap_state["x"], self._snap_state["y"] = saved
 
-    def _layout_state(self) -> tuple[dict, dict | None]:
+    def _layout_state(self) -> tuple[dict, dict | None, tuple[str, str | None]]:
         """This level's element positions in model units (from the typed
-        objects -- call `sync_model_positions` first) and the canvas
-        transform: what Auto Layout changes, for its undo record."""
+        objects -- call `sync_model_positions` first), the canvas transform
+        and the level's saved page flow: what Auto Layout changes, for its
+        undo record."""
         pos: dict = {}
         for kind, table in (("block", self.blocks), ("node", self.nodes),
                             ("event", self.events), ("hier", self.hiers)):
@@ -6649,16 +6650,30 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 (k, a.get(k)) for k in ("x", "y", "x1", "y1", "x2", "y2") if k in a)
         rbd = self._rbd_ref
         vt = getattr(rbd, "view_transform", None) if rbd is not None else None
-        return pos, (dict(vt) if vt else None)
+        flows = getattr(rbd, "flow_directions", None) or {}
+        key = str(self._current_parent)
+        flow = (key, flows.get(key))
+        return pos, (dict(vt) if vt else None), flow
 
-    def _restore_layout(self, state: tuple[dict, dict | None]) -> None:
+    def _restore_layout(
+            self, state: tuple[dict, dict | None, tuple[str, str | None]]
+    ) -> None:
         """Put back a `_layout_state`: the rows and the overlay take the
         positions, the transform is restored (or re-derived from those
         rows), and the level is rebuilt from them."""
-        pos, vt = state
+        pos, vt, (flow_key, flow) = state
         rbd = self._rbd_ref
         if rbd is None:
             return
+        # The level's page flow is part of what Auto Layout changed: put it
+        # back too, or the link sides stay as the undone layout had them
+        # and a later save keeps them. (`_rebuild_scene` applies it.)
+        if not isinstance(getattr(rbd, "flow_directions", None), dict):
+            rbd.flow_directions = {}
+        if flow is None:
+            rbd.flow_directions.pop(flow_key, None)
+        else:
+            rbd.flow_directions[flow_key] = flow
         cols = {"block": ("BLOCK_DATA", "ID"), "node": ("NODE_DATA", "ID"),
                 "event": ("EVENT_DATA", "ID"), "hier": ("HIERARCHY_DATA", "ID")}
         annos = {aid: dict(geom) for (kind, aid), geom in pos.items() if kind == "anno"}
@@ -8073,6 +8088,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
         selected = {k for k, it in members.items() if it.isSelected()}
         if selected and len(selected) < len(members):
+            sink: Any = getattr(self, "status_message_sink", None)
+            if sink is not None:
+                sink(f"Auto Layout moved only the {len(selected)} selected "
+                     f"element(s); the other {len(members) - len(selected)} "
+                     "stay where they are. Deselect all to lay out the "
+                     "whole level.")
             return self._auto_layout_selection(
                 selected, members, edges, direction=direction,
                 max_columns=max_columns, spacing=spacing)
