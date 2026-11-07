@@ -407,6 +407,27 @@ points and every position.</p>
 </li>
 </ul>
 </div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p><strong>Routing points.</strong> Once a routing point has been dragged or nudged, each end of
+the link leaves or enters by the side of its element that faces the nearest
+point (a little hysteresis stops it flicking between two sides). The link is
+drawn straight through the points. Selected routing points move with the arrow
+keys (one grid step; <strong>Shift</strong> for 1 px), and when both ends of a link are
+nudged together its routing points go with them. A routing-point drag or nudge
+is one undo step. Dragging several elements with the mouse does not yet carry
+routing points along.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
 <div class="paragraph">
 <p>The flow direction comes from <strong>Arrange → Auto Layout</strong>'s direction when one
 is set; otherwise RAPTOR Studio reads it from the way the links run.</p>
