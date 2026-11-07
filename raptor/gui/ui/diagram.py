@@ -703,10 +703,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     # open, and consistent across level switches (no per-level fit).
     LEGACY_SCALE = view_transform.LEGACY_SCALE
 
-    def _compute_model_transform(self, rbd: RbdFile):
+    def _compute_model_transform(self, rbd: RbdFile, spacing: float = 1.0,
+                                 band_aware: bool = False):
         """Whole-model origin/flip/scale, computed once per load and then
         frozen on the file (see `raptor.core.fileio.view_transform`)."""
-        vt = view_transform.ensure(rbd)
+        vt = view_transform.ensure(rbd, spacing, band_aware)
         self._vt = vt
         self._origin_x = vt.origin_x
         self._flip_base = vt.flip_base
@@ -1453,6 +1454,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                   len(self._event_items), len(self._hier_items),
                   len(self._links))
         self._apply_scene_layout()
+        self._remember_render_extents()
         log.debug("_rebuild_scene: _apply_scene_layout done")
         self._apply_tool_cursor()       # the new items show the armed tool
 
@@ -3120,6 +3122,25 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return
         self._label_phase = phase
         self.refresh_block_labels()
+
+    def _remember_render_extents(self) -> None:
+        """Record how wide this level's elements are drawn, for the
+        file-wide scale `view_transform.derive` picks after an Auto Layout."""
+        rbd = self._rbd_ref
+        if rbd is None:
+            return
+        seen = getattr(rbd, "_render_extents", None)
+        if not isinstance(seen, dict):
+            seen = {}
+            rbd._render_extents = seen  # type: ignore[attr-defined]
+        for section, table in (("BLOCK_DATA", self._block_items),
+                               ("NODE_DATA", self._node_items),
+                               ("HIERARCHY_DATA",
+                                getattr(self, "_hier_items", {}))):
+            for oid, item in cast("dict[int, Any]", table).items():
+                rect = item.sceneBoundingRect()
+                seen[(section, str(oid))] = (rect.width() / 2.0,
+                                             rect.height() / 2.0)
 
     def reroute_links(self) -> None:
         """Redraw every link (after the routing style changes). Layout only:
@@ -8093,8 +8114,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # Exact drawn extents for this layout. `view_transform.derive`
             # uses them for the scale; without this it would reserve the
             # fixed 108 px block and let a 216 px name overlap.
-            rbd._render_extents = render_extents  # type: ignore[attr-defined]
-            self._compute_model_transform(rbd)
+            # Merged with the other levels' extents seen so far: the scale
+            # is file-wide, so a level laid out later must not forget how
+            # wide the rest are drawn, or its scale (and every level's
+            # spacing with it) would depend on which level was laid out last.
+            rbd._render_extents = {  # type: ignore[attr-defined]
+                **getattr(rbd, "_render_extents", {}), **render_extents}
+            self._compute_model_transform(rbd, spacing, band_aware=True)
             # Annotations go with the diagram: anchored ones next to their
             # element again, the others at the same place in the model.
             from raptor.api.annotations import (
