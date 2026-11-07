@@ -2515,7 +2515,27 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     continue
                 row["xPos"], row["yPos"] = _pos(xy[0]), _pos(xy[1])
 
+    def view_options(self) -> dict:
+        """The view-wide options a saved file carries (see `RbdFile.view`)."""
+        from raptor.gui.ui.diagram_items import link_routing
+        return {"link_routing": link_routing(),
+                "block_labels": self._block_label_mode()}
+
+    def apply_view_options(self, opts: dict) -> None:
+        """Take a file's saved view options. Unknown or missing values leave
+        the current setting."""
+        from raptor.core.routing import ROUTING_MODES
+        from raptor.gui.ui.diagram_items import set_link_routing
+        mode = opts.get("link_routing")
+        if mode in ROUTING_MODES:
+            set_link_routing(mode)
+        labels = opts.get("block_labels")
+        if labels in dict(block_labels.MODES):
+            app_settings.set_value("appearance/block_labels", labels)
+            self._label_mode_cache = None
+
     def write_back_to_rbd(self, rbd: RbdFile):
+        rbd.view = self.view_options()
         self.sync_model_positions()
         self._sync_event_hier_positions(rbd)
         self._editor.write_back(rbd, hier_ids=set(self._hier_items))

@@ -126,7 +126,83 @@ def issues(rbd: RbdFile) -> list[Issue]:
     result.extend(_check_start_to_end_reachable(rbd))
     result.extend(_check_link_cycle(rbd))
     result.extend(_check_annotation_anchors(rbd))
+    result.extend(_check_stacked_blocks(rbd))
 
+    return result
+
+
+#: The canvas draws a level's hierarchies at z=-1 and its blocks, nodes and
+#: events at z=0 in the order blocks, nodes, events (`_rebuild_scene`), so
+#: within one z the later kind is on top, and within a kind the later row.
+_STACK_KINDS = (("HIERARCHY_DATA", "Hierarchy", "Parent"),
+                ("BLOCK_DATA", "Block", "ParentId"),
+                ("NODE_DATA", "Node", "parent"),
+                ("EVENT_DATA", "Event", "ParentId"))
+
+
+def _check_stacked_blocks(rbd: RbdFile) -> list[Issue]:
+    """Elements drawn on top of each other (a warning; nothing is moved).
+
+    Two elements of any kind (block, node, event, hierarchy) on one level
+    whose centres are within half of the smaller one's drawn size hide one
+    another, so the topology cannot be read. The element drawn last is on
+    top, so it is the one named, with what it covers. Sizes are the
+    layout's own (`element_size`) at the file's view scale."""
+    from raptor.core.fileio.element_size import (
+        NAME_COLUMNS, half_height_px, half_width_px)
+    from raptor.core.fileio.view_transform import derive, frozen
+    try:
+        vt = frozen(rbd) or derive(rbd)
+    except Exception:  # noqa: BLE001 - a malformed layout is reported elsewhere
+        return []
+    # (stack order, section, kind label, id, name, x, y, half w, half h)
+    levels: dict[int, list[tuple[int, str, str, int, str,
+                                 float, float, float, float]]] = {}
+    for rank, (section, label, parent_col) in enumerate(_STACK_KINDS):
+        sec = rbd.sections.get(section)
+        if sec is None:
+            continue
+        for order, row in enumerate(sec.rows):
+            try:
+                eid = int(float(row.get("ID", 0)))
+                if eid == 0:
+                    continue
+                name = str(row.get(NAME_COLUMNS[section], ""))
+                x, y = vt.to_scene(float(row["xPos"]), float(row["yPos"]))
+                parent = int(float(row.get(parent_col, 0) or 0))
+            except (TypeError, ValueError, KeyError, OverflowError):
+                continue
+            # hierarchies sit below everything else; then kind, then row
+            stack = (0 if section == "HIERARCHY_DATA" else 1) * 10**9 \
+                + rank * 10**6 + order
+            levels.setdefault(parent, []).append(
+                (stack, section, label, eid, name, x, y,
+                 half_width_px(section, name), half_height_px(section, name)))
+    result: list[Issue] = []
+    for elems in levels.values():
+        elems.sort(key=lambda e: e[5])              # sweep along x
+        covers: dict[tuple[str, int], list[tuple[int, str, str]]] = {}
+        who: dict[tuple[str, int], str] = {}
+        for i, a in enumerate(elems):
+            for b in elems[i + 1:]:
+                if b[5] - a[5] > a[7] + b[7]:
+                    break
+                if (abs(a[5] - b[5]) < min(a[7], b[7])
+                        and abs(a[6] - b[6]) < min(a[8], b[8])):
+                    top, under = (a, b) if a[0] > b[0] else (b, a)
+                    key = (top[1], top[3])
+                    who[key] = f"{top[2]} {top[3]} '{top[4]}'"
+                    covers.setdefault(key, []).append(
+                        (under[0], under[2], under[4]))
+        for key, hidden in sorted(covers.items(), key=lambda kv: who[kv[0]]):
+            hidden.sort()
+            shown = ", ".join(f"{k} '{n}'" for _o, k, n in hidden[:3])
+            more = f" and {len(hidden) - 3} more" if len(hidden) > 3 else ""
+            result.append(Issue(
+                "warning", who[key],
+                f"is drawn on top of {shown}{more}, hiding "
+                f"{'it' if len(hidden) == 1 else 'them'}; move one of them "
+                "apart or run Auto Layout."))
     return result
 
 

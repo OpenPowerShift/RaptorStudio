@@ -212,6 +212,12 @@ def build_schema() -> dict[str, Any]:
             "annotations": {"type": "array", "items": annotation},
             "flow_directions": {"type": "object",
                                 "additionalProperties": {"type": "string"}},
+            "view": {"type": "object", "additionalProperties": False,
+                     "properties": {
+                         "link_routing": {"enum": ["straight", "angled",
+                                                   "orthogonal"]},
+                         "block_labels": {"enum": ["mean", "spread", "rate",
+                                                   "off"]}}},
             "link_grips": {"type": "array", "items": {
                 "type": "object",
                 "required": ["link", "x", "y"],

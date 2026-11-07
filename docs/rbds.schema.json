@@ -2354,6 +2354,27 @@
     "type": "string"
    }
   },
+  "view": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "link_routing": {
+     "enum": [
+      "straight",
+      "angled",
+      "orthogonal"
+     ]
+    },
+    "block_labels": {
+     "enum": [
+      "mean",
+      "spread",
+      "rate",
+      "off"
+     ]
+    }
+   }
+  },
   "link_grips": {
    "type": "array",
    "items": {

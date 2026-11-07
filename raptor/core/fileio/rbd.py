@@ -209,6 +209,11 @@ class RbdFile:
     #: side of an element a link attaches to; a level absent here infers it
     #: from its own links.
     flow_directions: dict = field(default_factory=dict)
+    #: .rbds-only view options, so reopening restores the look exactly:
+    #: `{"link_routing": "straight"|"angled"|"orthogonal",
+    #: "block_labels": "mean"|"spread"|"rate"|"off"}`. Empty = the file
+    #: says nothing and the window keeps its current settings.
+    view: dict = field(default_factory=dict)
     #: .rbds-only named "Rate" library (reusable expressions with a
     #: human-readable basis, e.g. "0.00015/km failure rate x 20000
     #: km/yr usage" -- entries are {"name": str, "expr": str,

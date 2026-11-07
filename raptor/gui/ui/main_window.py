@@ -2734,6 +2734,57 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # The canvas moved but the Inspector is not rebuilt on the light
         # path; keep its Position rows in step (notably after undo/redo).
         self._inspector.refresh_position_display()
+        self._schedule_stack_check()
+
+    def _schedule_stack_check(self) -> None:
+        """Elements dropped on top of each other must show up as a Model
+        warning right away, but a move does not re-validate the model. Only
+        the (cheap) stacking rule is re-run, once the dragging pauses."""
+        if getattr(self, "_loading_model", False) or self._rbd is None:
+            return
+        timer = getattr(self, "_stack_timer", None)
+        if timer is None:
+            from PySide6.QtCore import QTimer
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(400)
+            timer.timeout.connect(self._refresh_stack_warnings)
+            self._stack_timer = timer
+        timer.start()
+
+    def _refresh_stack_warnings(self) -> None:
+        """Swap the "drawn on top of" warnings for those of the elements'
+        current positions, in the memoised validation, and refresh the badge."""
+        rbd = self._rbd
+        if rbd is None or getattr(self, "_loading_model", False):
+            return
+        cached = getattr(self, "_validation_cache", None)
+        if cached is None or cached[0] != getattr(self, "_model_revision", 0):
+            # No answer for this revision to patch: the full pass covers it.
+            self._ensure_validation_timer().start()
+            return
+        from raptor.api.validate import _check_stacked_blocks
+        marker = "is drawn on top of"
+        stacked = self._warnings_from_api(_check_stacked_blocks(rbd))
+        old = cached[2]
+        new = [w for w in old if marker not in w] + stacked
+        if new == old:
+            return
+        self._validation_cache = (cached[0], cached[1], new)
+        self._set_validation_badge(not cached[1], cached[1],
+                                   self._validation_warnings())
+        fresh = [w for w in stacked if w not in old]
+        if fresh:
+            more = f" (and {len(fresh) - 1} more)" if len(fresh) > 1 else ""
+            self._statusbar.showMessage(f"Warning: {fresh[0]}{more}", 8000)
+
+    def _mark_view_dirty(self) -> None:
+        """A view option changed (link style, block labels): the file now
+        differs from what is on disk, but no model data changed."""
+        if getattr(self, "_loading_model", False) or self._rbd is None:
+            return
+        self._dirty = True
+        self._update_title()
 
     def _mark_dirty(self):
         # First, before any early return: whatever the run guard does
@@ -4251,7 +4302,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         v.default_block_rdist = defaults["rdist"]
         v.default_block_rparams = defaults["rparams"]
         v.default_block_sparing = defaults["sparing"]
+        # The view options the file was saved with, before the canvas draws
+        # (link routes depend on them); a file without any keeps ours.
+        v.apply_view_options(getattr(rbd, "view", None) or {})
+        self._sync_link_routing_combo()
         v.load_rbd(rbd)
+        self._sync_block_label_controls()
         # The canvas rebuild is the one long block the indicator can be
         # repainted after: without a yield it stays as the first frame
         # (or, on some platforms, an unpainted window) until the end.
