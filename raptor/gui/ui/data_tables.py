@@ -43,6 +43,14 @@ def _fmt_stat(val) -> str:
     return f"{val:.4g}"
 
 
+#: Columns every grid shares; a grid's own tip for the same name wins.
+_COMMON_COL_TIPS = {
+    "Name": "The element's name",
+    "ID": "The element's id, as the Explorer, the Inspector and exported "
+          "tables show it in brackets (read-only)",
+}
+
+
 class _DataTable(QTableWidget):
     """A grid that refuses a sort on a cell-widget column.
 
@@ -438,7 +446,7 @@ class DataTablesDock(QWidget):
             item = t.horizontalHeaderItem(col)
             if item is None:
                 continue
-            tip = (tips or {}).get(name)
+            tip = (tips or {}).get(name) or _COMMON_COL_TIPS.get(name)
             if tip:
                 item.setToolTip(tip)
             width = (wide_cols or {}).get(name)
@@ -910,18 +918,15 @@ class DataTablesDock(QWidget):
         transformed = bool(param_entry.is_rate_field(distro, 0)
                            or param_entry.is_mu_sigma(distro))
         labels = entry_labels if transformed else labels
-        tips = ([f"{lbl} ({which.lower()} param)"
-                 if lbl else "" for lbl in labels]
+        side = "failure" if which == "F" else "repair"
+        tips = ([f"{lbl} ({side} parameter {i + 1})"
+                 if lbl else "" for i, lbl in enumerate(labels)]
                 if labels else ["", "", ""])
         for i in range(3):
             generic = (f"{which} parameter {i+1} of this block's "
                        f"{_DN.get(distro, '?')} distribution "
                        "(units follow the model's time setting)")
-            # The param cells are line edits in cell widgets, not items.
-            target = t.cellWidget(row, base + i) or t.item(row, base + i)
-            if target is None:
-                continue
-            target.setToolTip(tips[i] or generic)
+            self._set_cell_tip(t, row, base + i, tips[i] or generic)
 
     def _populate_blocks(self):
         t = self._blocks_table
@@ -970,6 +975,10 @@ class DataTablesDock(QWidget):
             t.setItem(r, 11, self._ro(str(_NUM_PARAMS.get(b.repair_distro, "?"))))
             self._param_cell(t, r, 12, b.pm_freq,
                              lambda v, bid=bid: self._set_pm(bid, v))
+            # After the cells exist: the parameter cells are widgets, so the
+            # per-distribution meaning has to be set on them, not on items.
+            self._apply_param_tips(t, r, b.fail_distro, "F")
+            self._apply_param_tips(t, r, b.repair_distro, "R")
             # Computed Mean/Std Dev, the same maths the Inspector shows
             # under each distribution's param row. `compute_stats`
             # returns a bare None (not a 2-tuple) for an invalid or
@@ -1049,17 +1058,45 @@ class DataTablesDock(QWidget):
         menu.exec(table.viewport().mapToGlobal(pos))
 
     @staticmethod
-    def _tag_row_with_name(t: QTableWidget, row: int, name: str) -> None:
+    def _set_cell_tip(t: QTableWidget, row: int, col: int, text: str) -> None:
+        """Hover text for one cell, whether it is an item or a cell widget.
+
+        A cell widget (distribution combo, parameter and PM fields) sits on
+        top of its cell, so the hover reaches the widget and never the item
+        beneath: the text has to be on the widget and the field inside it."""
+        item = t.item(row, col)
+        if item is not None:
+            item.setToolTip(text)
+        widget = t.cellWidget(row, col)
+        if widget is not None:
+            for target in (widget, *widget.findChildren(QWidget)):
+                target.setToolTip(text)
+
+    @staticmethod
+    def _cell_tip(t: QTableWidget, row: int, col: int, *,
+                  header: bool = True) -> str:
+        """The tip a cell has now: its own, else (`header`) its column's."""
+        item = t.item(row, col)
+        widget = t.cellWidget(row, col)
+        own = item.toolTip() if item is not None else (
+            widget.toolTip() if widget is not None else "")
+        if own or not header:
+            return own
+        head = t.horizontalHeaderItem(col)
+        return head.toolTip() if head is not None else ""
+
+    @classmethod
+    def _tag_row_with_name(cls, t: QTableWidget, row: int, name: str) -> None:
         """Prefix every cell's tooltip in this row with the element's
         name, so hovering any cell tells you which block/node it belongs
-        to, not just column 0 -- easy to lose track once you have
-        scrolled past the Name column."""
+        to -- easy to lose track once you have scrolled past the Name
+        column -- followed by what the cell means: its own tip (a
+        parameter's meaning for this row's distribution) or else its
+        column's. Widget cells included."""
         for col in range(t.columnCount()):
-            item = t.item(row, col)
-            if item is None:
-                continue
-            existing = item.toolTip()
-            item.setToolTip(f"{name}\n{existing}" if existing else name)
+            meaning = cls._cell_tip(t, row, col)
+            cls._set_cell_tip(t, row, col,
+                              f"{name}\n{meaning}" if meaning else name)
 
     @staticmethod
     def _ro(text: str) -> QTableWidgetItem:
@@ -1466,6 +1503,23 @@ class DataTablesDock(QWidget):
                             if sentence:
                                 item2.setToolTip(sentence)
                     table.setItem(row_idx, ci, item2)
+                # Hover meaning for the cells that have none yet: a
+                # Param's meaning for THIS row's distribution, else the
+                # column's own. (Widget cells included.)
+                dname = DISTRO_NAMES.get(dist_code or 0, "?")
+                for ci, col in enumerate(sec.columns):
+                    if self._cell_tip(table, row_idx, ci, header=False):
+                        continue            # the pool-name sentence, etc.
+                    if col in ("Param1", "Param2", "Param3") \
+                            and dist_code is not None:
+                        label = plabels[int(col[-1]) - 1]
+                        tip = (f"{label} of this row's {dname} distribution"
+                               if label else
+                               f"Not used by this row's {dname} distribution")
+                    else:
+                        tip = self._cell_tip(table, row_idx, ci)
+                    if tip:
+                        self._set_cell_tip(table, row_idx, ci, tip)
         # Readability: generous first column, content-sized rest.
         table.resizeColumnsToContents()
         if table.columnCount() > 0:
