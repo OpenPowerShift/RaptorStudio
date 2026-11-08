@@ -161,7 +161,11 @@ class LiveLogPanel(QWidget):
         self._fed = 0
         self._cut = 0
         self._highlighted = []
-        self.tree.clear()
+        blocker = QSignalBlocker(self.tree)
+        try:
+            self.tree.clear()
+        finally:
+            blocker.unblock()
         self._building = True
         self.run_combo.clear()
         self._building = False
@@ -174,21 +178,26 @@ class LiveLogPanel(QWidget):
         """Called after every step: `finished` are the runs already done,
         `current` is the live line list of the run being stepped."""
         had_runs = len(self._runs)
-        was_following = self.following or not self.run_combo.count()
+        was_on_current = self.following or not self.run_combo.count()
         self._runs = list(finished)
         self._current = current
         self._total = max(int(total_runs), len(self._runs) + 1)
         self._t = float(time)
         if len(self._runs) != had_runs or not self.run_combo.count():
             self._rebuild_combo()
-        if was_following:
-            # A new run started while its predecessor was on screen: move
-            # on to it (the tree must not keep showing the old run's rows).
-            if self._shown != self.current_index:
-                self._show_run(self.current_index)
-            else:
-                self._set_combo_index(self._shown)
-                self._append_new_lines()
+        if self._shown == self.current_index:
+            # Same run as before: append new rows (without scrolling when
+            # Focus Event is off). A run restarted under the same index is
+            # rebuilt by `_append_new_lines`.
+            self._set_combo_index(self._shown)
+            self._append_new_lines()
+        elif was_on_current:
+            # A new run started while its predecessor was on screen. Move
+            # on to it only when following is wanted. With Focus Event off
+            # the user keeps reading the finished run they chose -- rebuild
+            # it so its completed log (not the partial one) stays on screen.
+            self._show_run(self.current_index if self._follow_latest
+                           else self._shown)
         self._update_status()
         self._sync_buttons()
 
@@ -247,7 +256,11 @@ class LiveLogPanel(QWidget):
         self._set_combo_index(run)
         self.tree.setUpdatesEnabled(False)
         try:
-            self.tree.clear()
+            blocker = QSignalBlocker(self.tree)
+            try:
+                self.tree.clear()
+            finally:
+                blocker.unblock()
             self._highlighted = []
             lines = self._lines_of(run)
             start = max(0, len(lines) - ROW_CAP)

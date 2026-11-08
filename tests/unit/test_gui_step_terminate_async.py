@@ -20,6 +20,7 @@ from PySide6.QtWidgets import QApplication
 
 from raptor.core.fileio.rbd import load_rbd
 from raptor.gui.ui import msgbox
+from raptor.gui.ui import main_window as main_window_module
 from raptor.gui.ui.main_window import MainWindow
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,6 +30,22 @@ FIXTURE = os.path.join(REPO, "tests", "golden", "TwoBlockRedundancy", "input.rbd
 @pytest.fixture(scope="module")
 def qapp():
     return QApplication.instance() or QApplication([])
+
+
+def _drain_finalize(window, qapp, timeout: float = 10.0) -> None:
+    """Discard and join any finalize worker before a test tears down."""
+    if window._step_finalize_state is not None:
+        window._discard_step_finalize()
+    thread = window._step_finalize_thread
+    deadline = time.monotonic() + timeout
+    while thread is not None and thread.is_alive() \
+            and time.monotonic() < deadline:
+        qapp.processEvents()
+        thread.join(0.02)
+    if window._step_finalize_state is not None \
+            and window._step_finalize_state.get("done"):
+        window._step_finalize_poll_tick()
+    qapp.processEvents()
 
 
 @pytest.fixture
@@ -41,7 +58,7 @@ def window(qapp):
     w.show()
     qapp.processEvents()
     yield w
-    w._discard_step_finalize()
+    _drain_finalize(w, qapp)
     w._invalidate_step_session()
     w._dirty = False
     w.close()
@@ -71,6 +88,14 @@ def test_terminate_keeps_the_event_loop_alive(window, qapp, monkeypatch):
         return original()
 
     monkeypatch.setattr(session, "early_terminate", slow_early_terminate)
+    original_final_report = main_window_module.build_final_results_report
+
+    def slow_final_report(*args, **kwargs):
+        time.sleep(0.2)
+        return original_final_report(*args, **kwargs)
+
+    monkeypatch.setattr(main_window_module, "build_final_results_report",
+                        slow_final_report)
 
     entered = []
     view = window._diagram_dock.view
@@ -78,6 +103,10 @@ def test_terminate_keeps_the_event_loop_alive(window, qapp, monkeypatch):
                         lambda *a, **k: entered.append("enter"))
     monkeypatch.setattr(view, "go_home",
                         lambda *a, **k: entered.append("home"))
+    monkeypatch.setattr(view, "locate_element",
+                        lambda *a, **k: entered.append("locate") or False)
+    monkeypatch.setattr(view, "_set_level",
+                        lambda *a, **k: entered.append("level"))
 
     ticks = []
     heartbeat = QTimer()
@@ -93,8 +122,17 @@ def test_terminate_keeps_the_event_loop_alive(window, qapp, monkeypatch):
     state = window._step_finalize_state
     assert state is not None and state["session"] is session, \
         "the session must stay alive until finalize completes"
+    assert window._run_or_step_active(), \
+        "run settings must stay locked while finalize runs"
+    assert not window._analysis_actions["weakAnalysis"].isEnabled()
+    first_thread = window._step_finalize_thread
+    window._on_step_terminate()
+    assert window._step_finalize_state is state
+    assert window._step_finalize_thread is first_thread, \
+        "a second finalize worker was started"
 
     _wait_for_finalize(window, qapp)
+    assert window._analysis_actions["weakAnalysis"].isEnabled()
     heartbeat.stop()
 
     assert len(ticks) >= 5, "the event loop never turned during finalize"
@@ -144,11 +182,38 @@ def test_closing_while_finalizing_is_safe(window, qapp, monkeypatch):
     thread = window._step_finalize_thread
     assert thread is not None and thread.is_alive()
 
-    assert window._stop_run_for_close() is True
+    window._dirty = False
+    window.close()
+    assert not window.isVisible()
     assert window._step_finalize_state is None
     assert window._run_in_progress is False
     thread.join(10.0)
     qapp.processEvents()
+    assert not presented
+
+
+def test_editing_while_finalizing_discards_with_a_message(window, qapp,
+                                                          monkeypatch):
+    window._on_step()
+    session = window._step_session
+    original = session.early_terminate
+
+    def slow_early_terminate():
+        time.sleep(0.25)
+        return original()
+
+    monkeypatch.setattr(session, "early_terminate", slow_early_terminate)
+    presented = []
+    monkeypatch.setattr(window, "_present_run_results",
+                        lambda *a, **k: presented.append(a))
+    window._on_step_terminate()
+    assert window._run_or_step_active()
+
+    window._stop_run_for_edit()
+    assert window._step_finalize_state is not None
+    assert window._step_finalize_state["discard"] is True
+    assert "discarded" in window._statusbar.currentMessage().lower()
+    _wait_for_finalize(window, qapp)
     assert not presented
 
 
@@ -171,14 +236,19 @@ def test_discarding_while_finalizing_drops_the_results(window, qapp,
     assert thread is not None and thread.is_alive()
 
     # The model is being discarded: the worker may finish, but its result
-    # must not be painted over whatever is on screen now.
+    # must not be painted over whatever is on screen now. The finalize
+    # state stays alive (and locked) until the worker actually exits.
     window._invalidate_step_session()
-    assert window._step_finalize_state is None
-    assert window._run_in_progress is False
+    state = window._step_finalize_state
+    assert state is not None and state["discard"] is True
+    assert window._run_in_progress is True
     deadline = time.monotonic() + 10.0
-    while thread.is_alive() and time.monotonic() < deadline:
+    while window._step_finalize_state is not None \
+            and time.monotonic() < deadline:
         qapp.processEvents()
         thread.join(0.02)
     qapp.processEvents()
+    assert window._step_finalize_state is None
+    assert window._run_in_progress is False
     assert not presented, "discarded finalize presented its results"
     assert not window._results._report_data

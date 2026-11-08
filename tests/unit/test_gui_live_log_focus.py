@@ -16,6 +16,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
+from raptor.api.tables import parse_event_log_line
 from raptor.core.fileio.rbd import load_rbd
 from raptor.gui.ui.main_window import MainWindow
 
@@ -120,6 +121,58 @@ def test_focus_event_returns_to_the_run_being_stepped(window, qapp):
     assert selected is not None
     assert panel.tree.indexOfTopLevelItem(selected) >= 0
     assert _visible(panel, selected)
+
+
+def test_focus_event_updates_the_log_with_animate_off(window, qapp):
+    """Focus Event is a live-log feature: stepping must feed the panel
+    even when the canvas animation is off, or the selected row is stale."""
+    panel = window._live_log_panel
+    window._live_sim_action.setChecked(False)
+    window._focus_event_action.setChecked(True)
+    window._on_step()
+    qapp.processEvents()
+    session = window._step_session
+    assert panel.tree.topLevelItemCount() == len(session.logs)
+    selected = panel.tree.currentItem()
+    assert selected is not None
+    selected_fields = tuple(selected.text(i) for i in range(5))
+    assert any(tuple(parse_event_log_line(line)) == selected_fields
+               for line in session.logs)
+    assert _visible(panel, selected)
+
+
+def test_focus_event_selects_the_row_after_an_automatic_rollover(
+        window, qapp):
+    """Stepping off the end of run 1 jumps to run 2 itself; Focus Event
+    must use the NEW run's line count, not the replaced log's length."""
+    panel = window._live_log_panel
+    window._focus_event_action.setChecked(True)
+    window._on_step()
+    session = window._step_session
+    assert session.has_next_run
+
+    window._end_of_stepped_run(session)
+    qapp.processEvents()
+    assert session.run_index == 1
+    assert panel.following
+    assert panel.tree.topLevelItemCount() == len(session.logs)
+    selected = panel.tree.currentItem()
+    assert selected is not None, "rollover did not focus the new run's event"
+    assert _visible(panel, selected)
+
+
+def test_focus_off_keeps_the_previous_run_at_a_rollover(window, qapp):
+    panel = window._live_log_panel
+    window._focus_event_action.setChecked(False)
+    window._on_step()
+    session = window._step_session
+    assert session.has_next_run
+
+    window._end_of_stepped_run(session)
+    qapp.processEvents()
+    assert session.run_index == 1
+    assert panel.shown_index == 0 and not panel.following
+    assert len(_rows(panel)) == len(session.completed[0][0])
 
 
 def test_focus_off_leaves_selection_and_scroll_alone(window, qapp):
