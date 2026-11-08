@@ -33,7 +33,6 @@ from PySide6.QtWidgets import QAbstractItemView
 
 from raptor.gui.ui import msgbox
 
-from datetime import datetime
 from typing import Any, cast
 
 from PySide6.QtCore import QSize, Qt, QTimer, Signal
@@ -443,10 +442,6 @@ class ResultsDock(QWidget):
     #: have changed). The window uses it to tell the Inspector whether an
     #: edit will cost the user their results.
     contents_changed = Signal()
-    #: Open the window's Export Tables dialog (File > Export). Kept for
-    #: callers that still drive the command programmatically; the bulky
-    #: per-dock header button was removed in #205.
-    export_tables_requested = Signal()
     #: User switched Raptor 7 Analysis Type in the Weak Link tab.
     weak_analysis_type_changed = Signal(str)
     #: The metric the Importance tab is measured on changed. The canvas
@@ -843,108 +838,6 @@ class ResultsDock(QWidget):
 
 
 
-    def _copy_current_table(self) -> None:
-        # Tab titles are Title-case ("Summary") but the table registry is
-        # keyed by the raw section name ("SUMMARY"), so the lookup
-        # upper-cases the title first.
-        key = self._details_tabs.tabText(
-            self._details_tabs.currentIndex()).upper()
-        table = self.section_table(key)
-        if table is None:
-            # Structured tabs (Capacity/Cost/Weak Link) keep their tables
-            # OUTSIDE the section registry -- find the visible one in the
-            # current sub-tab instead.
-            page = self._details_tabs.currentWidget()
-            if page is not None:
-                candidates = [t for t in page.findChildren(QTableWidget)
-                              if t.rowCount() > 0]
-                if candidates:
-                    # Prefer the table the user is actually in (a cell
-                    # widget's focus chain reaches its table), then one
-                    # with a selected row; only then fall back to the
-                    # first table on the page. Copying the first Cost
-                    # table while looking at another was misleading.
-                    focused = None
-                    w: Any = QApplication.focusWidget()
-                    while w is not None:
-                        if isinstance(w, QTableWidget):
-                            focused = w
-                            break
-                        w = w.parent()
-                    selected = [t for t in candidates
-                                if t.currentRow() >= 0 or t.selectedItems()]
-                    table = (focused if focused in candidates else
-                             selected[0] if selected else candidates[0])
-        if table is None or table.rowCount() == 0:
-            return
-        # DELEGATED (review E-11). This was the ONLY one of six extraction
-        # sites that honoured RAW_VALUE_ROLE, so *Copy Table* gave the exact
-        # double while *Export CSV*, *Print/PDF* and the AsciiDoc report gave
-        # the rounded grid text -- for the same table. `table_to_grid` now
-        # does the extraction once, with `raw=True` for every caller.
-        from raptor.gui.ui.table_export import (
-            grid_to_html, grid_to_tsv, table_to_grid)
-        headers, rows = table_to_grid(table, raw=True)
-        tsv = grid_to_tsv(headers, rows)
-        # Excel pastes best from an HTML <table> (preserves cells); plain
-        # TSV rides along for everything else. Use the one serialiser, so
-        # a cell containing &, < or > cannot produce malformed markup.
-        from PySide6.QtCore import QMimeData
-        mime = QMimeData()
-        mime.setText(tsv)
-        mime.setHtml(grid_to_html(headers, rows))
-        QApplication.clipboard().setMimeData(mime)
-
-    def _export_csv(self) -> None:
-        import csv
-
-        path, _ = fdg.getSaveFileName(
-            self, "Export Results CSV", "results.csv", "CSV (*.csv)")
-        if not path:
-            return
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            # Provenance block: everything needed to identify this data later.
-            writer.writerow(["Model file", self._source_file_name or "?"])
-            writer.writerow(["Exported", datetime.now().isoformat(timespec="seconds")])
-            writer.writerow(["Runs", len(self._report_data)])
-            if self._report_data:
-                st = self._report_data[0].ending_sim_time
-                writer.writerow([f"Sim time per run{', ' + self._units if self._units else ''}", st])
-            writer.writerow([])
-            # DELEGATED (review E-11): this read `item(r, c).text()`
-            # unconditionally, so Export CSV and Copy Table disagreed about
-            # precision for the same table -- one wrote the exact double,
-            # the other the rounded display text.
-            from raptor.gui.ui.table_export import table_to_grid
-            exported: set[int] = set()
-
-            def write_table(label: str, table: QTableWidget) -> None:
-                headers, rows = table_to_grid(table, raw=True)
-                writer.writerow([f"# {label}"])
-                writer.writerow(headers)
-                writer.writerows(rows)
-                writer.writerow([])
-
-            for title in list(self._detail_tables):
-                table = self._detail_tables[title]
-                write_table(title.title(), table)
-                exported.add(id(table))
-            # The dedicated Capacity/Cost/Weak Link pages keep their
-            # tables outside `_detail_tables`, so the old export silently
-            # dropped the very analyses the user was looking at.
-            for i in range(self._details_tabs.count()):
-                page = self._details_tabs.widget(i)
-                if page is None:
-                    continue
-                page_title = self._details_tabs.tabText(i)
-                tables = [t for t in page.findChildren(QTableWidget)
-                          if id(t) not in exported and t.rowCount() > 0]
-                for j, table in enumerate(tables, start=1):
-                    label = (page_title if len(tables) == 1
-                             else f"{page_title} ({j})")
-                    write_table(label, table)
-
     @staticmethod
     def _stat_col_tip(name: str) -> str:
         return STAT_COLUMN_TOOLTIPS.get(
@@ -998,12 +891,17 @@ class ResultsDock(QWidget):
             header.setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
         else:
             column, order = state
-            # Set the indicator BEFORE sorting: `_SortItem` consults it to
-            # keep N/A/— last, and Qt would otherwise expose the previous
-            # direction during the sort.
+            # Set the indicator; enabling sorting performs the one sort
+            # (an explicit sortItems here would sort the table twice).
             header.setSortIndicator(column, order)
-            table.sortItems(column, order)
         table.setSortingEnabled(True)
+        # A sort moves items but leaves row-hidden flags on the old
+        # indexes. Recompute the hierarchy scope when the model settles;
+        # FilterBar composes with the same rule for its own passes.
+        if not getattr(table, "_hierarchy_sort_hooked", False):
+            table._hierarchy_sort_hooked = True
+            table.model().layoutChanged.connect(
+                lambda *_a: self._apply_level_filter())
         if getattr(table, "_sort_state_key", None) != key:
             table._sort_state_key = key
 
@@ -1125,8 +1023,17 @@ class ResultsDock(QWidget):
                                   "this large.")
                     item.setToolTip(_GT_NOTE + "\n\n" + reason)
         # A long table (one row per block in a big model) can be filtered
-        # by column; a short one is read at a glance and gets no bar.
-        attach_if_large(table, raw_role=RAW_VALUE_ROLE)
+        # by column; a short one is read at a glance and gets no bar. The
+        # bar also composes with the hierarchy scope, so its own passes
+        # never reveal rows outside the current level. A weak reference
+        # keeps the closure from re-creating the table -> bar -> table
+        # cycle the filter bar deliberately avoids.
+        from weakref import ref as _weakref
+        table_ref = _weakref(table)
+        attach_if_large(
+            table, raw_role=RAW_VALUE_ROLE,
+            base_visible=lambda r, tr=table_ref:
+            (tr() is not None and self._hierarchy_row_visible(tr(), r)))
         return table
 
     #: Last details sub-tab the user viewed, by name -- survives
@@ -1220,10 +1127,11 @@ class ResultsDock(QWidget):
                     self._add_runs_line(v)
             v = pages[group]
             name = table_title(title)
-            # One header per table card: its title plus that table's own
-            # Copy/CSV icons. This replaces both the old section label
-            # and the removed global Copy/Export row (#205).
-            self._add_table_header(v, name, table)
+            # One header per table card: its own Copy/CSV icons. The
+            # title is omitted where the tab already names the table
+            # (Summary/Logistics), so there is no duplicate heading.
+            self._add_table_header(v, name, table,
+                                   show_title=name != group)
             v.addWidget(table)
             if title == "SUMMARY":
                 self._add_summary_notes(v)
@@ -1650,17 +1558,17 @@ class ResultsDock(QWidget):
     def _show_goto_menu(self, table: QTableWidget, kind: str, pos) -> None:
         menu = self._goto_menu_at(table, kind, pos)
         if menu is not None:
-            menu.exec(table.viewport().mapToGlobal(pos))
+            try:
+                menu.exec(table.viewport().mapToGlobal(pos))
+            finally:
+                menu.deleteLater()
 
     def attach_goto_menu(self, table: QTableWidget, kind: str) -> None:
         """Give a Weak Link table a right-click "Go to selected element"
         action, sharing the double-click/button signal path (#211)."""
-        table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        table.customContextMenuRequested.connect(
-            lambda pos, t=table, k=kind: self._show_goto_menu(t, k, pos))
-        # A QAbstractScrollArea delivers the real mouse context event to
-        # its viewport, not the table widget; setting only the table's
-        # policy made an actual right-click silent.
+        # One working policy: QAbstractScrollArea delivers the real mouse
+        # context event to its viewport, so the table-level policy alone
+        # was silent (and connecting both could open two menus).
         table.viewport().setContextMenuPolicy(
             Qt.ContextMenuPolicy.CustomContextMenu)
         table.viewport().customContextMenuRequested.connect(
@@ -1846,7 +1754,8 @@ class ResultsDock(QWidget):
                "availability counts standby (blue) as uptime"))
         blabel.setObjectName("SectionNote")
         v.addWidget(blabel)
-        self._add_table_header(v, "Blocks", btable)
+        self._add_table_header(v, "Blocks", btable, tip=blabel.text(),
+                               show_title=False)
         v.addWidget(btable)
         v.addWidget(goto_row_button(btable, "block"))
 
@@ -1882,7 +1791,8 @@ class ResultsDock(QWidget):
                 "excludes blue/brown/orange")
             nlabel.setObjectName("SectionNote")
             v.addWidget(nlabel)
-            self._add_table_header(v, "Nodes", ntable)
+            self._add_table_header(v, "Nodes", ntable, tip=nlabel.text(),
+                                   show_title=False)
             v.addWidget(ntable)
             v.addWidget(goto_row_button(ntable, "node"))
 
@@ -1926,7 +1836,8 @@ class ResultsDock(QWidget):
             pct_table.cellDoubleClicked.connect(
                 lambda r, _c: self._goto_selected_row(pct_table, "node"))
             self.attach_goto_menu(pct_table, "node")
-            self._add_table_header(v, "Node state breakdown", pct_table)
+            self._add_table_header(v, "Node state breakdown", pct_table,
+                                   tip=pct_label.text(), show_title=False)
             v.addWidget(pct_table)
 
         v.addStretch(1)
@@ -2000,13 +1911,17 @@ class ResultsDock(QWidget):
 
     def _add_table_header(self, v: QVBoxLayout, title: str,
                           table: QTableWidget,
-                          tip: str = "") -> QLabel:
-        """A table title with its own compact Copy and CSV icon actions.
+                          tip: str = "", *, show_title: bool = True) -> QLabel:
+        """A table's Copy and CSV icon actions, optionally with a title.
+
+        `show_title=False` is for cards whose tab or existing note already
+        names the table (Summary, Logistics, Weak Link rows): the icon
+        strip remains but there is no duplicate heading (#205 review).
 
         The actions read `table` at click time through `table_to_grid`, so
         they follow the rows the user can actually see (filter and sort)
         and keep full precision. No global Copy/Export row exists any
-        more; Export all tables lives under File > Export (#205).
+        more; Export all tables lives under File > Export.
         """
         from PySide6.QtWidgets import QPushButton
         from raptor.gui.resources import icons
@@ -2020,10 +1935,15 @@ class ResultsDock(QWidget):
         label.setObjectName("TableTitle")
         if tip:
             label.setToolTip(tip)
-        hdr_row.addWidget(label)
+        if show_title:
+            hdr_row.addWidget(label)
         hdr_row.addStretch(1)
         colour = active_colour()["text"]
-        table_name = title or "table"
+        # Action names must not go stale when a hierarchy filter changes a
+        # "Blocks (N)" heading; the stable name is what a user hears and
+        # what the CSV filename uses.
+        table_name = re.sub(r"\s*\(\d+\)", "", title).strip() or "table"
+        tip_text = f"\n\n{tip}" if tip else ""
 
         def icon_button(icon, object_name: str, accessible: str,
                         tooltip: str):
@@ -2035,7 +1955,7 @@ class ResultsDock(QWidget):
             button.setFlat(True)
             button.setText("")
             button.setAccessibleName(accessible)
-            button.setToolTip(tooltip)
+            button.setToolTip(tooltip + tip_text)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             hdr_row.addWidget(button)
             return button
@@ -2285,8 +2205,40 @@ class ResultsDock(QWidget):
         self._apply_level_filter()
 
 
+    def _hierarchy_row_visible(self, table: QTableWidget, row: int,
+                               allowed: set[str] | None = None) -> bool:
+        """Whether `row` belongs to the current hierarchy scope.
+
+        Shared by `_apply_level_filter` and the table's FilterBar: sorting
+        moves the items but leaves row-hidden flags on the old indexes, so
+        both paths must recompute this rather than trusting the flags.
+        """
+        if allowed is None:
+            allowed = getattr(self, "_allowed_names", None)
+        if allowed is None:
+            return True
+        item = table.item(row, 0)
+        shown = item.text().split("(")[0].strip() if item is not None else ""
+        # Prefer the item's full name (kept as UserRole data when the
+        # shown label was elided); fall back to a prefix match so a name
+        # truncated somewhere in the report chain still matches its one
+        # allowed owner.
+        name = (item.data(Qt.ItemDataRole.UserRole)
+                if item is not None else None)
+        if not name:
+            name = shown
+        if not name:
+            return True
+        if name in allowed:
+            return True
+        matches = [a for a in allowed if a.startswith(shown)]
+        return len(matches) == 1
+
     def _apply_level_filter(self):
         from shiboken6 import isValid
+        if not hasattr(self, "_detail_tables") \
+                or not hasattr(self, "_details_tabs"):
+            return   # a table built directly by a test, outside a full dock
         allowed = getattr(self, "_allowed_names", None)
 
         def alive(w):
@@ -2326,24 +2278,8 @@ class ResultsDock(QWidget):
                              if alive(t)]
         for table in tables:
             for r in range(table.rowCount()):
-                item = table.item(r, 0)
-                shown = (item.text().split("(")[0].strip()
-                         if item else "")
-                # Prefer the item's full name (kept as UserRole data when
-                # the shown label was elided); fall back to a prefix match
-                # so a name truncated somewhere in the report chain still
-                # matches its one allowed owner.
-                name = item.data(Qt.ItemDataRole.UserRole) if item is not None else None
-                if not name:
-                    name = shown
-                if allowed is not None and name and name not in allowed:
-                    matches = [a for a in allowed
-                               if a.startswith(shown)]
-                    table.setRowHidden(r, len(matches) != 1)
-                else:
-                    table.setRowHidden(r, allowed is not None
-                                       and bool(name)
-                                       and name not in allowed)
+                table.setRowHidden(
+                    r, not self._hierarchy_row_visible(table, r, allowed))
         label = getattr(self, "_cost_blocks_label", None)
         title = getattr(self, "_cost_blocks_title", "")
         cost_tables = getattr(self, "_cost_tables", [])

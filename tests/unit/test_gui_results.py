@@ -574,8 +574,9 @@ def test_cost_resource_pool_relabels_columns(qapp):
     page = _cost_page(dock)
     pool_tables = [t for t in page.findChildren(QTableWidget)
                    if t.columnCount() == 5 and t.rowCount() > 0
-                   and "[Resource]" in (t.item(0, 0).text()
-                                        if t.item(0, 0) else "")]
+                   and any("[Resource]" in (t.item(r, 0).text()
+                                            if t.item(r, 0) else "")
+                           for r in range(t.rowCount()))]
     assert pool_tables, "Capacity1 has an Astronauts resource pool"
     names = {pool_tables[0].item(r, 0).text()
              for r in range(pool_tables[0].rowCount())}
@@ -687,10 +688,14 @@ def test_capacity_table_shows_envelope_and_run_average_extremes(qapp):
     per_run = [cap.nodes[sys_nid] for cap in caps]
     mins = [s.min_flow for s in per_run]
     maxs = [s.max_flow for s in per_run]
-    assert table.item(0, 1).text() == f"{int(min(mins)):,}"
-    assert table.item(0, 2).text() == f"{sum(mins) / len(mins):,.2f}"
-    assert table.item(0, 4).text() == f"{sum(maxs) / len(maxs):,.2f}"
-    assert table.item(0, 5).text() == f"{int(max(maxs)):,}"
+    # Capacity defaults to average-flow descending, so find the system
+    # row by name rather than assuming it stays at index 0.
+    names = [table.item(r, 0).text() for r in range(table.rowCount())]
+    row = names.index("SystemCapacity")
+    assert table.item(row, 1).text() == f"{int(min(mins)):,}"
+    assert table.item(row, 2).text() == f"{sum(mins) / len(mins):,.2f}"
+    assert table.item(row, 4).text() == f"{sum(maxs) / len(maxs):,.2f}"
+    assert table.item(row, 5).text() == f"{int(max(maxs)):,}"
 
 
 def test_weak_link_tab_shows_note_when_disabled(qapp):
@@ -896,29 +901,6 @@ def test_weak_page_rebuilds_when_metric_or_bands_change(qapp):
     assert dep != avail
 
 
-def test_export_csv_includes_capacity_cost_and_weak(qapp, tmp_path,
-                                                    monkeypatch):
-    rbd = load_rbd(os.path.join(REPO, "tests/golden/Capacity1/input.rbd"))
-    row = rbd.sections["SYSTEM_DATA"].rows[0]
-    row["weakAnalysis"] = "1"
-    row["costAnalysis"] = "1"
-    row["capacityAnalysis"] = "1"
-    report_data: list = []
-    logs, eor, fin = run_simulation_with_reports(
-        rbd, num_runs=2, date="fixed", report_sink=report_data)
-    dock = ResultsDock()
-    dock.set_results(logs, eor, fin, report_data=report_data)
-    target = tmp_path / "results.csv"
-    monkeypatch.setattr(
-        _fdg, "getSaveFileName",
-        staticmethod(lambda *a, **k: (str(target), "CSV (*.csv)")))
-    dock._export_csv()
-    text = target.read_text(encoding="utf-8")
-    assert "# Capacity" in text
-    assert "# Cost" in text
-    assert "# Weak Link" in text
-
-
 def test_cost_tables_keep_raw_values_for_the_top_copy(qapp):
     rbd = load_rbd(os.path.join(REPO, "tests/golden/Capacity1/input.rbd"))
     rbd.sections["SYSTEM_DATA"].rows[0]["costAnalysis"] = "1"
@@ -929,7 +911,8 @@ def test_cost_tables_keep_raw_values_for_the_top_copy(qapp):
     dock.set_results(logs, eor, fin, report_data=report_data)
     from raptor.gui.ui.results import RAW_VALUE_ROLE
     blocks = dock._cost_tables[0]
-    assert blocks.item(0, 1).data(RAW_VALUE_ROLE) is not None
+    assert any(blocks.item(r, 1).data(RAW_VALUE_ROLE) is not None
+               for r in range(blocks.rowCount()))
 
 
 def test_every_cost_table_has_a_title_copy_and_csv(qapp):

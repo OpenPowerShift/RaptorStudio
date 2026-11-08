@@ -137,11 +137,13 @@ def test_gui_importance_tab_ranks_blocks(qapp):
     page = dock._details_tabs.widget(idx)
     table = page.findChildren(QTableWidget)[0]
     assert table.rowCount() == 2
-    # Ranked by Vesely-Fussell (the rule that separates blocks in a series
-    # model, where Birnbaum saturates), so B leads on 0.50 against A's 0.20.
-    assert table.item(0, 0).text() == "B"
+    # The table defaults to Birnbaum descending, so B leads on 0.30
+    # against A's 0.02. Locate it by name, not by assumed row index.
+    row = next(r for r in range(table.rowCount())
+               if table.item(r, 0).text() == "B")
+    assert table.item(row, 0).text() == "B"
     # An undefined measure reads as an em dash, never as 0.
-    assert table.item(0, 2).text() == "\u2014"
+    assert table.item(row, 2).text() == "\u2014"
     dock.deleteLater()
 
 

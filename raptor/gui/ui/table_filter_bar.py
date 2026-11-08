@@ -84,7 +84,8 @@ class FilterBar(QObject):
                  raw_role: int | None = None, min_rows: int = MIN_FILTER_ROWS,
                  debounce_ms: int = DEBOUNCE_MS,
                  filter_columns: set[int] | None = None,
-                 row_key: Callable[[int], Any] | None = None) -> None:
+                 row_key: Callable[[int], Any] | None = None,
+                 base_visible: Callable[[int], bool] | None = None) -> None:
         super().__init__(table)
         # A weak reference: the table owns the bar (`table._filter_bar`), so a
         # strong one back makes a Python cycle that only the cyclic collector
@@ -92,6 +93,10 @@ class FilterBar(QObject):
         # this object's Python event filter still installed on it.
         self._table_ref = weakref.ref(table)
         self._matcher = matcher
+        #: A visibility rule that is not the user's filter (the results
+        #: dock's hierarchy scope). Filtering only composes with it: a
+        #: matching row outside the current hierarchy stays hidden.
+        self._base_visible = base_visible
         #: Columns that can be filtered (None = all). The others get a
         #: disabled box: their text is not known without their cell widgets.
         self._filter_columns = filter_columns
@@ -186,6 +191,10 @@ class FilterBar(QObject):
             for e in self._editors:
                 e.show()
             self._place()
+            if self._base_visible is not None:
+                # Apply the non-user visibility rule (hierarchy scope) even
+                # before the first keystroke.
+                self.apply()
             if self._editors:
                 self._editors[0].setFocus()
         else:
@@ -268,7 +277,9 @@ class FilterBar(QObject):
             return
         if not self.available():
             self.set_shown(False)         # shrank to a table worth no filter
-        elif self.is_active():
+        elif self.is_active() or self._base_visible is not None:
+            # Reapply after a sort/refill: row-hidden flags belonged to the
+            # old indexes, and the hierarchy scope must survive too.
             self.apply()
         else:
             self._place()
@@ -308,8 +319,9 @@ class FilterBar(QObject):
         try:
             shown = 0
             for r in range(n):
-                keep = (not self._filters) or self._row_matches(r) \
-                    or self._pinned(r)
+                keep = self._base_allows(r) and (
+                    (not self._filters) or self._row_matches(r)
+                    or self._pinned(r))
                 if table.isRowHidden(r) == keep:
                     table.setRowHidden(r, not keep)
                 shown += keep
@@ -317,6 +329,12 @@ class FilterBar(QObject):
             table.setUpdatesEnabled(True)
         self._update_badge(shown, n)
         self.changed.emit(shown, n)
+
+    def _base_allows(self, row: int) -> bool:
+        """Whether a rule outside the filter (hierarchy scope) shows `row`."""
+        if self._base_visible is None:
+            return True
+        return bool(self._base_visible(row))
 
     def _pinned(self, row: int) -> bool:
         return bool(self.keep_visible and self._row_key is not None
@@ -371,8 +389,12 @@ class FilterBar(QObject):
         t.setUpdatesEnabled(False)
         try:
             for r in range(t.rowCount()):
-                if t.isRowHidden(r):
-                    t.setRowHidden(r, False)
+                # "All" means all rows the table's own scope allows: a
+                # closed filter must not reveal rows outside the current
+                # hierarchy.
+                hidden = not self._base_allows(r)
+                if t.isRowHidden(r) != hidden:
+                    t.setRowHidden(r, hidden)
         finally:
             t.setUpdatesEnabled(True)
 

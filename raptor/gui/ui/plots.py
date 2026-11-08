@@ -465,6 +465,11 @@ class AoPlotWidget(QWidget):
         """
         lo0 = max(0.0, float(self._y_min))
         hi0 = 1.0
+        if self._mode == self.CONVERGENCE:
+            # The Y-min control is disabled here: the scale is fitted to
+            # the cumulative means, and a saved graphYmin must not leak
+            # into it (#199 review).
+            return 0.0, 1.0
         if self._mode != self.MULTI_RUN or not self._runs or lo0 > 0.0:
             return lo0, hi0
         _times, mins, _avgs, maxs = self._envelope()

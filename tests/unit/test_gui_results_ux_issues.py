@@ -16,9 +16,9 @@ pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QContextMenuEvent
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
-    QApplication, QInputDialog, QMenu, QPushButton, QScrollArea,
+    QApplication, QInputDialog, QLabel, QMenu, QPushButton, QScrollArea,
     QTableWidget, QVBoxLayout, QWidget)
 
 from raptor.core.engine.runner import run_simulation_with_reports
@@ -172,6 +172,17 @@ def test_multi_run_manual_floor_is_not_masked_by_auto_fit(qapp):
     assert plot._y_bounds()[0] < 0.9992       # back to Auto
 
 
+def test_convergence_ignores_graph_ymin_while_control_is_disabled(qapp):
+    from raptor.gui.ui.plots import AoPlotWidget
+    plot = AoPlotWidget()
+    plot.set_convergence_data([(1, 0.92), (2, 0.94), (3, 0.95)])
+    plot.set_mode(AoPlotWidget.CONVERGENCE)
+    plot.set_y_min(0.5)
+    assert plot._y_bounds() == (0.0, 1.0)
+    plot.set_y_min(0.999)
+    assert plot._y_bounds() == (0.0, 1.0)
+
+
 # -------------------------------------------------------- #205 table actions
 
 def test_no_global_copy_export_header_row_remains(rich_dock):
@@ -200,6 +211,38 @@ def test_every_results_table_card_has_a_copy_csv_pair(rich_dock):
             assert not button.icon().isNull()
         checked += 1
     assert checked >= 4, "expected Summary/Logistics/Sparing/Capacity/Cost/Weak"
+
+
+def test_summary_logistics_and_weak_cards_do_not_repeat_headings(rich_dock):
+    for tab in ("Summary", "Logistics", "Weak Link"):
+        index = next((i for i in range(rich_dock._details_tabs.count())
+                      if rich_dock._details_tabs.tabText(i) == tab), None)
+        if index is None:
+            continue
+        page = rich_dock._details_tabs.widget(index)
+        body = _page_body(page)
+        titles = [lb.text() for lb in body.findChildren(QLabel)
+                  if lb.objectName() == "TableTitle"]
+        assert titles == [], f"{tab} repeats a table heading: {titles}"
+        assert _table_buttons(page), f"{tab} lost its table actions"
+
+
+def test_cost_block_action_names_do_not_embed_the_live_count(rich_dock):
+    cost = rich_dock._cost_tables[0]
+    index = next(i for i in range(rich_dock._details_tabs.count())
+                 if rich_dock._details_tabs.tabText(i) == "Cost")
+    page = rich_dock._details_tabs.widget(index)
+    buttons = _table_buttons(page)
+    assert buttons
+    assert all("(" not in b.accessibleName() for b in buttons)
+    name = cost.item(0, 0).text()
+    try:
+        rich_dock.set_level_filter({name})
+        assert "Blocks (" in rich_dock._cost_blocks_label.text()
+        assert all("(" not in b.accessibleName()
+                   for b in _table_buttons(page))
+    finally:
+        rich_dock.set_level_filter(None)
 
 
 def test_importance_table_has_per_table_copy_csv(qapp):
@@ -371,6 +414,29 @@ def test_sort_survives_a_filter_pass(qapp):
             header.sortIndicatorOrder()) == before
 
 
+def test_hierarchy_scope_survives_a_sort_with_a_filter_bar(qapp):
+    lines = ["***SPARING***", "Spares_Utilization",
+             "blockName             SpareSource            MinUsed      AveUsed   MaxUsed        StDev"]
+    for i in range(15):
+        name = "alpha" if i == 0 else "beta" if i == 1 else f"row{i:02d}"
+        lines.append(f"{name:<22}Custom                       1         1.00         1         0.00")
+    dock = ResultsDock()
+    dock._populate_details(lines)
+    table = dock.section_table("SPARING")
+    assert table._filter_bar is not None
+    bar = table._filter_bar
+    dock.set_level_filter({"alpha", "beta"})
+    bar.set_shown(True)
+    assert {table.item(r, 0).text() for r in range(table.rowCount())
+            if not table.isRowHidden(r)} == {"alpha", "beta"}
+
+    table.sortItems(3, Qt.SortOrder.DescendingOrder)  # AveUsed
+    QTest.qWait(50)
+    assert table.horizontalHeader().sortIndicatorSection() == 3
+    assert {table.item(r, 0).text() for r in range(table.rowCount())
+            if not table.isRowHidden(r)} == {"alpha", "beta"}
+
+
 def test_sort_indicator_survives_a_results_rebuild(qapp):
     dock = ResultsDock()
     lines = [
@@ -466,11 +532,11 @@ def test_weak_link_context_signal_wiring_and_double_click(rich_dock,
         rich_dock, "_show_goto_menu",
         lambda t, k, p: wired.append((t, k, p)))
     point = table.visualItemRect(table.item(0, 0)).center()
-    event = QContextMenuEvent(
-        QContextMenuEvent.Reason.Mouse, point,
-        table.viewport().mapToGlobal(point))
-    QApplication.sendEvent(table.viewport(), event)
-    assert wired and wired[-1][0] is table and wired[-1][1] == "block"
+    # The viewport owns the real right-click policy; emitting its signal
+    # is the one request a context-menu event produces.
+    table.viewport().customContextMenuRequested.emit(point)
+    assert len(wired) == 1       # one policy, not table+viewport duplicates
+    assert wired[-1][0] is table and wired[-1][1] == "block"
 
     seen: list[tuple[str, str]] = []
     rich_dock.element_clicked.connect(lambda k, n: seen.append((k, n)))
