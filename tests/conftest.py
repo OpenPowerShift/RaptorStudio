@@ -176,6 +176,29 @@ def _clear_orphan_undo_stacks():
             pass
 
 
+def _dispose_new_views(before):
+    """Delete, with Qt, every parentless `DiagramView` this test built.
+
+    A shown canvas left to `gc.collect()` has its scene, items and custom
+    cursors torn down in whatever order the collector reaches them, which
+    segfaulted CI in the hygiene's own collection. Closing it and draining
+    its `DeferredDelete` lets Qt free it in its own (safe) order. Views that
+    existed before the test (module- or class-scoped fixtures) are left
+    alone, and so are views inside a window (`_reap` deletes those); a view
+    a fixture already deleted is skipped."""
+    from shiboken6 import isValid
+    mine = [v for v in list(_views) if v not in before]
+    for view in mine:
+        try:
+            if isValid(view) and view.parent() is None:
+                view.close()
+                view.deleteLater()
+        except RuntimeError:  # the C++ view is already gone
+            pass
+    if mine:
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
 def _reap():
     """Delete stale top-level windows and force their pending deletion.
 
@@ -325,6 +348,7 @@ def _test_hygiene(request):
     # Qt window reaping is only meaningful for tests that can create windows; skipping it for
     # engine tests removes a `processEvents()` round-trip from ~1,000 tests.
     is_gui = request.node.get_closest_marker("gui") is not None
+    views_before: weakref.WeakSet[DiagramView] = weakref.WeakSet(_views)
     if is_gui:
         _reap()
     # Watchdog: dump all thread stacks if a test runs past its timeout. A
@@ -347,6 +371,7 @@ def _test_hygiene(request):
     if is_gui:
         ThemeManager.instance()._callbacks.clear()
         _clear_orphan_undo_stacks()
+        _dispose_new_views(views_before)
         _reap()
         # Collect now, on the thread that owns Qt. A reference cycle left
         # holding Qt objects is otherwise freed by whichever thread next
