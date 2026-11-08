@@ -456,10 +456,16 @@ class AoPlotWidget(QWidget):
         return map
 
     def _y_bounds(self) -> tuple[float, float]:
-        """Visible Y range: auto for Multi-run, manual for the rest."""
+        """Visible Y range: auto (0..1) unless a manual floor is set.
+
+        Multi-run Ao only auto-fits while `graphYmin` is 0 (the model's
+        "Auto"). A saved non-zero minimum is a deliberate floor and is
+        used by every availability mode, so the envelope can no longer
+        silently mask it (#199).
+        """
         lo0 = max(0.0, float(self._y_min))
         hi0 = 1.0
-        if self._mode != self.MULTI_RUN or not self._runs:
+        if self._mode != self.MULTI_RUN or not self._runs or lo0 > 0.0:
             return lo0, hi0
         _times, mins, _avgs, maxs = self._envelope()
         vals = [v for v in (*mins, *maxs) if v is not None]

@@ -250,11 +250,17 @@ def test_the_results_and_data_tables_docks_open_the_same_dialog(win,
     assert opened == [win, win]
 
 
-def test_the_docks_have_an_export_tables_button(win):
+def test_the_docks_open_the_export_tables_command(win):
+    # Results no longer carries a bulky "Export Tables..." header button
+    # (#205); the command lives in File > Export. Data Tables keeps its
+    # own direct button.
     from PySide6.QtWidgets import QPushButton
-    for dock in (win._results, win._data_tables):
-        texts = [b.text() for b in dock.findChildren(QPushButton)]
-        assert "Export Tables…" in texts, type(dock).__name__
+    assert win._export_tables_action.text().startswith("Export Tables")
+    result_texts = [b.text() for b in win._results.findChildren(QPushButton)]
+    assert "Export Tables…" not in result_texts
+    data_texts = [b.text()
+                  for b in win._data_tables.findChildren(QPushButton)]
+    assert "Export Tables…" in data_texts
 
 
 # -- File > Export Excel Workbook / Export OpenDocument Spreadsheet ------------

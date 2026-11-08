@@ -884,13 +884,16 @@ def test_weak_page_rebuilds_when_metric_or_bands_change(qapp):
                if dock._details_tabs.tabText(i) == "Weak Link")
     table = dock._details_tabs.widget(idx).findChildren(QTableWidget)[0]
     assert table.horizontalHeaderItem(2).text() == "Availability"
-    first = table.item(0, 2).text()
+    avail = {table.item(r, 0).text(): table.item(r, 2).text()
+             for r in range(table.rowCount())}
     dock.set_weak_settings("Dependability", 0.80, 0.50)
     idx = next(i for i in range(dock._details_tabs.count())
                if dock._details_tabs.tabText(i) == "Weak Link")
     table = dock._details_tabs.widget(idx).findChildren(QTableWidget)[0]
     assert table.horizontalHeaderItem(2).text() == "Dependability"
-    assert table.item(0, 2).text() != first
+    dep = {table.item(r, 0).text(): table.item(r, 2).text()
+           for r in range(table.rowCount())}
+    assert dep != avail
 
 
 def test_export_csv_includes_capacity_cost_and_weak(qapp, tmp_path,
@@ -930,8 +933,12 @@ def test_cost_tables_keep_raw_values_for_the_top_copy(qapp):
 
 
 def test_every_cost_table_has_a_title_copy_and_csv(qapp):
-    """The report-section cost tables (Operating/Sparing/Cost summary)
-    were added without the Copy/CSV actions the life-cycle tables had."""
+    """Every cost table card has its own icon-only Copy/CSV pair.
+
+    The old global header row was removed in #205; these are the per-table
+    actions that replaced it, including the report-section cost tables
+    (Operating/Sparing/Cost summary).
+    """
     from PySide6.QtWidgets import QPushButton
     from raptor.core.fileio.rbds import load_rbds
 
@@ -948,10 +955,12 @@ def test_every_cost_table_has_a_title_copy_and_csv(qapp):
     titles = [lb.text() for lb in scroll.findChildren(QLabel)
               if lb.objectName() == "TableTitle"]
     buttons = [b for b in scroll.findChildren(QPushButton)
-               if b.text() in ("Copy", "CSV…")]
+               if b.accessibleName().startswith(("Copy ", "Save "))]
     assert dock._cost_extra, "Water2 should exercise the extra cost tables"
     assert len(titles) == len(dock._cost_tables)
     assert len(buttons) == 2 * len(dock._cost_tables)
+    assert all(b.text() == "" and not b.icon().isNull()
+               and b.toolTip() and b.accessibleName() for b in buttons)
     assert any("Operating" in t for t in titles)
     assert any("Sparing" in t for t in titles)
 
