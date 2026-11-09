@@ -126,10 +126,14 @@ def test_finishing_clears_the_animate_off_live_colours(window, qapp):
     window._on_step()
     qapp.processEvents()
     assert view._live_state_cache is not None
+    window._run_progress.setVisible(True)
+    window._run_progress_label.setVisible(True)
 
     window._on_step_finish()
     qapp.processEvents()
     assert view._live_state_cache is None
+    assert not window._run_progress.isVisible()
+    assert not window._run_progress_label.isVisible()
 
 
 def test_hier_log_row_selects_the_hierarchy_row(window, qapp):
@@ -251,3 +255,15 @@ def test_a_failed_step_clears_live_colours_and_the_live_log(
     assert window._step_session is None
     assert view._live_state_cache is None
     assert panel.tree.topLevelItemCount() == 0
+
+
+def test_finish_hides_the_run_progress_widgets(window):
+    view = window._diagram_dock.view
+    window._on_step()
+    window._run_progress.setVisible(True)
+    window._run_progress_label.setVisible(True)
+    window._on_step_finish()
+    QApplication.processEvents()
+    assert view._live_state_cache is None
+    assert not window._run_progress.isVisible()
+    assert not window._run_progress_label.isVisible()

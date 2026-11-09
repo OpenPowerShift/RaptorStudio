@@ -1295,3 +1295,51 @@ def test_wayland_titlebar_drag_uses_system_move(qapp, monkeypatch):
     assert titlebar._press_global is None
     w._dirty = False
     w.close()
+
+
+def test_closing_results_keeps_the_status_bar_visible_and_window_resizable(qapp):
+    w = _shown(qapp)
+    w.resize(1100, 700)
+    _pump(qapp, 8)
+    sb = w.statusBar()
+    w._results_toggle_action.setChecked(False)
+    _pump(qapp, 10)
+    assert sb.isVisibleTo(w)
+    assert sb.geometry().bottom() < w.height()
+
+    # The remaining Run/Data Tables strip must not pin the window open.
+    w.resize(1000, 520)
+    _pump(qapp, 10)
+    assert w.height() < 700, w.height()
+    assert sb.isVisibleTo(w)
+    assert sb.geometry().bottom() < w.height()
+
+    w.reset_layout()
+    _pump(qapp, 12)
+    assert sb.isVisibleTo(w)
+    assert sb.geometry().bottom() < w.height()
+    w._dirty = False
+    w.close()
+
+
+def test_closing_results_keeps_the_status_bar_and_window_resizable(qapp):
+    w = _shown(qapp)
+    w.resize(1100, 700)
+    _pump(qapp, 8)
+    close = w._results_toggle_action
+    close.setChecked(False)
+    _pump(qapp, 10)
+    sb = w.statusBar()
+    assert sb.isVisibleTo(w)
+    assert sb.geometry().y() + sb.geometry().height() <= w.height()
+    # The remaining Run strip must not pin the window's minimum size.
+    w.resize(900, 520)
+    _pump(qapp, 10)
+    assert sb.isVisibleTo(w)
+    assert sb.geometry().y() + sb.geometry().height() <= w.height()
+    w.reset_layout()
+    _pump(qapp, 10)
+    assert sb.isVisibleTo(w)
+    assert sb.geometry().y() + sb.geometry().height() <= w.height()
+    w._dirty = False
+    w.close()

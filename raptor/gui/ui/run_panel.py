@@ -1177,8 +1177,16 @@ class RunPanelDock(QDockWidget):
                     if tb.parentWidget() is win and tb.isVisible():
                         strip = tb.height()
                         break
+            # Never ask for more than the window can spare above the
+            # ribbon, status bar and canvas minimum: an oversized Run
+            # strip pushes the status bar off-screen and stops the window
+            # shrinking (#231).
+            limit = getattr(win, "_max_bottom_dock_height", None)
+            request = want + strip
+            if callable(limit):
+                request = min(request, max(120, int(limit())))
             resize = getattr(win, "_resize_docks", win.resizeDocks)
-            resize([self], [want + strip], Qt.Orientation.Vertical)
+            resize([self], [request], Qt.Orientation.Vertical)
         except Exception:                                  # noqa: BLE001
             pass
         finally:

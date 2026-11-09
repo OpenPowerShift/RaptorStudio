@@ -1399,6 +1399,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 dock.close()
                 if on_hide is not None:
                     on_hide()
+            # A hidden bottom dock can change which tab sizes the strip;
+            # keep the status bar from being squeezed out (#231).
+            QTimer.singleShot(0, self._ensure_status_bar_visible)
         action.toggled.connect(toggle)
         dock.visibilityChanged.connect(sync)
         sync(dock.isVisible())
@@ -5580,6 +5583,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._results_dock.raise_()
             self._give_canvas_room(force=True)
             self._sync_dock_tab_bars()
+            # Reset must also restore the fixed chrome, not just the docks.
+            QTimer.singleShot(0, self._ensure_status_bar_visible)
         except RuntimeError:
             pass
 
@@ -7389,6 +7394,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             msgbox.critical(self, "Simulation Failed",
                                  f"The run failed:\n\n{e}")
             self._clear_failed_step()
+            self._run_progress.setVisible(False)
+            self._run_progress_label.setVisible(False)
+            self._clear_run_eta()
             self._statusbar.showMessage("Run failed")
             return
         eor_lines: list[str] = []
@@ -7412,11 +7420,19 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         step_manifest = self._build_run_manifest()
         if step_manifest:
             step_manifest["trials"] = len(event_logs)
-        self._present_run_results(event_logs, eor_lines, final_lines,
-                                  report_data,
-                                  ao_lines=list(self._step_ao or []),
-                                  cap_lines=session.cap_lines,
-                                  manifest=step_manifest)
+        try:
+            self._present_run_results(event_logs, eor_lines, final_lines,
+                                      report_data,
+                                      ao_lines=list(self._step_ao or []),
+                                      cap_lines=session.cap_lines,
+                                      manifest=step_manifest)
+        finally:
+            # Finish is the end of the stepped run: the progress line
+            # belongs to the finishing/population work, not to the idle
+            # results screen (#230).
+            self._run_progress.setVisible(False)
+            self._run_progress_label.setVisible(False)
+            self._clear_run_eta()
 
     def _diag(self, *lines: str) -> None:
         """Append to the `/d` diagnostics file beside the model when `diagnostics_log` is on."""
@@ -8041,7 +8057,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         make Results smaller or larger. Deferred, so Qt's own tab swap
         has finished before the caps change.
         """
-        if not visible or dock is None:
+        if dock is None:
+            return
+        # Hiding Results can make Run the only bottom tab and let its
+        # content height squeeze the status bar out (#231). Self-heal on
+        # both show and hide, after Qt has applied the tab change.
+        QTimer.singleShot(0, self._ensure_status_bar_visible)
+        if not visible:
             return
         try:
             if dock.isFloating():
@@ -8368,11 +8390,18 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         try:
             sb = self.statusBar()
             geo = sb.geometry() if sb is not None else None
-            if geo is None or self._rbd is None:
+            if geo is None:
                 return
             _ = self.height()   # raises RuntimeError if the C++ object
             # was already deleted (tests and teardown close the window while
             # the deferred self-heal singleShot is still queued).
+        except RuntimeError:
+            return
+        # The status bar is fixed chrome: always keep its floor, even when
+        # no model is open or the current geometry happens to look fine.
+        try:
+            sb.setMinimumHeight(sb.sizeHint().height())
+            sb.show()
         except RuntimeError:
             return
         clipped = (geo.y() + geo.height() > self.height()) or \
@@ -8413,6 +8442,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             for d in (self._results_dock, self._data_tables_dock,
                       self._run_dock):
                 if d is not None and not d.isFloating():
+                    # A content-sized Run panel can leave a minimum that
+                    # makes the window unable to shrink; release it before
+                    # applying the ceiling.
+                    d.setMinimumHeight(min(120, max(1, limit)))
                     d.setMaximumHeight(limit)
             self._statusbar.setMinimumHeight(
                 self._statusbar.sizeHint().height())
