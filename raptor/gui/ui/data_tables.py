@@ -36,7 +36,7 @@ from raptor.gui.model_edit import (
     BLOCK_COST_DECIMALS, BLOCK_COST_FIELDS, BLOCK_COST_LIMIT,
     POOLED_COST_TIP, cost_field_readonly)
 from raptor.gui.ui.distro_combo import distro_display_name, fill_distro_combo
-from raptor.gui.ui.table_export import RAW_VALUE_ROLE
+from raptor.gui.ui.table_export import RAW_VALUE_ROLE, cell_text
 from raptor.gui.ui.table_filter_bar import FilterBar
 from raptor.gui.ui import param_entry
 from raptor.core.distro_rules import (
@@ -113,10 +113,11 @@ class _SortItem(QTableWidgetItem):
     """
 
     def _number(self) -> float | None:
-        raw = self.data(RAW_VALUE_ROLE)
-        if isinstance(raw, (int, float)) and not isinstance(raw, bool):
-            return float(raw)
+        table = self.tableWidget()
         try:
+            if table is not None:
+                return float(cell_text(table, self.row(), self.column(),
+                                       raw=True).replace(",", ""))
             return float(self.text())
         except (TypeError, ValueError):
             return None
