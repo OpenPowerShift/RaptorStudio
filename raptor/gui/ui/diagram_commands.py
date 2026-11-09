@@ -433,6 +433,49 @@ class AddCmd(_ViewCmd):
             remover(oid)
         self._done()
 
+def _capture_comment_rows(view, dead_ids, dead_names):
+    """[(row copy, original index)] for comments of the deleted elements.
+
+    ID is authoritative. The name fallback is ONLY for legacy rows with
+    no ID: duplicate element names are common across hierarchy levels, so
+    dropping an ID-bearing row just because a surviving element shares
+    the name would erase someone else's comment.
+    """
+    sec = (view._rbd_ref.sections.get("COMMENTS")
+           if getattr(view, "_rbd_ref", None) is not None else None)
+    out = []
+    for idx, row in enumerate(sec.rows if sec is not None else []):
+        kind = str(row.get("Type", "")).lower()
+        if (kind, _safe_int(row.get("ID"))) in dead_ids:
+            out.append((dict(row), idx))
+        elif not row.get("ID") and (kind, row.get("Name")) in dead_names:
+            out.append((dict(row), idx))
+    return out
+
+
+def _drop_comment_rows(view, dead_ids, dead_names, captured) -> None:
+    sec = (view._rbd_ref.sections.get("COMMENTS")
+           if getattr(view, "_rbd_ref", None) is not None else None)
+    if sec is None or not captured:
+        return
+    sec.rows[:] = [
+        r for r in sec.rows
+        if not ((str(r.get("Type", "")).lower(),
+                 _safe_int(r.get("ID"))) in dead_ids
+                or (not r.get("ID")
+                    and (str(r.get("Type", "")).lower(), r.get("Name"))
+                    in dead_names))]
+
+
+def _restore_comment_rows(view, captured) -> None:
+    sec = (view._rbd_ref.sections.get("COMMENTS")
+           if getattr(view, "_rbd_ref", None) is not None else None)
+    if sec is None:
+        return
+    for row, idx in sorted(captured, key=lambda p: p[1]):
+        sec.rows.insert(min(idx, len(sec.rows)), dict(row))
+
+
 class DeleteCmd(_ViewCmd):
     """Deletion of any mix of blocks/nodes/events/links; undo restores
     the exact file rows and rebuilds their canvas items."""
@@ -447,42 +490,27 @@ class DeleteCmd(_ViewCmd):
         # leaving them behind let a deleted block's comment attach to the
         # next element that reused its ID. Keep them in the same reversible
         # payload as the element rows.
-        dead = {("block", _safe_int(r.get("ID")))
-                for r in self.block_rows}
-        dead |= {("node", _safe_int(r.get("ID"))) for r in self.node_rows}
-        dead |= {("event", _safe_int(r.get("ID"))) for r in self.event_rows}
-        dead_names = {("block", r.get("blockName"))
-                      for r in self.block_rows}
-        dead_names |= {("node", r.get("Name")) for r in self.node_rows}
-        dead_names |= {("event", r.get("eventName"))
-                       for r in self.event_rows}
-        self.comment_rows = []
-        sec = (view._rbd_ref.sections.get("COMMENTS")
-               if getattr(view, "_rbd_ref", None) is not None else None)
-        for idx, row in enumerate(sec.rows if sec is not None else []):
-            kind = str(row.get("Type", "")).lower()
-            if ((kind, _safe_int(row.get("ID"))) in dead
-                    or (kind, row.get("Name")) in dead_names):
-                self.comment_rows.append((dict(row), idx))
-        self._comment_keys = {
-            (str(r.get("Type", "")).lower(), r.get("ID"), r.get("Name"))
-            for r, _idx in self.comment_rows}
+        self._dead_comment_ids = {("block", _safe_int(r.get("ID")))
+                                  for r in self.block_rows}
+        self._dead_comment_ids |= {("node", _safe_int(r.get("ID")))
+                                   for r in self.node_rows}
+        self._dead_comment_ids |= {("event", _safe_int(r.get("ID")))
+                                   for r in self.event_rows}
+        self._dead_comment_names = {("block", r.get("blockName"))
+                                    for r in self.block_rows}
+        self._dead_comment_names |= {("node", r.get("Name"))
+                                     for r in self.node_rows}
+        self._dead_comment_names |= {("event", r.get("eventName"))
+                                     for r in self.event_rows}
+        self.comment_rows = _capture_comment_rows(
+            view, self._dead_comment_ids, self._dead_comment_names)
 
     def _drop_comments(self) -> None:
-        sec = self._v._rbd_ref.sections.get("COMMENTS")
-        if sec is None or not self.comment_rows:
-            return
-        sec.rows[:] = [
-            r for r in sec.rows
-            if (str(r.get("Type", "")).lower(), r.get("ID"), r.get("Name"))
-            not in self._comment_keys]
+        _drop_comment_rows(self._v, self._dead_comment_ids,
+                           self._dead_comment_names, self.comment_rows)
 
     def _restore_comments(self) -> None:
-        sec = self._v._rbd_ref.sections.get("COMMENTS")
-        if sec is None:
-            return
-        for row, idx in sorted(self.comment_rows, key=lambda p: p[1]):
-            sec.rows.insert(min(idx, len(sec.rows)), dict(row))
+        _restore_comment_rows(self._v, self.comment_rows)
 
     def redo(self):
         v = self._v
@@ -686,6 +714,18 @@ class DissolveCmd(_ViewCmd):
         self.rewired_links = [(lid, dict(old), dict(new))
                               for lid, old, new in rewired_links]
         self.hier_id = _safe_int(hier_row.get("ID"))
+        # The oval and its In/Out marker nodes own COMMENTS rows too;
+        # leaving them behind lets a later hierarchy/node reuse the ID
+        # and inherit the deleted element's comment.
+        self._dead_comment_ids = {("hier", self.hier_id)}
+        self._dead_comment_ids |= {("node", _safe_int(r.get("ID")))
+                                   for r in self.marker_rows}
+        self._dead_comment_names = {
+            ("hier", hier_row.get("hierarchyName"))}
+        self._dead_comment_names |= {("node", r.get("Name"))
+                                     for r in self.marker_rows}
+        self.comment_rows = _capture_comment_rows(
+            view, self._dead_comment_ids, self._dead_comment_names)
 
     @staticmethod
     def _row_by_id(section, oid):
@@ -699,6 +739,8 @@ class DissolveCmd(_ViewCmd):
         rbd = v._rbd_ref
         hier_section = rbd.sections["HIERARCHY_DATA"]
         if forward:
+            _drop_comment_rows(v, self._dead_comment_ids,
+                               self._dead_comment_names, self.comment_rows)
             rows = hier_section.rows
             rows[:] = [r for r in rows
                        if _safe_int(r.get("ID")) != self.hier_id]
@@ -725,6 +767,7 @@ class DissolveCmd(_ViewCmd):
                 if row is not None:
                     row.update(new)
         else:
+            _restore_comment_rows(v, self.comment_rows)
             hier_section.rows.append(dict(self.hier_row))
             node_section = rbd.sections["NODE_DATA"]
             for r in self.marker_rows:

@@ -4,7 +4,8 @@ the bottom) or create one undo command per character."""
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -392,6 +393,160 @@ def test_new_element_does_not_inherit_deleted_comment_id(win):
     new_id = v.add_block("Reused", 0.0, 0.0)
     assert new_id == bid, "the deleted ID should be the one reused"
     assert v.current_comment_stored("block", new_id) == ""
+
+
+def test_delete_keeps_duplicate_named_survivor_comment(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    name = v.blocks[5].name
+    survivor_id = next(i for i in v.blocks if i != 5)
+    sec.rows[:] = [
+        {"Type": "block", "ID": "5", "Name": name,
+         "Comment": "deleted element"},
+        {"Type": "block", "ID": str(survivor_id), "Name": name,
+         "Comment": "surviving element"},
+    ]
+    v._stack.clear()
+    v._scene.clearSelection()
+    v._block_items[5].setSelected(True)
+    QApplication.processEvents()
+
+    v.delete_selected()
+    QApplication.processEvents()
+    rows = [r for r in sec.rows if r.get("Type") == "block"]
+    assert [r["ID"] for r in rows] == [str(survivor_id)]
+    assert rows[0]["Comment"] == "surviving element"
+
+    v._stack.undo()
+    QApplication.processEvents()
+    rows = [r for r in sec.rows if r.get("Type") == "block"]
+    assert {r["ID"] for r in rows} == {"5", str(survivor_id)}
+
+
+def test_delete_redo_drops_legacy_comment_after_id_stamp(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    name = v.blocks[5].name
+    sec.rows[:] = [{"Type": "block", "Name": name,
+                    "Comment": "legacy"}]
+    v._stack.clear()
+    v._scene.clearSelection()
+    v._block_items[5].setSelected(True)
+    QApplication.processEvents()
+
+    v.delete_selected()
+    QApplication.processEvents()
+    assert not sec.rows
+
+    v._stack.undo()
+    QApplication.processEvents()
+    assert sec.rows and "ID" not in sec.rows[0]
+    # Selecting the element in the menu/Inspector stamps the legacy row's
+    # ID before the deletion is redone.
+    assert v._comment_row_for("block", 5) is sec.rows[0]
+    assert sec.rows[0]["ID"] == "5"
+
+    v._stack.redo()
+    QApplication.processEvents()
+    assert not sec.rows, "redo failed to drop the now-stamped legacy row"
+
+
+def test_dissolving_a_hierarchy_removes_and_restores_its_comment(
+        win, tmp_path):
+    from raptor.core.fileio import rbds as rbds_io
+
+    v = win._diagram_dock.view
+    v.set_element_comment("hier", 23, "hier comment")
+    v._stack.clear()
+    v._scene.clearSelection()
+    v._hier_items[23].setSelected(True)
+    QApplication.processEvents()
+
+    v.delete_selected()
+    QApplication.processEvents()
+    sec = v._rbd_ref.sections["COMMENTS"]
+    assert not any(r.get("Type") == "hier" and r.get("ID") == "23"
+                   for r in sec.rows)
+
+    path = tmp_path / "dissolved.rbds"
+    rbds_io.save_rbds(v._rbd_ref, str(path))
+    reloaded = rbds_io.load_rbds(str(path))
+    assert not any(r.get("Type") == "hier" and r.get("ID") == "23"
+                   for r in reloaded.sections["COMMENTS"].rows)
+
+    v._stack.undo()
+    QApplication.processEvents()
+    assert any(r.get("Type") == "hier" and r.get("ID") == "23"
+               and r.get("Comment") == "hier comment"
+               for r in v._rbd_ref.sections["COMMENTS"].rows)
+
+
+def _release_block_onto_hierarchy(v, block_id=5, target_id=26):
+    block = v._block_items[block_id]
+    target = v._hier_items[target_id]
+    old = (block.scenePos().x(), block.scenePos().y())
+    v._drag_start = [("block", block_id, old)]
+    v._press_positions = {("block", block_id): old}
+    v._snap_state["x"] = v._snap_state["y"] = 0.0
+    block.setPos(target.sceneBoundingRect().center())
+    pos = QPointF(0, 0)
+    v.mouseReleaseEvent(QMouseEvent(
+        QEvent.Type.MouseButtonRelease, pos, pos,
+        Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton,
+        Qt.KeyboardModifier.NoModifier))
+    QApplication.processEvents()
+
+
+def _pending_draft_for_block(win, text):
+    v = win._diagram_dock.view
+    v.set_element_comment("block", 5, "")
+    v._stack.clear()
+    _show(win, "block", 5)
+    edit = win._inspector._comment_edit
+    edit.setFocus()
+    QApplication.processEvents()
+    QTest.keyClicks(edit, text)
+    QApplication.processEvents()
+    v._stack.clear()
+    return v
+
+
+def test_drop_flushes_comment_before_the_hierarchy_macro(win):
+    v = _pending_draft_for_block(win, "drop draft")
+    _release_block_onto_hierarchy(v)
+
+    texts = [v._stack.command(i).text() for i in range(v._stack.count())]
+    assert texts[-1] == "Move into hierarchy"
+    comment_at = texts.index("Edit comment")
+    assert comment_at < len(texts) - 1, \
+        "CommentCmd was pushed inside the gated hierarchy macro"
+    v._stack.undo()
+    QApplication.processEvents()
+    assert v.current_comment_stored("block", 5) == "drop draft"
+    assert 5 in v._block_items, "undo should undo the reparent, not the comment"
+
+
+def test_refused_drop_keeps_the_flushed_comment(win, monkeypatch):
+    from raptor.core.input_rules import Violation
+    from raptor.gui.ui import msgbox
+
+    v = _pending_draft_for_block(win, "survives refusal")
+    # Put the comment command below the upcoming macro; the drop's own
+    # structural flush then has nothing left to commit.
+    win._inspector.flush_pending_comment()
+    monkeypatch.setattr(msgbox, "warning", lambda *args, **kwargs: None)
+    calls = {"n": 0}
+
+    def added(_before):
+        calls["n"] += 1
+        return ([Violation("test", "dialog", "Block 5 'x'", "test refusal")]
+                if calls["n"] == 1 else [])
+
+    monkeypatch.setattr(v._stack, "_added", added)
+    _release_block_onto_hierarchy(v)
+
+    assert v.current_comment_stored("block", 5) == "survives refusal"
+    assert 5 in v._block_items, "the refused drop must not keep the reparent"
 
 
 def test_pending_comment_is_flushed_before_inspector_repopulates(win):

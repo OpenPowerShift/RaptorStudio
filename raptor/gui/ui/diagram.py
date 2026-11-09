@@ -7767,6 +7767,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     # can affect rules, so this outer macro stays GATED;
                     # its move commands nest inside it (their own macro
                     # is ungated, but a nested macro is not checked).
+                    # Flush before beginMacro so a pending CommentCmd is
+                    # BELOW this macro: a refused macro must not take the
+                    # typed comment with it.
+                    self.structural_about_to_change.emit()
                     self._stack.beginMacro("Move into hierarchy")
                     try:
                         self._reparent_into(drop_hid, element_moves)
