@@ -153,17 +153,20 @@ def test_compare_shows_optional_capacity_and_cost_rows(win):
                 Lost_Flow={"mean": 5.0},
                 Grand_Total={"mean": 100.0},
                 System_Down_Cost={"mean": 20.0},
-                System_Lost_Flow_Cost={"mean": 10.0})},
-            {"label": "B", "summary": _compare_summary()},
+                System_Lost_Flow_Cost={"mean": 10.0}),
+             "analyses": {"capacity": True, "cost": True}},
+            {"label": "B", "summary": _compare_summary(),
+             "analyses": {"capacity": False, "cost": False}},
             {"label": "C", "summary": _compare_summary(
                 Units_Produced={"mean": 200.0},
                 Mean_Flow={"mean": 20.0},
-                Mean_Capacity={"mean": 24.0},
+                Mean_Capacity={"mean": None},
                 Capacity_Weighted_Availability={"mean": 0.8},
                 Lost_Flow={"mean": 3.0},
                 Grand_Total={"mean": 50.0},
                 System_Down_Cost={"mean": 10.0},
-                System_Lost_Flow_Cost={"mean": 4.0})},
+                System_Lost_Flow_Cost={"mean": 4.0}),
+             "analyses": {"capacity": True, "cost": True}},
         ])
         d._show_results()
 
@@ -173,20 +176,28 @@ def test_compare_shows_optional_capacity_and_cost_rows(win):
         assert headers[len(METRICS):] == [
             lbl for _, lbl, _ in OPTIONAL_METRICS]
         rows = {label: i for i, label in enumerate(headers)}
+        # B has no capacity analysis: the optional cells are blank. C has
+        # the Mean capacity key with a None mean: that is undefined, "—".
         for label in ("Mean flow", "Lost flow", "Grand total",
                       "System down cost"):
             assert d._table.item(rows[label], 1).text() == "", label
-        # C wins both the higher-is-better flow row and the
-        # lower-is-better lost-flow and cost rows.
-        for label in ("Mean flow", "Lost flow", "Grand total",
-                      "System down cost"):
+        assert d._table.item(rows["Mean capacity"], 2).text() == "—"
+        # C wins the higher-is-better flow row and the lower-is-better
+        # lost-flow and down-cost rows.
+        for label in ("Mean flow", "Lost flow", "System down cost"):
             assert d._table.item(rows[label], 2).font().bold(), label
             assert not d._table.item(rows[label], 1).font().bold(), label
+        # Grand Total includes lost-flow cost only when capacity analysis
+        # is on, so this mixed comparison has no "best".
+        assert not d._table.item(rows["Grand total"], 2).font().bold()
+        assert "Not comparable" in d._table.item(
+            rows["Grand total"], 2).toolTip()
 
         csv_headers, csv_rows = d._csv()
         assert csv_headers == ["metric", "A", "B", "C"]
         metric_rows = {row[0]: row[1:] for row in csv_rows}
         assert metric_rows["Mean_Flow"] == ["10.0", "", "20.0"]
+        assert metric_rows["Mean_Capacity"] == ["12.0", "", "—"]
         assert metric_rows["Grand_Total"] == ["100.0", "", "50.0"]
     finally:
         d.close()
@@ -204,6 +215,48 @@ def test_compare_hides_capacity_and_cost_without_analysis(win):
         d._show_results()
         assert d._table.rowCount() == len(METRICS)
         assert [row[0] for row in d._csv()[1]] == [k for k, _, _ in METRICS]
+    finally:
+        d.close()
+
+
+def test_compare_hides_optional_rows_with_no_real_value(win):
+    """A key that is only ever None (undefined) does not make a row."""
+    from raptor.gui.ui.batch_dialogs import CompareDialog, METRICS
+    d = CompareDialog(win)
+    try:
+        d._files = ["b.rbd"]
+        d._job = _DoneJob([
+            {"label": "A", "summary": _compare_summary(
+                Mean_Flow={"mean": None}, Grand_Total={"mean": None})},
+            {"label": "B", "summary": _compare_summary(
+                Mean_Flow={"mean": None}, Grand_Total={"mean": None})},
+        ])
+        d._show_results()
+        assert d._table.rowCount() == len(METRICS)
+        assert [row[0] for row in d._csv()[1]] == [k for k, _, _ in METRICS]
+    finally:
+        d.close()
+
+
+def test_compare_grand_total_best_uses_analysis_flags(win):
+    """Old batch entries without ``analyses`` fall back to their summary
+    keys, so a capacity-on/off pair still suppresses Grand Total's best."""
+    from raptor.gui.ui.batch_dialogs import CompareDialog
+    d = CompareDialog(win)
+    try:
+        d._files = ["b.rbd"]
+        d._job = _DoneJob([
+            {"label": "A", "summary": _compare_summary(
+                Mean_Flow={"mean": 10.0}, Grand_Total={"mean": 100.0})},
+            {"label": "B", "summary": _compare_summary(
+                Grand_Total={"mean": 50.0})},
+        ])
+        d._show_results()
+        rows = {d._table.verticalHeaderItem(r).text(): r
+                for r in range(d._table.rowCount())}
+        assert not d._table.item(rows["Grand total"], 1).font().bold()
+        assert "Not comparable" in d._table.item(
+            rows["Grand total"], 1).toolTip()
     finally:
         d.close()
 

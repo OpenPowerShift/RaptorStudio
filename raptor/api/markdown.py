@@ -14,7 +14,7 @@ import re
 from math import floor, log10
 from typing import Any
 
-from raptor.api.results import Metric
+from raptor.api.results import COST_FIELDS, Metric
 
 # The canonical hours-per-unit table lives in the GUI's unit-conversion
 # helper, which has no Qt imports.  Import it lazily so this module can
@@ -53,6 +53,8 @@ _COST_METRICS = frozenset({
     "system_down_cost", "grand_total", "operating", "sparing",
     "purchase", "disposal", "rephold", "idle", "pm", "pmhold",
     "standby", "done", "emergship", "newspares", "initspares",
+    # Keep this in step with the aggregates the API actually emits.
+    *(key for key, _name in COST_FIELDS),
 })
 
 _FLOW_METRICS = frozenset({
