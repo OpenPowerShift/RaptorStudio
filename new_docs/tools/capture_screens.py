@@ -2,6 +2,12 @@
 
 Writes PNGs into new_docs/images/. Run from repo root:
     .venv/bin/python new_docs/tools/capture_screens.py
+    .venv/bin/python new_docs/tools/capture_screens.py --check
+
+`--check` captures into a temporary directory and compares every PNG with
+the committed one instead of overwriting the tree. It still runs the same
+simulations and GUI, so it is a long/manual gate, not part of the default
+test suite.
 """
 import os
 import sys
@@ -30,8 +36,12 @@ QMessageBox.critical = lambda *a, **k: None
 QMessageBox.warning = lambda *a, **k: None
 QMessageBox.information = lambda *a, **k: None
 
-IMG = os.path.join(ROOT, "new_docs", "images")
+COMMITTED_IMG = os.path.join(ROOT, "new_docs", "images")
+IMG = COMMITTED_IMG
 MODELS = os.path.join(ROOT, "new_docs", "models")
+CHECK = "--check" in sys.argv[1:]
+if CHECK:
+    IMG = tempfile.mkdtemp(prefix="raptor-capture-check-")
 
 app = QApplication(sys.argv)
 
@@ -84,6 +94,15 @@ def load(name):
 
 
 def shot(name):
+    # The minimap redraws on a 200 ms poll (plus an 80 ms settle) rather
+    # than synchronously with the canvas. Let those timers fire before
+    # grabbing, or the same shot alternates between before/after the
+    # overview is painted and a freshness check reports false stale files.
+    import time
+    deadline = time.monotonic() + 0.35
+    while time.monotonic() < deadline:
+        app.processEvents()
+        time.sleep(0.02)
     w.grab().save(os.path.join(IMG, name + ".png"), "PNG")
     print("shot", name)
 
@@ -381,4 +400,21 @@ shot("fev-panel")
 w._leave_fev()
 app.processEvents()
 
-print("done")
+if CHECK:
+    stale = []
+    for name in sorted(os.listdir(IMG)):
+        if not name.lower().endswith(".png"):
+            continue
+        produced = os.path.join(IMG, name)
+        committed = os.path.join(COMMITTED_IMG, name)
+        if (not os.path.isfile(committed)
+                or open(produced, "rb").read() != open(committed, "rb").read()):
+            stale.append(name)
+    if stale:
+        print(f"capture_screens.py: {len(stale)} stale screenshot(s): "
+              + ", ".join(stale), file=sys.stderr)
+        sys.exit(1)
+    print("capture_screens.py: OK -- every committed screenshot matches a "
+          "fresh capture.")
+else:
+    print("done")

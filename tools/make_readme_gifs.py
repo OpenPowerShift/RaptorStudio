@@ -2,11 +2,18 @@
 """Regenerate the README's animated GIFs from the running application.
 
     QT_QPA_PLATFORM=offscreen python tools/make_readme_gifs.py [tour] [mcp]
+    QT_QPA_PLATFORM=offscreen python tools/make_readme_gifs.py --check [tour] [mcp]
 
 `tour` drives the real main window (offscreen Qt) through a model, an edit panel, a run, the results, the weak-link
 colouring and the dark theme, grabbing the window at each step. `mcp` calls the real MCP server's tools in process
 and replays the calls and their (shortened) replies as a terminal recording. Nothing is mocked: every number in a
 frame came out of the engine while the script ran.
+
+`--check` writes into a temporary directory and compares the result with
+the committed GIF instead of overwriting it. It drives the same GUI/MCP
+session, so it is a long/manual gate. The default check covers the tour;
+`mcp-demo.gif` embeds the measured simulation wall time and therefore is
+not byte-compared.
 
 Writes docs/readme/app-tour.gif and docs/readme/mcp-demo.gif.
 """
@@ -298,8 +305,42 @@ def make_mcp() -> None:
 
 
 if __name__ == "__main__":
-    which = sys.argv[1:] or ["tour", "mcp"]
-    if "tour" in which:
-        make_tour()
-    if "mcp" in which:
-        make_mcp()
+    import tempfile
+
+    args = sys.argv[1:]
+    check = "--check" in args
+    which = [a for a in args if not a.startswith("--")]
+    if not which:
+        # `--check` defaults to the tour: the MCP demo prints the measured
+        # simulation wall time, so two runs are never byte-identical.
+        which = ["tour"] if check else ["tour", "mcp"]
+    committed = OUT
+    if check:
+        OUT = Path(tempfile.mkdtemp(prefix="raptor-readme-gifs-"))
+    try:
+        if "tour" in which:
+            make_tour()
+        if "mcp" in which:
+            make_mcp()
+        if check:
+            stale = []
+            for gif in sorted(OUT.glob("*.gif")):
+                if gif.name == "mcp-demo.gif":
+                    print("make_readme_gifs.py: note: mcp-demo.gif shows the "
+                          "measured run time and is not byte-compared.",
+                          file=sys.stderr)
+                    continue
+                expected = committed / gif.name
+                if (not expected.is_file()
+                        or expected.read_bytes() != gif.read_bytes()):
+                    stale.append(gif.name)
+            if stale:
+                print(f"make_readme_gifs.py: {len(stale)} stale GIF(s): "
+                      + ", ".join(stale), file=sys.stderr)
+                sys.exit(1)
+            print("make_readme_gifs.py: OK -- every comparable committed GIF "
+                  "matches a fresh run.")
+    finally:
+        if check:
+            import shutil
+            shutil.rmtree(OUT, ignore_errors=True)

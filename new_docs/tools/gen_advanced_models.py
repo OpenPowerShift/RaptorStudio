@@ -11,6 +11,11 @@ each one runs (`check_models.py` and the docs gate simulate every model in
 
 The numbers are typical published reliability figures rounded for
 readability, not data for any particular site.
+
+`build_from_spec` applies the shared size-aware auto-layout to every
+level, so the committed files and the thumbnails show the current engine's
+placement. `tools/relayout_examples.py` re-runs that pass without rebuilding
+the models.
 """
 from __future__ import annotations
 
@@ -176,6 +181,12 @@ def water_treatment() -> dict:
     reactors and a chlorine dosing skid) and high-lift pumping to the town
     (2 of 3). All pumps share one pool of spare motors. The pump figures are
     derived from one rate, so a better pump is one edit.
+
+    The home level is a straight left-to-right row of the four stage ovals.
+    That is deliberate: auto-layout gives each oval its own column at a
+    3.75-unit pitch, wider than the drawn oval, and the row is the process
+    flow. It is not the old hand-compressed row -- every element sits on the
+    1.25 grid and no two ovals touch.
     """
     pump = {"fail_dist": WEIB, "fail_params": [1.4, "@PumpMTBF", 0],
             **_rep(18, 12), "sp_type": "Pooled", "spare_pool": "SpareMotors",
@@ -403,28 +414,9 @@ def airliner_mission() -> dict:
     }
 
 
-def _straighten_home_level(rbd, pitch: float = 3.75) -> None:
-    """Put the home level on one line, `pitch` apart, in left-to-right
-    order. Auto Layout staggers a run of wide hierarchy ovals up and down
-    so they cannot touch; spaced a little wider, a straight line reads
-    better and is the shape of the process."""
-    cols = (("BLOCK_DATA", "ParentId"), ("NODE_DATA", "parent"),
-            ("HIERARCHY_DATA", "Parent"))
-    rows = [r for sec, col in cols for r in rbd.section(sec).rows
-            if r.get("ID") != "0" and float(r.get(col, 0) or 0) == 0]
-    rows.sort(key=lambda r: float(r["xPos"]))
-    y = float(rows[0]["yPos"])
-    for i, r in enumerate(rows):
-        r["xPos"] = f"{1.25 + i * pitch:.6f}"
-        r["yPos"] = f"{y:.6f}"
-    rbd.view_transform = {}
-
-
 def main() -> None:
     for spec in (hospital_power(), water_treatment(), airliner_mission()):
         rbd = build_from_spec(spec)
-        if spec["name"] == "WaterTreatment":
-            _straighten_home_level(rbd)
         path = os.path.join(OUT, spec["name"] + ".rbds")
         save_rbds(rbd, path, meta={"file_name": spec["name"] + ".rbds"})
         print("wrote", path)

@@ -7,12 +7,12 @@ book's own "about" rounding in prose, not sampling variance. A number
 that drifts outside tolerance means either the engine changed behaviour
 or the model file changed without updating the prose that quotes it.
 
-The registry covers every model with one unambiguous headline metric at
-the file's own default run count. Not covered, because each needs a
+The registry covers every model with a headline metric at the file's own
+default run count; a model may appear more than once when the book quotes
+more than one headline number. Not covered, because each needs a
 non-default run or config to reproduce the chapter's comparison:
 CarWash1 (Availability and Dependability read together), Laundromat1
-(naive vs 2200h-delayed-stats comparison), Water1/Water2 (units-produced /
-Grand_Total cost extraction).
+(naive vs 2200h-delayed-stats comparison).
 
 Usage (from repo root): .venv/bin/python new_docs/tools/check_numbers.py
 """
@@ -24,9 +24,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 MODELS = os.path.join(os.path.dirname(__file__), "..", "models")
 
-# (model file, metric name in the SUMMARY table, expected value as a
-#  fraction, absolute tolerance, run-count override or None to use the
-#  file's own shipped NumRuns, source note)
+# (model file, metric name in the SUMMARY/scalar report, expected value in
+#  the metric's own units (a fraction for Reliability/Availability, a count
+#  for Units_Produced, dollars for Grand_Total), absolute tolerance,
+#  run-count override or None to use the file's own shipped NumRuns,
+#  source note)
 #
 # The run-count override matters: several tutorial files ship with a
 # small trial count (a teaching default) while README.md's quoted number
@@ -80,6 +82,13 @@ REGISTRY = [
     ("CarCare1.rbds", "Availability", 0.992, 0.01, 10, "README: availability @2000h (200 runs)"),
     ("Van1.rbds", "Availability", 0.987, 0.01, 10, "README: availability @2000h (200 runs)"),
     ("VanFlat.rbds", "Availability", 0.987, 0.01, 10, "README: availability @2000h (200 runs)"),
+    # Reliability is per-run 0/1: at 200 trials the mean moves in 0.005
+    # steps, and the 0.01 tolerance covers the prose's "about 0.94".
+    # Ships at 200 runs (the previous 20-run default read ~0.90).
+    ("Water1.rbds", "Reliability", 0.94, 0.01, None, "ch11/README: reliability @8760h (ships at 200 runs)"),
+    ("Water1.rbds", "Availability", 0.9999, 0.0005, None, "ch11/README: availability @8760h (ships at 200 runs)"),
+    ("Water1.rbds", "Units_Produced", 1_514_000, 2_000, None, "ch11/README: units produced @8760h (ships at 200 runs)"),
+    ("Water2.rbds", "Grand_Total", 2_900_000, 100_000, None, "README: grand total cost @8760h (ships at 200 runs)"),
     ("DC1.rbds", "Availability", 0.99948, 0.002, 10, "README: 99.948% down/yr (200 runs)"),
     ("DC2.rbds", "Availability", 0.99984, 0.002, 10, "README: 99.984% down/yr (200 runs)"),
     ("ProdLine0.rbds", "Availability", 0.935, 0.02, 10, "README: ~93.5% (ships at 200 runs)"),
@@ -91,7 +100,8 @@ REGISTRY = [
 def run_summary(path, runs_override=None):
     """Load and run a model (native .rbds or legacy .rbd), return
     {metric_name: mean_float} parsed from the Final_Results_Report's
-    ***SUMMARY*** table. A censored mean (">1.23") has its ">" stripped
+    ***SUMMARY*** table plus the report's scalar rows (`Grand_Total`,
+    `UnitsProduced`, ...). A censored mean (">1.23") has its ">" stripped
     -- comparisons against a censored value are a lower bound, not an
     exact figure, but still catch a value that has moved far away."""
     from raptor.core.engine.runner import run_simulation_with_reports
@@ -133,6 +143,17 @@ def run_summary(path, runs_override=None):
             summary[name] = float(parts[mean_col].lstrip(">"))
         except (IndexError, ValueError):
             continue
+    # Scalar report rows: "Grand_Total  2861934.21" and friends sit after
+    # the tables, not in ***SUMMARY***. Two-token rows only, so table
+    # headers and section titles are ignored.
+    for ln in final:
+        parts = ln.split()
+        if len(parts) != 2:
+            continue
+        try:
+            summary.setdefault(parts[0], float(parts[1].lstrip(">")))
+        except ValueError:
+            continue
     return summary
 
 
@@ -149,7 +170,7 @@ def check_one(entry):
     summary = run_summary(path, runs_override)
     actual = summary.get(metric)
     if actual is None:
-        return f"{fname}: no {metric} row in its SUMMARY table"
+        return f"{fname}: no {metric} row in its report"
     if abs(actual - expected) > tol:
         return (f"{fname}: {metric} = {actual:.4f}, expected {expected:.4f} "
                 f"+/- {tol} ({note}) -- drifted by {abs(actual - expected):.4f}")

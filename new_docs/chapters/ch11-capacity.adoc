@@ -75,7 +75,8 @@ Analysis and look at the two settings that make it work:
 
 === Run it
 
-Run **200 trials** of the 8760-hour mission (one year). The summary
+The shipped model runs **200 trials** of the 8760-hour mission (one
+year); the **Trials** box in the Run panel shows that count. The summary
 still opens with the old friends:
 
 [cols="4,2",options="header"]
@@ -86,6 +87,15 @@ still opens with the old friends:
 |Units produced |about 1 514 000
 |Mean flow |about 173 of 180
 |===
+
+[NOTE]
+====
+Reliability is a per-run yes/no, so its mean moves in steps of 1/N. A
+quick 20-trial test can therefore only read 0.85, 0.90, 0.95 and so on;
+the shipped 200-trial model is what the 0.94 above refers to.
+Availability and the capacity totals average continuous quantities and
+settle much faster.
+====
 
 Availability looks *perfect* — and that is exactly the trap. The
 system is "up" whenever any path from start to end exists; with three

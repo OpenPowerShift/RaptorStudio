@@ -7,7 +7,10 @@
  "system": {
   "red_cost": 0.0,
   "lost_cost": 0.0,
-  "flow_generated": 1
+  "flow_generated": 1,
+  "legacy": {
+   "zoomVal": "16.000000"
+  }
  },
  "experiment": {
   "trials": 20,
@@ -117,8 +120,8 @@
     "id": 1,
     "name": "Main_Oven",
     "parent": 0,
-    "x": 3.75,
-    "y": 93.75,
+    "x": 5.0,
+    "y": 91.25,
     "fail_params": [
      300.0,
      0.0,
@@ -135,8 +138,8 @@
     "id": 2,
     "name": "Standby_Oven",
     "parent": 0,
-    "x": 3.75,
-    "y": 91.25,
+    "x": 5.0,
+    "y": 93.75,
     "fail_params": [
      300.0,
      0.0,
@@ -153,7 +156,7 @@
     "id": 3,
     "name": "Power",
     "parent": 0,
-    "x": 8.75,
+    "x": 10.0,
     "y": 92.5,
     "fail_dist": 15,
     "fail_params": [
@@ -184,7 +187,7 @@
     "name": "Ovens_cold_swap",
     "type": 2,
     "parent": 0,
-    "x": 6.25,
+    "x": 7.5,
     "y": 92.5,
     "k": 1,
     "cold_standby": true,
@@ -196,7 +199,7 @@
     "name": "end",
     "type": 3,
     "parent": 0,
-    "x": 11.25,
+    "x": 12.5,
     "y": 92.5
    },
    {

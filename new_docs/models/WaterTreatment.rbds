@@ -9,7 +9,7 @@
   "lost_cost": 0.0,
   "flow_generated": 1,
   "legacy": {
-   "zoomVal": "15.000000"
+   "zoomVal": "19.000000"
   }
  },
  "experiment": {
@@ -586,7 +586,7 @@
     "id": 5,
     "name": "Filter_1",
     "parent": 200,
-    "x": 5.0,
+    "x": 6.25,
     "y": 88.75,
     "fail_dist": 15,
     "fail_params": [
@@ -605,7 +605,7 @@
     "id": 6,
     "name": "Filter_2",
     "parent": 200,
-    "x": 5.0,
+    "x": 6.25,
     "y": 91.25,
     "fail_dist": 15,
     "fail_params": [
@@ -624,7 +624,7 @@
     "id": 7,
     "name": "Filter_3",
     "parent": 200,
-    "x": 5.0,
+    "x": 6.25,
     "y": 93.75,
     "fail_dist": 15,
     "fail_params": [
@@ -643,7 +643,7 @@
     "id": 8,
     "name": "Filter_4",
     "parent": 200,
-    "x": 5.0,
+    "x": 6.25,
     "y": 96.25,
     "fail_dist": 15,
     "fail_params": [
@@ -662,7 +662,7 @@
     "id": 9,
     "name": "UV_Reactor_A",
     "parent": 300,
-    "x": 5.0,
+    "x": 6.25,
     "y": 91.25,
     "fail_params": [
      17520.0,
@@ -679,7 +679,7 @@
     "id": 10,
     "name": "UV_Reactor_B",
     "parent": 300,
-    "x": 5.0,
+    "x": 6.25,
     "y": 93.75,
     "fail_params": [
      17520.0,
@@ -696,7 +696,7 @@
     "id": 11,
     "name": "Chlorine_Dosing",
     "parent": 300,
-    "x": 10.0,
+    "x": 11.25,
     "y": 92.5,
     "fail_params": [
      5840.0,
@@ -713,7 +713,7 @@
     "id": 12,
     "name": "High_Lift_Pump_1",
     "parent": 400,
-    "x": 5.0,
+    "x": 6.25,
     "y": 90.0,
     "fail_dist": 15,
     "fail_params": [
@@ -743,7 +743,7 @@
     "id": 13,
     "name": "High_Lift_Pump_2",
     "parent": 400,
-    "x": 5.0,
+    "x": 6.25,
     "y": 92.5,
     "fail_dist": 15,
     "fail_params": [
@@ -773,7 +773,7 @@
     "id": 14,
     "name": "High_Lift_Pump_3",
     "parent": 400,
-    "x": 5.0,
+    "x": 6.25,
     "y": 95.0,
     "fail_dist": 15,
     "fail_params": [
@@ -803,7 +803,7 @@
     "id": 15,
     "name": "Surge_Vessel",
     "parent": 400,
-    "x": 10.0,
+    "x": 11.25,
     "y": 92.5,
     "fail_params": [
      262800.0,
@@ -831,7 +831,7 @@
     "name": "End",
     "type": 3,
     "parent": 0,
-    "x": 20.0,
+    "x": 17.5,
     "y": 92.5
    },
    {
@@ -856,7 +856,7 @@
     "name": "Filter_Split",
     "type": 2,
     "parent": 200,
-    "x": 2.5,
+    "x": 3.75,
     "y": 92.5
    },
    {
@@ -864,7 +864,7 @@
     "name": "Filters_3_of_4",
     "type": 2,
     "parent": 200,
-    "x": 7.5,
+    "x": 8.75,
     "y": 92.5,
     "k": 3
    },
@@ -873,7 +873,7 @@
     "name": "UV_Split",
     "type": 2,
     "parent": 300,
-    "x": 2.5,
+    "x": 3.75,
     "y": 92.5
    },
    {
@@ -881,7 +881,7 @@
     "name": "Either_UV",
     "type": 2,
     "parent": 300,
-    "x": 7.5,
+    "x": 8.75,
     "y": 92.5,
     "k": 1
    },
@@ -890,7 +890,7 @@
     "name": "Lift_Split",
     "type": 2,
     "parent": 400,
-    "x": 2.5,
+    "x": 3.75,
     "y": 92.5
    },
    {
@@ -898,7 +898,7 @@
     "name": "Lift_2_of_3",
     "type": 2,
     "parent": 400,
-    "x": 7.5,
+    "x": 8.75,
     "y": 92.5,
     "k": 2
    },
@@ -915,7 +915,7 @@
     "name": "Intake_Out",
     "type": 5,
     "parent": 100,
-    "x": 12.5,
+    "x": 13.75,
     "y": 92.5
    },
    {
@@ -931,7 +931,7 @@
     "name": "Filtration_Out",
     "type": 5,
     "parent": 200,
-    "x": 8.75,
+    "x": 11.25,
     "y": 92.5
    },
    {
@@ -947,7 +947,7 @@
     "name": "Disinfection_Out",
     "type": 5,
     "parent": 300,
-    "x": 12.5,
+    "x": 15.0,
     "y": 92.5
    },
    {
@@ -963,7 +963,7 @@
     "name": "High_Lift_Out",
     "type": 5,
     "parent": 400,
-    "x": 12.5,
+    "x": 13.75,
     "y": 92.5
    }
   ],
@@ -975,10 +975,10 @@
     "parent": 0,
     "in_id": 10,
     "out_id": 11,
-    "x": 5.0,
+    "x": 3.75,
     "y": 92.5,
     "legacy": {
-     "zoom": "14.000000",
+     "zoom": "17.000000",
      "extraInt1": "100",
      "extraInt2": "100"
     }
@@ -989,10 +989,10 @@
     "parent": 0,
     "in_id": 20,
     "out_id": 21,
-    "x": 8.75,
+    "x": 7.5,
     "y": 92.5,
     "legacy": {
-     "zoom": "11.000000",
+     "zoom": "19.000000",
      "extraInt1": "200",
      "extraInt2": "200"
     }
@@ -1003,10 +1003,10 @@
     "parent": 0,
     "in_id": 30,
     "out_id": 31,
-    "x": 12.5,
+    "x": 11.25,
     "y": 92.5,
     "legacy": {
-     "zoom": "14.000000",
+     "zoom": "17.000000",
      "extraInt1": "300",
      "extraInt2": "300"
     }
@@ -1017,10 +1017,10 @@
     "parent": 0,
     "in_id": 40,
     "out_id": 41,
-    "x": 16.25,
+    "x": 15.0,
     "y": 92.5,
     "legacy": {
-     "zoom": "14.000000",
+     "zoom": "17.000000",
      "extraInt1": "400",
      "extraInt2": "400"
     }

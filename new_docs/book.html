@@ -6427,7 +6427,8 @@ not just up/down.</p>
 <div class="sect2">
 <h3 id="_run_it_6">15.6. Run it</h3>
 <div class="paragraph">
-<p>Run <strong>200 trials</strong> of the 8760-hour mission (one year). The summary
+<p>The shipped model runs <strong>200 trials</strong> of the 8760-hour mission (one
+year); the <strong>Trials</strong> box in the Run panel shows that count. The summary
 still opens with the old friends:</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
@@ -6460,6 +6461,24 @@ still opens with the old friends:</p>
 </tr>
 </tbody>
 </table>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Reliability is a per-run yes/no, so its mean moves in steps of 1/N. A
+quick 20-trial test can therefore only read 0.85, 0.90, 0.95 and so on;
+the shipped 200-trial model is what the 0.94 above refers to.
+Availability and the capacity totals average continuous quantities and
+settle much faster.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
 <div class="paragraph">
 <p>Availability looks <strong>perfect</strong> — and that is exactly the trap. The
 system is "up" whenever any path from start to end exists; with three

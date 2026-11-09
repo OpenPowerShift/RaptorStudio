@@ -9,7 +9,7 @@
   "lost_cost": 0.0,
   "flow_generated": 1,
   "legacy": {
-   "zoomVal": "26.000000"
+   "zoomVal": "31.000000"
   }
  },
  "experiment": {
@@ -534,7 +534,7 @@
     "id": 1,
     "name": "Utility_Grid",
     "parent": 0,
-    "x": 5.0,
+    "x": 6.25,
     "y": 91.25,
     "fail_params": [
      2920.0,
@@ -658,7 +658,7 @@
     "id": 6,
     "name": "ATS_A",
     "parent": 0,
-    "x": 11.25,
+    "x": 13.75,
     "y": 91.25,
     "fail_params": [
      100000.0,
@@ -675,7 +675,7 @@
     "id": 7,
     "name": "ATS_B",
     "parent": 0,
-    "x": 11.25,
+    "x": 13.75,
     "y": 93.75,
     "fail_params": [
      100000.0,
@@ -692,7 +692,7 @@
     "id": 8,
     "name": "UPS_Module_1",
     "parent": 200,
-    "x": 5.0,
+    "x": 6.25,
     "y": 87.5,
     "fail_params": [
      52560.0,
@@ -710,7 +710,7 @@
     "id": 9,
     "name": "UPS_Module_2",
     "parent": 200,
-    "x": 5.0,
+    "x": 6.25,
     "y": 90.0,
     "fail_params": [
      52560.0,
@@ -728,7 +728,7 @@
     "id": 10,
     "name": "UPS_Module_3",
     "parent": 200,
-    "x": 5.0,
+    "x": 6.25,
     "y": 92.5,
     "fail_params": [
      52560.0,
@@ -746,7 +746,7 @@
     "id": 11,
     "name": "Battery_String_A",
     "parent": 200,
-    "x": 5.0,
+    "x": 6.25,
     "y": 95.0,
     "fail_dist": 15,
     "fail_params": [
@@ -765,7 +765,7 @@
     "id": 12,
     "name": "Battery_String_B",
     "parent": 200,
-    "x": 5.0,
+    "x": 6.25,
     "y": 97.5,
     "fail_dist": 15,
     "fail_params": [
@@ -784,7 +784,7 @@
     "id": 13,
     "name": "Main_Switchboard",
     "parent": 0,
-    "x": 18.75,
+    "x": 22.5,
     "y": 92.5,
     "fail_params": [
      328500.0,
@@ -802,7 +802,7 @@
     "id": 14,
     "name": "Critical_Panel_1",
     "parent": 0,
-    "x": 23.75,
+    "x": 27.5,
     "y": 88.75,
     "fail_params": [
      219000.0,
@@ -819,7 +819,7 @@
     "id": 15,
     "name": "Critical_Panel_2",
     "parent": 0,
-    "x": 23.75,
+    "x": 27.5,
     "y": 91.25,
     "fail_params": [
      219000.0,
@@ -836,7 +836,7 @@
     "id": 16,
     "name": "Critical_Panel_3",
     "parent": 0,
-    "x": 23.75,
+    "x": 27.5,
     "y": 93.75,
     "fail_params": [
      219000.0,
@@ -853,7 +853,7 @@
     "id": 17,
     "name": "Critical_Panel_4",
     "parent": 0,
-    "x": 23.75,
+    "x": 27.5,
     "y": 96.25,
     "fail_params": [
      219000.0,
@@ -881,7 +881,7 @@
     "name": "Supply_Split",
     "type": 2,
     "parent": 0,
-    "x": 2.5,
+    "x": 3.75,
     "y": 92.5
    },
    {
@@ -889,7 +889,7 @@
     "name": "Either_Source",
     "type": 2,
     "parent": 0,
-    "x": 7.5,
+    "x": 8.75,
     "y": 92.5,
     "k": 1
    },
@@ -898,7 +898,7 @@
     "name": "Switch_Split",
     "type": 2,
     "parent": 0,
-    "x": 8.75,
+    "x": 11.25,
     "y": 92.5
    },
    {
@@ -906,7 +906,7 @@
     "name": "Either_ATS",
     "type": 2,
     "parent": 0,
-    "x": 13.75,
+    "x": 16.25,
     "y": 92.5,
     "k": 1
    },
@@ -915,7 +915,7 @@
     "name": "Panel_Split",
     "type": 2,
     "parent": 0,
-    "x": 21.25,
+    "x": 25.0,
     "y": 92.5
    },
    {
@@ -923,7 +923,7 @@
     "name": "Panels_3_of_4",
     "type": 2,
     "parent": 0,
-    "x": 26.25,
+    "x": 30.0,
     "y": 92.5,
     "k": 3
    },
@@ -932,7 +932,7 @@
     "name": "End",
     "type": 3,
     "parent": 0,
-    "x": 27.5,
+    "x": 32.5,
     "y": 92.5
    },
    {
@@ -965,7 +965,7 @@
     "name": "Gen_Out",
     "type": 5,
     "parent": 100,
-    "x": 12.5,
+    "x": 13.75,
     "y": 92.5
    },
    {
@@ -981,7 +981,7 @@
     "name": "UPS_Split",
     "type": 2,
     "parent": 200,
-    "x": 2.5,
+    "x": 3.75,
     "y": 92.5
    },
    {
@@ -989,7 +989,7 @@
     "name": "Modules_2_of_3",
     "type": 2,
     "parent": 200,
-    "x": 7.5,
+    "x": 8.75,
     "y": 91.25,
     "k": 2
    },
@@ -998,7 +998,7 @@
     "name": "Either_Battery",
     "type": 2,
     "parent": 200,
-    "x": 7.5,
+    "x": 8.75,
     "y": 93.75,
     "k": 1
    },
@@ -1007,7 +1007,7 @@
     "name": "UPS_Ready",
     "type": 2,
     "parent": 200,
-    "x": 8.75,
+    "x": 11.25,
     "y": 92.5,
     "k": 2
    },
@@ -1016,7 +1016,7 @@
     "name": "UPS_Out",
     "type": 5,
     "parent": 200,
-    "x": 10.0,
+    "x": 13.75,
     "y": 92.5
    }
   ],
@@ -1028,10 +1028,10 @@
     "parent": 0,
     "in_id": 11,
     "out_id": 12,
-    "x": 5.0,
+    "x": 6.25,
     "y": 93.75,
     "legacy": {
-     "zoom": "14.000000",
+     "zoom": "17.000000",
      "extraInt1": "100",
      "extraInt2": "100"
     }
@@ -1042,10 +1042,10 @@
     "parent": 0,
     "in_id": 21,
     "out_id": 22,
-    "x": 16.25,
+    "x": 18.75,
     "y": 92.5,
     "legacy": {
-     "zoom": "13.000000",
+     "zoom": "21.000000",
      "extraInt1": "200",
      "extraInt2": "200"
     }

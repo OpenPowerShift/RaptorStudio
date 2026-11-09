@@ -5,6 +5,11 @@ with:
 
     ../../.venv/bin/python gen_models.py     # from new_docs/tools
 
+Every level is then placed by the shared size-aware auto-layout (see
+`raptor.core.fileio.legacy_layout`), the same engine as the GUI's Auto
+Layout button. `tools/relayout_examples.py` applies that engine to the
+committed files without rebuilding the models.
+
 All files land in new_docs/models/ as .rbds (RAPTOR Studio JSON), so they
 open both in RAPTOR Studio (this port's GUI) and the real Raptor 7 under
 Wine.
@@ -92,7 +97,7 @@ def split_marker_fanout(blocks, nodes, events, hiers, links):
 
 def write(fname, term, runs, units, blocks, nodes, links, analtype="Availability",
           hiers=None, events=None, phases=None, pools=None, term_type="TimeSim",
-          layout=False, **sys_kw):
+          layout=True, **sys_kw):
     # The old writer defaults ESO=1, but that trips RAPTOR Studio's
     # preflight "emergency spare ordering" gate for blocks that never
     # use a spare pool; write 0 so tutorial models run out of the box.
@@ -123,9 +128,10 @@ def write(fname, term, runs, units, blocks, nodes, links, analtype="Availability
     from raptor.core.fileio.legacy_layout import normalize_node_kofn
     normalize_node_kofn(rbd)
     if layout:
-        # Place every level on Auto Layout's grid rather than the hand
-        # coordinates above (the data centre's levels were packed so
-        # tightly that its home level drew as a hairline).
+        # Every shipped example is laid out by the same size-aware engine
+        # as the GUI's Auto Layout button. The hand coordinates above are
+        # only a starting sketch: names (and hierarchy ovals) differ in
+        # width, and the old 1.5-unit pitches sat off the 1.25 grid.
         from raptor.core.fileio.legacy_layout import normalize_legacy_layout
         normalize_legacy_layout(rbd, force=True)
     with open(path, "w", encoding="utf-8") as f:
@@ -506,7 +512,9 @@ def water():
 
 
 blks, nodes, links = water()
-write("Water1.rbds", 8760, 20, "hours", blks, nodes, links,
+# 200 trials: reliability is per-run 0/1, so a 20-trial sample moves in
+# 0.05 steps and the capacity chapter quotes the 200-trial mean.
+write("Water1.rbds", 8760, 200, "hours", blks, nodes, links,
       flow=180, cap=1, lostcost=0.0)
 
 # ------------------------------------------------------------------ Water2
@@ -546,7 +554,9 @@ def water2():
 
 
 blks, nodes, links = water2()
-write("Water2.rbds", 8760, 20, "hours", blks, nodes, links,
+# Water2 shares Water1's 200-trial setting so the cost chapter and the
+# README quote the same shipped experiment.
+write("Water2.rbds", 8760, 200, "hours", blks, nodes, links,
       flow=180, cap=1, cost=1, redcost=5000.0, lostcost=40.0)
 
 # ------------------------------------------------------------------ DC1/DC2

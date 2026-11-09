@@ -7,7 +7,10 @@
  "system": {
   "red_cost": 0.0,
   "lost_cost": 0.0,
-  "flow_generated": 1
+  "flow_generated": 1,
+  "legacy": {
+   "zoomVal": "16.000000"
+  }
  },
  "experiment": {
   "trials": 10,
@@ -110,8 +113,8 @@
     "id": 1,
     "name": "Pump_A",
     "parent": 0,
-    "x": 6.25,
-    "y": 92.5,
+    "x": 5.0,
+    "y": 91.25,
     "fail_params": [
      400.0,
      0.0,
@@ -129,8 +132,8 @@
     "id": 2,
     "name": "Pump_B",
     "parent": 0,
-    "x": 6.25,
-    "y": 90.0,
+    "x": 5.0,
+    "y": 93.75,
     "fail_params": [
      400.0,
      0.0,
@@ -148,8 +151,8 @@
     "id": 3,
     "name": "Boiler",
     "parent": 0,
-    "x": 11.25,
-    "y": 91.25,
+    "x": 10.0,
+    "y": 92.5,
     "fail_dist": 15,
     "fail_params": [
      2.0,
@@ -172,23 +175,23 @@
     "type": 1,
     "parent": 0,
     "x": 1.25,
-    "y": 91.25
+    "y": 92.5
    },
    {
     "id": 16,
     "name": "split",
     "type": 2,
     "parent": 0,
-    "x": 3.75,
-    "y": 91.25
+    "x": 2.5,
+    "y": 92.5
    },
    {
     "id": 17,
     "name": "Either_pump",
     "type": 2,
     "parent": 0,
-    "x": 8.75,
-    "y": 91.25,
+    "x": 7.5,
+    "y": 92.5,
     "k": 1
    },
    {
@@ -196,8 +199,8 @@
     "name": "end",
     "type": 3,
     "parent": 0,
-    "x": 13.75,
-    "y": 91.25
+    "x": 12.5,
+    "y": 92.5
    }
   ],
   "events": [],
