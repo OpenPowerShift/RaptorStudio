@@ -181,6 +181,12 @@ def water_treatment() -> dict:
     reactors and a chlorine dosing skid) and high-lift pumping to the town
     (2 of 3). All pumps share one pool of spare motors. The pump figures are
     derived from one rate, so a better pump is one edit.
+
+    The home level is a straight left-to-right row of the four stage ovals.
+    That is deliberate: auto-layout gives each oval its own column at a
+    3.75-unit pitch, wider than the drawn oval, and the row is the process
+    flow. It is not the old hand-compressed row -- every element sits on the
+    1.25 grid and no two ovals touch.
     """
     pump = {"fail_dist": WEIB, "fail_params": [1.4, "@PumpMTBF", 0],
             **_rep(18, 12), "sp_type": "Pooled", "spare_pool": "SpareMotors",

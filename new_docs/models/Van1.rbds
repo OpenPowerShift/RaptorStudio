@@ -2,8 +2,7 @@
  "format": "raptor-studio",
  "version": 4,
  "meta": {
-  "generator": "RAPTOR Studio 0.9.0",
-  "file_name": "Van1.rbds"
+  "generator": "RAPTOR Studio 0.9.0"
  },
  "system": {
   "red_cost": 0.0,
@@ -422,9 +421,9 @@
     "x": 3.75,
     "y": 92.5,
     "legacy": {
-     "zoom": "14.000000",
      "extraInt1": "10",
-     "extraInt2": "10"
+     "extraInt2": "10",
+     "zoom": "14.000000"
     }
    },
    {
@@ -436,9 +435,9 @@
     "x": 8.75,
     "y": 92.5,
     "legacy": {
-     "zoom": "19.000000",
      "extraInt1": "20",
-     "extraInt2": "20"
+     "extraInt2": "20",
+     "zoom": "19.000000"
     }
    }
   ]

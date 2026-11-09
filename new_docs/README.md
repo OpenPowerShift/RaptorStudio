@@ -84,6 +84,20 @@ From `new_docs/tools`:
     ../../.venv/bin/python capture_screens.py  # rewrites images/*.png
     ../../.venv/bin/python gen_diagrams.py     # rewrites curve SVGs
     ../../.venv/bin/python ../../tools/make_example_thumbnails.py  # start-page thumbnails
+    ../../.venv/bin/python ../../tools/make_readme_gifs.py  # README GIFs
+
+Layout-only edits should use `tools/relayout_examples.py`: it patches
+coordinates and stored view zooms in place. A full generator run also
+re-emits the current writer's metadata and default rows, which is correct
+for those scripts but is more churn than a layout refresh needs.
+
+Freshness gates (all read-only; the latter two drive the full GUI and are
+long/manual):
+
+    ../../.venv/bin/python ../../tools/relayout_examples.py --check
+    ../../.venv/bin/python ../../tools/make_example_thumbnails.py --check
+    ../../.venv/bin/python capture_screens.py --check
+    ../../.venv/bin/python ../../tools/make_readme_gifs.py --check
 
 ## Model provenance and verified numbers
 

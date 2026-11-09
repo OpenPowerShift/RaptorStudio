@@ -2,8 +2,7 @@
  "format": "raptor-studio",
  "version": 4,
  "meta": {
-  "generator": "RAPTOR Studio 0.9.0",
-  "file_name": "AirlinerMission.rbds"
+  "generator": "RAPTOR Studio 0.9.0"
  },
  "system": {
   "node_anal_type": "Dependability",
@@ -691,10 +690,6 @@
    "parent": 0,
    "x": 0.0,
    "y": 0.0,
-   "duty_cycle": 1.0,
-   "start_age": 0.0,
-   "restoration_factor": 0.0,
-   "restoration_type": 0,
    "growth_decay_limit": 1.0,
    "rso": 1,
    "eso": 1,
@@ -716,10 +711,7 @@
     0.25,
     0.0,
     0.0
-   ],
-   "legacy": {
-    "Mission": "True"
-   }
+   ]
   },
   {
    "name": "Takeoff_Climb",
@@ -729,10 +721,7 @@
     0.4,
     0.0,
     0.0
-   ],
-   "legacy": {
-    "Mission": "True"
-   }
+   ]
   },
   {
    "name": "Cruise",
@@ -742,10 +731,7 @@
     3.7,
     0.0,
     0.0
-   ],
-   "legacy": {
-    "Mission": "True"
-   }
+   ]
   },
   {
    "name": "Descent_Landing",
@@ -755,10 +741,7 @@
     0.5,
     0.0,
     0.0
-   ],
-   "legacy": {
-    "Mission": "True"
-   }
+   ]
   },
   {
    "name": "Taxi_In",
@@ -768,10 +751,7 @@
     0.15,
     0.0,
     0.0
-   ],
-   "legacy": {
-    "Mission": "True"
-   }
+   ]
   }
  ],
  "rates": [

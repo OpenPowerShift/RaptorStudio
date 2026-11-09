@@ -77,6 +77,19 @@ def test_check_links():
     assert check_links.main() == 0
 
 
+@pytest.mark.parametrize("name", ["Water1.rbds", "Water2.rbds"])
+def test_water_examples_ship_at_200_trials(name):
+    """The capacity/cost chapters and README quote 200-run figures, so the
+    shipped files must actually run 200 trials. Keep this next to the
+    number gate: lowering either count silently returns the 20-run
+    reliability step the Water1 bug was about."""
+    from raptor.core.fileio.rbds import load_rbds
+
+    rbd = load_rbds(os.path.join(check_numbers.MODELS, name))
+    assert rbd.experiment["trials"] == 200
+    assert int(float(rbd.sections["SYSTEM_DATA"].rows[0]["NumRuns"])) == 200
+
+
 def test_check_tools():
     """Every tool the MCP server registers is documented in ch16, and the
     tool counts the chapter quotes match the live tool set.

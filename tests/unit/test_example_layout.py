@@ -2,10 +2,11 @@
 
 The start-page examples are the first diagrams a user sees, so they must
 open on the same size-aware auto-layout the GUI's Auto Layout button uses:
-every coordinate on Raptor 7's 1.25 grid, no block or hierarchy oval
-overlapping another element on its own level, and both thumbnail themes
-present. `tools/relayout_examples.py` repairs a model that fails the first
-two; `tools/make_example_thumbnails.py` rebuilds the last.
+every coordinate on Raptor 7's 1.25 grid, no two same-level elements'
+drawn boxes overlapping (blocks, hierarchy ovals, nodes and events), and
+both thumbnail themes present. `tools/relayout_examples.py` repairs a
+model that fails the first two; `tools/make_example_thumbnails.py` rebuilds
+the last.
 
 Coordinates and view zooms only -- this test never runs the engine, so it
 stays independent of the quoted-number gates.
@@ -30,7 +31,6 @@ _POSITIONED = (
     ("EVENT_DATA", "event"),
     ("HIERARCHY_DATA", "hier"),
 )
-_SOLID = {"block", "hier"}
 
 
 def _positioned(rbd):
@@ -73,12 +73,11 @@ def test_example_coordinates_sit_on_the_legacy_grid(ex):
 
 
 @pytest.mark.parametrize("ex", (*EXAMPLES, *TUTORIALS), ids=lambda e: e.file)
-def test_example_has_no_same_level_block_or_oval_overlap(ex):
+def test_example_has_no_same_level_overlap(ex):
     rbd = load_rbds(str(MODELS / ex.file))
     levels: dict[int, list] = {}
     for item in _positioned(rbd):
-        if item[1] in _SOLID:
-            levels.setdefault(item[3], []).append(item)
+        levels.setdefault(item[3], []).append(item)
 
     clashes = []
     for parent, items in levels.items():
