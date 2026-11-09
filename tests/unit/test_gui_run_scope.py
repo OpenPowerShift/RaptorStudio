@@ -86,6 +86,25 @@ def test_switching_scope_clears_results_from_the_other_scope(win):
     assert not win._results.has_results()
 
 
+def test_isolation_error_cancels_the_run_with_a_message(win, monkeypatch):
+    from raptor.api import isolate
+    from raptor.gui.ui import msgbox
+    hid = _hierarchy(win)
+    win._run_panel._scope.setCurrentIndex(
+        win._run_panel._scope.findData(hid))
+
+    def _bad(*args, **kwargs):
+        raise isolate.IsolationError("missing In/Out door")
+
+    monkeypatch.setattr(isolate, "extract", _bad)
+    told = []
+    monkeypatch.setattr(msgbox, "warning",
+                        lambda *args, **kwargs: told.append(args))
+    model, record = win._prepare_run_model()
+    assert model is None and record is None
+    assert told
+
+
 def test_refuse_treatment_cancels_the_run_with_a_message(win, monkeypatch):
     from raptor.gui.ui import msgbox
     hid = _hierarchy(win)
