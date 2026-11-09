@@ -198,11 +198,16 @@ class HelpService:
                     delete()
         except RuntimeError:                 # C++ side already gone at shutdown
             pass
-        self._drain_deferred_deletes()
+        self._drain_deferred_deletes(viewer)
 
     @staticmethod
-    def _drain_deferred_deletes() -> None:
-        """Run queued `deleteLater()`s now, while the app object exists."""
+    def _drain_deferred_deletes(receiver: Any) -> None:
+        """Run the viewer's queued `deleteLater()` now, while the app exists.
+
+        Deliberately scoped to this receiver: `close()` can run from a
+        normal last-window `closeEvent`, and draining every DeferredDelete
+        process-wide there would delete unrelated widgets early.
+        """
         try:
             from PySide6.QtCore import QCoreApplication, QEvent
         except ImportError:                  # pragma: no cover - non-GUI tests
@@ -211,8 +216,8 @@ class HelpService:
             return
         try:
             QCoreApplication.sendPostedEvents(
-                None, QEvent.Type.DeferredDelete)
-        except RuntimeError:                 # pragma: no cover - shutting down
+                receiver, QEvent.Type.DeferredDelete)
+        except (RuntimeError, TypeError):    # fake viewer / shutting down
             pass
 
     # ------------------------------------------------------------ callbacks

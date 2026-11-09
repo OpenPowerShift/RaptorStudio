@@ -36,8 +36,8 @@ try:                                    # heavy optional dependency
     # Availability check only -- the names are re-imported locally at
     # their use sites (F401 is intentional here).
     from PySide6.QtWebEngineCore import (  # noqa: F401
-        QWebEnginePage, QWebEngineProfile, QWebEngineScript,
-        QWebEngineSettings, QWebEngineUrlScheme,
+        QWebEngineLoadingInfo, QWebEnginePage, QWebEngineProfile,
+        QWebEngineScript, QWebEngineSettings, QWebEngineUrlScheme,
         QWebEngineUrlSchemeHandler)
     from PySide6.QtWebEngineWidgets import QWebEngineView
     WEBENGINE_OK = True
@@ -143,8 +143,13 @@ class _HelpDocumentNavigation:
 
     #: Filled in by HelpViewer; the fake in tests provides the same API.
     _view: Any
-    #: Anchor requested while the page was still loading; flushed on load.
+    #: Anchor requested while the page was still loading; flushed after the
+    #: matching document load succeeds. The document identity is the
+    #: version: an event for another document cannot consume this anchor.
     _pending_anchor: str | None = None
+    _pending_document: QUrl | None = None
+    _pending_generation: int = 0
+    _navigation_generation: int = 0
 
     def show_doc(self, name: str, anchor: str | None = None) -> None:
         """Load one of our bundled docs (book.html / manual.html),
@@ -161,34 +166,74 @@ class _HelpDocumentNavigation:
         url = QUrl.fromLocalFile(str(path))
         if anchor:
             url.setFragment(anchor)
+        self._navigation_generation += 1
+        generation = self._navigation_generation
         current = self._view.url()
         if _same_document(current, url):
             if anchor:
-                if self._view_is_loading():
+                if self._document_loading():
                     # A second Help action while the first load is still
                     # running: the DOM is not ready, so scroll on load.
-                    self._pending_anchor = anchor
+                    self._queue_anchor(anchor, url, generation)
                 else:
+                    self._clear_pending_anchor()
                     self._scroll_to_anchor(anchor)
+            else:
+                # Re-opening the same document at no particular section
+                # keeps the reading position, and cancels an older queued
+                # anchor so it cannot fire later.
+                self._clear_pending_anchor()
         else:
-            self._pending_anchor = anchor
+            self._clear_pending_anchor()
+            if anchor:
+                self._queue_anchor(anchor, url, generation)
             self._view.load(url)
         self._present()
 
-    def _view_is_loading(self) -> bool:
-        check = getattr(self._view, "isLoading", None)
-        if check is None:
-            return False
+    def _queue_anchor(self, anchor: str, url: QUrl,
+                      generation: int) -> None:
+        self._pending_anchor = anchor
+        self._pending_document = QUrl(url)
+        self._pending_generation = generation
+
+    def _clear_pending_anchor(self) -> None:
+        self._pending_anchor = None
+        self._pending_document = None
+        self._pending_generation = 0
+
+    def _document_loading(self) -> bool:
         try:
-            return bool(check())
+            page = self._view.page()
+            check = getattr(page, "isLoading", None)
+            return bool(check()) if callable(check) else False
         except RuntimeError:                 # page already gone
             return False
 
+    def _document_loaded(self, ok: bool, url: QUrl | None = None) -> None:
+        """A page load reported its result; apply a queued anchor only if
+        the result belongs to the document that queued it.
+
+        `url` is the loading event's own URL (QWebEngineLoadingInfo), not
+        the view's current one: a stopped/failed older load must not eat a
+        newer document's pending anchor."""
+        anchor = self._pending_anchor
+        if anchor is None:
+            return
+        if url is not None and self._pending_document is not None \
+                and not _same_document(url, self._pending_document):
+            return
+        if self._pending_generation != self._navigation_generation:
+            # A newer Help request superseded this queued anchor.
+            return
+        if not ok:
+            self._clear_pending_anchor()
+            return
+        self._clear_pending_anchor()
+        self._scroll_to_anchor(anchor)
+
     def _flush_pending_anchor(self, ok: bool = True) -> None:
-        """A page load finished: apply the anchor queued while loading."""
-        anchor, self._pending_anchor = self._pending_anchor, None
-        if ok and anchor:
-            self._scroll_to_anchor(anchor)
+        """Apply the queued anchor using the view's current URL (tests)."""
+        self._document_loaded(ok, self._view.url())
 
     def _scroll_to_anchor(self, anchor: str) -> None:
         """Scroll within the loaded document (no reload, no history entry)."""
@@ -296,6 +341,8 @@ _VIEWER_PAGE_JS = r"""
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         restore();
+        window.__raptorRestoreCount =
+          (window.__raptorRestoreCount || 0) + 1;
         window.__raptorRestoring = false;
       });
     });
@@ -484,7 +531,7 @@ if WEBENGINE_OK:
             self._view = QWebEngineView(self)
             self._view.setPage(self._page)
             self._view.titleChanged.connect(self._on_title)
-            self._view.loadFinished.connect(self._flush_pending_anchor)
+            self._page.loadingChanged.connect(self._on_loading_changed)
             lay.addWidget(self._view, 1)
             self._install_page_scripts()
 
@@ -534,6 +581,16 @@ if WEBENGINE_OK:
             return live[-1] if live else None
 
         # ------------------------------------------------------------ nav
+        def _on_loading_changed(self, info: QWebEngineLoadingInfo) -> None:
+            """Feed per-document load results to the pending-anchor queue."""
+            status = info.status()
+            if status == QWebEngineLoadingInfo.LoadStatus.LoadSucceededStatus:
+                self._document_loaded(True, info.url())
+            elif status in (
+                    QWebEngineLoadingInfo.LoadStatus.LoadFailedStatus,
+                    QWebEngineLoadingInfo.LoadStatus.LoadStoppedStatus):
+                self._document_loaded(False, info.url())
+
         def _on_title(self, title: str) -> None:
             self.setWindowTitle(f"{title} — RAPTOR Studio Help")
 

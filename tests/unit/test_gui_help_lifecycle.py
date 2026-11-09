@@ -260,9 +260,13 @@ def test_route_ops_model_falls_back_to_the_last_live_window(
 class _FakePage:
     def __init__(self):
         self.scripts: list[str] = []
+        self.loading = False
 
     def runJavaScript(self, script):
         self.scripts.append(script)
+
+    def isLoading(self):
+        return self.loading
 
 
 class _FakeView:
@@ -270,18 +274,14 @@ class _FakeView:
         self._url = QUrl(url)
         self.loaded: list[QUrl] = []
         self._page = _FakePage()
-        self.loading = False
 
     def url(self):
         return self._url
 
-    def isLoading(self):
-        return self.loading
-
     def load(self, url):
         self.loaded.append(QUrl(url))
         self._url = QUrl(url)
-        self.loading = True
+        self._page.loading = True
 
     def page(self):
         return self._page
@@ -356,7 +356,7 @@ def test_show_doc_queues_an_anchor_while_the_page_is_loading(
     monkeypatch.setattr(help_viewer, "_resolve_doc", lambda name: book)
 
     nav = _Navigation(QUrl.fromLocalFile(str(book)))
-    nav._view.loading = True
+    nav._view.page().loading = True
     nav.show_doc("book.html", "results")
     nav.show_doc("book.html", "results")     # rapid second Help action
 
@@ -396,3 +396,66 @@ def test_the_two_css_copies_are_identical():
     viewer keys its stable TOC on rules that must ship in both."""
     assert (ROOT / "new_docs" / "ops_asciidoctor.css").read_bytes() == \
         (ROOT / "docs" / "ops_asciidoctor.css").read_bytes()
+
+
+def test_rapid_different_document_navigation_keeps_the_newest_anchor(
+        tmp_path, monkeypatch):
+    book = tmp_path / "book.html"
+    manual = tmp_path / "manual.html"
+    book.write_text("<html><body><h2 id='book'>Book</h2></body></html>",
+                    encoding="utf-8")
+    manual.write_text("<html><body><h2 id='results'>Results</h2></body></html>",
+                      encoding="utf-8")
+    monkeypatch.setattr(
+        help_viewer, "_resolve_doc",
+        lambda name: manual if name == "manual.html" else book)
+
+    nav = _Navigation(QUrl())
+    nav.show_doc("book.html", "book")
+    nav.show_doc("manual.html", "results")   # supersedes the book load
+
+    # The stopped event for the old document must not consume the new
+    # document's pending anchor.
+    nav._document_loaded(False, QUrl.fromLocalFile(str(book)))
+    assert nav._pending_anchor == "results"
+    assert nav._view.page().scripts == []
+
+    nav._document_loaded(True, QUrl.fromLocalFile(str(manual)))
+
+    assert nav._pending_anchor is None
+    assert len(nav._view.page().scripts) == 1
+    assert "results" in nav._view.page().scripts[0]
+    assert "book" not in nav._view.page().scripts[0]
+
+
+def test_same_document_without_an_anchor_cancels_a_queued_one(
+        tmp_path, monkeypatch):
+    book = tmp_path / "book.html"
+    book.write_text("<html><body><h2 id='results'>Results</h2></body></html>",
+                    encoding="utf-8")
+    monkeypatch.setattr(help_viewer, "_resolve_doc", lambda name: book)
+
+    nav = _Navigation(QUrl.fromLocalFile(str(book)))
+    nav._view.page().loading = True
+    nav.show_doc("book.html", "results")
+    nav.show_doc("book.html")                # keep the reading position
+    nav._document_loaded(True, QUrl.fromLocalFile(str(book)))
+
+    assert nav._pending_anchor is None
+    assert nav._view.page().scripts == []
+
+
+def test_a_failed_load_clears_its_pending_anchor(tmp_path, monkeypatch):
+    book = tmp_path / "book.html"
+    book.write_text("<html><body><h2 id='results'>Results</h2></body></html>",
+                    encoding="utf-8")
+    monkeypatch.setattr(help_viewer, "_resolve_doc", lambda name: book)
+
+    nav = _Navigation(QUrl.fromLocalFile(str(book)))
+    nav._view.page().loading = True
+    nav.show_doc("book.html", "results")
+    nav._document_loaded(False, QUrl.fromLocalFile(str(book)))
+
+    assert nav._pending_anchor is None
+    nav._document_loaded(True, QUrl.fromLocalFile(str(book)))
+    assert nav._view.page().scripts == []

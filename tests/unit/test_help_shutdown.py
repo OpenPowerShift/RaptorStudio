@@ -16,6 +16,11 @@ import pytest
 
 pytest.importorskip("PySide6")
 
+from raptor.gui.ui import help_viewer as _help_viewer
+
+if not _help_viewer.WEBENGINE_OK:        # pragma: no cover - env dependent
+    pytest.skip("QtWebEngine is not available", allow_module_level=True)
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -41,6 +46,42 @@ def quit_all():
 QTimer.singleShot(2500, quit_all)
 rc = app.exec()
 print("help-quit-ok", rc)
+'''
+
+
+_ABOUT_TO_QUIT_SCRIPT = r'''
+import weakref
+
+from PySide6.QtCore import QTimer
+
+from raptor.gui.app import RaptorApplication
+from raptor.gui.ui import help_service, settings
+settings.set_value("startup/show_start_page", False)
+
+app = RaptorApplication(["raptor"])
+from raptor.gui.ui.main_window import MainWindow
+win = MainWindow()
+win.show()
+viewer = win._show_help_viewer("book.html")
+viewer_ref = weakref.ref(viewer)
+del viewer
+state = {}
+
+
+def quit_with_help_open():
+    service = help_service._SERVICE
+    state["open_before_quit"] = bool(service and service.viewer)
+    app.quit()
+
+
+QTimer.singleShot(2500, quit_with_help_open)
+rc = app.exec()
+service = help_service._SERVICE
+assert state.get("open_before_quit"), "Help was not open at app.quit()"
+assert service is not None and service.viewer is None, (
+    "aboutToQuit did not destroy Help")
+assert viewer_ref() is None, "the viewer survived aboutToQuit teardown"
+print("help-about-to-quit-ok", rc)
 '''
 
 
@@ -96,6 +137,12 @@ def test_open_help_then_quit_all_exits_cleanly(tmp_path):
     done = _run(_QUIT_SCRIPT, tmp_path)
     assert done.returncode == 0, done.stderr[-5000:]
     assert "help-quit-ok" in done.stdout, done.stdout[-2000:]
+
+
+def test_about_to_quit_with_help_open_exits_cleanly(tmp_path):
+    done = _run(_ABOUT_TO_QUIT_SCRIPT, tmp_path)
+    assert done.returncode == 0, done.stderr[-5000:]
+    assert "help-about-to-quit-ok" in done.stdout, done.stdout[-2000:]
 
 
 def test_app_exec_exception_still_closes_help(tmp_path):

@@ -16,6 +16,11 @@ import pytest
 
 pytest.importorskip("PySide6")
 
+from raptor.gui.ui import help_viewer as _help_viewer
+
+if not _help_viewer.WEBENGINE_OK:        # pragma: no cover - env dependent
+    pytest.skip("QtWebEngine is not available", allow_module_level=True)
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -32,7 +37,9 @@ from raptor.gui.ui import help_viewer
 
 app = QApplication.instance() or QApplication([])
 doc = Path(os.environ["HELP_DOC"])
-help_viewer._resolve_doc = lambda name: doc
+doc2 = Path(os.environ["HELP_DOC2"])
+help_viewer._resolve_doc = (
+    lambda name: doc2 if name == "viewer2.html" else doc)
 help_viewer._under_docs_tree = lambda url: True
 help_viewer._register_ops_scheme()
 
@@ -67,6 +74,33 @@ def wait_until(predicate, what, timeout_ms=10000):
     raise AssertionError(f"timed out waiting for {what}")
 
 
+def wait_stable(expr, what, timeout_ms=10000):
+    """Wait until expr's numeric result has stopped moving (3 samples)."""
+    last = None
+    stable = 0
+    waited = 0
+    while waited < timeout_ms:
+        value = js(win, expr)
+        if last is not None and abs(value - last) <= 0.5:
+            stable += 1
+            if stable >= 3:
+                return value
+        else:
+            stable = 0
+        last = value
+        QTest.qWait(20)
+        app.processEvents()
+        waited += 20
+    raise AssertionError(f"timed out waiting for {what}")
+
+
+def load_doc(name, anchor=None, timeout_ms=10000):
+    spy = QSignalSpy(win._view.loadFinished)
+    win.show_doc(name, anchor)
+    assert spy.wait(timeout_ms), f"{name} did not load"
+    app.processEvents()
+
+
 LAYOUT_JS = r"""
 (function () {
   const t = document.getElementById('toc');
@@ -87,10 +121,7 @@ LAYOUT_JS = r"""
 win = help_viewer.HelpViewer()
 win.resize(1100, 800)
 win.show()
-spy = QSignalSpy(win._view.loadFinished)
-win.show_doc("viewer.html")
-assert spy.wait(10000), "the help page did not load"
-app.processEvents()
+load_doc("viewer.html")
 
 layout = json.loads(js(win, LAYOUT_JS))
 assert "raptor-viewer" in layout["bodyClass"], layout
@@ -101,6 +132,32 @@ assert layout["marginTop"] == "0px", layout
 assert layout["borderTopWidth"] == "0px", layout
 assert layout["paddingTop"] == "16px", layout
 assert layout["innerWidth"] <= 1120, layout
+
+# Real pending-anchor path: the second Help action arrives while the first
+# load is still running. It must be queued and applied after the document
+# exists (the old code checked a non-existent QWebEngineView.isLoading()).
+spy = QSignalSpy(win._view.loadFinished)
+win.show_doc("viewer2.html", "section-three")
+win.show_doc("viewer2.html", "section-two")
+assert spy.wait(10000), "the second help page did not load"
+app.processEvents()
+wait_until(
+    lambda: abs(js(win, "document.getElementById('section-two')"
+                          ".getBoundingClientRect().top")) <= 2,
+    "the queued anchor to be applied")
+assert js(win, """
+(function () {
+  const hs = Array.from(document.querySelectorAll('#content h2'));
+  let current = hs[0];
+  for (const h of hs) {
+    if (h.getBoundingClientRect().top <= 8) current = h;
+    else break;
+  }
+  return current.id;
+})();
+""") == "section-two"
+
+load_doc("viewer.html")
 
 # Make the scroll deterministic; the shipped stylesheet asks for smooth.
 js(win, "document.documentElement.style.scrollBehavior = 'auto'; true")
@@ -113,16 +170,26 @@ js(win, """
   return true;
 })();
 """)
-QTest.qWait(250)
+wait_until(
+    lambda: -42 <= js(win, "document.getElementById('section-two')"
+                            ".getBoundingClientRect().top") <= -38,
+    "the initial scroll position")
+wait_until(lambda: js(win, "window.__raptorReading.id") == "section-two",
+           "the reading-position capture")
+wait_until(lambda: abs(js(win, "window.__raptorReading.offset") + 40) <= 2,
+           "the captured heading offset")
 before = js(win, "document.getElementById('section-two')"
                  ".getBoundingClientRect().top")
 assert -42 <= before <= -38, before
 
+js(win, "window.__raptorRestoreCount = 0; true")
 win.resize(1600, 800)
 wait_until(lambda: js(win, "window.innerWidth") >= 1500, "the wider viewport")
-QTest.qWait(250)
-after = js(win, "document.getElementById('section-two')"
-                ".getBoundingClientRect().top")
+wait_until(lambda: js(win, "window.__raptorRestoreCount || 0") >= 1,
+           "the resize restore sentinel")
+after = wait_stable(
+    "document.getElementById('section-two').getBoundingClientRect().top",
+    "the restored heading position")
 assert abs(after - before) < 6, (before, after)
 
 layout2 = json.loads(js(win, LAYOUT_JS))
@@ -201,6 +268,10 @@ def test_the_stable_toc_and_resize_restore_survive_in_a_subprocess(tmp_path):
 </div>
 </body></html>""", encoding="utf-8")
 
-    done = _run(_LAYOUT_SCRIPT, tmp_path, HELP_DOC=str(doc))
+    doc2 = tmp_path / "viewer2.html"
+    doc2.write_text(doc.read_text(encoding="utf-8"), encoding="utf-8")
+
+    done = _run(_LAYOUT_SCRIPT, tmp_path, HELP_DOC=str(doc),
+                HELP_DOC2=str(doc2))
     assert done.returncode == 0, done.stderr[-5000:]
     assert "help-layout-ok" in done.stdout, done.stdout[-2000:]
