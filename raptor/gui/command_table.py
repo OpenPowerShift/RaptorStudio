@@ -1224,8 +1224,11 @@ LAYOUT: tuple[Page, ...] = (
                        Btn("model.add_event", True),
                        Btn("model.add_hier", True),
                        Btn("model.collapse"), Btn("model.delete"))),
-       Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True),
-                       Btn("results.analytical")), priority=4),
+       Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True)),
+             priority=4),
+       # Its own group keeps Analytical large, matching the model actions
+       # beside it instead of being demoted to a small slot.
+       Group("Analysis", (Btn("results.analytical", True),), priority=3),
        # Annotations are put on the canvas like elements, so they sit
        # beside Build; what is done to them afterwards is on Arrange.
        Group("Annotate", (Btn("arrange.anno_text", True),
