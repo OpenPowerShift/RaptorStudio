@@ -68,6 +68,7 @@ def test_animate_off_colours_and_focuses_the_described_event(window, qapp):
     saw_non_last_row = False
 
     for _ in range(40):
+        parent_before = view._current_parent
         window._on_step()
         qapp.processEvents()
         session = window._step_session
@@ -81,6 +82,8 @@ def test_animate_off_colours_and_focuses_the_described_event(window, qapp):
         prev_lines = len(session.logs)
         if index is None:
             continue
+        if view._current_parent != parent_before:
+            saw_hierarchy_target = True
 
         # (a) Animate off still paints/caches live block colours.
         assert view._live_state_cache is not None
@@ -101,13 +104,13 @@ def test_animate_off_colours_and_focuses_the_described_event(window, qapp):
         assert description in window._statusbar.currentMessage()
         if index != len(session.logs) - 1:
             saw_non_last_row = True
-        if parts[1] == "Block" and panel.tree.indexOfTopLevelItem(
-                selected) >= 0:
+        if parts[1] == "Block":
+            # Focus on Event must reveal the block's own level, even when
+            # it lives inside a hierarchy and was absent from the level
+            # shown before this step.
             name = parts[2]
-            on_level = any(
-                b.name == name for b in view.blocks.values())
-            if not on_level:
-                saw_hierarchy_target = True
+            assert any(b.name == name for b in view.blocks.values()), (
+                f"focus did not reveal block {name!r}")
 
         # Keep the run short after the rollover has been exercised.
         if session.run_index >= 1 and prev_lines > 8:

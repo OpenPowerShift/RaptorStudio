@@ -7024,7 +7024,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     focus_index = None
                     break
         if self._focus_event_action.isChecked():
-            if target_item is not None:
+            # Navigate to the level the event actually belongs to. This
+            # enters a hierarchy for an inner block/node/event and leaves
+            # it again when the next event is at Home or in a sibling.
+            navigated = False
+            if described is not None:
+                navigated = v.locate_log_element(described[1][1],
+                                                 described[1][2])
+            if not navigated and target_item is not None:
                 v.centerOn(target_item)
             if focus_index is not None:
                 self._live_log_panel.focus_event(focus_index)

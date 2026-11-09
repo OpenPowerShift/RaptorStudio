@@ -23,6 +23,8 @@ from raptor.gui.ui.main_window import MainWindow
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FIXTURE = os.path.join(REPO, "tests", "golden", "TwoBlockRedundancy", "input.rbd")
+HIER_FIXTURE = os.path.join(REPO, "tests", "golden", "HierarchyExample",
+                            "input.rbd")
 
 
 @pytest.fixture(scope="module")
@@ -39,6 +41,25 @@ def window(qapp):
     w._load_into_app(rbd, None)
     w.show()
     w._live_sim_action.setChecked(True)
+    qapp.processEvents()
+    yield w
+    w._invalidate_step_session()
+    w._dirty = False
+    w.close()
+    w.deleteLater()
+    qapp.processEvents()
+
+
+@pytest.fixture
+def hierarchy_window(qapp):
+    w = MainWindow()
+    rbd = load_rbd(HIER_FIXTURE)
+    rbd.section("SYSTEM_DATA").rows[0]["TermCondition"] = "200"
+    rbd.section("SYSTEM_DATA").rows[0]["NumRuns"] = "1"
+    w._load_into_app(rbd, None)
+    w.show()
+    w._live_sim_action.setChecked(True)
+    w._focus_event_action.setChecked(True)
     qapp.processEvents()
     yield w
     w._invalidate_step_session()
@@ -270,3 +291,92 @@ def test_focus_off_leaves_selection_and_scroll_alone(window, qapp):
 
     assert panel.tree.currentItem() is first
     assert bar.value() == before
+
+
+def _focus_log_line(w, session, kind, name, qapp, status="Up"):
+    """Inject one log line and run the same focus path a real step uses."""
+    first_new = len(session.logs)
+    session.logs.append(f"999.000\t{kind}\t{name}\t{status}\t")
+    w._live_log_panel.update_session([], session.logs, 1, session.time)
+    w._describe_and_focus_step(session, {}, first_new)
+    qapp.processEvents()
+
+
+def test_focus_event_enters_and_leaves_a_hierarchy(hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.go_home()
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "Block", "SolarP_500W", qapp)
+    assert view._current_parent == 23
+    block = view._block_items[1]  # SolarP_500W
+    assert block.isSelected()
+
+    _focus_log_line(w, session, "Block", "Thermal", qapp)
+    assert view._current_parent == 0
+    assert view._block_items[4].isSelected()  # Thermal
+
+
+def test_focus_event_moves_between_sibling_hierarchies(
+        hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.go_home()
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "Block", "SolarP_500W", qapp)
+    assert view._current_parent == 23
+    _focus_log_line(w, session, "Block", "SolarP_650W", qapp)
+    assert view._current_parent == 26
+    selected = [item for item in view._block_items.values()
+                if item.isSelected()]
+    assert len(selected) == 1
+    assert view.blocks[selected[0]._block_id].name == "SolarP_650W"
+
+
+def test_focus_event_hierarchy_row_selects_oval_without_entering(
+        hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.go_home()
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "Hier", "500path", qapp)
+    assert view._current_parent == 0
+    assert view._hier_items[23].isSelected()
+
+
+def test_focus_event_trigger_and_system_rows_keep_the_level(
+        hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.enter_level(23)
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "System", "State_change", qapp)
+    assert view._current_parent == 23
+    _focus_log_line(w, session, "Trigger", "SomeTrigger", qapp)
+    assert view._current_parent == 23
+
+
+def test_focus_off_does_not_navigate_into_a_hierarchy(
+        hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.go_home()
+    w._focus_event_action.setChecked(False)
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "Block", "SolarP_500W", qapp)
+    assert view._current_parent == 0
