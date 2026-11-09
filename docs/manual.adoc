@@ -483,7 +483,7 @@ After a run (or a stepped Finish) the Results dock offers:
 
 === Analytical analysis
 
-**Results ▸ Analytical…** opens the exact static solver. It does not sample
+**Model ▸ Analytical…** opens the exact static solver. It does not sample
 and does not change the model. Choose **Reliability** for a non-repairable
 `R(t)` (PDF, hazard, MTTF, BX life, conditional reliability, exact importance)
 or **Availability** for steady-state availability with independent, perfectly

@@ -13,7 +13,7 @@ Implemented in this branch:
 - `raptor/api/analytical.py` — `analyse` (workspace) and `analyse_rbd`
   (in-memory model, used by the GUI).
 - `raptor/cli/cmd_analytic.py` — `raptor analytic`.
-- `raptor/gui/ui/analytic_dialog.py` — Results ▸ Analytical…
+- `raptor/gui/ui/analytic_dialog.py` — Model ▸ Analytical…
 - `raptor/mcp/tools_analytic.py` — `analytical_analysis`.
 - Per-run MTTFF, availability classifications, Red-time buckets and
   criticality in `RunReportData` / `per_run.json`, with read helpers in

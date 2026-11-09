@@ -64,7 +64,7 @@ Use each one to check the other.
 === Your first exact answer
 
 . Open `Lantern1.rbds`.
-. Click *Results ▸ Analytical…*. The solver window opens. It does not
+. Click *Model ▸ Analytical…*. The solver window opens. It does not
   solve yet.
 . Look at the settings. *Mode* is *Reliability — no repairs, R(t)*.
   *Mission time* is 48 hours, the model's run length.
@@ -169,7 +169,7 @@ Reliability mode assumes no repairs: one failure and the system is
 finished. For a repairable system, use availability mode.
 
 . Open `Vendo1.rbds`, the vending machine from <<ch-repair>>.
-. Click *Results ▸ Analytical…*.
+. Click *Model ▸ Analytical…*.
 . Set *Mode* to *Availability — steady state*.
 . Click *Compute*.
 

@@ -2,7 +2,7 @@
 
 RAPTOR Studio can evaluate a coherent RBD **exactly**, without sampling, for
 the subset of models where a static answer exists. The solver is separate
-from the simulation engine. It is reached from **Results ▸ Analytical…** in
+from the simulation engine. It is reached from **Model ▸ Analytical…** in
 the application, with `raptor analytic` on the
 command line, through the MCP tools `analytical_analysis` (the result) and
 `export_analytical` (a spreadsheet), and through
@@ -278,7 +278,7 @@ approximations.
 
 ## The application window
 
-**Results ▸ Analytical…** solves on a background thread, so the window stays
+**Model ▸ Analytical…** solves on a background thread, so the window stays
 responsive on a large diagram. Nothing is solved on opening: a large model
 can take minutes. Choose the mode, mission time (it defaults to the model's
 run length, and a model that is not time-terminated asks for one), optional

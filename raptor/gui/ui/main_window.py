@@ -4353,7 +4353,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._diagram_dock.view.go_home()
 
     def _open_analytic_dialog(self):
-        """Results ▸ Analytical: exact static reliability/availability."""
+        """Model ▸ Analytical: exact static reliability/availability."""
         if self._rbd is None:
             return
         from raptor.gui.ui.analytic_dialog import open_analytic_dialog

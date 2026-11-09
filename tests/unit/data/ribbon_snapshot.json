@@ -2006,6 +2006,11 @@
        "kind": "action",
        "large": true,
        "text": "Issues"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Analytical\u2026"
       }
      ],
      "title": "Model"
@@ -2481,11 +2486,6 @@
        "kind": "action",
        "large": false,
        "text": "Domains\u2026"
-      },
-      {
-       "kind": "action",
-       "large": false,
-       "text": "Analytical\u2026"
       }
      ],
      "title": "Show"
