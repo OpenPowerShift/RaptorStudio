@@ -179,7 +179,8 @@ _COUNT = {"system failures", "component failures", "failures", "delays",
 _COST_WORDS = ("cost", "purchase", "operating", "sparing", "disposal",
                "total", "good", "repair", "idle", "repair hold", "pm",
                "pm hold", "standby", "done", "events", "emergency shipping",
-               "value", "grand total", "spare pool")
+               "value", "grand total", "spare pool", "initial",
+               "initial spares", "new spares")
 
 
 #: A measure whose kind its name alone decides.

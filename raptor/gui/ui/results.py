@@ -23,6 +23,7 @@ checked-in models under `tests/data/models/` exercise the result shapes.
 from __future__ import annotations
 
 import itertools
+import math
 import os
 import re
 import weakref
@@ -2150,7 +2151,8 @@ class ResultsDock(QWidget):
         def _current_grid():
             # Read the table at click time, not a precomputed list: a
             # hierarchy filter, row filter or sort may have changed since
-            # it was built.
+            # it was built; `table_to_grid` also restores full names that
+            # the grid elided.
             return table_to_grid(table, raw=True)
 
         def _copy_this():
@@ -2231,6 +2233,80 @@ class ResultsDock(QWidget):
         self._cost_tables = []
         self._cost_blocks_label = None
         self._cost_blocks_title = ""
+
+        def _sum_cost_values(columns: list[str], vals: list,
+                             *, all_values: bool = False
+                             ) -> tuple[float, bool]:
+            """Sum a report row's additive cost cells.
+
+            The parsed report keeps values as strings (and sometimes
+            ``N/A``); the Total column must use the same full-precision
+            number the other cells hand to Copy/CSV, not the rounded
+            display text. The Operating table's normal rows carry an
+            extra `InHier`/Level cell before the costs; its Totals row
+            (when the parser keeps it) does not.
+            """
+            total = 0.0
+            found = False
+            pairs = (zip(columns, vals) if all_values else
+                     zip(columns[2:], vals)
+                     if len(vals) == len(columns) - 2
+                     else zip(columns[1:], vals))
+            for column, value in pairs:
+                if column in ("InHier",):
+                    continue
+                if isinstance(value, tuple):
+                    value = value[1] if len(value) > 1 else value[0]
+                text = str(value).strip().replace(",", "")
+                if not text or text.casefold() in {"n/a", "na", "—", "–", "-"}:
+                    continue
+                try:
+                    number = float(text)
+                except ValueError:
+                    continue
+                if not math.isfinite(number):
+                    continue
+                total += number
+                found = True
+            return total, found
+
+        def _with_cost_total(title: str, columns: list[str],
+                             rows: list[list]):
+            """Append a Total column to additive report-section tables.
+
+            Blocks/Pools/Hierarchies already carry a Total from their own
+            builders; only the Operating and Sparing report-section
+            tables need one. Event rows are assembled separately and use
+            the engine's own event total. Cost_Summary is already one
+            value per row.
+            """
+            name = title.rsplit(" - ", 1)[-1]
+            attr = {"Operating": "operating", "Sparing": "sparing"}.get(name)
+            if attr is None or "Total" in columns:
+                return columns, rows
+            from raptor.core.engine.report_rows import element_of
+            out = []
+            for label, vals in rows:
+                total: float | None = None
+                element = element_of(label)
+                if element is not None and element[0] == "block":
+                    per_run = [cst.blocks[element[1]] for cst in costs
+                               if element[1] in cst.blocks]
+                    if per_run:
+                        total = sum(getattr(row, attr) for row in per_run) \
+                            / len(per_run)
+                if total is None:
+                    label_text = str(label)
+                    is_totals = (label_text == "Totals"
+                                 or label_text.endswith("_Totals"))
+                    summed, found = _sum_cost_values(
+                        columns, vals, all_values=is_totals)
+                    total = summed if found else None
+                if total is not None and not math.isfinite(total):
+                    total = None
+                out.append((label, [*vals,
+                                    str(total) if total is not None else "N/A"]))
+            return [*columns, "Total"], out
 
         def add_table(title: str, headers: list[str], rows: list[list],
                       tip: str = "", sort_key: str = "",
@@ -2325,10 +2401,11 @@ class ResultsDock(QWidget):
                     event.name,
                     (money(avg("initial")), avg("initial")),
                     (money(avg("success")), avg("success")),
-                    (money(avg("failure")), avg("failure"))])
-            add_table("Events", ["Name", "Initial", "Success", "Failure"],
-                      event_rows, sort_key="COST::EVENTS",
-                      default_sort=(3, Qt.SortOrder.DescendingOrder))
+                    (money(avg("failure")), avg("failure")),
+                    (money(avg("total")), avg("total"))])
+            add_table("Events", ["Name", "Initial", "Success", "Failure",
+                                 "Total"], event_rows, sort_key="COST::EVENTS",
+                      default_sort=(4, Qt.SortOrder.DescendingOrder))
 
         # Hierarchies: child-cost rollups.
         hier_ids = sorted({hid for cst in costs for hid in cst.hiers})
@@ -2360,6 +2437,7 @@ class ResultsDock(QWidget):
         # (not in the snapshots' life-cycle view above).
         from raptor.api.presentation import table_title
         for title, columns, rows in getattr(self, "_cost_extra", []):
+            columns, rows = _with_cost_total(title, columns, rows)
             table = self._section_widget(title, columns, rows)
             self._add_table_header(v, table_title(title), table)
             v.addWidget(table)
