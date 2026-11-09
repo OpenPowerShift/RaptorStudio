@@ -37,6 +37,17 @@ def win():
     view.reroute_links()
     view.fitInView(view.scene().itemsBoundingRect())
     QApplication.processEvents()
+    # Canvas/dock sizing is deferred after a load. If it lands during the
+    # drag, the view transform changes under the mouse and the block
+    # appears to jump. Let those timers settle first.
+    for _ in range(20):
+        QApplication.processEvents()
+        timer = getattr(w, "_canvas_room_timer", None)
+        if timer is None or not timer.isActive():
+            break
+        QTest.qWait(50)
+    QTest.qWait(250)
+    QApplication.processEvents()
     yield w
     set_link_routing(before)
     w._dirty = False
