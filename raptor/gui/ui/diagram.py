@@ -2608,20 +2608,57 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         return (getattr(obj, "node_name", "") if etype == "node" else
                 getattr(obj, "name", "")) or ""
 
+    def _element_name_any_level(self, etype: str, oid: int) -> str:
+        """Element name from the raw RBD rows, regardless of level.
+
+        A comment command can replay after the user has moved the element
+        into another hierarchy; the level-scoped pools no longer contain
+        it, but the row and its name do.
+        """
+        section = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                   "event": "EVENT_DATA",
+                   "hier": "HIERARCHY_DATA"}.get(etype)
+        name_col = {"block": "blockName", "node": "Name",
+                    "event": "eventName", "hier": "hierarchyName"}.get(etype)
+        sec = (self._rbd_ref.sections.get(section)
+               if self._rbd_ref is not None and section and name_col else None)
+        for row in (sec.rows if sec is not None else []):
+            if _safe_int(row.get("ID")) == int(oid):
+                return row.get(name_col) or row.get("Name") or ""
+        return self._element_name(etype, oid)
+
+    def _comment_row_for(self, etype: str, oid: int):
+        """The COMMENTS row for an element, by stored Type+ID first.
+
+        Names are not stable enough across level changes (the old code
+        looked the element up in the level-scoped pools, so a comment
+        command replayed after entering a hierarchy found no element and
+        updated/created the wrong row). Legacy rows without an ID still
+        fall back to the name.
+        """
+        if self._rbd_ref is None:
+            return None
+        sec = self._rbd_ref.sections.get("COMMENTS")
+        if sec is None:
+            return None
+        kind = str(etype).lower()
+        for row in sec.rows:
+            if (str(row.get("Type", "")).lower() == kind
+                    and _safe_int(row.get("ID")) == int(oid)):
+                return row
+        name = self._element_name(etype, oid)
+        if name:
+            for row in sec.rows:
+                if (str(row.get("Type", "")).lower() == kind
+                        and row.get("Name", "") == name):
+                    return row
+        return None
+
     def current_comment_stored(self, etype: str, oid: int) -> str:
         """The COMMENTS row's raw stored value ('~' for newlines) for one
         element, or "" -- the undo command's "old" state."""
-        if self._rbd_ref is None:
-            return ""
-        sec = self._rbd_ref.sections.get("COMMENTS")
-        if sec is None:
-            return ""
-        name = self._element_name(etype, oid)
-        for row in sec.rows:
-            if (row.get("Type", "").lower() == etype
-                    and row.get("Name", "") == name):
-                return row.get("Comment", "") or ""
-        return ""
+        row = self._comment_row_for(etype, oid)
+        return (row.get("Comment", "") or "") if row is not None else ""
 
     def has_convertible_comment(self, etype: str, oid: int) -> bool:
         """Whether a comment has visible text after `~` newlines expand.
@@ -2641,16 +2678,13 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         sec = self._rbd_ref.sections.get("COMMENTS") if self._rbd_ref else None
         if sec is None:
             return
-        name = self._element_name(etype, oid)
-        target_row = None
-        for row in sec.rows:
-            if (row.get("Type", "").lower() == etype
-                    and row.get("Name", "") == name):
-                target_row = row
-                break
+        target_row = self._comment_row_for(etype, oid)
         if target_row is None:
             if not stored:
                 return
+            # Prefer the raw-row name: the element may already have moved
+            # to another hierarchy level by the time this undo/redo runs.
+            name = self._element_name_any_level(etype, oid)
             sec.rows.append({"Type": etype, "ID": str(oid),
                              "Name": name, "Comment": stored})
         else:
@@ -7708,11 +7742,19 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 drop_hid = self._drop_target_hier(element_moves)
                 if drop_hid is not None:
                     # Dropping onto a hierarchy oval transports the whole
-                    # selection into it -- positions are not
-                    # committed; the child level lays out on its own.
-                    self._reparent_into(drop_hid, element_moves)
-                    self._push_move_commands(
-                        oval_moves, anno_edits, grip_moves, label="Move")
+                    # selection into it -- positions are not committed;
+                    # the child level lays out on its own. The reparent
+                    # can affect rules, so this outer macro stays GATED;
+                    # its move commands nest inside it (their own macro
+                    # is ungated, but a nested macro is not checked).
+                    self._stack.beginMacro("Move into hierarchy")
+                    try:
+                        self._reparent_into(drop_hid, element_moves)
+                        self._push_move_commands(
+                            oval_moves, anno_edits, grip_moves,
+                            label="Move")
+                    finally:
+                        self._stack.endMacro()
                 else:
                     self._push_move_commands(
                         moves, anno_edits, grip_moves, label="Move")

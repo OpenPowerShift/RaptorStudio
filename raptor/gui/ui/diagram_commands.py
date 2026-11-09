@@ -272,10 +272,20 @@ class MoveCmd(_ViewCmd):
         v._snap_state["x"] = v._snap_state["y"] = 0.0
         try:
             for entry_id, old, new in self.grips:
+                x, y = old if which == 1 else new
                 grip = v.route_grip_by_entry(entry_id)
                 if grip is not None:
-                    x, y = old if which == 1 else new
                     grip.setPos(x, y)
+                    continue
+                # A reparent rebuild can remove the live grip (e.g. its
+                # link crossed the new boundary). The saved row is still
+                # the authoritative position for the next rebuild.
+                for entry in getattr(v._rbd_ref, "link_grips", []) or []:
+                    if int(entry.get("id", 0)) == entry_id:
+                        entry["x"] = round(x, 2)
+                        entry["y"] = round(y, 2)
+                        entry["active"] = True
+                        break
         finally:
             v._snap_state["x"], v._snap_state["y"] = saved
 

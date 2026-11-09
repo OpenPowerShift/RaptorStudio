@@ -260,6 +260,84 @@ def test_mixed_element_and_annotation_drag_is_one_undo_step(qapp):
     assert note.scenePos().x() == pytest.approx(nx)
 
 
+def _drop_state(v, block, extras):
+    """Set up a release as if block/selected extras were dragged onto
+    hierarchy 26, returning ids needed for undo assertions."""
+    target = v._hier_items[26]
+    block_start = (block.scenePos().x(), block.scenePos().y())
+    v._drag_start = [("block", block._block_id, block_start)]
+    v._press_positions = {("block", block._block_id): block_start}
+    v._snap_state["x"] = v._snap_state["y"] = 0.0
+    block.setPos(target.sceneBoundingRect().center())
+    state = {}
+    if "annotation" in extras:
+        note = v._begin_annotation("text", QPointF(30, 30))
+        note.end_edit()
+        before = v._anno_state(note._anno_id)
+        note.setPos(note.pos() + QPointF(80, 20))
+        v._drag_start.append(("anno", note._anno_id, before))
+        state["annotation"] = (note._anno_id, before["x"], before["y"])
+    if "oval" in extras:
+        oval = v._hier_items[23]
+        old = (oval.scenePos().x(), oval.scenePos().y())
+        oval.setPos(old[0] + 60, old[1] + 20)
+        v._drag_start.append(("hier", 23, old))
+        state["oval"] = (23, old[0], old[1])
+    if "grip" in extras:
+        link = v._links[0]
+        mid = link.nearest_point(QPointF(
+            (link._p0.x() + link._p3.x()) / 2,
+            (link._p0.y() + link._p3.y()) / 2))
+        mx, my = v.scene_to_model(mid)
+        grip = v.insert_routing_node(link._link_num, mx, my)
+        old = (grip.pos().x(), grip.pos().y())
+        grip.setPos(old[0] + 30, old[1] + 10)
+        v._grip_press = {grip._entry_id: old}
+        state["grip"] = (grip._entry_id, old[0], old[1])
+    v._stack.clear()                 # after any setup command (grip add)
+    v.mouseReleaseEvent(_mouse(
+        QEvent.Type.MouseButtonRelease, QPointF(0, 0),
+        Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton))
+    QApplication.processEvents()
+    return state
+
+
+@pytest.mark.parametrize("extras", [
+    ("annotation",),
+    ("oval", "grip"),
+])
+def test_drop_onto_hierarchy_with_other_moves_is_one_undo(extras, qapp):
+    v = _phasing_view()
+    try:
+        block = v._block_items[5]
+        state = _drop_state(v, block, extras)
+        assert v._stack.count() == 1, (
+            "reparent plus move commands must be one outer macro")
+        v._stack.undo()
+        QApplication.processEvents()
+        assert v._stack.index() == 0
+        assert 5 in v._block_items, "undo did not return the block home"
+        if "annotation" in state:
+            aid, x, y = state["annotation"]
+            entry = v.annotation_entry(aid)
+            assert (entry["x"], entry["y"]) == pytest.approx((x, y))
+        if "oval" in state:
+            _hid, x, y = state["oval"]
+            if 23 in v._hier_items:
+                item = v._hier_items[23]
+                assert (item.scenePos().x(), item.scenePos().y()) == \
+                    pytest.approx((x, y))
+        if "grip" in state:
+            entry_id, x, _y = state["grip"]
+            grip = v.route_grip_by_entry(entry_id)
+            if grip is not None:
+                assert grip.pos().x() == pytest.approx(x)
+    finally:
+        v.close()
+        v.deleteLater()
+        QApplication.processEvents()
+
+
 def test_mixed_nudge_does_not_run_the_rule_gate(qapp, monkeypatch):
     import raptor.gui.ui.rule_gate as rule_gate
 
@@ -309,10 +387,12 @@ def test_alt_pressed_after_press_is_a_fine_drag_with_undo(qapp):
         Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton,
         Qt.KeyboardModifier.AltModifier))
     QApplication.processEvents()
+    # Release with Alt already UP: the move latched the fine gesture, so
+    # the sub-half-unit MoveCmd must still be kept.
     v.mouseReleaseEvent(_mouse(
         QEvent.Type.MouseButtonRelease, target,
         Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton,
-        Qt.KeyboardModifier.AltModifier))
+        Qt.KeyboardModifier.NoModifier))
     QApplication.processEvents()
 
     assert item.scenePos().x() == pytest.approx(x0 + 0.4)

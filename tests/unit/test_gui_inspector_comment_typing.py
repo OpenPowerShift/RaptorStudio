@@ -238,6 +238,70 @@ def test_level_change_flushes_pending_draft_before_rebuild(win):
     assert any(r.get("Comment") == "level draft" for r in rows)
 
 
+def test_comment_undo_after_level_change_finds_the_row(win):
+    v = win._diagram_dock.view
+    v.set_element_comment("block", 5, "")
+    v._stack.clear()
+    _show(win, "block", 5)
+    edit = win._inspector._comment_edit
+    edit.setFocus()
+    QApplication.processEvents()
+    QTest.keyClicks(edit, "after level")
+    QApplication.processEvents()
+
+    v.enter_level(23)            # flushes the draft before the rebuild
+    QApplication.processEvents()
+    assert v._stack.count() == 1
+
+    v._stack.undo()
+    QApplication.processEvents()
+    row = next(r for r in v._rbd_ref.sections["COMMENTS"].rows
+               if r.get("Type") == "block" and r.get("ID") == "5")
+    assert row["Comment"] == ""
+
+    v._stack.redo()
+    QApplication.processEvents()
+    row = next(r for r in v._rbd_ref.sections["COMMENTS"].rows
+               if r.get("Type") == "block" and r.get("ID") == "5")
+    assert row["Comment"] == "after level"
+
+
+def test_collapse_flushes_pending_draft_when_target_goes_away(win):
+    from raptor.api.build import build_from_spec
+
+    rbd = build_from_spec({
+        "name": "Collapse",
+        "blocks": [{"name": "A"}],
+        "nodes": [{"id": 1, "name": "Start", "type": "start"},
+                  {"id": 2, "name": "End", "type": "end"}],
+        "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "End"}],
+        # Ensure the model has a COMMENTS section/row to update.
+        "comments": [{"element": "A", "comment": ""}],
+        "system": {"term_condition": 100, "num_runs": 1},
+    }, auto_layout=False)
+    win._load_into_app(rbd, None)
+    QApplication.processEvents()
+    v = win._diagram_dock.view
+    bid = next(iter(v._block_items))
+    v._scene.clearSelection()
+    v._block_items[bid].setSelected(True)
+    QTest.qWait(120)
+    QApplication.processEvents()
+    assert win._inspector.current_target() == ("block", bid)
+    edit = win._inspector._comment_edit
+    edit.setFocus()
+    QApplication.processEvents()
+    QTest.keyClicks(edit, "collapse draft")
+    QApplication.processEvents()
+
+    assert v.collapse_selection("Inner") is not None
+    QApplication.processEvents()
+
+    rows = v._rbd_ref.sections["COMMENTS"].rows
+    assert any(r.get("ID") == str(bid)
+               and r.get("Comment") == "collapse draft" for r in rows)
+
+
 def test_pending_comment_is_flushed_before_inspector_repopulates(win):
     v = win._diagram_dock.view
     v.set_element_comment("block", 5, "")

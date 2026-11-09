@@ -909,6 +909,10 @@ class InspectorDock(QWidget):
 
     def clear_selection(self):
         """Show the empty-state header and clear every tab."""
+        # Centralised here: every "target gone" path (delete, collapse,
+        # level change, file close) destroys the Comment editor, and a
+        # pending draft must reach the model first.
+        self.flush_pending_comment()
         self._header.setText("No selection")
         self._show_tabs(False)
         self._current_block_id = None
