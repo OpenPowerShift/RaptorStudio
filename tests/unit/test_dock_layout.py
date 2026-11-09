@@ -725,6 +725,44 @@ def test_compact_side_docks_do_not_block_the_bottom_first_load_clamp(qapp):
     w.close()
 
 
+def test_compact_layout_preserves_closed_and_manual_minimized_docks(qapp):
+    w = _shown(qapp)
+    inspector = w._inspector_dock
+    w.resizeDocks([inspector], [520], Qt.Orientation.Horizontal)
+    _pump(qapp)
+    before = inspector.width()
+    w._dock_chrome["Inspector"]["set_closed"](True)
+    _pump(qapp)
+    saved_width = w._dock_chrome_entries[inspector]["docked_width"]
+    assert saved_width >= before - 20
+
+    w.resize(900, 900)
+    _pump(qapp, 8)
+    assert w._dock_chrome["Inspector"]["get"]()["closed"] is True
+    assert w._dock_chrome_entries[inspector]["docked_width"] == saved_width
+    w.resize(1500, 900)
+    _pump(qapp, 8)
+    assert w._dock_chrome["Inspector"]["get"]()["closed"] is True
+    assert w._dock_chrome_entries[inspector]["docked_width"] == saved_width
+
+    # A dock the user minimized before compact must stay minimized when
+    # the window widens again.
+    w2 = _shown(qapp)
+    w2._dock_chrome["Inspector"]["set_minimized"](True)
+    _pump(qapp)
+    w2.resize(900, 900)
+    _pump(qapp, 8)
+    assert w2._dock_chrome["Inspector"]["get"]()["minimized"] is True
+    assert "Inspector" not in w2._compact_minimized
+    w2.resize(1500, 900)
+    _pump(qapp, 8)
+    assert w2._dock_chrome["Inspector"]["get"]()["minimized"] is True
+    assert w2._inspector_dock.widget().isHidden()
+    for x in (w, w2):
+        x._dirty = False
+        x.close()
+
+
 def test_ribbon_action_restores_a_side_dock_moved_to_the_bottom(qapp):
     from PySide6.QtWidgets import QToolButton
 
@@ -990,6 +1028,8 @@ def test_set_closed_on_a_floating_side_dock_never_uses_the_stub(qapp):
     action.setChecked(True)
     _pump(qapp)
     assert dock.isVisible() and dock.widget().isHidden() is False
+    assert dock.minimumWidth() >= 160
+    assert dock.minimumHeight() >= 90
     w._dirty = False
     w.close()
 

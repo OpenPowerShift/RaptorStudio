@@ -457,6 +457,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._dock_resize_generation = 0
         self._dock_splitter_moved = False
         self._dock_rebase_pending = False
+        self._compact_minimized: set[str] = set()
         self._live_log_session_shown = False
         self._canvas_room_timer = QTimer(self)
         self._canvas_room_timer.setSingleShot(True)
@@ -1255,6 +1256,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._dock_state_sync[dock] = sync
 
         def toggle(checked):
+            try:
+                self._compact_minimized.discard(dock.windowTitle())
+            except AttributeError:
+                pass
             stub = (self._dock_stubs or {}).get(dock)
             entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                      .get(dock)) or {}
@@ -1609,9 +1614,18 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             for e in entries:
                 sync_action(e["dock"])
 
+        def _toggle_minimized(_checked=False):
+            # A user minimize/restore takes ownership back from the
+            # narrow-window compact policy.
+            try:
+                self._compact_minimized.discard(
+                    entries[0]["dock"].windowTitle())
+            except AttributeError:
+                pass
+            set_minimized(not entries[0]["minimized"])
+
         for e in entries:
-            e["min_btn"].clicked.connect(
-                lambda _checked=False: set_minimized(not entries[0]["minimized"]))
+            e["min_btn"].clicked.connect(_toggle_minimized)
 
         def set_closed(closed: bool):
             """Swap the dock between its normal chrome and the rotated
@@ -1633,10 +1647,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     e["minimized"] = False
                     dock.setTitleBarWidget(e["titlebar"])
                     e["content"].setVisible(True)
-                    # Release the stub's fixed-width lock before a caller
-                    # resizes the recovered floating window, or the
-                    # remembered docked width is clamped to 24 px.
-                    dock.setMinimumSize(0, 0)
+                    # Release the stub's fixed-width lock, but keep the
+                    # floating window's own 160x90 floor so reopening it
+                    # cannot collapse below a usable panel.
+                    dock.setMinimumSize(160, 90)
                     dock.setMaximumSize(16777215, 16777215)
                     if closed:
                         dock.close()
@@ -7569,16 +7583,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             forced = bool(getattr(self, "_compact_forced", False))
             chrome = self._dock_chrome or {}
             if compact and not forced:
+                self._compact_minimized = set()
                 for title in ("Model Explorer", "Inspector"):
                     c = chrome.get(title)
-                    if c is not None and not c["get"]()["minimized"]:
-                        c["set_minimized"](True)
+                    if c is None:
+                        continue
+                    state = c["get"]()
+                    # A closed stub must stay closed (and keep its saved
+                    # width), and a dock the user already minimized is
+                    # their choice, not this policy's.
+                    if state["closed"] or state["minimized"]:
+                        continue
+                    c["set_minimized"](True)
+                    self._compact_minimized.add(title)
                 self._compact_forced = True
             elif not compact and forced:
-                for title in ("Model Explorer", "Inspector"):
+                for title in getattr(self, "_compact_minimized", set()):
                     c = chrome.get(title)
-                    if c is not None:
+                    if c is not None and not c["get"]()["closed"]:
                         c["set_minimized"](False)
+                self._compact_minimized = set()
                 self._compact_forced = False
         except Exception:
             pass
