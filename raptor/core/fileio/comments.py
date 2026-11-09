@@ -34,11 +34,13 @@ def _name_forms(name: str) -> set[str]:
     text = str(name or "")
     forms = {text}
     if len(text) >= LEGACY_NAME_CAP:
-        # Every possible truncation point the legacy writer can produce.
+        # The candidate truncation lengths the legacy writer can produce
+        # (cap-4 through cap, allowing a `~n` distinguisher).
         for cut in range(LEGACY_NAME_CAP - 4, LEGACY_NAME_CAP + 1):
             forms.add(text[:cut])
     base, sep, suffix = text.rpartition("~")
-    if (sep and suffix.isdigit()
+    if (len(text) >= LEGACY_NAME_CAP
+            and sep and suffix.isdigit()
             and len(base) >= LEGACY_NAME_CAP - 4):
         # A truncation collision: `base[:cap]` became `base[:cap-4]~n`.
         forms.add(base)
@@ -70,14 +72,21 @@ def _row_by_id(rows, kind: str, oid: int, name: str):
 def _legacy_row_by_name(rows, kind: str, name: str):
     if not name:
         return None
-    for row in rows:
-        if str(row.get("Type", "")).lower() != kind:
-            continue
-        if not is_legacy_comment_row(row):
-            continue                    # ID-bearing rows are authoritative
-        if names_agree(row.get("Name", ""), name):
+    candidates = [
+        row for row in rows
+        if str(row.get("Type", "")).lower() == kind
+        and is_legacy_comment_row(row)
+    ]
+    # Exact spelling wins; only when no exact row exists do normalized
+    # truncation twins get considered. If several twins match, the name
+    # alone cannot identify one -- return None rather than attach the
+    # wrong element's comment.
+    for row in candidates:
+        if row.get("Name", "") == name:
             return row
-    return None
+    twins = [row for row in candidates
+             if names_agree(row.get("Name", ""), name)]
+    return twins[0] if len(twins) == 1 else None
 
 
 def find_comment_row(section, etype: str, oid: int, name: str = "",

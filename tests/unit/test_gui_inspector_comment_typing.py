@@ -528,6 +528,30 @@ def test_comment_write_does_not_stamp_a_shared_legacy_row(win):
     assert v.current_comment_stored("block", 4) == "shared legacy"
 
 
+def test_clearing_comment_on_shared_legacy_row_creates_a_shadow(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    name = v.blocks[5].name
+    survivor_id = next(i for i in v.blocks if i != 5)
+    for row in v._rbd_ref.sections["BLOCK_DATA"].rows:
+        if int(row["ID"]) == survivor_id:
+            row["blockName"] = name
+            break
+    v.blocks[survivor_id].name = name
+    sec.rows[:] = [{"Type": "block", "Name": name,
+                    "Comment": "shared legacy"}]
+    v._stack.clear()
+
+    v.set_element_comment("block", 5, "")
+
+    assert v.current_comment_stored("block", 5) == ""
+    assert v.current_comment_stored("block", survivor_id) == \
+        "shared legacy"
+    assert sec.rows[0]["Comment"] == "shared legacy"
+    assert any(r.get("ID") == "5" and r.get("Comment") == ""
+               for r in sec.rows)
+
+
 def test_delete_redo_keeps_rows_added_after_capture(win):
     v = win._diagram_dock.view
     sec = v._rbd_ref.sections["COMMENTS"]
@@ -553,6 +577,54 @@ def test_delete_redo_keeps_rows_added_after_capture(win):
     v._stack.undo()
     QApplication.processEvents()
     assert {r.get("Comment") for r in sec.rows} == {"A", "added later"}
+
+
+def test_duplicate_type_id_comment_rows_are_captured_one_for_one(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    sec.rows[:] = [
+        {"Type": "block", "ID": "5", "Name": "Attitude",
+         "Comment": "first"},
+        {"Type": "block", "ID": "5", "Name": "Attitude",
+         "Comment": "second"},
+    ]
+    v._stack.clear()
+    v._scene.clearSelection()
+    v._block_items[5].setSelected(True)
+    QApplication.processEvents()
+    v.delete_selected()
+    QApplication.processEvents()
+    assert not sec.rows
+
+    v._stack.undo()
+    QApplication.processEvents()
+    assert [r["Comment"] for r in sec.rows] == ["first", "second"]
+
+    v._stack.redo()
+    QApplication.processEvents()
+    assert not sec.rows
+
+
+def test_delete_redo_keeps_reused_id_with_a_different_name(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    sec.rows[:] = [{"Type": "block", "ID": "5", "Name": "Attitude",
+                    "Comment": "original"}]
+    v._stack.clear()
+    v._scene.clearSelection()
+    v._block_items[5].setSelected(True)
+    QApplication.processEvents()
+    v.delete_selected()
+    QApplication.processEvents()
+    v._stack.undo()
+    QApplication.processEvents()
+    sec.rows.append({"Type": "block", "ID": "5", "Name": "Replacement",
+                     "Comment": "new element"})
+
+    v._stack.redo()
+    QApplication.processEvents()
+    assert [(r.get("Name"), r.get("Comment")) for r in sec.rows] == \
+        [("Replacement", "new element")]
 
 
 def test_delete_redo_does_not_drop_uncaptured_shared_legacy_row(win):
@@ -664,6 +736,14 @@ def test_long_named_legacy_no_id_comment_survives_save(qapp, tmp_path):
     view2 = DiagramView()
     try:
         view2.load_rbd(load_rbd(str(path)))
+        assert view2.current_comment_stored("block", bid) == "legacy long"
+        view2._scene.clearSelection()
+        view2._block_items[bid].setSelected(True)
+        view2.delete_selected()
+        QApplication.processEvents()
+        assert not view2._rbd_ref.sections["COMMENTS"].rows
+        view2._stack.undo()
+        QApplication.processEvents()
         assert view2.current_comment_stored("block", bid) == "legacy long"
     finally:
         view2.close()

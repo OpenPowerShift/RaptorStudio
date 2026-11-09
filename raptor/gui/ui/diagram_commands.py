@@ -454,7 +454,9 @@ def _legacy_names(view, kind: str, section_name: str, name_col: str,
     element's comment, so only genuinely unique names are eligible.
     """
     survivors = _surviving_names(view, section_name, name_col, dead_ids)
-    return {(kind, name) for name in names if name and name not in survivors}
+    return {(kind, name) for name in names
+            if name and not any(names_agree(name, other)
+                                for other in survivors if other)}
 
 
 def _capture_comment_rows(view, dead_ids, dead_names):
@@ -473,7 +475,9 @@ def _capture_comment_rows(view, dead_ids, dead_names):
         if (kind, _safe_int(row.get("ID"))) in dead_ids:
             out.append((dict(row), idx))
         elif (is_legacy_comment_row(row)
-              and (kind, row.get("Name")) in dead_names):
+              and any(names_agree(row.get("Name", ""), name)
+                      for dead_kind, name in dead_names
+                      if dead_kind == kind)):
             out.append((dict(row), idx))
     return out
 
@@ -502,8 +506,10 @@ def _drop_comment_rows(view, captured, dead_ids) -> None:
                 return False
             return (is_legacy_comment_row(row)
                     or (kind, _safe_int(row.get("ID"))) in dead_ids)
-        return _safe_int(row.get("ID")) == _safe_int(
-            captured_row.get("ID"))
+        return (_safe_int(row.get("ID")) == _safe_int(
+                    captured_row.get("ID"))
+                and names_agree(captured_row.get("Name", ""),
+                                row.get("Name", "")))
 
     for captured_row, idx in sorted(captured, key=lambda p: p[1],
                                     reverse=True):

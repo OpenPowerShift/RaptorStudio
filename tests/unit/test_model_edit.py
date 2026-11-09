@@ -230,8 +230,8 @@ class TestRename:
     def test_block_rename_moves_its_comment_row(self, host, ed):
         bid = _bid(host)
         old = host.blocks[bid].name
-        # Make the legacy name unique among surviving elements; a shared
-        # name is deliberately not claimed (see the next test).
+        # Unique here to exercise the ordinary legacy path; the shared-name
+        # ambiguity (first name match is still claimed) is the next test.
         for row in host.rbd.sections["BLOCK_DATA"].rows:
             if int(float(row["ID"])) not in (0, bid):
                 row["blockName"] = "Other"

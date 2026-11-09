@@ -2708,15 +2708,19 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # another hierarchy level by the time this undo/redo runs.
         name = self._element_name_any_level(etype, oid)
         target_row = find_comment_row(sec, etype, oid, name)
+        shadow_shared = False
         if (target_row is not None
                 and is_legacy_comment_row(target_row)
                 and self._comment_name_shared(etype, oid, name)):
             # A no-ID row shared by duplicate names belongs to no one in
             # particular: create this element's own ID row instead of
-            # stamping/overwriting the sibling's comment.
+            # stamping/overwriting the sibling's comment. An empty write
+            # still needs that ID row, so this element reads blank while
+            # the sibling keeps the legacy text.
             target_row = None
+            shadow_shared = True
         if target_row is None:
-            if not stored:
+            if not stored and not shadow_shared:
                 return
             sec.rows.append({"Type": etype, "ID": str(oid),
                              "Name": name, "Comment": stored})
