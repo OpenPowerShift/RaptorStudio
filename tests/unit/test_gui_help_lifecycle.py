@@ -513,3 +513,83 @@ def test_successful_unrelated_load_cancels_a_pending_anchor(
     # Going back to the original document must not apply the stale anchor.
     nav._document_loaded(True, QUrl.fromLocalFile(str(book)))
     assert nav._view.page().scripts == []
+
+
+def test_late_superseded_start_does_not_reject_the_newest_anchor(
+        tmp_path, monkeypatch):
+    book = tmp_path / "book.html"
+    manual = tmp_path / "manual.html"
+    book.write_text("<html><body><h2 id='book'>Book</h2></body></html>",
+                    encoding="utf-8")
+    manual.write_text("<html><body><h2 id='results'>Results</h2></body></html>",
+                      encoding="utf-8")
+    monkeypatch.setattr(
+        help_viewer, "_resolve_doc",
+        lambda name: manual if name == "manual.html" else book)
+
+    nav = _Navigation(QUrl())
+    nav._load_serial = 7               # a prior navigation already happened
+    nav.show_doc("book.html", "book")
+    nav.show_doc("manual.html", "results")
+
+    # Qt emitted LoadStarted for the superseded book navigation late.
+    nav._load_started(QUrl.fromLocalFile(str(book)))
+    assert nav._pending_anchor == "results"
+
+    nav._view.page().loading = False
+    nav._document_loaded(True, QUrl.fromLocalFile(str(manual)))
+
+    assert nav._pending_anchor is None
+    assert len(nav._view.page().scripts) == 1
+    assert "results" in nav._view.page().scripts[0]
+
+
+def test_same_document_queue_targets_the_requested_document(
+        tmp_path, monkeypatch):
+    book = tmp_path / "book.html"
+    manual = tmp_path / "manual.html"
+    book.write_text("<html><body><h2 id='new'>New</h2></body></html>",
+                    encoding="utf-8")
+    manual.write_text("<html><body>manual</body></html>", encoding="utf-8")
+    monkeypatch.setattr(
+        help_viewer, "_resolve_doc",
+        lambda name: manual if name == "manual.html" else book)
+    book_url = QUrl.fromLocalFile(str(book))
+
+    nav = _Navigation(book_url)         # page.url() still says book
+    nav._inflight_url = QUrl.fromLocalFile(str(manual))  # B loading
+    nav._view.page().loading = True
+    nav.show_doc("book.html", "new")    # F1 for the stale visible doc
+
+    assert nav._pending_anchor == "new"
+    assert nav._pending_load_url is not None
+    assert nav._pending_load_url.toLocalFile() == str(book)
+
+    # B's completion is unrelated; it must not apply the book anchor.
+    nav._view.page().loading = False
+    nav._document_loaded(True, QUrl.fromLocalFile(str(manual)))
+    assert nav._pending_anchor is None
+    assert nav._view.page().scripts == []
+
+
+def test_a_stopped_unrelated_navigation_also_clears_a_pending_anchor(
+        tmp_path, monkeypatch):
+    book = tmp_path / "book.html"
+    manual = tmp_path / "manual.html"
+    book.write_text("<html><body><h2 id='results'>Results</h2></body></html>",
+                    encoding="utf-8")
+    manual.write_text("<html><body>manual</body></html>", encoding="utf-8")
+    monkeypatch.setattr(
+        help_viewer, "_resolve_doc",
+        lambda name: manual if name == "manual.html" else book)
+
+    nav = _Navigation(QUrl.fromLocalFile(str(book)))
+    nav._view.page().loading = True
+    nav.show_doc("book.html", "results")
+
+    nav._view.page().loading = False
+    nav._document_loaded(False, QUrl.fromLocalFile(str(manual)))
+    assert nav._pending_anchor is None
+
+    nav._document_loaded(True, QUrl.fromLocalFile(str(book)))
+    assert nav._view.page().scripts == []

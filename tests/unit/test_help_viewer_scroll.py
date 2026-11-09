@@ -148,9 +148,11 @@ def record_load(url):
 
 
 win._view.load = record_load
+serial_before = win._load_serial
 win._view.load(QUrl.fromLocalFile(str(doc2)))
 wait_until(lambda: win._view.page().isLoading(), "the same-doc reload")
-wait_until(lambda: win._inflight_url is not None, "the load-started token")
+wait_until(lambda: win._load_serial > serial_before,
+           "the load-started token")
 recorded_loads.clear()
 
 spy = QSignalSpy(win._view.loadFinished)
