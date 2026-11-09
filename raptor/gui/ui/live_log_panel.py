@@ -29,6 +29,9 @@ ROW_CAP = 5000
 #: Opacity of the "this step" tint over the row (0-255), so the State
 #: colouring and the alternating rows underneath stay readable.
 _HIGHLIGHT_ALPHA = 80
+#: Stronger tint for the one row Focus Event selected, so the current
+#: event is obvious even when the tree does not hold keyboard focus.
+_FOCUS_ALPHA = 170
 
 
 class LiveLogPanel(QWidget):
@@ -40,6 +43,8 @@ class LiveLogPanel(QWidget):
     #: True while Focus Event is on: new rows are followed to the bottom.
     #: Off, the user's scroll position is left alone.
     _follow_latest = True
+    #: The row Focus Event selected for the latest step.
+    _focus_row: QTreeWidgetItem | None = None
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -122,6 +127,11 @@ class LiveLogPanel(QWidget):
         """Follow newly appended rows to the bottom, or leave the view
         where the user put it (Focus Event off)."""
         self._follow_latest = bool(follow)
+        if not self._follow_latest and self._focus_row is not None:
+            # Focus Event off: drop the stronger current-row tint, keeping
+            # the ordinary latest-step highlight.
+            self._focus_row = None
+            self._apply_highlight(self._highlighted)
 
     def focus_event(self, index: int) -> bool:
         """Select and scroll to the current run's `index`th log line.
@@ -151,6 +161,7 @@ class LiveLogPanel(QWidget):
             blocker.unblock()
         self.tree.scrollToItem(
             item, QAbstractItemView.ScrollHint.PositionAtCenter)
+        self._paint_focus_row(item)
         return True
 
     def clear(self) -> None:
@@ -161,6 +172,7 @@ class LiveLogPanel(QWidget):
         self._fed = 0
         self._cut = 0
         self._highlighted = []
+        self._focus_row = None
         blocker = QSignalBlocker(self.tree)
         try:
             self.tree.clear()
@@ -262,6 +274,7 @@ class LiveLogPanel(QWidget):
             finally:
                 blocker.unblock()
             self._highlighted = []
+            self._focus_row = None
             lines = self._lines_of(run)
             start = max(0, len(lines) - ROW_CAP)
             self._cut = start
@@ -336,6 +349,27 @@ class LiveLogPanel(QWidget):
                 # visible when the columns are narrow.
                 item.setForeground(2, colour)
 
+    def _paint_focus_row(self, item: QTreeWidgetItem) -> None:
+        """Give the row Focus Event selected a stronger tint than the rest
+        of the step's rows; the tree does not have to take keyboard focus
+        (Step/Alt shortcuts keep working)."""
+        old = self._focus_row
+        if old is not None and old is not item and old in self._highlighted:
+            regular = QColor(active_colour()["accent"])
+            regular.setAlpha(_HIGHLIGHT_ALPHA)
+            brush = QBrush(regular)
+            for col in range(self.tree.columnCount()):
+                old.setBackground(col, brush)
+        self._focus_row = item
+        tint = QColor(active_colour()["accent"])
+        tint.setAlpha(_FOCUS_ALPHA)
+        brush = QBrush(tint)
+        for col in range(self.tree.columnCount()):
+            item.setBackground(col, brush)
+            f = QFont(item.font(col))
+            f.setBold(True)
+            item.setFont(col, f)
+
     def _apply_highlight(self, items: Sequence[QTreeWidgetItem]) -> None:
         """Tint the latest step's rows (and bold them); clear the old ones."""
         for it in self._highlighted:
@@ -357,6 +391,10 @@ class LiveLogPanel(QWidget):
                 f.setBold(True)
                 it.setFont(col, f)
         self._highlighted = list(items)
+        if self._focus_row is not None and self._focus_row not in items:
+            self._focus_row = None
+        if self._focus_row is not None:
+            self._paint_focus_row(self._focus_row)
 
     def _update_status(self) -> None:
         total_lines = len(self._lines_of(self._shown))
