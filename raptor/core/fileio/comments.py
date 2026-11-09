@@ -28,6 +28,9 @@ def _name_forms(name: str) -> set[str]:
     Normalization is deliberately conditional: only names beyond the
     20-char cap, or a cap-length ``~n`` truncation twin, get truncated
     forms. Short names ending in ``~2`` are real names and stay exact.
+    A legal 20-char name ending ``~n`` is indistinguishable from a
+    truncation twin in the file format; it is treated as a twin, and the
+    ambiguity is documented in `tests/unit/test_comments.py`.
     """
     from raptor.core.fileio.legacy_layout import LEGACY_NAME_CAP
 

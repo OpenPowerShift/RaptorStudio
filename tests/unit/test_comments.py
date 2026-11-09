@@ -35,6 +35,23 @@ def test_two_long_no_id_rows_use_exact_names_not_shared_prefixes():
     assert comment_text(section, "block", 2, stem + "Beta") == "B"
 
 
+def test_ambiguous_capped_twins_return_no_comment():
+    section = SimpleNamespace(rows=[
+        {"Type": "block", "Name": "VeryLongComponentNam", "Comment": "A"},
+        {"Type": "block", "Name": "VeryLongComponentN~3", "Comment": "B"},
+    ])
+    # The query is neither exact spelling but agrees with both capped
+    # rows: the name cannot identify one, so attach nothing.
+    assert comment_text(section, "block", 1,
+                        "VeryLongComponentN~2") == ""
+
+
+def test_at_cap_digit_suffix_is_ambiguous_by_design():
+    # A legal 20-char name ending ~n is indistinguishable from a
+    # truncation twin in the legacy format; the twin interpretation wins.
+    assert names_agree("CompressorStage123", "CompressorStage123~2")
+
+
 def test_exact_names_always_agree():
     assert names_agree("Valve", "Valve")
     assert names_agree("", "anything")

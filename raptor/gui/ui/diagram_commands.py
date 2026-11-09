@@ -435,13 +435,14 @@ class AddCmd(_ViewCmd):
         self._done()
 
 def _surviving_names(view, section_name: str, name_col: str,
-                     dead_ids: set[int]) -> set:
-    """Names still used by an element OUTSIDE the deleted ID set."""
+                     dead_ids: set[int]) -> list[tuple[str, int]]:
+    """(name, id) for elements OUTSIDE the deleted ID set."""
     sec = (view._rbd_ref.sections.get(section_name)
            if getattr(view, "_rbd_ref", None) is not None else None)
-    return {r.get(name_col) for r in (sec.rows if sec is not None else [])
+    return [(r.get(name_col), _safe_int(r.get("ID")))
+            for r in (sec.rows if sec is not None else [])
             if _safe_int(r.get("ID")) > 0
-            and _safe_int(r.get("ID")) not in dead_ids}
+            and _safe_int(r.get("ID")) not in dead_ids]
 
 
 def _legacy_names(view, kind: str, section_name: str, name_col: str,
@@ -451,12 +452,20 @@ def _legacy_names(view, kind: str, section_name: str, name_col: str,
     Legacy COMMENT rows have no hierarchy context. If another element of
     the same kind still uses the name (very common for hierarchy In/Out
     markers called "in"/"out"), dropping by name could erase that
-    element's comment, so only genuinely unique names are eligible.
+    element's comment. A survivor that already has its own ID-bearing
+    comment row no longer claims the legacy row, though: that is the
+    empty-shadow row written when the user cleared one duplicate's text.
     """
+    comments = (view._rbd_ref.sections.get("COMMENTS")
+                if getattr(view, "_rbd_ref", None) is not None else None)
+    own_id_rows = {
+        _safe_int(r.get("ID")) for r in (comments.rows if comments else [])
+        if not is_legacy_comment_row(r)}
     survivors = _surviving_names(view, section_name, name_col, dead_ids)
     return {(kind, name) for name in names
-            if name and not any(names_agree(name, other)
-                                for other in survivors if other)}
+            if name and not any(
+                names_agree(name, other) and sid not in own_id_rows
+                for other, sid in survivors if other)}
 
 
 def _capture_comment_rows(view, dead_ids, dead_names):

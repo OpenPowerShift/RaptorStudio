@@ -552,7 +552,35 @@ def test_clearing_comment_on_shared_legacy_row_creates_a_shadow(win):
                for r in sec.rows)
 
 
-def test_delete_redo_keeps_rows_added_after_capture(win):
+def test_shadowed_duplicate_does_not_block_sibling_legacy_delete(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    name = v.blocks[5].name
+    sibling_id = next(i for i in v.blocks if i != 5)
+    for row in v._rbd_ref.sections["BLOCK_DATA"].rows:
+        if int(row["ID"]) == sibling_id:
+            row["blockName"] = name
+            break
+    v.blocks[sibling_id].name = name
+    sec.rows[:] = [{"Type": "block", "Name": name,
+                    "Comment": "shared legacy"}]
+    v._stack.clear()
+
+    # Clearing block 5 creates its own empty ID row (shadow).
+    v.set_element_comment("block", 5, "")
+    assert any(r.get("ID") == "5" and r.get("Comment") == ""
+               for r in sec.rows)
+
+    v._scene.clearSelection()
+    v._block_items[sibling_id].setSelected(True)
+    QApplication.processEvents()
+    v.delete_selected()
+    QApplication.processEvents()
+
+    assert not any(r.get("ID") is None or r.get("ID") == ""
+                   or r.get("ID") == "0" for r in sec.rows), \
+        "the shadowed duplicate still blocked the legacy row's capture"
+    assert v.current_comment_stored("block", 5) == ""
     v = win._diagram_dock.view
     sec = v._rbd_ref.sections["COMMENTS"]
     sec.rows[:] = [{"Type": "block", "ID": "5", "Name": "Attitude",
@@ -618,8 +646,10 @@ def test_delete_redo_keeps_reused_id_with_a_different_name(win):
     QApplication.processEvents()
     v._stack.undo()
     QApplication.processEvents()
-    sec.rows.append({"Type": "block", "ID": "5", "Name": "Replacement",
-                     "Comment": "new element"})
+    # Replace the captured row at the captured index; an appended copy
+    # would match by index/ID before the name guard is exercised.
+    sec.rows[0] = {"Type": "block", "ID": "5", "Name": "Replacement",
+                   "Comment": "new element"}
 
     v._stack.redo()
     QApplication.processEvents()
