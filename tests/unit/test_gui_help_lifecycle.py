@@ -364,6 +364,7 @@ def test_show_doc_queues_an_anchor_while_the_page_is_loading(
     assert nav._view.page().scripts == []
     assert nav._pending_anchor == "results"
 
+    nav._view.page().loading = False
     nav._flush_pending_anchor(True)
 
     assert len(nav._view.page().scripts) == 1
@@ -420,6 +421,7 @@ def test_rapid_different_document_navigation_keeps_the_newest_anchor(
     assert nav._pending_anchor == "results"
     assert nav._view.page().scripts == []
 
+    nav._view.page().loading = False
     nav._document_loaded(True, QUrl.fromLocalFile(str(manual)))
 
     assert nav._pending_anchor is None
@@ -454,8 +456,60 @@ def test_a_failed_load_clears_its_pending_anchor(tmp_path, monkeypatch):
     nav = _Navigation(QUrl.fromLocalFile(str(book)))
     nav._view.page().loading = True
     nav.show_doc("book.html", "results")
+    nav._view.page().loading = False
     nav._document_loaded(False, QUrl.fromLocalFile(str(book)))
 
     assert nav._pending_anchor is None
+    nav._document_loaded(True, QUrl.fromLocalFile(str(book)))
+    assert nav._view.page().scripts == []
+
+
+def test_older_same_document_stop_does_not_consume_a_newer_anchor(
+        tmp_path, monkeypatch):
+    book = tmp_path / "book.html"
+    book.write_text("<html><body><h2 id='old'>Old</h2>"
+                    "<h2 id='new'>New</h2></body></html>", encoding="utf-8")
+    monkeypatch.setattr(help_viewer, "_resolve_doc", lambda name: book)
+    book_url = QUrl.fromLocalFile(str(book))
+
+    nav = _Navigation(book_url)
+    nav._view.page().loading = True
+    nav._load_started(book_url)              # navigation S1
+    nav.show_doc("book.html", "new")         # anchor queued on S1
+    nav._load_started(book_url)              # newer same-doc navigation S2
+
+    nav._document_loaded(False, book_url)    # S1 stopped while S2 runs
+
+    assert nav._pending_anchor == "new"
+    assert nav._view.page().scripts == []
+
+    nav._view.page().loading = False
+    nav._document_loaded(True, book_url)     # S2 succeeds
+
+    assert nav._pending_anchor is None
+    assert len(nav._view.page().scripts) == 1
+    assert "new" in nav._view.page().scripts[0]
+
+
+def test_successful_unrelated_load_cancels_a_pending_anchor(
+        tmp_path, monkeypatch):
+    book = tmp_path / "book.html"
+    manual = tmp_path / "manual.html"
+    book.write_text("<html><body><h2 id='results'>Results</h2></body></html>",
+                    encoding="utf-8")
+    manual.write_text("<html><body>manual</body></html>", encoding="utf-8")
+    monkeypatch.setattr(
+        help_viewer, "_resolve_doc",
+        lambda name: manual if name == "manual.html" else book)
+
+    nav = _Navigation(QUrl.fromLocalFile(str(book)))
+    nav._view.page().loading = True
+    nav.show_doc("book.html", "results")
+
+    nav._view.page().loading = False
+    nav._document_loaded(True, QUrl.fromLocalFile(str(manual)))
+    assert nav._pending_anchor is None
+
+    # Going back to the original document must not apply the stale anchor.
     nav._document_loaded(True, QUrl.fromLocalFile(str(book)))
     assert nav._view.page().scripts == []

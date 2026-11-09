@@ -29,7 +29,7 @@ import json
 import os
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QEventLoop, QTimer
+from PySide6.QtCore import QEvent, QEventLoop, QTimer, QUrl
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication
 
@@ -133,18 +133,37 @@ assert layout["borderTopWidth"] == "0px", layout
 assert layout["paddingTop"] == "16px", layout
 assert layout["innerWidth"] <= 1120, layout
 
-# Real pending-anchor path: the second Help action arrives while the first
-# load is still running. It must be queued and applied after the document
-# exists (the old code checked a non-existent QWebEngineView.isLoading()).
+# Real pending-anchor path: a same-document load is in flight with no
+# fragment. A second Help action must queue the anchor and use JS scroll,
+# not start a fragment load. Waiting on page().isLoading() (the real API)
+# also proves the branch the old QWebEngineView.isLoading() check missed.
+load_doc("viewer2.html")
+recorded_loads = []
+original_load = win._view.load
+
+
+def record_load(url):
+    recorded_loads.append(url.toString())
+    original_load(url)
+
+
+win._view.load = record_load
+win._view.load(QUrl.fromLocalFile(str(doc2)))
+wait_until(lambda: win._view.page().isLoading(), "the same-doc reload")
+wait_until(lambda: win._inflight_url is not None, "the load-started token")
+recorded_loads.clear()
+
 spy = QSignalSpy(win._view.loadFinished)
-win.show_doc("viewer2.html", "section-three")
 win.show_doc("viewer2.html", "section-two")
-assert spy.wait(10000), "the second help page did not load"
+assert win._pending_anchor == "section-two", win._pending_anchor
+assert recorded_loads == [], recorded_loads
+assert spy.wait(10000), "the same-doc reload did not finish"
 app.processEvents()
 wait_until(
     lambda: abs(js(win, "document.getElementById('section-two')"
                           ".getBoundingClientRect().top")) <= 2,
     "the queued anchor to be applied")
+assert recorded_loads == [], recorded_loads
 assert js(win, """
 (function () {
   const hs = Array.from(document.querySelectorAll('#content h2'));
@@ -156,6 +175,7 @@ assert js(win, """
   return current.id;
 })();
 """) == "section-two"
+win._view.load = original_load
 
 load_doc("viewer.html")
 
