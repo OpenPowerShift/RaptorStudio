@@ -344,27 +344,52 @@ class DataTablesDock(QWidget):
         "Failure resets": "A failure resets the time to the next PM "
             "activity",
     }
-    #: Costs tab: one row per block, the 14 input costs as columns. The
-    #: header names are exactly `BLOCK_COST_FIELDS`' BLOCK_DATA column
-    #: names, so the grid and the file's own table use one vocabulary.
-    _COST_COLS = ["Name", "ID", *(col for _attr, col in BLOCK_COST_FIELDS),
-                  "Level"]
+    #: Costs tab: one row per block, the 14 input costs as columns.
+    #: Headers are plain English; `_COST_LABELS` maps each back to the
+    #: BLOCK_DATA field used by the commit handlers.
+    _COST_LABELS = {
+        "initial": "Initial cost",
+        "Running": "Running cost",
+        "standby": "Standby cost",
+        "idle": "Idle cost",
+        "repFixed": "Repair fixed cost",
+        "repPerTime": "Repair cost per time",
+        "repHold": "Repair hold cost per time",
+        "pmFixedCost": "PM fixed cost",
+        "pmCost": "PM cost per time",
+        "pmHoldCost": "PM hold cost per time",
+        "doneFixed": "Done fixed cost",
+        "donePerTime": "Done cost per time",
+        "perSpare": "Spare cost",
+        "emerShipping": "Emergency shipping cost",
+    }
+    _COST_COLS = ["Name", "ID", "Initial cost", "Running cost",
+                  "Standby cost", "Idle cost", "Repair fixed cost",
+                  "Repair cost per time", "Repair hold cost per time",
+                  "PM fixed cost", "PM cost per time",
+                  "PM hold cost per time", "Done fixed cost",
+                  "Done cost per time", "Spare cost",
+                  "Emergency shipping cost", "Level"]
     _COST_COL_TIPS = {
-        "initial": "Initial acquisition cost",
-        "Running": "Running cost per unit of model time",
-        "standby": "Standby cost per unit of model time",
-        "idle": "Idle downtime cost per unit of model time",
-        "repFixed": "Hands-on maintenance, fixed cost",
-        "repPerTime": "Hands-on maintenance, cost per unit of model time",
-        "repHold": "Logistical hold, cost per unit of model time",
-        "pmFixedCost": "Preventive maintenance, fixed cost",
-        "pmCost": "Preventive maintenance, cost per unit of model time",
-        "pmHoldCost": "Preventive maintenance hold, cost per unit of "
+        "Initial cost": "Initial acquisition cost",
+        "Running cost": "Running cost per unit of model time",
+        "Standby cost": "Standby cost per unit of model time",
+        "Idle cost": "Idle downtime cost per unit of model time",
+        "Repair fixed cost": "Hands-on maintenance, fixed cost",
+        "Repair cost per time": "Hands-on maintenance, cost per unit of "
             "model time",
-        "doneFixed": "Rebate or disposal, fixed cost",
-        "donePerTime": "Permanently done, cost per unit of model time",
-        "perSpare": "Recurring spare cost",
-        "emerShipping": "Emergency spare additional cost",
+        "Repair hold cost per time": "Logistical hold, cost per unit of "
+            "model time",
+        "PM fixed cost": "Preventive maintenance, fixed cost",
+        "PM cost per time": "Preventive maintenance, cost per unit of "
+            "model time",
+        "PM hold cost per time": "Preventive maintenance hold, cost per "
+            "unit of model time",
+        "Done fixed cost": "Rebate or disposal, fixed cost",
+        "Done cost per time": "Permanently done, cost per unit of model "
+            "time",
+        "Spare cost": "Recurring spare cost",
+        "Emergency shipping cost": "Emergency spare additional cost",
     }
     #: Same range, decimals and Pooled rule as the Inspector's Costs tab.
     _COST_LIMIT = BLOCK_COST_LIMIT
@@ -372,37 +397,54 @@ class DataTablesDock(QWidget):
     #: The Inspector's wording for the two fields a Pooled block does not
     #: own: the engine reads the pool's own fields instead.
     _POOLED_COST_TIP = POOLED_COST_TIP
+    _SPARES_COLS = [
+        "Pool Name", "Routine ordering", "Initial stock", "New spares",
+        "Routine order interval", "Emergency ordering",
+        "Emergency arrival time", "Stock-level ordering",
+        "Reorder level", "Reorder quantity", "Reorder arrival time"]
+    _RESOURCE_COLS = [
+        "Pool Name", "Units", "Spare cost", "Fixed cost per use",
+        "Cost per time unit", "Phases"]
+    _TRIGGER_COLS = [
+        "Trigger Name", "ID", "Repeats", "First use offset",
+        "Distribution", "Param 1", "Param 2", "Param 3"]
+    _PHASE_COLS = [
+        "Phase Name", "Number", "Mission phase", "Distribution",
+        "Param 1", "Param 2", "Param 3"]
     _KEYED_COL_TIPS = {
-        "RSO": "Routine Spare Ordering: reorder on a fixed schedule, "
-            "before stock runs out",
-        "ESO": "Emergency Spare Ordering: rush-order when stock hits "
-            "zero and a block needs a spare now",
-        "SLO": "Stock-Level Ordering: reorder once stock drops to a "
-            "threshold",
-        "ArriveEvery": "How often a routine spare order arrives",
-        "EmerTime": "How long an emergency spare takes to arrive",
-        "Level": "Stock level that triggers an SLO reorder",
-        "Quan": "How many spares an SLO reorder brings in",
-        "SLOTime": "How long an SLO reorder takes to arrive",
-        "NumIn": "Number of resources in this pool",
-        "SpareCost": "Cost of purchasing one spare",
-        "FixedPerUse": "Fixed cost charged each time this resource is "
-            "used",
-        "PerTimeUnit": "Cost per model-time-unit while this resource "
-            "is in use",
+        "Routine ordering": "Routine Spare Ordering: reorder on a fixed "
+            "schedule, before stock runs out",
+        "Emergency ordering": "Emergency Spare Ordering: rush-order when "
+            "stock hits zero and a block needs a spare now",
+        "Stock-level ordering": "Stock-Level Ordering: reorder once stock "
+            "drops to a threshold",
+        "Routine order interval": "How often a routine spare order arrives",
+        "Emergency arrival time": "How long an emergency spare takes to "
+            "arrive",
+        "Reorder level": "Stock level that triggers a stock-level reorder",
+        "Reorder quantity": "How many spares a stock-level reorder brings "
+            "in",
+        "Reorder arrival time": "How long a stock-level reorder takes to "
+            "arrive",
+        "Units": "Number of resources in this pool",
+        "Spare cost": "Cost of purchasing one spare",
+        "Fixed cost per use": "Fixed cost charged each time this resource "
+            "is used",
+        "Cost per time unit": "Cost per model-time-unit while this "
+            "resource is in use",
         "Phases": "Number of mission phases this resource pool spans",
-        "IDnum": "Internal trigger id (read-only)",
+        "ID": "Internal trigger id (read-only)",
         "Repeats": "0 = fires once; otherwise how many times this "
             "trigger repeats",
-        "InitUsed": "Offset before this trigger's first firing",
-        "Dist": "Distribution for this row's frequency/length "
+        "First use offset": "Offset before this trigger's first firing",
+        "Distribution": "Distribution for this row's frequency/length "
             "(Triggers) or duration (Phases)",
-        "Param1": "1st parameter of Dist (meaning depends on which "
-            "distribution -- hover the row's Dist cell)",
-        "Param2": "2nd parameter of Dist (blank if unused)",
-        "Param3": "3rd parameter of Dist (blank if unused)",
-        "Num": "Internal phase id (read-only)",
-        "Mission": "Whether this phase counts toward mission time "
+        "Param 1": "1st parameter of the distribution (meaning depends on "
+            "which distribution -- hover the row's Distribution cell)",
+        "Param 2": "2nd parameter of the distribution (blank if unused)",
+        "Param 3": "3rd parameter of the distribution (blank if unused)",
+        "Number": "Internal phase id (read-only)",
+        "Mission phase": "Whether this phase counts toward mission time "
             "(vs. a non-mission phase like standby/storage)",
     }
 
@@ -415,6 +457,13 @@ class DataTablesDock(QWidget):
     _KEYED_TIME_FIELDS = {
         "SPARE_POOL_DATA": {"ArriveEvery", "EmerTime", "SLOTime"},
         "TRIGGERS": {"InitUsed"},
+    }
+    #: Plain-English headers that receive the display-unit suffix.
+    _KEYED_TIME_HEADERS = {
+        "SPARE_POOL_DATA": {"Routine order interval",
+                            "Emergency arrival time",
+                            "Reorder arrival time"},
+        "TRIGGERS": {"First use offset"},
     }
 
     #: Per-position parameter meaning for the common distributions,
@@ -475,20 +524,15 @@ class DataTablesDock(QWidget):
             self._EVENT_COL_TIPS)
         # Name-keyed sections (no ID column): pools and triggers.
         self._spares_table = self._make_table(
-            ["PoolName", "RSO", "Stock", "NewSp", "ArriveEvery", "ESO",
-             "EmerTime", "SLO", "Level", "Quan", "SLOTime"],
-            self._KEYED_COL_TIPS)
+            self._SPARES_COLS, self._KEYED_COL_TIPS)
         self._resources_table = self._make_table(
-            ["PoolName", "NumIn", "SpareCost", "FixedPerUse",
-             "PerTimeUnit", "Phases"], self._KEYED_COL_TIPS)
+            self._RESOURCE_COLS, self._KEYED_COL_TIPS)
         self._triggers_table = self._make_table(
-            ["TriggerName", "IDnum", "Repeats", "InitUsed", "Dist",
-             "Param1", "Param2", "Param3"], self._KEYED_COL_TIPS)
+            self._TRIGGER_COLS, self._KEYED_COL_TIPS)
         # Phase definitions -- same
         # keyed-row shape as pools/triggers.
         self._phases_table = self._make_table(
-            ["PhaseName", "Num", "Mission", "Dist", "Param1", "Param2",
-             "Param3"], self._KEYED_COL_TIPS)
+            self._PHASE_COLS, self._KEYED_COL_TIPS)
         self._sparing_table = self._make_table(
             self._SPARING_COLS, self._SPARING_COL_TIPS)
         self._pm_table = self._make_table(
@@ -739,7 +783,7 @@ class DataTablesDock(QWidget):
                 if item is not None and item.text().split(" (")[0] == name:
                     item.setText(f"{name} ({unit})" if unit else name)
         for ktable, (section, _key, _kinds) in self._keyed.items():
-            fields = self._KEYED_TIME_FIELDS.get(section, set())
+            fields = self._KEYED_TIME_HEADERS.get(section, set())
             for col in range(ktable.columnCount()):
                 item = ktable.horizontalHeaderItem(col)
                 if item is None:
@@ -838,30 +882,16 @@ class DataTablesDock(QWidget):
             self._sort_choice[table] = (section, order)
 
     def _sync_row_headers(self, table: QTableWidget) -> None:
-        """Keep the row identity visible while the grid scrolls sideways.
+        """Keep the vertical row header hidden.
 
-        The Blocks grid is ~1,870 px wide for a ~1,385 px viewport. A
-        normal horizontal header scrolls Name/ID away, leaving only the
-        tooltip to say which block a parameter belongs to. The vertical
-        header repeats the name and never scrolls horizontally.
+        It used to repeat the element name already shown in column 0, so
+        every grid displayed the same name twice and lost 105 px of width.
         """
         try:
             from shiboken6 import isValid
             if not isValid(table):
                 return
-            names = []
-            for row in range(table.rowCount()):
-                item = table.item(row, 0)
-                names.append(item.text() if item is not None else "")
-            table.setVerticalHeaderLabels(names)
-            header = table.verticalHeader()
-            header.setVisible(bool(names))
-            if names:
-                header.setFixedWidth(105)
-                for row, name in enumerate(names):
-                    item = table.verticalHeaderItem(row)
-                    if item is not None:
-                        item.setToolTip(name)
+            table.verticalHeader().setVisible(False)
         except RuntimeError:
             return
 
@@ -1962,7 +1992,8 @@ class DataTablesDock(QWidget):
         if block is None:
             return
         idx = col - first
-        attr, header = BLOCK_COST_FIELDS[idx]
+        attr, raw_header = BLOCK_COST_FIELDS[idx]
+        header = self._COST_LABELS.get(raw_header, raw_header)
         old = float(getattr(block, attr))
         if self._cost_field_readonly(block, attr):
             self._set_cost_text(item, old)

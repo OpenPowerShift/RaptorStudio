@@ -374,6 +374,6 @@ documentation.
 |===
 |Tab |Columns
 |Blocks |Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev, Level
-|Costs |Name, ID, initial, Running, standby, idle, repFixed, repPerTime, repHold, pmFixedCost, pmCost, pmHoldCost, doneFixed, donePerTime, perSpare, emerShipping, Level
+|Costs |Name, ID, Initial cost, Running cost, Standby cost, Idle cost, Repair fixed cost, Repair cost per time, Repair hold cost per time, PM fixed cost, PM cost per time, PM hold cost per time, Done fixed cost, Done cost per time, Spare cost, Emergency shipping cost, Level
 |===
 

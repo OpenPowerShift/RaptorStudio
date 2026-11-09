@@ -130,9 +130,11 @@ def test_costs_page_has_the_block_and_cost_columns_and_every_block(win):
     # Literal, not derived from BLOCK_COST_FIELDS: a reorder of that tuple
     # must not silently move the displayed columns too.
     assert headers == [
-        "Name", "ID", "initial", "Running", "standby", "idle", "repFixed",
-        "repPerTime", "repHold", "pmFixedCost", "pmCost", "pmHoldCost",
-        "doneFixed", "donePerTime", "perSpare", "emerShipping", "Level"]
+        "Name", "ID", "Initial cost", "Running cost", "Standby cost",
+        "Idle cost", "Repair fixed cost", "Repair cost per time",
+        "Repair hold cost per time", "PM fixed cost", "PM cost per time",
+        "PM hold cost per time", "Done fixed cost", "Done cost per time",
+        "Spare cost", "Emergency shipping cost", "Level"]
     assert t.rowCount() == len(view.blocks)
     assert {_bid(t, r) for r in range(t.rowCount())} == set(view.blocks)
     assert t.isColumnHidden(t.columnCount() - 1)   # not Whole model
