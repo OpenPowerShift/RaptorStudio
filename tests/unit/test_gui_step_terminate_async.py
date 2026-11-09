@@ -80,6 +80,8 @@ def test_terminate_keeps_the_event_loop_alive(window, qapp, monkeypatch):
     window._on_step()
     session = window._step_session
     assert session is not None
+    view = window._diagram_dock.view
+    assert view._live_state_cache is not None
 
     original = session.early_terminate
 
@@ -98,7 +100,6 @@ def test_terminate_keeps_the_event_loop_alive(window, qapp, monkeypatch):
                         slow_final_report)
 
     entered = []
-    view = window._diagram_dock.view
     monkeypatch.setattr(view, "enter_level",
                         lambda *a, **k: entered.append("enter"))
     monkeypatch.setattr(view, "go_home",
@@ -139,6 +140,8 @@ def test_terminate_keeps_the_event_loop_alive(window, qapp, monkeypatch):
     assert not entered, "Terminate navigated hierarchy levels"
     assert window._step_session is None
     assert window._step_finalize_state is None
+    assert view._live_state_cache is None, \
+        "Terminate must clear Animate-off live colours"
     assert len(window._results._report_data) == 1
     assert "Early Terminate" in window._statusbar.currentMessage()
 

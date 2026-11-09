@@ -14,6 +14,7 @@ import pytest
 pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from raptor.api.tables import parse_event_log_line
@@ -102,6 +103,76 @@ def test_focus_event_uses_the_described_row_not_the_last_one(
     assert _visible(panel, selected)
 
 
+def test_a_focus_tint_is_removed_when_that_row_is_no_longer_current(
+        window, qapp):
+    panel = window._live_log_panel
+    for _ in range(4):
+        window._on_step()
+    qapp.processEvents()
+    old = _rows(panel)[0]
+    assert panel.focus_event(0)
+    assert old.font(0).bold()
+    assert old.data(0, Qt.ItemDataRole.BackgroundRole) is not None
+
+    window._on_step()
+    qapp.processEvents()
+    assert not old.font(0).bold()
+    assert old.data(0, Qt.ItemDataRole.BackgroundRole) is None
+
+
+def test_canvas_target_uses_the_log_rows_own_kind(window):
+    from types import SimpleNamespace
+    view = window._diagram_dock.view
+    node_item, hier_item = object(), object()
+    originals = (view.nodes, view._node_items, view.hiers,
+                 view._hier_items, view.blocks, view._block_items,
+                 view.events, view._event_items)
+    try:
+        view.nodes = {1: SimpleNamespace(node_name="Shared")}
+        view._node_items = {1: node_item}
+        view.hiers = {2: SimpleNamespace(name="Shared")}
+        view._hier_items = {2: hier_item}
+        view.blocks = {}
+        view._block_items = {}
+        view.events = {}
+        view._event_items = {}
+
+        assert window._canvas_item_for_log("Node", "Shared") is node_item
+        assert window._canvas_item_for_log("Hier", "Shared") is hier_item
+        assert window._canvas_item_for_log("Trigger", "Shared") is None
+        assert window._canvas_item_for_log("Pool", "Shared") is None
+        assert window._canvas_item_for_log("System", "Shared") is None
+    finally:
+        (view.nodes, view._node_items, view.hiers, view._hier_items,
+         view.blocks, view._block_items, view.events,
+         view._event_items) = originals
+
+
+def test_focus_off_jump_keeps_selection_and_scroll(window, qapp):
+    panel = window._live_log_panel
+    window._focus_event_action.setChecked(False)
+    window.resize(900, 240)
+    for _ in range(25):
+        window._on_step()
+    qapp.processEvents()
+    rows = _rows(panel)
+    assert len(rows) > 4
+    target = rows[2]
+    panel.tree.setCurrentItem(target)
+    bar = panel.tree.verticalScrollBar()
+    bar.setValue(max(1, bar.maximum() // 2))
+    before = bar.value()
+
+    window._on_step_jump()
+    qapp.processEvents()
+    session = window._step_session
+    assert session.run_index == 1
+    assert panel.shown_index == 0 and not panel.following
+    assert panel.tree.currentItem() is target
+    assert bar.value() == before, "Jump moved the user's scroll position"
+    assert len(_rows(panel)) == len(session.completed[0][0])
+
+
 def test_focus_event_returns_to_the_run_being_stepped(window, qapp):
     panel = window._live_log_panel
     window._on_step()
@@ -167,11 +238,17 @@ def test_focus_off_keeps_the_previous_run_at_a_rollover(window, qapp):
     window._on_step()
     session = window._step_session
     assert session.has_next_run
+    first = _rows(panel)[0]
+    panel.tree.setCurrentItem(first)
+    bar = panel.tree.verticalScrollBar()
+    before = bar.value()
 
     window._end_of_stepped_run(session)
     qapp.processEvents()
     assert session.run_index == 1
     assert panel.shown_index == 0 and not panel.following
+    assert panel.tree.currentItem() is first
+    assert bar.value() == before
     assert len(_rows(panel)) == len(session.completed[0][0])
 
 

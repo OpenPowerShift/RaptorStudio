@@ -6399,16 +6399,20 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # the whole point is watching each event land).
         live = self._live_sim_action.isChecked()
         focus_event = self._focus_event_action.isChecked()
-        if live:
-            if not self._diagram_dock.isVisible():
-                self._diagram_dock.show()
-            self._diagram_dock.view.update_live_states(
-                session.blocks, model=session.model,
-                phase=getattr(getattr(session.cascade, "system_state", None), "current_phase", None))
-            # Status-bar system square tracks stepping too.
-            self._update_system_swatch(
-                getattr(getattr(session.cascade, "system_state", None),
-                        "color", None))
+        if live and not self._diagram_dock.isVisible():
+            self._diagram_dock.show()
+        # Manual stepping is user-paced: paint the live colours (and
+        # cache them for level traversal) even with Animate off. Finishing
+        # and terminating clear them explicitly.
+        self._diagram_dock.view.update_live_states(
+            session.blocks, model=session.model,
+            phase=getattr(getattr(session.cascade, "system_state", None),
+                          "current_phase", None))
+        # Status-bar system square tracks stepping too, including with
+        # Animate off (force shows it without the live-run gate).
+        self._update_system_swatch(
+            getattr(getattr(session.cascade, "system_state", None),
+                    "color", None), force=True)
         # The Live Log tracks every step even with Animate off: Focus
         # Event is a live-log feature and must not select a stale row.
         if live or focus_event:
@@ -6445,37 +6449,35 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         target_item = None
         message = None
         focus_index = None
-        # Prefer the last new log line mentioning a real element
-        # (skip System bookkeeping) for both wording and focus. Keep each
-        # line's absolute index: the Live Log row to select is that line.
+        # The event described is the LAST new log line that is not System
+        # bookkeeping. Keep its absolute index: that exact Live Log row is
+        # selected, whether or not the element lives on the canvas level
+        # currently shown (a block inside a hierarchy has no current-level
+        # item; the row must still be the described one).
         parsed: list[tuple[int, list[str]]] = []
         for offset, line in enumerate(new_lines):
             parts = [p.strip() for p in line.split("\t")]
             if len(parts) >= 4:
                 parsed.append((prev_line_count + offset,
                                parts))  # time, Kind, Name, Status, [comment]
+        described: tuple[int, list[str]] | None = None
         for index, parts in reversed(parsed):
-            kind, name, status = parts[1], parts[2], parts[3]
-            if kind == "System" or name in ("--",):
+            if parts[1] == "System" or parts[2] in ("--",):
                 continue
+            described = (index, parts)
+            break
+        if described is None and parsed:
+            # Only System bookkeeping in this step: describe/select the
+            # newest one rather than leaving the previous row current.
+            described = parsed[-1]
+        if described is not None:
+            focus_index, parts = described
+            kind, name, status = parts[1], parts[2], parts[3]
             message = f"{kind} {name} → {status}  (t = {parts[0]})"
-            target_item = (
-                next((it for bid, it in v._block_items.items()
-                      if v.blocks[bid].name == name), None)
-                or next((it for nid, it in v._node_items.items()
-                         if v.nodes[nid].node_name == name), None)
-                or next((it for eid, it in v._event_items.items()
-                         if v.events[eid].name == name), None)
-                or v._hier_items.get(next(
-                    (h for h in v.hiers if v.hiers[h].name == name),
-                    None)))
-            focus_index = index
-            if target_item is not None:
-                break
-        if message is None and parsed:
-            index, parts = parsed[-1]
-            message = f"{parts[1]} {parts[2]} → {parts[3]}  (t = {parts[0]})"
-            focus_index = index
+            # Best effort at centring the canvas: a hierarchy target (or a
+            # trigger) simply has no item on the level shown -- do not
+            # navigate to find it.
+            target_item = self._canvas_item_for_log(kind, name)
         # Fall back to block-status diff when log parsing finds nothing.
         if message is None:
             for b in session.blocks:
@@ -6491,9 +6493,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 v.centerOn(target_item)
             if focus_index is not None:
                 self._live_log_panel.focus_event(focus_index)
-        self._statusbar.showMessage(
-            (message or f"Step — t = {session.time:.3f}")
-            + self._phase_status_suffix(session))
+        shown = (message or f"Step — t = {session.time:.3f}") \
+            + self._phase_status_suffix(session)
+        self._statusbar.showMessage(shown)
+        return message
 
     def _phase_status_suffix(self, session) -> str:
         """Raptor 7 status-bar readout during step sim: current
@@ -6513,6 +6516,31 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if name:
             label += f' "{name}"'
         return f" — {label} ({mission})"
+
+    def _canvas_item_for_log(self, kind: str, name: str):
+        """The canvas item a log row names, by the row's OWN kind. No
+        cross-kind fallback: a `Hier` row must not select a same-named
+        node, and a Trigger/Pool/System row has no canvas target."""
+        v = self._diagram_dock.view
+        if kind == "Block":
+            return next((it for bid, it in v._block_items.items()
+                         if v.blocks[bid].name == name), None)
+        if kind == "Node":
+            return next((it for nid, it in v._node_items.items()
+                         if v.nodes[nid].node_name == name), None)
+        if kind == "Event":
+            return next((it for eid, it in v._event_items.items()
+                         if v.events[eid].name == name), None)
+        if kind == "Hier":
+            hid = next((h for h in v.hiers if v.hiers[h].name == name), None)
+            return v._hier_items.get(hid) if hid is not None else None
+        return None
+
+    def _clear_failed_step(self) -> None:
+        """A step path failed: drop its live colours and stale Live Log."""
+        self._diagram_dock.view.clear_live_states()
+        self._reset_live_log()
+        self._sync_run_settings_lock()
 
     def _on_step(self):
         if self._rbd is None or self._step_finalize_state is not None:
@@ -6548,7 +6576,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 "The step could not be executed:\n\n"
                 + traceback.format_exc(limit=4))
             self._step_session = None
-            self._sync_run_settings_lock()
+            self._clear_failed_step()
 
     def _on_step_change(self):
         """Step to the next system-state change (Raptor 7's Step; `StepSession.step_to_change`)."""
@@ -6575,7 +6603,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 self, "Step Failed",
                 "The step could not be executed:\n\n" + traceback.format_exc(limit=4))
             self._step_session = None
-            self._sync_run_settings_lock()
+            self._clear_failed_step()
 
     def _advance_until(self, *, max_steps=None, target_time=None,
                        until_time_changes=False):
@@ -6604,7 +6632,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 # Time/stepping off nonexistent times. Run-To and
                 # budgeted Multi keep their exact one-entry semantics.
                 continue
-            self._refresh_live_step_view(session)
             if not advanced:
                 done = True          # run out of events -> auto-finish below
                 break
@@ -6622,6 +6649,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if done:
             self._end_of_stepped_run(session)
         else:
+            # Multi/Run-To/Next-Time are one user action: paint and tell
+            # the Live Log only the final state. Per-internal-event
+            # repaints now that stepping always colours would animate the
+            # whole batch and slow it down.
+            self._refresh_live_step_view(session)
             self._describe_and_focus_step(session, prev_statuses,
                                           prev_lines)
         if fired:
@@ -6746,11 +6778,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # the fresh log); they are the event to show.
             prev_lines = 0
         self._refresh_live_step_view(session)
-        self._describe_and_focus_step(session, prev, prev_lines)
+        description = self._describe_and_focus_step(session, prev, prev_lines)
         self._statusbar.showMessage(
             f"Run {session.run_index} finished — now stepping run "
             f"{session.run_index + 1} of {session.num_runs} "
-            f"(Finish runs the rest without stopping)", 8000)
+            f"(Finish runs the rest without stopping)"
+            + (f" — {description}" if description else ""), 8000)
         self._refresh_commands()
 
     def _on_step_jump(self):
@@ -6773,10 +6806,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             finally:
                 QApplication.restoreOverrideCursor()
             self._refresh_live_step_view(session)
-            self._describe_and_focus_step(session, prev, prev_lines)
+            description = self._describe_and_focus_step(
+                session, prev, prev_lines)
             self._statusbar.showMessage(
                 f"Jump — run {session.run_index + 1} of {session.num_runs}, "
-                f"t = {session.time:.3f}")
+                f"t = {session.time:.3f}"
+                + (f" — {description}" if description else ""))
             self._refresh_commands()
         except Exception:
             import traceback
@@ -6784,7 +6819,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 self, "Jump Failed",
                 "The jump could not be executed:\n\n" + traceback.format_exc(limit=4))
             self._step_session = None
-            self._sync_run_settings_lock()
+            self._clear_failed_step()
 
     def _on_step_finish(self):
         """Complete the stepped run (remaining events + closing passes),
@@ -6802,6 +6837,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             QApplication.restoreOverrideCursor()
             msgbox.critical(self, "Simulation Failed",
                                  f"The run failed:\n\n{e}")
+            self._clear_failed_step()
             self._statusbar.showMessage("Run failed")
             return
         eor_lines: list[str] = []
