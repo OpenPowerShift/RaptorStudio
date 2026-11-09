@@ -15,8 +15,10 @@ This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
 The server exposes *68 tools* (including the `ping` health check), a set of
-resources, and three prompts. A standalone reference to every tool,
-option and transport is in `docs/MCP.md` in the repository.
+resources, and three prompts. A standalone guide to installing, connecting,
+concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
+catalogue of every tool, parameter, return field and example is
+`docs/MCP-reference.md`, both in the repository.
 
 === Prerequisites
 

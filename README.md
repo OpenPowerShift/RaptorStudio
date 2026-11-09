@@ -32,10 +32,12 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **Scriptable.** Everything the application does is also a command (`raptor run`, `sweep`, `compare`, `diff`,
   `estimate`, `validate`, `spf`, `fev`, `step`, `extract`, `analytic`, `render` and more) with machine-readable results. It fits in
   a continuous-integration job, a Jupyter notebook or a shell loop.
-- **Usable from an AI assistant.** An MCP server with **66 tools** (67 including `ping`) lets an assistant build, edit, validate, simulate,
+- **Usable from an AI assistant.** An MCP server with **68 tools** (67 when `--no-render` hides the PNG diagram tool) lets an assistant build, edit, validate, simulate,
   compare and explain models, run long batches in the background, and draw the diagram. The
-  [MCP server reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) covers install, client
-  setup and every tool, resource and prompt. The recording below is a real run of those tools (the numbers are the
+  [MCP server guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) covers install, client
+  setup, concepts and task recipes; the generated
+  [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md) lists every
+  tool, parameter and return. The recording below is a real run of those tools (the numbers are the
   engine's; the assistant's narration is scripted):
 
   ![An assistant builds a cooling-loop model, simulates it, lists its single points of failure and sweeps a parameter through the MCP server](https://raw.githubusercontent.com/openpowershift/RaptorStudio/main/docs/readme/mcp-demo.gif)
@@ -43,7 +45,7 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **A model file you can read and diff.** `.rbds` is one JSON document with friendly field names, and `raptor diff`
   (or **File ▸ Differences**) says in words what changed between two versions of a model. `.rbd` files open and save
   exactly as before.
-- **Documentation that ships with it.** _Break It Before It Breaks_, a 23-chapter tutorial book with a model for each
+- **Documentation that ships with it.** _Break It Before It Breaks_, a 24-chapter tutorial book with a model for each
   chapter that opens from the page, a field-by-field reference manual, and a formulas page. **F1** opens the right
   section.
 
@@ -71,7 +73,7 @@ The equations are on the Formulas page, and the tutorial's weak-link chapter wor
 | **Run-time estimate**                | Know how long a batch will take before you start it, in the app, on the command line and from an assistant.                                                                                                                      |
 | **Check part of a model**            | Run one hierarchy on its own, with its input assumed available, or save it as a standalone model (`raptor extract`). The results are labelled as isolated.                                                                      |
 | **Parameter sweeps and comparisons** | Vary any field over a list of values, or run two or more models side by side, from the application, the command line or an assistant. **Differences** shows what is different between two models, and runs nothing.              |
-| **AI assistant (MCP)**               | 66 tools (67 including `ping`) to build, edit, run, analyse and explain models, over stdio or authenticated HTTP.                                                                                                                                      |
+| **AI assistant (MCP)**               | 68 tools (67 with `--no-render`) to build, edit, run, analyse and explain models, over stdio or authenticated HTTP.                                                                                                               |
 | **Stepping debugger**                | Step a run event by event, pause on a condition, jump to the next run, and see what each step changed. Failure Effects View and the Single Point Failure file are also available headless.                                       |
 | **Several models at once**           | Each model opens in its own window with its own undo history and results.                                                                                                                                                         |
 | **Edit while looking at results**    | Results stay on screen while you edit; undo and redo for edits; spread-banded Weak Link, Cost, Capacity, Spares and Importance colourings.                                                                                       |
@@ -164,13 +166,15 @@ The app opens on a start page with a blank model, worked examples (from the guid
 emergency power, a water-treatment works, a data centre and a phased airliner flight) and links to the
 built-in documentation, which the **Help** ribbon tab also opens:
 
-- **User Guide** — the tutorial book _Break It Before It Breaks_: 23 chapters, from a three-block lantern to a tuned
+- **User Guide** — the tutorial book _Break It Before It Breaks_: 24 chapters, from a three-block lantern to a tuned
   data centre, with companion `.rbds` models you can open straight from the book (the `opsmodel` buttons).
 - **Reference Manual** — field-by-field reference; **F1** jumps to the section for the focused panel or dialog.
 - **Formulas** — every metric, the importance measures and the distribution table as equations, on one page.
 - **Keyboard shortcuts** — [`docs/KEYBOARD_SHORTCUTS.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), also under **Help**. Press **Alt**
   in the app to show the key tips on the commands that have one.
-- **AI assistant** — [`docs/MCP.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) and the book's last chapter.
+- **AI assistant** — the [MCP guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md), the
+  generated [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md), and
+  the book's MCP chapter.
 - **File format** — [`docs/RBDS_FORMAT.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md) describes the `.rbds` JSON format.
 - **Analytical solver** — [`docs/ANALYTICAL.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md) covers the exact static solver: scope, assumptions, CLI and API.
 
@@ -218,7 +222,7 @@ The docs render with Ruby asciidoctor: `new_docs/tools/render_docs.sh` (see `new
 | `raptor/`               | The application: `core/` engine, `api/`, `cli/`, `gui/`, `mcp/`, `render/`                                                                                        |
 | `tests/`                | `unit/`, `behaviour/`, `integration/` (incl. `sweeps/`), `golden/` (Raptor 7's captured output; large captures gzipped), `fixtures/` (probe models), `ladder/`, `data/` (shared sample models) |
 | `new_docs/`             | User Guide (tutorial book), its models and build tools                                                                                                            |
-| `docs/`                 | Reference manual, [engine design](https://github.com/openpowershift/RaptorStudio/blob/main/docs/engine-design/README.adoc), [MCP server reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md), [analytical solver](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md), formulas, [keyboard shortcuts](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), [`.rbds` file format](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md), [IEC 61078](https://github.com/openpowershift/RaptorStudio/blob/main/docs/IEC61078.md) |
+| `docs/`                 | Reference manual, [engine design](https://github.com/openpowershift/RaptorStudio/blob/main/docs/engine-design/README.adoc), [MCP guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) and [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md), [analytical solver](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md), formulas, [keyboard shortcuts](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), [`.rbds` file format](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md), [IEC 61078](https://github.com/openpowershift/RaptorStudio/blob/main/docs/IEC61078.md) |
 | `tools/`                | Developer tools the tests and CI run: engine snapshot, coverage, type gate, doc generators                                                                        |
 | `installer/`            | Packaging (PyInstaller, Inno Setup, deb/AppImage)                                                                                                                 |
 | `packaging/`            | `raptor-studio-mcp`, the small PyPI package the MCP Registry lists                                                                                                |

@@ -861,9 +861,12 @@ the Help tab) opens this page. Step-by-step setup for Claude Code, Claude
 Desktop, OpenCode and any other MCP client, with worked examples, is in
 the User Guide:
 xref:../new_docs/book.html#ch-mcp[RAPTOR from an AI Assistant]. The
-generated reference for every tool, option and transport is
+standalone guide, with concepts and task recipes, is
 https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md[the
-MCP server reference].
+MCP server guide]; the generated catalogue of every tool, parameter and
+return field is
+https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md[the
+MCP tool reference].
 
 Over stdio the client starts the server itself:
 
