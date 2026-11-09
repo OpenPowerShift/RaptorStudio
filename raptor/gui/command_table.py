@@ -1081,6 +1081,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
             " the next run"),
         checkable=True),
     CommandSpec(
+        id="view.live_log_toggle",
+        attr="_live_log_toggle_action",
+        text="Live Log",
+        icon="log_icon:text",
+        tooltip=(
+            "Show the Live Log — the stepped simulation's event list, "
+            "tabbed beside the Inspector"),
+        checkable=True,
+        enabled=False,
+        enabled_when="live_session"),
+    CommandSpec(
         id="view.reset_layout",
         attr="_reset_layout_action",
         text="Reset Layout",
@@ -1303,6 +1314,7 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.inspector_toggle"),
                         Btn("view.fev_inspector_toggle"),
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
+                        Btn("view.live_log_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        Group("Appearance", (Btn("view.theme", True), Btn("view.prefs", True),
