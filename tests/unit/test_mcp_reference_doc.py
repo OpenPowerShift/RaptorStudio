@@ -146,7 +146,7 @@ def test_computed_defaults_are_documented():
     assert "Choose one phase" in phase_note
     assert "all" in phase_note
     folder_note = mod.COMPUTED_DEFAULTS[("export_analytical", "folder")]
-    assert "Always `Tables/<model>`" in folder_note
+    assert "Defaults to `Tables/<model>` when omitted" in folder_note
     assert "file name" in folder_note
     assert "_h<hierarchy>" in folder_note
     assert "_phase<N>" in folder_note

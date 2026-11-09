@@ -420,7 +420,7 @@ COMPUTED_DEFAULTS: dict[tuple[str, str], str] = {
     ("export_analytical", "modes"):
         "Defaults to `[\"reliability\"]` when omitted.",
     ("export_analytical", "folder"):
-        "Always `Tables/<model>` in the workspace. The file name adds "
+        "Defaults to `Tables/<model>` when omitted. The file name adds "
         "`_h<hierarchy>` and/or `_phase<N>`/`_all_phases` for a hierarchy "
         "or phase solve; an existing file of that name is replaced.",
     ("export_analytical", "phase"):

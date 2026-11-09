@@ -3369,7 +3369,7 @@ availability}]}.
 Parameter notes:
 
 - `at` — Defaults to the model's time-terminated run length.
-- `folder` — Always `Tables/<model>` in the workspace. The file name adds `_h<hierarchy>` and/or `_phase<N>`/`_all_phases` for a hierarchy or phase solve; an existing file of that name is replaced.
+- `folder` — Defaults to `Tables/<model>` when omitted. The file name adds `_h<hierarchy>` and/or `_phase<N>`/`_all_phases` for a hierarchy or phase solve; an existing file of that name is replaced.
 - `modes` — Defaults to `["reliability"]` when omitted.
 - `phase` — Defaults to no phase. A phase-dependent model is refused with "Choose one phase" unless you pass a phase number; `"all"` solves every phase.
 
