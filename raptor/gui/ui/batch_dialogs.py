@@ -44,8 +44,27 @@ METRICS: tuple[tuple[str, str, bool], ...] = (
     ("System_Failures", "System failures", False),
     ("Red_Percent", "Red time %", False),
 )
-_LABEL = {k: lbl for k, lbl, _ in METRICS}
-_HIGHER_BETTER = {k: hb for k, _, hb in METRICS}
+#: Capacity-analysis rows for Compare, in Final Results order. Shown only
+#: when at least one compared run has capacity analysis. More delivered
+#: flow is better; lost flow is not.
+CAPACITY_METRICS: tuple[tuple[str, str, bool], ...] = (
+    ("Units_Produced", "Units produced", True),
+    ("Mean_Flow", "Mean flow", True),
+    ("Mean_Capacity", "Mean capacity", True),
+    ("Capacity_Weighted_Availability", "Capacity-weighted availability", True),
+    ("Lost_Flow", "Lost flow", False),
+)
+#: Cost-analysis rows for Compare, in Cost_Summary order. Every cost is
+#: lower-is-better. Shown only when at least one compared run has cost
+#: analysis.
+COST_METRICS: tuple[tuple[str, str, bool], ...] = (
+    ("Grand_Total", "Grand total", False),
+    ("System_Down_Cost", "System down cost", False),
+    ("System_Lost_Flow_Cost", "System lost flow cost", False),
+)
+OPTIONAL_METRICS = CAPACITY_METRICS + COST_METRICS
+_LABEL = {k: lbl for k, lbl, _ in METRICS + OPTIONAL_METRICS}
+_HIGHER_BETTER = {k: hb for k, _, hb in METRICS + OPTIONAL_METRICS}
 _TABLE_METRICS = ("Availability", "MTBDE", "MDT", "System_Failures")
 
 
@@ -77,6 +96,49 @@ def _mean(entry: dict, metric: str) -> float | None:
 def _sem(entry: dict, metric: str) -> float | None:
     s = (entry.get("summary") or {}).get(metric)
     return None if s is None else s.get("sem")
+
+
+def _has_metric(entry: dict, metric: str) -> bool:
+    """Whether this run's summary carries the metric at all."""
+    return metric in (entry.get("summary") or {})
+
+
+def _optional_rows(entries: list[dict]) -> list[tuple[str, str, bool]]:
+    """Optional capacity/cost rows with a real value in some entry.
+
+    A key present with a ``None`` mean is undefined, not analysis-off; it
+    does not make a row appear on its own. A run with the analysis off has
+    no summary key, so its cell stays blank rather than showing a
+    misleading zero.
+    """
+    return [row for row in OPTIONAL_METRICS
+            if any(not e.get("error") and _mean(e, row[0]) is not None
+                   for e in entries)]
+
+
+def _capacity_analysis(entry: dict) -> bool:
+    """Whether the entry ran capacity analysis, with a data fallback for
+    summaries written before batch entries carried ``analyses``."""
+    analyses = entry.get("analyses")
+    if isinstance(analyses, dict) and "capacity" in analyses:
+        return bool(analyses["capacity"])
+    return _has_metric(entry, "Mean_Flow")
+
+
+def _capacity_settings_differ(entries: list[dict]) -> bool:
+    settings = {_capacity_analysis(e) for e in entries if not e.get("error")}
+    return len(settings) > 1
+
+
+def _csv_value(entry: dict, key: str, optional: set[str]) -> str:
+    """One CSV cell, keeping analysis-off (blank) distinct from undefined
+    (``—``) for the optional capacity/cost rows."""
+    if key in optional and not _has_metric(entry, key):
+        return ""
+    value = _mean(entry, key)
+    if value is None:
+        return "—" if key in optional else ""
+    return repr(value)
 
 
 def _trials(rbd) -> int:
@@ -1078,15 +1140,24 @@ class CompareDialog(_BatchDialog):
         job = self._job
         entries = job.results if job is not None else []
         labels = ["This model"] + model_labels(self._files)
+        rows = list(METRICS) + _optional_rows(entries)
+        optional = {key for key, _, _ in OPTIONAL_METRICS}
+        mixed_capacity = _capacity_settings_differ(entries)
         self._table.setColumnCount(len(labels))
         self._table.setHorizontalHeaderLabels(labels)
-        self._table.setRowCount(len(METRICS))
-        self._table.setVerticalHeaderLabels([lbl for _, lbl, _ in METRICS])
-        for r, (key, _, higher) in enumerate(METRICS):
+        self._table.setRowCount(len(rows))
+        self._table.setVerticalHeaderLabels([lbl for _, lbl, _ in rows])
+        for r, (key, _, higher) in enumerate(rows):
             vals = [None if e.get("error") else _mean(e, key)
                     for e in entries]
-            best = best_indices(vals, higher)
+            not_comparable = key == "Grand_Total" and mixed_capacity
+            best = set() if not_comparable else best_indices(vals, higher)
             base = vals[0] if vals else None
+            if not_comparable:
+                self._table.verticalHeaderItem(r).setToolTip(
+                    "Not comparable: capacity analysis differs between "
+                    "models (Grand Total includes lost-flow cost only when "
+                    "capacity analysis is on).")
             for c in range(len(labels)):
                 if c >= len(entries):
                     it = QTableWidgetItem("…" if job and not job.done else "")
@@ -1095,8 +1166,19 @@ class CompareDialog(_BatchDialog):
                     it.setToolTip(entries[c]["error"])
                 else:
                     v = vals[c]
-                    it = QTableWidgetItem(fmt(v))
-                    if c > 0 and v is not None and base:
+                    # A run with the analysis off has no summary key at
+                    # all: leave that cell blank. A key that exists with a
+                    # None mean is undefined, and reads "—" like the
+                    # always-present metrics.
+                    if key in optional and not _has_metric(entries[c], key):
+                        it = QTableWidgetItem("")
+                    else:
+                        it = QTableWidgetItem(fmt(v))
+                    if not_comparable:
+                        it.setToolTip(
+                            "Not comparable: capacity analysis differs "
+                            "between models.")
+                    elif c > 0 and v is not None and base:
                         it.setToolTip(f"{(v - base) / abs(base):+.2%} "
                                       f"against this model")
                     if c in best:
@@ -1110,7 +1192,8 @@ class CompareDialog(_BatchDialog):
     def _csv(self):
         job = self._job
         entries = job.results if job else []
+        optional = {key for key, _, _ in OPTIONAL_METRICS}
         headers = ["metric"] + [e["label"] for e in entries]
-        rows = [[key] + ["" if _mean(e, key) is None else repr(_mean(e, key))
-                         for e in entries] for key, _, _ in METRICS]
+        rows = [[key] + [_csv_value(e, key, optional) for e in entries]
+                for key, _, _ in list(METRICS) + _optional_rows(entries)]
         return headers, rows

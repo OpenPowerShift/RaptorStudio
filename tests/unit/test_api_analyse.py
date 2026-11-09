@@ -45,6 +45,30 @@ def redundant_model(workspace):
     return result["model_id"]
 
 
+def _cache_run(workspace, run_id, means, *, analyses=None,
+               summary_version=None):
+    """Write a cached run summary the way `compare` reads one."""
+    import json
+
+    path = workspace.root / "runs" / run_id
+    path.mkdir(parents=True)
+    summary = {
+        "run_id": run_id,
+        "model_id": run_id,
+        "model_name": run_id,
+        "num_runs": 1,
+        "metrics": {
+            name: {"name": name, "mean": value}
+            for name, value in means.items()},
+    }
+    if analyses is not None:
+        summary["analyses"] = analyses
+    if summary_version is not None:
+        summary["summary_version"] = summary_version
+    (path / "summary.json").write_text(json.dumps(summary))
+    return path
+
+
 class TestSPF:
     """Single-point-failure results for Cascade and MotorDemo."""
 
@@ -157,6 +181,100 @@ class TestCompare:
         result = compare(workspace, [m1, m2], num_runs=2)
         assert result["labels"][0] != result["labels"][1]
         assert all(lbl.startswith("Copy (") for lbl in result["labels"])
+
+    def test_best_direction_for_capacity_and_cost(self, workspace):
+        """More flow is better; lost flow and every cost are lower-is-better
+        (issue #209)."""
+        import json
+
+        def cache_run(run_id, means):
+            path = workspace.root / "runs" / run_id
+            path.mkdir(parents=True)
+            (path / "summary.json").write_text(json.dumps({
+                "model_id": run_id,
+                "model_name": run_id,
+                "num_runs": 1,
+                "metrics": {
+                    name: {"name": name, "mean": value}
+                    for name, value in means.items()},
+            }))
+
+        cache_run("worse", {
+            "Availability": 0.8,
+            "Units_Produced": 100.0,
+            "Mean_Flow": 5.0,
+            "Mean_Capacity": 6.0,
+            "Capacity_Weighted_Availability": 0.5,
+            "Lost_Flow": 10.0,
+            "Grand_Total": 100.0,
+            "System_Down_Cost": 40.0,
+            "System_Lost_Flow_Cost": 20.0,
+        })
+        cache_run("better", {
+            "Availability": 0.9,
+            "Units_Produced": 200.0,
+            "Mean_Flow": 10.0,
+            "Mean_Capacity": 12.0,
+            "Capacity_Weighted_Availability": 0.8,
+            "Lost_Flow": 5.0,
+            "Grand_Total": 50.0,
+            "System_Down_Cost": 10.0,
+            "System_Lost_Flow_Cost": 4.0,
+        })
+        result = compare(workspace, ["worse", "better"])
+
+        assert result["best"]["Availability"] == "better"
+        for name in ("Units_Produced", "Mean_Flow", "Mean_Capacity",
+                     "Capacity_Weighted_Availability"):
+            assert result["best"][name] == "better", name
+        for name in ("Lost_Flow", "Grand_Total", "System_Down_Cost",
+                     "System_Lost_Flow_Cost"):
+            assert result["best"][name] == "better", name
+
+    def test_a_sole_candidate_is_not_best(self, workspace):
+        """A metric present in only one entry has no contest, so naming it
+        "best" is misleading (issue #209 review)."""
+        _cache_run(workspace, "first", {"Availability": 0.9})
+        _cache_run(workspace, "second", {"Reliability": 0.8})
+        result = compare(workspace, ["first", "second"])
+        assert "Availability" not in result["best"]
+        assert "Reliability" not in result["best"]
+
+    def test_equal_candidates_are_not_best(self, workspace):
+        _cache_run(workspace, "first", {"Availability": 0.9})
+        _cache_run(workspace, "second", {"Availability": 0.9})
+        result = compare(workspace, ["first", "second"])
+        assert "Availability" not in result["best"]
+
+    def test_grand_total_is_not_ranked_across_capacity_settings(
+            self, workspace):
+        """Grand Total includes lost-flow cost only when capacity analysis
+        is on, so the two figures are not comparable."""
+        _cache_run(
+            workspace, "with_capacity",
+            {"Grand_Total": 100.0, "System_Down_Cost": 10.0},
+            analyses={"capacity": True, "cost": True})
+        _cache_run(
+            workspace, "without_capacity",
+            {"Grand_Total": 50.0, "System_Down_Cost": 20.0},
+            analyses={"capacity": False, "cost": True})
+        result = compare(workspace, ["with_capacity", "without_capacity"])
+        assert "Grand_Total" not in result["best"]
+        assert result["best"]["System_Down_Cost"] == "with_capacity"
+        assert any("Grand_Total" in warning and "capacity" in warning
+                   for warning in result["warnings"])
+
+    def test_an_old_cached_summary_says_rerun_for_cost_data(
+            self, workspace):
+        old = _cache_run(workspace, "old", {"Availability": 0.9})
+        (old / "cost.txt").write_text("Cost_Summary\nGrand_Total 10.00\n")
+        _cache_run(workspace, "new", {"Availability": 0.9},
+                   analyses={"capacity": False, "cost": False},
+                   summary_version=2)
+        result = compare(workspace, ["old", "new"])
+        assert any("cost" in warning.lower()
+                   and "re-run" in warning.lower()
+                   for warning in result["warnings"])
 
 
 class TestSeries:

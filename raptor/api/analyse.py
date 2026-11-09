@@ -11,9 +11,9 @@ import itertools
 import threading
 from typing import Any
 
-from raptor.api.run import (run, run_dir, RunResult, RunNotFoundError,
-                            RunCancelledError)
-from raptor.api.results import Metric
+from raptor.api.run import (run, run_dir, section_path, RunResult,
+                            RunNotFoundError, RunCancelledError)
+from raptor.api.results import CAPACITY_FIELDS, COST_FIELDS, Metric
 from raptor.api.workspace import Workspace, UnknownHandle
 
 
@@ -443,17 +443,79 @@ _HIGHER_IS_BETTER = {
     "Component_Failures": False,
     "Red_Percent": False,
     "Yellow_Percent": False,
+    # Capacity: more delivered flow is better; lost flow is not.
+    "Units_Produced": True,
+    "Mean_Flow": True,
+    "Mean_Capacity": True,
+    "Capacity_Weighted_Availability": True,
+    "Lost_Flow": False,
+    # Cost: every cost is lower-is-better.
+    "Grand_Total": False,
+    "System_Down_Cost": False,
+    "System_Lost_Flow_Cost": False,
 }
+
+
+_CAPACITY_METRICS = frozenset(name for _key, name in CAPACITY_FIELDS)
+_COST_METRICS = frozenset(name for _key, name in COST_FIELDS)
+
+
+def _artefact_has_content(runs_dir: Any, section: str) -> bool:
+    """True when a run directory holds a non-empty analysis artefact."""
+    path = section_path(runs_dir, section)
+    if path is None or not path.is_file():
+        return False
+    try:
+        return bool(path.read_text().strip())
+    except OSError:
+        return False
+
+
+def _cached_analyses(runs_dir: Any, data: dict,
+                     metric_names: set[str]) -> tuple[dict[str, bool], list[str]]:
+    """Analysis flags for a cached summary, inferring them when absent.
+
+    Summaries written before ``summary_version`` 2 have no ``analyses``
+    block. Their artefacts and metric keys still tell us which analyses
+    ran; a cost artefact with no cost metrics is an old summary that needs
+    re-running before it can be compared on cost.
+    """
+    stored = data.get("analyses")
+    if isinstance(stored, dict):
+        analyses = {
+            "capacity": bool(stored.get("capacity")),
+            "cost": bool(stored.get("cost")),
+        }
+    else:
+        analyses = {
+            "capacity": bool(_CAPACITY_METRICS & metric_names
+                             or _artefact_has_content(runs_dir, "capacity")),
+            "cost": bool(_COST_METRICS & metric_names
+                         or _artefact_has_content(runs_dir, "cost")),
+        }
+    warnings: list[str] = []
+    if analyses["capacity"] and not _CAPACITY_METRICS & metric_names:
+        warnings.append(
+            "cached summary has capacity data but no capacity metrics; "
+            "re-run it to compare capacity figures")
+    if analyses["cost"] and not _COST_METRICS & metric_names:
+        warnings.append(
+            "cached summary has cost data but no cost metrics; "
+            "re-run it to compare cost figures")
+    return analyses, warnings
 
 
 def _result_from_run(workspace: Workspace, run_id: str) -> RunResult:
     """Build a RunResult from a cached run's summary.json."""
     import json
-    path = run_dir(workspace, run_id) / "summary.json"
+    runs_dir = run_dir(workspace, run_id)
+    path = runs_dir / "summary.json"
     if not path.is_file():
         raise RunNotFoundError(f"Run {run_id!r} not found")
     data = json.loads(path.read_text())
     metrics = [Metric(**v) for v in data.get("metrics", {}).values()]
+    metric_names = {metric.name for metric in metrics}
+    analyses, warnings = _cached_analyses(runs_dir, data, metric_names)
     return RunResult(
         run_id=run_id,
         model_id=data.get("model_id", run_id),
@@ -461,6 +523,8 @@ def _result_from_run(workspace: Workspace, run_id: str) -> RunResult:
         model_name=data.get("model_name", ""),
         metrics=metrics,
         model_hash=data.get("model_hash", ""),
+        warnings=warnings,
+        analyses=analyses,
     )
 
 
@@ -543,11 +607,31 @@ def compare(
             if base is not None and other is not None:
                 deltas[f"{name}_delta_{label}"] = other - base
 
+    warnings: list[str] = []
+    for label, result in zip(labels, results):
+        warnings.extend(f"{label}: {warning}" for warning in result.warnings)
+    # Grand_Total includes the lost-flow cost only when capacity analysis
+    # ran, so it is not comparable across a mixed set.
+    capacity_settings = {
+        bool(result.analyses.get("capacity", False)) for result in results}
+    mixed_capacity = len(capacity_settings) > 1
+    grand_total_warning = (
+        "Grand_Total is not comparable across runs with different "
+        "capacity-analysis settings; no best value is reported.")
+
     best: dict[str, str] = {}
     for name in names:
         row = values[name]
         candidates = [(v, i) for i, v in enumerate(row) if v is not None]
         if not candidates:
+            continue
+        if name == "Grand_Total" and mixed_capacity:
+            if grand_total_warning not in warnings:
+                warnings.append(grand_total_warning)
+            continue
+        # A "best" needs a contest: one candidate, or every candidate
+        # equal, is not a winner (matching the GUI's best_indices()).
+        if len(candidates) < 2 or len({value for value, _ in candidates}) < 2:
             continue
         higher = _HIGHER_IS_BETTER.get(name, True)
         chosen = max(candidates) if higher else min(candidates)
@@ -559,6 +643,9 @@ def compare(
         "metrics": values,
         "deltas": deltas,
         "best": best,
+        # Always present: a client can rely on the key, and an empty list
+        # means no cached-summary or comparability caveats.
+        "warnings": warnings,
     }
 
 

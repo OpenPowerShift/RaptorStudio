@@ -155,14 +155,22 @@ def qapp():
 
 def test_metric_definitions_cover_all_summary_fields():
     from raptor.api.metric_definitions import definitions
+    from raptor.api.results import CAPACITY_FIELDS, COST_FIELDS, _METRIC_FIELDS
 
     rows = definitions()
-    # 25 reported for every run, plus 5 for a run with capacity analysis.
-    assert len([r for r in rows if not r.get("analysis")]) == 25
-    assert len(rows) == 30
+    aggregates = {row["aggregate"] for row in rows}
+    summary_fields = {name for _key, name
+                      in _METRIC_FIELDS + CAPACITY_FIELDS + COST_FIELDS}
+    assert summary_fields <= aggregates
     names = {row["metric"] for row in rows}
     assert {"Conditional reliability", "Dependability", "MTBMs", "MMTu",
-            "Component failures", "Green %", "Yellow %", "Red %"} <= names
+            "Component failures", "Green %", "Yellow %", "Red %",
+            "Grand total", "System down cost",
+            "System lost flow cost"} <= names
+    assert {row["aggregate"] for row in rows
+            if row.get("analysis") == "cost"} == {
+                "Grand_Total", "System_Down_Cost",
+                "System_Lost_Flow_Cost"}
 
 
 def test_mcp_describe_metrics_rejects_path_traversal(tmp_path):

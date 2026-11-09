@@ -82,6 +82,14 @@ METRICS: tuple[dict[str, str], ...] = (
      "analysis": "capacity"},
     {"key": "lost_flow", "metric": "Lost flow",
      "aggregate": "Lost_Flow", "units": "flow", "analysis": "capacity"},
+    # Cost analysis only (`analysis`): absent from other runs' summaries.
+    {"key": "grand_total", "metric": "Grand total",
+     "aggregate": "Grand_Total", "units": "cost", "analysis": "cost"},
+    {"key": "system_down_cost", "metric": "System down cost",
+     "aggregate": "System_Down_Cost", "units": "cost", "analysis": "cost"},
+    {"key": "system_lost_flow_cost", "metric": "System lost flow cost",
+     "aggregate": "System_Lost_Flow_Cost", "units": "cost",
+     "analysis": "cost"},
 )
 
 

@@ -95,6 +95,7 @@ def run_variants(
                           seed=seed, abort=abort)
             entry.update(run_id=res.run_id, num_runs=res.num_runs,
                          summary=metrics_to_dict(res.metrics),
+                         analyses=res.analyses,
                          warnings=res.warnings)
         except Exception as exc:                          # noqa: BLE001
             entry["error"] = f"{type(exc).__name__}: {exc}"

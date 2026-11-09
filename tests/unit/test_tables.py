@@ -564,6 +564,14 @@ class TestResultTables:
         assert [r[0] for r in t.rows] == [1, 2, 3]
         assert "Availability" in t.headers
 
+    def test_per_run_grand_total_is_formatted_as_cost(self):
+        from raptor.api.presentation import table_kinds
+        bundle = ResultsBundle(per_run=[{"grand_total": 1234.5}])
+        t = next(t for t in result_tables(bundle)
+                 if t.key == "results.per_run")
+        kinds, _ = table_kinds(t)
+        assert kinds[t.headers.index("Grand Total")] == "cost"
+
     def test_event_log_rows_are_numbered_by_run(self, run_bundle):
         _rbd, bundle = run_bundle
         t = next(t for t in result_tables(bundle)
