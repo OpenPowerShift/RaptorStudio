@@ -23,13 +23,22 @@
 | Del / Backspace | Delete selection (nothing selected: arms click-to-delete) |
 | Arrow keys | Nudge the selection one grid step |
 | Shift+Arrow keys | Nudge the selection 1 px, off the grid |
+| Alt+Arrow keys | Fine-nudge the selection one tenth of a snap step |
+| Alt+drag | Move/drag at one tenth of the snap step (finer sub-grid positions) |
 | F2 | Edit the text of the selected text annotation |
 | Ctrl+F | Find item: the cursor goes to the Find box (from the canvas or the Explorer) |
 | Esc | Cancel armed tool / delete mode / connect / Failure Effects fail-repair targeting; cancels a running batch |
 
-Nudging with the arrow keys (one grid step; Shift: 1 px) also moves selected
-routing points, and the routing points of a link whose two ends both move go
-with them. One undo step.
+Nudging with the arrow keys (one grid step; Shift: 1 px; Alt: one tenth of a
+step) also moves selected routing points, and the routing points of a link
+whose two ends both move go with them. One undo step. Alt applies to drags
+too, so a block/node/event/oval can be placed between the normal grid lines.
+
+Alt+Up does double duty. With something movable selected on the focused
+canvas it fine-nudges the selection; with nothing selected it remains
+**Up one hierarchy level** (and a double-click on an Out marker always
+ascends without touching the selection). Deselect, or click in the
+Inspector, to get hierarchy navigation back while a selection exists.
 
 ## Tables
 | Shortcut | Action |

@@ -1511,6 +1511,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # is selected.
         self._diagram_dock.view.selection_changed.connect(
             self._sync_annotation_order_actions)
+        # Alt+Up's fine nudge needs the Up action enabled at the home level
+        # whenever something movable is selected; with no selection it is
+        # still the hierarchy-up command and stays disabled at home.
+        self._diagram_dock.view.selection_changed.connect(
+            self._sync_hier_up_action)
         # Selection-dependent commands (Delete/Collapse/Align/Mass Edit/
         # Zoom to Hierarchy/Extract) must change state on the click that
         # changes the selection, not on the next validation timer tick.
@@ -1921,7 +1926,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         inside = parent_id != 0
         name = self._diagram_dock.view.hiers.get(parent_id)
         self._update_title()
-        self._hier_up_action.setEnabled(inside)
+        self._sync_hier_up_action()
         self._hier_home_action.setEnabled(inside)
         # A level switch rebuilds the annotation items, so a selection
         # held in the old level's notes is gone: re-gate the z-order
@@ -1945,6 +1950,43 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._statusbar.showMessage(
                 f"Viewing hierarchy level: {name.name} (double-click an "
                 f"Out marker or use Up/Home to return)", 6000)
+
+    def _sync_hier_up_action(self) -> None:
+        """Up is available inside a hierarchy, or as Alt+Up's fine nudge.
+
+        Alt+Up is both the hierarchy-up shortcut and the fine-move chord.
+        Keeping the action enabled while something is selected lets the
+        shortcut reach `_hier_up_or_nudge` at the home level too, where
+        a selected element should move rather than the disabled action
+        swallowing the key. With no selection it stays the plain
+        hierarchy-up command (and is disabled at home).
+        """
+        action = getattr(self, "_hier_up_action", None)
+        view = getattr(getattr(self, "_diagram_dock", None), "view", None)
+        if action is None or view is None:
+            return
+        inside = view._current_parent != 0
+        has_selection = view.selected_movable_count() > 0
+        action.setEnabled(inside or has_selection)
+
+    def _hier_up_or_nudge(self) -> None:
+        """Alt+Up: fine-nudge a focused canvas selection, else ascend.
+
+        The collision is resolved by intent: a keyboard user with a
+        movable selection and canvas focus means "move it", so that wins.
+        With no selection, in a text field, or with the focus elsewhere,
+        the original hierarchy-up command runs unchanged -- and the
+        automatic deselect on a level change also restores navigation.
+        """
+        view = self._diagram_dock.view
+        focus = QApplication.focusWidget()
+        canvas_focused = (focus is None or focus is view
+                          or view.isAncestorOf(focus))
+        if canvas_focused and view.selected_movable_count() > 0:
+            view._suppress_key_tips()
+            if view.nudge_selection(0, -1, fine=True):
+                return
+        view.go_up()
 
     def _push_domains(self) -> None:
         """Compute Weak Link Raptor 7 domains from the loaded model and
@@ -2423,13 +2465,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._explorer.system_config_selected.connect(self._on_explorer_sysconfig_selected)
         self._inspector.block_renamed.connect(self._on_block_renamed)
         self._inspector.block_comment_changed.connect(
-            lambda bid, txt: self._diagram_dock.view
-            .set_element_comment("block", bid, txt)
-            or self._mark_dirty())
+            lambda bid, txt: self._on_comment_committed("block", bid, txt))
         self._inspector.element_comment_changed.connect(
-            lambda etype, oid, txt: self._diagram_dock.view
-            .set_element_comment(etype, oid, txt)
-            or self._mark_dirty())
+            self._on_comment_committed)
+        self._inspector.comment_to_annotation_requested.connect(
+            lambda etype, oid: self._diagram_dock.view
+            .comment_to_annotation(etype, oid))
         self._inspector.node_renamed.connect(self._on_node_renamed)
         self._inspector.hier_renamed.connect(self._on_hier_renamed)
         self._inspector.phasing_changed.connect(self._on_phasing_changed)
@@ -3081,6 +3122,29 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         box.exec()
         return True
 
+    def _on_comment_committed(self, etype: str, oid: int, text: str) -> None:
+        """Inspector Comment commit: undoable write, no Inspector rebuild.
+
+        The editor already shows the text the user just typed, so the
+        deferred `model_changed` refresh must skip the Inspector for this
+        one change; rebuilding it would delete the live editor (and move
+        the pane's scroll/caret), which is the bug this whole draft/
+        debounce path exists to prevent. Everything else the refresh
+        does -- dirty title, validation, tables -- still runs.
+        """
+        view = self._diagram_dock.view
+        stored = text.replace("\n", "~")
+        if view.current_comment_stored(etype, oid) != stored:
+            view.set_element_comment(etype, oid, text)
+            if not getattr(view, "_loading", False):
+                # Deferred refresh is queued by the command's _done(); the
+                # flag is read when it runs, after this returns.
+                self._suppress_inspector_refresh = True
+        # The old lambda called this even when the text was unchanged;
+        # keeping that also covers a commit after the model was already
+        # put back by undo.
+        self._mark_dirty()
+
     def _schedule_view_refresh(self):
         """Coalesced, deferred refresh of the model-derived views
         (Inspector, Data Tables, Explorer) after a model mutation.
@@ -3102,10 +3166,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         self._view_refresh_busy = True
         try:
-            try:
-                self._refresh_inspector()
-            except Exception:
-                pass
+            # A comment commit originated from the live Inspector editor:
+            # it already shows the new text, and re-populating would
+            # destroy that editor and jump the pane. Consume the flag here
+            # so a later undo/redo still refreshes normally.
+            if getattr(self, "_suppress_inspector_refresh", False):
+                self._suppress_inspector_refresh = False
+            else:
+                try:
+                    self._refresh_inspector()
+                except Exception:
+                    pass
             try:
                 self._explorer.refresh()
             except Exception:

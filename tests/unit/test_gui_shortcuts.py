@@ -20,11 +20,13 @@ DOC = Path("docs/KEYBOARD_SHORTCUTS.md")
 #: the action scan cannot see them. The doc may list them; nothing else.
 HANDLED_IN_KEY_EVENTS = {
     "Ctrl+C", "Ctrl+X", "Ctrl+V", "Esc", "Backspace", "F1", "F2", "Ctrl+F",
-    "Arrow keys", "Shift+Arrow keys",
+    "Arrow keys", "Shift+Arrow keys", "Alt+Arrow keys",
 }
 #: Doc cells that are not a key chord at all.
-# "Alt, then" is the key-tip table: tab letters, not bindings.
-NOT_KEYS = {"Shortcut", "Alt, then", "F", "M", "A", "D", "S", "B", "R", "V", "H"}
+# "Alt, then" is the key-tip table: tab letters, not bindings; Alt+drag is
+# a mouse gesture, handled in the canvas mouse events.
+NOT_KEYS = {"Shortcut", "Alt, then", "Alt+drag",
+            "F", "M", "A", "D", "S", "B", "R", "V", "H"}
 
 
 @pytest.fixture
