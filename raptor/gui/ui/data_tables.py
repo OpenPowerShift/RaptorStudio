@@ -435,6 +435,7 @@ class DataTablesDock(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._view = None
+        self._bound_rbd = None
         #: "Whole model": every level's rows, not just the one on screen.
         #: Kept for the session (it is a view of the model, not part of it).
         self._whole = False
@@ -761,16 +762,21 @@ class DataTablesDock(QWidget):
 
     def set_view(self, view, *, defer_large: bool = False):
         old_view = getattr(self, "_view", None)
-        old_rbd = getattr(old_view, "_rbd_ref", None)
+        # Compare against the model this dock was last bound to. The view
+        # object is reused across Open, and `v.load_rbd()` has already
+        # replaced `view._rbd_ref` by the time we get here, so reading the
+        # old view's current rbd would compare the NEW model with itself.
+        old_rbd = getattr(self, "_bound_rbd", None)
+        new_rbd = getattr(view, "_rbd_ref", None)
         self._view = view
+        self._bound_rbd = new_rbd
         # A cache of another model's/live level's rows must never survive
         # an Open: its ids may collide with this model's blocks.
         self._whole_src = None
         self._whole_src_checked = False
         self._src_ctx = None
         self._watch_view(view)
-        if old_view is not view or old_rbd is not getattr(
-                view, "_rbd_ref", None):
+        if old_view is not view or old_rbd is not new_rbd:
             # The deferred-fill path below returns before refresh. Leaving
             # the old model's editable rows on screen for that gap let an
             # edit before the first paint resolve an old row against the
@@ -2019,11 +2025,12 @@ class DataTablesDock(QWidget):
             return
         self._set_cost_text(item, value)
         if len(todo) > 1:
+            rows_by_id = {self._row_key(t, r): r
+                          for r in range(t.rowCount())}
             for k, _values in todo:
                 if k == bid:
                     continue
-                row_idx = next((r for r in range(t.rowCount())
-                                if self._row_key(t, r) == k), None)
+                row_idx = rows_by_id.get(k)
                 if row_idx is not None and t.item(row_idx, col) is not None:
                     self._set_cost_text(t.item(row_idx, col), value)
         self.model_edited.emit()

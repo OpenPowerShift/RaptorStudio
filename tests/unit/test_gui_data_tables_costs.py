@@ -104,6 +104,21 @@ def _block_row(rbd, bid):
                 if int(float(r["ID"])) == bid)
 
 
+def _large_spec(n: int) -> dict:
+    """A simple series model with n blocks and two nodes."""
+    return {
+        "blocks": [{"name": f"X{i}", "fail_dist": 4,
+                    "fail_params": [1000, 0], "repair_dist": 7,
+                    "repair_params": [8, 2]} for i in range(n)],
+        "nodes": [{"name": "Start", "type": "start"},
+                  {"name": "End", "type": "end"}],
+        "links": ([{"from": "Start", "to": "X0"}]
+                  + [{"from": f"X{i}", "to": f"X{i + 1}"}
+                     for i in range(n - 1)]
+                  + [{"from": f"X{n - 1}", "to": "End"}]),
+    }
+
+
 def test_costs_page_has_the_block_and_cost_columns_and_every_block(win):
     from raptor.gui.model_edit import BLOCK_COST_FIELDS
     from raptor.gui.ui.table_export import RAW_VALUE_ROLE
@@ -478,25 +493,15 @@ def test_whole_model_population_checks_its_cache_once(qapp, monkeypatch):
     from raptor.gui.ui.data_tables import DataTablesDock, _WholeModel
     from raptor.gui.ui.main_window import MainWindow
 
-    n = 120
-    spec = {
-        "blocks": [{"name": f"B{i}", "fail_dist": 4,
-                    "fail_params": [1000, 0], "repair_dist": 7,
-                    "repair_params": [8, 2]} for i in range(n)],
-        "nodes": [{"name": "Start", "type": "start"},
-                  {"name": "End", "type": "end"}],
-        "links": ([{"from": "Start", "to": "B0"}]
-                  + [{"from": f"B{i}", "to": f"B{i + 1}"}
-                     for i in range(n - 1)]
-                  + [{"from": f"B{n - 1}", "to": "End"}]),
-    }
+    n = 500
+    spec = _large_spec(n)
     w = MainWindow()
     w.show()
     qapp.processEvents()
     w._load_into_app(build_from_spec(spec, auto_layout=False), "many.rbds")
     qapp.processEvents()
     dt = w._data_tables
-    dt._tabs.setCurrentWidget(dt._blocks_table)
+    dt._tabs.setCurrentWidget(dt._costs_table)
     calls = []
     src_calls = []
     original = _WholeModel.matches
@@ -525,17 +530,7 @@ def test_deferred_second_model_drops_the_old_editable_rows(win, qapp):
     dt = win._data_tables
     assert dt._costs_table.rowCount() > 0
     n = 410
-    spec = {
-        "blocks": [{"name": f"N{i}", "fail_dist": 4,
-                    "fail_params": [1000, 0], "repair_dist": 7,
-                    "repair_params": [8, 2]} for i in range(n)],
-        "nodes": [{"name": "Start", "type": "start"},
-                  {"name": "End", "type": "end"}],
-        "links": ([{"from": "Start", "to": "N0"}]
-                  + [{"from": f"N{i}", "to": f"N{i + 1}"}
-                     for i in range(n - 1)]
-                  + [{"from": f"N{n - 1}", "to": "End"}]),
-    }
+    spec = _large_spec(n)
     second = DiagramView()
     second.load_rbd(build_from_spec(spec, auto_layout=False))
     qapp.processEvents()
@@ -551,20 +546,66 @@ def test_deferred_second_model_drops_the_old_editable_rows(win, qapp):
     assert dt._costs_table.rowCount() == n
 
 
-def test_whole_model_population_is_silent(whole_win, qapp):
+def test_real_open_clears_hidden_tables_before_the_deferred_fill(win, qapp):
+    """The real Open path reuses the view and has already replaced its
+    _rbd_ref; the dock must still recognise the model change and drop the
+    old rows before returning to the event loop."""
+    from raptor.api.build import build_from_spec
+
+    dt = win._data_tables
+    assert dt._costs_table.rowCount() > 0
+    win._data_tables_dock.hide()
+    qapp.processEvents()
+
+    win._load_into_app(build_from_spec(_large_spec(410), auto_layout=False),
+                       "large.rbds")
+    # Deliberately no processEvents here: this is the gap before first paint.
+    assert dt._refresh_pending
+    for table in dt._all_tables:
+        assert table.rowCount() == 0
+
+    dt._tabs.setCurrentWidget(dt._costs_table)
+    dt.refresh(force=True)
+
+
+def test_whole_model_population_is_silent(qapp, monkeypatch):
     """Locking foreign rows must not re-enter the Costs commit handler."""
-    dt = whole_win._data_tables
+    from raptor.core.fileio.rbds import load_rbds
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.data_tables import DataTablesDock
+    from raptor.gui.ui.main_window import MainWindow
+
+    calls = []
+    original = DataTablesDock._on_cost_cell_changed
+    monkeypatch.setattr(
+        DataTablesDock, "_on_cost_cell_changed",
+        lambda self, item: (calls.append(item) or original(self, item)))
+    settings.set_value("startup/show_start_page", False)
+    w = MainWindow()
+    w._load_into_app(load_rbds(WHOLE), WHOLE)
+    w.show()
+    qapp.processEvents()
+    dt = w._data_tables
     dt._tabs.setCurrentWidget(dt._costs_table)
     status = []
     invalid = []
     dt.status_message.connect(status.append)
     dt.validation_failed.connect(invalid.append)
 
+    calls.clear()
     dt._whole_box.setChecked(True)
     qapp.processEvents()
 
+    t = dt._costs_table
+    assert t.rowCount() == 14                   # every level is foreign here
+    for r in range(t.rowCount()):
+        for c in range(t.columnCount()):
+            assert not (t.item(r, c).flags() & Qt.ItemFlag.ItemIsEditable)
+    assert calls == []
     assert status == []
     assert invalid == []
+    w._dirty = False
+    w.close()
 
 
 def test_csv_filter_and_sort_use_the_displayed_rows(win, qapp):
