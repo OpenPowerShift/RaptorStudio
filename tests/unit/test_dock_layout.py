@@ -763,6 +763,69 @@ def test_compact_layout_preserves_closed_and_manual_minimized_docks(qapp):
         x.close()
 
 
+def test_floating_a_compact_minimized_dock_clears_compact_ownership(qapp):
+    w = _shown(qapp)
+    w.resize(900, 900)
+    _pump(qapp, 8)
+    assert "Inspector" in w._compact_minimized
+    dock = w._inspector_dock
+    dock.setFloating(True)
+    _pump(qapp)
+    assert "Inspector" not in w._compact_minimized
+    assert dock.widget().isHidden() is False
+    w.resize(1500, 900)
+    _pump(qapp, 8)
+    assert dock.isFloating()
+    assert dock.widget().isHidden() is False
+    assert dock.minimumWidth() >= 160
+    assert dock.minimumHeight() >= 90
+    w._dirty = False
+    w.close()
+
+
+def test_reset_layout_and_stub_restore_clear_compact_ownership(qapp):
+    w = _shown(qapp)
+    w.resize(900, 900)
+    _pump(qapp, 8)
+    assert "Inspector" in w._compact_minimized
+    w.reset_layout()
+    _pump(qapp, 8)
+    assert not w._compact_minimized
+
+    # A stub/Properties restore also takes the dock back from compact.
+    w._compact_minimized.add("Inspector")
+    w._dock_chrome["Inspector"]["set_closed"](True)
+    _pump(qapp)
+    w._dock_chrome["Inspector"]["set_closed"](False)
+    _pump(qapp)
+    assert "Inspector" not in w._compact_minimized
+
+    w._compact_minimized.add("Inspector")
+    w._dock_chrome["Inspector"]["set_minimized"](True)
+    _pump(qapp)
+    w._show_inspector_dock(expand_minimized=True)
+    _pump(qapp)
+    assert "Inspector" not in w._compact_minimized
+    w._dirty = False
+    w.close()
+
+
+def test_compact_layout_does_not_minimize_a_floating_side_dock(qapp):
+    w = _shown(qapp)
+    dock = w._inspector_dock
+    dock.setFloating(True)
+    _pump(qapp)
+    w.resize(900, 900)
+    _pump(qapp, 8)
+    assert w._compact_forced
+    assert dock.isFloating()
+    assert w._dock_chrome["Inspector"]["get"]()["minimized"] is False
+    assert dock.widget().isHidden() is False
+    assert "Inspector" not in w._compact_minimized
+    w._dirty = False
+    w.close()
+
+
 def test_ribbon_action_restores_a_side_dock_moved_to_the_bottom(qapp):
     from PySide6.QtWidgets import QToolButton
 

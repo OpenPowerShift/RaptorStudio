@@ -1639,6 +1639,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     floating = dock.isFloating()
                 except RuntimeError:
                     continue
+                if not closed:
+                    # Restoring chrome (stub click, Properties,
+                    # _show_inspector_dock) takes the dock back from the
+                    # compact policy.
+                    try:
+                        self._compact_minimized.discard(dock.windowTitle())
+                    except AttributeError:
+                        pass
                 if floating:
                     # The rotated side stub cannot exist on a free
                     # window. Restore normal chrome/content; a close
@@ -5211,6 +5219,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """View > Reset Layout: every dock back in its first-run place, open and full size; the saved layout is
         forgotten so the next start is the default too."""
         self._reset_dock_chrome()
+        # Reset Layout takes over from the narrow-window compact policy:
+        # widening must not re-minimize/re-expand or restore old widths.
+        self._compact_minimized.clear()
         # Cancel the width/height restores that un-collapsing just
         # scheduled, and any older one: Reset Layout's designed sizes
         # must win, not the pre-reset 520 px extent.
@@ -6215,6 +6226,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if stub is not None:
                 stub(False)
         if expand_minimized and entry.get("minimized"):
+            try:
+                self._compact_minimized.discard("Inspector")
+            except AttributeError:
+                pass
             chrome = (self._dock_chrome or {}).get("Inspector")
             if chrome is not None:
                 chrome["set_minimized"](False)
@@ -7589,11 +7604,19 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     if c is None:
                         continue
                     state = c["get"]()
+                    dock = c.get("dock")
                     # A closed stub must stay closed (and keep its saved
-                    # width), and a dock the user already minimized is
-                    # their choice, not this policy's.
+                    # width), a dock the user already minimized is their
+                    # choice, and a floating window is not part of the
+                    # narrow main-window side layout.
                     if state["closed"] or state["minimized"]:
                         continue
+                    if dock is not None:
+                        try:
+                            if dock.isFloating():
+                                continue
+                        except RuntimeError:
+                            continue
                     c["set_minimized"](True)
                     self._compact_minimized.add(title)
                 self._compact_forced = True
@@ -7912,6 +7935,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             setter = entry.get("set_minimized")
             if setter is not None:
                 setter(False)
+            # Floating is the user's next explicit state; compact must
+            # not later widen/restore this dock behind their back.
+            try:
+                self._compact_minimized.discard(dock.windowTitle())
+            except AttributeError:
+                pass
             # The un-minimise restore is deferred; the titlebar strip
             # geometry on this turn is not the user's docked extent.
             entry["_skip_extent_remember"] = True
@@ -8125,6 +8154,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock))
         if floating:
+            try:
+                self._compact_minimized.discard(dock.windowTitle())
+            except AttributeError:
+                pass
             was_closed = bool(entry is not None and entry.get("closed"))
             if was_closed:
                 restore = (self._dock_stubs or {}).get(dock)
