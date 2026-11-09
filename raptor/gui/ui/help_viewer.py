@@ -143,18 +143,16 @@ class _HelpDocumentNavigation:
 
     #: Filled in by HelpViewer; the fake in tests provides the same API.
     _view: Any
-    #: Anchor requested while the page was still loading; flushed after the
-    #: matching navigation succeeds. The target URL plus an increasing load
-    #: serial identify the in-flight navigation that owns it (Qt may strip
-    #: fragments from loading-event URLs, so the serial matters).
+    #: Anchor requested while the page was still loading, and the document
+    #: it belongs to. A result only applies when that document is current,
+    #: no other navigation is in flight, and the request is still the
+    #: newest generation. (`_load_serial` is an ordering marker for tests
+    #: and diagnostics; an anchor is not rejected because it moved.)
     _pending_anchor: str | None = None
     _pending_document: QUrl | None = None
-    _pending_load_url: QUrl | None = None
     _pending_generation: int = 0
     _navigation_generation: int = 0
-    _inflight_url: QUrl | None = None
     _load_serial: int = 0
-    _pending_load_serial: int = 0
 
     def show_doc(self, name: str, anchor: str | None = None) -> None:
         """Load one of our bundled docs (book.html / manual.html),
@@ -179,11 +177,7 @@ class _HelpDocumentNavigation:
                 if self._document_loading():
                     # A second Help action while the first load is still
                     # running: the DOM is not ready, so scroll on load.
-                    self._queue_anchor(
-                        anchor, url, generation,
-                        bind_serial=(self._inflight_url is None
-                                     or _same_document(self._inflight_url,
-                                                      url)))
+                    self._queue_anchor(anchor, url, generation)
                 else:
                     self._clear_pending_anchor()
                     self._scroll_to_anchor(anchor)
@@ -199,20 +193,16 @@ class _HelpDocumentNavigation:
             self._view.load(url)
         self._present()
 
-    def _queue_anchor(self, anchor: str, url: QUrl, generation: int,
-                      *, bind_serial: bool = False) -> None:
+    def _queue_anchor(self, anchor: str, url: QUrl,
+                      generation: int) -> None:
         self._pending_anchor = anchor
         self._pending_document = QUrl(url)
-        self._pending_load_url = QUrl(url)
         self._pending_generation = generation
-        self._pending_load_serial = self._load_serial if bind_serial else 0
 
     def _clear_pending_anchor(self) -> None:
         self._pending_anchor = None
         self._pending_document = None
-        self._pending_load_url = None
         self._pending_generation = 0
-        self._pending_load_serial = 0
 
     def _document_loading(self) -> bool:
         try:
@@ -222,31 +212,25 @@ class _HelpDocumentNavigation:
         except RuntimeError:                 # page already gone
             return False
 
-    def _load_started(self, url: QUrl) -> None:
-        """Record the latest in-flight navigation.
+    def _load_started(self) -> None:
+        """Record that a navigation started.
 
-        Qt may strip the fragment from `url`; the serial is what
-        distinguishes two same-document navigations. Only adopt the serial
-        when the started document is the pending anchor's target, so a
-        late start for a superseded navigation cannot invalidate it."""
+        The serial is an ordering marker for tests/diagnostics; correlation
+        uses the requested document plus `_document_loading()` because Qt
+        may omit fragments from loading events and can defer/skip starts
+        for superseded navigations."""
         self._load_serial += 1
-        self._inflight_url = QUrl(url)
-        if self._pending_anchor is not None \
-                and self._pending_document is not None \
-                and _same_document(url, self._pending_document):
-            self._pending_load_serial = self._load_serial
 
     def _document_loaded(self, ok: bool, url: QUrl | None = None) -> None:
         """A page navigation reported its result.
 
-        Apply a queued anchor only if this is the navigation that owns it.
         `url` is the event's own URL (QWebEngineLoadingInfo), not the
-        view's current one. While another navigation is still loading,
-        the event belongs to an older one; any completed navigation for
-        an unrelated document cancels the queued anchor rather than
-        leaving it to replay later."""
-        if not self._document_loading():
-            self._inflight_url = None
+        view's current one. A queued anchor applies only while its
+        requested document is the one finishing and no newer navigation is
+        in flight. Failure/stop keeps it only in that same in-flight case;
+        in particular, a late start for a superseded navigation cannot
+        strand it. Any completed navigation for an unrelated document
+        cancels the anchor so it cannot replay later."""
         anchor = self._pending_anchor
         if anchor is None:
             return
@@ -255,8 +239,8 @@ class _HelpDocumentNavigation:
             # older load (possibly the same file with a different
             # fragment), so it must not consume the newest anchor.
             return
-        if url is not None and self._pending_load_url is not None \
-                and not _same_document(url, self._pending_load_url):
+        if url is not None and self._pending_document is not None \
+                and not _same_document(url, self._pending_document):
             # Navigated away (or an older navigation completed): the
             # queued anchor belongs to a document no longer being loaded.
             self._clear_pending_anchor()
@@ -265,11 +249,9 @@ class _HelpDocumentNavigation:
             # A newer Help request superseded this queued anchor.
             return
         if not ok:
-            if self._pending_load_serial and \
-                    self._pending_load_serial != self._load_serial:
-                # An older navigation stopped/failed; keep waiting for
-                # the one that queued this anchor.
-                return
+            # The requested document itself stopped/failed. There is no
+            # newer navigation in flight (checked above), so waiting could
+            # only strand the anchor.
             self._clear_pending_anchor()
             return
         self._clear_pending_anchor()
@@ -629,7 +611,7 @@ if WEBENGINE_OK:
             """Feed per-navigation start/result to the pending-anchor queue."""
             status = info.status()
             if status == QWebEngineLoadingInfo.LoadStatus.LoadStartedStatus:
-                self._load_started(info.url())
+                self._load_started()
             elif status == QWebEngineLoadingInfo.LoadStatus.LoadSucceededStatus:
                 self._document_loaded(True, info.url())
             elif status in (

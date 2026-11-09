@@ -149,13 +149,15 @@ def record_load(url):
 
 win._view.load = record_load
 serial_before = win._load_serial
+spy = QSignalSpy(win._view.loadFinished)
 win._view.load(QUrl.fromLocalFile(str(doc2)))
-wait_until(lambda: win._view.page().isLoading(), "the same-doc reload")
-wait_until(lambda: win._load_serial > serial_before,
-           "the load-started token")
+wait_until(
+    lambda: win._load_serial > serial_before
+    and win._view.page().isLoading(),
+    "the reload to be in flight")
+assert win._view.page().isLoading()
 recorded_loads.clear()
 
-spy = QSignalSpy(win._view.loadFinished)
 win.show_doc("viewer2.html", "section-two")
 assert win._pending_anchor == "section-two", win._pending_anchor
 assert recorded_loads == [], recorded_loads
