@@ -455,6 +455,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._dock_startup_snapshot_done = False
         self._dock_startup_window_size = None
         self._dock_resize_generation = 0
+        self._dock_splitter_moved = False
+        self._dock_rebase_pending = False
         self._live_log_session_shown = False
         self._canvas_room_timer = QTimer(self)
         self._canvas_room_timer.setSingleShot(True)
@@ -7532,9 +7534,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             pass
 
     def resizeEvent(self, event):
-        super().resizeEvent(event)
         if not self._canvas_room_defaults_done:
+            # Check BEFORE Qt lays out the resized window: a size that
+            # already differs from the startup snapshot is a splitter
+            # drag made before this resize, and must survive it.
+            if self._dock_sizes_changed_since_startup():
+                self._dock_splitter_moved = True
+            self._dock_rebase_pending = True
             QTimer.singleShot(0, self._rebase_startup_bottom_extents)
+        super().resizeEvent(event)
         # Maximise/restore/resize: re-apply the bottom dock ceiling so
         # a strip sized for a previous window state can't clip the
         # status bar in the new one. Deferred one event-loop turn: the
@@ -7714,6 +7722,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     entry["docked_height"])
             else:
                 self._results_dock_height_before_float = dock.height()
+            if was_minimized:
+                # Qt restores the previous floating geometry before the
+                # topLevelChanged handler; do not remember that as the
+                # docked height.
+                entry["_skip_extent_remember"] = True
         dock.setFloating(floating)
         if floating:
             # A floated dock is a frameless tool window: no taskbar entry,
@@ -7849,7 +7862,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         user's width/height, not a hard-coded one."""
         if entry is None:
             return
-        if entry.get("minimized"):
+        if entry.get("minimized") or entry.get("closed"):
             return
         if entry.pop("_skip_extent_remember", False):
             return
@@ -8083,10 +8096,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock))
         if floating:
-            if entry is not None and entry.get("closed"):
+            was_closed = bool(entry is not None and entry.get("closed"))
+            if was_closed:
                 restore = (self._dock_stubs or {}).get(dock)
                 if restore is not None:
                     restore(False)
+                # set_closed() pinned the stub to 24 px; keep the real
+                # docked width and do not let the float transition
+                # remember the stub instead.
+                entry["_skip_extent_remember"] = True
+                width = int(entry.get("docked_width") or 0)
+                if width > 160:
+                    try:
+                        dock.resize(width, max(dock.height(), 120))
+                    except RuntimeError:
+                        pass
             self._unminimize_before_float(dock, entry)
             self._remember_docked_extent(dock, entry)
             dock.setMinimumSize(160, 90)
@@ -8194,18 +8218,22 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         still differs from that baseline even though the window is now a
         different size.
         """
-        if self._canvas_room_defaults_done:
-            return
-        if getattr(self, "_dock_startup_window_size", None) == (
-                self.width(), self.height()):
-            return      # not a window resize; a splitter changed a dock
-        snapshot = getattr(self, "_dock_startup_extents", None)
-        current = self._current_dock_extents()
-        if not snapshot or not current:
-            return
         try:
+            if self._canvas_room_defaults_done:
+                return
+            self._dock_rebase_pending = False
+            if getattr(self, "_dock_startup_window_size", None) == (
+                    self.width(), self.height()):
+                return      # not a window resize; a splitter changed a dock
+            snapshot = getattr(self, "_dock_startup_extents", None)
+            current = self._current_dock_extents()
+            if not snapshot or not current:
+                return
             for dock in list(snapshot):
                 if dock not in current:
+                    # Minimised/closed between snapshot and resize: keep
+                    # its old baseline; the chrome itself is the user's
+                    # choice and first-load sizing must not override it.
                     continue
                 entry = (getattr(self, "_dock_chrome_entries", None)
                          or {}).get(dock) or {}
@@ -8214,7 +8242,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     snapshot[dock] = current[dock]
             self._dock_startup_window_size = (self.width(), self.height())
         except RuntimeError:
-            pass
+            # Resize event queued a callback that outlived the window.
+            return
 
     def _dock_sizes_changed_since_startup(self) -> bool:
         snapshot = getattr(self, "_dock_startup_extents", None)
@@ -8226,20 +8255,28 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         current = getattr(self, "_dock_extents_at_load_start", None) \
             or self._current_dock_extents() or {}
         for dock, (width, height) in snapshot.items():
-            if dock not in current:
-                continue
             try:
                 if dock.isFloating():
                     continue
                 entry = (getattr(self, "_dock_chrome_entries", None)
                          or {}).get(dock) or {}
                 if entry.get("minimized") or entry.get("closed"):
-                    continue
+                    # A user minimise/close before the first load is a
+                    # deliberate dock state; do not clamp over it.
+                    return True
+                if dock not in current:
+                    return True
                 cw, ch = current[dock]
                 edge = self._current_dock_edge(
                     dock, entry.get("edge"))
-                changed = abs(cw - width) > 2 if edge in ("left", "right") \
-                    else abs(ch - height) > 2
+                if edge in ("left", "right"):
+                    changed = abs(cw - width) > 2
+                else:
+                    # A pending resize rebase means the bottom height may
+                    # legitimately have changed with the window. A
+                    # recorded splitter drag overrides that.
+                    changed = (not self._dock_rebase_pending
+                               and abs(ch - height) > 2)
                 if changed:
                     return True
             except RuntimeError:
@@ -8261,7 +8298,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if self._canvas_room_defaults_done:
                 self._update_dock_max_heights()
                 return
-            if self._dock_user_sized \
+            if self._dock_user_sized or self._dock_splitter_moved \
                     or self._dock_sizes_changed_since_startup():
                 # Chosen before the first load (or restored from a saved
                 # layout): keep it, and do not try again later.

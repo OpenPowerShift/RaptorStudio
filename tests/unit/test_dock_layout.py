@@ -880,6 +880,47 @@ def test_titlebar_drag_of_minimized_results_redocks_at_its_height(qapp):
     w.close()
 
 
+def test_a_closed_side_dock_floated_keeps_its_docked_width(qapp):
+    w = _shown(qapp)
+    inspector = w._inspector_dock
+    w.resizeDocks([inspector], [520], Qt.Orientation.Horizontal)
+    _pump(qapp)
+    before = inspector.width()
+    w._dock_chrome["Inspector"]["set_closed"](True)
+    _pump(qapp)
+    inspector.setFloating(True)
+    _pump(qapp)
+    assert w._dock_chrome["Inspector"]["get"]()["closed"] is False
+    assert inspector.widget().isHidden() is False
+    assert w._dock_chrome_entries[inspector]["docked_width"] >= before - 20
+    w._redock(inspector)
+    _pump(qapp, 8)
+    assert not inspector.isFloating()
+    assert inspector.width() >= before - 20, (inspector.width(), before)
+    w._dirty = False
+    w.close()
+
+
+def test_floating_minimized_results_does_not_persist_its_floating_height(qapp):
+    w = _shown(qapp)
+    results = w._results_dock
+    w.resizeDocks([results], [330], Qt.Orientation.Vertical)
+    _pump(qapp)
+    before = results.height()
+    w._dock_chrome["Results"]["set_minimized"](True)
+    _pump(qapp)
+    w._float_results_properly(results, True)
+    _pump(qapp)
+    blob = json.loads(json.dumps(w._layout_blob()))
+    assert blob["chrome"]["Results"]["docked_height"] >= before - 20, \
+        blob["chrome"]["Results"]
+    w._redock(results)
+    _pump(qapp, 8)
+    assert results.height() >= before - 20, (results.height(), before)
+    w._dirty = False
+    w.close()
+
+
 def test_a_closed_side_dock_floated_is_recoverable(qapp):
     w = _shown(qapp)
     dock, action = w._inspector_dock, w._inspector_toggle_action
@@ -939,6 +980,43 @@ def test_reset_layout_wins_over_a_restored_side_width(qapp):
     for x in (w, w2):
         x._dirty = False
         x.close()
+
+
+def test_a_splitter_drag_before_a_resize_survives_into_the_first_load(qapp):
+    from pathlib import Path
+
+    from raptor.core.fileio.rbd import load_rbd
+
+    gold = Path(__file__).resolve().parents[1] / "golden" / "Phasing3" / "input.rbd"
+    w = _shown(qapp)
+    w._results_dock.resize(w._results_dock.width(), 260)
+    _pump(qapp, 6)
+    assert w._dock_sizes_changed_since_startup()
+    w.resize(1500, 620)
+    _pump(qapp, 8)
+    assert w._dock_splitter_moved
+    calls = []
+    original = w._resize_docks
+
+    def spy(docks, sizes, orientation):
+        calls.append(list(docks))
+        return original(docks, sizes, orientation)
+
+    w._resize_docks = spy
+    w._load_into_app(load_rbd(str(gold)), None)
+    _pump(qapp, 10)
+    assert all(w._results_dock not in docks for docks in calls), calls
+    w._dirty = False
+    w.close()
+
+
+def test_a_pending_resize_rebase_is_safe_after_a_window_is_deleted(qapp):
+    w = _shown(qapp)
+    w.resize(1500, 620)
+    w.close()
+    w.deleteLater()
+    qapp.processEvents()
+    qapp.processEvents()
 
 
 def test_resize_then_bottom_size_change_still_skips_first_load_defaults(qapp):
