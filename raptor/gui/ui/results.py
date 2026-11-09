@@ -1895,8 +1895,11 @@ class ResultsDock(QWidget):
 
         def _current_grid():
             # Read the table at click time, not a precomputed list: a
-            # hierarchy filter may have hidden rows since it was built.
-            return self._table_export_data(table)
+            # hierarchy filter or FilterBar may have hidden rows since it
+            # was built. `table_to_grid` also restores full names that the
+            # grid elided.
+            from raptor.gui.ui.table_export import table_to_grid
+            return table_to_grid(table, raw=True)
 
         def _copy_this():
             live_headers, live_rows = _current_grid()
@@ -1979,7 +1982,9 @@ class ResultsDock(QWidget):
         self._cost_blocks_label = None
         self._cost_blocks_title = ""
 
-        def _sum_cost_values(columns: list[str], vals: list) -> tuple[float, bool]:
+        def _sum_cost_values(columns: list[str], vals: list,
+                             *, all_values: bool = False
+                             ) -> tuple[float, bool]:
             """Sum a report row's additive cost cells.
 
             The parsed report keeps values as strings (and sometimes
@@ -1991,7 +1996,9 @@ class ResultsDock(QWidget):
             """
             total = 0.0
             found = False
-            pairs = (zip(columns[2:], vals) if len(vals) == len(columns) - 2
+            pairs = (zip(columns, vals) if all_values else
+                     zip(columns[2:], vals)
+                     if len(vals) == len(columns) - 2
                      else zip(columns[1:], vals))
             for column, value in pairs:
                 if column in ("InHier",):
@@ -2037,8 +2044,14 @@ class ResultsDock(QWidget):
                         total = sum(getattr(row, attr) for row in per_run) \
                             / len(per_run)
                 if total is None:
-                    summed, found = _sum_cost_values(columns, vals)
+                    label_text = str(label)
+                    is_totals = (label_text == "Totals"
+                                 or label_text.endswith("_Totals"))
+                    summed, found = _sum_cost_values(
+                        columns, vals, all_values=is_totals)
                     total = summed if found else None
+                if total is not None and not math.isfinite(total):
+                    total = None
                 out.append((label, [*vals,
                                     str(total) if total is not None else "N/A"]))
             return [*columns, "Total"], out

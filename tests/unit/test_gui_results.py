@@ -690,7 +690,10 @@ def test_cost_tables_with_a_total_do_not_get_a_second_one(qapp):
     for table in dock._cost_tables:
         headers = [table.horizontalHeaderItem(c).text()
                    for c in range(table.columnCount())]
-        assert headers.count("Total") <= 1
+        if headers[:2] == ["Item", "Value"]:
+            assert "Total" not in headers
+            continue
+        assert headers.count("Total") == 1, headers
         if "Purchase" in headers and "Disposal" in headers \
                 and "Events" in headers:
             hierarchies += 1
@@ -698,18 +701,20 @@ def test_cost_tables_with_a_total_do_not_get_a_second_one(qapp):
             blocks += 1
         if "Initial" in headers and "New Spares / Per-Time" in headers:
             pools += 1
-        if headers[:2] == ["Item", "Value"]:
-            assert "Total" not in headers
     assert (blocks, pools, hierarchies) == (1, 1, 1)
 
 
 def test_cost_total_uses_the_real_export_path(qapp):
-    """The Cost page's Copy/CSV data includes the raw Total column."""
+    """Copy/CSV uses table_to_grid: filtered rows and raw totals."""
+    from raptor.gui.ui.table_export import table_to_grid
     dock = _run_multi_cost()
     table, _headers = _table_with_headers(dock, "Initial spares")
-    headers, rows = dock._table_export_data(table)
+    for row in range(1, table.rowCount()):
+        table.setRowHidden(row, True)
+    headers, rows = table_to_grid(table, raw=True)
     assert headers[-1] == "Total"
-    assert rows and rows[0][-1] not in ("", "N/A")
+    assert len(rows) == 1
+    assert rows[0][-1] not in ("", "N/A")
 
 
 def test_cost_tab_shows_note_when_disabled(qapp):
