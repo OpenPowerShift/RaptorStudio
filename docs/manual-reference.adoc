@@ -373,5 +373,6 @@ documentation.
 |===
 |Tab |Columns
 |Blocks |Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev, Level
+|Costs |Name, ID, initial, Running, standby, idle, repFixed, repPerTime, repHold, pmFixedCost, pmCost, pmHoldCost, doneFixed, donePerTime, perSpare, emerShipping, Level
 |===
 

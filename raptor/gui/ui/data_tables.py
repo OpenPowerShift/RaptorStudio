@@ -13,6 +13,7 @@ population pass can write them back without conversion.
 """
 from __future__ import annotations
 
+import math
 from bisect import bisect_left
 from collections.abc import Callable
 from typing import Any, cast
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
 
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.resources.design_tokens import ThemeManager, SPACING
+from raptor.gui.model_edit import BLOCK_COST_FIELDS
 from raptor.gui.ui.distro_combo import distro_display_name, fill_distro_combo
 from raptor.gui.ui.table_filter_bar import FilterBar
 from raptor.gui.ui import param_entry
@@ -38,6 +40,7 @@ from raptor.core.distro_rules import (
     DISTRO_PARAM_LABELS, validate_distro_params,
 )
 from raptor.core.distro_rules import DISTRO_NAMES
+from raptor.core.model import SparingType
 from raptor.core.fileio.rbdlib import DIST_NPARAMS as DIST_NPARAMS_COUNT
 from raptor.core.engine.diststats import compute_stats
 
@@ -309,6 +312,37 @@ class DataTablesDock(QWidget):
         "Failure resets": "A failure resets the time to the next PM "
             "activity",
     }
+    #: Costs tab: one row per block, the 14 input costs as columns. The
+    #: header names are exactly `BLOCK_COST_FIELDS`' BLOCK_DATA column
+    #: names, so the grid and the file's own table use one vocabulary.
+    _COST_COLS = ["Name", "ID", *(col for _attr, col in BLOCK_COST_FIELDS),
+                  "Level"]
+    _COST_COL_TIPS = {
+        "initial": "Initial acquisition cost",
+        "Running": "Running cost per unit of model time",
+        "standby": "Standby cost per unit of model time",
+        "idle": "Idle downtime cost per unit of model time",
+        "repFixed": "Hands-on maintenance, fixed cost",
+        "repPerTime": "Hands-on maintenance, cost per unit of model time",
+        "repHold": "Logistical hold, cost per unit of model time",
+        "pmFixedCost": "Preventive maintenance, fixed cost",
+        "pmCost": "Preventive maintenance, cost per unit of model time",
+        "pmHoldCost": "Preventive maintenance hold, cost per unit of "
+            "model time",
+        "doneFixed": "Rebate or disposal, fixed cost",
+        "donePerTime": "Permanently done, cost per unit of model time",
+        "perSpare": "Recurring spare cost",
+        "emerShipping": "Emergency spare additional cost",
+    }
+    #: Same range and decimals as the Inspector's Costs tab spin boxes.
+    _COST_LIMIT = 1e12
+    _COST_DECIMALS = 3
+    #: The Inspector's wording for the two fields a Pooled block does not
+    #: own: the engine reads the pool's own fields instead.
+    _POOLED_COST_TIP = (
+        "This block draws from a spare pool -- its cost comes from the "
+        "POOL's own fields (Spares tab -> Manage Spare Pools…), not this "
+        "one.")
     _KEYED_COL_TIPS = {
         "RSO": "Routine Spare Ordering: reorder on a fixed schedule, "
             "before stock runs out",
@@ -392,6 +426,8 @@ class DataTablesDock(QWidget):
 
         self._blocks_table = self._make_table(
             self._BLOCK_COLS, self._BLOCK_COL_TIPS)
+        self._costs_table = self._make_table(
+            self._COST_COLS, self._COST_COL_TIPS)
         self._nodes_table = self._make_table(
             ["Name", "ID", "Type", "Required good (k)", "Out", "Level"],
             self._NODE_COL_TIPS,
@@ -421,6 +457,7 @@ class DataTablesDock(QWidget):
         self._pm_table = self._make_table(
             self._PM_COLS, self._PM_COL_TIPS)
         self._blocks_table.itemChanged.connect(self._on_block_name_changed)
+        self._costs_table.itemChanged.connect(self._on_cost_cell_changed)
         self._nodes_table.itemChanged.connect(self._on_node_name_changed)
         self._events_table.itemChanged.connect(self._on_event_name_changed)
         self._pm_table.itemChanged.connect(self._on_pm_cell_changed)
@@ -434,6 +471,7 @@ class DataTablesDock(QWidget):
             _t.selectionModel().selectionChanged.connect(self._update_banner)
         self._tabs.currentChanged.connect(self._update_banner)
         self._tabs.addTab(self._blocks_table, "Blocks")
+        self._tabs.addTab(self._costs_table, "Costs")
         self._tabs.addTab(self._nodes_table, "Nodes")
         self._tabs.addTab(self._events_table, "Events")
         self._tabs.addTab(self._spares_table, "Spare Pools")
@@ -472,8 +510,8 @@ class DataTablesDock(QWidget):
         for table in self._keyed:
             table.itemChanged.connect(self._on_keyed_cell_changed)
         self._all_tables = [
-            self._blocks_table, self._nodes_table, self._events_table,
-            self._spares_table, self._resources_table,
+            self._blocks_table, self._costs_table, self._nodes_table,
+            self._events_table, self._spares_table, self._resources_table,
             self._triggers_table, self._phases_table,
             self._sparing_table, self._pm_table,
         ]
@@ -821,7 +859,8 @@ class DataTablesDock(QWidget):
             keep_scroll = current.verticalScrollBar().value()
             if row >= 0:
                 key_col = (1 if current in
-                           (self._blocks_table, self._nodes_table,
+                           (self._blocks_table, self._costs_table,
+                            self._nodes_table,
                             self._events_table) else 0)
                 item = current.item(row, key_col)
                 keep_key = item.text() if item is not None else None
@@ -836,12 +875,7 @@ class DataTablesDock(QWidget):
                     pass
         # Sorting OFF while rows are being inserted (an active sort
         # indicator + insertRow = scattered rows); back on after.
-        _all_tables: list[QTableWidget] = [
-            self._blocks_table, self._nodes_table, self._events_table,
-            self._spares_table, self._resources_table,
-            self._triggers_table, self._phases_table,
-            self._sparing_table, self._pm_table,
-        ]
+        _all_tables: list[QTableWidget] = list(self._all_tables)
         # A flat 1,500- or 3,800-block model has nine grids, most of them
         # hidden behind a tab. Filling all of them made Open spend tens of
         # seconds building widgets no one could see. Build the visible grid
@@ -877,7 +911,8 @@ class DataTablesDock(QWidget):
             self._sort_restoring = False
         if isinstance(current, QTableWidget) and keep_key is not None:
             key_col = (1 if current in
-                       (self._blocks_table, self._nodes_table,
+                       (self._blocks_table, self._costs_table,
+                        self._nodes_table,
                         self._events_table) else 0)
             for row in range(current.rowCount()):
                 item = current.item(row, key_col)
@@ -911,6 +946,8 @@ class DataTablesDock(QWidget):
         self._dirty_tables.discard(table)
         if table is self._blocks_table:
             self._populate_blocks()
+        elif table is self._costs_table:
+            self._populate_costs()
         elif table is self._nodes_table:
             self._populate_nodes()
         elif table is self._events_table:
@@ -983,7 +1020,9 @@ class DataTablesDock(QWidget):
         return src
 
     def _level_tables(self) -> list[tuple[QTableWidget, str]]:
-        return [(self._blocks_table, "block"), (self._nodes_table, "node"),
+        return [(self._blocks_table, "block"),
+                (self._costs_table, "block"),
+                (self._nodes_table, "node"),
                 (self._events_table, "event"),
                 (self._sparing_table, "block"), (self._pm_table, "block")]
 
@@ -1034,7 +1073,8 @@ class DataTablesDock(QWidget):
     # Multi-row column edit: select rows, edit one cell, change them all
     # ------------------------------------------------------------------
 
-    _GRID_KIND = {"_blocks_table": "block", "_nodes_table": "node",
+    _GRID_KIND = {"_blocks_table": "block", "_costs_table": "block",
+                  "_nodes_table": "node",
                   "_events_table": "event", "_sparing_table": "block",
                   "_pm_table": "block"}
 
@@ -1179,7 +1219,16 @@ class DataTablesDock(QWidget):
         for r in rows[start:]:
             w = table.cellWidget(r, col)
             if w is None:
-                continue
+                # A plain item cell (the Costs grid's costs): its commit
+                # runs from itemChanged, and a multi-row selection fans
+                # that one commit out to every selected row.
+                item = table.item(r, col)
+                if item is None or not (
+                        item.flags() & Qt.ItemFlag.ItemIsEditable):
+                    continue
+                item.setText(text)
+                done = True
+                break
             e = w.findChild(QLineEdit)
             if e is None or not e.isEnabled():
                 continue
@@ -1384,6 +1433,7 @@ class DataTablesDock(QWidget):
         self._filter_bars: dict[QTableWidget, FilterBar] = {}
         for table, matcher, cols in (
                 (self._blocks_table, self._block_matcher, None),
+                (self._costs_table, None, None),
                 (self._nodes_table, None, None),
                 (self._events_table, None, None),
                 (self._sparing_table, self._sparing_matcher,
@@ -1628,6 +1678,190 @@ class DataTablesDock(QWidget):
         self._apply_param_tips(t, r, b.repair_distro, "R")
         self._tag_row_with_name(t, r, b.name)
         self._label_row_widgets(t, r)
+
+    @classmethod
+    def _fmt_cost(cls, value: float) -> str:
+        """A cost cell's text: the Inspector's three decimals."""
+        return f"{float(value):.{cls._COST_DECIMALS}f}"
+
+    @staticmethod
+    def _parse_cost(text: str) -> float | None:
+        """The typed cost, or None when it is not a finite, in-range
+        number. The Inspector's spin boxes cover the same range."""
+        try:
+            value = float(text.strip())
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(value) or abs(value) > DataTablesDock._COST_LIMIT:
+            return None
+        return round(value, DataTablesDock._COST_DECIMALS)
+
+    @staticmethod
+    def _cost_field_readonly(block, attr: str) -> bool:
+        """A Pooled block's spare and emergency-shipping costs come from
+        its pool, not its own row (the Inspector greys them for the same
+        reason)."""
+        return (attr in ("spare_cost", "emergency_shipping_cost")
+                and block.sparing_type == SparingType.SPARE_POOL)
+
+    def _set_cost_text(self, item: QTableWidgetItem, value: float) -> None:
+        """Put a canonical value back in a cost cell without re-entering
+        the commit handler."""
+        table = item.tableWidget()
+        if table is None:
+            return
+        table.blockSignals(True)
+        try:
+            item.setText(self._fmt_cost(value))
+        finally:
+            table.blockSignals(False)
+
+    def _populate_costs(self):
+        """The Costs grid: one row per block, the 14 BLOCK_DATA cost
+        columns as editable items. Plain items (not cell widgets) keep
+        numeric sorting and CSV export working; the commit handler routes
+        the whole row through `set_block_costs`, so one edit is one undo
+        step and the file row is written at once."""
+        t = self._costs_table
+        t.setUpdatesEnabled(False)
+        t.blockSignals(True)
+        try:
+            t.setRowCount(0)
+            if self._view is None:
+                return
+            src = self._src()
+            bids = sorted(src.blocks)
+            t.setRowCount(len(bids))
+            for r, bid in enumerate(bids):
+                b = src.blocks[bid]
+                t.setItem(r, t.columnCount() - 1,
+                          self._level_item("block", bid))
+                name_item = _SortItem(b.name)
+                name_item.setFlags(name_item.flags()
+                                   & ~Qt.ItemFlag.ItemIsEditable)
+                t.setItem(r, 0, name_item)
+                id_item = _SortItem(str(bid))
+                id_item.setFlags(id_item.flags()
+                                 & ~Qt.ItemFlag.ItemIsEditable)
+                t.setItem(r, 1, id_item)
+                for i, (attr, _col) in enumerate(BLOCK_COST_FIELDS):
+                    item = _SortItem(self._fmt_cost(getattr(b, attr)))
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignRight
+                                          | Qt.AlignmentFlag.AlignVCenter)
+                    if self._cost_field_readonly(b, attr):
+                        item.setFlags(item.flags()
+                                      & ~Qt.ItemFlag.ItemIsEditable)
+                        item.setForeground(Qt.GlobalColor.gray)
+                    t.setItem(r, 2 + i, item)
+                self._tag_row_with_name(t, r, b.name)
+                # Exact Inspector wording, not the name-prefixed cell
+                # convention: the two read-only cells must say where the
+                # cost really lives.
+                if b.sparing_type == SparingType.SPARE_POOL:
+                    for i, (attr, _col) in enumerate(BLOCK_COST_FIELDS):
+                        if self._cost_field_readonly(b, attr):
+                            self._set_cell_tip(t, r, 2 + i,
+                                               self._POOLED_COST_TIP)
+        finally:
+            t.blockSignals(False)
+            t.setUpdatesEnabled(True)
+
+    def _on_cost_cell_changed(self, item: QTableWidgetItem):
+        """Commit a Costs cell as one `set_block_costs` command.
+
+        Only the edited column takes the typed number; the other 13
+        values come from the model, so a rounded display never rewrites
+        them. With several rows selected the same column is set on each
+        (other values preserved) inside one macro.
+        """
+        t = self._costs_table
+        if self._view is None:
+            return
+        col = item.column()
+        first = 2
+        last = first + len(BLOCK_COST_FIELDS)
+        if not first <= col < last:
+            return
+        bid = self._row_key(t, item.row())
+        if bid is None:
+            return
+        src = self._src()
+        block = src.blocks.get(bid)
+        if block is None:
+            return
+        idx = col - first
+        attr, header = BLOCK_COST_FIELDS[idx]
+        old = float(getattr(block, attr))
+        if self._cost_field_readonly(block, attr):
+            self._set_cost_text(item, old)
+            self.status_message.emit(
+                f"{header}: a pooled block takes this cost from its pool")
+            return
+        value = self._parse_cost(item.text())
+        if value is None:
+            self._set_cost_text(item, old)
+            self.validation_failed.emit(
+                f"{header}: enter a finite number between "
+                f"-{self._COST_LIMIT:g} and {self._COST_LIMIT:g}.")
+            return
+        if abs(value - old) < 1e-9:
+            self._set_cost_text(item, old)
+            return
+
+        keys = self._targets(t, bid)
+        read_only = 0
+        pooled = 0
+        todo: list[tuple[int, list[float]]] = []
+        for k in keys:
+            if self._is_foreign("block", k):
+                read_only += 1
+                continue
+            other = src.blocks.get(k)
+            if other is None:
+                continue
+            if self._cost_field_readonly(other, attr):
+                pooled += 1
+                continue
+            values = [getattr(other, a) for a, _c in BLOCK_COST_FIELDS]
+            if abs(values[idx] - value) < 1e-9:
+                continue
+            values[idx] = value
+            todo.append((k, values))
+        if not todo:
+            self._set_cost_text(item, old)
+            if read_only or pooled:
+                self.status_message.emit(
+                    f"Nothing to set: {len(keys)} rows selected, none can "
+                    f"take a {header}.")
+            return
+        if len(keys) > 1 and not self._confirm_multi(len(todo)):
+            self._set_cost_text(item, old)
+            return
+
+        stack = req(self._view)._stack
+        before = stack.count()
+        grouped = len(todo) > 1
+        if grouped:
+            stack.beginMacro(f"Set {header} on {len(todo)} rows")
+        try:
+            for k, values in todo:
+                self._view.set_block_costs(k, values)
+        finally:
+            if grouped:
+                stack.endMacro()
+        if stack.count() == before:
+            self._set_cost_text(item, old)     # refused: put the value back
+            return
+        self._set_cost_text(item, value)
+        self.model_edited.emit()
+        if len(keys) > 1:
+            note = f"Set {header} to {self._fmt_cost(value)} on {len(todo)} rows"
+            if read_only:
+                note += (f"; {read_only} read-only row(s) on other levels "
+                         "skipped")
+            if pooled:
+                note += f"; {pooled} pooled row(s) take it from their pool"
+            self.status_message.emit(note)
 
     def _populate_nodes(self):
         t = self._nodes_table
