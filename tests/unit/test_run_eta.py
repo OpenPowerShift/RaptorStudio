@@ -211,7 +211,7 @@ def test_the_importance_phase_keeps_a_time_estimate(qapp):
     win._imp_eta = RunEstimate(started=time.monotonic() - 60)
     win._update_importance_progress(11, 101, "perfect:Pump")   # 10 of 100 variants
     message = win._statusbar.currentMessage()
-    assert "variant 11 of 101" in message
+    assert "variant 10 of 100" in message
     assert "Approximately" in message and "left" in message, message
     win._end_importance_progress("done")
     assert win._imp_eta is None
