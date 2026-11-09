@@ -745,21 +745,45 @@ def test_weak_link_tab_from_enabled_model(qapp):
     idx = next((i for i in range(dock._details_tabs.count())
                 if dock._details_tabs.tabText(i) == "Weak Link"), None)
     assert idx is not None
-    table = dock._details_tabs.widget(idx).findChildren(QTableWidget)[0]
+    tables = dock._details_tabs.widget(idx).findChildren(QTableWidget)
+    table = tables[0]
     # Ch.11 layout: Name | Colour chip | metric + stats.
     headers = [table.horizontalHeaderItem(c).text()
                for c in range(table.columnCount())]
     assert headers[:3] == ["Name", "Colour", "Availability"], headers
     assert "Min" in headers and "StdDev" in headers  # Fig 11.6 stats
+    for chip_table in tables:
+        chip_headers = [chip_table.horizontalHeaderItem(c).text()
+                        for c in range(chip_table.columnCount())]
+        if "Colour" not in chip_headers:
+            continue
+        for r in range(chip_table.rowCount()):
+            band = chip_table.item(r, 1).text()
+            assert band in ("Green", "Yellow", "Red"), band
+            tip = chip_table.item(r, 1).toolTip()
+            assert band in tip
+            assert ResultsDock._WEAK_COLOUR_TIPS[band.casefold()] in tip
+            assert "Thresholds:" in tip
     for r in range(table.rowCount()):
         band = table.item(r, 1).text()
-        assert band in ("Green", "Yellow", "Red"), band
         val = float(table.item(r, 2).text())
         assert 0.0 <= val <= 1.0
         if band == "Green":
             assert val >= 0.95
         elif band == "Red":
             assert val < 0.90
+
+    state = next(t for t in tables
+                 if any((t.horizontalHeaderItem(c).text() == "% Green")
+                        for c in range(t.columnCount())))
+    for colour in ("Green", "Yellow", "Red", "Blue", "Brown", "Orange"):
+        col = next(c for c in range(state.columnCount())
+                   if state.horizontalHeaderItem(c).text() == f"% {colour}")
+        tip = state.horizontalHeaderItem(col).toolTip()
+        assert ResultsDock._WEAK_COLOUR_TIPS[colour.casefold()] in tip, colour
+        if state.rowCount():
+            assert ResultsDock._WEAK_COLOUR_TIPS[colour.casefold()] in \
+                state.item(0, col).toolTip()
 
 
 def test_weak_link_table_keeps_stats_columns_for_one_run(qapp):

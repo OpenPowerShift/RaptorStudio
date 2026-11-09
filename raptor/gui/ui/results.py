@@ -1614,6 +1614,18 @@ class ResultsDock(QWidget):
                   ("pm_hold", "PM Hold"), ("idle", "Idle"),
                   ("standby", "Standby"), ("done", "Done")]
 
+    #: What each Weak Link colour means. Green/Yellow/Red are the
+    #: threshold bands; Blue/Brown/Orange are the node-state buckets
+    #: (`core.engine.weak_metric`).
+    _WEAK_COLOUR_TIPS = {
+        "green": "Green — fully working.",
+        "yellow": "Yellow — degraded, still partially working.",
+        "red": "Red — fully down.",
+        "blue": "Blue — standby (available but not operating).",
+        "brown": "Brown — dependency wait / idle (blocked by another element).",
+        "orange": "Orange — preventive maintenance.",
+    }
+
     #: Weak Link settings: pushed by MainWindow from
     #: the SYSTEM_DATA row. Defaults mirror every fixture's values.
     _weak_anal_type: str = "Availability"
@@ -1843,6 +1855,12 @@ class ResultsDock(QWidget):
                     tip = self._stat_col_tip(_short_stat.get(h, h))
                     if tip:
                         h_item.setToolTip(tip)
+                    if h == "Colour":
+                        h_item.setToolTip(
+                            "Weak Link band: Green ≥ "
+                            f"{self._weak_gy:.2f}, Yellow ≥ "
+                            f"{self._weak_yr:.2f}, Red below.\n"
+                            + "\n".join(self._WEAK_COLOUR_TIPS.values()))
             allowed = (self._selected_block_names_fn()
                        if (getattr(self, "_weak_sel_only", False) and
                            self._selected_block_names_fn) else None)
@@ -1859,9 +1877,10 @@ class ResultsDock(QWidget):
                 chip = _SortItem(band)
                 chip.setBackground(QColor(c[ck]))
                 chip.setToolTip(
-                    f"{band} band — Green ≥ {self._weak_gy:.2f}, "
-                    f"Yellow ≥ {self._weak_yr:.2f}, Red below "
-                    f"(colour-band thresholds)")
+                    f"{band} band: "
+                    f"{self._WEAK_COLOUR_TIPS[band.casefold()]}\n"
+                    f"Thresholds: Green ≥ {self._weak_gy:.2f}, "
+                    f"Yellow ≥ {self._weak_yr:.2f}, Red below.")
                 chip.setFlags(chip.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 table.setItem(r, 1, chip)
                 v_it = _SortItem(f"{mean_v:.9f}")
@@ -1986,6 +2005,12 @@ class ResultsDock(QWidget):
             pct_table = _ReadOnlyTable(len(names), 1 + len(states))
             pct_table.setHorizontalHeaderLabels(
                 ["Name"] + [f"% {s.capitalize()}" for s in states])
+            for ci, s in enumerate(states, start=1):
+                h_item = pct_table.horizontalHeaderItem(ci)
+                if h_item is not None:
+                    h_item.setToolTip(
+                        f"% of total node time in the {s.capitalize()} "
+                        f"state.\n{self._WEAK_COLOUR_TIPS[s]}")
             for r, name in enumerate(names):
                 pct_table.setItem(r, 0, _SortItem(name))
                 for ci, s in enumerate(states, start=1):
@@ -1994,6 +2019,9 @@ class ResultsDock(QWidget):
                     it = _SortItem(f"{mean_v * 100:.2f}")
                     it.setData(RAW_VALUE_ROLE, mean_v * 100)
                     it.setFlags(it.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    it.setToolTip(
+                        f"{self._WEAK_COLOUR_TIPS[s]}\n"
+                        f"{mean_v * 100:.2f}% of total time")
                     pct_table.setItem(r, ci, it)
             self._apply_sort(pct_table, "WEAK::STATES",
                              (0, Qt.SortOrder.AscendingOrder))
