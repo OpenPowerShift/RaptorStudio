@@ -141,6 +141,32 @@ def test_computed_defaults_are_documented():
         section = sections[tool_name]
         assert f"- `{parameter}` — {note}" in section, (
             f"{tool_name}.{parameter}: computed default not documented")
+    phase_note = mod.COMPUTED_DEFAULTS[("export_analytical", "phase")]
+    assert "no phase" in phase_note
+    assert "Choose one phase" in phase_note
+    assert "all" in phase_note
+    folder_note = mod.COMPUTED_DEFAULTS[("export_analytical", "folder")]
+    assert "Always `Tables/<model>`" in folder_note
+    assert "file name" in folder_note
+    assert "_h<hierarchy>" in folder_note
+    assert "_phase<N>" in folder_note
+    assert "current phase" not in phase_note
+    assert "hierarchy/phase-specific name" not in folder_note
+
+
+def test_computed_default_coverage_is_honest():
+    reference = REFERENCE.read_text(encoding="utf-8")
+    guide = GUIDE.read_text(encoding="utf-8")
+    assert "otherwise the schema value is all the catalogue can claim" in reference
+    assert "all computed real defaults are called out" not in reference
+    assert "schema default" in guide
+
+
+def test_delete_annotation_return_is_documented_as_an_id():
+    reference = REFERENCE.read_text(encoding="utf-8")
+    guide = GUIDE.read_text(encoding="utf-8")
+    assert "Returns {deleted: annotation id, kind}" in reference
+    assert "deleted annotation id and its kind" in " ".join(guide.split())
 
 
 def test_every_declared_return_field_is_in_the_table():

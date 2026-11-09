@@ -86,7 +86,7 @@ Every tool section is generated from the server's `tools/list` payload.  It repe
 ## How to read a tool section
 
 - **Kind** is the MCP risk hint: `read-only` changes no model, `writes` edits a model or workspace, and `destructive` deletes or reverts.  It is a coarse hint, not the `--read-only` gate: `simulate`, `start_run` and `open_model` carry `writes` because they create run or workspace artefacts, but `--read-only` allows them.  The gate refuses tools that create, edit or delete models or export files; opening, analysis and simulation stay available.
-- **Parameters** comes from the tool's input schema.  `Required` means the server rejects the call without it; **Schema default** is the literal default in the schema (`—` when it gives none); `Enum / allowed values` lists every accepted value.  A tool may compute a different real default from the model or another setting; those are called out under the table.
+- **Parameters** comes from the tool's input schema.  `Required` means the server rejects the call without it; **Schema default** is the literal default in the schema (`—` when it gives none); `Enum / allowed values` lists every accepted value.  Where the generator knows a tool computes a real default from the model or another setting, that is called out under the table; otherwise the schema value is all the catalogue can claim.
 - **Returns** lists the top-level fields of the declared output schema.  `Always present` is yes when the field is in the schema's `required` list.
 - **Example** is an argument object, not a whole JSON-RPC envelope.  Put it in your client's tool form or send it as the `arguments` of `tools/call`.  Replace `<model_id>`, `<run_id>`, `<job_id>` and `<model_id_a>`/`<model_id_b>` with ids from another call.
 
@@ -2149,6 +2149,10 @@ results), with the stage and the time left in the message.
 | `tau` | number \| null | no | `null` | — |
 | `times` | array<number> \| null | no | `null` | — |
 
+Parameter notes:
+
+- `at` — Defaults to the model's time-terminated run length.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -2713,6 +2717,7 @@ Parameter notes:
 
 - `num_runs` — Defaults to the model's configured `NumRuns`.
 - `run_length` — Defaults to the model's configured run length.
+- `workers` — Defaults to automatic selection: 1, or for a large model run 20+ times, half the machine's cores (at most 8, at least 2).
 
 **Returns**
 
@@ -2791,6 +2796,7 @@ Parameter notes:
 
 - `num_runs` — Defaults to the model's configured `NumRuns`.
 - `run_length` — Defaults to the model's configured run length.
+- `workers` — Defaults to automatic selection: 1, or for a large model run 20+ times, half the machine's cores (at most 8, at least 2).
 
 **Returns**
 
@@ -3059,7 +3065,7 @@ handover_points, handover_points_removed, refine_cut_short}.
 - **Kind:** destructive
 - **Group:** [Diagram and annotations](#tools-diagram)
 
-Delete one annotation by id.  Returns {deleted, kind}.
+Delete one annotation by id.  Returns {deleted: annotation id, kind}.
 
 **Parameters**
 
@@ -3362,9 +3368,10 @@ availability}]}.
 
 Parameter notes:
 
-- `folder` — Defaults to `Tables/<model>` (or the hierarchy/phase-specific name shown in the description).
+- `at` — Defaults to the model's time-terminated run length.
+- `folder` — Always `Tables/<model>` in the workspace. The file name adds `_h<hierarchy>` and/or `_phase<N>`/`_all_phases` for a hierarchy or phase solve; an existing file of that name is replaced.
 - `modes` — Defaults to `["reliability"]` when omitted.
-- `phase` — Defaults to the current phase; `"all"` solves every phase.
+- `phase` — Defaults to no phase. A phase-dependent model is refused with "Choose one phase" unless you pass a phase number; `"all"` solves every phase.
 
 **Returns**
 
@@ -3424,6 +3431,7 @@ Parameter notes:
 
 - `folder` — Defaults to `Tables/<model>` (or `Tables/<model>_<run_id>` with a run).
 - `formats` — Defaults to `["xlsx"]` when omitted.
+- `tables` — Defaults to all input tables except the all-columns block table, plus every result table except the long ones.
 
 **Returns**
 

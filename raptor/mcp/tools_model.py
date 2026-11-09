@@ -2190,7 +2190,7 @@ def update_annotation(model_id: str, annotation_id: int,
 @mcp.tool(annotations=DESTRUCTIVE("Delete annotation"))
 @guarded
 def delete_annotation(model_id: str, annotation_id: int) -> CallToolResult:
-    """Delete one annotation by id.  Returns {deleted, kind}."""
+    """Delete one annotation by id.  Returns {deleted: annotation id, kind}."""
     context.require_write()
     ws = context.workspace()
     from raptor.api.annotations import delete_annotation as _delete

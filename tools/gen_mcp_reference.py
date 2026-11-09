@@ -420,23 +420,39 @@ COMPUTED_DEFAULTS: dict[tuple[str, str], str] = {
     ("export_analytical", "modes"):
         "Defaults to `[\"reliability\"]` when omitted.",
     ("export_analytical", "folder"):
-        "Defaults to `Tables/<model>` (or the hierarchy/phase-specific "
-        "name shown in the description).",
+        "Always `Tables/<model>` in the workspace. The file name adds "
+        "`_h<hierarchy>` and/or `_phase<N>`/`_all_phases` for a hierarchy "
+        "or phase solve; an existing file of that name is replaced.",
     ("export_analytical", "phase"):
-        "Defaults to the current phase; `\"all\"` solves every phase.",
+        "Defaults to no phase. A phase-dependent model is refused with "
+        "\"Choose one phase\" unless you pass a phase number; `\"all\"` "
+        "solves every phase.",
+    ("export_analytical", "at"):
+        "Defaults to the model's time-terminated run length.",
     ("export_tables", "formats"):
         "Defaults to `[\"xlsx\"]` when omitted.",
     ("export_tables", "folder"):
         "Defaults to `Tables/<model>` (or `Tables/<model>_<run_id>` with a "
         "run).",
+    ("export_tables", "tables"):
+        "Defaults to all input tables except the all-columns block table, "
+        "plus every result table except the long ones.",
     ("simulate", "num_runs"):
         "Defaults to the model's configured `NumRuns`.",
     ("simulate", "run_length"):
         "Defaults to the model's configured run length.",
+    ("simulate", "workers"):
+        "Defaults to automatic selection: 1, or for a large model run 20+ "
+        "times, half the machine's cores (at most 8, at least 2).",
     ("start_run", "num_runs"):
         "Defaults to the model's configured `NumRuns`.",
     ("start_run", "run_length"):
         "Defaults to the model's configured run length.",
+    ("start_run", "workers"):
+        "Defaults to automatic selection: 1, or for a large model run 20+ "
+        "times, half the machine's cores (at most 8, at least 2).",
+    ("analytical_analysis", "at"):
+        "Defaults to the model's time-terminated run length.",
 }
 
 
@@ -671,9 +687,10 @@ def render() -> str:
         "- **Parameters** comes from the tool's input schema.  `Required` "
         "means the server rejects the call without it; **Schema default** "
         "is the literal default in the schema (`—` when it gives none); "
-        "`Enum / allowed values` lists every accepted value.  A tool may "
-        "compute a different real default from the model or another "
-        "setting; those are called out under the table.",
+        "`Enum / allowed values` lists every accepted value.  Where the "
+        "generator knows a tool computes a real default from the model or "
+        "another setting, that is called out under the table; otherwise the "
+        "schema value is all the catalogue can claim.",
         "- **Returns** lists the top-level fields of the declared output "
         "schema.  `Always present` is yes when the field is in the schema's "
         "`required` list.",

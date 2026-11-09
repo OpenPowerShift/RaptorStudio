@@ -443,7 +443,7 @@ layered layout later.
 can anchor `adjacent_to` an element (`location` chooses above/below/left/
 right/center); an arrow uses `from_`/`to`. Anchored notes move with
 `auto_layout`; ones placed by coordinates stay put. `delete_annotation`
-returns the deleted count and kind.
+returns the deleted annotation id and its kind.
 
 <a id="validate-simulate"></a>
 
@@ -791,7 +791,7 @@ jobs are limited so one client cannot occupy every core.
 lists every tool with:
 
 - its full Markdown description;
-- a typed parameter table (name, type, required, default, enum);
+- a typed parameter table (name, type, required, schema default, enum);
 - the declared return fields;
 - an argument example.
 
