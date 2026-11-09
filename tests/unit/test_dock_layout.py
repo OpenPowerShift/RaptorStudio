@@ -1231,3 +1231,67 @@ def test_a_titlebar_drop_at_the_top_does_not_join_the_bottom_strip(qapp):
     assert dock not in w.tabifiedDockWidgets(w._data_tables_dock)
     w._dirty = False
     w.close()
+
+
+def test_closed_explorer_action_stays_enabled_and_reopens(qapp):
+    w = _shown(qapp)
+    dock, action = w._explorer_dock, w._explorer_toggle_action
+    w._dock_chrome["Model Explorer"]["set_closed"](True)
+    _pump(qapp)
+    assert action.isEnabled(), "closed side dock must stay recoverable"
+    action.setChecked(True)
+    _pump(qapp)
+    assert dock.isVisible() and not dock.widget().isHidden()
+    w._dirty = False
+    w.close()
+
+
+def test_floating_dock_keeps_minimize_control(qapp):
+    w = _shown(qapp)
+    dock = w._inspector_dock
+    dock.setFloating(True)
+    _pump(qapp)
+    entry = w._dock_chrome_entries[dock]
+    assert entry["min_btn"].isVisible()
+    entry["min_btn"].click()
+    _pump(qapp)
+    assert entry["minimized"] is True
+    assert dock.widget().isHidden()
+    entry["min_btn"].click()
+    _pump(qapp)
+    assert entry["minimized"] is False
+    assert not dock.widget().isHidden()
+    w._dirty = False
+    w.close()
+
+
+def test_wayland_titlebar_drag_uses_system_move(qapp, monkeypatch):
+    from PySide6.QtCore import QEvent, QPointF
+    from PySide6.QtGui import QMouseEvent
+
+    w = _shown(qapp)
+    dock = w._explorer_dock
+    calls = []
+    monkeypatch.setattr(w, "_system_move_supported", lambda: True)
+    monkeypatch.setattr(
+        w, "_start_dock_system_move", lambda d: calls.append(d) or True)
+    titlebar = dock.titleBarWidget()
+    start = titlebar.mapToGlobal(titlebar.rect().center())
+    local = QPointF(titlebar.rect().center())
+    press = QMouseEvent(
+        QEvent.Type.MouseButtonPress, local, QPointF(start),
+        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier)
+    move = QMouseEvent(
+        QEvent.Type.MouseMove, local,
+        QPointF(start.x() + 40, start.y() + 40),
+        Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier)
+    titlebar.event(press)
+    titlebar.event(move)
+    _pump(qapp, 2)
+    assert calls == [dock]
+    assert dock.isFloating()
+    assert titlebar._press_global is None
+    w._dirty = False
+    w.close()

@@ -301,6 +301,14 @@ class _DockTitleBar(QWidget):
             self._dragging = True
             self._window._begin_dock_titlebar_drag(
                 self._dock, self._press_global)
+            # Wayland does not let a client position a top-level window
+            # with move(); ask the compositor for a system move instead,
+            # so the dock can cross screens and be placed freely.
+            if self._window._system_move_supported():
+                if self._window._start_dock_system_move(self._dock):
+                    self._clear_drag()
+                    event.accept()
+                    return
             # The dock may have just been re-parented into its own
             # floating window. Anchor further movement to where that
             # window now sits so it does not jump on the next event.
@@ -1341,8 +1349,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # and a state-dependent tooltip would document whichever
             # dock state the generator happened to be looking at.
             if manage_enabled:
-                recoverable = self._is_closed_side_dock(dock)
-                action.setEnabled(open_ or not recoverable)
+                # A closed side dock is recoverable, so its ribbon action
+                # must stay clickable. Disabling it left the Inspector
+                # impossible to bring back from View > Panels.
+                action.setEnabled(True)
             action.blockSignals(False)
 
         if self._dock_state_sync is None:
@@ -8618,6 +8628,20 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # geometry on this turn is not the user's docked extent.
             entry["_skip_extent_remember"] = True
 
+    @staticmethod
+    def _system_move_supported() -> bool:
+        """Wayland forbids client-side top-level positioning."""
+        from PySide6.QtGui import QGuiApplication
+        return "wayland" in QGuiApplication.platformName().casefold()
+
+    def _start_dock_system_move(self, dock: QDockWidget) -> bool:
+        """Ask the compositor to move a floating dock (works on Wayland)."""
+        try:
+            handle = dock.windowHandle()
+            return bool(handle is not None and handle.startSystemMove())
+        except RuntimeError:
+            return False
+
     def _begin_dock_titlebar_drag(self, dock: QDockWidget,
                                   press_global) -> None:
         """A custom title bar must float the dock itself: replacing Qt's
@@ -8851,15 +8875,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._remember_docked_extent(dock, entry)
             dock.setMinimumSize(160, 90)
             dock.setMaximumSize(16777215, 16777215)
-            # No collapse/expand (or re-float) controls on a detached
-            # window: its own title bar and frame already do that job, and
-            # an "expand up" arrow on a free-floating window is meaningless
-            # (reported). Close stays.
+            # A floating window keeps its minimize/restore control, so
+            # the panel can still be expanded/collapsed anywhere. The
+            # float button is meaningless once detached; Close and Back
+            # stay.
             if entry is not None:
-                for key in ("min_btn", "float_btn"):
-                    widget = entry.get(key)
-                    if widget is not None:
-                        widget.setVisible(False)
+                min_btn = entry.get("min_btn")
+                if min_btn is not None:
+                    min_btn.setVisible(True)
+                float_btn = entry.get("float_btn")
+                if float_btn is not None:
+                    float_btn.setVisible(False)
                 self._show_dock_back_button(dock, entry, True)
             return
         if entry is not None:
