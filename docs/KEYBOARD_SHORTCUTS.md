@@ -34,11 +34,12 @@ step) also moves selected routing points, and the routing points of a link
 whose two ends both move go with them. One undo step. Alt applies to drags
 too, so a block/node/event/oval can be placed between the normal grid lines.
 
-Alt+Up does double duty. With something movable selected on the focused
-canvas it fine-nudges the selection; with nothing selected it remains
-**Up one hierarchy level** (and a double-click on an Out marker always
-ascends without touching the selection). Deselect, or click in the
-Inspector, to get hierarchy navigation back while a selection exists.
+Alt+Up does double duty. With a nudgeable canvas selection on the focused
+canvas (blocks, nodes, events, hierarchy ovals, annotations including
+arrows, and routing points) it fine-nudges that selection. With nothing
+selected, or with focus outside the canvas, it is **Up one hierarchy
+level**; a double-click on an Out marker always ascends. The ribbon's Up
+button always ascends, whatever is selected.
 
 ## Tables
 | Shortcut | Action |
@@ -68,7 +69,7 @@ Front* and *Bring Forward* disabled.
 | Ctrl+5 | Add Hierarchy tool |
 | Ctrl+6 | Connect tool |
 | Ctrl+G | Collapse the selection into a hierarchy |
-| Alt+Up | Up one hierarchy level |
+| Alt+Up | Fine-nudge the focused canvas selection; with none selected, up one hierarchy level |
 | Ctrl+L | Auto Layout (columns by flow; selection alone if selected) |
 | Ctrl+= / Ctrl+- | Zoom in / out (also Ctrl+wheel) |
 | Ctrl+0 | Zoom to fit |

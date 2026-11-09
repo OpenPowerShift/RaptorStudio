@@ -2472,6 +2472,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._inspector.comment_to_annotation_requested.connect(
             lambda etype, oid: self._diagram_dock.view
             .comment_to_annotation(etype, oid))
+        # Flush a pending Comment draft BEFORE `_set_level`/`load_rbd`
+        # rebuilds the scene and Inspector; the level_changed handlers run
+        # after the old editor has already been destroyed.
+        self._diagram_dock.view.level_about_to_change.connect(
+            self._inspector.flush_pending_comment)
         self._inspector.node_renamed.connect(self._on_node_renamed)
         self._inspector.hier_renamed.connect(self._on_hier_renamed)
         self._inspector.phasing_changed.connect(self._on_phasing_changed)
@@ -3251,6 +3256,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         v = self._diagram_dock.view
         if getattr(v, "_loading", False):
             return
+        # Deselect is another way the Inspector stops showing the element
+        # whose Comment box holds a draft.
+        self._inspector.flush_pending_comment()
         self._cancel_pending_block_selection()
         target = self._inspector.current_target()
         if target and target[0] in ("block", "node", "event", "hier", "annotation"):
@@ -4001,6 +4009,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """File ▸ Close: back to the no-model state (save prompt)."""
         if self._refuse_during_run("close the model"):
             return
+        # The discard prompt must see the comment draft as part of the
+        # model; otherwise Cancel/Don't Save loses/writes it too late.
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         self._invalidate_step_session()
@@ -4056,6 +4067,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         if self._refuse_during_run("create a new model"):
             return
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         # A new model is seeded from the Preferences dialog's "New models"
@@ -4334,6 +4346,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         unexplained white screen. The indicator is application-modal, so
         a click that lands during the rebuild cannot start a second Open.
         """
+        # Must run before `_loading_model` and before the model swap: the
+        # draft belongs to the old model and its old Inspector editor.
+        self._inspector.flush_pending_comment()
         self._loading_model = True
         busy = False
         try:
@@ -8326,7 +8341,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         writer and a recovery path avoids overwriting an open .rbds with
         legacy .rbd text, mutating the live model in place, and dropping
         annotations."""
-        if not (self._dirty and self._rbd is not None):
+        if self._rbd is None:
             return
         if getattr(self, "_loading_model", False):
             # A load is replacing the model; the old one's recovery copy
@@ -8335,10 +8350,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if getattr(self, "_run_in_progress", False):
             # Never write back into a model a live engine is reading.
             return
+        # A pending Comment draft is not in `_dirty` yet. Flush it BEFORE
+        # deciding there is nothing to save, or a clean model with only a
+        # just-typed comment would leave no recovery copy at all.
+        self._inspector.flush_pending_comment()
+        if not self._dirty:
+            return
         try:
             # Recovery must include a comment still inside its debounce
             # window, same rule as `_write_model`.
-            self._inspector.flush_pending_comment()
             self._diagram_dock.view.write_back_to_rbd(self._rbd)
             # Mandatory or deleted annotations would survive in the
             # recovery file (same rule as `_write_model`).
@@ -9690,6 +9710,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         if self._refuse_during_run("open an example"):
             return
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         path = next((p for p in self._doc_candidates(f"models/{file_name}")
@@ -9792,6 +9813,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         if self._refuse_during_run("open another file"):
             return
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         try:

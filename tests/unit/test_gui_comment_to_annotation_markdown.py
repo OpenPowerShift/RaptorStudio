@@ -255,6 +255,35 @@ def test_hierarchy_context_menu_also_converts(view):
     assert note.text_source() == "hierarchy note"
 
 
+def test_general_identity_button_rejects_newline_only_text(qapp):
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.main_window import MainWindow
+    settings.set_value("startup/show_start_page", False)
+    win = MainWindow()
+    win.resize(1400, 900)
+    win.show()
+    win._load_into_app(load_rbd(MODEL), MODEL)
+    QApplication.processEvents()
+    try:
+        v = win._diagram_dock.view
+        v._scene.clearSelection()
+        v._block_items[5].setSelected(True)
+        QTest.qWait(120)
+        QApplication.processEvents()
+        edit = win._inspector._comment_edit
+        edit.setPlainText("~~")
+        QApplication.processEvents()
+
+        form = win._inspector._scroll_general.widget()
+        buttons = {b.text(): b for b in form.findChildren(QPushButton)}
+        assert not buttons["Convert comment to annotation"].isEnabled()
+        assert not v.annotations
+    finally:
+        win._inspector.flush_pending_comment()
+        win._dirty = False
+        win.close()
+
+
 def test_general_identity_button_converts_the_comment(qapp):
     from raptor.gui.ui import settings
     from raptor.gui.ui.main_window import MainWindow

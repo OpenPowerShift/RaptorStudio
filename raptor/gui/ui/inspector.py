@@ -986,6 +986,9 @@ class InspectorDock(QWidget):
 
     def show_system_config(self):
         """Populate the system-level Analysis group."""
+        # Replacing General with the system page deletes the element's
+        # Comment editor; flush its draft first.
+        self.flush_pending_comment()
         self._current_target = ("system", None)
         if self._rbd is None:
             return
@@ -1690,9 +1693,17 @@ class InspectorDock(QWidget):
         button.setToolTip(
             "Create a Markdown text annotation on the canvas from this "
             "comment, next to the element")
-        button.setEnabled(bool(edit.toPlainText().strip()))
+
+        def has_convertible_text() -> bool:
+            # The stored format uses `~` for newlines, so a comment of
+            # only tildes/newlines is blank and must not enable the
+            # button (conversion would refuse it after the click).
+            return bool(edit.toPlainText()
+                        .replace("~", "\n").strip())
+
+        button.setEnabled(has_convertible_text())
         edit.textChanged.connect(
-            lambda: button.setEnabled(bool(edit.toPlainText().strip())))
+            lambda: button.setEnabled(has_convertible_text()))
 
         def convert() -> None:
             edit.commit()

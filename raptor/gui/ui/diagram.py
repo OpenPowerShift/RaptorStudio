@@ -185,6 +185,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     #: Emitted on every level change with the new current ParentId
     #: (0 = home) -- MainWindow uses it to enable Up/Home navigation.
     level_changed = Signal(int)
+    #: Emitted BEFORE a level rebuild (and before `load_rbd` swaps the
+    #: model). MainWindow uses it to flush a pending Inspector comment
+    #: draft while its old element/editor still exists.
+    level_about_to_change = Signal()
     hier_selected = Signal(int)
     event_selected = Signal(int)
     #: (annotation id) -- drives the Inspector's colour/font tab, same
@@ -742,6 +746,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def load_rbd(self, rbd: RbdFile):
         log.debug("load_rbd: start (%s)", getattr(rbd, "path", "?"))
+        # The Inspector may still hold a draft for the model being
+        # replaced (Close/New/Open all end here). Flush before the swap.
+        self.level_about_to_change.emit()
         self._loading = True
         self._compute_model_transform(rbd)
         # annotations belong to this model (.rbds only)
@@ -850,6 +857,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._set_level(0)
 
     def _set_level(self, parent_id: int):
+        # A Comment draft belongs to an element on the level being left;
+        # flush it before the scene (and Inspector) is rebuilt.
+        self.level_about_to_change.emit()
         # A large level still pays for item construction even after the
         # parser and routing caches. Say what is happening and put the wait
         # cursor up before doing it; otherwise the window looks frozen for
@@ -7172,6 +7182,51 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         finally:
             self._snap_state["x"], self._snap_state["y"] = saved
 
+    def _push_move_commands(self, moves, anno_edits, grip_moves=(),
+                            label: str = "Move") -> None:
+        """Push one gesture's moves as one undo step.
+
+        A gesture can produce two command kinds (element MoveCmd plus one
+        AnnoEditCmd per annotation, or annotations plus a routed grip).
+        Anything above one command becomes a macro, wrapped in
+        `_stack.ungated()`: the rule gate would otherwise take its two
+        whole-model snapshots at `beginMacro`/`endMacro` for a gesture
+        that cannot break an input rule (nothing here changes model
+        values, only geometry).
+        """
+        stack = self._stack
+        grip_only = bool(grip_moves) and not moves and not anno_edits
+        if grip_only:
+            cmd = MoveCmd(self, [], grips=list(grip_moves))
+            cmd.setText("Move routing point")
+            stack.push(cmd)
+            return
+        has_move = bool(moves or grip_moves)
+        total = len(anno_edits) + (1 if has_move else 0)
+        if not total:
+            return
+        if total == 1:
+            if anno_edits:
+                aid, old_state, new_state = anno_edits[0]
+                stack.push(AnnoEditCmd(self, aid, old_state, new_state,
+                                       layout_only=True))
+            else:
+                stack.push(MoveCmd(self, moves, grips=list(grip_moves)))
+            return
+        # The ungated scope must cover beginMacro itself: that is where
+        # the gate takes its "before" snapshot.
+        with stack.ungated():
+            stack.beginMacro(label)
+            try:
+                for aid, old_state, new_state in anno_edits:
+                    stack.push(AnnoEditCmd(self, aid, old_state,
+                                           new_state, layout_only=True))
+                if has_move:
+                    stack.push(MoveCmd(self, moves,
+                                       grips=list(grip_moves)))
+            finally:
+                stack.endMacro()
+
     def nudge_selection(self, dxs: int, dys: int, *, fine: bool = False,
                         off_grid: bool = False) -> bool:
         """Move the selected elements/annotations/grips by one step.
@@ -7293,22 +7348,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                        for aid, _old, _new in anno_edits}
         for _aid, old_state, new_state in anno_edits:
             self._detach_if_moved_alone(old_state, new_state, moved_keys)
-        # A mixed element+annotation selection used to leave an
-        # AnnoEditCmd and a MoveCmd as two separate undo steps, so one
-        # Ctrl+Z only half-moved the selection. One macro makes the whole
-        # nudge one undo (and redo) step.
-        macro = bool(moves and anno_edits)
-        if macro:
-            self._stack.beginMacro("Nudge")
-        try:
-            for aid, old_state, new_state in anno_edits:
-                self._stack.push(AnnoEditCmd(self, aid, old_state,
-                                             new_state, layout_only=True))
-            if moves or grip_moves:
-                self._stack.push(MoveCmd(self, moves, grips=grip_moves))
-        finally:
-            if macro:
-                self._stack.endMacro()
+        # Two command kinds in one gesture become one macro (and one undo
+        # step), off the whole-model rule gate.
+        self._push_move_commands(moves, anno_edits, grip_moves,
+                                 label="Nudge")
         if anno_edits:
             self.follow_anchors({("annotation", aid)
                                  for aid, _old, _new in anno_edits})
@@ -7502,11 +7545,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._drag_armed = True
         # Alt+drag is a fine move: Qt's own item drag calls setPos(), and
         # every itemChange re-snaps to `_snap_state`, so the snap step
-        # itself has to be subdivided for the duration of the move.
-        with self._fine_snap(
-                self._fine_drag or bool(
-                    event.modifiers()
-                    & Qt.KeyboardModifier.AltModifier)):
+        # itself has to be subdivided for the duration of the move. Alt
+        # may be pressed AFTER the press: latch it so the release uses
+        # the fine epsilon for the one-step move that follows.
+        fine_now = self._fine_drag or bool(
+            event.modifiers() & Qt.KeyboardModifier.AltModifier)
+        if fine_now:
+            self._fine_drag = True
+        with self._fine_snap(fine_now):
             super().mouseMoveEvent(event)
         if self._drag_primary is not None and self._drag_armed:
             self._move_group_with_primary()
@@ -7573,7 +7619,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def mouseReleaseEvent(self, event):
         self._band_anchor = None
-        fine_gesture = self._fine_drag
+        fine_gesture = self._fine_drag or bool(
+            event.modifiers() & Qt.KeyboardModifier.AltModifier)
         self._fine_drag = False
         # A minimum grid's tenth step can be well under half a scene unit
         # (e.g. snap 4 -> fine 0.4). The old 0.5 "did it move?" threshold
@@ -7588,10 +7635,12 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._pan_anchor = None
             event.accept()
             return
+        grip_moves = []
         if event.button() == Qt.MouseButton.LeftButton and self._grip_press:
-            # A routing point was dragged: one undo step puts it back.
+            # A routing point was dragged: collect it here and let the
+            # same gesture helper below fold it into a macro if anything
+            # else moved too.
             pressed, self._grip_press = self._grip_press, {}
-            grip_moves = []
             for entry_id, old in pressed.items():
                 grip = self.route_grip_by_entry(entry_id)
                 if grip is None:
@@ -7600,10 +7649,6 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if (abs(new[0] - old[0]) > move_eps
                         or abs(new[1] - old[1]) > move_eps):
                     grip_moves.append((entry_id, old, new))
-            if grip_moves:
-                cmd = MoveCmd(self, [], grips=grip_moves)
-                cmd.setText("Move routing point")
-                self._stack.push(cmd)
         if event.button() == Qt.MouseButton.LeftButton and self._drag_start:
             # A drag gesture just ended: one MoveCmd for every element
             # whose scene position actually changed.
@@ -7651,15 +7696,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 # follow it.
                 moved_keys |= {("annotation", aid)
                                for aid, _old, _new in anno_edits}
-                for aid, old_state, new_state in anno_edits:
+                for _aid, old_state, new_state in anno_edits:
                     self._detach_if_moved_alone(old_state, new_state, moved_keys)
-                    self._stack.push(AnnoEditCmd(self, aid, old_state,
-                                                 new_state, layout_only=True))
-                # Anything anchored to the annotations that just moved
-                # follows them, including notes chained through another
-                # annotation.
-                self.follow_anchors({("annotation", aid)
-                                     for aid, _old, _new in anno_edits})
             if moves:
                 # A drag can now carry hierarchy ovals too -- they ride
                 # along in the same gesture but never reparent (only
@@ -7673,11 +7711,24 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     # selection into it -- positions are not
                     # committed; the child level lays out on its own.
                     self._reparent_into(drop_hid, element_moves)
-                    if oval_moves:
-                        self._stack.push(MoveCmd(self, oval_moves))
+                    self._push_move_commands(
+                        oval_moves, anno_edits, grip_moves, label="Move")
                 else:
-                    self._stack.push(MoveCmd(self, moves))
-            elif len(drag_start) == 1:
+                    self._push_move_commands(
+                        moves, anno_edits, grip_moves, label="Move")
+                grip_moves = []
+            elif anno_edits or grip_moves:
+                self._push_move_commands(
+                    [], anno_edits, grip_moves, label="Move")
+                grip_moves = []
+            if anno_edits:
+                # Anything anchored to the annotations that just moved
+                # follows them, including notes chained through another
+                # annotation.
+                self.follow_anchors({("annotation", aid)
+                                     for aid, _old, _new in anno_edits})
+            if not moves and not anno_edits and not grip_moves \
+                    and len(drag_start) == 1:
                 # A plain click (no drag) on a single element centres the
                 # view on it, e.g. after panning/zooming left it near an
                 # edge. Skipped for a multi-select click (shift-click adds
@@ -7701,6 +7752,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # The gesture is over and `follow_anchors` has put every note
             # where it belongs: show the ones hidden at press.
             self._show_following_annotations()
+        if event.button() == Qt.MouseButton.LeftButton and grip_moves:
+            # A routing-point drag with no element/annotation part (the
+            # common case) still needs its one undo command.
+            self._push_move_commands([], [], grip_moves)
         super().mouseReleaseEvent(event)
 
     def _item_comfortably_visible(self, item) -> bool:

@@ -162,6 +162,165 @@ def test_mixed_block_and_annotation_nudge_is_one_undo_step(qapp):
     assert note.scenePos().x() == pytest.approx(note_x)
 
 
+def _mouse(kind, pos, buttons, button, mods=Qt.KeyboardModifier.NoModifier):
+    return QMouseEvent(kind, pos, pos, button, buttons, mods)
+
+
+def test_two_annotations_nudge_is_one_undo_step(qapp):
+    v = _view()
+    one = v._begin_annotation("text", QPointF(30, 30))
+    one.end_edit()
+    two = v._begin_annotation("text", QPointF(200, 30))
+    two.end_edit()
+    v._scene.clearSelection()
+    one.setSelected(True)
+    two.setSelected(True)
+    v.setFocus()
+    QApplication.processEvents()
+    starts = [one.scenePos().x(), two.scenePos().x()]
+    v._stack.clear()
+
+    QTest.keyClick(v, Qt.Key.Key_Right, Qt.KeyboardModifier.AltModifier)
+    QApplication.processEvents()
+    assert v._stack.count() == 1
+    v._stack.undo()
+    assert [one.scenePos().x(), two.scenePos().x()] == pytest.approx(starts)
+    assert starts[0] != starts[1]                     # both really moved
+
+
+def test_annotation_and_grip_nudge_is_one_undo_step(qapp):
+    v = _phasing_view()
+    try:
+        note = v._begin_annotation("text", QPointF(40, 40))
+        note.end_edit()
+        link = v._links[0]
+        mid = link.nearest_point(QPointF(
+            (link._p0.x() + link._p3.x()) / 2,
+            (link._p0.y() + link._p3.y()) / 2))
+        mx, my = v.scene_to_model(mid)
+        grip = v.insert_routing_node(link._link_num, mx, my)
+        assert grip is not None
+        v._scene.clearSelection()
+        note.setSelected(True)
+        grip.setSelected(True)
+        v.setFocus()
+        QApplication.processEvents()
+        note_x = note.scenePos().x()
+        grip_x = grip.pos().x()
+        v._stack.clear()
+
+        QTest.keyClick(v, Qt.Key.Key_Right, Qt.KeyboardModifier.AltModifier)
+        QApplication.processEvents()
+        assert v._stack.count() == 1
+        v._stack.undo()
+        assert note.scenePos().x() == pytest.approx(note_x)
+        assert grip.pos().x() == pytest.approx(grip_x)
+    finally:
+        v.close()
+        v.deleteLater()
+        QApplication.processEvents()
+
+
+def test_mixed_element_and_annotation_drag_is_one_undo_step(qapp):
+    v = _view()
+    block = next(iter(v._block_items.values()))
+    note = v._begin_annotation("text", QPointF(30, 30))
+    note.end_edit()
+    v._scene.clearSelection()
+    block.setSelected(True)
+    note.setSelected(True)
+    v.setFocus()
+    QApplication.processEvents()
+    bx, nx = block.scenePos().x(), note.scenePos().x()
+    v._stack.clear()
+    v.scale(2.0, 2.0)
+
+    down = QPointF(v.mapFromScene(block.sceneBoundingRect().center()))
+    target = down + QPointF(40, 0)
+    v.mousePressEvent(_mouse(
+        QEvent.Type.MouseButtonPress, down,
+        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton))
+    for i in range(1, 5):
+        pos = down + (target - down) * i / 4
+        v.mouseMoveEvent(_mouse(
+            QEvent.Type.MouseMove, pos,
+            Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.AltModifier))
+        QApplication.processEvents()
+    v.mouseReleaseEvent(_mouse(
+        QEvent.Type.MouseButtonRelease, target,
+        Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.AltModifier))
+    QApplication.processEvents()
+
+    assert block.scenePos().x() != bx and note.scenePos().x() != nx
+    assert v._stack.count() == 1
+    v._stack.undo()
+    assert block.scenePos().x() == pytest.approx(bx)
+    assert note.scenePos().x() == pytest.approx(nx)
+
+
+def test_mixed_nudge_does_not_run_the_rule_gate(qapp, monkeypatch):
+    import raptor.gui.ui.rule_gate as rule_gate
+
+    calls = []
+    monkeypatch.setattr(rule_gate, "check",
+                        lambda *a, **k: calls.append(1) or [])
+    v = _view()
+    block = next(iter(v._block_items.values()))
+    note = v._begin_annotation("text", QPointF(30, 30))
+    note.end_edit()
+    v._scene.clearSelection()
+    block.setSelected(True)
+    note.setSelected(True)
+    v.setFocus()
+    QApplication.processEvents()
+    v._stack.clear()
+    calls.clear()                      # setup/load pushes are not the nudge
+
+    QTest.keyClick(v, Qt.Key.Key_Right, Qt.KeyboardModifier.AltModifier)
+    QApplication.processEvents()
+    assert v._stack.count() == 1
+    assert calls == [], "mixed geometry nudge must stay off the rule gate"
+
+
+def test_alt_pressed_after_press_is_a_fine_drag_with_undo(qapp):
+    """Alt can go down after the mouse press; the fine snap and the
+    release epsilon must both follow it for a one-tenth-step drag."""
+    v = _view()
+    item = _select_first_block(v)
+    v._snap_state["x"] = v._snap_state["y"] = 4.0
+    x0 = item.scenePos().x()
+    x0 = round(x0 / 0.4) * 0.4
+    v._snap_state["x"] = v._snap_state["y"] = 0.0
+    item.setPos(x0, item.scenePos().y())
+    v._snap_state["x"] = v._snap_state["y"] = 4.0
+    v._stack.clear()
+    v.scale(20.0, 20.0)
+
+    down = QPointF(v.mapFromScene(item.sceneBoundingRect().center()))
+    target = QPointF(v.mapFromScene(
+        item.sceneBoundingRect().center() + QPointF(0.4, 0)))
+    v.mousePressEvent(_mouse(
+        QEvent.Type.MouseButtonPress, down,
+        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton))
+    v.mouseMoveEvent(_mouse(
+        QEvent.Type.MouseMove, target,
+        Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton,
+        Qt.KeyboardModifier.AltModifier))
+    QApplication.processEvents()
+    v.mouseReleaseEvent(_mouse(
+        QEvent.Type.MouseButtonRelease, target,
+        Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.AltModifier))
+    QApplication.processEvents()
+
+    assert item.scenePos().x() == pytest.approx(x0 + 0.4)
+    assert v._stack.count() == 1
+    v._stack.undo()
+    assert item.scenePos().x() == pytest.approx(x0)
+
+
 def test_a_one_fine_step_drag_still_gets_an_undo_command(qapp):
     """At a 4-unit grid the fine step is 0.4, below the old 0.5 release
     threshold: the gesture moved on screen but produced no MoveCmd."""

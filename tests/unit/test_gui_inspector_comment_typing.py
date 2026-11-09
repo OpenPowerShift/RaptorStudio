@@ -38,6 +38,8 @@ def win(qapp):
     w._inspector.flush_pending_comment()
     w._dirty = False
     w.close()
+    from raptor.gui.ui import settings as _settings
+    _settings.remove("files/open_in")
 
 
 TARGETS = [
@@ -147,13 +149,93 @@ def test_autosave_flushes_a_pending_comment(win, tmp_path, monkeypatch):
 
     path = tmp_path / "recovery.rbds"
     monkeypatch.setattr(win, "_recovery_path", lambda: str(path))
-    win._dirty = True
+    # The draft alone has not marked the model dirty yet; autosave must
+    # flush it, re-check, and then write rather than returning early.
+    win._dirty = False
     win._autosave_tick()
     QApplication.processEvents()
 
     reloaded = load_rbds(str(path))
     assert any(r.get("Comment") == "recovery draft"
                for r in reloaded.sections["COMMENTS"].rows)
+
+
+def _pending_block_draft(win, text="draft"):
+    v = win._diagram_dock.view
+    v.set_element_comment("block", 5, "")
+    v._stack.clear()
+    _show(win, "block", 5)
+    edit = win._inspector._comment_edit
+    edit.setFocus()
+    QApplication.processEvents()
+    QTest.keyClicks(edit, text)
+    QApplication.processEvents()
+    assert v.current_comment_stored("block", 5) == ""
+    return v
+
+
+def test_close_flushes_pending_draft_before_the_discard_prompt(
+        win, monkeypatch):
+    v = _pending_block_draft(win, "close draft")
+    seen = []
+
+    def confirm(closing=False):
+        seen.append(v.current_comment_stored("block", 5))
+        return True
+
+    monkeypatch.setattr(win, "_confirm_discard_unsaved", confirm)
+    win._close_current_file()
+    QApplication.processEvents()
+    assert seen == ["close draft"]
+
+
+def test_new_file_flushes_pending_draft_before_the_discard_prompt(
+        win, monkeypatch):
+    v = _pending_block_draft(win, "new draft")
+    from raptor.gui.ui import settings
+    settings.set_value("files/open_in", "this")     # same window
+    seen = []
+    monkeypatch.setattr(
+        win, "_confirm_discard_unsaved",
+        lambda closing=False: seen.append(
+            v.current_comment_stored("block", 5)) or True)
+    win._new_file()
+    QApplication.processEvents()
+    assert seen == ["new draft"]
+
+
+def test_open_path_flushes_pending_draft_before_the_discard_prompt(
+        win, monkeypatch):
+    from raptor.gui.ui import settings
+    settings.set_value("files/open_in", "this")     # same window
+    v = _pending_block_draft(win, "open draft")
+    seen = []
+    monkeypatch.setattr(
+        win, "_confirm_discard_unsaved",
+        lambda closing=False: seen.append(
+            v.current_comment_stored("block", 5)) or True)
+    win._open_path("tests/golden/FactoryDemo/input.rbd")
+    QApplication.processEvents()
+    assert seen == ["open draft"]
+
+
+def test_level_change_flushes_pending_draft_before_rebuild(win):
+    v = win._diagram_dock.view
+    v.set_element_comment("block", 5, "")
+    v._stack.clear()
+    _show(win, "block", 5)
+    edit = win._inspector._comment_edit
+    edit.setFocus()
+    QApplication.processEvents()
+    QTest.keyClicks(edit, "level draft")
+    QApplication.processEvents()
+    assert v.current_comment_stored("block", 5) == ""
+
+    v.enter_level(23)
+    QApplication.processEvents()
+    assert v._current_parent == 23
+    rows = v._rbd_ref.sections["COMMENTS"].rows
+    assert any(r.get("Comment") == "level draft" for r in rows)
 
 
 def test_pending_comment_is_flushed_before_inspector_repopulates(win):
