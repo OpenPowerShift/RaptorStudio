@@ -1978,6 +1978,48 @@ class ResultsDock(QWidget):
         self._cost_blocks_label = None
         self._cost_blocks_title = ""
 
+        def _sum_cost_values(columns: list[str], vals: list) -> str | None:
+            """Sum a report row's additive cost cells, or None.
+
+            The parsed report keeps values as strings (and sometimes
+            ``N/A``); the Total column must use the same full-precision
+            number the other cells hand to Copy/CSV, not the rounded
+            display text.
+            """
+            total = 0.0
+            found = False
+            for column, value in zip(columns[1:], vals):
+                if column in ("InHier",):
+                    continue
+                if isinstance(value, tuple):
+                    value = value[1] if len(value) > 1 else value[0]
+                text = str(value).strip().replace(",", "")
+                if not text or text.casefold() in {"n/a", "na", "—", "–", "-"}:
+                    continue
+                try:
+                    total += float(text)
+                except ValueError:
+                    continue
+                found = True
+            return str(total) if found else None
+
+        def _with_cost_total(title: str, columns: list[str],
+                             rows: list[list]):
+            """Append a Total column to additive report-section tables.
+
+            Blocks/Pools/Hierarchies already carry a Total from their own
+            builders; only the Operating, Sparing and Event tables need
+            one. Cost_Summary is already one value per row.
+            """
+            name = title.rsplit(" - ", 1)[-1]
+            if name not in ("Operating", "Sparing"):
+                return columns, rows
+            out = []
+            for label, vals in rows:
+                total = _sum_cost_values(columns, vals)
+                out.append((label, [*vals, total if total is not None else ""]))
+            return [*columns, "Total"], out
+
         def add_table(title: str, headers: list[str], rows: list[list],
                       tip: str = ""):
             # Cells may be (display, raw) tuples: the grid shows the
@@ -2067,9 +2109,10 @@ class ResultsDock(QWidget):
                     event.name,
                     (money(avg("initial")), avg("initial")),
                     (money(avg("success")), avg("success")),
-                    (money(avg("failure")), avg("failure"))])
-            add_table("Events", ["Name", "Initial", "Success", "Failure"],
-                      event_rows)
+                    (money(avg("failure")), avg("failure")),
+                    (money(avg("total")), avg("total"))])
+            add_table("Events", ["Name", "Initial", "Success", "Failure",
+                                 "Total"], event_rows)
 
         # Hierarchies: child-cost rollups.
         hier_ids = sorted({hid for cst in costs for hid in cst.hiers})
@@ -2100,6 +2143,7 @@ class ResultsDock(QWidget):
         # (not in the snapshots' life-cycle view above).
         from raptor.api.presentation import table_title
         for title, columns, rows in getattr(self, "_cost_extra", []):
+            columns, rows = _with_cost_total(title, columns, rows)
             table = self._section_widget(title, columns, rows)
             self._add_table_header(v, table_title(title), table)
             v.addWidget(table)

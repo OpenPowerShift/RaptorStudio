@@ -552,6 +552,18 @@ def _run_with_cost():
     return dock
 
 
+def _run_water2_with_cost():
+    from raptor.core.engine.runner import run_simulation_with_reports
+    from raptor.core.fileio.rbds import load_rbds
+    rbd = load_rbds(os.path.join(REPO, "new_docs", "models", "Water2.rbds"))
+    report_data: list = []
+    logs, eor, fin = run_simulation_with_reports(
+        rbd, num_runs=1, date="fixed", report_sink=report_data)
+    dock = ResultsDock()
+    dock.set_results(logs, eor, fin, report_data=report_data)
+    return dock
+
+
 def _cost_page(dock):
     for i in range(dock._details_tabs.count()):
         if dock._details_tabs.tabText(i) == "Cost":
@@ -593,6 +605,70 @@ def test_cost_totals_are_consistent(qapp):
                 for c in range(1, 6)]
         assert vals[0] + vals[1] + vals[2] + vals[3] == \
             pytest.approx(vals[4], rel=1e-6), blocks_table.item(r, 0).text()
+
+
+def _cost_table_with_header(dock, header):
+    for table in dock._cost_tables:
+        headers = [table.horizontalHeaderItem(c).text()
+                   for c in range(table.columnCount())]
+        if header in headers:
+            return table, headers
+    raise AssertionError(f"no cost table with header {header!r}")
+
+
+def _number(table, row, column):
+    text = table.item(row, column).text().replace(",", "")
+    return float(text)
+
+
+def test_cost_operating_table_has_a_total_column(qapp):
+    """Operating's per-state cost columns add up to a row Total."""
+    dock = _run_water2_with_cost()
+    table, headers = _cost_table_with_header(dock, "Repair hold")
+    assert headers[-1] == "Total"
+    for row in range(table.rowCount()):
+        total = sum(_number(table, row, c)
+                    for c in range(2, table.columnCount() - 1))
+        assert total == pytest.approx(
+            _number(table, row, table.columnCount() - 1), rel=1e-6), \
+            table.item(row, 0).text()
+
+
+def test_cost_sparing_table_has_a_total_column(qapp):
+    """InitSpares + NewSpares + EmerShip add up to a row Total."""
+    dock = _run_water2_with_cost()
+    table, headers = _cost_table_with_header(dock, "Initial spares")
+    assert headers[-1] == "Total"
+    for row in range(table.rowCount()):
+        total = sum(_number(table, row, c)
+                    for c in range(1, table.columnCount() - 1))
+        assert total == pytest.approx(
+            _number(table, row, table.columnCount() - 1), rel=1e-6), \
+            table.item(row, 0).text()
+
+
+def test_cost_tables_with_a_total_do_not_get_a_second_one(qapp):
+    """Where a table already has a Total, it keeps exactly one."""
+    dock = _run_water2_with_cost()
+    blocks = 0
+    for table in dock._cost_tables:
+        headers = [table.horizontalHeaderItem(c).text()
+                   for c in range(table.columnCount())]
+        assert headers.count("Total") <= 1
+        if "Purchase" in headers and "Disposal" in headers:
+            blocks += 1
+            assert headers.count("Total") == 1
+    assert blocks == 1
+
+
+def test_cost_total_is_in_the_table_export(qapp):
+    """Copy/CSV get the Total column with the raw numeric value."""
+    from raptor.gui.ui.table_export import table_to_grid
+    dock = _run_water2_with_cost()
+    table, _headers = _cost_table_with_header(dock, "Initial spares")
+    headers, rows = table_to_grid(table, raw=True)
+    assert headers[-1] == "Total"
+    assert rows and rows[0][-1] != ""
 
 
 def test_cost_tab_shows_note_when_disabled(qapp):
