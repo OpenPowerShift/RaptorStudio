@@ -230,7 +230,7 @@ live in the Run panel, beside the Capacity and Cost analyses they feed.</p>
 <p>Open from <strong>View → Panels → Data Tables</strong>. It edits the model as
 spreadsheets, one tab per element type or per section of the <code>.rbds</code>
 file. Only some cells are editable; invalid values revert on entry.
-Blocks, Nodes, Events, Sparing and Preventive Maintenance show the
+Blocks, Costs, Nodes, Events, Sparing and Preventive Maintenance show the
 hierarchy level currently on the canvas; the header says “current level:
 8 of 17 blocks…” when the model has nested levels. Tick <strong>Whole model</strong>
 to see every level at once (see below), or use Model Explorer to reach
@@ -256,6 +256,14 @@ are inside) and the window title ends with its name and id, for example
 <td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Failure Dist, Failure Param 1–3, # Failure Params, Repair
 Dist, Repair Param 1–3, # Repair Params, PM Frequency, plus read-only
 Failure/Repair Mean and Std Dev computed from the current parameters</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Costs</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, initial, Running, standby, idle, repFixed, repPerTime,
+repHold, pmFixedCost, pmCost, pmHoldCost, doneFixed, donePerTime,
+perSpare, emerShipping — one row per block. A Pooled block&#8217;s spare and
+emergency-shipping cells are read-only: its pool owns those costs. A
+cell edit changes that one cost on every selected row in one undo step</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Nodes</p></td>
@@ -301,9 +309,10 @@ above</p></td>
 <div class="sect2">
 <h3 id="data-tables-whole-model">Whole model</h3>
 <div class="paragraph">
-<p>The <strong>Whole model</strong> box in the bar above the tabs shows the blocks, nodes
-and events of <strong>every</strong> level in the same grids, with an extra <strong>Level</strong>
-column (<code>Home</code>, <code>Pump Bank</code>, <code>Pump Bank / Stage 2</code>). The header reads
+<p>The <strong>Whole model</strong> box in the bar above the tabs shows the blocks,
+their costs, nodes and events of <strong>every</strong> level in the same grids, with an
+extra <strong>Level</strong> column (<code>Home</code>, <code>Pump Bank</code>, <code>Pump Bank / Stage 2</code>). The
+header reads
 “Whole model (14 blocks across 4 levels)”. Nothing is drawn on the canvas
 for the other levels, so it stays quick on large models. Rows on the level
 that is open on the canvas stay editable; rows of other levels are
@@ -322,9 +331,9 @@ is shown.</p>
 It is hidden until you ask for it: press <strong>Ctrl+F</strong> while the table has the
 focus, or right-click the column headings and choose <strong>Filter</strong>. The
 Results tables (Capacity, Weak link, Cost, Importance, the per-element
-table of the analytical results) and the Data Tables (Blocks, Nodes,
-Events, Sparing, Preventive Maintenance) have it. Short tables and the
-event log (which has its own filter box) do not.</p>
+table of the analytical results) and the Data Tables (Blocks, Costs,
+Nodes, Events, Sparing, Preventive Maintenance) have it. Short tables and
+the event log (which has its own filter box) do not.</p>
 </div>
 <div class="paragraph">
 <p>Type in the box above a column to keep only the rows that match that
@@ -393,12 +402,12 @@ a <code>%</code>, a leading <code>&gt;</code> (a censored result) and a trailing
 </div>
 <div class="paragraph">
 <p>In the Data Tables the filter reads the model&#8217;s own values (names,
-distribution names, parameters, means), not the cell editors, so rows that
-are filtered out never build their editors. In the Sparing table only
-Name, ID and Sparing Type can be filtered. Export CSV writes only the rows
-the filter shows (the dialog says “only N of M rows”). Editing a cell so
-that its row stops matching does not hide the row from under your cursor;
-it goes at the next filter pass.</p>
+distribution names, parameters, means, full-precision costs), not the
+cell editors, so rows that are filtered out never build their editors. In
+the Sparing table only Name, ID and Sparing Type can be filtered. Export
+CSV writes only the rows the filter shows (the dialog says “only N of M
+rows”). Editing a cell so that its row stops matching does not hide the
+row from under your cursor; it goes at the next filter pass.</p>
 </div>
 </div>
 <div class="sect2">
@@ -3237,6 +3246,10 @@ documentation.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Blocks</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev, Level</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Costs</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, initial, Running, standby, idle, repFixed, repPerTime, repHold, pmFixedCost, pmCost, pmHoldCost, doneFixed, donePerTime, perSpare, emerShipping, Level</p></td>
 </tr>
 </tbody>
 </table>

@@ -81,6 +81,19 @@ def _file_view_lines(w, esc, base_tooltip) -> list[str]:
     return out
 
 
+def _data_table_lines(esc) -> list[str]:
+    """The Data Tables column sets shown in the reference."""
+    from raptor.gui.ui.data_tables import DataTablesDock
+    cols = DataTablesDock._BLOCK_COLS
+    lines = ["=== Data Tables columns", "",
+             "[cols=\"2,8\",options=\"header\"]", "|===",
+             "|Tab |Columns",
+             f"|Blocks |{esc(', '.join(cols))}",
+             f"|Costs |{esc(', '.join(DataTablesDock._COST_COLS))}",
+             "|===", ""]
+    return lines
+
+
 def generate_lines():
     """Build the reference doc's lines by introspecting a live
     MainWindow. Pure (no file I/O) so a drift-check test can call this
@@ -166,16 +179,7 @@ def generate_lines():
     lines += _file_view_lines(w, esc, base_tooltip)
 
     # Data Tables columns
-    from raptor.gui.ui.data_tables import DataTablesDock
-    cols = DataTablesDock._BLOCK_COLS
-    lines.append("=== Data Tables columns")
-    lines.append("")
-    lines.append("[cols=\"2,8\",options=\"header\"]")
-    lines.append("|===")
-    lines.append("|Tab |Columns")
-    lines.append(f"|Blocks |{esc(', '.join(cols))}")
-    lines.append("|===")
-    lines.append("")
+    lines += _data_table_lines(esc)
     return lines
 
 

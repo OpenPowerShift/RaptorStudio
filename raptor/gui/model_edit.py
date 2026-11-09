@@ -136,6 +136,26 @@ BLOCK_COST_FIELDS: tuple[tuple[str, str], ...] = (
     ("emergency_shipping_cost", "emerShipping"),
 )
 
+#: The Costs editors (Inspector and Data Tables) share one range and
+#: precision, so the same value is accepted and shown in both places.
+BLOCK_COST_LIMIT = 1e12
+BLOCK_COST_DECIMALS = 3
+
+#: A Pooled block's spare and emergency-shipping costs belong to the pool,
+#: not the block: the engine reads the pool's fields instead.
+POOLED_COST_ATTRS = ("spare_cost", "emergency_shipping_cost")
+
+POOLED_COST_TIP = (
+    "This block draws from a spare pool -- its cost comes from the "
+    "POOL's own fields (Spares tab -> Manage Spare Pools…), not this "
+    "one.")
+
+
+def cost_field_readonly(block, attr: str) -> bool:
+    """Whether `attr` is read-only for this block (a Pooled spare cost)."""
+    return (attr in POOLED_COST_ATTRS
+            and block.sparing_type == SparingType.SPARE_POOL)
+
 #: The five PM option checkboxes: dialog key -> attribute on the block.
 PM_OPTION_ATTRS = {
     "spare_needed": "pm_spare_needed", "refresh": "pm_refresh",

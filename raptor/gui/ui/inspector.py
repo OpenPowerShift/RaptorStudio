@@ -2383,8 +2383,10 @@ class InspectorDock(QWidget):
         layout = req(w).layout()
         self._clear_tab(self._scroll_costs)
 
-        from raptor.gui.ui.diagram import DiagramView
-        fields = DiagramView.BLOCK_COST_FIELDS
+        from raptor.gui.model_edit import (
+            BLOCK_COST_DECIMALS, BLOCK_COST_FIELDS, BLOCK_COST_LIMIT,
+            POOLED_COST_TIP, cost_field_readonly)
+        fields = BLOCK_COST_FIELDS
         # Wording matches Raptor 7's own Costs tab rather than generic
         # column-name-derived labels -- e.g. "Rebate or disposal" not
         # "Done Fixed", "Recurring spare" not "Per spare".
@@ -2406,13 +2408,12 @@ class InspectorDock(QWidget):
         def form_add(w2, label):
             fl.addRow(label + ":", w2)
 
-        pool_sparing = block.sparing_type == SparingType.SPARE_POOL
         for label, (attr, _col) in zip(labels, fields):
             sp = QDoubleSpinBox()
-            sp.setRange(-1e12, 1e12)
-            sp.setDecimals(3)
+            sp.setRange(-BLOCK_COST_LIMIT, BLOCK_COST_LIMIT)
+            sp.setDecimals(BLOCK_COST_DECIMALS)
             sp.setValue(float(getattr(block, attr)))
-            if pool_sparing and attr in ("spare_cost", "emergency_shipping_cost"):
+            if cost_field_readonly(block, attr):
                 # The engine reads these two only for
                 # SparingType.INFINITE (block_lifecycle.py); a Pooled
                 # block's spare/emergency cost is the pool's own field
@@ -2420,10 +2421,7 @@ class InspectorDock(QWidget):
                 # do nothing. Raptor 7 greys these out for the same
                 # reason.
                 sp.setEnabled(False)
-                sp.setToolTip(
-                    "This block draws from a spare pool -- its cost "
-                    "comes from the POOL's own fields (Spares tab -> "
-                    "Manage Spare Pools…), not this one.")
+                sp.setToolTip(POOLED_COST_TIP)
             spins.append(sp)
             form_add(sp, label)
         always_cb = QCheckBox("Always add Done cost at run end")
