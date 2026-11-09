@@ -718,6 +718,41 @@ def test_cost_total_uses_the_real_export_path(qapp):
     assert rows[0][-1] not in ("", "N/A")
 
 
+def test_cost_summary_title_is_not_covered_by_actions(qapp):
+    """A narrow Cost summary table must still show its full heading."""
+    from PySide6.QtWidgets import QPushButton
+    dock = _run_multi_cost()
+    idx = next(i for i in range(dock._details_tabs.count())
+               if dock._details_tabs.tabText(i) == "Cost")
+    dock._details_tabs.setCurrentIndex(idx)
+    dock.resize(700, 900)
+    dock.show()
+    qapp.processEvents()
+    from raptor.gui.ui.results import _TableActionStrip
+    page = dock._details_tabs.widget(idx)
+    scroll = page.widget() if hasattr(page, "widget") else page
+    strip = next(s for s in scroll.findChildren(_TableActionStrip)
+                 if any(lb.text() == "Cost summary"
+                        for lb in s.findChildren(QLabel)))
+    label = next(lb for lb in strip.findChildren(QLabel)
+                 if lb.text() == "Cost summary")
+    buttons = strip.findChildren(QPushButton)
+    assert len(buttons) == 2
+    table = strip._table_ref()
+    assert table.minimumWidth() >= strip.minimumWidth()
+    strip.resize(strip.minimumWidth(), 22)
+    strip.layout().activate()
+    qapp.processEvents()
+    assert label.width() >= label.fontMetrics().horizontalAdvance(
+        "Cost summary")
+    assert label.geometry().right() < min(b.geometry().left()
+                                         for b in buttons)
+    assert strip.width() >= strip.minimumWidth()
+    dock.close()
+    dock.deleteLater()
+    qapp.processEvents()
+
+
 def test_cost_tab_shows_note_when_disabled(qapp):
     lines = ["***SUMMARY***", ""]
     dock = ResultsDock()

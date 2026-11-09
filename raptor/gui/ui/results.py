@@ -387,6 +387,10 @@ class _TableActionStrip(QWidget):
             # what is actually visible, not the table's full width.
             left = max(0, self.mapTo(viewport, QPoint(0, 0)).x())
             width = min(width, max(1, viewport.width() - left))
+        # Never go below the title + action-button minimum: hiding the
+        # heading under the icons is worse than a horizontal scrollbar in
+        # an unusually narrow dock (#225).
+        width = max(width, self.minimumWidth())
         if width > 0 and width != self.width():
             self.setFixedWidth(width)
 
@@ -2129,15 +2133,19 @@ class ResultsDock(QWidget):
         label.setObjectName("TableTitle")
         if tip:
             label.setToolTip(tip)
-        # The strip is only as wide as a narrow table; let a long title
-        # clip rather than push the action icons away from its right edge.
-        label.setMinimumWidth(0)
-        label.setSizePolicy(QSizePolicy.Policy.Ignored,
+        # The title must not be squeezed to zero when a table is narrow:
+        # the two fixed action buttons would then sit over it (#225).
+        label.setSizePolicy(QSizePolicy.Policy.Preferred,
                             QSizePolicy.Policy.Preferred)
+        label.ensurePolished()
+        # `sizeHint()` can still be the pre-style placeholder here, so
+        # measure the text with the polished font and add a little slack.
+        title_width = (label.fontMetrics().horizontalAdvance(title) + 32
+                       if show_title else 0)
+        label.setMinimumWidth(title_width)
         if show_title:
-            # Take the available width, not a trailing stretch: an Ignored
-            # label has sizeHint 0, and a spacer after it made the title
-            # itself collapse to zero (#217 follow-up).
+            # Take the available width, not a trailing stretch: a spacer
+            # after the label made the title itself collapse to zero.
             hdr_row.addWidget(label, 1)
         else:
             hdr_row.addStretch(1)
@@ -2174,6 +2182,12 @@ class ResultsDock(QWidget):
             f"Save {table_name} table as CSV",
             f"Save the '{table_name}' table as a CSV file (filtered and "
             "sorted rows, full precision)")
+        # Reserve the title plus both fixed 22px buttons (and the layout
+        # spacing). A narrower table would make the buttons overlap the
+        # heading; widening it is preferable to hiding the title.
+        needed = title_width + 2 * 22 + 3 * hdr_row.spacing()
+        table.setMinimumWidth(max(table.minimumWidth(), needed))
+        strip.setMinimumWidth(needed)
         v.addWidget(strip)
 
         def _current_grid():
