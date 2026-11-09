@@ -1566,15 +1566,16 @@ is in the User Guide&#8217;s <a href="../new_docs/book.html#ch-debugger">debugge
 <h2 id="extract-hierarchy">Checking part of a model: Extract Hierarchy</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Select one hierarchy oval and press <strong>Extract Hierarchy…</strong> on the <strong>Simulate</strong>
+<p>Select one hierarchy oval and press <strong>Extract Hierarchy…</strong> on the <strong>Model</strong>
 tab. The hierarchy becomes a standalone model: its input node is the start
 and its output node the end, so its input is always available. The dialog
 lists what crosses the hierarchy&#8217;s boundary and how each kind is treated:
 elements that follow something outside (assumed always up, or following the
 extract&#8217;s own end), spare and resource pools shared with outside blocks (the
 whole pool, or scaled by the share of users inside), and random streams shared
-with outside elements (kept, or each given its own). Save the extract as an
-<code>.rbd</code> or <code>.rbds</code>; it can be opened in this window and run like any model, and
+with outside elements (kept, or each given its own). Save the extract as
+<code>.rbds</code> (the default) or <code>.rbd</code>; it can be opened in this window and run like
+any model, and
 <code>raptor run --hierarchy NAME</code> and
 <code>raptor extract</code> do the same from the command line, and the MCP <code>simulate</code> tool
 takes a <code>hierarchy</code> argument.</p>

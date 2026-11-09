@@ -1037,15 +1037,16 @@ is in the User Guide's xref:../new_docs/book.html#ch-debugger[debugger chapter].
 [[extract-hierarchy]]
 == Checking part of a model: Extract Hierarchy
 
-Select one hierarchy oval and press **Extract Hierarchy…** on the **Simulate**
+Select one hierarchy oval and press **Extract Hierarchy…** on the **Model**
 tab. The hierarchy becomes a standalone model: its input node is the start
 and its output node the end, so its input is always available. The dialog
 lists what crosses the hierarchy's boundary and how each kind is treated:
 elements that follow something outside (assumed always up, or following the
 extract's own end), spare and resource pools shared with outside blocks (the
 whole pool, or scaled by the share of users inside), and random streams shared
-with outside elements (kept, or each given its own). Save the extract as an
-`.rbd` or `.rbds`; it can be opened in this window and run like any model, and
+with outside elements (kept, or each given its own). Save the extract as
+`.rbds` (the default) or `.rbd`; it can be opened in this window and run like
+any model, and
 `raptor run --hierarchy NAME` and
 `raptor extract` do the same from the command line, and the MCP `simulate` tool
 takes a `hierarchy` argument.

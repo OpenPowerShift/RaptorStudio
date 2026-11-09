@@ -59,6 +59,24 @@ def test_the_dialog_lists_hazards_and_treatments_change_them(win):
     dlg.reject()
 
 
+def test_saving_defaults_to_the_native_rbds_format(win, monkeypatch):
+    from raptor.gui.ui import filedialogs as fdg
+    calls = []
+
+    def _cancel(*args, **kwargs):
+        calls.append((args, kwargs))
+        return "", ""
+
+    monkeypatch.setattr(fdg, "getSaveFileName", _cancel)
+    _select_hierarchy(win, "650path")
+    win._on_extract_hierarchy()
+    win._isolate_dialog.accept()
+    assert calls
+    (_, _, suggested, filters), _ = calls[0]
+    assert suggested.endswith(".rbds")
+    assert filters.startswith("RBDS files (*.rbds)")
+
+
 def test_saving_writes_a_valid_rbd_and_opens_it(win, tmp_path, monkeypatch):
     from raptor.gui.ui import filedialogs as fdg
     out = tmp_path / "part.rbd"

@@ -130,14 +130,16 @@ class IsolateMixin:
             msgbox.warning(self, "Extract Hierarchy", str(exc))
             return
         stem = Path(self._current_file).stem if self._current_file else "model"
-        suggested = f"{stem}_{name}.rbd".replace(" ", "_")
+        # New saves default to the native format. A .rbd extension is still
+        # accepted when the user types one, for Raptor 7 compatibility.
+        suggested = f"{stem}_{name}.rbds".replace(" ", "_")
         path, _ = fdg.getSaveFileName(
             self, "Save the extracted hierarchy as", suggested,
-            "RBD files (*.rbd);;RBDS files (*.rbds)")
+            "RBDS files (*.rbds);;RBD files (*.rbd)")
         if not path:
             return
-        if not path.lower().endswith((".rbd", ".rbds")):
-            path += ".rbd"
+        if not path.lower().endswith((".rbds", ".rbd")):
+            path += ".rbds"
         try:
             sync_counts(extracted)
             if path.lower().endswith(".rbd"):
