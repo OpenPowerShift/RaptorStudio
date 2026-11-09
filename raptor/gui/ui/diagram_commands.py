@@ -443,6 +443,46 @@ class DeleteCmd(_ViewCmd):
         self.node_rows = [dict(r) for r in node_rows]
         self.event_rows = [dict(r) for r in event_rows]
         self.link_rows = [dict(r) for r in link_rows]
+        # COMMENTS rows are keyed by Type + ID, not owned by the element;
+        # leaving them behind let a deleted block's comment attach to the
+        # next element that reused its ID. Keep them in the same reversible
+        # payload as the element rows.
+        dead = {("block", _safe_int(r.get("ID")))
+                for r in self.block_rows}
+        dead |= {("node", _safe_int(r.get("ID"))) for r in self.node_rows}
+        dead |= {("event", _safe_int(r.get("ID"))) for r in self.event_rows}
+        dead_names = {("block", r.get("blockName"))
+                      for r in self.block_rows}
+        dead_names |= {("node", r.get("Name")) for r in self.node_rows}
+        dead_names |= {("event", r.get("eventName"))
+                       for r in self.event_rows}
+        self.comment_rows = []
+        sec = (view._rbd_ref.sections.get("COMMENTS")
+               if getattr(view, "_rbd_ref", None) is not None else None)
+        for idx, row in enumerate(sec.rows if sec is not None else []):
+            kind = str(row.get("Type", "")).lower()
+            if ((kind, _safe_int(row.get("ID"))) in dead
+                    or (kind, row.get("Name")) in dead_names):
+                self.comment_rows.append((dict(row), idx))
+        self._comment_keys = {
+            (str(r.get("Type", "")).lower(), r.get("ID"), r.get("Name"))
+            for r, _idx in self.comment_rows}
+
+    def _drop_comments(self) -> None:
+        sec = self._v._rbd_ref.sections.get("COMMENTS")
+        if sec is None or not self.comment_rows:
+            return
+        sec.rows[:] = [
+            r for r in sec.rows
+            if (str(r.get("Type", "")).lower(), r.get("ID"), r.get("Name"))
+            not in self._comment_keys]
+
+    def _restore_comments(self) -> None:
+        sec = self._v._rbd_ref.sections.get("COMMENTS")
+        if sec is None:
+            return
+        for row, idx in sorted(self.comment_rows, key=lambda p: p[1]):
+            sec.rows.insert(min(idx, len(sec.rows)), dict(row))
 
     def redo(self):
         v = self._v
@@ -451,10 +491,12 @@ class DeleteCmd(_ViewCmd):
         dead_e = {_safe_int(r.get("ID")) for r in self.event_rows}
         dead_l = {_safe_int(r.get("ID")) for r in self.link_rows}
         v._remove_ids(dead_b, dead_n, dead_e, dead_l)
+        self._drop_comments()
         self._done()
 
     def undo(self):
         v = self._v
+        self._restore_comments()
         for r in self.block_rows:
             v._rbd_ref.sections["BLOCK_DATA"].rows.append(dict(r))
         for r in self.node_rows:

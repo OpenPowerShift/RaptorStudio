@@ -297,9 +297,101 @@ def test_collapse_flushes_pending_draft_when_target_goes_away(win):
     assert v.collapse_selection("Inner") is not None
     QApplication.processEvents()
 
+    top = v._stack.command(v._stack.count() - 1)
+    assert "Collapse" in top.text()
     rows = v._rbd_ref.sections["COMMENTS"].rows
     assert any(r.get("ID") == str(bid)
                and r.get("Comment") == "collapse draft" for r in rows)
+
+
+def test_legacy_comment_row_without_id_survives_a_level_change(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    name = v.blocks[5].name
+    sec.rows[:] = [r for r in sec.rows
+                   if not (str(r.get("Type", "")).lower() == "block"
+                           and r.get("Name") == name)]
+    row = {"Type": "block", "Name": name, "Comment": "legacy old"}
+    sec.rows.append(row)                    # deliberately no ID column
+    v._stack.clear()
+
+    v.set_element_comment("block", 5, "legacy new")
+    assert row["ID"] == "5", "matching legacy row was not stamped with its ID"
+    v.enter_level(23)
+    QApplication.processEvents()
+
+    v._stack.undo()
+    QApplication.processEvents()
+    assert row["Comment"] == "legacy old"
+
+    v._stack.redo()
+    QApplication.processEvents()
+    assert row["Comment"] == "legacy new"
+
+
+def test_delete_removes_comment_and_undo_restores_it(win):
+    v = win._diagram_dock.view
+    v.set_element_comment("block", 5, "to delete")
+    v._stack.clear()
+    v._scene.clearSelection()
+    v._block_items[5].setSelected(True)
+    QApplication.processEvents()
+
+    # A pending edit is flushed before DeleteCmd, so Delete is the top
+    # command and one Ctrl+Z restores the element + its comment.
+    QTest.qWait(120)
+    from PySide6.QtGui import QTextCursor
+
+    edit = win._inspector._comment_edit
+    edit.setFocus()
+    edit.moveCursor(QTextCursor.MoveOperation.End)
+    QApplication.processEvents()
+    QTest.keyClicks(edit, " draft")
+    QApplication.processEvents()
+
+    v.delete_selected()
+    QApplication.processEvents()
+    top = v._stack.command(v._stack.count() - 1)
+    assert top.text().startswith("Delete")
+    assert not any(r.get("Type") == "block" and r.get("ID") == "5"
+                   for r in v._rbd_ref.sections["COMMENTS"].rows)
+
+    v._stack.undo()
+    QApplication.processEvents()
+    row = next(r for r in v._rbd_ref.sections["COMMENTS"].rows
+               if r.get("Type") == "block" and r.get("ID") == "5")
+    assert row["Comment"] == "to delete draft"
+    assert 5 in v._block_items
+
+
+def test_new_element_does_not_inherit_deleted_comment_id(win):
+    from raptor.api.build import build_from_spec
+
+    rbd = build_from_spec({
+        "name": "Reuse",
+        "blocks": [{"name": "A"}],
+        "nodes": [{"id": 1, "name": "Start", "type": "start"},
+                  {"id": 2, "name": "End", "type": "end"}],
+        "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "End"}],
+        "comments": [{"element": "A", "comment": "old comment"}],
+        "system": {"term_condition": 100, "num_runs": 1},
+    }, auto_layout=False)
+    win._load_into_app(rbd, None)
+    QApplication.processEvents()
+    v = win._diagram_dock.view
+    bid = next(iter(v._block_items))
+    v._scene.clearSelection()
+    v._block_items[bid].setSelected(True)
+    QApplication.processEvents()
+
+    v.delete_selected()
+    QApplication.processEvents()
+    assert not any(r.get("ID") == str(bid)
+                   for r in v._rbd_ref.sections["COMMENTS"].rows)
+
+    new_id = v.add_block("Reused", 0.0, 0.0)
+    assert new_id == bid, "the deleted ID should be the one reused"
+    assert v.current_comment_stored("block", new_id) == ""
 
 
 def test_pending_comment_is_flushed_before_inspector_repopulates(win):

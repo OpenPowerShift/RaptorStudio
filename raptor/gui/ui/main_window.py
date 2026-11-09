@@ -2477,6 +2477,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # after the old editor has already been destroyed.
         self._diagram_dock.view.level_about_to_change.connect(
             self._inspector.flush_pending_comment)
+        self._diagram_dock.view.structural_about_to_change.connect(
+            self._inspector.flush_pending_comment)
         self._inspector.node_renamed.connect(self._on_node_renamed)
         self._inspector.hier_renamed.connect(self._on_hier_renamed)
         self._inspector.phasing_changed.connect(self._on_phasing_changed)

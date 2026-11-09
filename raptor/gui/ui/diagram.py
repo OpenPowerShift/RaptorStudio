@@ -189,6 +189,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     #: model). MainWindow uses it to flush a pending Inspector comment
     #: draft while its old element/editor still exists.
     level_about_to_change = Signal()
+    #: Emitted at the start of a structural edit (delete/collapse/reparent/
+    #: move-out), before it pushes its undo command. MainWindow flushes a
+    #: pending Comment draft here so the comment command lands BELOW the
+    #: structural command: one Ctrl+Z undoes the structure, not the text.
+    structural_about_to_change = Signal()
     hier_selected = Signal(int)
     event_selected = Signal(int)
     #: (annotation id) -- drives the Inspector's colour/font tab, same
@@ -2642,15 +2647,25 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if sec is None:
             return None
         kind = str(etype).lower()
+        name = (self._element_name(etype, oid)
+                or self._element_name_any_level(etype, oid))
         for row in sec.rows:
-            if (str(row.get("Type", "")).lower() == kind
-                    and _safe_int(row.get("ID")) == int(oid)):
-                return row
-        name = self._element_name(etype, oid)
+            if (str(row.get("Type", "")).lower() != kind
+                    or _safe_int(row.get("ID")) != int(oid)):
+                continue
+            # A reused ID must not inherit a stale row for a different
+            # element name. Empty names are legacy rows: accept them.
+            if name and row.get("Name", "") and row.get("Name") != name:
+                continue
+            return row
         if name:
             for row in sec.rows:
                 if (str(row.get("Type", "")).lower() == kind
                         and row.get("Name", "") == name):
+                    # Legacy COMMENTS row with no ID: stamp it so later
+                    # level changes/replays resolve by ID too.
+                    if not row.get("ID"):
+                        row["ID"] = str(oid)
                     return row
         return None
 
@@ -3903,6 +3918,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         result would add a rule violation (including the run-time
         connectivity rules), is refused atomically with a message: the live
         model, the undo stack and the annotations are left untouched."""
+        self.structural_about_to_change.emit()   # draft before the command
         if self._rbd_ref is None:
             return None
         sel_b = [bid for bid, it in self._block_items.items()
@@ -5400,6 +5416,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def delete_selected(self):
         """Delete every selected block/node/event/link/annotation (plus
         any links orphaned by the deletion)."""
+        # Commit a Comment draft before the deletion command is pushed:
+        # the comment must be part of the model the delete captures (and
+        # must not become the top undo step above DeleteCmd).
+        self.structural_about_to_change.emit()
         # Selected ANNOTATIONS ride along with everything else. They used
         # to be deleted only when NO block/node/event was also selected,
         # so a mixed selection silently left the notes behind while the
@@ -7831,6 +7851,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         fully inside the selection travel with it; links that would now
         cross the boundary are removed (the tutorial wires In/Out
         markers manually afterwards)."""
+        self.structural_about_to_change.emit()   # draft before ReParentCmd
         section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
                       "event": "EVENT_DATA"}
         parent_moves = []
@@ -7862,6 +7883,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         its parent (Raptor 7 out-drag counterpart). Links fully
         inside the moving set travel; boundary links are cut. Returns
         True when anything moved."""
+        self.structural_about_to_change.emit()   # draft before the command
         if self._rbd_ref is None or self._current_parent == 0:
             return False
         target = self.hiers[self._current_parent].parent_id or 0
