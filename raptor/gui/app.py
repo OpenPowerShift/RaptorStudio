@@ -177,6 +177,11 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
     # construction attempt.
     app = cast(QApplication,
                QApplication.instance() or RaptorApplication([argv[0], *qt_argv]))
+    # Help is a process-wide top-level window: close it before the Qt event
+    # loop goes away, including a quit that did not run the last window's
+    # closeEvent (see ui/help_service.py, #206).
+    from raptor.gui.ui.help_service import close_help_viewer
+    app.aboutToQuit.connect(close_help_viewer)
     # Force Fusion: the platform's own style paints native selected-tab
     # corner "arcs" and scroller-arrow bitmaps that ignore the stylesheet
     # and palette. The design is tuned against Fusion, so this keeps all

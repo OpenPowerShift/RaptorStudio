@@ -160,6 +160,32 @@ mark { background: #fef08a; color: #000; padding: 0 0.2rem; }
   body.toc2 #footer { max-width: 64rem; }
 }
 
+/* The in-app Help viewer sets this class from its injected page script.
+   Its window starts at 1100px -- below the 80rem breakpoint above -- so
+   maximising used to move the TOC from inline (in #header) to the fixed
+   sidebar, changing the document height under an unchanged scrollTop and
+   landing on a different section. Keep the fixed layout at every width. */
+body.toc2.raptor-viewer {
+  max-width: none;
+  margin: 0;
+  padding-left: 17rem;
+}
+body.toc2.raptor-viewer #toc {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 15rem;
+  margin: 0;
+  padding: 1rem;
+  overflow-y: auto;
+  border-top: 0;
+  border-right: 1px solid var(--color-border);
+}
+body.toc2.raptor-viewer #header,
+body.toc2.raptor-viewer #content,
+body.toc2.raptor-viewer #footer { max-width: 64rem; }
+
 /* ----- CONTENT SECTIONS ----- */
 #content { padding: 0.5rem 0; }
 .sect1 { margin-top: 2.5rem; }
@@ -523,15 +549,18 @@ kbd {
 /* ----- PRINT ADJUSTMENTS ----- */
 @media print {
   html { scroll-behavior: auto; }
-  body {
+  body,
+  body.toc2.raptor-viewer {
     background: #fff !important;
     color: #000 !important;
     max-width: 100%;
     margin: 1cm;
     padding: 0;
   }
-  body.toc2 { padding-left: 0; }
+  body.toc2,
+  body.toc2.raptor-viewer { padding-left: 0; }
   body.toc2 #toc,
+  body.toc2.raptor-viewer #toc,
   #header #toc { display: none; }
   .admonitionblock > table { box-shadow: none; border-left-width: 3px; }
   /* Answer boxes must print expanded — three spellings so old and new
