@@ -15,7 +15,9 @@ uvx raptor-studio-mcp --workspace ~/raptor-models
 
 Installing `pip install "raptor-studio[mcp]"` gives the same command along with
 the desktop application. The tools, resources, safety limits and the HTTP
-transport are described in
-[docs/MCP.md](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md).
+transport are described in the
+[manual guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md);
+the generated [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md)
+lists every parameter, return field and example.
 
 <!-- mcp-name: io.github.OpenPowerShift/raptor-studio -->

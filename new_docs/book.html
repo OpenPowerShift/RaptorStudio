@@ -9545,8 +9545,10 @@ full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
 <p>The server exposes <strong>68 tools</strong> (including the <code>ping</code> health check), a set of
-resources, and three prompts. A standalone reference to every tool,
-option and transport is in <code>docs/MCP.md</code> in the repository.</p>
+resources, and three prompts. A standalone guide to installing, connecting,
+concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
+catalogue of every tool, parameter, return field and example is
+<code>docs/MCP-reference.md</code>, both in the repository.</p>
 </div>
 <div class="sect2">
 <h3 id="_prerequisites">23.1. Prerequisites</h3>
@@ -9901,7 +9903,8 @@ inspect its inputs and outputs.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>--no-render</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">off</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Do not expose <code>render_diagram</code>. Use on machines without Qt/PySide6, or
-  when you do not want image output. Everything else still works.</p></td>
+  when you do not want PNG output. <code>render_diagram_svg</code> needs no Qt and
+  stays available; everything else still works.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>--allow-write PATH</code></p></td>
@@ -10088,6 +10091,13 @@ with parameter names and valid ranges.</p>
 </div>
 <div class="sect2">
 <h3 id="mcp-tools">23.6. Available tools</h3>
+<div class="paragraph">
+<p>The tables below are the task tour. The generated
+<code>docs/MCP-reference.md</code> is the authoritative catalogue for every parameter,
+default, return field and example; it is built from the live server and
+checked in CI. Use this chapter to choose a workflow, and the reference when
+you need the exact argument shape.</p>
+</div>
 <div class="sect3">
 <h4 id="_workspace_and_lifecycle">23.6.1. Workspace and lifecycle</h4>
 <table class="tableblock frame-all grid-all stretch">
@@ -10742,7 +10752,9 @@ or <code>results.summary</code>.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>read_doc</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Read a documentation source as paginated text: <code>rbds</code> (the format guide),
-  <code>mcp-guide</code> (this chapter), or a chapter such as <code>ch11-capacity</code>.</p></td>
+  <code>mcp-docs</code> (the standalone human guide), <code>mcp-reference</code> (the generated
+  tool catalogue), <code>mcp-guide</code> (this chapter), or a chapter such as
+  <code>ch11-capacity</code>.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>ping</code></p></td>

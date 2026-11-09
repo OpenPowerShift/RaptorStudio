@@ -338,7 +338,8 @@ def _build_parser() -> argparse.ArgumentParser:
         "--no-render",
         action="store_true",
         default=False,
-        help="Disable render_diagram (no Qt available).",
+        help="Disable render_diagram (no Qt available); render_diagram_svg "
+             "still works.",
     )
     p.add_argument(
         "--allow-write",
@@ -451,10 +452,12 @@ def _qt_available() -> bool:
 def _import_tools(args: argparse.Namespace) -> None:
     """Import tool registration modules after args are parsed.
 
-    Each module decorates ``@mcp.tool()`` at import time.  ``tools_view``
-    is only imported when rendering is possible, so ``render_diagram``
-    simply does not appear in ``tools/list`` under ``--no-render`` or on a
-    machine without Qt — every other tool still works.
+    Each module decorates ``@mcp.tool()`` at import time.  ``tools_svg``
+    draws SVG text and needs no Qt, so it is always registered;
+    ``tools_view`` (the PNG renderer) is only imported when rendering is
+    possible, so ``render_diagram`` simply does not appear in ``tools/list``
+    under ``--no-render`` or on a machine without Qt — every other tool
+    still works.
     """
     from raptor.mcp import tools_model  # noqa: F401
     from raptor.mcp import tools_data  # noqa: F401
@@ -462,11 +465,8 @@ def _import_tools(args: argparse.Namespace) -> None:
     from raptor.mcp import tools_metrics  # noqa: F401
     from raptor.mcp import tools_analytic  # noqa: F401
     from raptor.mcp import tools_tables  # noqa: F401
+    from raptor.mcp import tools_svg  # noqa: F401  (SVG needs no Qt)
 
-    if not getattr(args, "no_render", False):
-        # The SVG drawing needs no Qt, so a headless install still has a
-        # way to look at a diagram.
-        from raptor.mcp import tools_svg  # noqa: F401
     if not getattr(args, "no_render", False) and _qt_available():
         try:
             from raptor.mcp import tools_view  # noqa: F401

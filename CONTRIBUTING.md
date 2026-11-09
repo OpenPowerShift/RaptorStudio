@@ -19,7 +19,7 @@ Linux headless runs need the Qt runtime libraries listed in
 | Types | `python tools/mypy_gate.py`: zero mypy errors; `tools/mypy_gui_baseline.json` is empty, so no `raptor/gui` file may add one |
 | Engine coverage | `python tools/engine_coverage.py run --check-floors`: no engine module's branch coverage below `tools/coverage_floors.json` |
 | State coverage | `python tools/state_coverage.py --check -j 4`: every block state cell listed in `docs/engine-design/state-coverage.adoc` is still reached |
-| Generated pages | `python tools/gen_engine_docs.py --check` and `python tools/gen_mcp_reference.py --check`: `docs/engine-design/` and `docs/MCP.md` match the code |
+| Generated pages | `python tools/gen_engine_docs.py --check` and `python tools/gen_mcp_reference.py --check`: `docs/engine-design/`, `docs/MCP.md` and `docs/MCP-reference.md` match the code |
 | Rendered docs | `pytest tests/unit/test_docs_html_current.py` (needs asciidoctor 2.0.26): the committed HTML matches its AsciiDoc |
 
 ## Skipping CI
@@ -32,6 +32,8 @@ its base and sets `docs_only` when every changed file is a Markdown file (`*.md`
 A skipped job reports as successful, so this does not leave a required check waiting.
 
 `docs-html` still runs: it is the only job that proves a committed artefact matches its source, and it takes minutes.
+It also runs `python tools/gen_mcp_reference.py --check`, so a Markdown-only change cannot leave the generated MCP
+guide facts or catalogue stale.
 AsciiDoc sources (`docs/**/*.adoc`, `new_docs/**/*.adoc`) are **not** documentation-only for this purpose, because
 they regenerate `manual.html`, `book.html` and friends. Anything outside those two groups — code, tests, tools,
 packaging, workflows — runs the full matrix.

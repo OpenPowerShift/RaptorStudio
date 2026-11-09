@@ -336,6 +336,11 @@ jobs:
       - name: Committed HTML is current
         run: pytest -q -p no:cacheprovider tests/unit/test_docs_html_current.py
 
+      - name: Generated MCP reference is current
+        # Docs-only changes skip the test matrix; keep this here so the
+        # generated guide facts and tool catalogue cannot drift silently.
+        run: python tools/gen_mcp_reference.py --check
+
   typecheck:
     needs: changed
     if: >-
