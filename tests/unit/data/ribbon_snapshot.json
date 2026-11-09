@@ -794,6 +794,16 @@
    "text": "Jump",
    "tooltip": "While stepping: let this run finish and stop at the next run's first change. In a background batch: abandon the current run and start the next one\n\nUnavailable: Jump goes to the next run of a stepped session (the model has no later run, or nothing is being stepped) or skips a run of a background batch"
   },
+  "_live_log_toggle_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Live Log",
+   "tooltip": "Show the Live Log \u2014 the stepped simulation's event list, tabbed beside the Inspector\n\nUnavailable: start a stepped simulation (Debug \u25b8 Step) to use the Live Log"
+  },
   "_live_sim_action": {
    "checkable": true,
    "checked": false,
@@ -1556,6 +1566,7 @@
    "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,
+   "_live_log_toggle_action": false,
    "_live_sim_action": true,
    "_manual_action": true,
    "_mass_edit_action": false,
@@ -1697,6 +1708,7 @@
    "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,
+   "_live_log_toggle_action": false,
    "_live_sim_action": true,
    "_manual_action": true,
    "_mass_edit_action": false,
@@ -1838,6 +1850,7 @@
    "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,
+   "_live_log_toggle_action": false,
    "_live_sim_action": true,
    "_manual_action": true,
    "_mass_edit_action": false,
@@ -2616,6 +2629,11 @@
        "kind": "action",
        "large": false,
        "text": "Run Panel"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Live Log"
       },
       {
        "kind": "action",

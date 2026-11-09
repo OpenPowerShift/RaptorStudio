@@ -91,10 +91,15 @@ def test_triggers_and_phases_param_cells_say_what_the_distribution_uses(win):
     for table in win._data_tables._keyed:
         heads = [table.horizontalHeaderItem(c).text()
                  for c in range(table.columnCount())]
-        if "Dist" not in heads or "Param1" not in heads:
+        dist_head = next((h for h in heads
+                          if h in ("Dist", "Distribution")), None)
+        param_heads = [
+            next((h for h in (f"Param {n}", f"Param{n}") if h in heads), None)
+            for n in (1, 2, 3)]
+        if dist_head is None or any(h is None for h in param_heads):
             continue
         for row in range(table.rowCount()):
-            for n in (1, 2, 3):
-                assert all(_tips(table, row, heads.index(f"Param{n}")))
+            for head in param_heads:
+                assert all(_tips(table, row, heads.index(head)))
                 checked += 1
     assert checked, "no model row with a distribution to check"

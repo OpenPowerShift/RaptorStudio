@@ -74,6 +74,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "view.explorer_toggle": "E", "view.inspector_toggle": "N",
         "view.fev_inspector_toggle": "V", "view.results_toggle": "R",
         "view.run_toggle": "U", "view.data_tables": "D",
+        "view.live_log_toggle": "G",
         "view.reset_layout": "L", "view.theme": "T", "view.prefs": "P",
     },
     "Help": {

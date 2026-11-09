@@ -12,9 +12,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
+@pytest.mark.slow
 def test_committed_example_thumbnails_are_current():
     # Render in a child process: the check builds Qt canvases, and a
     # parallel xdist worker's theme/scale state must not perturb it.
