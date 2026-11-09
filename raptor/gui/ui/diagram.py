@@ -2632,8 +2632,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                    "hier": "HIERARCHY_DATA"}.get(etype)
         name_col = {"block": "blockName", "node": "Name",
                     "event": "eventName", "hier": "hierarchyName"}.get(etype)
+        if section is None or name_col is None:
+            return self._element_name(etype, oid)
         sec = (self._rbd_ref.sections.get(section)
-               if self._rbd_ref is not None and section and name_col else None)
+               if self._rbd_ref is not None else None)
         for row in (sec.rows if sec is not None else []):
             if _safe_int(row.get("ID")) == int(oid):
                 return row.get(name_col) or row.get("Name") or ""
@@ -2647,8 +2649,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             "event": ("EVENT_DATA", "eventName"),
             "hier": ("HIERARCHY_DATA", "hierarchyName"),
         }.get(etype, (None, None))
+        if section is None or name_col is None:
+            return False
         sec = (self._rbd_ref.sections.get(section)
-               if self._rbd_ref is not None and section else None)
+               if self._rbd_ref is not None else None)
         return any(
             _safe_int(row.get("ID")) > 0
             and _safe_int(row.get("ID")) != int(oid)

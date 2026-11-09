@@ -22,6 +22,7 @@ import threading
 import time
 import weakref
 from typing import Any, cast
+from collections.abc import Callable
 from pathlib import Path
 from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal,
                             QEvent, QEventLoop)
@@ -1382,7 +1383,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 if on_hide is not None:
                     on_hide()
             elif self._can_stub_dock(dock):
-                stub(True)
+                cast(Callable[[bool], None], stub)(True)
                 sync(False)
             else:
                 dock.close()
@@ -2120,7 +2121,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # strip can only grow to the smallest maximumHeight() among the
         # three. Tie that ceiling to whichever tab is on show: Run hugs
         # its own content, Results/Data Tables may use the window.
-        self._bottom_active_dock = dock_bottom
+        self._bottom_active_dock: QDockWidget | None = dock_bottom
         for _tab in (dock_bottom, dock_tables, self._run_dock):
             _tab.visibilityChanged.connect(
                 lambda visible, d=_tab:
@@ -3547,7 +3548,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         different target still rebuilds normally.
         """
         if self._inspector.set_comment_source(etype, oid, stored):
-            self._suppress_inspector_refresh_target = (etype, oid)
+            self._suppress_inspector_refresh_target: tuple[str, int] | None = (
+                etype, oid)
 
     def _on_comment_committed(self, etype: str, oid: int, text: str) -> None:
         """Inspector Comment commit: undoable write, no Inspector rebuild.
@@ -5784,7 +5786,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._pause_action.setText("Pause")
         # Importance has its own estimate (started when the baseline is
         # presented) and its own deduplicated status key.
-        self._imp_eta = None
+        self._imp_eta: RunEstimate | None = None
         self._imp_last_key = None
         self._importance_running = False
 
@@ -8609,7 +8611,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # geometry on this turn is not the user's docked extent.
             entry["_skip_extent_remember"] = True
 
-    def _begin_dock_titlebar_drag(self, dock, press_global) -> None:
+    def _begin_dock_titlebar_drag(self, dock: QDockWidget,
+                                  press_global) -> None:
         """A custom title bar must float the dock itself: replacing Qt's
         title bar also removes its built-in drag gesture."""
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
@@ -8630,7 +8633,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             dock.move(max(0, press_global.x() - 40),
                       max(0, press_global.y() - 12))
 
-    def _finish_dock_titlebar_drag(self, dock, global_pos) -> None:
+    def _finish_dock_titlebar_drag(self, dock: QDockWidget,
+                                   global_pos) -> None:
         """A release over the main window docks to its nearest edge.
 
         Without this, dragging a custom-titled panel out was one-way:
@@ -8656,10 +8660,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 Qt.DockWidgetArea.BottomDockWidgetArea:
                     self.height() - local.y(),
             }
-            area = min(distances, key=distances.get)
+            area = min(distances, key=lambda a: distances[a])
         self._dock_to_area(dock, area)
 
-    def _dock_to_area(self, dock, area) -> None:
+    def _dock_to_area(self, dock: QDockWidget, area) -> None:
         """Dock a dragged floating panel into `area`, restoring its own
         remembered size."""
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
@@ -8684,7 +8688,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         dock.show()
         dock.raise_()
 
-    def _toggle_dock_floating(self, dock) -> None:
+    def _toggle_dock_floating(self, dock: QDockWidget) -> None:
         """Double-clicking a custom title bar toggles float, like the
         native one."""
         if dock.isFloating():
@@ -8786,7 +8790,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if target is None and hasattr(dock, "fit_height"):
             QTimer.singleShot(0, dock.fit_height)
 
-    def _redock(self, dock) -> None:
+    def _redock(self, dock: QDockWidget) -> None:
         """Put a floating panel back where it was docked, at its own size."""
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock)) or {}
@@ -8822,8 +8826,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 self._compact_minimized.discard(dock.windowTitle())
             except AttributeError:
                 pass
-            was_closed = bool(entry is not None and entry.get("closed"))
-            if was_closed:
+            if entry is not None and entry.get("closed"):
                 restore = (self._dock_stubs or {}).get(dock)
                 if restore is not None:
                     restore(False)

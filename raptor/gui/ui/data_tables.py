@@ -2031,8 +2031,9 @@ class DataTablesDock(QWidget):
                 if k == bid:
                     continue
                 row_idx = rows_by_id.get(k)
-                if row_idx is not None and t.item(row_idx, col) is not None:
-                    self._set_cost_text(t.item(row_idx, col), value)
+                cell = t.item(row_idx, col) if row_idx is not None else None
+                if cell is not None:
+                    self._set_cost_text(cell, value)
         self.model_edited.emit()
         if len(keys) > 1:
             note = (f"Set {header} to {self._fmt_cost(value)} on "

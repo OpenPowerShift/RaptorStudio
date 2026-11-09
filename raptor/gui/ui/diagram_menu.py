@@ -101,17 +101,14 @@ class ContextMenuMixin:
             comment_act0 = None
             comment_target0 = None
             if clicked_multi is not None:
-                kind0 = ("block" if isinstance(clicked_multi, _BlockItem)
-                         else "node" if isinstance(clicked_multi, _NodeItem)
-                         else "event" if isinstance(clicked_multi, _EventItem)
-                         else "hier")
-                oid0 = int(clicked_multi._block_id
-                           if kind0 == "block"
-                           else clicked_multi._node_id
-                           if kind0 == "node"
-                           else clicked_multi._event_id
-                           if kind0 == "event"
-                           else clicked_multi._hier_id)
+                if isinstance(clicked_multi, _BlockItem):
+                    kind0, oid0 = "block", int(clicked_multi._block_id)
+                elif isinstance(clicked_multi, _NodeItem):
+                    kind0, oid0 = "node", int(clicked_multi._node_id)
+                elif isinstance(clicked_multi, _EventItem):
+                    kind0, oid0 = "event", int(clicked_multi._event_id)
+                else:
+                    kind0, oid0 = "hier", int(clicked_multi._hier_id)
                 comment_target0 = (kind0, oid0)
                 comment_act0 = menu.addAction(
                     "Convert comment to annotation")
@@ -124,7 +121,8 @@ class ContextMenuMixin:
             del_act = menu.addAction(
                 f"Delete {self._n_deletable_selected()} selected")
             chosen0 = self._exec_menu(menu, event)
-            if comment_act0 is not None and chosen0 is comment_act0:
+            if comment_target0 is not None and comment_act0 is not None \
+                    and chosen0 is comment_act0:
                 kind0, oid0 = comment_target0
                 self.comment_to_annotation(kind0, oid0)
             elif chosen0 is remove_links_act0:
@@ -384,13 +382,14 @@ class ContextMenuMixin:
             return
         if routing_act is not None and chosen is routing_act:
             if self.insert_routing_node(
-                    int(getattr(clicked, "_link_num", 0)), mx, my) is None:
+                    int(cast(Any, getattr(clicked, "_link_num", 0))), mx, my) is None:
                 _view_status(self, "Cannot add a routing point on that link")
             else:
                 _view_status(self, "Routing point added")
         elif chosen is paste_act:
             self.paste(at_model=(mx, my))
-        elif comment_act is not None and chosen is comment_act:
+        elif comment_act is not None and comment_oid is not None \
+                and chosen is comment_act:
             self.comment_to_annotation(kind.lower(), int(comment_oid))
         elif chosen is out_act:
             self._move_selection_to_parent()

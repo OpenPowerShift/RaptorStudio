@@ -34,7 +34,7 @@ from PySide6.QtWidgets import QAbstractItemView
 
 from raptor.gui.ui import msgbox
 
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QStandardItemModel
@@ -299,6 +299,20 @@ class _ReadOnlyTable(QTableWidget):
         return
 
 
+class _StatefulTable(Protocol):
+    """Type-only view of the per-instance state `ResultsDock` keeps on a
+    table it owns.
+
+    Qt tables accept extra Python attributes, but `QTableWidget` does not
+    declare them; this protocol gives those assignments a checked type
+    without changing the widget or the runtime value.
+    """
+
+    _hierarchy_sort_hooked: bool
+    _sort_state_key: str
+    _goto_menu_filter: QObject | None
+
+
 class _ViewportContextMenuFilter(QObject):
     """Deliver a viewport's ContextMenu event to a callback.
 
@@ -335,7 +349,7 @@ class _TableActionStrip(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Fixed,
                            QSizePolicy.Policy.Fixed)
         self._table_ref = weakref.ref(table)
-        self._viewport_ref = None
+        self._viewport_ref: weakref.ReferenceType[QWidget] | None = None
         table.installEventFilter(self)
         # Do not size from `sizeHint()` before layout: for a table wider
         # than its scroll viewport that is the page's minimum width and
@@ -480,7 +494,9 @@ class _SortItem(QTableWidgetItem):
             return desc if a_bad else not desc
         if a_kind != b_kind:
             return a_kind == "num"
-        return a_val < b_val
+        if a_kind == "num":
+            return cast(float, a_val) < cast(float, b_val)
+        return cast(str, a_val) < cast(str, b_val)
 
 
 class _MetricCard(QFrame):
@@ -1055,11 +1071,11 @@ class ResultsDock(QWidget):
         # indexes. Recompute the hierarchy scope when the model settles;
         # FilterBar composes with the same rule for its own passes.
         if not getattr(table, "_hierarchy_sort_hooked", False):
-            table._hierarchy_sort_hooked = True
+            cast(_StatefulTable, table)._hierarchy_sort_hooked = True
             table.model().layoutChanged.connect(
                 lambda *_a: self._apply_level_filter())
         if getattr(table, "_sort_state_key", None) != key:
-            table._sort_state_key = key
+            cast(_StatefulTable, table)._sort_state_key = key
 
             def remember(column: int, order: Qt.SortOrder, *,
                          _key: str = key) -> None:
@@ -1725,10 +1741,14 @@ class ResultsDock(QWidget):
         # Handle the real viewport ContextMenu event: relying only on
         # `customContextMenuRequested` left the menu silent in use.
         table_ref = weakref.ref(table)
-        table._goto_menu_filter = _ViewportContextMenuFilter(
-            table.viewport(),
-            lambda pos, tr=table_ref, k=kind:
-            (tr() is not None and self._show_goto_menu(tr(), k, pos)))
+
+        def on_context_menu(pos, tr=table_ref, k=kind) -> None:
+            target = tr()
+            if target is not None:
+                self._show_goto_menu(target, k, pos)
+
+        cast(_StatefulTable, table)._goto_menu_filter = (
+            _ViewportContextMenuFilter(table.viewport(), on_context_menu))
 
     def _build_weak_page(self) -> QWidget:
         """Weak Link Analysis: a colour chip per element,
