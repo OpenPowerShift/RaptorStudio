@@ -6,10 +6,10 @@ checks (stacked-element warning, move settle) fire in the middle of the drag."""
 from __future__ import annotations
 
 import itertools
-import os
 
 import pytest
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -55,6 +55,23 @@ def win():
     w.close()
 
 
+def _send_mouse(view, kind, pos, button, buttons):
+    """Deliver one mouse event synchronously to the canvas viewport.
+
+    `QTest.mouseMove` goes through the platform window system, which
+    coalesces moves and can deliver a backlog turn later. On the offscreen
+    CI platform that made the per-step tracking assertion see a whole
+    segment as one jump. A direct `sendEvent` exercises the same view and
+    item handlers without the queue.
+    """
+    point = QPointF(pos)
+    global_pos = QPointF(view.viewport().mapToGlobal(
+        QPoint(int(point.x()), int(point.y()))))
+    event = QMouseEvent(kind, point, global_pos, button, buttons,
+                        Qt.KeyboardModifier.NoModifier)
+    QApplication.sendEvent(view.viewport(), event)
+
+
 def _positions(view, skip):
     return {(k, i): (it.pos().x(), it.pos().y())
             for k, d in (("b", view._block_items), ("n", view._node_items),
@@ -64,17 +81,12 @@ def _positions(view, skip):
 
 @pytest.mark.parametrize("snap", [True, False])
 def test_a_dragged_block_tracks_the_mouse_across_neighbours(win, snap):
-    if snap and os.environ.get("CI"):
-        # CI's offscreen Qt coalesces mouse moves during the 450 ms
-        # debounce waits; a queued move lands against a stale reference
-        # and looks like a jump. The non-snap variant still guards the
-        # drag path, and this test runs locally.
-        pytest.skip("offscreen Qt move coalescing is not stable in CI")
     view = win._diagram_dock.view
     view.set_snap_enabled(snap)
     ids = sorted(view._block_items)
     a, targets = ids[0], ids[1:4]
     ia = view._block_items[a]
+    start_pos = ia.pos()
     step = max(view._snap_state["x"], view._snap_state["y"])
     limit = 2 * step + 4
     others = _positions(view, ("b", a))
@@ -83,16 +95,27 @@ def test_a_dragged_block_tracks_the_mouse_across_neighbours(win, snap):
     path = [view.mapFromScene(ia.sceneBoundingRect().center())]
     path += [view.mapFromScene(view._block_items[t].sceneBoundingRect().center())
              for t in targets]
-    QTest.mousePress(view.viewport(), Qt.MouseButton.LeftButton,
-                     Qt.KeyboardModifier.NoModifier, path[0])
+    _send_mouse(view, QEvent.Type.MouseButtonPress, path[0],
+                Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton)
     last_mouse, last_pos = path[0], ia.pos()
     waited = 0
     for p, q in itertools.pairwise(path):
         n = max(abs(q.x() - p.x()), abs(q.y() - p.y())) // 4 + 1
         for s in range(1, int(n) + 1):
             m = p + (q - p) * s / n
-            QTest.mouseMove(view.viewport(), QPoint(int(m.x()), int(m.y())))
+            armed = view._drag_armed
+            _send_mouse(view, QEvent.Type.MouseMove, m,
+                        Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton)
             QApplication.processEvents()
+            if not armed and view._drag_armed:
+                # The click deadzone swallows moves until the gesture
+                # arms, then Qt starts the item drag from the press
+                # point. That first tracked move legitimately covers the
+                # whole deadzone (many scene units when zoomed out), so
+                # rebase instead of reporting it as a jump. Subsequent
+                # moves must track one-for-one.
+                last_mouse, last_pos = m, ia.pos()
+                continue
             if s % 25 == 0 and waited < 6:
                 QTest.qWait(450)        # the debounce timers fire mid-drag
                 QApplication.processEvents()
@@ -107,10 +130,11 @@ def test_a_dragged_block_tracks_the_mouse_across_neighbours(win, snap):
             shift = view.mapToScene(QPoint(0, 0)) - origin
             assert max(abs(shift.x()), abs(shift.y())) < 1.0   # the view stays put
             last_mouse, last_pos = m, ia.pos()
-    QTest.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton,
-                       Qt.KeyboardModifier.NoModifier, path[-1])
+    _send_mouse(view, QEvent.Type.MouseButtonRelease, path[-1],
+                Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton)
     view.flush_pending_moves()
     QApplication.processEvents()
+    assert ia.pos() != start_pos                            # the block moved
     assert _positions(view, ("b", a)) == others             # nothing else moved
 
 
