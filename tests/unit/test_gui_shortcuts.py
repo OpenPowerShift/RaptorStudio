@@ -20,11 +20,13 @@ DOC = Path("docs/KEYBOARD_SHORTCUTS.md")
 #: the action scan cannot see them. The doc may list them; nothing else.
 HANDLED_IN_KEY_EVENTS = {
     "Ctrl+C", "Ctrl+X", "Ctrl+V", "Esc", "Backspace", "F1", "F2", "Ctrl+F",
-    "Arrow keys", "Shift+Arrow keys",
+    "Arrow keys", "Shift+Arrow keys", "Alt+Arrow keys",
 }
 #: Doc cells that are not a key chord at all.
-# "Alt, then" is the key-tip table: tab letters, not bindings.
-NOT_KEYS = {"Shortcut", "Alt, then", "F", "M", "A", "D", "S", "B", "R", "V", "H"}
+# "Alt, then" is the key-tip table: tab letters, not bindings; Alt+drag is
+# a mouse gesture, handled in the canvas mouse events.
+NOT_KEYS = {"Shortcut", "Alt, then", "Alt+drag",
+            "F", "M", "A", "D", "S", "B", "R", "V", "H"}
 
 
 @pytest.fixture
@@ -131,7 +133,7 @@ def test_new_shortcuts_are_bound_to_their_commands(win):
     pairs = {"Ctrl+2": "_add_block_tool", "Ctrl+3": "_add_node_tool",
              "Ctrl+4": "_add_event_tool", "Ctrl+5": "_add_hier_tool",
              "Ctrl+6": "_connect_tool", "Ctrl+G": "_collapse_action",
-             "Alt+Up": "_hier_up_action", "Ctrl+1": "_select_action",
+             "Alt+Up": "_fine_nudge_up_action", "Ctrl+1": "_select_action",
              "Ctrl+W": "_close_file_action"}
     bound = {_portable(s): a for a in win.findChildren(QAction)
              for s in a.shortcuts()}

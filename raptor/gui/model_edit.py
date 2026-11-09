@@ -27,6 +27,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from raptor.core.fileio.comments import find_comment_row
 from raptor.core.fileio.rbd import store_distribution_values
 from raptor.core.fileio.typed import SPARING_TYPE_TO_FILE_STRING
 from raptor.core.model import SparingType
@@ -368,12 +369,10 @@ class ModelEditor:
         sec = rbd.sections.get("COMMENTS") if rbd is not None else None
         if sec is None or old == new:
             return
-        for row in sec.rows:
-            if (row.get("Type", "").lower() == etype
-                    and row.get("Name", "") == old):
-                row["Name"] = new
-                row["ID"] = str(oid)
-                return
+        row = find_comment_row(sec, etype, oid, old, stamp=True)
+        if row is not None:
+            row["Name"] = new
+            row["ID"] = str(oid)
 
     def apply_dist(self, bid: int, which: str,
                    dist_npar: tuple[int, int]) -> None:

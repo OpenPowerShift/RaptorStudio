@@ -89,6 +89,34 @@ class ContextMenuMixin:
             # (see the single-element menu's own note).
             order_acts = (self._add_order_actions(menu)
                           if self._selected_annotation_ids() else {})
+            # The multi-selection menu short-circuits before the element
+            # menu below, so offer conversion for the element actually
+            # right-clicked here too (a multi-select must not lose it).
+            clicked_multi = None
+            for it in self._scene.items(scene_pos):
+                if isinstance(it, (_BlockItem, _NodeItem, _EventItem,
+                                   _HierItem)):
+                    clicked_multi = it
+                    break
+            comment_act0 = None
+            comment_target0 = None
+            if clicked_multi is not None:
+                kind0 = ("block" if isinstance(clicked_multi, _BlockItem)
+                         else "node" if isinstance(clicked_multi, _NodeItem)
+                         else "event" if isinstance(clicked_multi, _EventItem)
+                         else "hier")
+                oid0 = int(clicked_multi._block_id
+                           if kind0 == "block"
+                           else clicked_multi._node_id
+                           if kind0 == "node"
+                           else clicked_multi._event_id
+                           if kind0 == "event"
+                           else clicked_multi._hier_id)
+                comment_target0 = (kind0, oid0)
+                comment_act0 = menu.addAction(
+                    "Convert comment to annotation")
+                comment_act0.setEnabled(self.has_convertible_comment(
+                    kind0, oid0))
             remove_links_act0 = menu.addAction("Remove Links")
             # The count includes the annotations -- the delete takes
             # them along now, so the number has to (and `sel_count`
@@ -96,7 +124,10 @@ class ContextMenuMixin:
             del_act = menu.addAction(
                 f"Delete {self._n_deletable_selected()} selected")
             chosen0 = self._exec_menu(menu, event)
-            if chosen0 is remove_links_act0:
+            if comment_act0 is not None and chosen0 is comment_act0:
+                kind0, oid0 = comment_target0
+                self.comment_to_annotation(kind0, oid0)
+            elif chosen0 is remove_links_act0:
                 self.remove_links_selected()
             elif chosen0 is del_act:
                 self.delete_selected()
@@ -118,6 +149,10 @@ class ContextMenuMixin:
                 hid_menu = QMenu(self)
                 cut_h = hid_menu.addAction("Cut hierarchy")
                 copy_h = hid_menu.addAction("Copy hierarchy")
+                comment_h = hid_menu.addAction(
+                    "Convert comment to annotation")
+                comment_h.setEnabled(self.has_convertible_comment(
+                    "hier", it2._hier_id))
                 hid_menu.addSeparator()
                 del_h = hid_menu.addAction("Delete hierarchy")
                 chosen_h = self._exec_menu(hid_menu, event)
@@ -135,6 +170,10 @@ class ContextMenuMixin:
                     # promote, oval + markers removed (one undo step)
                     _view_status(self, "Hierarchy cut — Paste to "
                                  "recreate it")
+                elif chosen_h is comment_h:
+                    self._scene.clearSelection()
+                    it2.setSelected(True)
+                    self.comment_to_annotation("hier", it2._hier_id)
                 elif chosen_h is del_h:
                     self._scene.clearSelection()
                     it2.setSelected(True)
@@ -275,6 +314,23 @@ class ContextMenuMixin:
         cut_act.setEnabled(n_sel > 0 or n_annos > 0)
         paste_act = menu.addAction("Paste Here (at pointer)")
         paste_act.setEnabled(self.can_paste())
+        # Comment -> annotation: offered for the element actually
+        # right-clicked (even in a multi-selection), enabled only when it
+        # has a comment to convert. Links have no Inspector comment box.
+        comment_act = None
+        comment_oid = None
+        if kind != "Link":
+            etype = kind.lower()
+            comment_oid = (getattr(clicked, "_block_id", None)
+                           if kind == "Block"
+                           else getattr(clicked, "_node_id", None)
+                           if kind == "Node"
+                           else getattr(clicked, "_event_id", None))
+            if comment_oid is not None:
+                comment_act = menu.addAction(
+                    "Convert comment to annotation")
+                comment_act.setEnabled(self.has_convertible_comment(
+                    etype, int(comment_oid)))
         out_act = None
         if self._current_parent != 0 and n_sel > 0:
             menu.addSeparator()
@@ -334,6 +390,8 @@ class ContextMenuMixin:
                 _view_status(self, "Routing point added")
         elif chosen is paste_act:
             self.paste(at_model=(mx, my))
+        elif comment_act is not None and chosen is comment_act:
+            self.comment_to_annotation(kind.lower(), int(comment_oid))
         elif chosen is out_act:
             self._move_selection_to_parent()
         elif chosen is copy_act:

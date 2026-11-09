@@ -26,7 +26,7 @@ from pathlib import Path
 from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal,
                             QEvent, QEventLoop)
 from PySide6.QtGui import (QCursor, QKeySequence, QPainter, QColor, QPixmap, QDesktopServices,
-                           QShortcut)
+                           QAction, QShortcut)
 from PySide6.QtCore import QRectF
 from PySide6.QtWidgets import (
     QApplication, QToolTip, QDoubleSpinBox, QMainWindow, QDockWidget, QStatusBar, QFileDialog, QMessageBox,
@@ -586,6 +586,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Ambiguous shortcut overload"; a window context only competes
         # with itself, and the focused window's undo is the right one.
         help_sc.activated.connect(self._open_context_help)
+
+        # Alt+Up is the canvas fine-nudge chord. It cannot live on the
+        # ribbon's Up button: a ribbon click must ALWAYS ascend, while the
+        # key chord nudges a focused selection and falls back to ascending
+        # when there is nothing to move.
+        self._fine_nudge_up_action = QAction("Fine Move Up", self)
+        self._fine_nudge_up_action.setShortcut(QKeySequence("Alt+Up"))
+        self._fine_nudge_up_action.setShortcutContext(
+            Qt.ShortcutContext.WindowShortcut)
+        self._fine_nudge_up_action.setToolTip(
+            "Fine-nudge the canvas selection by a tenth of a snap step; "
+            "with nothing selected, ascend one hierarchy level")
+        self._fine_nudge_up_action.triggered.connect(
+            self._fine_nudge_or_hierarchy)
+        self.addAction(self._fine_nudge_up_action)
 
         # Esc = pause/stop during a run. A WindowShortcut fires no matter
         # which child of the window has focus; when no run is active it
@@ -1832,6 +1847,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._diagram_dock.view.level_changed.connect(
             lambda _pid: self._data_tables.refresh())
         self._diagram_dock.view.model_changed.connect(self._mark_dirty)
+        self._diagram_dock.view.comment_changed.connect(
+            self._on_comment_changed)
         # Position/size/z-order changes are real edits (the file is dirty
         # and Save must write them) but they cannot change what the engine
         # simulates: no whole-model validation, no revision bump, and no
@@ -2285,7 +2302,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         inside = parent_id != 0
         name = self._diagram_dock.view.hiers.get(parent_id)
         self._update_title()
-        self._hier_up_action.setEnabled(inside)
+        self._sync_hier_up_action()
         self._hier_home_action.setEnabled(inside)
         # A level switch rebuilds the annotation items, so a selection
         # held in the old level's notes is gone: re-gate the z-order
@@ -2309,6 +2326,32 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._statusbar.showMessage(
                 f"Viewing hierarchy level: {name.name} (double-click an "
                 f"Out marker or use Up/Home to return)", 6000)
+
+    def _sync_hier_up_action(self) -> None:
+        """The ribbon's Up button is hierarchy navigation only."""
+        action = getattr(self, "_hier_up_action", None)
+        view = getattr(getattr(self, "_diagram_dock", None), "view", None)
+        if action is not None and view is not None:
+            action.setEnabled(view._current_parent != 0)
+
+    def _fine_nudge_or_hierarchy(self) -> None:
+        """Alt+Up: fine-nudge a focused canvas selection, else ascend.
+
+        The ribbon's Up button keeps calling `go_up` directly; this chord
+        is the only route that may move something. With no nudgeable
+        selection (including an arrow-only selection), in a text field,
+        or with focus outside the canvas, it falls back to the original
+        hierarchy-up behaviour.
+        """
+        view = self._diagram_dock.view
+        view._suppress_key_tips()
+        focus = QApplication.focusWidget()
+        canvas_focused = (focus is None or focus is view
+                          or view.isAncestorOf(focus))
+        if canvas_focused and view.has_nudgeable_selection():
+            if view.nudge_selection(0, -1, fine=True):
+                return
+        view.go_up()
 
     def _push_domains(self) -> None:
         """Compute Weak Link Raptor 7 domains from the loaded model and
@@ -2796,13 +2839,19 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._explorer.system_config_selected.connect(self._on_explorer_sysconfig_selected)
         self._inspector.block_renamed.connect(self._on_block_renamed)
         self._inspector.block_comment_changed.connect(
-            lambda bid, txt: self._diagram_dock.view
-            .set_element_comment("block", bid, txt)
-            or self._mark_dirty())
+            lambda bid, txt: self._on_comment_committed("block", bid, txt))
         self._inspector.element_comment_changed.connect(
-            lambda etype, oid, txt: self._diagram_dock.view
-            .set_element_comment(etype, oid, txt)
-            or self._mark_dirty())
+            self._on_comment_committed)
+        self._inspector.comment_to_annotation_requested.connect(
+            lambda etype, oid: self._diagram_dock.view
+            .comment_to_annotation(etype, oid))
+        # Flush a pending Comment draft BEFORE `_set_level`/`load_rbd`
+        # rebuilds the scene and Inspector; the level_changed handlers run
+        # after the old editor has already been destroyed.
+        self._diagram_dock.view.level_about_to_change.connect(
+            self._inspector.flush_pending_comment)
+        self._diagram_dock.view.structural_about_to_change.connect(
+            self._inspector.flush_pending_comment)
         self._inspector.node_renamed.connect(self._on_node_renamed)
         self._inspector.hier_renamed.connect(self._on_hier_renamed)
         self._inspector.phasing_changed.connect(self._on_phasing_changed)
@@ -3488,6 +3537,37 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         box.exec()
         return True
 
+    def _on_comment_changed(self, etype: str, oid: int,
+                            stored: str) -> None:
+        """Comment command (including undo/redo) changed the model.
+
+        If the Inspector still shows that element, update its editor in
+        place. The deferred `model_changed` refresh then skips the
+        Inspector for this one target only; any coalesced change for a
+        different target still rebuilds normally.
+        """
+        if self._inspector.set_comment_source(etype, oid, stored):
+            self._suppress_inspector_refresh_target = (etype, oid)
+
+    def _on_comment_committed(self, etype: str, oid: int, text: str) -> None:
+        """Inspector Comment commit: undoable write, no Inspector rebuild.
+
+        The editor already shows the text the user just typed. The
+        command's `comment_changed` signal updates it in place (and scopes
+        the one-shot refresh suppression); rebuilding would delete the
+        live editor and move the pane's scroll/caret. Everything else the
+        deferred refresh does -- dirty title, validation, tables -- still
+        runs.
+        """
+        view = self._diagram_dock.view
+        stored = text.replace("\n", "~")
+        if view.current_comment_stored(etype, oid) != stored:
+            view.set_element_comment(etype, oid, text)
+        # The old lambda called this even when the text was unchanged;
+        # keeping that also covers a commit after the model was already
+        # put back by undo.
+        self._mark_dirty()
+
     def _schedule_view_refresh(self):
         """Coalesced, deferred refresh of the model-derived views
         (Inspector, Data Tables, Explorer) after a model mutation.
@@ -3509,10 +3589,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         self._view_refresh_busy = True
         try:
-            try:
-                self._refresh_inspector()
-            except Exception:
+            # A comment command updated the live Inspector editor in
+            # place; re-populating would destroy it and jump the pane.
+            # The suppression is scoped to the exact target it updated,
+            # so a coalesced refresh for another element still happens.
+            suppress = getattr(
+                self, "_suppress_inspector_refresh_target", None)
+            self._suppress_inspector_refresh_target = None
+            if suppress is not None and \
+                    self._inspector.current_target() == suppress:
                 pass
+            else:
+                try:
+                    self._refresh_inspector()
+                except Exception:
+                    pass
             try:
                 self._explorer.refresh()
             except Exception:
@@ -3574,6 +3665,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         v = self._diagram_dock.view
         if getattr(v, "_loading", False):
             return
+        # Deselect is another way the Inspector stops showing the element
+        # whose Comment box holds a draft.
+        self._inspector.flush_pending_comment()
         self._cancel_pending_block_selection()
         target = self._inspector.current_target()
         if target and target[0] in ("block", "node", "event", "hier", "annotation"):
@@ -4381,6 +4475,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """File ▸ Close: back to the no-model state (save prompt)."""
         if self._refuse_during_run("close the model"):
             return
+        # The discard prompt must see the comment draft as part of the
+        # model; otherwise Cancel/Don't Save loses/writes it too late.
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         self._invalidate_step_session()
@@ -4443,6 +4540,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         if self._refuse_during_run("create a new model"):
             return
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         # A new model is seeded from the Preferences dialog's "New models"
@@ -4722,6 +4820,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         a click that lands during the rebuild cannot start a second Open.
         """
         self._dock_extents_at_load_start = self._current_dock_extents()
+        # Must run before `_loading_model` and before the model swap: the
+        # draft belongs to the old model and its old Inspector editor.
+        self._inspector.flush_pending_comment()
         self._loading_model = True
         busy = False
         try:
@@ -4936,6 +5037,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 "saved. Copy "
                 "the file outside the app if you need an editable copy.")
             return False
+        # A comment draft typed within the debounce window is part of
+        # what the user is saving; commit it before the write-back.
+        self._inspector.flush_pending_comment()
         self._diagram_dock.view.write_back_to_rbd(self._rbd)
         # Resync annotation geometry/text/props (and deletions --
         # delete_selected_annotations reassigns view.annotations to a
@@ -5503,6 +5607,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def closeEvent(self, event):
         """Confirm unsaved changes before closing."""
+        # Commit a Comment draft before the unsaved-change prompt/write
+        # path, so closing cannot silently discard the last few keystrokes.
+        self._inspector.flush_pending_comment()
         if getattr(self, "_export_in_progress", False):
             self._statusbar.showMessage(
                 "Wait for the export to finish before closing", 6000)
@@ -9748,7 +9855,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         writer and a recovery path avoids overwriting an open .rbds with
         legacy .rbd text, mutating the live model in place, and dropping
         annotations."""
-        if not (self._dirty and self._rbd is not None):
+        if self._rbd is None:
             return
         if getattr(self, "_loading_model", False):
             # A load is replacing the model; the old one's recovery copy
@@ -9757,7 +9864,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if getattr(self, "_run_in_progress", False):
             # Never write back into a model a live engine is reading.
             return
+        # A pending Comment draft is not in `_dirty` yet. Flush it BEFORE
+        # deciding there is nothing to save, or a clean model with only a
+        # just-typed comment would leave no recovery copy at all.
+        self._inspector.flush_pending_comment()
+        if not self._dirty:
+            return
         try:
+            # Recovery must include a comment still inside its debounce
+            # window, same rule as `_write_model`.
             self._diagram_dock.view.write_back_to_rbd(self._rbd)
             # Mandatory or deleted annotations would survive in the
             # recovery file (same rule as `_write_model`).
@@ -11208,6 +11323,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         if self._refuse_during_run("open an example"):
             return
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         path = next((p for p in self._doc_candidates(f"models/{file_name}")
@@ -11310,6 +11426,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         if self._refuse_during_run("open another file"):
             return
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         try:

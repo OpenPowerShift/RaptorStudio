@@ -253,7 +253,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.hier_up",
-        shortcut="Alt+Up",
         attr="_hier_up_action",
         text="Up",
         icon="up_filled_icon:accent",
