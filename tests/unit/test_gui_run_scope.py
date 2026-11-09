@@ -66,6 +66,26 @@ def test_scoped_run_model_is_an_extract_and_source_is_untouched(win):
     assert win._rbd is source
 
 
+def test_deleting_the_selected_hierarchy_falls_back_to_whole_model(win):
+    hid = _hierarchy(win)
+    panel = win._run_panel
+    panel._scope.setCurrentIndex(panel._scope.findData(hid))
+    win._diagram_dock.view.hiers.pop(hid)
+    win._refresh_run_scope_options()
+    assert panel.hierarchy_scope() == 0
+    assert win._diagram_dock.view._current_parent == 0
+
+
+def test_switching_scope_clears_results_from_the_other_scope(win):
+    hid = _hierarchy(win)
+    panel = win._run_panel
+    panel._scope.setCurrentIndex(panel._scope.findData(hid))
+    win._results._report_data = [{"Availability": 0.9}]
+    assert win._results.has_results()
+    panel._scope.setCurrentIndex(0)
+    assert not win._results.has_results()
+
+
 def test_refuse_treatment_cancels_the_run_with_a_message(win, monkeypatch):
     from raptor.gui.ui import msgbox
     hid = _hierarchy(win)
@@ -82,6 +102,8 @@ def test_refuse_treatment_cancels_the_run_with_a_message(win, monkeypatch):
 
 
 def test_a_scoped_run_uses_the_extract_and_labels_its_results(win):
+    from raptor.api import isolate
+    from raptor.core import run_manifest
     hid = _hierarchy(win)
     source = win._rbd
     panel = win._run_panel
@@ -92,6 +114,13 @@ def test_a_scoped_run_uses_the_extract_and_labels_its_results(win):
     win._on_run()
     iso = (win._results._manifest or {}).get("isolation") or {}
     assert iso.get("hierarchy") == "650path"
+    # The manifest hash proves the numbers came from the extract, not the
+    # whole source model, with the treatments the panel showed.
+    extract, _record = isolate.extract(source, hid, panel.scope_treatments())
+    assert win._results._manifest["model_hash"] == \
+        run_manifest.model_content_hash(extract)
+    assert win._results._manifest["model_hash"] != \
+        run_manifest.model_content_hash(source)
     assert win._rbd is source
     assert win._current_file == str(HIER)
     assert win._dirty is False

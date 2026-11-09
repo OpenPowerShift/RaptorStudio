@@ -253,14 +253,17 @@ class TestShownWindowHeights:
             if page.content_height() > RIBBON["content_height"]:
                 overfull.append((name, page.content_height()))
             # At these widths every group is at full size: shrinking is
-            # for small screens, not the common case. One exception: the
-            # Model tab (Home merged in) is the busiest, and at 1280 px its
-            # lowest-priority group, Hierarchy, drops its small buttons'
-            # labels (icons and tooltips stay; nothing folds away).
+            # for small screens, not the common case. The Model tab (Home
+            # merged in) is the busiest: at 1280 px its lowest-priority
+            # groups, Clipboard and Hierarchy, drop their small buttons'
+            # labels (icons and tooltips stay; nothing folds away). The
+            # large Analytical action is on the tab now, so this is the
+            # minimum-width tradeoff rather than accidental overflow.
             crowded += [(name, g._label.text(), g.level())
                         for g in page._groups if g.level() != g.FULL
                         and not (width == 1280 and name == "Model"
-                                 and g._label.text() == "Hierarchy"
+                                 and g._label.text() in ("Clipboard",
+                                                         "Hierarchy")
                                  and g.level() in (g.REDUCED, g.ICONS))]
             clipped += [(name, b.text()) for b in
                         page.findChildren(RibbonButton)

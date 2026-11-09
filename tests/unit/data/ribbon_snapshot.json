@@ -2006,19 +2006,14 @@
        "kind": "action",
        "large": true,
        "text": "Issues"
-      }
-     ],
-     "title": "Model"
-    },
-    {
-     "items": [
+      },
       {
        "kind": "action",
        "large": true,
        "text": "Analytical\u2026"
       }
      ],
-     "title": "Analysis"
+     "title": "Model"
     },
     {
      "items": [

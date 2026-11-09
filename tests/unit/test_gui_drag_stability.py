@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import time
 
 import pytest
 from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
@@ -164,5 +165,13 @@ def test_the_stacked_warning_waits_for_the_drop(win):
     assert "warning" not in win._validation_badge.text()    # still dragging
     QTest.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton,
                        Qt.KeyboardModifier.NoModifier, dst)
-    QTest.qWait(900)
+    view.flush_pending_moves()
+    # The stacked check is debounced, and a loaded CI worker can miss the
+    # first 900 ms window. Poll instead of asserting on one fixed sleep.
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        QApplication.processEvents()
+        if "1 warning" in win._validation_badge.text():
+            break
+        QTest.qWait(50)
     assert "1 warning" in win._validation_badge.text()      # reported after the drop

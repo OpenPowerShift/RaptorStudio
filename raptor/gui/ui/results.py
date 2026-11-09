@@ -2208,6 +2208,12 @@ class ResultsDock(QWidget):
             # the grid elided.
             return table_to_grid(table, raw=True)
 
+        def _scope_word() -> str:
+            iso = (getattr(self, "_manifest", None) or {}).get(
+                "isolation") or {}
+            name = str(iso.get("hierarchy") or "")
+            return f" (isolated hierarchy: {name})" if name else ""
+
         def _copy_this():
             from PySide6.QtCore import QMimeData
             from raptor.gui.ui.table_export import grid_to_html, grid_to_tsv
@@ -2217,15 +2223,23 @@ class ResultsDock(QWidget):
             mime.setHtml(grid_to_html(headers, rows))
             QApplication.clipboard().setMimeData(mime)
             self._status_hint_f and self._status_hint_f(
-                f"Copied '{table_name}'")
+                f"Copied '{table_name}'{_scope_word()}")
 
         def _save_this():
             from raptor.gui.ui.table_export import grid_to_csv
             safe = "".join(c if c.isalnum() or c in " _-"
                            else "_" for c in table_name).strip()
             safe = safe.replace(" ", "_") or "table"
+            iso = (getattr(self, "_manifest", None) or {}).get(
+                "isolation") or {}
+            suffix = ""
+            if iso.get("hierarchy"):
+                safe_h = "".join(c if c.isalnum() or c in " _-"
+                                 else "_" for c in str(iso["hierarchy"]))
+                suffix = "_isolated_" + (safe_h.replace(" ", "_") or "hierarchy")
             path, _f = fdg.getSaveFileName(
-                self, f"Export {table_name}", safe + ".csv", "CSV (*.csv)")
+                self, f"Export {table_name}",
+                safe + suffix + ".csv", "CSV (*.csv)")
             if not path:
                 return
             headers, rows = _current_grid()

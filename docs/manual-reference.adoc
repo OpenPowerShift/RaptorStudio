@@ -47,6 +47,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Project Settings |Project Settings — simulation-wide configuration for this model |
 |Issues |No problems stop a run. Click for the list (F7) |F7
+|Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
 |===
 
 ==== Annotate
@@ -233,7 +234,6 @@ current value).
 |Clear Results |Empty every results tab and return to the placeholder |
 |Single-Point Failures |List every component that alone can fail the system — series elements; export as a text file |
 |Domains… |Domain of each node — which elements' failures can propagate to it |
-|Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
 |===
 
 ==== Show on Canvas
