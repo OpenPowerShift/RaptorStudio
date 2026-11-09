@@ -32,8 +32,11 @@ from PySide6.QtWidgets import (
 
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.resources.design_tokens import ThemeManager, SPACING
-from raptor.gui.model_edit import BLOCK_COST_FIELDS
+from raptor.gui.model_edit import (
+    BLOCK_COST_DECIMALS, BLOCK_COST_FIELDS, BLOCK_COST_LIMIT,
+    POOLED_COST_TIP, cost_field_readonly)
 from raptor.gui.ui.distro_combo import distro_display_name, fill_distro_combo
+from raptor.gui.ui.table_export import RAW_VALUE_ROLE
 from raptor.gui.ui.table_filter_bar import FilterBar
 from raptor.gui.ui import param_entry
 from raptor.core.distro_rules import (
@@ -103,13 +106,26 @@ class _DataTable(QTableWidget):
 class _SortItem(QTableWidgetItem):
     """QTableWidgetItem that sorts numerically when both cells parse as
     numbers. The default item compares its text lexically, which puts
-    "10" before "9" and "2" after "19" on every ID/param/count column."""
+    "10" before "9" and "2" after "19" on every ID/param/count column.
+
+    A cell with a stashed full-precision value (`RAW_VALUE_ROLE`, the
+    Costs grid's cost) sorts by that value, not its rounded display text.
+    """
+
+    def _number(self) -> float | None:
+        raw = self.data(RAW_VALUE_ROLE)
+        if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+            return float(raw)
+        try:
+            return float(self.text())
+        except (TypeError, ValueError):
+            return None
 
     def __lt__(self, other):
-        try:
-            return float(self.text()) < float(other.text())
-        except (TypeError, ValueError):
-            return self.text().casefold() < other.text().casefold()
+        mine, theirs = self._number(), other._number()
+        if mine is not None and theirs is not None:
+            return mine < theirs
+        return self.text().casefold() < other.text().casefold()
 
 
 #: Canonical parameter counts per distribution, from Raptor 7.
@@ -139,6 +155,11 @@ class _WholeModel:
         from raptor.core.fileio.typed import (
             block_from_row, event_from_row, hier_from_row, node_from_row)
         rbd = view._rbd_ref
+        #: What this cache was built from. `set_view` clears it for a new
+        #: model; the view's change signals clear it for a level change or
+        #: an element/hierarchy edit. `matches` is the defensive check.
+        self.view = view
+        self.rbd = rbd
         self.live_blocks = set(view.blocks)
         self.live_nodes = set(view.nodes)
         self.live_events = set(view.events)
@@ -196,11 +217,21 @@ class _WholeModel:
         return oid in {"block": self.live_blocks, "node": self.live_nodes,
                        "event": self.live_events}[kind]
 
+    def matches(self, view) -> bool:
+        """True while this cache still describes `view` and its file.
+        `set_view` and the view's own change signals clear/invalidate it
+        on a new model, a level change, or an element/hierarchy edit."""
+        return (self.view is view and self.rbd is view._rbd_ref
+                and self.live_blocks == set(view.blocks)
+                and self.live_nodes == set(view.nodes)
+                and self.live_events == set(view.events))
+
 
 class DataTablesDock(QWidget):
     #: Emitted after ANY committed edit so MainWindow can mark dirty.
     model_edited = Signal()
-    #: Right-click "Go to element" on a Blocks/Nodes row -- (kind, name).
+    #: Right-click "Go to element" on a Blocks/Costs/Nodes row -- (kind,
+    #: name).
     #: Same shape as results.py's element_clicked; MainWindow wires both
     #: to the one DiagramView.locate_element-backed handler.
     element_locate_requested = Signal(str, str)
@@ -334,15 +365,12 @@ class DataTablesDock(QWidget):
         "perSpare": "Recurring spare cost",
         "emerShipping": "Emergency spare additional cost",
     }
-    #: Same range and decimals as the Inspector's Costs tab spin boxes.
-    _COST_LIMIT = 1e12
-    _COST_DECIMALS = 3
+    #: Same range, decimals and Pooled rule as the Inspector's Costs tab.
+    _COST_LIMIT = BLOCK_COST_LIMIT
+    _COST_DECIMALS = BLOCK_COST_DECIMALS
     #: The Inspector's wording for the two fields a Pooled block does not
     #: own: the engine reads the pool's own fields instead.
-    _POOLED_COST_TIP = (
-        "This block draws from a spare pool -- its cost comes from the "
-        "POOL's own fields (Spares tab -> Manage Spare Pools…), not this "
-        "one.")
+    _POOLED_COST_TIP = POOLED_COST_TIP
     _KEYED_COL_TIPS = {
         "RSO": "Routine Spare Ordering: reorder on a fixed schedule, "
             "before stock runs out",
@@ -552,6 +580,7 @@ class DataTablesDock(QWidget):
         # to only select a cell for editing.
         from PySide6.QtCore import Qt as _Qt
         for table, kind in ((self._blocks_table, "block"),
+                            (self._costs_table, "block"),
                             (self._nodes_table, "node")):
             table.setContextMenuPolicy(_Qt.ContextMenuPolicy.CustomContextMenu)
             table.customContextMenuRequested.connect(
@@ -567,7 +596,7 @@ class DataTablesDock(QWidget):
                       "(Save to persist). Invalid values revert.")
         hint.setObjectName("ResultsPlaceholder")
         bar.addWidget(hint)
-        # Blocks/Nodes/Events are the CURRENT hierarchy level's rows.
+        # Blocks/Costs/Nodes/Events are the CURRENT hierarchy level's rows.
         # Without saying so, a model with hierarchy levels looked as if
         # its children were missing.
         self._scope_label = QLabel("")
@@ -605,7 +634,7 @@ class DataTablesDock(QWidget):
         export_btn = QPushButton("Export CSV…")
         export_btn.setToolTip(
             "Save the currently visible table (the model's own INPUT "
-            "data — Blocks/Nodes/Events/Spare Pools/Resources/"
+            "data — Blocks/Costs/Nodes/Events/Spare Pools/Resources/"
             "Triggers/Phases) as a .csv — this grid had no export "
             "path before")
         export_btn.clicked.connect(self._export_current_table_csv)
@@ -725,6 +754,10 @@ class DataTablesDock(QWidget):
 
     def set_view(self, view, *, defer_large: bool = False):
         self._view = view
+        # A cache of another model's/live level's rows must never survive
+        # an Open: its ids may collide with this model's blocks.
+        self._whole_src = None
+        self._watch_view(view)
         # Display-unit override for this grid's own time-dimensioned
         # cells: Failure/Repair Param columns and PM Frequency.
         self._native_units = ""
@@ -876,8 +909,8 @@ class DataTablesDock(QWidget):
         # Sorting OFF while rows are being inserted (an active sort
         # indicator + insertRow = scattered rows); back on after.
         _all_tables: list[QTableWidget] = list(self._all_tables)
-        # A flat 1,500- or 3,800-block model has nine grids, most of them
-        # hidden behind a tab. Filling all of them made Open spend tens of
+        # A flat 1,500- or 3,800-block model has a grid per tab, most of
+        # them hidden behind a tab. Filling all of them made Open spend tens of
         # seconds building widgets no one could see. Build the visible grid
         # now and mark the rest for their first tab change.
         fill: list[QTableWidget]
@@ -983,7 +1016,7 @@ class DataTablesDock(QWidget):
             table.viewport().installEventFilter(self)
         idx = self._tabs.indexOf(table)
         title = self._tabs.tabText(idx) if idx >= 0 else "rows"
-        if table is self._blocks_table:
+        if table is self._blocks_table or table is self._costs_table:
             label.setText("No blocks on this level — open a hierarchy "
                           "or use the model-wide level.")
         else:
@@ -1008,14 +1041,27 @@ class DataTablesDock(QWidget):
                     break
         return super().eventFilter(watched, event)
 
+    def _invalidate_whole_src(self, *_a: object) -> None:
+        """Any model/level change can alter another level's rows."""
+        self._whole_src = None
+
+    def _watch_view(self, view) -> None:
+        """Invalidate the whole-model cache on the view's own changes
+        (edits, adds/deletes, hierarchy edits and level changes)."""
+        if view is None or view is getattr(self, "_whole_watch_view", None):
+            return
+        self._whole_watch_view = view
+        view.model_changed.connect(self._invalidate_whole_src)
+        view.level_changed.connect(self._invalidate_whole_src)
+
     def _src(self) -> Any:
-        """Where the Blocks/Nodes/Events/Sparing/PM grids read their
+        """Where the Blocks/Costs/Nodes/Events/Sparing/PM grids read their
         elements from: the view's level, or (Whole model) every level."""
         view = self._view
         if view is None or not self._whole:
             return view
         src = self._whole_src
-        if src is None:
+        if src is None or not src.matches(view):
             src = self._whole_src = _WholeModel(view)
         return src
 
@@ -1055,6 +1101,12 @@ class DataTablesDock(QWidget):
                 item.setFlags(item.flags() & ~(
                     Qt.ItemFlag.ItemIsEditable
                     | Qt.ItemFlag.ItemIsUserCheckable))
+                if t is self._costs_table:
+                    item.setForeground(Qt.GlobalColor.gray)
+                    tip = item.toolTip()
+                    item.setToolTip(
+                        f"{tip}\n{self._FOREIGN_TIP}" if tip
+                        else self._FOREIGN_TIP)
             w = t.cellWidget(r, c)
             if w is not None:
                 w.setEnabled(False)
@@ -1132,6 +1184,10 @@ class DataTablesDock(QWidget):
             self._multi_confirmed = True      # this session only
         return ok
 
+    @staticmethod
+    def _row_count(n: int) -> str:
+        return f"{n} row" if n == 1 else f"{n} rows"
+
     def _apply_rows(self, oid: int, what: str, value: str, fn,
                     applicable=None) -> bool:
         """Run the single-row commit `fn(id)` for row `oid`, or for every
@@ -1161,7 +1217,7 @@ class DataTablesDock(QWidget):
             return False
         stack = req(self._view)._stack
         before = stack.count()
-        stack.beginMacro(f"Set {what} on {len(todo)} rows")
+        stack.beginMacro(f"Set {what} on {self._row_count(len(todo))}")
         results: list[bool] = []
         try:
             for k in todo:
@@ -1173,9 +1229,13 @@ class DataTablesDock(QWidget):
             self._refresh_soon()                   # refused: rows revert
             return False
         if changed:
-            note = f"Set {what} to {value} on {sum(results)} rows"
+            note = (f"Set {what} to {value} on "
+                    f"{self._row_count(sum(results))}")
             if read_only:
-                note += f"; {read_only} read-only row(s) on other levels skipped"
+                note += ("; 1 read-only row on another level skipped"
+                         if read_only == 1 else
+                         f"; {read_only} read-only rows on other levels "
+                         "skipped")
             if na:
                 note += f"; {na} without that parameter skipped"
             self.status_message.emit(note)
@@ -1190,25 +1250,43 @@ class DataTablesDock(QWidget):
         QTimer.singleShot(0, go)
 
     def fill_down(self) -> bool:
-        """Ctrl+D: the top selected row's value in the current column goes to
-        the other selected rows."""
+        """Ctrl+D: the first editable selected row's value in the current
+        column goes to the other selected rows.
+
+        The source must be editable: a read-only Pooled or foreign row
+        must not lend its value to the rows that can take an edit."""
         table = self._edit_table()
         col = table.currentColumn()
         rows = sorted({i.row() for i in table.selectionModel().selectedIndexes()
                        if not table.isRowHidden(i.row())})
         if col < 0 or len(rows) < 2:
             return False
-        w = table.cellWidget(rows[0], col)
         from PySide6.QtWidgets import QLineEdit
-        edit = w.findChild(QLineEdit) if w is not None else None
-        if edit is not None:
-            text = edit.text()
-        elif isinstance(w, QComboBox):
-            return self._fill_combo(table, rows, col, w)
-        else:
-            item = table.item(rows[0], col)
-            text = item.text() if item is not None else ""
-        return self._fill_text(table, rows, col, text, start=1)
+
+        def other_rows(row: int) -> list[int]:
+            """Rows after the source first, so its own commit is not a
+            no-op in the cell's editor."""
+            at = rows.index(row)
+            return rows[at + 1:] + rows[:at]
+
+        for row in rows:
+            w = table.cellWidget(row, col)
+            if w is not None:
+                edit = w.findChild(QLineEdit)
+                if edit is not None:
+                    if edit.isEnabled():
+                        return self._fill_text(
+                            table, other_rows(row), col, edit.text())
+                    continue
+                if isinstance(w, QComboBox) and w.isEnabled():
+                    return self._fill_combo(table, rows, col, w)
+                continue
+            item = table.item(row, col)
+            if item is not None and (
+                    item.flags() & Qt.ItemFlag.ItemIsEditable):
+                return self._fill_text(
+                    table, other_rows(row), col, item.text())
+        return False
 
     def _fill_text(self, table: QTableWidget, rows: list[int], col: int,
                    text: str, start: int = 0) -> bool:
@@ -1226,7 +1304,18 @@ class DataTablesDock(QWidget):
                 if item is None or not (
                         item.flags() & Qt.ItemFlag.ItemIsEditable):
                     continue
-                item.setText(text)
+                if table is self._costs_table:
+                    # Fill/Paste always commits, even when the first
+                    # editable row already holds this text: a multi-row
+                    # selection still has to carry it to the others.
+                    table.blockSignals(True)
+                    try:
+                        item.setText(text)
+                    finally:
+                        table.blockSignals(False)
+                    self._on_cost_cell_changed(item)
+                else:
+                    item.setText(text)
                 done = True
                 break
             e = w.findChild(QLineEdit)
@@ -1240,11 +1329,14 @@ class DataTablesDock(QWidget):
 
     def _fill_combo(self, table: QTableWidget, rows: list[int], col: int,
                     combo: QComboBox) -> bool:
-        target = table.cellWidget(rows[1], col)
-        if not isinstance(target, QComboBox) or not target.isEnabled():
-            return False
-        target.setCurrentIndex(combo.currentIndex())
-        return True
+        for row in rows:
+            target = table.cellWidget(row, col)
+            if (target is combo or not isinstance(target, QComboBox)
+                    or not target.isEnabled()):
+                continue
+            target.setCurrentIndex(combo.currentIndex())
+            return True
+        return False
 
     def paste_into_selection(self, text: str) -> bool:
         """Paste of one plain value with several rows selected: it goes to
@@ -1265,7 +1357,7 @@ class DataTablesDock(QWidget):
         self.refresh(force=True)
 
     def _update_scope_note(self) -> None:
-        """Say when the Blocks/Nodes/Events grids show one level only."""
+        """Say when the Blocks/Costs/Nodes/Events grids show one level only."""
         view = self._view
         rbd = getattr(view, "_rbd_ref", None) if view is not None else None
         if rbd is None:
@@ -1346,9 +1438,9 @@ class DataTablesDock(QWidget):
                     e.setAccessibleName(f"{col}, {who}")
 
     def _export_current_table_csv(self) -> None:
-        """The currently visible grid tab (Blocks/Nodes/Events/Spare
-        Pools/Resources/Triggers/Phases) as CSV, writing the app's own
-        input data."""
+        """The currently visible grid tab (Blocks/Costs/Nodes/Events/Spare
+        Pools/Resources/Triggers/Phases/Sparing/Preventive Maintenance) as
+        CSV, writing the app's own input data."""
         import csv
         table = self._tabs.currentWidget()
         if not isinstance(table, QTableWidget):
@@ -1431,16 +1523,17 @@ class DataTablesDock(QWidget):
         the model objects the rows were filled from, not the cell widgets, so
         a row the filter hides never gets its widgets built."""
         self._filter_bars: dict[QTableWidget, FilterBar] = {}
-        for table, matcher, cols in (
-                (self._blocks_table, self._block_matcher, None),
-                (self._costs_table, None, None),
-                (self._nodes_table, None, None),
-                (self._events_table, None, None),
+        for table, matcher, cols, raw_role in (
+                (self._blocks_table, self._block_matcher, None, None),
+                (self._costs_table, None, None, RAW_VALUE_ROLE),
+                (self._nodes_table, None, None, None),
+                (self._events_table, None, None, None),
                 (self._sparing_table, self._sparing_matcher,
-                 self._SPARING_FILTER_COLS),
-                (self._pm_table, None, None)):
+                 self._SPARING_FILTER_COLS, None),
+                (self._pm_table, None, None, None)):
             bar = FilterBar.attach(
                 table, matcher=matcher, filter_columns=cols,
+                raw_role=raw_role,
                 row_key=lambda r, t=table: self._row_key(t, r))
             bar.changed.connect(
                 lambda *_a, t=table: self._after_filter(t))
@@ -1692,17 +1785,16 @@ class DataTablesDock(QWidget):
             value = float(text.strip())
         except (TypeError, ValueError):
             return None
-        if not math.isfinite(value) or abs(value) > DataTablesDock._COST_LIMIT:
+        if not math.isfinite(value) or abs(value) > BLOCK_COST_LIMIT:
             return None
-        return round(value, DataTablesDock._COST_DECIMALS)
+        return round(value, BLOCK_COST_DECIMALS)
 
     @staticmethod
     def _cost_field_readonly(block, attr: str) -> bool:
         """A Pooled block's spare and emergency-shipping costs come from
         its pool, not its own row (the Inspector greys them for the same
         reason)."""
-        return (attr in ("spare_cost", "emergency_shipping_cost")
-                and block.sparing_type == SparingType.SPARE_POOL)
+        return cost_field_readonly(block, attr)
 
     def _set_cost_text(self, item: QTableWidgetItem, value: float) -> None:
         """Put a canonical value back in a cost cell without re-entering
@@ -1713,6 +1805,7 @@ class DataTablesDock(QWidget):
         table.blockSignals(True)
         try:
             item.setText(self._fmt_cost(value))
+            item.setData(RAW_VALUE_ROLE, float(value))
         finally:
             table.blockSignals(False)
 
@@ -1745,7 +1838,9 @@ class DataTablesDock(QWidget):
                                  & ~Qt.ItemFlag.ItemIsEditable)
                 t.setItem(r, 1, id_item)
                 for i, (attr, _col) in enumerate(BLOCK_COST_FIELDS):
-                    item = _SortItem(self._fmt_cost(getattr(b, attr)))
+                    value = float(getattr(b, attr))
+                    item = _SortItem(self._fmt_cost(value))
+                    item.setData(RAW_VALUE_ROLE, value)
                     item.setTextAlignment(Qt.AlignmentFlag.AlignRight
                                           | Qt.AlignmentFlag.AlignVCenter)
                     if self._cost_field_readonly(b, attr):
@@ -1786,7 +1881,8 @@ class DataTablesDock(QWidget):
         if bid is None:
             return
         src = self._src()
-        block = src.blocks.get(bid)
+        cached = src.blocks.get(bid)
+        block = self._view.blocks.get(bid) or cached
         if block is None:
             return
         idx = col - first
@@ -1804,11 +1900,11 @@ class DataTablesDock(QWidget):
                 f"{header}: enter a finite number between "
                 f"-{self._COST_LIMIT:g} and {self._COST_LIMIT:g}.")
             return
-        if abs(value - old) < 1e-9:
+        keys = self._targets(t, bid)
+        if abs(value - old) < 1e-9 and len(keys) == 1:
             self._set_cost_text(item, old)
             return
 
-        keys = self._targets(t, bid)
         read_only = 0
         pooled = 0
         todo: list[tuple[int, list[float]]] = []
@@ -1816,7 +1912,7 @@ class DataTablesDock(QWidget):
             if self._is_foreign("block", k):
                 read_only += 1
                 continue
-            other = src.blocks.get(k)
+            other = self._view.blocks.get(k)
             if other is None:
                 continue
             if self._cost_field_readonly(other, attr):
@@ -1842,10 +1938,10 @@ class DataTablesDock(QWidget):
         before = stack.count()
         grouped = len(todo) > 1
         if grouped:
-            stack.beginMacro(f"Set {header} on {len(todo)} rows")
+            stack.beginMacro(f"Set {header} on {self._row_count(len(todo))}")
         try:
             for k, values in todo:
-                self._view.set_block_costs(k, values)
+                self._view.set_block_costs(k, values, index=idx)
         finally:
             if grouped:
                 stack.endMacro()
@@ -1853,14 +1949,27 @@ class DataTablesDock(QWidget):
             self._set_cost_text(item, old)     # refused: put the value back
             return
         self._set_cost_text(item, value)
+        if len(todo) > 1:
+            for k, _values in todo:
+                if k == bid:
+                    continue
+                row_idx = next((r for r in range(t.rowCount())
+                                if self._row_key(t, r) == k), None)
+                if row_idx is not None and t.item(row_idx, col) is not None:
+                    self._set_cost_text(t.item(row_idx, col), value)
         self.model_edited.emit()
         if len(keys) > 1:
-            note = f"Set {header} to {self._fmt_cost(value)} on {len(todo)} rows"
+            note = (f"Set {header} to {self._fmt_cost(value)} on "
+                    f"{self._row_count(len(todo))}")
             if read_only:
-                note += (f"; {read_only} read-only row(s) on other levels "
+                note += ("; 1 read-only row on another level skipped"
+                         if read_only == 1 else
+                         f"; {read_only} read-only rows on other levels "
                          "skipped")
             if pooled:
-                note += f"; {pooled} pooled row(s) take it from their pool"
+                note += ("; 1 pooled row takes it from its pool"
+                         if pooled == 1 else
+                         f"; {pooled} pooled rows take it from their pool")
             self.status_message.emit(note)
 
     def _populate_nodes(self):

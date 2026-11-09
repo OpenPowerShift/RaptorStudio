@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import pytest
 from PySide6.QtCore import QItemSelectionModel, Qt
+from PySide6.QtGui import QColor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 pytestmark = pytest.mark.gui
 
 MODEL = "tests/golden/Capacity1/input.rbd"      # Infinite, Custom and Pooled
+SECOND = "tests/golden/CS_Probe/input.rbd"      # different block names/costs
 WHOLE = "new_docs/models/DC2.rbds"              # Home holds no blocks
 
 
@@ -24,22 +26,39 @@ def qapp():
     return QApplication.instance() or QApplication([])
 
 
-@pytest.fixture
-def win(qapp, monkeypatch):
-    from raptor.core.fileio.rbd import load_rbd
-    from raptor.gui.ui import dialogs, settings
+def _open_window(path, loader):
+    from raptor.gui.ui import settings
     from raptor.gui.ui.main_window import MainWindow
 
     settings.set_value("startup/show_start_page", False)
     w = MainWindow()
-    w._load_into_app(load_rbd(MODEL), MODEL)
+    w._load_into_app(loader(path), path)
     w.resize(1400, 800)
     w.show()
-    qapp.processEvents()
+    QApplication.processEvents()
+    return w
+
+
+@pytest.fixture
+def win(qapp, monkeypatch):
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.gui.ui import dialogs
+
+    w = _open_window(MODEL, load_rbd)
     w._asked = []
     monkeypatch.setattr(
         dialogs, "ask_apply_to_rows",
         lambda parent, n: (w._asked.append(n) or (True, False)))
+    yield w
+    w._dirty = False
+    w.close()
+
+
+@pytest.fixture
+def whole_win(qapp):
+    from raptor.core.fileio.rbds import load_rbds
+
+    w = _open_window(WHOLE, load_rbds)
     yield w
     w._dirty = False
     w.close()
@@ -87,20 +106,70 @@ def _block_row(rbd, bid):
 
 def test_costs_page_has_the_block_and_cost_columns_and_every_block(win):
     from raptor.gui.model_edit import BLOCK_COST_FIELDS
+    from raptor.gui.ui.table_export import RAW_VALUE_ROLE
 
     dt, t, view = _cost_table(win)
     assert dt._tabs.tabText(dt._tabs.indexOf(t)) == "Costs"
     headers = [t.horizontalHeaderItem(c).text()
                for c in range(t.columnCount())]
-    assert headers == (["Name", "ID"]
-                       + [c for _a, c in BLOCK_COST_FIELDS] + ["Level"])
+    # Literal, not derived from BLOCK_COST_FIELDS: a reorder of that tuple
+    # must not silently move the displayed columns too.
+    assert headers == [
+        "Name", "ID", "initial", "Running", "standby", "idle", "repFixed",
+        "repPerTime", "repHold", "pmFixedCost", "pmCost", "pmHoldCost",
+        "doneFixed", "donePerTime", "perSpare", "emerShipping", "Level"]
     assert t.rowCount() == len(view.blocks)
     assert {_bid(t, r) for r in range(t.rowCount())} == set(view.blocks)
     assert t.isColumnHidden(t.columnCount() - 1)   # not Whole model
     for r in range(t.rowCount()):
         block = view.blocks[_bid(t, r)]
+        for c in (0, 1):
+            assert not (t.item(r, c).flags() & Qt.ItemFlag.ItemIsEditable)
         for (attr, _c), col in zip(BLOCK_COST_FIELDS, range(2, 16)):
             assert t.item(r, col).text() == f"{getattr(block, attr):.3f}"
+            assert t.item(r, col).data(RAW_VALUE_ROLE) == pytest.approx(
+                getattr(block, attr))
+
+
+def test_an_edit_leaves_the_other_cost_columns_byte_for_byte(win, qapp):
+    """The costs page must not rewrite all 14 BLOCK_DATA columns: a long
+    decimal and a blank cost in the same row survive an unrelated edit."""
+    _dt, t, view = _cost_table(win)
+    row = 0
+    bid = _bid(t, row)
+    data = _block_row(view._rbd_ref, bid)
+    data["standby"] = "0.123456789"
+    data["idle"] = ""
+    col = _col("initial")
+    old = view.blocks[bid].initial_cost
+
+    t.item(row, col).setText(f"{old + 1:g}")
+    qapp.processEvents()
+
+    data = _block_row(view._rbd_ref, bid)
+    assert data["standby"] == "0.123456789"
+    assert data["idle"] == ""
+    assert float(data["initial"]) == pytest.approx(old + 1)
+
+
+def test_undo_restores_the_exact_old_cost_text(win):
+    """A saved cost with more than six decimals comes back verbatim on
+    undo, not rounded through the all-columns `_f6` writer."""
+    _dt, t, view = _cost_table(win)
+    row = 0
+    bid = _bid(t, row)
+    col = _col("initial")
+    data = _block_row(view._rbd_ref, bid)
+    data["initial"] = "1.23456789"
+    view.blocks[bid].initial_cost = 1.23456789
+    _dt._set_cost_text(t.item(row, col), 1.23456789)
+
+    t.item(row, col).setText("2.5")
+    assert _block_row(view._rbd_ref, bid)["initial"] == "2.500000"
+
+    view._stack.undo()
+    assert _block_row(view._rbd_ref, bid)["initial"] == "1.23456789"
+    assert view.blocks[bid].initial_cost == pytest.approx(1.23456789)
 
 
 def test_a_cell_commit_updates_block_and_file_in_one_undo_step(win, qapp):
@@ -200,6 +269,82 @@ def test_paste_fills_the_selected_rows_in_one_undo_step(win, qapp):
         before_running[i]) for i in ids)
 
 
+def test_paste_still_fills_when_the_first_selected_row_already_matches(
+        win, qapp):
+    """The fill path must not stop at an equal first target: the other
+    selected rows still need the pasted value."""
+    dt, t, view = _cost_table(win)
+    _select(t, [0, 1, 2])
+    ids = [_bid(t, r) for r in range(3)]
+    col = _col("Running")
+    _cur(t, 0, col)
+    text = t.item(0, col).text()          # exactly what row 0 shows now
+    before = {i: view.blocks[i].operating_cost for i in ids}
+    assert len({round(v, 3) for v in before.values()}) > 1
+    depth = view._stack.count()
+
+    assert dt.paste_into_selection(text)
+    qapp.processEvents()
+
+    assert all(view.blocks[i].operating_cost == pytest.approx(float(text))
+               for i in ids)
+    assert view._stack.count() == depth + 1
+    assert win._asked and win._asked[-1] >= 1
+
+
+def test_ctrl_d_skips_a_read_only_pooled_source_row(win):
+    """A read-only Pooled cell must not lend its value to the editable
+    rows: Ctrl+D takes the first EDITABLE selected row as the source."""
+    from raptor.core.model import SparingType
+
+    dt, t, view = _cost_table(win)
+    col = _col("perSpare")
+    pooled = next(b for b in view.blocks.values()
+                  if b.sparing_type == SparingType.SPARE_POOL)
+    normal = [b for b in view.blocks.values()
+              if b.sparing_type != SparingType.SPARE_POOL]
+    assert len(normal) >= 2
+    a, b = normal[0], normal[1]
+    assert a.spare_cost != b.spare_cost
+    _select(t, [_row_of(t, pooled.id), _row_of(t, a.id),
+                _row_of(t, b.id)])
+    _cur(t, _row_of(t, pooled.id), col)
+
+    assert dt.fill_down()
+    assert view.blocks[a.id].spare_cost == pytest.approx(a.spare_cost)
+    assert view.blocks[b.id].spare_cost == pytest.approx(a.spare_cost)
+    assert view.blocks[pooled.id].spare_cost == pytest.approx(pooled.spare_cost)
+
+
+def test_multi_row_spare_edits_skip_pooled_rows(win, qapp):
+    from raptor.core.model import SparingType
+
+    dt, t, view = _cost_table(win)
+    pooled = next(b for b in view.blocks.values()
+                  if b.sparing_type == SparingType.SPARE_POOL)
+    normal = [b for b in view.blocks.values()
+              if b.sparing_type != SparingType.SPARE_POOL][:2]
+    rows = [_row_of(t, pooled.id)] + [_row_of(t, b.id) for b in normal]
+    for name, attr in (("perSpare", "spare_cost"),
+                       ("emerShipping", "emergency_shipping_cost")):
+        col = _col(name)
+        _select(t, rows)
+        _cur(t, rows[-1], col)
+        before_pool = getattr(pooled, attr)
+        depth = view._stack.count()
+
+        assert dt.paste_into_selection("4321")
+        qapp.processEvents()
+
+        assert getattr(view.blocks[pooled.id], attr) == pytest.approx(
+            before_pool)
+        assert all(getattr(view.blocks[b.id], attr) == pytest.approx(4321)
+                   for b in normal)
+        assert view._stack.count() == depth + 1
+        assert "1 pooled row takes it from its pool" in (
+            win._statusbar.currentMessage())
+
+
 def test_ctrl_d_fills_down_across_the_selected_rows(win):
     dt, t, view = _cost_table(win)
     col = _col("Running")
@@ -214,46 +359,120 @@ def test_ctrl_d_fills_down_across_the_selected_rows(win):
                for r in range(3))
 
 
-def test_whole_model_cost_rows_are_read_only(qapp):
-    from raptor.core.fileio.rbds import load_rbds
-    from raptor.gui.ui import settings
-    from raptor.gui.ui.main_window import MainWindow
-
-    settings.set_value("startup/show_start_page", False)
-    w = MainWindow()
-    w._load_into_app(load_rbds(WHOLE), WHOLE)
-    w.show()
-    qapp.processEvents()
-    dt = w._data_tables
+def _tick_whole(win, qapp):
+    dt = win._data_tables
     dt._tabs.setCurrentWidget(dt._costs_table)
     dt._whole_box.setChecked(True)
     qapp.processEvents()
     t = dt._costs_table
+    assert t.rowCount() > 0
+    return dt, t, win._diagram_dock.view
 
+
+def test_whole_model_cost_rows_are_read_only_and_look_it(whole_win, qapp):
+    dt, t, _view = _tick_whole(whole_win, qapp)
     assert t.rowCount() == 14
     assert not t.isColumnHidden(t.columnCount() - 1)
+    grey = QColor(Qt.GlobalColor.gray)
     for r in range(t.rowCount()):
-        for c in range(2, 16):
-            assert not (t.item(r, c).flags() & Qt.ItemFlag.ItemIsEditable)
+        for c in range(t.columnCount()):
+            item = t.item(r, c)
+            assert item is not None
+            assert not (item.flags() & Qt.ItemFlag.ItemIsEditable)
+            assert item.foreground().color() == grey
+            assert dt._FOREIGN_TIP in item.toolTip()
         before = t.item(r, _col("Running")).text()
         t.item(r, _col("Running")).setText("99")
         assert t.item(r, _col("Running")).text() == before
-    w._dirty = False
-    w.close()
+
+
+def test_whole_model_live_rows_stay_editable_after_entering_a_level(
+        whole_win, qapp):
+    dt, t, view = _tick_whole(whole_win, qapp)
+    # Toggle the cache off and on, then change the live level: the cached
+    # whole-model rows must be rebuilt for the new live id set.
+    dt._whole_box.setChecked(False)
+    dt._whole_box.setChecked(True)
+    hid = next(iter(view._hier_items))
+    view.enter_level(hid)
+    qapp.processEvents()
+    dt.refresh(force=True)
+    t = dt._costs_table
+    live = set(view.blocks)
+    assert live
+    editable = {_bid(t, r) for r in range(t.rowCount())
+                if t.item(r, _col("Running")).flags()
+                & Qt.ItemFlag.ItemIsEditable}
+    assert editable == live
+    assert t.rowCount() == 14
+
+
+def test_whole_model_level_names_follow_a_hierarchy_rename(whole_win, qapp):
+    dt, t, view = _tick_whole(whole_win, qapp)
+    hid = next(iter(view._hier_items))
+    view.rename_hier(hid, "RenamedLevel")
+    qapp.processEvents()
+    dt.refresh(force=True)
+    t = dt._costs_table
+    levels = {t.item(r, t.columnCount() - 1).text()
+              for r in range(t.rowCount())}
+    assert any("RenamedLevel" in level for level in levels)
+
+
+def test_whole_model_cost_context_menu_goes_to_the_level(whole_win, qapp):
+    dt, t, _view = _tick_whole(whole_win, qapp)
+    seen = []
+    dt.element_locate_id_requested.connect(
+        lambda kind, oid: seen.append((kind, oid)))
+    pos = t.visualRect(t.model().index(0, 0)).center()
+    menu = dt._row_menu(t, "block", pos)
+    assert menu.actions()[0].text().startswith("Go to level: ")
+    menu.actions()[0].trigger()
+    assert seen and seen[0][0] == "block"
+
+
+def test_empty_costs_tab_says_which_level_has_no_blocks(whole_win, qapp):
+    dt = whole_win._data_tables
+    dt._tabs.setCurrentWidget(dt._costs_table)
+    qapp.processEvents()
+    t = dt._costs_table
+    assert t.rowCount() == 0                 # Home has no blocks
+    label = dt._empty_labels[t]
+    assert label.text().startswith("No blocks on this level")
+
+
+def test_a_second_model_never_reuses_the_first_models_cost_rows(win, qapp):
+    from raptor.core.fileio.rbd import load_rbd
+
+    dt = win._data_tables
+    _tick_whole(win, qapp)                   # cache the first model
+    second = load_rbd(SECOND)
+    win._load_into_app(second, SECOND)
+    qapp.processEvents()
+    dt.refresh(force=True)
+    dt._tabs.setCurrentWidget(dt._costs_table)
+    t = dt._costs_table
+    view = win._diagram_dock.view
+    rows = [r for r in second.sections["BLOCK_DATA"].rows
+            if str(r.get("ID", "")).strip() not in ("0", "0.0", "0.000000")]
+    expected = {int(float(r["ID"])) for r in rows}
+    assert {_bid(t, r) for r in range(t.rowCount())} == expected
+    assert {t.item(r, 0).text() for r in range(t.rowCount())} == {
+        r["blockName"] for r in rows}
+
+    # Editing a LIVE row must hit the second model's block, not a stale
+    # row with the same id from the first model.
+    bid = next(iter(view.blocks))
+    row = _row_of(t, bid)
+    old = view.blocks[bid].operating_cost
+    changed = old + 1.25
+    t.item(row, _col("Running")).setText(f"{changed:g}")
+    qapp.processEvents()
+    assert view.blocks[bid].operating_cost == pytest.approx(changed)
 
 
 def test_csv_filter_and_sort_use_the_displayed_rows(win, qapp):
-    from raptor.gui.ui.table_export import table_to_grid
-
     dt, t, view = _cost_table(win)
-    headers, rows = table_to_grid(t)
-    assert headers == [t.horizontalHeaderItem(c).text()
-                       for c in range(t.columnCount())
-                       if not t.isColumnHidden(c)]
-    assert len(rows) == t.rowCount() == len(view.blocks)
-    assert float(rows[0][_col("Running")]) == pytest.approx(
-        view.blocks[_bid(t, 0)].operating_cost)
-
     bar = dt._filter_bars[t]
     assert bar.available()
     bar.set_shown(True)
@@ -263,9 +482,104 @@ def test_csv_filter_and_sort_use_the_displayed_rows(win, qapp):
     shown, total = bar.rows_shown_of_total()
     expected = sum(1 for b in view.blocks.values() if b.operating_cost > 200)
     assert (shown, total) == (expected, len(view.blocks))
+
+    from raptor.gui.ui.table_export import table_to_grid
+    headers, rows = table_to_grid(t)
+    assert headers == [t.horizontalHeaderItem(c).text()
+                       for c in range(t.columnCount())
+                       if not t.isColumnHidden(c)]
+    assert len(rows) == shown
+    first_bid = int(rows[0][1])
+    assert rows[0][col] == str(float(view.blocks[first_bid].operating_cost))
     bar.clear()
 
     t.sortItems(col, Qt.SortOrder.DescendingOrder)
     qapp.processEvents()
     values = [float(t.item(r, col).text()) for r in range(t.rowCount())]
     assert values == sorted(values, reverse=True)
+
+
+def test_editing_after_a_sort_updates_the_row_the_user_sees(win, qapp):
+    _dt, t, view = _cost_table(win)
+    col = _col("Running")
+    t.sortItems(col, Qt.SortOrder.DescendingOrder)
+    qapp.processEvents()
+    row = 1
+    bid = _bid(t, row)
+    before_initial = view.blocks[bid].initial_cost
+    new = view.blocks[bid].operating_cost + 0.5
+
+    t.item(row, col).setText(f"{new:g}")
+    qapp.processEvents()
+
+    assert view.blocks[bid].operating_cost == pytest.approx(new)
+    assert view.blocks[bid].initial_cost == pytest.approx(before_initial)
+
+
+def test_filter_and_export_use_the_full_precision_cost(win, qapp):
+    """Display is the Inspector's three decimals; filter and CSV read the
+    exact stored value, so a cost between two displayed values matches."""
+    from raptor.gui.model_edit import BLOCK_COST_FIELDS
+    from raptor.gui.ui.table_export import RAW_VALUE_ROLE, table_to_grid
+
+    dt, t, view = _cost_table(win)
+    row = 0
+    bid = _bid(t, row)
+    idx = [c for _a, c in BLOCK_COST_FIELDS].index("Running")
+    values = [getattr(view.blocks[bid], a) for a, _c in BLOCK_COST_FIELDS]
+    values[idx] = 0.123456789
+    view.set_block_costs(bid, values, index=idx)
+    dt.refresh(force=True)
+    t = dt._costs_table
+    row = _row_of(t, bid)
+    item = t.item(row, _col("Running"))
+    assert item.text() == "0.123"
+    assert item.data(RAW_VALUE_ROLE) == pytest.approx(0.123456789)
+
+    bar = dt._filter_bars[t]
+    bar.set_shown(True)
+    col = _col("Running")
+    bar._editors[col].setText(">0.1231")
+    QTest.qWait(bar._timer.interval() + 80)
+    shown, total = bar.rows_shown_of_total()
+    assert (shown, total) == (total, len(view.blocks))
+    assert not t.isRowHidden(row)
+
+    _headers, rows = table_to_grid(t)
+    exported = next(r for r in rows if int(r[1]) == bid)
+    assert exported[col] == "0.123456789"
+    bar.clear()
+
+
+def test_cost_policy_is_shared_with_the_inspector(qapp):
+    from PySide6.QtWidgets import QDoubleSpinBox
+
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.core.model import SparingType
+    from raptor.gui.model_edit import (
+        BLOCK_COST_DECIMALS, BLOCK_COST_FIELDS, BLOCK_COST_LIMIT,
+        POOLED_COST_TIP, cost_field_readonly)
+    from raptor.gui.ui.data_tables import DataTablesDock
+    from raptor.gui.ui.diagram import DiagramView
+    from raptor.gui.ui.inspector import InspectorDock
+
+    view = DiagramView()
+    view.load_rbd(load_rbd(MODEL))
+    pooled = next(b for b in view.blocks.values()
+                  if b.sparing_type == SparingType.SPARE_POOL)
+    dock = InspectorDock()
+    dock.set_rbd(view._rbd_ref)
+    dock._populate_block(pooled)
+    qapp.processEvents()
+    spins = dock._scroll_costs.widget().findChildren(QDoubleSpinBox)
+    assert len(spins) == len(BLOCK_COST_FIELDS)
+    assert all(sp.minimum() == -BLOCK_COST_LIMIT
+               and sp.maximum() == BLOCK_COST_LIMIT for sp in spins)
+    assert all(sp.decimals() == BLOCK_COST_DECIMALS for sp in spins)
+    assert not spins[-2].isEnabled() and not spins[-1].isEnabled()
+    assert spins[-2].toolTip() == spins[-1].toolTip() == POOLED_COST_TIP
+    assert cost_field_readonly(pooled, "spare_cost")
+    assert cost_field_readonly(pooled, "emergency_shipping_cost")
+    assert not cost_field_readonly(pooled, "initial_cost")
+    assert DataTablesDock._COST_LIMIT == BLOCK_COST_LIMIT
+    assert DataTablesDock._COST_DECIMALS == BLOCK_COST_DECIMALS

@@ -84,6 +84,31 @@ class ParamsCmd(_ViewCmd):
         self._v._apply_value(self.what, self.oid, self.old)
         self._done()
 
+class BlockCostCmd(_ViewCmd):
+    """One block cost field (Data Tables' Costs grid).
+
+    Writes only that attr and BLOCK_DATA column. Going through the
+    all-14-values "costs" arm would rewrite every cost column with
+    `_f6`, truncating a saved value with more decimals and turning a
+    blank column into `0.000000`. Undo restores the exact old row text.
+    """
+
+    def __init__(self, view, bid, attr, col, old, old_text, new):
+        super().__init__(view, "Edit block cost")
+        self.bid, self.attr, self.col = bid, attr, col
+        self.old, self.old_text = old, old_text
+        self.new = new
+
+    def redo(self):
+        self._v._apply_block_cost(
+            self.bid, self.attr, self.col, self.new, f"{self.new:.6f}")
+        self._done()
+
+    def undo(self):
+        self._v._apply_block_cost(
+            self.bid, self.attr, self.col, self.old, self.old_text)
+        self._done()
+
 class DistCmd(_ViewCmd):
     """Distribution change (Data Tables): swaps FDist/RDist + the
     matching #FParam/#RParam counts in model and file row."""

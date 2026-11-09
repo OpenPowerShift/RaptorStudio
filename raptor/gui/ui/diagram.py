@@ -85,6 +85,7 @@ from raptor.gui import link_insert
 from raptor.gui.ui.diagram_items import flow_direction
 from raptor.gui.ui.diagram_commands import (  # noqa: F401
     AddCmd,
+    BlockCostCmd,
     BulkGeometryCmd,
     LayoutCmd,
     CollapseCmd,
@@ -3308,10 +3309,32 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                                    block_id, block.always_add_done_cost,
                                    flag))
 
-    def set_block_costs(self, block_id: int, values: list[float]):
-        """All 14 block cost fields in UI order."""
+    def set_block_costs(self, block_id: int, values: list[float],
+                        index: int | None = None):
+        """Block cost fields.
+
+        With `index`, change just `values[index]` and write only that
+        BLOCK_DATA column: an unrelated cost edit must not reformat the
+        other 13 (which would truncate long decimals and turn blanks into
+        `0.000000`). Without it, all 14 fields, as the Inspector's Apply
+        does.
+        """
         block = self.blocks.get(block_id)
         if block is None or len(values) != len(self.BLOCK_COST_FIELDS):
+            return
+        if index is not None:
+            if not 0 <= index < len(self.BLOCK_COST_FIELDS):
+                return
+            attr, col = self.BLOCK_COST_FIELDS[index]
+            old = float(getattr(block, attr))
+            new = float(values[index])
+            if abs(old - new) < 1e-9:
+                return
+            row = self._block_row_by_id(block_id)
+            old_text = (row.get(col, "") if row is not None
+                        else f"{old:.6f}")
+            self._stack.push(BlockCostCmd(self, block_id, attr, col,
+                                          old, old_text, new))
             return
         old_value = [getattr(block, attr)
                 for attr, _col in self.BLOCK_COST_FIELDS]
@@ -3403,6 +3426,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._stack.push(AnnoEditCmd(
             self, aid, start_state, end_state,
             layout_only=set(changes) <= geometry))
+
+    def _apply_block_cost(self, bid: int, attr: str, col: str,
+                          value: float, text: str) -> None:
+        """One block cost field, in the model and ONLY its BLOCK_DATA
+        column. `text` is the row's exact serialized value, so undo can
+        restore a long decimal or a blank verbatim."""
+        block = self.blocks.get(bid)
+        if block is not None:
+            setattr(block, attr, value)
+        if self._rbd_ref is None:
+            return
+        row = self._editor.block_row(bid)
+        if row is not None:
+            row[col] = text
 
     def _apply_value(self, what: str, oid: int, value):
         """Perform edit `what`. The model change is the editor's
