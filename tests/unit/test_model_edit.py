@@ -230,12 +230,33 @@ class TestRename:
     def test_block_rename_moves_its_comment_row(self, host, ed):
         bid = _bid(host)
         old = host.blocks[bid].name
+        # Make the legacy name unique among surviving elements; a shared
+        # name is deliberately not claimed (see the next test).
+        for row in host.rbd.sections["BLOCK_DATA"].rows:
+            if int(float(row["ID"])) not in (0, bid):
+                row["blockName"] = "Other"
         host.rbd.sections["COMMENTS"].rows.append(
             {"Type": "Block", "Name": old, "ID": "0"})
         assert ed.rename("block", bid, "Pump_2") is True
         assert host.blocks[bid].name == "Pump_2"
         c = host.rbd.sections["COMMENTS"].rows[-1]
         assert (c["Name"], c["ID"]) == ("Pump_2", str(bid))
+
+    def test_rename_does_not_claim_a_shared_legacy_comment(self, host, ed):
+        bid = _bid(host)
+        other = next(i for i in host.blocks if i != bid)
+        old = host.blocks[bid].name
+        for row in host.rbd.sections["BLOCK_DATA"].rows:
+            if int(float(row["ID"])) == other:
+                row["blockName"] = old
+                break
+        legacy = {"Type": "Block", "Name": old, "Comment": "shared"}
+        host.rbd.sections["COMMENTS"].rows.append(legacy)
+
+        assert ed.rename("block", bid, "Renamed") is True
+
+        assert legacy == {"Type": "Block", "Name": old,
+                          "Comment": "shared"}
 
     def test_node_uses_node_name(self, host, ed):
         nid = next(iter(host.nodes))

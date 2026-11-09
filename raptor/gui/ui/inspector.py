@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 from raptor.core.engine.diststats import compute_stats
 from raptor.core.annotations import ANNO_DEFAULT_LOCATION, ANNO_LOCATIONS
 
-from raptor.core.fileio.comments import find_comment_row
+from raptor.core.fileio.comments import comment_text
 from raptor.core.fileio.rbd import RbdFile
 from raptor.core.fileio.typed import system_config_from_row
 # The distribution rules are `raptor.core.distro_rules`'s, not this
@@ -847,9 +847,9 @@ class InspectorDock(QWidget):
         """
         if self._rbd is None:
             return ""
-        row = find_comment_row(
-            self._rbd.sections.get("COMMENTS"), etype, oid, name, stamp=True)
-        return (row.get("Comment", "") or "").replace("~", "\n") if row else ""
+        return comment_text(
+            self._rbd.sections.get("COMMENTS"), etype, oid, name
+        ).replace("~", "\n")
 
     def set_undo_stack(self, stack):
         """Adopt the application-level undo stack so formula-record

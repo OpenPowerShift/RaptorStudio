@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
     QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsLineItem, QWidget, QVBoxLayout,
 )
 
-from raptor.core.fileio.comments import find_comment_row
+from raptor.core.fileio.comments import comment_text, find_comment_row
 from raptor.core.fileio.rbd import RbdFile, RbdSection
 from raptor.core.fileio.rbdlib import dist_param_count as _dist_param_count
 from raptor.core.fileio import view_transform
@@ -2633,15 +2633,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 return row.get(name_col) or row.get("Name") or ""
         return self._element_name(etype, oid)
 
-    def _comment_row_for(self, etype: str, oid: int):
+    def _comment_row_for(self, etype: str, oid: int, *,
+                         stamp: bool = False):
         """The COMMENTS row for an element, by stored Type+ID first.
 
-        Names are not stable enough across level changes (the old code
-        looked the element up in the level-scoped pools, so a comment
-        command replayed after entering a hierarchy found no element and
-        updated/created the wrong row). The name fallback is only for
-        legacy rows with no ID; an ID-bearing row for another element is
-        never reused just because the names match.
+        Reads must leave a shared legacy no-ID row alone; only mutating
+        callers pass ``stamp=True``. Names are compared through the
+        legacy 20-char cap (a save may add a `~n` to one side only), and
+        an ID-bearing row for another element is never reused just
+        because the names match.
         """
         if self._rbd_ref is None:
             return None
@@ -2649,13 +2649,21 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 or self._element_name_any_level(etype, oid))
         return find_comment_row(
             self._rbd_ref.sections.get("COMMENTS"), etype, oid, name,
-            stamp=True)
+            stamp=stamp)
 
     def current_comment_stored(self, etype: str, oid: int) -> str:
         """The COMMENTS row's raw stored value ('~' for newlines) for one
-        element, or "" -- the undo command's "old" state."""
-        row = self._comment_row_for(etype, oid)
-        return (row.get("Comment", "") or "") if row is not None else ""
+        element, or "" -- the undo command's "old" state.
+
+        Read-only: never stamps a legacy row (menu enablement and
+        Inspector population go through this).
+        """
+        if self._rbd_ref is None:
+            return ""
+        name = (self._element_name(etype, oid)
+                or self._element_name_any_level(etype, oid))
+        return comment_text(
+            self._rbd_ref.sections.get("COMMENTS"), etype, oid, name)
 
     def has_convertible_comment(self, etype: str, oid: int) -> bool:
         """Whether a comment has visible text after `~` newlines expand.
@@ -2675,7 +2683,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         sec = self._rbd_ref.sections.get("COMMENTS") if self._rbd_ref else None
         if sec is None:
             return
-        target_row = self._comment_row_for(etype, oid)
+        target_row = self._comment_row_for(etype, oid, stamp=True)
         if target_row is None:
             if not stored:
                 return

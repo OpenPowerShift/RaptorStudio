@@ -14,7 +14,7 @@ from raptor.gui.ui.diagram_common import (  # noqa: I001
     _PARENT_COLS,
     _safe_int,
 )
-from raptor.core.fileio.comments import is_legacy_comment_row
+from raptor.core.fileio.comments import is_legacy_comment_row, names_agree
 from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 
 
@@ -440,7 +440,8 @@ def _surviving_names(view, section_name: str, name_col: str,
     sec = (view._rbd_ref.sections.get(section_name)
            if getattr(view, "_rbd_ref", None) is not None else None)
     return {r.get(name_col) for r in (sec.rows if sec is not None else [])
-            if _safe_int(r.get("ID")) not in dead_ids}
+            if _safe_int(r.get("ID")) > 0
+            and _safe_int(r.get("ID")) not in dead_ids}
 
 
 def _legacy_names(view, kind: str, section_name: str, name_col: str,
@@ -477,18 +478,40 @@ def _capture_comment_rows(view, dead_ids, dead_names):
     return out
 
 
-def _drop_comment_rows(view, dead_ids, dead_names, captured) -> None:
+def _drop_comment_rows(view, captured, dead_ids) -> None:
+    """Drop only live rows that the undo payload actually owns.
+
+    The captured row is the authority: a row that appeared after the
+    command was built (a new comment, or a shared legacy row that was
+    deliberately not captured) must survive redo.
+    """
     sec = (view._rbd_ref.sections.get("COMMENTS")
            if getattr(view, "_rbd_ref", None) is not None else None)
     if sec is None or not captured:
         return
-    sec.rows[:] = [
-        r for r in sec.rows
-        if not ((str(r.get("Type", "")).lower(),
-                 _safe_int(r.get("ID"))) in dead_ids
-                or (is_legacy_comment_row(r)
-                    and (str(r.get("Type", "")).lower(), r.get("Name"))
-                    in dead_names))]
+    captured_ids = {}
+    captured_legacy = set()
+    for row, _idx in captured:
+        kind = str(row.get("Type", "")).lower()
+        if is_legacy_comment_row(row):
+            captured_legacy.add((kind, row.get("Name")))
+        else:
+            captured_ids[(kind, _safe_int(row.get("ID")))] = row.get(
+                "Name", "")
+
+    def owned(row) -> bool:
+        kind = str(row.get("Type", "")).lower()
+        rid = _safe_int(row.get("ID"))
+        if (kind, rid) in captured_ids:
+            return names_agree(captured_ids[(kind, rid)],
+                               row.get("Name", ""))
+        # A legacy row stamped with the deleted element's ID is still the
+        # same captured row; an unrelated real ID must not be dropped.
+        return ((kind, row.get("Name")) in captured_legacy
+                and (is_legacy_comment_row(row)
+                     or (kind, rid) in dead_ids))
+
+    sec.rows[:] = [r for r in sec.rows if not owned(r)]
 
 
 def _restore_comment_rows(view, captured) -> None:
@@ -536,8 +559,8 @@ class DeleteCmd(_ViewCmd):
             view, self._dead_comment_ids, self._dead_comment_names)
 
     def _drop_comments(self) -> None:
-        _drop_comment_rows(self._v, self._dead_comment_ids,
-                           self._dead_comment_names, self.comment_rows)
+        _drop_comment_rows(self._v, self.comment_rows,
+                           self._dead_comment_ids)
 
     def _restore_comments(self) -> None:
         _restore_comment_rows(self._v, self.comment_rows)
@@ -772,8 +795,8 @@ class DissolveCmd(_ViewCmd):
         rbd = v._rbd_ref
         hier_section = rbd.sections["HIERARCHY_DATA"]
         if forward:
-            _drop_comment_rows(v, self._dead_comment_ids,
-                               self._dead_comment_names, self.comment_rows)
+            _drop_comment_rows(v, self.comment_rows,
+                               self._dead_comment_ids)
             rows = hier_section.rows
             rows[:] = [r for r in rows
                        if _safe_int(r.get("ID")) != self.hier_id]
