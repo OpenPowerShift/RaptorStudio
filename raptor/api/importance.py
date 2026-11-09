@@ -289,6 +289,11 @@ def analyse(rbd, baseline, *, mode: str = "both", runs: int | None = None,
         rbd, kinds, names, runs=n_runs, length=run_length_of(rbd),
         workers=workers, seed=seed, progress=progress,
         stop_check=stop_check, total=total)
+    # The last variant can finish between the loop's post-run check and
+    # here; a Stop during the final batch must cancel, not publish a
+    # partial ranking as complete.
+    if stop_check is not None and stop_check():
+        raise RuntimeError("importance analysis cancelled")
     metrics = _metric_rows(baseline, variants, names)
     return {"mode": mode, "runs": n_runs, "batches": total,
             "blocks": len(names), "metrics": metrics,
@@ -312,6 +317,11 @@ def _run_variants(rbd, kinds: Sequence[str], names, *, runs: int, length: float,
                            num_workers=workers, seed=seed,
                            collect_logs=False, _report_sink=sink,
                            stop_check=stop_check)
+            # Stop can land DURING the final variant's last run. Do not
+            # record that partial batch as a finished variant: the caller
+            # would then treat a cancelled pass as complete.
+            if stop_check is not None and stop_check():
+                raise RuntimeError("importance analysis cancelled")
             variants[kind][bid] = sink
             done += 1
             if progress is not None:

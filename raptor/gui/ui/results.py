@@ -715,9 +715,9 @@ class ResultsDock(QWidget):
         """Re-select a Final Results sub-tab and its scroll offset.
 
         `_populate_details` rebuilds every page, so the old widgets (and
-        their scroll bars) are gone. This is what keeps a live refresh --
-        baseline results replaced by the same results plus Importance --
-        from throwing the reader back to the top of a different tab.
+        their scroll bars) are gone. The tab is selected now; the scroll
+        value is applied one event-loop turn later, after the rebuilt page
+        has been laid out and its scrollbar range is real.
         """
         if not title:
             return
@@ -727,8 +727,32 @@ class ResultsDock(QWidget):
             self._details_tabs.setCurrentIndex(i)
             page = self._details_tabs.widget(i)
             if scroll and isinstance(page, QScrollArea):
-                page.verticalScrollBar().setValue(scroll)
+                QTimer.singleShot(
+                    0, lambda p=page, v=scroll: self._set_scroll(p, v))
             break
+
+    @staticmethod
+    def _set_scroll(widget, value: int) -> None:
+        try:
+            widget.verticalScrollBar().setValue(value)
+        except RuntimeError:
+            # A second population replaced the page before the deferred
+            # restore ran; there is nothing left to scroll.
+            pass
+
+    def _restore_graph_run(self, index: int) -> None:
+        """Keep the Graphs run selector on the run the reader was viewing."""
+        if 0 <= index < self._graph_run.count():
+            self._graph_run.setCurrentIndex(index)
+
+    def _restore_raw_view(self, tab_index: int, scroll: int) -> None:
+        """Keep the Report Text tab and its scroll position."""
+        if 0 <= tab_index < self._raw_tabs.count():
+            self._raw_tabs.setCurrentIndex(tab_index)
+            page = self._raw_tabs.widget(tab_index)
+            if scroll and isinstance(page, QPlainTextEdit):
+                QTimer.singleShot(
+                    0, lambda p=page, v=scroll: self._set_scroll(p, v))
 
     #: User picked a hierarchy in the filter combo (id, or 0 = all)
     hierarchy_filter_changed = Signal(int)
@@ -3078,9 +3102,9 @@ class ResultsDock(QWidget):
                 progress(label, done, total)
 
         # A live refresh (baseline results replaced by the same run plus
-        # its Importance data) must not move the reader: remember the
-        # selected Final Results sub-tab and its scroll offset, then put
-        # them back once the rebuilt pages exist.
+        # its Importance data) must not move the reader: remember every
+        # selectable view and its scroll offset, then put them back once
+        # the rebuilt pages exist.
         previous_tab = None
         previous_scroll = 0
         cur_index = self._details_tabs.currentIndex()
@@ -3089,6 +3113,14 @@ class ResultsDock(QWidget):
             current_page = self._details_tabs.widget(cur_index)
             if isinstance(current_page, QScrollArea):
                 previous_scroll = current_page.verticalScrollBar().value()
+        previous_run = self._run_selector.currentIndex()
+        previous_log_scroll = self._log_tree.verticalScrollBar().value()
+        previous_graph_run = self._graph_run.currentIndex()
+        previous_raw_tab = self._raw_tabs.currentIndex()
+        previous_raw_scroll = 0
+        raw_page = self._raw_tabs.widget(previous_raw_tab)
+        if isinstance(raw_page, QPlainTextEdit):
+            previous_raw_scroll = raw_page.verticalScrollBar().value()
 
         stage("overview", 1, 6)
         self._populate_overview()
@@ -3099,8 +3131,10 @@ class ResultsDock(QWidget):
         self._restore_details_view(previous_tab, previous_scroll)
         stage("graphs", 4, 6)
         self._update_graphs()
+        self._restore_graph_run(previous_graph_run)
         stage("raw report", 5, 6)
         self._populate_raw(end_of_run_lines, final_results_lines)
+        self._restore_raw_view(previous_raw_tab, previous_raw_scroll)
         # Interim Cost tab only earns its place when there IS interim
         # cost text (models without cost analysis stay uncluttered).
         has_cost = bool(self._stream_lines(getattr(self, "_cost_lines", None)))
@@ -3133,9 +3167,42 @@ class ResultsDock(QWidget):
         self._tabs.show()
         stage("event log", 6, 6)
         if event_logs:
-            self._run_selector.setCurrentIndex(0)
-            self._show_selected_run(0)
+            wanted = min(max(previous_run, 0),
+                         max(self._run_selector.count() - 1, 0))
+            self._run_selector.blockSignals(True)
+            self._run_selector.setCurrentIndex(wanted)
+            self._run_selector.blockSignals(False)
+            self._show_selected_run(wanted)
+            if previous_log_scroll:
+                QTimer.singleShot(
+                    0, lambda v=previous_log_scroll: self._set_scroll(
+                        self._log_tree, v))
         self._update_log_empty_state()
+        self._refresh_theme()
+        self.contents_changed.emit()
+
+    def set_importance(self, importance: dict | None) -> None:
+        """Replace only the Importance page on an already-populated result set.
+
+        A run with importance measures presents its baseline first, then
+        completes the same run with the measures. Rebuilding every table,
+        graph and raw view for that second step costs a full report parse
+        on a large model and moves the reader. Only the Importance tab can
+        have changed, so touch only that tab.
+        """
+        self._importance = importance
+        if not hasattr(self, "_importance_metric"):
+            self._importance_metric = "Availability"
+        idx = next((i for i in range(self._details_tabs.count())
+                    if self._details_tabs.tabText(i) == "Importance"), -1)
+        if idx >= 0:
+            page = self._details_tabs.widget(idx)
+            self._details_tabs.removeTab(idx)
+            req(page).deleteLater()
+        if importance:
+            page = self._build_importance_page()
+            self._details_tabs.addTab(self._scroll_wrap(page), "Importance")
+        self._update_hier_filter_visibility()
         self._refresh_theme()
         self.contents_changed.emit()
 
