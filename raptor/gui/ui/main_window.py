@@ -12,11 +12,13 @@ from raptor.gui.ui.qtcompat import req
 from raptor.gui.ui import msgbox
 from raptor.gui import text_editing
 from raptor.bundled import candidate_roots
+import gc
 import logging
 import math
 import os
 import platform
 import re
+import threading
 import time
 from typing import Any, cast
 from pathlib import Path
@@ -93,6 +95,37 @@ def _engine_version() -> str:
     """The version string recorded in a run manifest, so a result can be
     traced back to the engine that produced it."""
     return f"raptor-studio {_APP_VERSION}"
+
+
+#: Cyclic-GC suppression shared by the background-run and Terminate
+#: finalize workers. A worker thread must not collect Qt wrappers owned by
+#: the GUI thread. Disable/enable is reference-counted so one worker's
+#: exit cannot re-enable collection while another is still running.
+_GC_SUPPRESS_LOCK = threading.Lock()
+_GC_SUPPRESS_USERS = 0
+_GC_SUPPRESS_RESTORE = False
+
+
+def _suppress_cyclic_gc() -> None:
+    """Disable cyclic GC for a worker; safe when workers overlap."""
+    global _GC_SUPPRESS_USERS, _GC_SUPPRESS_RESTORE
+    with _GC_SUPPRESS_LOCK:
+        if _GC_SUPPRESS_USERS == 0:
+            _GC_SUPPRESS_RESTORE = gc.isenabled()
+            if _GC_SUPPRESS_RESTORE:
+                gc.disable()
+        _GC_SUPPRESS_USERS += 1
+
+
+def _resume_cyclic_gc() -> None:
+    """Release one worker's suppression; the last one restores GC."""
+    global _GC_SUPPRESS_USERS
+    with _GC_SUPPRESS_LOCK:
+        if _GC_SUPPRESS_USERS == 0:
+            return
+        _GC_SUPPRESS_USERS -= 1
+        if _GC_SUPPRESS_USERS == 0 and _GC_SUPPRESS_RESTORE:
+            gc.enable()
 
 
 from raptor.gui.key_tips import FILE_KEY_TIP, TAB_KEY_TIPS  # noqa: E402
@@ -313,10 +346,18 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     #: smooth enough for human perception, without hammering the Qt
     #: event loop at Max speed.
     _BG_POLL_INTERVAL_FLOOR = 30
+    #: Terminate finalize worker poll (ms). Short enough that results
+    #: appear as soon as the worker finishes, long enough not to spin.
+    _STEP_FINALIZE_POLL_MS = 50
     #: the stepping session, the background-run thread and its last progress/bar keys (None when idle)
     _bg_thread: Any = None
     _bg_last_progress: Any = None
     _bg_last_bar: Any = None
+    #: A Terminate finalize running on a worker thread: plain state dict
+    #: shared with the thread and polled by `_step_finalize_timer` (no
+    #: cross-thread Qt calls), plus the thread itself.
+    _step_finalize_state: Any = None
+    _step_finalize_thread: Any = None
     #: True while ResultsDock.set_results is populating; its progress
     #: callback pumps the event loop, which must not re-enter the poll
     #: tick or start a second population.
@@ -337,6 +378,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._bg_poll = QTimer(self)
         self._bg_poll.setInterval(self._BG_POLL_INTERVAL_DEFAULT)
         self._bg_poll.timeout.connect(self._bg_poll_tick)
+        # Terminate finalize worker poll: the worker only fills a plain
+        # dict; this timer presents the results on the GUI thread.
+        self._step_finalize_timer = QTimer(self)
+        self._step_finalize_timer.setInterval(self._STEP_FINALIZE_POLL_MS)
+        self._step_finalize_timer.timeout.connect(
+            self._step_finalize_poll_tick)
         # Canvas selection -> Inspector rebuild is debounced (see
         # `_on_canvas_block_selected`): one rebuild for a burst of clicks.
         self._pending_block_selection: int | None = None
@@ -1669,6 +1716,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         live_page = self._live_log_panel
         self._live_log_tree = self._live_log_panel.tree
         self._live_log_caption = self._live_log_panel.caption
+        # Focus Event controls whether new log rows are followed to the
+        # bottom; with it off the user's selection/scroll stays put.
+        self._live_log_panel.set_follow_latest(
+            self._focus_event_action.isChecked())
+        self._focus_event_action.toggled.connect(
+            self._live_log_panel.set_follow_latest)
         # Same affordances as the Results dock's Event Log: the State
         # column coloured green/amber/red, and a click on a Block/Node row
         # locating that element on the canvas.
@@ -2262,6 +2315,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         active: False -- the focused widget's own Esc semantics (canvas
         tool-cancel, annotation-edit exit) take over via the re-dispatch;
         a stepped session is left alone (Terminate ends it)."""
+        if getattr(self, "_step_finalize_state", None) is not None:
+            self._statusbar.showMessage(
+                "Finalizing the stepped run — results appear when ready", 4000)
+            return True
         if getattr(self, "_run_action", None) is not None and \
                 not self._run_action.isEnabled():
             bg_state = getattr(self, "_bg_state", None)
@@ -3386,6 +3443,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         Stop button's own mechanisms (sync flag / bg event / step
         session teardown)."""
         self._edit_run_abandoned = True
+        if self._step_finalize_state is not None:
+            # Terminate's finalize cannot be cancelled; drop its results
+            # and let the worker wind down. The status says so instead of
+            # silently losing the early-terminate report.
+            self._discard_step_finalize(
+                "Early-terminate results discarded — model edited")
+            self._sync_run_settings_lock()
+            return
         if getattr(self, "_step_session", None) is not None:
             self._invalidate_step_session()
             self._statusbar.showMessage(
@@ -3405,15 +3470,25 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._on_fev_log_close()
         if getattr(self, "_fev_status_dialog", None) is not None:
             cast(Any, self)._fev_status_dialog.close()
+        # A Terminate finalize may still be running; its results are for
+        # the session being discarded, so drop them and let the worker
+        # finish on its own.
+        finalizing = self._step_finalize_state is not None
+        self._discard_step_finalize()
         self._reset_live_log()
+        # Unconditional: a discarded finalize has no session left, but its
+        # live colours must still go.
+        self._diagram_dock.view.clear_live_states()
         if getattr(self, "_step_session", None) is not None:
             self._step_session = None
             self._step_sink = []
-            self._diagram_dock.view.clear_live_states()
             # The run is over, so the run settings unlock. Derived, not
             # remembered -- see `_sync_run_settings_lock`.
             self._sync_run_settings_lock()
             self._statusbar.showMessage("Stepped run discarded — model changed")
+        elif finalizing:
+            self._statusbar.showMessage(
+                "Early-terminate results discarded — model changed", 6000)
 
     def _update_title(self):
         star = "*" if self._dirty else ""
@@ -5015,6 +5090,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # abort, not a Python exception, if it lands after teardown).
             self._canvas_room_timer.stop()
             self._inspector_select_timer.stop()
+            self._step_finalize_timer.stop()
             self._close_report_streams()
             # Clean exit: drop the crash-recovery copy so it isn't
             # offered as a "crash" on the next launch.
@@ -5045,6 +5121,22 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         note, which read as the window ignoring the click (and in Qt 6 it
         also cancels Quit)."""
         from raptor.gui.ui.dialogs import question_box
+        finalize = getattr(self, "_step_finalize_state", None)
+        if finalize is not None:
+            # Closing discards the in-flight finalize: its results cannot
+            # be shown after the window is gone. Keep its state until the
+            # worker is actually done, then let the poll clear/unlock it.
+            self._discard_step_finalize()
+            thread = self._step_finalize_thread
+            deadline = time.monotonic() + 15.0
+            while thread is not None and thread.is_alive() \
+                    and time.monotonic() < deadline:
+                QApplication.processEvents()
+                thread.join(0.05)
+            state = self._step_finalize_state
+            if state is not None and state.get("done"):
+                self._step_finalize_poll_tick()
+            return True
         bg_state = getattr(self, "_bg_state", None) or {}
         if not bg_state or bg_state.get("done"):
             msgbox.information(
@@ -5384,6 +5476,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._statusbar.showMessage(
                 "Still rendering the previous results — try again in a "
                 "moment.", 5000)
+            return
+        if self._step_finalize_state is not None:
+            self._statusbar.showMessage(
+                "Finalizing the stepped run — wait for its results", 5000)
             return
         if self._rbd is None:
             return
@@ -5924,7 +6020,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _refresh_live_step_view(self, session):
         # Refresh after every step (no throttle -- stepping is user-paced,
         # the whole point is watching each event land).
-        if self._live_sim_action.isChecked():
+        live = self._live_sim_action.isChecked()
+        focus_event = self._focus_event_action.isChecked()
+        if live:
             if not self._diagram_dock.isVisible():
                 self._diagram_dock.show()
             self._diagram_dock.view.update_live_states(
@@ -5934,12 +6032,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._update_system_swatch(
                 getattr(getattr(session.cascade, "system_state", None),
                         "color", None))
+        # The Live Log tracks every step even with Animate off: Focus
+        # Event is a live-log feature and must not select a stale row.
+        if live or focus_event:
             self._show_live_log_dock(True)
-            # Follows the run being stepped, across run boundaries; the
-            # selector keeps the finished runs readable.
-            self._live_log_panel.update_session(
-                [lg for lg, _ in getattr(session, "completed", [])],
-                session.logs, getattr(session, "num_runs", 1), session.time)
+        # Follows the run being stepped, across run boundaries; the
+        # selector keeps the finished runs readable.
+        self._live_log_panel.update_session(
+            [lg for lg, _ in getattr(session, "completed", [])],
+            session.logs, getattr(session, "num_runs", 1), session.time)
         logs = session.logs
         self._statusbar.showMessage(
             f"Stepping — t = {session.time:.3f} "
@@ -5951,7 +6052,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # no cached custom-titlebar label to keep in sync.
         self._live_log_dock.setWindowTitle(
             f"Live Log — t = {session.time:.3f} ({len(logs)} events)")
-        if self._results_dock.isVisible() and self._live_sim_action.isChecked():
+        if self._results_dock.isVisible() and live:
             self._results.show_live_logs(
                 [lg for lg, _ in session.completed] + [logs],
                 session.num_runs)
@@ -5966,14 +6067,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         v = self._diagram_dock.view
         target_item = None
         message = None
+        focus_index = None
         # Prefer the last new log line mentioning a real element
-        # (skip System bookkeeping) for both wording and focus.
-        parsed = []
-        for line in new_lines:
+        # (skip System bookkeeping) for both wording and focus. Keep each
+        # line's absolute index: the Live Log row to select is that line.
+        parsed: list[tuple[int, list[str]]] = []
+        for offset, line in enumerate(new_lines):
             parts = [p.strip() for p in line.split("\t")]
             if len(parts) >= 4:
-                parsed.append(parts)  # time, Kind, Name, Status, [comment]
-        for parts in reversed(parsed):
+                parsed.append((prev_line_count + offset,
+                               parts))  # time, Kind, Name, Status, [comment]
+        for index, parts in reversed(parsed):
             kind, name, status = parts[1], parts[2], parts[3]
             if kind == "System" or name in ("--",):
                 continue
@@ -5988,11 +6092,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 or v._hier_items.get(next(
                     (h for h in v.hiers if v.hiers[h].name == name),
                     None)))
+            focus_index = index
             if target_item is not None:
                 break
         if message is None and parsed:
-            parts = parsed[-1]
+            index, parts = parsed[-1]
             message = f"{parts[1]} {parts[2]} → {parts[3]}  (t = {parts[0]})"
+            focus_index = index
         # Fall back to block-status diff when log parsing finds nothing.
         if message is None:
             for b in session.blocks:
@@ -6001,9 +6107,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                                f"{getattr(b.op_status, 'value', b.op_status)}"
                                f"  (t = {session.time:.3f})")
                     target_item = v._block_items.get(b.id)
+                    focus_index = None
                     break
-        if self._focus_event_action.isChecked() and target_item is not None:
-            v.centerOn(target_item)
+        if self._focus_event_action.isChecked():
+            if target_item is not None:
+                v.centerOn(target_item)
+            if focus_index is not None:
+                self._live_log_panel.focus_event(focus_index)
         self._statusbar.showMessage(
             (message or f"Step — t = {session.time:.3f}")
             + self._phase_status_suffix(session))
@@ -6028,7 +6138,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         return f" — {label} ({mission})"
 
     def _on_step(self):
-        if self._rbd is None:
+        if self._rbd is None or self._step_finalize_state is not None:
             return
         try:
             session = self._ensure_step_session()
@@ -6065,7 +6175,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def _on_step_change(self):
         """Step to the next system-state change (Raptor 7's Step; `StepSession.step_to_change`)."""
-        if self._rbd is None:
+        if self._rbd is None or self._step_finalize_state is not None:
             return
         try:
             session = self._ensure_step_session()
@@ -6098,6 +6208,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         (`until_time_changes`), or the run ends. Focuses/describes only
         the LAST change (per-event centring during a multi-step would
         be seizure-inducing). Returns True if a breakpoint fired."""
+        if self._step_finalize_state is not None:
+            return False
         session = self._ensure_step_session()
         start_time = session.time if until_time_changes else None
         fired = False
@@ -6245,10 +6357,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if not session.has_next_run:
             self._on_step_finish()
             return
+        session.jump_to_next_run_start()
+        # Snapshot AFTER the jump: it replaces the driver's log list, so
+        # a `prev_lines` taken before points past the new run's lines and
+        # Focus Event would have no row to select.
         prev = {b.id: b.op_status for b in session.blocks}
         prev_lines = len(session.logs)
-        session.jump_to_next_run_start()
         session.step_to_change()
+        if len(session.logs) == prev_lines:
+            # The new run paused on its kickoff rows (they were already in
+            # the fresh log); they are the event to show.
+            prev_lines = 0
         self._refresh_live_step_view(session)
         self._describe_and_focus_step(session, prev, prev_lines)
         self._statusbar.showMessage(
@@ -6270,6 +6389,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 prev = {b.id: b.op_status for b in session.blocks}
                 prev_lines = len(session.logs)
                 session.step_to_change()
+                if len(session.logs) == prev_lines:
+                    # Kickoff already logged this run's first rows: they
+                    # are the step Focus Event should reveal.
+                    prev_lines = 0
             finally:
                 QApplication.restoreOverrideCursor()
             self._refresh_live_step_view(session)
@@ -8746,6 +8869,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def _start_background_run(self, num_runs: int):
         import threading
+        if self._step_finalize_state is not None:
+            self._statusbar.showMessage(
+                "Finalizing the stepped run — wait for its results", 5000)
+            return
         if self._bg_thread is not None and self._bg_thread.is_alive():
             return
         # Taken on the GUI thread, before the worker starts.
@@ -8810,11 +8937,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # its C++ object is a use-after-free (seen as a segfault in
             # `Garbage-collecting` on a large model). The run's own objects
             # are reference-counted; defer only the cyclic collector and
-            # restore it when the worker exits.
-            import gc
-            gc_was_enabled = gc.isenabled()
-            if gc_was_enabled:
-                gc.disable()
+            # restore it when the worker exits. Reference-counted because
+            # a Terminate finalize worker may overlap this one.
+            _suppress_cyclic_gc()
             try:
                 report_data: list = []
                 report_notes: list[str] = []
@@ -8984,8 +9109,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     traceback.format_exception_only(type(e), e)).strip() \
                     + "\n" + traceback.format_exc(limit=8)
             finally:
-                if gc_was_enabled:
-                    gc.enable()
+                _resume_cyclic_gc()
                 state["done"] = True
 
         self._bg_thread = threading.Thread(target=worker, daemon=True)
@@ -9318,6 +9442,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # kind) combined with a genuinely live (not-yet-`done`)
         # `_bg_state` check -- the same "bg_running" test
         # `keyPressEvent`'s own Esc handler uses.
+        if getattr(self, "_step_finalize_state", None) is not None:
+            self._statusbar.showMessage(
+                "Finalizing the stepped run — results appear when ready", 4000)
+            return
         bg_state = getattr(self, "_bg_state", None)
         bg_running = bool(bg_state and not bg_state.get("done"))
         if not bg_running:
@@ -10023,7 +10151,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """B-11 Restart: tear down the current stepped session and start
         an identical fresh one (kickoff resets everything; RNG streams
         reseed from the table, matching a brand-new session)."""
-        if self._rbd is None:
+        if self._rbd is None or self._step_finalize_state is not None:
             return
         self._invalidate_step_session()
         self._ensure_step_session()
@@ -10031,49 +10159,173 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._statusbar.showMessage(
             "Stepped run restarted — t = 0", 6000)
 
+    def _discard_step_finalize(self, message: str | None = None) -> bool:
+        """Mark a running Terminate finalize's results as discarded.
+
+        The worker cannot be cancelled; its state, timer and thread stay
+        alive until it reports done, when `_step_finalize_poll_tick`
+        clears them and unlocks the window. Keeping them until then means
+        a new finalize/background worker cannot overlap the old one."""
+        state = self._step_finalize_state
+        if state is None:
+            return False
+        state["discard"] = True
+        self._diagram_dock.view.clear_live_states()
+        if message:
+            state["discard_message"] = message
+            self._statusbar.showMessage(message, 6000)
+        if state.get("done") and not self._step_finalize_timer.isActive():
+            # The worker finished between the last poll and this call.
+            self._step_finalize_timer.start()
+        return True
+
     def _on_step_terminate(self):
-        """Manual B-11 Early Terminate on the stepped session."""
-        if self._step_session is None:
+        """Manual B-11 Early Terminate on the stepped session.
+
+        The expensive part (finalize passes, report tables, results
+        construction) runs on a worker thread; the GUI only presents the
+        finished result on its own thread. See
+        `_step_finalize_poll_tick`. No hierarchy level is entered or left.
+        """
+        if self._step_session is None or self._step_finalize_state is not None:
             return
         session = self._step_session
         t = session.time
+        self._diagram_dock.view.clear_live_states()
         self._reset_live_log()
         self._show_live_log_dock(False)
         self._on_fev_log_close()
-        self._step_session = None   # single-use from here
+        state = {
+            "done": False,
+            "error": None,
+            "result": None,
+            "session": session,
+            "t": t,
+            "rbd": self._rbd,
+            "sink": self._step_sink,
+            "ao_sink": self._step_ao,
+            "discard": False,
+            "discard_message": None,
+        }
+        self._step_finalize_state = state
+        self._run_in_progress = True
+        self._step_session = None   # single-use; the worker owns it now
         self._sync_run_settings_lock()
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            logs, report = session.early_terminate()
-        except Exception as e:
-            QApplication.restoreOverrideCursor()
-            msgbox.critical(self, "Terminate Failed",
-                                 f"Early terminate failed:\n\n{e}")
-            return
-        event_logs = [logs]
-        eor_lines: list[str] = []
-        final_lines: list[str] = []
-        report_data = list(self._step_sink)
-        if report is not None:
-            model = session.model
-            date = time.ctime()
-            file_name = session.rbd_file.file_name
-            eor_lines = [f"End_Of_Run Report for {file_name}  {date}",
-                         "(Early Terminate)", ""]
-            eor_lines.extend(build_end_of_run_report(
-                report, model.blocks_by_id))
-            final_lines = build_final_results_report(
-                [report], model.blocks_by_id, file_name,
-                model.run_length, date,
-                termination_type=model.termination_type)
-        QApplication.restoreOverrideCursor()
-        self._diagram_dock.view.clear_live_states()
-        self._present_run_results(event_logs, eor_lines, final_lines,
-                                  report_data,
-                                  ao_lines=list(self._step_ao or []),
-                                  cap_lines=session.cap_lines)
+        self._refresh_commands()
         self._statusbar.showMessage(
-            f"Early Terminate at t = {t:.3f} — partial results kept")
+            f"Finalizing early terminate at t = {t:.3f} — results appear "
+            "when ready")
+
+        def worker():
+            # Same cyclic-GC rule as the background run: never let a pass
+            # walk Qt wrappers owned by the GUI thread. Reference-counted
+            # so an overlapping background worker cannot have GC re-enabled
+            # by this worker's exit (or vice versa).
+            _suppress_cyclic_gc()
+            try:
+                logs, report = session.early_terminate()
+                report_data = list(state["sink"] or [])
+                eor_lines: list[str] = []
+                final_lines: list[str] = []
+                if report is not None:
+                    model = session.model
+                    date = time.ctime()
+                    file_name = session.rbd_file.file_name
+                    eor_lines = [
+                        f"End_Of_Run Report for {file_name}  {date}",
+                        "(Early Terminate)", ""]
+                    eor_lines.extend(build_end_of_run_report(
+                        report, model.blocks_by_id))
+                    final_lines = build_final_results_report(
+                        [report], model.blocks_by_id, file_name,
+                        model.run_length, date,
+                        termination_type=model.termination_type)
+                state["result"] = (
+                    [logs], eor_lines, final_lines, report_data,
+                    list(state["ao_sink"] or []), session.cap_lines)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                state["error"] = "".join(
+                    traceback.format_exception_only(type(e), e)).strip() \
+                    + "\n" + traceback.format_exc(limit=8)
+            finally:
+                _resume_cyclic_gc()
+                state["done"] = True
+
+        try:
+            thread = threading.Thread(target=worker, daemon=True)
+            self._step_finalize_thread = thread
+            thread.start()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._step_finalize_thread = None
+            state["error"] = "".join(
+                traceback.format_exception_only(type(e), e)).strip() \
+                + "\n" + traceback.format_exc(limit=8)
+            state["done"] = True
+        self._step_finalize_timer.start()
+
+    def _step_finalize_poll_tick(self):
+        """Present a finished Terminate finalize on the GUI thread."""
+        state = self._step_finalize_state
+        if state is None:
+            self._step_finalize_timer.stop()
+            return
+        if not state.get("done"):
+            return
+        # Stop before any presentation: `set_results` pumps the event loop
+        # and must not re-enter this tick.
+        self._step_finalize_timer.stop()
+        try:
+            # The model/window went away (or was replaced) while the
+            # worker ran: drop the result rather than painting it over
+            # another model.
+            if state.get("discard") or self._rbd is not state.get("rbd"):
+                self._diagram_dock.view.clear_live_states()
+                if not state.get("discard_message"):
+                    self._statusbar.showMessage(
+                        "Early-terminate results discarded", 6000)
+                return
+            err = state.get("error")
+            if err:
+                self._diagram_dock.view.clear_live_states()
+                msgbox.critical(self, "Terminate Failed",
+                                f"Early terminate failed:\n\n{err}")
+                self._statusbar.showMessage("Early terminate failed")
+                return
+            if state.get("result") is None:
+                self._diagram_dock.view.clear_live_states()
+                return
+            event_logs, eor_lines, final_lines, report_data, ao_lines, \
+                cap_lines = state["result"]
+            self._diagram_dock.view.clear_live_states()
+            self._present_run_results(event_logs, eor_lines, final_lines,
+                                      report_data,
+                                      ao_lines=ao_lines,
+                                      cap_lines=cap_lines)
+            self._statusbar.showMessage(
+                f"Early Terminate at t = {state['t']:.3f} — partial results "
+                "kept")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            msgbox.critical(self, "Results Failed",
+                            "The early-terminated run finished, but its "
+                            f"results could not be shown:\n\n{e}")
+            self._statusbar.showMessage("Early terminate results failed")
+        finally:
+            # Unlock only after presentation (or failure) has finished.
+            self._step_finalize_state = None
+            self._step_finalize_thread = None
+            self._run_in_progress = False
+            try:
+                self._refresh_commands()
+                self._sync_run_settings_lock()
+            except Exception:
+                import traceback
+                traceback.print_exc()
 
     def _on_event_renamed(self, eid: int, new_name: str):
         v = self._diagram_dock.view

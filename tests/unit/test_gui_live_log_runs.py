@@ -92,13 +92,18 @@ def test_an_earlier_run_can_be_looked_at_while_stepping_on(window, qapp):
     assert len(_rows(panel)) == len(finished)
     assert _rows(panel)[0].text(0) == finished[0].split("\t")[0].strip()
     assert not _highlighted(panel), "a finished run has no current event"
-    # Stepping on leaves the run on screen alone...
+    # Focus Event off: stepping on leaves the run on screen alone. With it
+    # on, the panel returns to the stepped run (see
+    # test_gui_live_log_focus.py) -- the point here is the earlier run
+    # staying readable when the user has taken over the view.
+    window._focus_event_action.setChecked(False)
     before = [r.text(0) for r in _rows(panel)]
     window._on_step()
     qapp.processEvents()
     assert [r.text(0) for r in _rows(panel)] == before
     assert panel.run_combo.currentIndex() == 0
     # ...and going back to the current run shows the newest rows again.
+    window._focus_event_action.setChecked(True)
     panel.next_button.click()
     qapp.processEvents()
     assert panel.following

@@ -14,11 +14,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QFont
 from PySide6.QtWidgets import (
-    QComboBox, QHBoxLayout, QLabel, QToolButton, QTreeWidget,
-    QTreeWidgetItem, QVBoxLayout, QWidget,
+    QAbstractItemView, QComboBox, QHBoxLayout, QLabel, QToolButton,
+    QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
 from raptor.api.tables import parse_event_log_line
@@ -36,6 +36,10 @@ class LiveLogPanel(QWidget):
 
     #: The run on screen was changed by the user (0-based index).
     run_selected = Signal(int)
+
+    #: True while Focus Event is on: new rows are followed to the bottom.
+    #: Off, the user's scroll position is left alone.
+    _follow_latest = True
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -114,6 +118,41 @@ class LiveLogPanel(QWidget):
         """True when the run on screen is the one being stepped."""
         return self._shown == self.current_index
 
+    def set_follow_latest(self, follow: bool) -> None:
+        """Follow newly appended rows to the bottom, or leave the view
+        where the user put it (Focus Event off)."""
+        self._follow_latest = bool(follow)
+
+    def focus_event(self, index: int) -> bool:
+        """Select and scroll to the current run's `index`th log line.
+
+        If the user is reading an earlier run, switch back to the run
+        being stepped first: the event just described happened there.
+        Returns whether a row was found and selected."""
+        if index < 0 or index >= len(self._current):
+            return False
+        if not self.following:
+            self._show_run(self.current_index)
+            self._update_status()
+            self._sync_buttons()
+        row = index - self._cut
+        if row < 0 or row >= self.tree.topLevelItemCount():
+            return False
+        item = self.tree.topLevelItem(row)
+        if item is None:
+            return False
+        # This is a programmatic focus, not a click: select the row
+        # without re-running the click handler (which would locate the
+        # element on the canvas again / navigate into its hierarchy).
+        blocker = QSignalBlocker(self.tree)
+        try:
+            self.tree.setCurrentItem(item)
+        finally:
+            blocker.unblock()
+        self.tree.scrollToItem(
+            item, QAbstractItemView.ScrollHint.PositionAtCenter)
+        return True
+
     def clear(self) -> None:
         self._runs = []
         self._current = []
@@ -122,7 +161,11 @@ class LiveLogPanel(QWidget):
         self._fed = 0
         self._cut = 0
         self._highlighted = []
-        self.tree.clear()
+        blocker = QSignalBlocker(self.tree)
+        try:
+            self.tree.clear()
+        finally:
+            blocker.unblock()
         self._building = True
         self.run_combo.clear()
         self._building = False
@@ -135,21 +178,26 @@ class LiveLogPanel(QWidget):
         """Called after every step: `finished` are the runs already done,
         `current` is the live line list of the run being stepped."""
         had_runs = len(self._runs)
-        was_following = self.following or not self.run_combo.count()
+        was_on_current = self.following or not self.run_combo.count()
         self._runs = list(finished)
         self._current = current
         self._total = max(int(total_runs), len(self._runs) + 1)
         self._t = float(time)
         if len(self._runs) != had_runs or not self.run_combo.count():
             self._rebuild_combo()
-        if was_following:
-            # A new run started while its predecessor was on screen: move
-            # on to it (the tree must not keep showing the old run's rows).
-            if self._shown != self.current_index:
-                self._show_run(self.current_index)
-            else:
-                self._set_combo_index(self._shown)
-                self._append_new_lines()
+        if self._shown == self.current_index:
+            # Same run as before: append new rows (without scrolling when
+            # Focus Event is off). A run restarted under the same index is
+            # rebuilt by `_append_new_lines`.
+            self._set_combo_index(self._shown)
+            self._append_new_lines()
+        elif was_on_current:
+            # A new run started while its predecessor was on screen. Move
+            # on to it only when following is wanted. With Focus Event off
+            # the user keeps reading the finished run they chose -- rebuild
+            # it so its completed log (not the partial one) stays on screen.
+            self._show_run(self.current_index if self._follow_latest
+                           else self._shown)
         self._update_status()
         self._sync_buttons()
 
@@ -208,7 +256,11 @@ class LiveLogPanel(QWidget):
         self._set_combo_index(run)
         self.tree.setUpdatesEnabled(False)
         try:
-            self.tree.clear()
+            blocker = QSignalBlocker(self.tree)
+            try:
+                self.tree.clear()
+            finally:
+                blocker.unblock()
             self._highlighted = []
             lines = self._lines_of(run)
             start = max(0, len(lines) - ROW_CAP)
@@ -220,7 +272,11 @@ class LiveLogPanel(QWidget):
                 self._apply_highlight(self._last_step_rows(len(lines)))
         finally:
             self.tree.setUpdatesEnabled(True)
-        self.tree.scrollToBottom() if self.following else self.tree.scrollToTop()
+        if self.following:
+            if self._follow_latest:
+                self.tree.scrollToBottom()
+        else:
+            self.tree.scrollToTop()
 
     def _append_new_lines(self) -> None:
         lines = self._current
@@ -239,7 +295,8 @@ class LiveLogPanel(QWidget):
                 self.tree.takeTopLevelItem(0)
             self._cut += extra
         self._apply_highlight(self._last_step_rows(len(lines), len(new)))
-        self.tree.scrollToBottom()
+        if self._follow_latest:
+            self.tree.scrollToBottom()
 
     def _rows(self) -> list[QTreeWidgetItem]:
         out = []
