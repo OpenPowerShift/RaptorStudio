@@ -1633,6 +1633,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     e["minimized"] = False
                     dock.setTitleBarWidget(e["titlebar"])
                     e["content"].setVisible(True)
+                    # Release the stub's fixed-width lock before a caller
+                    # resizes the recovered floating window, or the
+                    # remembered docked width is clamped to 24 px.
+                    dock.setMinimumSize(0, 0)
+                    dock.setMaximumSize(16777215, 16777215)
                     if closed:
                         dock.close()
                     continue
@@ -8261,11 +8266,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 entry = (getattr(self, "_dock_chrome_entries", None)
                          or {}).get(dock) or {}
                 if entry.get("minimized") or entry.get("closed"):
-                    # A user minimise/close before the first load is a
-                    # deliberate dock state; do not clamp over it.
-                    return True
+                    # A collapsed dock is not resized by the first-load
+                    # defaults anyway. Ignore only this dock; the other
+                    # docks (notably the bottom strip) still need their
+                    # designed size.
+                    continue
                 if dock not in current:
-                    return True
+                    continue
                 cw, ch = current[dock]
                 edge = self._current_dock_edge(
                     dock, entry.get("edge"))

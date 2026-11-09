@@ -692,6 +692,39 @@ def test_the_first_model_load_clamps_the_default_bottom_strip(qapp):
     w.close()
 
 
+def test_a_minimized_side_dock_does_not_block_the_bottom_first_load_clamp(qapp):
+    from pathlib import Path
+
+    from raptor.core.fileio.rbd import load_rbd
+
+    gold = Path(__file__).resolve().parents[1] / "golden" / "Phasing3" / "input.rbd"
+    w = _shown(qapp)
+    w._dock_chrome["Inspector"]["set_minimized"](True)
+    _pump(qapp)
+    w._load_into_app(load_rbd(str(gold)), None)
+    _pump(qapp, 10)
+    assert w._results_dock.height() <= 200, w._results_dock.height()
+    w._dirty = False
+    w.close()
+
+
+def test_compact_side_docks_do_not_block_the_bottom_first_load_clamp(qapp):
+    from pathlib import Path
+
+    from raptor.core.fileio.rbd import load_rbd
+
+    gold = Path(__file__).resolve().parents[1] / "golden" / "Phasing3" / "input.rbd"
+    w = _shown(qapp)
+    w.resize(900, 900)
+    _pump(qapp, 8)
+    assert w._compact_forced
+    w._load_into_app(load_rbd(str(gold)), None)
+    _pump(qapp, 10)
+    assert w._results_dock.height() <= 200, w._results_dock.height()
+    w._dirty = False
+    w.close()
+
+
 def test_ribbon_action_restores_a_side_dock_moved_to_the_bottom(qapp):
     from PySide6.QtWidgets import QToolButton
 
@@ -892,6 +925,7 @@ def test_a_closed_side_dock_floated_keeps_its_docked_width(qapp):
     _pump(qapp)
     assert w._dock_chrome["Inspector"]["get"]()["closed"] is False
     assert inspector.widget().isHidden() is False
+    assert inspector.width() >= before - 20, (inspector.width(), before)
     assert w._dock_chrome_entries[inspector]["docked_width"] >= before - 20
     w._redock(inspector)
     _pump(qapp, 8)
