@@ -11694,6 +11694,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # the Inspector again.
         self._end_step_session(clear_sink=False)
         self._run_in_progress = True
+        # `_end_step_session` unlocked the panel while the flag was still
+        # false; lock it again now the finalize owns the run.
+        self._sync_run_settings_lock()
         self._refresh_commands()
         self._statusbar.showMessage(
             f"Finalizing early terminate at t = {t:.3f} — results appear "
