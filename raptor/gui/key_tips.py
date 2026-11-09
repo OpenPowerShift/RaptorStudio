@@ -29,7 +29,8 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "model.add_block": "B", "model.add_node": "O",
         "model.add_event": "E", "model.add_hier": "H",
         "model.collapse": "L", "model.delete": "D", "home.syscfg": "P",
-        "home.validate": "I", "arrange.anno_text": "T",
+        "home.validate": "I", "results.analytical": "A",
+        "arrange.anno_text": "T",
         "arrange.anno_rect": "R", "arrange.anno_ellipse": "Y",
         "arrange.anno_arrow": "W", "model.import_rbd": "M",
         "sim.extract_hierarchy": "U", "model.hier_up": "J",
@@ -62,7 +63,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     "Results": {
         "results.results_show": "S", "results.results_float": "W",
         "results.clear_results": "C", "results.spof": "P",
-        "results.domains": "D", "results.analytical": "A",
+        "results.domains": "D",
         "results.weak_color": "K", "results.capacity_overlay": "U",
         "results.cost_overlay": "O", "results.spares_overlay": "R",
         "results.importance_overlay": "I", "results.weak_spread": "T",

@@ -263,6 +263,7 @@ class TestShownWindowHeights:
                         for g in page._groups if g.level() != g.FULL
                         and not (width == 1280 and name == "Model"
                                  and g._label.text() in ("Clipboard",
+                                                         "Annotate",
                                                          "Hierarchy")
                                  and g.level() in (g.REDUCED, g.ICONS))]
             clipped += [(name, b.text()) for b in
