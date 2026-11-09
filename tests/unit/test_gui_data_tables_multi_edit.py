@@ -255,3 +255,24 @@ def test_the_window_paste_offers_the_focused_grid_its_value_first(monkeypatch):
     win._edit_paste()
     assert canvas_pastes == [1]
     win.close()
+
+
+def test_ctrl_d_distribution_skips_an_equal_target(win):
+    """The first target combo can already equal the source's index; the
+    fill must keep looking for a row that actually differs."""
+    dt, t, view = _blocks(win)
+    combo = t.cellWidget(0, 2)
+    source = combo.currentData()
+    alternate = next(combo.itemData(i) for i in range(combo.count())
+                     if combo.itemData(i) != source)
+    view.change_block_dist(_bid(t, 1), "F", source)
+    view.change_block_dist(_bid(t, 2), "F", alternate)
+    dt.refresh(force=True)
+    QApplication.processEvents()
+    t = dt._blocks_table
+
+    _cur(t, 0, 2)
+    _select(t, [0, 1, 2])
+    assert dt.fill_down()
+    assert all(view.blocks[_bid(t, r)].fail_distro == source
+               for r in range(3))

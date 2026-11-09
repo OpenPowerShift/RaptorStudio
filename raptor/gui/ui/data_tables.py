@@ -23,7 +23,7 @@ from raptor.gui.ui.qtcompat import req
 from raptor.gui.ui import msgbox
 
 from PySide6.QtCore import Qt, Signal, QTimer, QEvent
-from PySide6.QtGui import QDoubleValidator
+from PySide6.QtGui import QColor, QDoubleValidator
 from PySide6.QtWidgets import (
     QApplication,
     QWidget, QVBoxLayout, QTabWidget, QTableWidget, QTableWidgetItem,
@@ -440,6 +440,13 @@ class DataTablesDock(QWidget):
         self._whole = False
         self._multi_confirmed = False     # "Don't ask again": session only
         self._whole_src: _WholeModel | None = None
+        #: Whether `_whole_src` has been checked against the live view
+        #: since the last refresh/invalidation. `_src` is called once per
+        #: cell/row by the filters and grid helpers; `matches` rebuilds
+        #: sets, so it must run once per populate, not once per row.
+        self._whole_src_checked = False
+        #: The source shared by one populate/realize batch.
+        self._src_ctx: Any = None
         #: A refresh was requested while this dock was hidden. The grids are
         #: expensive for large models (one widget per editable cell), so a
         #: hidden Data Tables tab is filled when it is first shown instead
@@ -753,11 +760,22 @@ class DataTablesDock(QWidget):
         self._apply_time_headers()
 
     def set_view(self, view, *, defer_large: bool = False):
+        old_view = getattr(self, "_view", None)
+        old_rbd = getattr(old_view, "_rbd_ref", None)
         self._view = view
         # A cache of another model's/live level's rows must never survive
         # an Open: its ids may collide with this model's blocks.
         self._whole_src = None
+        self._whole_src_checked = False
+        self._src_ctx = None
         self._watch_view(view)
+        if old_view is not view or old_rbd is not getattr(
+                view, "_rbd_ref", None):
+            # The deferred-fill path below returns before refresh. Leaving
+            # the old model's editable rows on screen for that gap let an
+            # edit before the first paint resolve an old row against the
+            # new model (ids can overlap). Drop them with the old model.
+            self._clear_tables_for_view()
         # Display-unit override for this grid's own time-dimensioned
         # cells: Failure/Repair Param columns and PM Frequency.
         self._native_units = ""
@@ -879,6 +897,7 @@ class DataTablesDock(QWidget):
             self._refresh_pending = True
             return
         self._refresh_pending = False
+        self._whole_src_checked = False
         # Preserve the current row/cell: model edits and undo/redo now
         # refresh this grid, and a plain repopulate would otherwise throw
         # the user back to the top after every change.
@@ -926,8 +945,9 @@ class DataTablesDock(QWidget):
             for t in fill}
         for t in fill:
             t.setSortingEnabled(False)
+        populate_src = self._src() if self._view is not None else None
         for t in fill:
-            self._populate_table(t)
+            self._populate_table(t, src=populate_src)
         for t in fill:
             self._label_cell_widgets(t)
         self._sort_restoring = True
@@ -974,26 +994,30 @@ class DataTablesDock(QWidget):
         except TypeError:
             return False
 
-    def _populate_table(self, table: QTableWidget) -> None:
+    def _populate_table(self, table: QTableWidget, src=None) -> None:
         """Fill one grid, so a tab can be built on first use."""
         self._dirty_tables.discard(table)
-        if table is self._blocks_table:
-            self._populate_blocks()
-        elif table is self._costs_table:
-            self._populate_costs()
-        elif table is self._nodes_table:
-            self._populate_nodes()
-        elif table is self._events_table:
-            self._populate_events()
-        elif table is self._sparing_table:
-            self._populate_sparing()
-        elif table is self._pm_table:
-            self._populate_pm()
-        elif table in self._keyed:
-            self._populate_keyed(table)
-        for t, kind in self._level_tables():
-            if t is table:
-                self._lock_foreign_rows(t, kind)
+        self._src_ctx = self._src() if src is None else src
+        try:
+            if table is self._blocks_table:
+                self._populate_blocks()
+            elif table is self._costs_table:
+                self._populate_costs()
+            elif table is self._nodes_table:
+                self._populate_nodes()
+            elif table is self._events_table:
+                self._populate_events()
+            elif table is self._sparing_table:
+                self._populate_sparing()
+            elif table is self._pm_table:
+                self._populate_pm()
+            elif table in self._keyed:
+                self._populate_keyed(table)
+            for t, kind in self._level_tables():
+                if t is table:
+                    self._lock_foreign_rows(t, kind)
+        finally:
+            self._src_ctx = None
 
     def _update_empty_state(self, table: QTableWidget) -> None:
         """Explain an empty grid instead of showing a blank pane."""
@@ -1044,6 +1068,20 @@ class DataTablesDock(QWidget):
     def _invalidate_whole_src(self, *_a: object) -> None:
         """Any model/level change can alter another level's rows."""
         self._whole_src = None
+        self._whole_src_checked = False
+
+    def _clear_tables_for_view(self) -> None:
+        """Drop another model's rows before a deferred refresh runs."""
+        if not hasattr(self, "_all_tables"):
+            return
+        for table in self._all_tables:
+            table.blockSignals(True)
+            try:
+                table.setRowCount(0)
+            finally:
+                table.blockSignals(False)
+        self._lazy_pending = {t: set() for t in self._lazy_builders}
+        self._dirty_tables.clear()
 
     def _watch_view(self, view) -> None:
         """Invalidate the whole-model cache on the view's own changes
@@ -1054,15 +1092,29 @@ class DataTablesDock(QWidget):
         view.model_changed.connect(self._invalidate_whole_src)
         view.level_changed.connect(self._invalidate_whole_src)
 
+    def _active_src(self) -> Any:
+        """The source shared by a populate batch, else the cached one."""
+        return self._src_ctx if self._src_ctx is not None else self._src()
+
     def _src(self) -> Any:
         """Where the Blocks/Costs/Nodes/Events/Sparing/PM grids read their
-        elements from: the view's level, or (Whole model) every level."""
+        elements from: the view's level, or (Whole model) every level.
+
+        One populate/realize batch shares `_src_ctx`; outside it the
+        whole-model cache is validated at most once per refresh, not once
+        per row/cell."""
+        if self._src_ctx is not None:
+            return self._src_ctx
         view = self._view
         if view is None or not self._whole:
             return view
         src = self._whole_src
-        if src is None or not src.matches(view):
-            src = self._whole_src = _WholeModel(view)
+        if src is None or not self._whole_src_checked:
+            if src is not None and not src.matches(view):
+                src = None
+            if src is None:
+                src = self._whole_src = _WholeModel(view)
+            self._whole_src_checked = True
         return src
 
     def _level_tables(self) -> list[tuple[QTableWidget, str]]:
@@ -1078,7 +1130,7 @@ class DataTablesDock(QWidget):
             t.setColumnHidden(t.columnCount() - 1, not self._whole)
 
     def _level_item(self, kind: str, oid: int) -> QTableWidgetItem:
-        src = self._src()
+        src = self._active_src()
         text = src.level(kind, oid) if isinstance(src, _WholeModel) else ""
         item = _SortItem(text)
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -1086,7 +1138,7 @@ class DataTablesDock(QWidget):
 
     def _is_foreign(self, kind: str, oid: int | None) -> bool:
         """A row of another level (Whole model): shown, not editable."""
-        src = self._src()
+        src = self._active_src()
         return (isinstance(src, _WholeModel) and oid is not None
                 and not src.is_live(kind, oid))
 
@@ -1095,24 +1147,35 @@ class DataTablesDock(QWidget):
 
     def _lock_row(self, t: QTableWidget, r: int) -> None:
         """Make one row read-only (it belongs to a level that is not open)."""
-        for c in range(t.columnCount()):
-            item = t.item(r, c)
-            if item is not None:
-                item.setFlags(item.flags() & ~(
-                    Qt.ItemFlag.ItemIsEditable
-                    | Qt.ItemFlag.ItemIsUserCheckable))
-                if t is self._costs_table:
-                    item.setForeground(Qt.GlobalColor.gray)
-                    tip = item.toolTip()
-                    item.setToolTip(
-                        f"{tip}\n{self._FOREIGN_TIP}" if tip
-                        else self._FOREIGN_TIP)
-            w = t.cellWidget(r, c)
-            if w is not None:
-                w.setEnabled(False)
-        name = t.item(r, 0)
-        if name is not None:
-            name.setToolTip(self._FOREIGN_TIP)
+        # setFlags/setForeground/setToolTip are item changes: without this
+        # the Costs handler runs again for every cell of a foreign row.
+        t.blockSignals(True)
+        try:
+            for c in range(t.columnCount()):
+                item = t.item(r, c)
+                if item is not None:
+                    locked = item.flags() & ~(
+                        Qt.ItemFlag.ItemIsEditable
+                        | Qt.ItemFlag.ItemIsUserCheckable)
+                    if locked != item.flags():
+                        item.setFlags(locked)
+                    if t is self._costs_table:
+                        grey = QColor(Qt.GlobalColor.gray)
+                        if item.foreground().color() != grey:
+                            item.setForeground(Qt.GlobalColor.gray)
+                        tip = item.toolTip()
+                        if self._FOREIGN_TIP not in tip:
+                            item.setToolTip(
+                                f"{tip}\n{self._FOREIGN_TIP}" if tip
+                                else self._FOREIGN_TIP)
+                w = t.cellWidget(r, c)
+                if w is not None:
+                    w.setEnabled(False)
+            name = t.item(r, 0)
+            if name is not None:
+                name.setToolTip(self._FOREIGN_TIP)
+        finally:
+            t.blockSignals(False)
 
     def _lock_foreign_rows(self, t: QTableWidget, kind: str) -> None:
         if not self._whole:
@@ -1209,8 +1272,8 @@ class DataTablesDock(QWidget):
                 todo.append(k)
         if not todo:
             self.status_message.emit(
-                f"Nothing to set: {len(keys)} rows selected, none can take "
-                f"a {what}.")
+                f"Nothing to set: {self._row_count(len(keys))} selected, "
+                f"none can take a {what}.")
             return False
         if not self._confirm_multi(len(todo)):
             self._refresh_soon()                   # put the typed value back
@@ -1334,6 +1397,8 @@ class DataTablesDock(QWidget):
             if (target is combo or not isinstance(target, QComboBox)
                     or not target.isEnabled()):
                 continue
+            if target.currentIndex() == combo.currentIndex():
+                continue            # no change signal: try the next target
             target.setCurrentIndex(combo.currentIndex())
             return True
         return False
@@ -1353,6 +1418,7 @@ class DataTablesDock(QWidget):
     def _on_whole_toggled(self, on: bool) -> None:
         self._whole = bool(on)
         self._whole_src = None
+        self._whole_src_checked = False
         self._apply_level_column()
         self.refresh(force=True)
 
@@ -1552,7 +1618,7 @@ class DataTablesDock(QWidget):
                     bid: int | None) -> tuple[str, float | None]:
         """What the Blocks grid shows in a cell, from the model (the widget
         columns) or the cell's item."""
-        b = self._src().blocks.get(bid) if self._view is not None \
+        b = self._active_src().blocks.get(bid) if self._view is not None \
             and bid is not None else None
         if b is not None and col in (2, 7):
             code = b.fail_distro if col == 2 else b.repair_distro
@@ -1588,7 +1654,7 @@ class DataTablesDock(QWidget):
         from raptor.core.fileio.typed import SPARING_TYPE_TO_FILE_STRING
         t = self._sparing_table
         bid = self._row_key(t, row)
-        b = self._src().blocks.get(bid) if self._view is not None \
+        b = self._active_src().blocks.get(bid) if self._view is not None \
             and bid is not None else None
         for col, f in filters:
             if col == 2 and b is not None:
@@ -1668,6 +1734,8 @@ class DataTablesDock(QWidget):
                 todo.append((r, key))
         if not todo:
             return
+        previous_src = self._src_ctx
+        self._src_ctx = self._src()
         t.setUpdatesEnabled(False)
         try:
             with param_entry.cached_modes():
@@ -1678,6 +1746,7 @@ class DataTablesDock(QWidget):
                         self._lock_row(t, r)
         finally:
             t.setUpdatesEnabled(True)
+            self._src_ctx = previous_src
 
     def _populate_blocks(self):
         t = self._blocks_table
@@ -1698,7 +1767,7 @@ class DataTablesDock(QWidget):
                 if display_u else val
             return _fmt_stat(shown)
 
-        src = self._src()
+        src = self._active_src()
         bids = sorted(src.blocks)
         t.setRowCount(len(bids))
         for r, bid in enumerate(bids):
@@ -1735,7 +1804,7 @@ class DataTablesDock(QWidget):
     def _build_block_widgets(self, t, r: int, bid: int) -> None:
         """The cell widgets of one Blocks row (distribution combos and
         parameter fields), their hover text and their accessible names."""
-        b = req(self._src()).blocks.get(bid)
+        b = req(self._active_src()).blocks.get(bid)
         if b is None:
             return
         self._distro_cell(t, r, 2, b.fail_distro,
@@ -1822,7 +1891,7 @@ class DataTablesDock(QWidget):
             t.setRowCount(0)
             if self._view is None:
                 return
-            src = self._src()
+            src = self._active_src()
             bids = sorted(src.blocks)
             t.setRowCount(len(bids))
             for r, bid in enumerate(bids):
@@ -1927,8 +1996,8 @@ class DataTablesDock(QWidget):
             self._set_cost_text(item, old)
             if read_only or pooled:
                 self.status_message.emit(
-                    f"Nothing to set: {len(keys)} rows selected, none can "
-                    f"take a {header}.")
+                    f"Nothing to set: {self._row_count(len(keys))} "
+                    f"selected, none can take a {header}.")
             return
         if len(keys) > 1 and not self._confirm_multi(len(todo)):
             self._set_cost_text(item, old)
@@ -1981,7 +2050,7 @@ class DataTablesDock(QWidget):
             return
         type_names = {1: "Start", 2: "Regular", 3: "End",
                       4: "Hierarchy In", 5: "Hierarchy Out"}
-        src = self._src()
+        src = self._active_src()
         node_ids = sorted(src.nodes)
         t.setRowCount(len(node_ids))
         for r, nid in enumerate(node_ids):
@@ -2178,7 +2247,7 @@ class DataTablesDock(QWidget):
             return
         from PySide6.QtWidgets import QHBoxLayout, QLineEdit
         from PySide6.QtGui import QIntValidator
-        src = self._src()
+        src = self._active_src()
         event_ids = sorted(src.events)
         t.setRowCount(len(event_ids))
         for r, eid in enumerate(event_ids):
@@ -2293,7 +2362,7 @@ class DataTablesDock(QWidget):
         if self._view is None:
             t.setUpdatesEnabled(True)
             return
-        src = self._src()
+        src = self._active_src()
         bids = sorted(src.blocks)
         t.setRowCount(len(bids))
         for r, bid in enumerate(bids):
@@ -2312,7 +2381,7 @@ class DataTablesDock(QWidget):
 
     def _build_sparing_widgets(self, t, r: int, bid: int) -> None:
         """The cell widgets of one Sparing row, their hover text and names."""
-        b = req(self._src()).blocks.get(bid)
+        b = req(self._active_src()).blocks.get(bid)
         if b is None:
             return
         from PySide6.QtWidgets import QLineEdit
@@ -2404,7 +2473,7 @@ class DataTablesDock(QWidget):
             t.setUpdatesEnabled(True)
             t.blockSignals(False)
             return
-        src = self._src()
+        src = self._active_src()
         bids = [bid for bid in sorted(src.blocks)
                 if src.blocks[bid].uses_pm]
         t.setRowCount(len(bids))

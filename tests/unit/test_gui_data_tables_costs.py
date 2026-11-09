@@ -471,6 +471,102 @@ def test_a_second_model_never_reuses_the_first_models_cost_rows(win, qapp):
     assert view.blocks[bid].operating_cost == pytest.approx(changed)
 
 
+def test_whole_model_population_checks_its_cache_once(qapp, monkeypatch):
+    """149 rows must not call `_WholeModel.matches` 149 times: the cache
+    is validated once per refresh and shared by the populate loop."""
+    from raptor.api.build import build_from_spec
+    from raptor.gui.ui.data_tables import DataTablesDock, _WholeModel
+    from raptor.gui.ui.main_window import MainWindow
+
+    n = 120
+    spec = {
+        "blocks": [{"name": f"B{i}", "fail_dist": 4,
+                    "fail_params": [1000, 0], "repair_dist": 7,
+                    "repair_params": [8, 2]} for i in range(n)],
+        "nodes": [{"name": "Start", "type": "start"},
+                  {"name": "End", "type": "end"}],
+        "links": ([{"from": "Start", "to": "B0"}]
+                  + [{"from": f"B{i}", "to": f"B{i + 1}"}
+                     for i in range(n - 1)]
+                  + [{"from": f"B{n - 1}", "to": "End"}]),
+    }
+    w = MainWindow()
+    w.show()
+    qapp.processEvents()
+    w._load_into_app(build_from_spec(spec, auto_layout=False), "many.rbds")
+    qapp.processEvents()
+    dt = w._data_tables
+    dt._tabs.setCurrentWidget(dt._blocks_table)
+    calls = []
+    src_calls = []
+    original = _WholeModel.matches
+    original_src = DataTablesDock._src
+    monkeypatch.setattr(
+        _WholeModel, "matches",
+        lambda self, view: (calls.append(1) or original(self, view)))
+    monkeypatch.setattr(
+        DataTablesDock, "_src",
+        lambda self: (src_calls.append(1) or original_src(self)))
+    dt._whole_box.setChecked(True)
+    qapp.processEvents()
+    assert dt._costs_table.rowCount() == n
+    assert len(calls) <= 2
+    assert len(src_calls) <= 5
+    w._dirty = False
+    w.close()
+
+
+def test_deferred_second_model_drops_the_old_editable_rows(win, qapp):
+    """The deferred-fill path returns before refresh; the old model's
+    editable rows must already be gone, not point at the new model."""
+    from raptor.api.build import build_from_spec
+    from raptor.gui.ui.diagram import DiagramView
+
+    dt = win._data_tables
+    assert dt._costs_table.rowCount() > 0
+    n = 410
+    spec = {
+        "blocks": [{"name": f"N{i}", "fail_dist": 4,
+                    "fail_params": [1000, 0], "repair_dist": 7,
+                    "repair_params": [8, 2]} for i in range(n)],
+        "nodes": [{"name": "Start", "type": "start"},
+                  {"name": "End", "type": "end"}],
+        "links": ([{"from": "Start", "to": "N0"}]
+                  + [{"from": f"N{i}", "to": f"N{i + 1}"}
+                     for i in range(n - 1)]
+                  + [{"from": f"N{n - 1}", "to": "End"}]),
+    }
+    second = DiagramView()
+    second.load_rbd(build_from_spec(spec, auto_layout=False))
+    qapp.processEvents()
+
+    dt.set_view(second, defer_large=True)
+    assert dt._refresh_pending
+    for table in dt._all_tables:
+        assert table.rowCount() == 0
+
+    dt._tabs.setCurrentWidget(dt._costs_table)
+    dt.refresh(force=True)
+    qapp.processEvents()
+    assert dt._costs_table.rowCount() == n
+
+
+def test_whole_model_population_is_silent(whole_win, qapp):
+    """Locking foreign rows must not re-enter the Costs commit handler."""
+    dt = whole_win._data_tables
+    dt._tabs.setCurrentWidget(dt._costs_table)
+    status = []
+    invalid = []
+    dt.status_message.connect(status.append)
+    dt.validation_failed.connect(invalid.append)
+
+    dt._whole_box.setChecked(True)
+    qapp.processEvents()
+
+    assert status == []
+    assert invalid == []
+
+
 def test_csv_filter_and_sort_use_the_displayed_rows(win, qapp):
     dt, t, view = _cost_table(win)
     bar = dt._filter_bars[t]
