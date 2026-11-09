@@ -143,6 +143,8 @@ class _HelpDocumentNavigation:
 
     #: Filled in by HelpViewer; the fake in tests provides the same API.
     _view: Any
+    #: Anchor requested while the page was still loading; flushed on load.
+    _pending_anchor: str | None = None
 
     def show_doc(self, name: str, anchor: str | None = None) -> None:
         """Load one of our bundled docs (book.html / manual.html),
@@ -161,11 +163,32 @@ class _HelpDocumentNavigation:
             url.setFragment(anchor)
         current = self._view.url()
         if _same_document(current, url):
-            if anchor and current.fragment() != anchor:
-                self._scroll_to_anchor(anchor)
+            if anchor:
+                if self._view_is_loading():
+                    # A second Help action while the first load is still
+                    # running: the DOM is not ready, so scroll on load.
+                    self._pending_anchor = anchor
+                else:
+                    self._scroll_to_anchor(anchor)
         else:
+            self._pending_anchor = anchor
             self._view.load(url)
         self._present()
+
+    def _view_is_loading(self) -> bool:
+        check = getattr(self._view, "isLoading", None)
+        if check is None:
+            return False
+        try:
+            return bool(check())
+        except RuntimeError:                 # page already gone
+            return False
+
+    def _flush_pending_anchor(self, ok: bool = True) -> None:
+        """A page load finished: apply the anchor queued while loading."""
+        anchor, self._pending_anchor = self._pending_anchor, None
+        if ok and anchor:
+            self._scroll_to_anchor(anchor)
 
     def _scroll_to_anchor(self, anchor: str) -> None:
         """Scroll within the loaded document (no reload, no history entry)."""
@@ -178,6 +201,8 @@ class _HelpDocumentNavigation:
   root.style.scrollBehavior = 'auto';
   el.scrollIntoView({{block: 'start'}});
   root.style.scrollBehavior = previous;
+  try {{ history.replaceState(null, '', '#' + {json.dumps(anchor)}); }}
+  catch (e) {{ /* file:// may forbid it on some builds */ }}
   return true;
 }})();
 """
@@ -325,20 +350,22 @@ if WEBENGINE_OK:
         hands every request for the registered scheme to this handler
         (installed on the default profile), so a click always reaches
         us regardless of renderer navigation quirks. acceptNavigation-
-        Request's opsmodel branch stays as a second net."""
+        Request's opsmodel branch stays as a second net.
 
-        def __init__(self, on_open, parent=None):
-            super().__init__(parent)
-            self._on_open = on_open
+        The handler is process-wide and stores no viewer reference: it
+        routes through `help_service.route_ops_model`, so closing Help
+        can destroy the WebEngine viewer without leaving this handler
+        (and the profile) pinning it."""
 
         def requestReceived(self, job, request):
             from PySide6.QtWebEngineCore import (
                 QWebEngineUrlRequestJob as J)
+            from raptor.gui.ui.help_service import route_ops_model
             url = request.url()
             rel = (url.host() + url.path()).lstrip("/")
             resolved = _resolve_model_rel(rel)
             QTimer.singleShot(
-                0, lambda: self._on_open(str(resolved or rel)))
+                0, lambda: route_ops_model(str(resolved or rel)))
             job.fail(J.Error.RequestDenied)
 
     class HelpViewer(_HelpDocumentNavigation, QDialog):
@@ -360,20 +387,15 @@ if WEBENGINE_OK:
             self._owner_ref: weakref.ref | None = None
 
             # opsmodel:// dispatch (process-wide profile; the handler
-            # object must outlive this dialog, hence the module ref).
+            # object must outlive every viewer, hence the module ref).
+            # It carries nothing viewer-specific after construction.
             global _OPS_HANDLER
             if _OPS_HANDLER is None:
                 from PySide6.QtWebEngineCore import QWebEngineProfile
                 profile = QWebEngineProfile.defaultProfile()
-                _OPS_HANDLER = _OpsModelSchemeHandler(
-                    self._dispatch_model, profile)
+                _OPS_HANDLER = _OpsModelSchemeHandler(profile)
                 profile.installUrlSchemeHandler(
                     OPS_MODEL_SCHEME.encode(), _OPS_HANDLER)
-            else:
-                # A new viewer (after Help was closed) must take over the
-                # process-wide handler; otherwise it keeps calling into the
-                # closed one and pins it for the rest of the process.
-                _OPS_HANDLER._on_open = self._dispatch_model
 
             lay = QVBoxLayout(self)
             lay.setContentsMargins(0, 0, 0, 0)
@@ -462,6 +484,7 @@ if WEBENGINE_OK:
             self._view = QWebEngineView(self)
             self._view.setPage(self._page)
             self._view.titleChanged.connect(self._on_title)
+            self._view.loadFinished.connect(self._flush_pending_anchor)
             lay.addWidget(self._view, 1)
             self._install_page_scripts()
 
@@ -527,10 +550,6 @@ if WEBENGINE_OK:
             if owner is not None:
                 owner.open_model_from_help(path)
 
-        def _dispatch_model(self, path: str) -> None:
-            """Scheme-handler callback (also used by the page signal)."""
-            self._on_open_model(path)
-
         def _switch_to_app_clicked(self) -> None:
             if self._switch_to_app is not None:
                 self._switch_to_app()
@@ -579,6 +598,29 @@ if WEBENGINE_OK:
                 self._view.setFocus()
                 return
             self.close()
+
+        def shutdown(self) -> None:
+            """Stop the page and schedule deletion before the app goes away.
+
+            `HelpService.close` calls this for the last window and on
+            aboutToQuit. Stopping first avoids a load completing while the
+            view is being destroyed; `deleteLater` lets Qt free the page in
+            its own order (a Python `del` here is the #75 crash shape).
+            """
+            try:
+                self._view.stop()
+            except RuntimeError:             # C++ side already gone
+                pass
+            try:
+                self._page.triggerAction(
+                    QWebEnginePage.WebAction.Stop)
+            except RuntimeError:
+                pass
+            try:
+                self.close()
+                self.deleteLater()
+            except RuntimeError:
+                pass
 
         # ------------------------------------------------------------ theme
         #: Mirrors the @media (prefers-color-scheme: dark) block in

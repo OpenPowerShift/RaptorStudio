@@ -177,11 +177,9 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
     # construction attempt.
     app = cast(QApplication,
                QApplication.instance() or RaptorApplication([argv[0], *qt_argv]))
-    # Help is a process-wide top-level window: close it before the Qt event
-    # loop goes away, including a quit that did not run the last window's
-    # closeEvent (see ui/help_service.py, #206).
-    from raptor.gui.ui.help_service import close_help_viewer
-    app.aboutToQuit.connect(close_help_viewer)
+    # Help installs its own aboutToQuit hook when its viewer is created;
+    # `app.main` also closes it in the finally below so a raising
+    # `app.exec()` (or an embedder with no event loop) still tears it down.
     # Force Fusion: the platform's own style paints native selected-tab
     # corner "arcs" and scroller-arrow bitmaps that ignore the stylesheet
     # and palette. The design is tuned against Fusion, so this keeps all
@@ -237,6 +235,9 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
         return app.exec()
     except KeyboardInterrupt:
         return 0
+    finally:
+        from raptor.gui.ui.help_service import close_help_viewer
+        close_help_viewer()
 
 
 if __name__ == "__main__":

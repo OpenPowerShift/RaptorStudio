@@ -1,17 +1,28 @@
-"""Maximising the Help viewer keeps the section being read (#207).
+"""Real QtWebEngine checks for the Help viewer layout, run in a subprocess.
 
-The real viewer runs QtWebEngine: the injected page script pins the TOC as
-a fixed sidebar at every width and restores the nearest heading + offset
-after a resize. Skipped when WebEngine is not importable.
+A WebEngine crash takes its whole process down (and PySide can abort the
+pytest worker at teardown). These assertions therefore live in a child
+process, like `test_no_app_event_filters.py`: a clean exit code and a
+sentinel on stdout are the assertion.
 """
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
 pytest.importorskip("PySide6")
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+_LAYOUT_SCRIPT = r'''
+import json
+import os
+from pathlib import Path
 
 from PySide6.QtCore import QEvent, QEventLoop, QTimer
 from PySide6.QtTest import QSignalSpy, QTest
@@ -19,43 +30,18 @@ from PySide6.QtWidgets import QApplication
 
 from raptor.gui.ui import help_viewer
 
-pytestmark = pytest.mark.gui
-
-if not help_viewer.WEBENGINE_OK:         # pragma: no cover - env dependent
-    pytest.skip("QtWebEngine is not available", allow_module_level=True)
-
-
-DOC = """<!DOCTYPE html>
-<html><head><meta charset="utf-8"><style>
-  html { scroll-behavior: smooth; }
-  body { margin: 0; font-family: sans-serif; }
-  #content { font-size: 20px; line-height: 1.6; }
-  @media (min-width: 90rem) { #content { font-size: 12px; } }
-  #content h2 { margin: 0; padding-top: 80px; }
-  .spacer { height: 3000px; }
-</style></head>
-<body class="article toc2 toc-left">
-<div id="header"><h1>Help viewer scroll test</h1></div>
-<div id="content">
-  <h2 id="section-one">Section one</h2><div class="spacer"></div>
-  <h2 id="section-two">Section two</h2><div class="spacer"></div>
-  <h2 id="section-three">Section three</h2><div class="spacer"></div>
-</div>
-</body></html>
-"""
+app = QApplication.instance() or QApplication([])
+doc = Path(os.environ["HELP_DOC"])
+help_viewer._resolve_doc = lambda name: doc
+help_viewer._under_docs_tree = lambda url: True
+help_viewer._register_ops_scheme()
 
 
-@pytest.fixture(scope="module")
-def qapp():
-    return QApplication.instance() or QApplication([])
-
-
-def _js(viewer, script, timeout_ms=5000):
-    """Run JavaScript on the viewer's page and return its result."""
+def js(win, script, timeout_ms=5000):
     loop = QEventLoop()
-    result: list[object] = []
+    result = []
 
-    def finished(value):
+    def done(value):
         result.append(value)
         loop.quit()
 
@@ -63,52 +49,63 @@ def _js(viewer, script, timeout_ms=5000):
     timer.setSingleShot(True)
     timer.timeout.connect(loop.quit)
     timer.start(timeout_ms)
-    viewer._view.page().runJavaScript(script, 0, finished)
+    win._view.page().runJavaScript(script, 0, done)
     loop.exec()
     timer.stop()
     assert result, "JavaScript timed out"
     return result[0]
 
 
-@pytest.fixture
-def viewer(qapp, tmp_path, monkeypatch):
-    doc = tmp_path / "viewer.html"
-    doc.write_text(DOC, encoding="utf-8")
-    monkeypatch.setattr(help_viewer, "_resolve_doc", lambda name: doc)
-    # The test document lives outside the bundled docs tree; treat it as
-    # ours so the page navigates in-app instead of opening a browser.
-    monkeypatch.setattr(help_viewer, "_under_docs_tree", lambda url: True)
-    help_viewer._register_ops_scheme()
-
-    win = help_viewer.HelpViewer()
-    win.resize(1100, 800)
-    win.show()
-    spy = QSignalSpy(win._view.loadFinished)
-    win.show_doc("viewer.html")
-    assert spy.wait(10000), "the help page did not load"
-    qapp.processEvents()
-    try:
-        yield win
-    finally:
-        win.close()
-        win.deleteLater()
-        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
-        qapp.processEvents()
+def wait_until(predicate, what, timeout_ms=10000):
+    waited = 0
+    while waited < timeout_ms:
+        if predicate():
+            return
+        QTest.qWait(20)
+        app.processEvents()
+        waited += 20
+    raise AssertionError(f"timed out waiting for {what}")
 
 
-def test_the_viewer_uses_the_stable_toc_layout(viewer):
-    assert _js(viewer, "document.body.classList.contains('raptor-viewer')")
-    # The class is what the stylesheet keys the fixed-TOC rules on.
-    css = (help_viewer._UI_DIR.parents[2] / "new_docs" /
-           "ops_asciidoctor.css").read_text(encoding="utf-8")
-    assert "body.toc2.raptor-viewer #toc" in css
+LAYOUT_JS = r"""
+(function () {
+  const t = document.getElementById('toc');
+  const s = getComputedStyle(t);
+  return JSON.stringify({
+    position: s.position,
+    width: s.width,
+    top: s.top,
+    marginTop: s.marginTop,
+    borderTopWidth: s.borderTopWidth,
+    paddingTop: s.paddingTop,
+    bodyClass: document.body.className,
+    innerWidth: window.innerWidth
+  });
+})();
+"""
 
+win = help_viewer.HelpViewer()
+win.resize(1100, 800)
+win.show()
+spy = QSignalSpy(win._view.loadFinished)
+win.show_doc("viewer.html")
+assert spy.wait(10000), "the help page did not load"
+app.processEvents()
 
-def test_resizing_keeps_the_same_heading_and_offset(viewer, qapp):
-    assert _js(viewer, "!!document.getElementById('section-two')")
-    # Put section two's heading 40px above the viewport top, so its
-    # "nearest visible heading" is section-two with a negative offset.
-    assert _js(viewer, """
+layout = json.loads(js(win, LAYOUT_JS))
+assert "raptor-viewer" in layout["bodyClass"], layout
+assert layout["position"] == "fixed", layout
+assert layout["width"] == "240px", layout
+assert layout["top"] == "0px", layout
+assert layout["marginTop"] == "0px", layout
+assert layout["borderTopWidth"] == "0px", layout
+assert layout["paddingTop"] == "16px", layout
+assert layout["innerWidth"] <= 1120, layout
+
+# Make the scroll deterministic; the shipped stylesheet asks for smooth.
+js(win, "document.documentElement.style.scrollBehavior = 'auto'; true")
+assert js(win, "!!document.getElementById('section-two')")
+js(win, """
 (function () {
   const h = document.getElementById('section-two');
   const y = h.getBoundingClientRect().top + window.scrollY;
@@ -116,20 +113,26 @@ def test_resizing_keeps_the_same_heading_and_offset(viewer, qapp):
   return true;
 })();
 """)
-    QTest.qWait(200)
-    qapp.processEvents()
-    before = _js(viewer, "document.getElementById('section-two')"
-                         ".getBoundingClientRect().top")
-    assert -42 <= before <= -38
+QTest.qWait(250)
+before = js(win, "document.getElementById('section-two')"
+                 ".getBoundingClientRect().top")
+assert -42 <= before <= -38, before
 
-    viewer.resize(1600, 800)
-    QTest.qWait(500)
-    qapp.processEvents()
+win.resize(1600, 800)
+wait_until(lambda: js(win, "window.innerWidth") >= 1500, "the wider viewport")
+QTest.qWait(250)
+after = js(win, "document.getElementById('section-two')"
+                ".getBoundingClientRect().top")
+assert abs(after - before) < 6, (before, after)
 
-    after = _js(viewer, "document.getElementById('section-two')"
-                        ".getBoundingClientRect().top")
-    assert abs(after - before) < 6, (before, after)
-    assert _js(viewer, """
+layout2 = json.loads(js(win, LAYOUT_JS))
+assert layout2["position"] == "fixed", layout2
+assert layout2["width"] == "240px", layout2
+assert layout2["top"] == "0px", layout2
+assert layout2["marginTop"] == "0px", layout2
+assert layout2["borderTopWidth"] == "0px", layout2
+
+nearest = js(win, """
 (function () {
   const hs = Array.from(document.querySelectorAll('#content h2'));
   let current = hs[0];
@@ -139,4 +142,65 @@ def test_resizing_keeps_the_same_heading_and_offset(viewer, qapp):
   }
   return current.id;
 })();
-""") == "section-two"
+""")
+assert nearest == "section-two", nearest
+
+# The process-wide scheme handler must not store a viewer callback.
+assert help_viewer._OPS_HANDLER is not None
+assert not hasattr(help_viewer._OPS_HANDLER, "_on_open")
+handler = help_viewer._OPS_HANDLER
+
+win.shutdown()
+QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+app.processEvents()
+
+# Re-creating a viewer after the hard teardown must not touch the old page
+# or replace the stable handler.
+win2 = help_viewer.HelpViewer()
+assert help_viewer._OPS_HANDLER is handler
+win2.shutdown()
+QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+app.processEvents()
+print("help-layout-ok", before, after)
+'''
+
+
+def _run(script: str, tmp_path: Path, timeout: int = 90, **extra_env):
+    env = {
+        **os.environ,
+        "QT_QPA_PLATFORM": "offscreen",
+        "PYTHONPATH": str(ROOT),
+        "XDG_CONFIG_HOME": str(tmp_path),
+        "HOME": str(tmp_path),
+        **extra_env,
+    }
+    return subprocess.run(
+        [sys.executable, "-c", script], env=env, cwd=ROOT,
+        capture_output=True, text=True, timeout=timeout)
+
+
+def test_the_stable_toc_and_resize_restore_survive_in_a_subprocess(tmp_path):
+    css = (ROOT / "new_docs" / "ops_asciidoctor.css").as_uri()
+    doc = tmp_path / "viewer.html"
+    doc.write_text(f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="{css}">
+<style>
+  #content h2 {{ margin: 0; padding-top: 80px; }}
+  .spacer {{ height: 3000px; }}
+</style></head>
+<body class="article toc2 toc-left">
+<div id="header"><h1>Help viewer scroll test</h1>
+<div id="toc" class="toc2"><div id="toctitle">Contents</div>
+<ul><li><a href="#section-one">One</a></li>
+<li><a href="#section-two">Two</a></li></ul></div></div>
+<div id="content">
+  <h2 id="section-one">Section one</h2><div class="spacer"></div>
+  <h2 id="section-two">Section two</h2><div class="spacer"></div>
+  <h2 id="section-three">Section three</h2><div class="spacer"></div>
+</div>
+</body></html>""", encoding="utf-8")
+
+    done = _run(_LAYOUT_SCRIPT, tmp_path, HELP_DOC=str(doc))
+    assert done.returncode == 0, done.stderr[-5000:]
+    assert "help-layout-ok" in done.stdout, done.stdout[-2000:]

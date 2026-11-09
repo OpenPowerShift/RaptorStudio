@@ -64,6 +64,7 @@ class HelpService:
         self._owner_ref: weakref.ref | None = None
         self._viewer_factory = viewer_factory
         self._theme_connected = False
+        self._quit_hook_installed = False
 
     # ------------------------------------------------------------ inspector
     @property
@@ -114,7 +115,24 @@ class HelpService:
         if owner is not None:
             viewer.set_owner(owner)
         self._connect_theme(viewer)
+        self._install_quit_hook()
         return viewer
+
+    def _install_quit_hook(self) -> None:
+        """Close Help when the app quits, including embedders that never
+        call `app.main()` (and the `app.exec()`-raises path). Idempotent:
+        connecting twice would only call the same idempotent `close()`."""
+        if self._quit_hook_installed:
+            return
+        try:
+            from PySide6.QtWidgets import QApplication
+            app = QApplication.instance()
+        except ImportError:                  # pragma: no cover - non-GUI tests
+            return
+        if app is None:
+            return
+        app.aboutToQuit.connect(self.close)
+        self._quit_hook_installed = True
 
     def _connect_theme(self, viewer: Any) -> None:
         """Apply the current theme and follow later toggles (once per viewer).
@@ -155,15 +173,47 @@ class HelpService:
             self.close()
 
     def close(self) -> None:
-        """Close and drop the viewer (last window or application quit)."""
+        """Stop WebEngine work and destroy the viewer.
+
+        Called for the last window, `_quit_all` and aboutToQuit. `close()`
+        alone only hides a QDialog; the WebEngine page (and the process-wide
+        URL-scheme handler) used to keep the closed viewer alive, which is
+        exactly the shutdown shape that segfaulted in #75. Drop the owner,
+        stop the page, then delete the widget and drain `DeferredDelete`
+        while a QApplication still exists.
+        """
         viewer, self._viewer = self._viewer, None
         self._owner_ref = None
         self._theme_connected = False
-        if viewer is not None:
-            try:
+        if viewer is None:
+            return
+        try:
+            shutdown = getattr(viewer, "shutdown", None)
+            if callable(shutdown):
+                shutdown()
+            else:
                 viewer.close()
-            except RuntimeError:             # C++ side already gone at shutdown
-                pass
+                delete = getattr(viewer, "deleteLater", None)
+                if callable(delete):
+                    delete()
+        except RuntimeError:                 # C++ side already gone at shutdown
+            pass
+        self._drain_deferred_deletes()
+
+    @staticmethod
+    def _drain_deferred_deletes() -> None:
+        """Run queued `deleteLater()`s now, while the app object exists."""
+        try:
+            from PySide6.QtCore import QCoreApplication, QEvent
+        except ImportError:                  # pragma: no cover - non-GUI tests
+            return
+        if QCoreApplication.instance() is None:
+            return
+        try:
+            QCoreApplication.sendPostedEvents(
+                None, QEvent.Type.DeferredDelete)
+        except RuntimeError:                 # pragma: no cover - shutting down
+            pass
 
     # ------------------------------------------------------------ callbacks
     def _routing_owner(self) -> Any | None:
@@ -183,6 +233,24 @@ class HelpService:
         owner = self._routing_owner()
         if owner is not None:
             owner._switch_from_help()
+
+
+def route_ops_model(path: str) -> None:
+    """Process-wide router for ``opsmodel://`` link requests.
+
+    The `QWebEngineUrlSchemeHandler` must hold a callback that survives
+    every viewer (and never points at one): this module function delegates
+    to the current Help service, or to the last live window when Help has
+    not been opened through the service.
+    """
+    service = _SERVICE
+    if service is not None:
+        service._open_model(path)
+        return
+    from raptor.gui import open_models
+    live = open_models.windows()
+    if live:
+        live[-1].open_model_from_help(path)
 
 
 def get_help_service() -> HelpService:

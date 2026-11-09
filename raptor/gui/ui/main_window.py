@@ -326,6 +326,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def __init__(self):
         super().__init__()
         self._rbd: RbdFile | None = None
+        #: Weak compatibility reference to the process-wide Help viewer
+        #: (see `_show_help_viewer`); None before Help / after this window
+        #: closes.
+        self._help_viewer: weakref.ref | None = None
         #: Templates of the library last imported (Data ▸ Import Library); the Block Defaults dialog offers them.
         self._block_library: list[dict] = []
         self._current_file: str | None = None
@@ -978,9 +982,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         from raptor.gui.ui.help_service import get_help_service
         viewer = get_help_service().show(self, name, anchor)
         # Compatibility for code (and older tests) that looked for the
-        # viewer on the window. Weak on purpose: Help is no longer owned by
-        # this window, and a closing window must not keep it alive.
-        self._help_viewer = weakref.proxy(viewer)
+        # viewer on the window. A weak reference on purpose: Help is no
+        # longer owned by this window, and a closing window must not keep
+        # it alive. Access it with `()`; it is empty after Help closes.
+        self._help_viewer = weakref.ref(viewer)
         return viewer
 
     def open_model_from_help(self, path: str) -> None:
@@ -5043,6 +5048,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # open while another remains. The service transfers it to a
             # live window, and closes it only when none are left (#206).
             notify_window_closed(self)
+            self._help_viewer = None
             event.accept()
         else:
             event.ignore()
