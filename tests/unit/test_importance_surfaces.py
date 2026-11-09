@@ -362,7 +362,7 @@ def test_the_background_poller_displays_the_workers_importance_progress(qapp):
     win = MainWindow()
     win._apply_importance_progress(
         {"importance_progress": (4, 13, "failed:Engine_Core")})
-    assert win._run_progress_label.text() == "30%"
+    assert win._run_progress_label.text() == "25%"
     assert "variant 4 of 13" in win.statusBar().currentMessage()
     win._apply_importance_progress({})          # nothing to do, no crash
     win.close()
@@ -447,11 +447,11 @@ def test_importance_progress_shows_a_percentage_on_the_run_bar(qapp):
 
     win = MainWindow()
     win._update_importance_progress(7, 35, "perfect:Pump B")
-    assert win._run_progress_label.text() == "20%"
+    assert win._run_progress_label.text() == "17%"
     assert not win._run_progress.isHidden()
-    assert win._run_progress.value() == 20
+    assert win._run_progress.value() == 17
     message = win.statusBar().currentMessage()
-    assert "variant 7 of 35" in message and "(20%)" in message
+    assert "variant 7 of 35" in message and "(17%)" in message
     win._end_importance_progress("done")
     assert win._run_progress.isHidden()
     assert win._run_progress_label.isHidden()
@@ -465,7 +465,7 @@ def test_the_background_poller_displays_the_workers_importance_progress(qapp):
     win = MainWindow()
     win._apply_importance_progress(
         {"importance_progress": (4, 13, "failed:Engine_Core")})
-    assert win._run_progress_label.text() == "30%"
+    assert win._run_progress_label.text() == "25%"
     assert "variant 4 of 13" in win.statusBar().currentMessage()
     win._apply_importance_progress({})
     win.close()

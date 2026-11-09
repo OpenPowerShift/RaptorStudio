@@ -710,6 +710,26 @@ class ResultsDock(QWidget):
             # selector above them implied they were filtered.
             self._update_hier_filter_visibility()
 
+    def _restore_details_view(self, title: str | None,
+                              scroll: int = 0) -> None:
+        """Re-select a Final Results sub-tab and its scroll offset.
+
+        `_populate_details` rebuilds every page, so the old widgets (and
+        their scroll bars) are gone. This is what keeps a live refresh --
+        baseline results replaced by the same results plus Importance --
+        from throwing the reader back to the top of a different tab.
+        """
+        if not title:
+            return
+        for i in range(self._details_tabs.count()):
+            if self._details_tabs.tabText(i) != title:
+                continue
+            self._details_tabs.setCurrentIndex(i)
+            page = self._details_tabs.widget(i)
+            if scroll and isinstance(page, QScrollArea):
+                page.verticalScrollBar().setValue(scroll)
+            break
+
     #: User picked a hierarchy in the filter combo (id, or 0 = all)
     hierarchy_filter_changed = Signal(int)
 
@@ -3057,12 +3077,26 @@ class ResultsDock(QWidget):
             if progress is not None:
                 progress(label, done, total)
 
+        # A live refresh (baseline results replaced by the same run plus
+        # its Importance data) must not move the reader: remember the
+        # selected Final Results sub-tab and its scroll offset, then put
+        # them back once the rebuilt pages exist.
+        previous_tab = None
+        previous_scroll = 0
+        cur_index = self._details_tabs.currentIndex()
+        if cur_index >= 0:
+            previous_tab = self._details_tabs.tabText(cur_index)
+            current_page = self._details_tabs.widget(cur_index)
+            if isinstance(current_page, QScrollArea):
+                previous_scroll = current_page.verticalScrollBar().value()
+
         stage("overview", 1, 6)
         self._populate_overview()
         stage("detail tables", 2, 6)
         self._populate_details(final_results_lines)
         stage("level filter", 3, 6)
         self._apply_level_filter()
+        self._restore_details_view(previous_tab, previous_scroll)
         stage("graphs", 4, 6)
         self._update_graphs()
         stage("raw report", 5, 6)

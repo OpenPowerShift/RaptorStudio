@@ -317,10 +317,22 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     _bg_thread: Any = None
     _bg_last_progress: Any = None
     _bg_last_bar: Any = None
+    #: The background worker has finished its baseline and is now spending
+    #: the user's time on importance variants. The baseline has already
+    #: been put on screen once (`_bg_baseline_presented`), so the poll must
+    #: not re-populate it and must ignore the baseline's stale
+    #: stage/progress fields while this is true.
+    _bg_baseline_presented: bool = False
+    #: Last importance progress tuple written to the status bar -- the poll
+    #: runs at 10 Hz and would otherwise rewrite the same sentence.
+    _imp_last_key: Any = None
     #: True while ResultsDock.set_results is populating; its progress
     #: callback pumps the event loop, which must not re-enter the poll
     #: tick or start a second population.
     _results_populating: bool = False
+    #: A populated baseline whose importance phase follows. Caps the
+    #: results-population bar at 99% so it cannot read as finished.
+    _results_follow_up: bool = False
 
     def __init__(self):
         super().__init__()
@@ -5146,6 +5158,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._run_eta: RunEstimate | None = RunEstimate(
             extra_batches=self._importance_extra_batches())
         self._bg_last_paused = False
+        # Importance has its own estimate (started when the baseline is
+        # presented) and its own deduplicated status key.
+        self._imp_eta = None
+        self._imp_last_key = None
 
     def _importance_extra_batches(self) -> int:
         """Batches importance measures add after the baseline (0 when off)."""
@@ -5217,39 +5233,82 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             est.resume()
         self._bg_last_paused = paused
 
-    def _update_importance_progress(self, done, total, label="") -> None:
+    def _update_importance_progress(self, done, total, label="", *,
+                                    paused: bool = False) -> None:
         """Show importance progress on the run progress bar and in the bar.
 
         The same widgets the simulation uses: with Animate off (the default)
         there is no canvas activity at all, so without this a run that then
         spends minutes on variants looks hung.
+
+        The bar is driven by the VARIANT fraction, ``(done - 1) /
+        (total - 1)``: `done` counts batches finished with the baseline as
+        the first, so the old ``done / total`` formula showed 1/N before a
+        single variant had run and then jumped. It is deliberately capped
+        at 99% here -- the last variant's callback fires before the metric
+        rows are assembled, and showing 100% while work remained is exactly
+        the "stuck at 100%" bug this replaces.
+
+        Writes are deduplicated on ``(done, total, label, paused)``: the
+        background poll calls this ten times a second, and rewriting an
+        identical sentence made the status line flicker. An ETA rides the
+        same message once two variants have completed.
         """
         total = max(int(total), 1)
-        pct = 100 * int(done) // total
+        done = max(int(done), 1)
+        variants_total = max(total - 1, 1)
+        variants_done = min(max(done - 1, 0), variants_total)
+        pct = (0 if variants_done <= 0
+               else min(99, 100 * variants_done // variants_total))
+        key = (done, total, str(label), bool(paused))
+        if key == getattr(self, "_imp_last_key", None):
+            return
+        self._imp_last_key = key
         self._run_progress.setVisible(True)
         self._run_progress.setValue(pct)
         self._run_progress_label.setVisible(True)
         self._run_progress_label.setText(f"{pct}%")
         self._clear_run_eta()      # the baseline batch is over
-        # `done` counts batches finished with the baseline as the first, so
-        # the variants finished are done - 1 of total - 1. Timed from the
-        # first report: the estimate was dropped here before, which left the
-        # slowest part of a run (one batch per block per measure) with no
-        # time at all.
+        # Timed from the first report: the estimate was dropped here before,
+        # which left the slowest part of a run (one batch per block per
+        # measure) with no time at all.
         imp = getattr(self, "_imp_eta", None)
         if imp is None:
             from raptor.gui.ui.run_eta import RunEstimate
             imp = RunEstimate()
-            self._imp_eta: RunEstimate | None = imp
-        eta = imp.text(int(done) - 1, int(total) - 1)
-        detail = f" [{label}]" if label else ""
+            self._imp_eta = imp
+        if paused:
+            imp.pause()
+        else:
+            imp.resume()
+        eta = None if paused else imp.text(variants_done, variants_total)
+        if paused:
+            what = (f"Importance measures paused — variant {done} of "
+                    f"{total}")
+        elif done <= 1 and not label:
+            what = (f"Importance measures running — variant {done} of "
+                    f"{total}")
+        else:
+            what = f"Importance measures — variant {done} of {total}"
+        detail = f" ({label})" if label else ""
         self._statusbar.showMessage(
-            f"Importance measures — variant {int(done)} of {int(total)}"
-            f"{detail} ({pct}%)" + (f" · {eta}" if eta else ""), 0)
-        QApplication.processEvents()
+            f"{what}{detail} ({pct}%)" + (f" · {eta}" if eta else ""), 0)
+
+    def _begin_importance_progress(self, total) -> None:
+        """Baseline is on screen; make the wait for the variants explicit.
+
+        Called once per run, on the GUI thread, by whichever run path
+        presented the baseline results. `_imp_eta` exists from here on, so
+        `_importance_for` can tell a baseline-first presentation from a
+        direct call (tests, old callers) that still needs to start it.
+        """
+        self._imp_last_key = None
+        self._imp_eta = None
+        self._update_importance_progress(1, max(int(total or 1), 1), "")
 
     def _end_importance_progress(self, message: str) -> None:
         self._imp_eta = None
+        self._imp_last_key = None
         self._run_progress.setVisible(False)
         self._run_progress_label.setVisible(False)
         self._statusbar.showMessage(message, 8000)
@@ -5258,18 +5317,103 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """The background worker's importance progress, applied on the GUI
         thread. Kept as its own method so the poll path is testable without
         standing up a whole worker run."""
-        progress = (state or {}).get("importance_progress")
+        state = state or {}
+        progress = state.get("importance_progress")
+        paused = bool(state.get("paused"))
         if progress:
-            self._update_importance_progress(*progress)
+            self._update_importance_progress(*progress, paused=paused)
+        elif state.get("baseline_ready"):
+            # No variant finished yet (or the worker is paused before the
+            # first one): show that importance is running, not the stale
+            # baseline stage that preceded it.
+            total = state.get("importance_total") or 1
+            self._update_importance_progress(1, total, "", paused=paused)
+
+    def _analyse_importance_off_thread(self, run_model, report_data, *,
+                                       mode: str):
+        """Run `importance.analyse` on a worker and keep this thread's loop
+        alive while it works.
+
+        Importance is the longest stretch of a run (one batch per block per
+        measure) and `analyse` is pure engine work -- there is no Qt in it.
+        Running it on the GUI thread froze the Help viewer and the whole
+        window for minutes on the synchronous path. The worker gets a
+        private copy for the same reason the background batch does: the
+        canvas may keep painting, and a user may inspect results, while it
+        reads the model.
+
+        A local `QEventLoop` pumps the GUI thread until the worker is done,
+        so Help stays scrollable/searchable and Stop still lands. Progress
+        crosses the thread boundary as a plain tuple, written by the worker
+        and rendered by the timer on this thread.
+        """
+        import copy as _copy
+        import threading
+
+        from PySide6.QtCore import QEventLoop, QTimer
+
+        from raptor.api import importance as _imp
+
+        worker_model = _copy.deepcopy(run_model)
+        # Read the setting HERE, on the GUI thread; the worker must not
+        # touch the model/experiment.
+        workers = max(1, int(
+            (self._current_experiment() or {}).get("workers", 1) or 1))
+        state: dict = {"done": False, "progress": None, "error": None}
+
+        def worker():
+            try:
+                state["data"] = _imp.analyse(
+                    worker_model, report_data, mode=mode,
+                    runs=len(report_data), workers=workers,
+                    progress=lambda d, t, lab: state.__setitem__(
+                        "progress", (d, t, lab)),
+                    # Stop must stop this too. It is the same button and the
+                    # same wait; without it an "aborted" run ground through
+                    # every remaining batch with no way out.
+                    stop_check=lambda: bool(
+                        getattr(self, "_sync_stop", False)))
+            except Exception as exc:            # noqa: BLE001
+                state["error"] = exc
+            finally:
+                state["done"] = True
+
+        thread = threading.Thread(target=worker, daemon=True,
+                                  name="raptor-importance")
+        thread.start()
+        loop = QEventLoop()
+        timer = QTimer(self)
+        timer.setInterval(50)
+
+        def tick():
+            progress = state.get("progress")
+            if progress is not None:
+                self._update_importance_progress(*progress)
+            if state.get("done"):
+                loop.quit()
+
+        timer.timeout.connect(tick)
+        timer.start()
+        try:
+            if not state.get("done"):
+                loop.exec()
+        finally:
+            timer.stop()
+            timer.deleteLater()
+            thread.join(timeout=5.0)
+        if state.get("error") is not None:
+            raise state["error"]
+        return state.get("data")
 
     def _importance_for(self, run_model, report_data):
         """Importance measures for a finished batch, or None.
 
-        Called by BOTH run paths. Only the background worker had it wired,
-        so ticking the box and pressing Run (the synchronous default) did
-        nothing at all -- the setting was silently dropped. Returns None
-        when the experiment did not ask for it, and records a note rather
-        than losing the batch if the analysis itself fails.
+        Called by BOTH run paths. The analysis itself always runs on a
+        worker (see `_analyse_importance_off_thread`); this method owns the
+        user-facing start/finish messages so neither path has to know how
+        the wait is presented. Returns None when the experiment did not ask
+        for it, and records a note rather than losing the batch if the
+        analysis itself fails.
         """
         mode = str((self._current_experiment() or {}).get("importance",
                                                           "none"))
@@ -5277,17 +5421,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return None
         from raptor.api import importance as _imp
         batches = _imp.batch_count(len(_imp.block_rows(run_model)), mode)
-        self._update_importance_progress(1, batches, "starting")
+        if getattr(self, "_imp_eta", None) is None:
+            self._begin_importance_progress(batches)
         try:
-            data = _imp.analyse(
-                run_model, report_data, mode=mode, runs=len(report_data),
-                workers=max(1, int(
-                    self._current_experiment().get("workers", 1) or 1)),
-                progress=self._update_importance_progress,
-                # Stop must stop this too. It is the same button and the same
-                # wait; without it an "aborted" run ground through every
-                # remaining batch with no way out.
-                stop_check=lambda: bool(getattr(self, "_sync_stop", False)))
+            data = self._analyse_importance_off_thread(
+                run_model, report_data, mode=mode)
         except RuntimeError:
             self._end_importance_progress(
                 "Importance measures cancelled — the simulation results are "
@@ -5300,6 +5438,69 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             f"Importance measures complete — Results ▸ Final Results ▸ "
             f"Importance ({batches} batches)")
         return data
+
+    def _present_baseline_results(self, *, logs, eor, fin, report_data,
+                                  notes, ao_lines, cap_lines, cost_lines,
+                                  units, manifest, importance_total=None):
+        """Put the finished baseline on screen while importance runs.
+
+        Called once per run, on the GUI thread. `follow_up=True` keeps the
+        progress bar alive and below 100%: the next thing the user sees is
+        the importance phase, not a `100/100` that then sits there. The
+        final refresh is still allowed to replace this population with one
+        that includes the Importance tab.
+        """
+        if getattr(self, "_results_populating", False):
+            return False
+        self._results._source_file_name = self._current_file or ""
+        ok = self._set_results_with_progress(
+            logs, eor, fin, report_data=report_data, units=units,
+            notes=notes, ao_lines=ao_lines, cap_lines=cap_lines,
+            cost_lines=cost_lines, manifest=manifest, importance=None,
+            follow_up=True)
+        if not ok:
+            return False
+        self._note_results_basis()
+        self._results_show_action.setEnabled(bool(report_data))
+        self._results_float_action.setEnabled(bool(report_data))
+        self._sync_overlay_actions(report_data)
+        self._apply_hier_status(report_data)
+        self._present_results()
+        self._begin_importance_progress(importance_total or 1)
+        return True
+
+    def _present_background_baseline(self, state) -> bool:
+        """The background worker's baseline, rendered by the GUI thread.
+
+        The worker deliberately keeps `done` False until importance ends,
+        so this is the only chance to show the baseline before the extra
+        batches are spent. Returns True only when the population actually
+        ran; the poll retries on the next tick if another population was
+        still in flight.
+        """
+        result = state.get("result")
+        if not result:
+            return False
+        try:
+            (logs, eor, fin, report_data, report_notes, ao_lines,
+             cap_lines, cost_lines, units) = result
+        except (TypeError, ValueError):
+            return False
+        self._push_weak_settings()
+        result_streams = state.get("streams") or {}
+        eor_source = result_streams.get("end_of_run")
+        if eor_source is None:
+            eor_source = eor
+        total = state.get("importance_total")
+        if not total:
+            progress = state.get("importance_progress")
+            total = progress[1] if progress else 1
+        return self._present_baseline_results(
+            logs=logs, eor=eor_source, fin=fin, report_data=report_data,
+            notes=report_notes, ao_lines=ao_lines, cap_lines=cap_lines,
+            cost_lines=cost_lines, units=units,
+            manifest=(state.get("run_metadata") or {}).get("manifest"),
+            importance_total=total)
 
     def _confirm_long_batch(self, num_runs: int) -> bool:
         """Ask before a batch that is likely to run for tens of minutes.
@@ -5723,11 +5924,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._statusbar.showMessage("Run failed")
             return
         QApplication.restoreOverrideCursor()
-        self._run_in_progress = False
-        self._refresh_commands()
-        self._reenable_run_panel()
-        self._run_progress.setVisible(False)
-        self._run_progress_label.setVisible(False)
+        # Importance variants are still to come. Keep the run "in progress"
+        # for the whole of them: Run must not start a second batch over the
+        # baseline on screen, Stop must still land (the worker reads
+        # `_sync_stop`), and the run-settings lock must stay on. Ordinary
+        # runs unlock here exactly as before.
+        importance_mode = str(
+            (self._current_experiment() or {}).get("importance", "none")
+            or "none")
+        will_run_importance = (importance_mode not in ("", "none")
+                               and bool(report_data))
+        if not will_run_importance:
+            self._run_in_progress = False
+            self._refresh_commands()
+            self._reenable_run_panel()
+            self._run_progress.setVisible(False)
+            self._run_progress_label.setVisible(False)
+        else:
+            # The bar belongs to the importance phase from now on.
+            self._run_progress.setVisible(True)
+            self._run_progress_label.setVisible(True)
         self._clear_run_eta()
         # Raptor 7 clears its cycle/phase panels at batch end; same
         # here. Clear the live fills/Linked/Cut badges too: the
@@ -5766,10 +5982,23 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 "termination condition never met", 12000)
         self._results._source_file_name = self._current_file or ""
         event_logs = self._dev_filtered_event_logs(event_logs)
-        importance = self._importance_for(run_model, report_data)
         eor_source = streams.get("end_of_run")
         if eor_source is None:
             eor_source = end_of_run_lines
+        baseline_presented = False
+        importance = None
+        if will_run_importance and not getattr(self, "_sync_stop", False):
+            from raptor.api import importance as _imp
+            importance_total = _imp.batch_count(
+                len(_imp.block_rows(run_model)), importance_mode)
+            baseline_presented = self._present_baseline_results(
+                logs=event_logs, eor=eor_source, fin=final_results_lines,
+                report_data=report_data, notes=report_notes,
+                ao_lines=ao_lines, cap_lines=cap_lines,
+                cost_lines=cost_lines, units=units,
+                manifest=run_metadata.get("manifest"),
+                importance_total=importance_total)
+            importance = self._importance_for(run_model, report_data)
         self._set_results_with_progress(
             event_logs, eor_source, final_results_lines,
             report_data=report_data, units=units,
@@ -5787,9 +6016,19 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # overlay the user explicitly chose). The Results ribbon offers
         # Weak Links/Capacity/Cost/Spares once their data exists.
         self._apply_hier_status(report_data)
-        self._present_results()
+        # Present on the baseline population. Re-presenting after the
+        # importance refresh would yank the user out of whatever tab they
+        # had moved to while waiting.
+        if not baseline_presented:
+            self._present_results()
         self._note_run_profile(len(report_data))
         self._update_status_summary(report_data, units)
+        if will_run_importance:
+            self._run_in_progress = False
+            self._refresh_commands()
+            self._reenable_run_panel()
+            self._imp_eta = None
+            self._imp_last_key = None
         from raptor.core import diagnostics as _dg
         self._diag(_dg.end_simulation_line())
         total_lines = sum(len(lines) for lines in event_logs)
@@ -7521,6 +7760,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             pct = 100 * int(done) // max(int(total), 1)
         pct = max(int(pct), int(getattr(self, "_results_stage_pct", 0)))
         pct = min(pct, 100)
+        if getattr(self, "_results_follow_up", False):
+            # More work follows this population (importance variants). A
+            # "100%" here would be indistinguishable from "finished" and
+            # is exactly what used to sit on screen for minutes.
+            pct = min(pct, 99)
         self._results_stage_pct = pct
         self._run_progress.setVisible(True)
         self._run_progress.setValue(pct)
@@ -7540,13 +7784,22 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     #: batch's report phase slower than the report itself.
     _STAGE_PUMP_SECONDS = 0.05
 
-    def _set_results_with_progress(self, *args, **kwargs):
-        """Call ResultsDock.set_results with smooth stage feedback, guarded."""
+    def _set_results_with_progress(self, *args, follow_up: bool = False,
+                                   **kwargs):
+        """Call ResultsDock.set_results with smooth stage feedback, guarded.
+
+        Returns False when another population is already in progress; the
+        caller can then retry on the next poll instead of assuming the
+        dock now holds its results. `follow_up=True` leaves the progress
+        bar visible below 100% for a phase that is still to come
+        (importance variants); the normal final population still clears it.
+        """
         if getattr(self, "_results_populating", False):
-            return
+            return False
         self._results_populating = True
         self._results_stage_pct = 0
         self._last_results_pump = 0.0
+        self._results_follow_up = bool(follow_up)
         self._run_progress.setRange(0, 100)
         self._run_progress.setValue(0)
         self._run_progress_label.setText("0%")
@@ -7561,10 +7814,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         finally:
             self._results_populating = False
             self._results_stage_pct = 0
-            self._run_progress.setValue(100)
-            self._run_progress_label.setText("100%")
-            self._run_progress.setVisible(False)
-            self._run_progress_label.setVisible(False)
+            self._results_follow_up = False
+            if not follow_up:
+                self._run_progress.setValue(100)
+                self._run_progress_label.setText("100%")
+                self._run_progress.setVisible(False)
+                self._run_progress_label.setVisible(False)
+        return True
 
     def _report_stage_progress(self, done: int, total: int, label: str) -> None:
         """Worker/poll-facing report-stage callback (no Qt widgets).
@@ -8756,7 +9012,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         report_choices = self._report_choices()
         event_delay = self._effective_event_delay()
         state: dict = {"done": False, "progress": (0, num_runs),
-                       "snapshot": None, "paused": False}
+                       "snapshot": None, "paused": False,
+                       # Explicit worker phase. The poll uses it to stop
+                       # rendering the baseline's last (100/100) stage once
+                       # the ordinary batch is over, and to present the
+                       # baseline exactly once while importance runs.
+                       "phase": "baseline", "baseline_ready": False}
         # `resume_ev` cleared = paused (Event.wait blocks while clear);
         # Resume sets it, Pause clears it again.
         resume_ev = threading.Event()
@@ -8776,6 +9037,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._bg_last_progress = None
         self._bg_last_bar = None
         self._bg_last_report_count = -1
+        self._bg_baseline_presented = False
         self._bg_state = state
 
         units = self._current_units()
@@ -8953,6 +9215,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 state["result"] = (logs, eor, fin, report_data,
                                    report_notes, ao_lines, cap_lines,
                                    cost_lines, units)
+                # Publish the artefacts the baseline presentation needs
+                # before the long importance wait, so the interim results
+                # carry the stream and manifest exactly as the final
+                # refresh will.
+                state["streams"] = streams
+                state["run_metadata"] = run_metadata
                 # Importance measures run here, in the worker, after the
                 # ordinary batch -- which is their baseline. Same rule as
                 # `api.run`: the user's own results exist before the extra
@@ -8961,11 +9229,23 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                             .get("importance", "none"))
                 if _mode not in ("none", "") and report_data:
                     from raptor.api import importance as _imp
+                    # Tell the poll (GUI thread) that the batch it can see
+                    # is the baseline, and that the phase has changed. Set
+                    # before `analyse` so even a very fast pass cannot be
+                    # mistaken for the baseline's final stage.
+                    state["importance_total"] = _imp.batch_count(
+                        len(_imp.block_rows(bg_model)), _mode)
+                    state["baseline_ready"] = True
+                    state["phase"] = "importance"
                     try:
                         state["importance"] = _imp.analyse(
                             bg_model, report_data, mode=_mode,
                             runs=len(report_data), workers=workers,
-                            stop_check=stop_ev.is_set,
+                            # `stop_check`, not `stop_ev.is_set`: Pause is
+                            # checked between variants (and blocks there),
+                            # so a paused run neither advances nor spins to
+                            # completion. Stop still sets `stop_ev`.
+                            stop_check=stop_check,
                             progress=lambda d, t, lab: state.__setitem__(
                                 "importance_progress", (d, t, lab)))
                     except Exception as exc:      # noqa: BLE001
@@ -8974,8 +9254,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                         report_notes.append(
                             f"importance measures were not calculated: {exc}")
                         state["importance"] = None
-                state["streams"] = streams
-                state["run_metadata"] = run_metadata
             except Exception as e:
                 import traceback
                 traceback.print_exc()
@@ -8986,6 +9264,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             finally:
                 if gc_was_enabled:
                     gc.enable()
+                state["phase"] = "done"
                 state["done"] = True
 
         self._bg_thread = threading.Thread(target=worker, daemon=True)
@@ -9037,9 +9316,24 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         state = self._bg_state
         if not state:
             return
-        # The worker records importance progress; nothing displayed it, so a
-        # background run spent its last minutes silently.
-        self._apply_importance_progress(state)
+        phase = str(state.get("phase") or "baseline")
+        importance_phase = phase == "importance"
+        # Baseline finished, importance variants still running: put the
+        # baseline's Final Results on screen ONCE, so the user can read them
+        # instead of staring at "Processing results". The worker flips
+        # `phase` in the same assignment sequence that publishes `result`,
+        # and `done` stays False until the variants finish.
+        if (not state.get("done") and state.get("baseline_ready")
+                and importance_phase
+                and not getattr(self, "_bg_baseline_presented", False)):
+            if self._present_background_baseline(state):
+                self._bg_baseline_presented = True
+        # Importance owns the status line and the bar for this phase. The
+        # ordinary-batch progress/stage below are stale now (the worst is
+        # the runner's "Final results report 100/100"), so they must not be
+        # rendered on top on every 100 ms poll.
+        if importance_phase:
+            self._apply_importance_progress(state)
         if state.get("runaway_ask") and not state.get("runaway_asked"):
             state["runaway_asked"] = True
             done, total = state["runaway_ask"]
@@ -9047,7 +9341,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 state["stop_ev"].set()
             state["resume_ev"].set()
         stage = state.get("stage")
-        if stage and not state.get("done"):
+        if stage and not state.get("done") and not importance_phase:
             label, done, total = stage
             total = max(int(total), 1)
             self._statusbar.showMessage(
@@ -9137,7 +9431,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 self._diagram_dock.view.update_live_states(
                     shim, cap_data=state.get("cap_snapshot"),
                     model=dict_model)
-        if state.get("progress"):
+        if state.get("progress") and not importance_phase:
             done, total = state.get("progress", (0, 0))
             paused = bool(state.get("paused"))
             pool = state.get("workers", 1)
@@ -9212,6 +9506,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._run_progress.setVisible(False)
         self._run_progress_label.setVisible(False)
         self._clear_run_eta()
+        self._imp_eta = None
+        self._imp_last_key = None
         self._hide_phase_labels()
         self._diagram_dock.view.clear_live_states()
         # Unlock the run settings: whether the run finished, failed or was
@@ -9229,7 +9525,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # results still need parsing/rendering below, which can take a
         # visible moment on a large model -- without this the bar was
         # left showing the last "Background — ..." progress line.
-        self._statusbar.showMessage("Processing results…")
+        self._statusbar.showMessage(
+            "Importance measures complete — refreshing results…"
+            if state.get("importance") is not None
+            else "Processing results…")
         QApplication.processEvents()
         (logs, eor, fin, report_data, report_notes, ao_lines, cap_lines,
          cost_lines, units) = state["result"]
@@ -9267,7 +9566,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # overlay the user explicitly chose). The Results ribbon offers
         # Weak Links/Capacity/Cost/Spares once their data exists.
         self._apply_hier_status(report_data)
-        self._present_results()
+        # The baseline presentation already surfaced Results. Re-presenting
+        # would yank the user out of the tab they moved to while waiting;
+        # the refresh itself preserves that tab and its scroll position.
+        if not getattr(self, "_bg_baseline_presented", False):
+            self._present_results()
         self._note_run_profile(len(report_data))
         self._update_status_summary(report_data, units)
         if stopped:
@@ -9284,7 +9587,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         else:
             self._statusbar.showMessage(
                 f"Completed {len(logs)} run(s) successfully — results "
-                f"ready")
+                f"ready" + (" (importance measures included)"
+                            if state.get("importance") is not None else ""))
+        self._bg_baseline_presented = False
 
     def _toggle_bg_pause(self):
         # Pre-arm: Pause before any Run kicks off a stepped session
