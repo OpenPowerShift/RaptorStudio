@@ -88,6 +88,11 @@ def test_a_dragged_block_tracks_the_mouse_across_neighbours(win, snap):
             QApplication.processEvents()
             if s % 25 == 0 and waited < 6:
                 QTest.qWait(450)        # the debounce timers fire mid-drag
+                QApplication.processEvents()
+                # Qt may deliver one queued move during qWait. Rebase the
+                # reference to where the item and mouse actually are, or
+                # the next delta reports that queued move as a jump.
+                last_mouse, last_pos = m, ia.pos()
                 waited += 1
             dm = view.mapToScene(m) - view.mapToScene(last_mouse)
             dp = ia.pos() - last_pos
