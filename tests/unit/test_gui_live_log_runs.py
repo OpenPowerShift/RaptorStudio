@@ -226,3 +226,61 @@ def test_reset_layout_keeps_the_live_log_hidden(window, qapp):
     assert not window._live_log_dock.isVisible()
     assert window._inspector_dock.isVisible()
     assert not window._live_log_toggle_action.isChecked()
+
+
+def test_a_failed_step_hides_and_disables_the_live_log(window, qapp,
+                                                       monkeypatch):
+    from raptor.gui.ui import main_window as mw
+
+    window._on_step()
+    qapp.processEvents()
+    assert window._live_log_dock.isVisible()
+    assert window._live_log_toggle_action.isEnabled()
+    monkeypatch.setattr(mw.msgbox, "critical", lambda *args, **kwargs: None)
+
+    def boom():
+        raise RuntimeError("step failed")
+
+    monkeypatch.setattr(window._step_session, "step", boom)
+    window._on_step()
+    qapp.processEvents()
+    assert not window._live_log_dock.isVisible()
+    assert not window._live_log_toggle_action.isChecked()
+    assert not window._live_log_toggle_action.isEnabled()
+    assert window._step_session is None
+
+
+def test_repeated_steps_do_not_retabify_or_reraise_the_live_log(
+        window, qapp, monkeypatch):
+    from PySide6.QtWidgets import QTabBar
+
+    window._live_sim_action.setChecked(False)
+    calls = []
+    original = window.tabifyDockWidget
+
+    def spy(first, second):
+        calls.append((first, second))
+        return original(first, second)
+
+    monkeypatch.setattr(window, "tabifyDockWidget", spy)
+    window._on_step()
+    qapp.processEvents()
+    assert len(calls) <= 1
+
+    bar = None
+    for candidate in window.findChildren(QTabBar):
+        texts = [candidate.tabText(i) for i in range(candidate.count())]
+        if any(t.startswith("Live Log") for t in texts) and \
+                "Inspector" in texts:
+            bar = candidate
+            break
+    assert bar is not None
+    inspector_index = next(i for i in range(bar.count())
+                           if bar.tabText(i) == "Inspector")
+    bar.setCurrentIndex(inspector_index)
+    qapp.processEvents()
+
+    window._on_step()
+    qapp.processEvents()
+    assert len(calls) <= 1
+    assert bar.currentIndex() == inspector_index

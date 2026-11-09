@@ -233,6 +233,11 @@ class _DockTitleBar(QWidget):
         self._dragging = False
         self._drag_offset = None
 
+    def _clear_drag(self) -> None:
+        self._press_global = None
+        self._dragging = False
+        self._drag_offset = None
+
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._press_global = event.globalPosition().toPoint()
@@ -246,6 +251,13 @@ class _DockTitleBar(QWidget):
         if self._press_global is None:
             super().mouseMoveEvent(event)
             return
+        if not (event.buttons() & Qt.MouseButton.LeftButton):
+            # A lost release (window switch, popup, remote desktop) used
+            # to leave the title bar stuck in drag state: the next hover
+            # without a button moved the window.
+            self._clear_drag()
+            super().mouseMoveEvent(event)
+            return
         pos = event.globalPosition().toPoint()
         if not self._dragging:
             if (pos - self._press_global).manhattanLength() \
@@ -253,7 +265,7 @@ class _DockTitleBar(QWidget):
                 return
             self._dragging = True
             self._window._begin_dock_titlebar_drag(
-                self._dock, self._press_global, self)
+                self._dock, self._press_global)
             # The dock may have just been re-parented into its own
             # floating window. Anchor further movement to where that
             # window now sits so it does not jump on the next event.
@@ -263,17 +275,32 @@ class _DockTitleBar(QWidget):
         event.accept()
 
     def mouseReleaseEvent(self, event) -> None:
-        self._press_global = None
-        self._dragging = False
-        self._drag_offset = None
+        if self._dragging and event.button() == Qt.MouseButton.LeftButton:
+            self._window._finish_dock_titlebar_drag(
+                self._dock, event.globalPosition().toPoint())
+        self._clear_drag()
         event.accept()
 
     def mouseDoubleClickEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
+            self._clear_drag()
             self._window._toggle_dock_floating(self._dock)
             event.accept()
             return
         super().mouseDoubleClickEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        # While the button is held the pointer must be allowed to leave
+        # the title bar (that is the drag). Without the button it is a
+        # stale press state.
+        if not (QApplication.mouseButtons() & Qt.MouseButton.LeftButton):
+            self._clear_drag()
+        super().leaveEvent(event)
+
+    def event(self, event) -> bool:
+        if event.type() == QEvent.Type.WindowDeactivate:
+            self._clear_drag()
+        return super().event(event)
 
 
 class _DockStub(QWidget):
@@ -419,6 +446,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         #: The designed startup dock widths/heights are applied once.
         #: Later model loads must not resize docks the user has chosen.
         self._canvas_room_defaults_done = False
+        #: Set when any resizeDocks() call did not come from the window's
+        #: own startup/clamp code -- i.e. the user (or a test) chose a
+        #: size. First-load defaults must then be skipped.
+        self._dock_user_sized = False
+        self._internal_dock_resize = False
+        self._live_log_session_shown = False
         self._canvas_room_timer = QTimer(self)
         self._canvas_room_timer.setSingleShot(True)
         self._canvas_room_timer.setInterval(0)
@@ -524,12 +557,16 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     @_step_session.setter
     def _step_session(self, session) -> None:
         """A session starting or ending changes what Terminate / Finish /
-        Restart / Jump can do; it is set in many places, so they follow it
-        here rather than at each one."""
-        changed = (session is None) != (getattr(self, "_step_session_obj", None) is None)
+        Restart / Jump / View > Live Log can do; it is set in many places,
+        so they follow it here rather than at each one."""
+        previous = getattr(self, "_step_session_obj", None)
+        changed = (session is None) != (previous is None)
         self._step_session_obj = session
+        if session is not None and previous is None:
+            self._live_log_session_shown = False
         if changed and getattr(self, "_commands", None) is not None:
-            self._refresh_commands(only={"stepping", "jump_available"})
+            self._refresh_commands(
+                only={"stepping", "jump_available", "live_session"})
 
     def _show_key_tips(self) -> None:
         """Alt: put a letter over the File button and every ribbon tab, and
@@ -1333,13 +1370,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 close_btn.setToolTip("Close")
                 close_btn.setAccessibleName(f"Close {dock.windowTitle()}")
                 # left/right docks (rotated stub available) collapse to
-                # the stub instead of vanishing; bottom docks and any
-                # floated window close for real.
-                has_stub = edge in ("left", "right")
+                # the stub instead of vanishing; a dock moved to the
+                # bottom, and any floated window, close for real.
                 close_btn.clicked.connect(
-                    lambda _checked=False, d=dock, stubbed=has_stub: (
+                    lambda _checked=False, d=dock: (
                         d.close()
-                        if (d.isFloating() or not stubbed)
+                        if (d.isFloating()
+                            or self._current_dock_edge(d) not in
+                            ("left", "right"))
                         else set_closed(True)))
                 tb.addWidget(close_btn)
 
@@ -1358,14 +1396,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
             normal_min_width = max(dock.minimumWidth(), 0)
             normal_min_height = max(dock.minimumHeight(), 0)
-            normal_min = (normal_min_width if edge in ("left", "right")
-                          else normal_min_height)
             entries.append({"dock": dock, "content": content,
                             "titlebar": titlebar, "icon_label": icon_label,
                             "label": label,
                             "min_btn": min_btn, "float_btn": float_btn,
                             "close_btn": close_btn, "stub": stub,
-                            "edge": edge, "normal_min": normal_min,
+                            "edge": edge,
                             "normal_min_width": normal_min_width,
                             "normal_min_height": normal_min_height,
                             "docked_width": None, "docked_height": None,
@@ -1413,6 +1449,36 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if fn is not None:
                 fn(dock.isVisible())
 
+        def restore_side_extent(e, dock):
+            """Re-apply the user's width once Qt has released the
+            minimise/close lock. Deferred: the dock's min/max are still
+            being changed on this turn."""
+            width = int(e.get("docked_width") or 0)
+            if not width:
+                return
+
+            def apply(attempt=0):
+                try:
+                    if dock.isFloating() or e.get("minimized") \
+                            or e.get("closed"):
+                        return
+                    if self._current_dock_edge(
+                            dock, e.get("edge")) not in ("left", "right"):
+                        return
+                    actual = dock.width()
+                    if attempt and actual >= width - 4:
+                        return
+                    requested = width + (width - actual) \
+                        if actual < width - 4 else width
+                    self._resize_docks([dock], [requested],
+                                       Qt.Orientation.Horizontal)
+                except (RuntimeError, TypeError):
+                    return
+                if attempt < 1:
+                    QTimer.singleShot(
+                        0, lambda: apply(attempt + 1))
+            QTimer.singleShot(0, apply)
+
         def set_minimized(minimized: bool):
             for e in entries:
                 dock, content = e["dock"], e["content"]
@@ -1452,6 +1518,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                         self._set_dock_min_width(dock, min_w)
                         dock.setMinimumHeight(0)
                         dock.setMaximumHeight(16777215)
+                        restore_side_extent(e, dock)
                 else:
                     if minimized:
                         # Remember the pre-collapse height so restore
@@ -1516,6 +1583,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     continue
                 e["closed"] = closed
                 if closed:
+                    if not e["minimized"]:
+                        # Remember the width the user had before the stub
+                        # pins the dock to 24 px. Do not overwrite it when
+                        # a minimised dock is already squeezed.
+                        e["docked_width"] = max(
+                            dock.width(), int(e.get("docked_width") or 0))
                     e["minimized"] = False
                     e["content"].setVisible(False)
                     dock.setTitleBarWidget(stub)
@@ -1525,20 +1598,28 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     edge_now = self._current_dock_edge(dock, e.get("edge"))
                     e["edge"] = edge_now
                     dock.setTitleBarWidget(e["titlebar"])
-                    dock.setMaximumSize(16777215, 16777215)
-                    if edge_now in ("left", "right"):
-                        self._set_dock_min_width(
-                            dock, self._dock_min_dimension(e, edge_now))
-                        dock.setMinimumHeight(0)
+                    if e["minimized"]:
+                        # Restoring the *chrome* of a minimised dock must
+                        # not release its collapse locks or reveal its
+                        # content: `set_minimized(False)` owns that.
+                        e["content"].setVisible(False)
                     else:
-                        dock.setMinimumWidth(0)
-                        dock.setMinimumHeight(
-                            self._dock_min_dimension(e, "bottom"))
-                    e["content"].setVisible(True)
+                        dock.setMaximumSize(16777215, 16777215)
+                        if edge_now in ("left", "right"):
+                            self._set_dock_min_width(
+                                dock, self._dock_min_dimension(e, edge_now))
+                            dock.setMinimumHeight(0)
+                            restore_side_extent(e, dock)
+                        else:
+                            dock.setMinimumWidth(0)
+                            dock.setMinimumHeight(
+                                self._dock_min_dimension(e, "bottom"))
+                        e["content"].setVisible(True)
             sync_action(e["dock"])
             retheme()
 
         for e in entries:
+            e["set_minimized"] = set_minimized
             if e["stub"] is not None:
                 e["stub"].clicked.connect(
                     lambda _c=False, fn=set_closed: fn(False))
@@ -1602,7 +1683,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._diagram_dock.view.annotations_may_be_invisible.connect(
             self._on_annotations_may_be_invisible)
         self._diagram_dock.view.properties_requested.connect(
-            self._show_inspector_dock)
+            lambda: self._show_inspector_dock(expand_minimized=True))
         # Any selection change can enable/disable the z-order buttons and
         # Align & Distribute, neither of which depends on WHICH element
         # is selected.
@@ -3506,23 +3587,34 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._live_log_panel.clear()
         self._live_log_dock.setWindowTitle("Live Log")
 
+    def _end_step_session(self, *, clear_sink: bool = True) -> bool:
+        """End the current stepped session through one path.
+
+        Raw `_step_session = None` assignments skipped the dock reset and
+        the Live Log's action refresh, so a failed step left a visible
+        panel whose action was already disabled. Returns True when a
+        session was actually open. `clear_sink=False` keeps the reports
+        Finish/Terminate are about to present."""
+        if getattr(self, "_step_session", None) is None:
+            return False
+        self._step_session = None
+        if clear_sink:
+            self._step_sink = []
+        self._diagram_dock.view.clear_live_states()
+        # The run is over, so the run settings unlock. Derived, not
+        # remembered -- see `_sync_run_settings_lock`.
+        self._sync_run_settings_lock()
+        self._live_log_session_shown = False
+        self._reset_right_docks()
+        return True
+
     def _invalidate_step_session(self):
         self._leave_fev()
         self._on_fev_log_close()
         if getattr(self, "_fev_status_dialog", None) is not None:
             cast(Any, self)._fev_status_dialog.close()
-        if getattr(self, "_step_session", None) is not None:
-            self._step_session = None
-            self._step_sink = []
-            self._diagram_dock.view.clear_live_states()
-            # The run is over, so the run settings unlock. Derived, not
-            # remembered -- see `_sync_run_settings_lock`.
-            self._sync_run_settings_lock()
+        if self._end_step_session():
             self._statusbar.showMessage("Stepped run discarded — model changed")
-        # No live session: back to the Inspector, with the Live Log's
-        # stale rows gone. This is the one right-dock policy shared by
-        # startup, New/Open, Close and step teardown.
-        self._reset_right_docks()
 
     def _update_title(self):
         star = "*" if self._dirty else ""
@@ -4029,8 +4121,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if not self._confirm_discard_unsaved(closing=True):
             return
         self._invalidate_step_session()
-        # Reset the view's per-file state, then leave the canvas EMPTY. It
-        # used to keep showing that placeholder model -- a diagram, a full
+        # Closing the model is not an edit: always return the right-hand
+        # docks to their unrun state.
+        self._reset_right_docks()
+        # Reset the view's per-file state, then leave the canvas EMPTY.
+        # It used to keep showing that placeholder model -- a diagram, a full
         # Explorer and "Model OK" over a ribbon with everything disabled.
         view = self._diagram_dock.view
         view.load_rbd(build_new_model("Closed"))
@@ -4385,6 +4480,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # a stepped session belongs to the previous model -- stepping
         # after an Open must never touch the old engine context
         self._invalidate_step_session()
+        # A New/Open model is unrun even when no step session was open:
+        # Inspector front, Live Log parked.
+        self._reset_right_docks()
         self._current_file = path
         # Retention rule: a file opened as legacy .rbd keeps saving as
         # .rbd; new models and .rbds files default to .rbds.
@@ -4997,6 +5095,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # The user's saved widths/heights are deliberate; a later model
         # load must not replace them with the designed defaults.
         self._canvas_room_defaults_done = True
+        self._dock_user_sized = True
         return True
 
     def _reset_dock_chrome(self) -> None:
@@ -5992,7 +6091,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                         and prev_status.get(b.id) != BlockStatus.REPAIRING)
         return False
 
-    def _show_inspector_dock(self):
+    def _show_inspector_dock(self, *, expand_minimized: bool = False):
         """Bring the Inspector dock to front -- same show()+raise_()
         pattern used elsewhere for a tabbed dock (`_show_live_log_dock`).
 
@@ -6000,23 +6099,41 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         to its rotated stub by hiding its content, and the QDockWidget
         stays visible, so `show()` was a no-op and right-click >
         Properties appeared to do nothing. Go through the stub's own
-        restore first."""
-        stub = (self._dock_stubs or {}).get(self._inspector_dock)
-        if stub is not None:
-            stub(False)
+        restore -- but only when it is actually closed, and never touch
+        a minimised dock's constraints unless an explicit reveal asks to
+        expand it (`set_minimized(False)` restores its content first)."""
+        entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                 .get(self._inspector_dock)) or {}
+        if entry.get("closed"):
+            stub = (self._dock_stubs or {}).get(self._inspector_dock)
+            if stub is not None:
+                stub(False)
+        if expand_minimized and entry.get("minimized"):
+            chrome = (self._dock_chrome or {}).get("Inspector")
+            if chrome is not None:
+                chrome["set_minimized"](False)
         self._inspector_dock.show()
         self._inspector_dock.raise_()
 
-    def _show_live_log_dock(self, show: bool):
+    def _show_live_log_dock(self, show: bool, *, tabify: bool = True,
+                            raise_: bool = True):
         """Swap right-side docks: Live Log during stepping, Inspector
         otherwise. Tabified on the same area so the user's layout is
-        preserved."""
+        preserved. Repeated steps pass `tabify=False, raise_=False`:
+        re-tabifying or raising on every event would pull the tab back
+        from the Inspector and rebuild tab bars needlessly."""
         if show:
-            self.tabifyDockWidget(self._live_log_dock,
-                                  self._inspector_dock)
-            self._sync_dock_tab_bars()
-            self._live_log_dock.show()
-            self._live_log_dock.raise_()
+            already = self._live_log_dock in \
+                self.tabifiedDockWidgets(self._inspector_dock)
+            if tabify and not already:
+                self.tabifyDockWidget(self._live_log_dock,
+                                      self._inspector_dock)
+                self._sync_dock_tab_bars()
+            if not self._live_log_dock.isVisible():
+                self._live_log_dock.show()
+            if raise_:
+                self._live_log_dock.raise_()
+            self._live_log_session_shown = True
         else:
             self._live_log_dock.hide()
             self._show_inspector_dock()
@@ -6035,14 +6152,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         session predicate)."""
         live = getattr(self, "_live_log_dock", None)
         if live is not None:
-            live.hide()
             try:
+                if live.isFloating():
+                    # A restored layout can leave the Live Log as its own
+                    # window. It belongs back in the right dock before it
+                    # is hidden, or the next Show reopens a floating
+                    # panel over the Inspector.
+                    live.setFloating(False)
+                    self.addDockWidget(
+                        Qt.DockWidgetArea.RightDockWidgetArea, live)
+                live.hide()
                 self._reset_live_log()
             except RuntimeError:
                 pass
         inspector = getattr(self, "_inspector_dock", None)
         if inspector is not None:
-            self._show_inspector_dock()
+            try:
+                self._show_inspector_dock()
+            except RuntimeError:
+                pass
+        self._live_log_session_shown = False
         for dock in (live, inspector):
             if dock is None:
                 continue
@@ -6087,8 +6216,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                         "color", None))
         # The Live Log belongs to the stepped session, not to the Animate
         # canvas overlay: show it even when Animate is off, so Step always
-        # has an event list to read.
-        self._show_live_log_dock(True)
+        # has an event list to read. Tabify/raise only on the session's
+        # first step, so repeated steps do not steal the Inspector tab.
+        first_view = not getattr(self, "_live_log_session_shown", False)
+        self._show_live_log_dock(True, tabify=first_view,
+                                 raise_=first_view)
+        self._live_log_session_shown = True
         # Follows the run being stepped, across run boundaries; the
         # selector keeps the finished runs readable.
         self._live_log_panel.update_session(
@@ -6214,8 +6347,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 self, "Step Failed",
                 "The step could not be executed:\n\n"
                 + traceback.format_exc(limit=4))
-            self._step_session = None
-            self._sync_run_settings_lock()
+            self._end_step_session()
 
     def _on_step_change(self):
         """Step to the next system-state change (Raptor 7's Step; `StepSession.step_to_change`)."""
@@ -6241,8 +6373,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             msgbox.critical(
                 self, "Step Failed",
                 "The step could not be executed:\n\n" + traceback.format_exc(limit=4))
-            self._step_session = None
-            self._sync_run_settings_lock()
+            self._end_step_session()
 
     def _advance_until(self, *, max_steps=None, target_time=None,
                        until_time_changes=False):
@@ -6437,8 +6568,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             msgbox.critical(
                 self, "Jump Failed",
                 "The jump could not be executed:\n\n" + traceback.format_exc(limit=4))
-            self._step_session = None
-            self._sync_run_settings_lock()
+            self._end_step_session()
 
     def _on_step_finish(self):
         """Complete the stepped run (remaining events + closing passes),
@@ -6447,9 +6577,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         session = self._step_session
         self._on_fev_log_close()
-        self._step_session = None  # single-use; next Step starts fresh
-        self._sync_run_settings_lock()
-        self._reset_right_docks()
+        self._end_step_session(clear_sink=False)
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             event_logs, _ = session.finish_all()
@@ -6956,8 +7084,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if state.run != "idle":
             return
         if not state.valid:
-            self._step_session = None
-            self._sync_run_settings_lock()
+            self._end_step_session()
 
     def _reset_status_summary(self):
         """Run starts with the readouts cleared -- no stale values from
@@ -7094,11 +7221,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         has_results = bool(getattr(self._results, "_report_data", None))
         if has_results:
             self._release_bottom_strip_ceiling()
-            self.resizeDocks([dock], [self._results_full_target()],
+            self._resize_docks([dock], [self._results_full_target()],
                              Qt.Orientation.Vertical)
         else:
             self._release_bottom_strip_ceiling()
-            self.resizeDocks([dock], [260], Qt.Orientation.Vertical)
+            self._resize_docks([dock], [260], Qt.Orientation.Vertical)
 
     def _on_bottom_dock_visibility_changed(self, dock, visible: bool) -> None:
         """Apply the height policy of the bottom tab that came to front.
@@ -7114,6 +7241,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         try:
             if dock.isFloating():
+                return
+            if self.dockWidgetArea(dock) not in (
+                    Qt.DockWidgetArea.BottomDockWidgetArea,
+                    Qt.DockWidgetArea.TopDockWidgetArea):
                 return
         except RuntimeError:           # C++ object already torn down
             return
@@ -7139,7 +7270,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 return
             if dock.height() < self.DATA_TABLES_OPEN_HEIGHT:
                 self._release_bottom_strip_ceiling()
-                self.resizeDocks([dock], [self.DATA_TABLES_OPEN_HEIGHT],
+                self._resize_docks([dock], [self.DATA_TABLES_OPEN_HEIGHT],
                                  Qt.Orientation.Vertical)
         except RuntimeError:
             pass
@@ -7215,37 +7346,62 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         except RuntimeError:       # the window's C++ object
             return
         limit = self._max_bottom_dock_height()
-        active = getattr(self, "_bottom_active_dock", None) \
-            or getattr(self, "_results_dock", None)
-        for d in (getattr(self, "_results_dock", None),
-                  getattr(self, "_data_tables_dock", None),
-                  getattr(self, "_run_dock", None)):
-            dock: Any = d
-            if dock is None:
-                continue
+        docks = [d for d in self.findChildren(QDockWidget)
+                 if d.parent() is self]
+        entries = getattr(self, "_dock_chrome_entries", None) or {}
+        bottom: list[QDockWidget] = []
+        for dock in docks:
             try:
                 if dock.isFloating():
+                    entry = entries.get(dock) or {}
+                    if not entry.get("minimized") and \
+                            dock.maximumHeight() != 16777215:
+                        dock.setMaximumHeight(16777215)
                     continue
+                area = self.dockWidgetArea(dock)
             except RuntimeError:
                 continue
-            # A collapsed strip is pinned to its titlebar; leave its
-            # fixed min/max pair alone or the restore has to undo our
-            # ceiling first.
-            entry = (getattr(self, "_dock_chrome_entries", None)
-                     or {}).get(dock) or {}
+            entry = entries.get(dock) or {}
             if entry.get("minimized"):
                 continue
+            if area in (Qt.DockWidgetArea.BottomDockWidgetArea,
+                        Qt.DockWidgetArea.TopDockWidgetArea):
+                bottom.append(dock)
+            elif dock.maximumHeight() != 16777215:
+                # No longer in a vertical dock area: a stale bottom cap
+                # must not follow the dock to the right/left.
+                dock.setMaximumHeight(16777215)
+        # The active dock may have been moved out of the bottom area.
+        # Recompute from the docks still there rather than trusting an
+        # identity remembered before the move.
+        active = getattr(self, "_bottom_active_dock", None)
+        available = [d for d in bottom
+                     if not (entries.get(d) or {}).get("minimized")]
+        if active not in available:
+            preferred = (getattr(self, "_results_dock", None),
+                         getattr(self, "_data_tables_dock", None),
+                         getattr(self, "_run_dock", None),
+                         getattr(self, "_inspector_dock", None),
+                         getattr(self, "_explorer_dock", None),
+                         getattr(self, "_live_log_dock", None),
+                         getattr(self, "_fev_inspector_dock", None))
+            active = next((d for d in preferred if d in available), None)
+        self._bottom_active_dock = active
+        active_group = set()
+        if active is not None:
+            active_group = {active, *self.tabifiedDockWidgets(active)}
+        for dock in bottom:
             # A tab that is tucked behind does not size the strip;
             # leaving its cap in place would let the hidden Run tab
             # squeeze Results to its content height again.
-            cap: int = 16777215
-            if dock is active:
+            cap = limit
+            if dock in active_group and dock is active:
                 # Run keeps its own content cap (never raise a lower cap
                 # here, or the Simulate tab re-opens the empty field
                 # under its last section).
-                cap = int(dock.maximumHeight())  # type: ignore[union-attr]
-                if cap > limit:
-                    cap = limit
+                current = int(dock.maximumHeight())
+                if current < cap:
+                    cap = current
             if dock.maximumHeight() != cap:
                 dock.setMaximumHeight(cap)
 
@@ -7331,6 +7487,30 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if ro is not None:
             ro.setVisible(self.width() >= 1200)
 
+    def resizeDocks(self, docks, sizes, orientation) -> None:
+        """Mark a size choice made outside this window's own layout code.
+
+        QMainWindow has no "user dragged the splitter" signal, so the
+        public `resizeDocks()` is the one observable entry point. The
+        window's own startup/fit/restore calls go through
+        `_resize_docks()` with the internal guard set; anything else is
+        treated as a deliberate size that the first model load must not
+        overwrite.
+        """
+        if not getattr(self, "_internal_dock_resize", False) and docks \
+                and all(isinstance(d, QDockWidget) for d in docks):
+            self._dock_user_sized = True
+        super().resizeDocks(docks, sizes, orientation)
+
+    def _resize_docks(self, docks, sizes, orientation) -> None:
+        """Internal `resizeDocks()`: never marks the docks user-sized."""
+        previous = getattr(self, "_internal_dock_resize", False)
+        self._internal_dock_resize = True
+        try:
+            super().resizeDocks(docks, sizes, orientation)
+        finally:
+            self._internal_dock_resize = previous
+
     @staticmethod
     def _set_dock_min_width(dock, width: int) -> None:
         """Set a dock's minimum WIDTH without tripping Qt's -1 sentinel.
@@ -7397,7 +7577,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                      if d is not None and not d.isFloating()
                      and d.isVisible()]
             if docks:
-                self.resizeDocks(docks, [limit] * len(docks), Qt.Orientation.Vertical)
+                self._resize_docks(docks, [limit] * len(docks), Qt.Orientation.Vertical)
             for d in (self._results_dock, self._data_tables_dock,
                       self._run_dock):
                 if d is not None and not d.isFloating():
@@ -7476,7 +7656,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 self._update_dock_max_heights()
                 target = getattr(self, "_results_dock_height_before_float",
                                  None) or 480
-                self.resizeDocks([dock],
+                self._resize_docks([dock],
                                  [self._clamp_dock_height(target)],
                                  Qt.Orientation.Vertical)
             except Exception:
@@ -7580,13 +7760,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         else:
             entry["docked_height"] = height
 
-    def _begin_dock_titlebar_drag(self, dock, press_global, titlebar=None
-                                  ) -> None:
+    def _unminimize_before_float(self, dock, entry) -> None:
+        """A minimised dock floated as-is is an empty 36 px window.
+        Restore its content before it becomes a free window."""
+        if entry is not None and entry.get("minimized"):
+            setter = entry.get("set_minimized")
+            if setter is not None:
+                setter(False)
+
+    def _begin_dock_titlebar_drag(self, dock, press_global) -> None:
         """A custom title bar must float the dock itself: replacing Qt's
         title bar also removes its built-in drag gesture."""
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock))
         self._remember_docked_extent(dock, entry)
+        self._unminimize_before_float(dock, entry)
         if not dock.isFloating():
             if dock is getattr(self, "_results_dock", None):
                 self._float_results_properly(dock, True)
@@ -7600,6 +7788,53 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             dock.move(max(0, press_global.x() - 40),
                       max(0, press_global.y() - 12))
 
+    def _finish_dock_titlebar_drag(self, dock, global_pos) -> None:
+        """A release over the main window docks to its nearest edge.
+
+        Without this, dragging a custom-titled panel out was one-way:
+        the window followed the mouse but could never be put back except
+        with the Redock button."""
+        if not dock.isFloating():
+            return
+        if not self.frameGeometry().contains(global_pos):
+            return
+        local = self.mapFromGlobal(global_pos)
+        distances = {
+            Qt.DockWidgetArea.LeftDockWidgetArea: local.x(),
+            Qt.DockWidgetArea.RightDockWidgetArea: self.width() - local.x(),
+            Qt.DockWidgetArea.TopDockWidgetArea: local.y(),
+            Qt.DockWidgetArea.BottomDockWidgetArea:
+                self.height() - local.y(),
+        }
+        area = min(distances, key=distances.get)
+        self._dock_to_area(dock, area)
+
+    def _dock_to_area(self, dock, area) -> None:
+        """Dock a dragged floating panel into `area`, restoring its own
+        remembered size."""
+        entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                 .get(dock)) or {}
+        dock.setFloating(False)
+        self.addDockWidget(area, dock)
+        if area in (Qt.DockWidgetArea.BottomDockWidgetArea,
+                    Qt.DockWidgetArea.TopDockWidgetArea):
+            if dock is not getattr(self, "_data_tables_dock", None):
+                self.tabifyDockWidget(self._data_tables_dock, dock)
+            self._bottom_active_dock = dock
+        elif area == Qt.DockWidgetArea.RightDockWidgetArea and dock in (
+                getattr(self, "_live_log_dock", None),
+                getattr(self, "_fev_inspector_dock", None)):
+            self.tabifyDockWidget(self._inspector_dock, dock)
+        edge = self._edge_for_area(area) or entry.get("edge")
+        entry["edge"] = edge
+        if not dock.isFloating():
+            self._apply_docked_dock_constraints(dock, entry, edge)
+        self._restore_dock_extent(dock, entry, edge)
+        if dock is getattr(self, "_results_dock", None):
+            dock.setWindowTitle("Results")
+        dock.show()
+        dock.raise_()
+
     def _toggle_dock_floating(self, dock) -> None:
         """Double-clicking a custom title bar toggles float, like the
         native one."""
@@ -7609,6 +7844,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock))
         self._remember_docked_extent(dock, entry)
+        self._unminimize_before_float(dock, entry)
         if dock is getattr(self, "_results_dock", None):
             self._float_results_properly(dock, True)
         else:
@@ -7626,8 +7862,77 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             entry["edge"] = edge
             if not dock.isFloating():
                 self._apply_docked_dock_constraints(dock, entry, edge)
+            stub = entry.get("stub")
+            if stub is not None:
+                # The rotated stub is a side-dock affordance only. A dock
+                # moved to the bottom must not keep a hidden/disabled
+                # stub as its close behaviour.
+                if edge in ("left", "right"):
+                    stub.setEnabled(True)
+                else:
+                    stub.setEnabled(False)
+                    if entry.get("closed"):
+                        restore = (self._dock_stubs or {}).get(dock)
+                        if restore is not None:
+                            restore(False)
         QTimer.singleShot(0, self._sync_dock_tab_bars)
         QTimer.singleShot(0, self._update_dock_max_heights)
+
+    def _restore_dock_extent(self, dock, entry, edge) -> None:
+        """Reassert the user's docked width/height after a float/redock.
+
+        Deferred: on the same turn as setFloating(False) the main layout
+        has not re-adopted the dock yet, and a synchronous resizeDocks
+        request is discarded. Release the shared strip's tab ceiling
+        first or the smallest maximumHeight in the group wins. One
+        correction pass compensates for the tab-bar allowance Qt leaves
+        outside the dock's own height.
+        """
+        if edge in ("left", "right"):
+            width = entry.get("docked_width") \
+                or entry.get("normal_min_width") or 320
+            width = max(int(width), self._dock_min_dimension(entry, edge))
+
+            def restore_width(d=dock, w=width, attempt=0):
+                try:
+                    actual = d.width()
+                    if attempt and actual >= w - 4:
+                        return
+                    requested = w + (w - actual) if actual < w - 4 else w
+                    self._resize_docks([d], [requested],
+                                       Qt.Orientation.Horizontal)
+                except (RuntimeError, TypeError):
+                    return
+                if attempt < 1:
+                    QTimer.singleShot(
+                        0, lambda: restore_width(d, w, attempt + 1))
+            QTimer.singleShot(0, restore_width)
+            return
+
+        target = entry.get("docked_height")
+        if dock is getattr(self, "_results_dock", None):
+            target = self._results_dock_height_before_float or target
+        height = self._clamp_dock_height(int(target or 480))
+
+        def restore_height(d=dock, h=height, attempt=0):
+            try:
+                self._bottom_active_dock = d
+                self._release_bottom_strip_ceiling()
+                self._update_dock_max_heights()
+                actual = d.height()
+                if attempt and actual >= h - 4:
+                    return
+                requested = h + (h - actual) if actual < h - 4 else h
+                self._resize_docks([d], [requested],
+                                   Qt.Orientation.Vertical)
+            except (RuntimeError, TypeError):
+                return
+            if attempt < 2:
+                QTimer.singleShot(
+                    0, lambda: restore_height(d, h, attempt + 1))
+        QTimer.singleShot(0, restore_height)
+        if target is None and hasattr(dock, "fit_height"):
+            QTimer.singleShot(0, dock.fit_height)
 
     def _redock(self, dock) -> None:
         """Put a floating panel back where it was docked, at its own size."""
@@ -7636,52 +7941,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         edge = self._current_dock_edge(dock, entry.get("edge"))
         entry["edge"] = edge
         dock.setFloating(False)
-        if edge in ("left", "right"):
-            width = entry.get("docked_width") \
-                or entry.get("normal_min_width") or 320
-            width = max(int(width), self._dock_min_dimension(entry, edge))
-            try:
-                self.resizeDocks([dock], [width], Qt.Orientation.Horizontal)
-            except Exception:                          # noqa: BLE001
-                pass
-        else:
-            target = entry.get("docked_height")
-            if dock is getattr(self, "_results_dock", None):
-                target = (self._results_dock_height_before_float
-                          or target)
-            height = self._clamp_dock_height(int(target or 480))
-
-            def restore_height(d=dock, h=height, attempt=0):
-                # Deferred: on the same turn as setFloating(False) the
-                # main layout has not re-adopted the dock yet, and a
-                # synchronous resizeDocks request is discarded. Release
-                # the shared strip's Run-tab ceiling first or the
-                # smallest maximumHeight in the tab group wins.
-                try:
-                    self._bottom_active_dock = d
-                    self._release_bottom_strip_ceiling()
-                    self._update_dock_max_heights()
-                    actual = d.height()
-                    if attempt and actual >= h - 4:
-                        return
-                    requested = h
-                    if actual < h - 4:
-                        # Docking a previously floating window leaves a
-                        # tab-bar allowance outside the dock's own
-                        # height; compensate with what the layout
-                        # actually took away rather than hard-coding a
-                        # platform/style-specific pixel count.
-                        requested = h + (h - actual)
-                    self.resizeDocks([d], [requested],
-                                     Qt.Orientation.Vertical)
-                except (RuntimeError, TypeError):
-                    return
-                if attempt < 2:
-                    QTimer.singleShot(
-                        0, lambda: restore_height(d, h, attempt + 1))
-            QTimer.singleShot(0, restore_height)
-            if target is None and hasattr(dock, "fit_height"):
-                QTimer.singleShot(0, dock.fit_height)
+        self._restore_dock_extent(dock, entry, edge)
         if dock is getattr(self, "_results_dock", None):
             dock.setWindowTitle("Results")
         dock.show()
@@ -7707,6 +7967,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                  .get(dock))
         if floating:
             self._remember_docked_extent(dock, entry)
+            self._unminimize_before_float(dock, entry)
             dock.setMinimumSize(160, 90)
             dock.setMaximumSize(16777215, 16777215)
             # No collapse/expand (or re-float) controls on a detached
@@ -7774,20 +8035,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             bar.setExpanding(False)
 
     def _give_canvas_room(self, *, force: bool = False):
-        """Give the central canvas room without overwriting user sizes.
+        """Apply the designed first-load dock sizes exactly once.
 
-        Data Tables and Results share one bottom strip; the splitter
-        stays draggable. This runs at startup and after every model load,
-        so it must only GROW a strip that is still at its floor -- the
-        old unconditional 150/320/400 resize shrank panels the user had
-        already widened on every Open. `force=True` (Reset Layout) puts
-        the designed first-run sizes back even if that means shrinking.
+        `QMainWindow` gives the tabified bottom strip a tall default
+        size, so the first model load still needs the 150/320/400 clamp.
+        But a size the user (or a restored layout) chose before that
+        load is deliberate: `_dock_user_sized` records any public
+        `resizeDocks()` call, and later loads never touch sizes again.
+        `force=True` (Reset Layout) reapplies the designed sizes even if
+        that means shrinking.
         """
-        if not force and getattr(self, "_canvas_room_defaults_done", False):
-            # Sizes are now the user's (or a restored layout's). Only
-            # the strip's ceiling follows the window.
-            self._update_dock_max_heights()
-            return
+        if not force:
+            if self._canvas_room_defaults_done:
+                self._update_dock_max_heights()
+                return
+            if self._dock_user_sized:
+                # Chosen before the first load (or restored from a saved
+                # layout): keep it, and do not try again later.
+                self._canvas_room_defaults_done = True
+                self._update_dock_max_heights()
+                return
         try:
             bottom = [d for d in (getattr(self, "_data_tables_dock", None),
                                   getattr(self, "_results_dock", None),
@@ -7799,14 +8066,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 entry = (getattr(self, "_dock_chrome_entries", None)
                          or {}).get(active) or {}
                 if not entry.get("minimized"):
-                    if force or active.height() < 150:
-                        self.resizeDocks([active], [150],
-                                         Qt.Orientation.Vertical)
+                    self._resize_docks([active], [150],
+                                       Qt.Orientation.Vertical)
             # Startup widths for the side docks: Explorer keeps its
             # designed 320, Inspector gets 400 so its tab strip doesn't
-            # scroll. Only a dock still narrower than that is grown;
-            # one the user widened is left exactly as it is, and a
-            # minimised/closed slot is not touched at all.
+            # scroll. Minimised/closed slots are not touched.
             for dock, target in ((getattr(self, "_explorer_dock", None), 320),
                                  (getattr(self, "_inspector_dock", None), 400)):
                 if dock is None or dock.isFloating():
@@ -7815,14 +8079,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                          or {}).get(dock) or {}
                 if entry.get("minimized") or entry.get("closed"):
                     continue
-                # Grow only a dock still at its own floor (the fresh
-                # layout). An intermediate width the user chose, above
-                # the floor but below the design target, is left alone.
-                at_floor = dock.width() <= dock.minimumWidth() + 2
-                if force or (at_floor and dock.width() < target):
-                    self.resizeDocks([dock], [target],
-                                     Qt.Orientation.Horizontal)
+                self._resize_docks([dock], [target],
+                                   Qt.Orientation.Horizontal)
             self._canvas_room_defaults_done = True
+            if force:
+                self._dock_user_sized = False
         except Exception:
             pass
 
@@ -7847,7 +8108,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # a user-expanded strip keeps its size.
             if d.height() >= 280:
                 return
-            self.resizeDocks([d], [target], Qt.Orientation.Vertical)
+            self._resize_docks([d], [target], Qt.Orientation.Vertical)
         except Exception:
             pass
 
@@ -10400,9 +10661,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         session = self._step_session
         t = session.time
         self._on_fev_log_close()
-        self._step_session = None   # single-use from here
-        self._sync_run_settings_lock()
-        self._reset_right_docks()
+        self._end_step_session(clear_sink=False)
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             logs, report = session.early_terminate()

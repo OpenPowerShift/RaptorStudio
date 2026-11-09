@@ -1158,6 +1158,12 @@ class RunPanelDock(QDockWidget):
             return
         if win.dockWidgetArea(self) == Qt.DockWidgetArea.NoDockWidgetArea:
             return          # not in the layout: resizeDocks would only warn
+        active = getattr(win, "_bottom_active_dock", None)
+        if active is not None and active is not self:
+            # Results/Data Tables are the front tab: the Run panel is
+            # behind them and must not size the shared strip from its
+            # hidden content.
+            return
         self._growing = True
         try:
             # `resizeDocks` size is the dock area's, which includes the
@@ -1171,7 +1177,8 @@ class RunPanelDock(QDockWidget):
                     if tb.parentWidget() is win and tb.isVisible():
                         strip = tb.height()
                         break
-            win.resizeDocks([self], [want + strip], Qt.Orientation.Vertical)
+            resize = getattr(win, "_resize_docks", win.resizeDocks)
+            resize([self], [want + strip], Qt.Orientation.Vertical)
         except Exception:                                  # noqa: BLE001
             pass
         finally:

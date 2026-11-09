@@ -409,7 +409,8 @@ def test_custom_titlebar_drag_floats_the_dock(qapp):
     drag-to-float gesture went with it. QTest's drag helper is unreliable
     offscreen, so this feeds the title-bar handlers the same press/move/
     release sequence Qt would deliver and checks the custom title bar
-    forwards it to the float gesture."""
+    forwards it to the float gesture when the drop is outside the main
+    window (inside it, the release docks to the nearest edge)."""
     from PySide6.QtCore import QEvent, QPoint, QPointF
     from PySide6.QtGui import QMouseEvent
 
@@ -420,13 +421,15 @@ def test_custom_titlebar_drag_floats_the_dock(qapp):
     assert isinstance(titlebar, _DockTitleBar)
     start = titlebar.mapToGlobal(titlebar.rect().center())
     moved = QPoint(start.x() + 40, start.y() + 40)
+    outside = QPoint(w.frameGeometry().left() - 500,
+                     w.frameGeometry().top() + 100)
     local = QPointF(titlebar.rect().center())
     for event_type, global_pos, button, buttons in (
             (QEvent.Type.MouseButtonPress, start,
              Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton),
             (QEvent.Type.MouseMove, moved,
              Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton),
-            (QEvent.Type.MouseButtonRelease, moved,
+            (QEvent.Type.MouseButtonRelease, outside,
              Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton)):
         event = QMouseEvent(event_type, local, QPointF(global_pos), button,
                             buttons, Qt.KeyboardModifier.NoModifier)
@@ -434,5 +437,256 @@ def test_custom_titlebar_drag_floats_the_dock(qapp):
         _pump(qapp, 2)
     assert dock.isFloating()
     assert titlebar.isVisible()
+    w._dirty = False
+    w.close()
+
+
+def test_custom_titlebar_drag_redocks_to_the_nearest_edge(qapp):
+    """A custom title-bar drag that ends over the main window must not
+    leave the panel floating forever: it docks on the nearest edge."""
+    from PySide6.QtCore import QEvent, QPoint, QPointF
+    from PySide6.QtGui import QMouseEvent
+
+    w = _shown(qapp)
+    dock = w._explorer_dock
+    titlebar = dock.titleBarWidget()
+    start = titlebar.mapToGlobal(titlebar.rect().center())
+    target = w.mapToGlobal(QPoint(w.width() - 30, w.height() // 2))
+    local = QPointF(titlebar.rect().center())
+    for event_type, global_pos, button, buttons in (
+            (QEvent.Type.MouseButtonPress, start,
+             Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton),
+            (QEvent.Type.MouseMove, target,
+             Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton),
+            (QEvent.Type.MouseButtonRelease, target,
+             Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton)):
+        event = QMouseEvent(event_type, local, QPointF(global_pos), button,
+                            buttons, Qt.KeyboardModifier.NoModifier)
+        titlebar.event(event)
+        _pump(qapp, 3)
+    assert not dock.isFloating()
+    assert w.dockWidgetArea(dock) == Qt.DockWidgetArea.RightDockWidgetArea
+    w._dirty = False
+    w.close()
+
+
+def test_a_lost_release_clears_the_titlebar_drag_state(qapp):
+    from PySide6.QtCore import QEvent, QPointF
+    from PySide6.QtGui import QMouseEvent
+
+    w = _shown(qapp)
+    dock = w._explorer_dock
+    titlebar = dock.titleBarWidget()
+    start = titlebar.mapToGlobal(titlebar.rect().center())
+    local = QPointF(titlebar.rect().center())
+    press = QMouseEvent(QEvent.Type.MouseButtonPress, local,
+                        QPointF(start), Qt.MouseButton.LeftButton,
+                        Qt.MouseButton.LeftButton,
+                        Qt.KeyboardModifier.NoModifier)
+    titlebar.event(press)
+    # A move with no held button means the release was lost.
+    stale = QMouseEvent(QEvent.Type.MouseMove, local,
+                        QPointF(start.x() + 80, start.y() + 80),
+                        Qt.MouseButton.NoButton, Qt.MouseButton.NoButton,
+                        Qt.KeyboardModifier.NoModifier)
+    titlebar.event(stale)
+    assert not dock.isFloating()
+    # The state is cleared: a later button-bearing move without a press
+    # cannot resume the old drag.
+    moved = QMouseEvent(QEvent.Type.MouseMove, local,
+                        QPointF(start.x() + 120, start.y() + 120),
+                        Qt.MouseButton.NoButton,
+                        Qt.MouseButton.LeftButton,
+                        Qt.KeyboardModifier.NoModifier)
+    titlebar.event(moved)
+    assert not dock.isFloating()
+    w._dirty = False
+    w.close()
+
+
+def test_a_model_edit_keeps_a_closed_inspector_closed(qapp):
+    """Only a step session ending may reset the right docks. A normal
+    edit used to reopen the Inspector on every `_mark_dirty`."""
+    from pathlib import Path
+
+    from raptor.core.fileio.rbd import load_rbd
+
+    gold = Path(__file__).resolve().parents[1] / "golden" / "Phasing3" / "input.rbd"
+    w = _shown(qapp)
+    w._load_into_app(load_rbd(str(gold)), None)
+    _pump(qapp, 8)
+    w._dock_chrome["Inspector"]["set_closed"](True)
+    _pump(qapp)
+    view = w._diagram_dock.view
+    bid = next(iter(view.blocks))
+    view.rename_block(bid, "Edited_block")
+    _pump(qapp)
+    assert w._dock_chrome["Inspector"]["get"]()["closed"] is True
+    assert w._inspector_dock.widget().isHidden()
+    w._dirty = False
+    w.close()
+
+
+def test_a_restored_minimized_inspector_stays_minimized_and_hidden(qapp):
+    w = _shown(qapp)
+    w._dock_chrome["Inspector"]["set_minimized"](True)
+    _pump(qapp)
+    blob = json.loads(json.dumps(w._layout_blob()))
+    w2 = _shown(qapp)
+    assert w2._apply_layout_blob(blob) is True
+    _pump(qapp)
+    assert w2._dock_chrome["Inspector"]["get"]()["minimized"] is True
+    assert w2._inspector_dock.widget().isHidden()
+    assert w2._inspector_dock.minimumWidth() == \
+        w2._inspector_dock.maximumWidth()
+    for x in (w, w2):
+        x._dirty = False
+        x.close()
+
+
+def test_a_floating_live_log_from_a_restored_layout_is_docked_before_hiding(qapp):
+    w = _shown(qapp)
+    live = w._live_log_dock
+    live.setFloating(True)
+    live.show()
+    _pump(qapp)
+    blob = json.loads(json.dumps(w._layout_blob()))
+    w2 = _shown(qapp)
+    assert w2._apply_layout_blob(blob) is True
+    _pump(qapp)
+    assert not w2._live_log_dock.isFloating()
+    assert not w2._live_log_dock.isVisible()
+    for x in (w, w2):
+        x._dirty = False
+        x.close()
+
+
+def test_bottom_cap_follows_the_dock_area_not_the_dock_identity(qapp):
+    w = _shown(qapp)
+    results, inspector = w._results_dock, w._inspector_dock
+    w.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, results)
+    _pump(qapp)
+    w._update_dock_max_heights()
+    _pump(qapp)
+    assert results.maximumHeight() > 1000
+
+    w.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, inspector)
+    _pump(qapp)
+    w._update_dock_max_heights()
+    _pump(qapp)
+    assert inspector.maximumHeight() <= w._max_bottom_dock_height()
+    assert w._bottom_active_dock is not results
+
+    w.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea,
+                    w._explorer_dock)
+    _pump(qapp)
+    w._update_dock_max_heights()
+    _pump(qapp)
+    assert w._explorer_dock.maximumHeight() <= w._max_bottom_dock_height()
+    w._dirty = False
+    w.close()
+
+
+def test_side_dock_minimize_and_restore_keeps_the_user_width(qapp):
+    from PySide6.QtWidgets import QToolButton
+
+    w = _shown(qapp)
+    dock = w._inspector_dock
+    w.resizeDocks([dock], [520], Qt.Orientation.Horizontal)
+    _pump(qapp)
+    before = dock.width()
+    assert before > 450
+    buttons = dock.titleBarWidget().findChildren(QToolButton)
+    buttons[0].click()          # minimize
+    _pump(qapp)
+    buttons[0].click()          # restore
+    _pump(qapp)
+    assert dock.width() >= before - 20, (dock.width(), before)
+    w._dirty = False
+    w.close()
+
+
+def test_side_dock_close_restore_keeps_the_user_width(qapp):
+    w = _shown(qapp)
+    dock = w._inspector_dock
+    w.resizeDocks([dock], [520], Qt.Orientation.Horizontal)
+    _pump(qapp)
+    before = dock.width()
+    chrome = w._dock_chrome["Inspector"]
+    chrome["set_closed"](True)
+    _pump(qapp)
+    chrome["set_closed"](False)
+    _pump(qapp)
+    assert dock.width() >= before - 20, (dock.width(), before)
+    w._dirty = False
+    w.close()
+
+
+def test_floating_a_minimized_dock_restores_its_content(qapp):
+    w = _shown(qapp)
+    chrome = w._dock_chrome["Inspector"]
+    chrome["set_minimized"](True)
+    _pump(qapp)
+    dock = w._inspector_dock
+    dock.setFloating(True)
+    _pump(qapp)
+    assert dock.widget().isHidden() is False
+    assert chrome["get"]()["minimized"] is False
+    w._dirty = False
+    w.close()
+
+
+def test_close_after_a_side_dock_moves_to_the_bottom_hides_it(qapp):
+    from PySide6.QtWidgets import QToolButton
+
+    w = _shown(qapp)
+    dock = w._inspector_dock
+    w.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
+    _pump(qapp)
+    buttons = dock.titleBarWidget().findChildren(QToolButton)
+    buttons[-1].click()         # close
+    _pump(qapp)
+    assert dock.isHidden()
+    assert w._dock_chrome["Inspector"]["get"]()["closed"] is False
+    w._dirty = False
+    w.close()
+
+
+def test_resize_before_the_first_model_load_is_preserved(qapp):
+    from pathlib import Path
+
+    from raptor.core.fileio.rbd import load_rbd
+
+    gold = Path(__file__).resolve().parents[1] / "golden" / "Phasing3" / "input.rbd"
+    w = _shown(qapp)
+    w.resizeDocks([w._inspector_dock], [520], Qt.Orientation.Horizontal)
+    w.resizeDocks([w._results_dock], [330], Qt.Orientation.Vertical)
+    _pump(qapp)
+    side, bottom = w._inspector_dock.width(), w._results_dock.height()
+    assert side > 450 and bottom > 250
+
+    w._load_into_app(load_rbd(str(gold)), None)
+    _pump(qapp, 10)
+    assert w._inspector_dock.width() >= side - 20, \
+        (w._inspector_dock.width(), side)
+    assert w._results_dock.height() >= bottom - 20, \
+        (w._results_dock.height(), bottom)
+    w._dirty = False
+    w.close()
+
+
+def test_the_first_model_load_clamps_the_default_bottom_strip(qapp):
+    from pathlib import Path
+
+    from raptor.core.fileio.rbd import load_rbd
+
+    gold = Path(__file__).resolve().parents[1] / "golden" / "Phasing3" / "input.rbd"
+    w = _shown(qapp)
+    before = w._results_dock.height()
+    assert before > 200
+    w._load_into_app(load_rbd(str(gold)), None)
+    _pump(qapp, 10)
+    assert w._results_dock.height() < before
+    assert w._results_dock.height() <= 200
     w._dirty = False
     w.close()
