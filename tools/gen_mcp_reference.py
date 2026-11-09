@@ -413,13 +413,42 @@ def _default_label(schema: dict[str, Any]) -> str:
     return _value_label(schema["default"])
 
 
-def _parameters(schema: dict[str, Any]) -> tuple[list[str], list[str]]:
+#: The schema says ``null`` for these, but the tool computes a useful real
+#: default.  The catalogue says so rather than letting the table imply the
+#: server does nothing when the argument is omitted.
+COMPUTED_DEFAULTS: dict[tuple[str, str], str] = {
+    ("export_analytical", "modes"):
+        "Defaults to `[\"reliability\"]` when omitted.",
+    ("export_analytical", "folder"):
+        "Defaults to `Tables/<model>` (or the hierarchy/phase-specific "
+        "name shown in the description).",
+    ("export_analytical", "phase"):
+        "Defaults to the current phase; `\"all\"` solves every phase.",
+    ("export_tables", "formats"):
+        "Defaults to `[\"xlsx\"]` when omitted.",
+    ("export_tables", "folder"):
+        "Defaults to `Tables/<model>` (or `Tables/<model>_<run_id>` with a "
+        "run).",
+    ("simulate", "num_runs"):
+        "Defaults to the model's configured `NumRuns`.",
+    ("simulate", "run_length"):
+        "Defaults to the model's configured run length.",
+    ("start_run", "num_runs"):
+        "Defaults to the model's configured `NumRuns`.",
+    ("start_run", "run_length"):
+        "Defaults to the model's configured run length.",
+}
+
+
+def _parameters(schema: dict[str, Any],
+                tool_name: str = "") -> tuple[list[str], list[str]]:
     properties = schema.get("properties") or {}
     required = set(schema.get("required") or [])
     if not properties:
         return [], []
     lines = [
-        "| Parameter | Type | Required | Default | Enum / allowed values |",
+        "| Parameter | Type | Required | Schema default | "
+        "Enum / allowed values |",
         "| --- | --- | --- | --- | --- |",
     ]
     notes: list[str] = []
@@ -434,6 +463,9 @@ def _parameters(schema: dict[str, Any]) -> tuple[list[str], list[str]]:
         note = " ".join(str(prop.get("description") or "").split())
         if note:
             notes.append(f"- `{name}` — {note}")
+        computed = COMPUTED_DEFAULTS.get((tool_name, name))
+        if computed:
+            notes.append(f"- `{name}` — {computed}")
     return lines, notes
 
 
@@ -468,7 +500,8 @@ RETURN_NOTES: dict[str, str] = {
     "export_tables": "`{folder, tables, files: [path], resource_links}`.",
     "render_diagram": "Image content plus `{width, height, elements_drawn, "
                       "elements_in_view, px_per_unit, effective_label_px, "
-                      "legible, png_path, resource_link}`.",
+                      "legible, zoom_to, highlighted, png_path, "
+                      "resource_link}`.",
     "export_analytical": "`{path, modes, results: [{mode, phase, "
                          "reliability | availability}], resource_links}`.",
 }
@@ -526,23 +559,30 @@ def _live() -> tuple[list[Any], list[Any], list[Any], list[Any]]:
     return tools, fixed, templates, prompt_list
 
 
-def _book_facts() -> tuple[int, int]:
-    """``(chapter count, position of the MCP chapter)`` from book.adoc."""
+def _book_chapters() -> list[str]:
+    """Chapter stems in reading order (appendices excluded)."""
     text = BOOK.read_text(encoding="utf-8")
-    chapters = [stem for stem in re.findall(
+    return [stem for stem in re.findall(
         r"include::chapters/([^.\[]+)\.adoc", text)
         if not stem.startswith("appendix-")]
+
+
+def _book_facts() -> tuple[int, int, str]:
+    """``(chapter count, MCP chapter position, source stem)``."""
+    chapters = _book_chapters()
     if "ch16-mcp" not in chapters:
         raise ValueError("new_docs/book.adoc no longer includes ch16-mcp.adoc")
-    return len(chapters), chapters.index("ch16-mcp") + 1
+    position = chapters.index("ch16-mcp") + 1
+    return len(chapters), position, chapters[position - 1]
 
 
-def _facts() -> tuple[int, int, int, int, int, int]:
+def _facts() -> tuple[int, int, int, int, int, int, str]:
     tools, fixed, templates, prompts = _live()
-    n_chapters, mcp_position = _book_facts()
+    n_chapters, mcp_position, mcp_source = _book_facts()
     return (len(tools), len(tools) - (1 if any(
         t.name == "render_diagram" for t in tools) else 0),
-        len(fixed) + len(templates), len(prompts), n_chapters, mcp_position)
+        len(fixed) + len(templates), len(prompts), n_chapters, mcp_position,
+        mcp_source)
 
 
 def _validate_metadata(tools: list[Any]) -> None:
@@ -579,7 +619,7 @@ def render() -> str:
     """Render ``docs/MCP-reference.md`` from the live server."""
     tools, fixed, templates, prompts = _live()
     _validate_metadata(tools)
-    n_chapters, mcp_position = _book_facts()
+    n_chapters, mcp_position, mcp_source = _book_facts()
     n_without_render = len(tools) - (
         1 if any(tool.name == "render_diagram" for tool in tools) else 0)
 
@@ -621,13 +661,19 @@ def render() -> str:
         "",
         "## How to read a tool section",
         "",
-        "- **Kind** is the MCP risk hint: `read-only` changes nothing, "
+        "- **Kind** is the MCP risk hint: `read-only` changes no model, "
         "`writes` edits a model or workspace, and `destructive` deletes or "
-        "reverts.  `--read-only` refuses writes and destructive tools.",
+        "reverts.  It is a coarse hint, not the `--read-only` gate: "
+        "`simulate`, `start_run` and `open_model` carry `writes` because "
+        "they create run or workspace artefacts, but `--read-only` allows "
+        "them.  The gate refuses tools that create, edit or delete models or "
+        "export files; opening, analysis and simulation stay available.",
         "- **Parameters** comes from the tool's input schema.  `Required` "
-        "means the server rejects the call without it; `Default` is the "
-        "value the server uses when you omit it; `Enum / allowed values` "
-        "lists every accepted value.",
+        "means the server rejects the call without it; **Schema default** "
+        "is the literal default in the schema (`—` when it gives none); "
+        "`Enum / allowed values` lists every accepted value.  A tool may "
+        "compute a different real default from the model or another "
+        "setting; those are called out under the table.",
         "- **Returns** lists the top-level fields of the declared output "
         "schema.  `Always present` is yes when the field is in the schema's "
         "`required` list.",
@@ -665,7 +711,7 @@ def render() -> str:
                 "**Parameters**",
                 "",
             ]
-            params, notes = _parameters(tool.input_schema or {})
+            params, notes = _parameters(tool.input_schema or {}, tool.name)
             if params:
                 lines += params
                 if notes:
@@ -725,10 +771,11 @@ def render() -> str:
         "",
         "## Book and guide",
         "",
-        f"The tutorial book has **{n_chapters} chapters**; *RAPTOR from an "
-        f"AI Assistant* is chapter 16, number {mcp_position} of "
-        f"{n_chapters}.  The hand-written [MCP guide](MCP.md) covers "
-        "install, client configuration, concepts and worked task recipes.",
+        f"The tutorial book has **{n_chapters} chapters**; the MCP chapter "
+        f"is book chapter {mcp_position} of {n_chapters} (source "
+        f"`new_docs/chapters/{mcp_source}.adoc`).  The hand-written "
+        f"[MCP guide](MCP.md) covers install, client configuration, "
+        f"concepts and worked task recipes.",
         "",
         "## Reporting problems",
         "",
@@ -749,8 +796,8 @@ def render_guide() -> str:
         raise ValueError(
             f"{GUIDE} is missing the generated-facts markers; restore "
             f"{GUIDE_BEGIN} ... {GUIDE_END}")
-    n_tools, n_without_render, n_resources, n_prompts, n_chapters, mcp_pos = (
-        _facts())
+    (n_tools, n_without_render, n_resources, n_prompts, n_chapters,
+     mcp_pos, mcp_source) = _facts()
     facts = "\n".join([
         GUIDE_BEGIN,
         f"- **{n_tools} tools** in {len(CATEGORIES)} task groups.  With "
@@ -758,8 +805,9 @@ def render_guide() -> str:
         f"**{n_without_render}**.",
         f"- **{n_resources} resources** (fixed URIs and templates) and "
         f"**{n_prompts} prompts**.",
-        f"- The tutorial book has **{n_chapters} chapters**; *RAPTOR from an "
-        f"AI Assistant* is chapter 16, number {mcp_pos} of {n_chapters}.",
+        f"- The tutorial book has **{n_chapters} chapters**; the MCP chapter "
+        f"is book chapter {mcp_pos} of {n_chapters} (source "
+        f"`new_docs/chapters/{mcp_source}.adoc`).",
         GUIDE_END,
     ])
     before, rest = text.split(GUIDE_BEGIN, 1)

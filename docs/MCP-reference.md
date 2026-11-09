@@ -85,8 +85,8 @@ Every tool section is generated from the server's `tools/list` payload.  It repe
 
 ## How to read a tool section
 
-- **Kind** is the MCP risk hint: `read-only` changes nothing, `writes` edits a model or workspace, and `destructive` deletes or reverts.  `--read-only` refuses writes and destructive tools.
-- **Parameters** comes from the tool's input schema.  `Required` means the server rejects the call without it; `Default` is the value the server uses when you omit it; `Enum / allowed values` lists every accepted value.
+- **Kind** is the MCP risk hint: `read-only` changes no model, `writes` edits a model or workspace, and `destructive` deletes or reverts.  It is a coarse hint, not the `--read-only` gate: `simulate`, `start_run` and `open_model` carry `writes` because they create run or workspace artefacts, but `--read-only` allows them.  The gate refuses tools that create, edit or delete models or export files; opening, analysis and simulation stay available.
+- **Parameters** comes from the tool's input schema.  `Required` means the server rejects the call without it; **Schema default** is the literal default in the schema (`—` when it gives none); `Enum / allowed values` lists every accepted value.  A tool may compute a different real default from the model or another setting; those are called out under the table.
 - **Returns** lists the top-level fields of the declared output schema.  `Always present` is yes when the field is in the schema's `required` list.
 - **Example** is an argument object, not a whole JSON-RPC envelope.  Put it in your client's tool form or send it as the `arguments` of `tools/call`.  Replace `<model_id>`, `<run_id>`, `<job_id>` and `<model_id_a>`/`<model_id_b>` with ids from another call.
 
@@ -120,7 +120,7 @@ history goes with it. It does not delete exported files (use
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `delete` | boolean | no | `false` | — |
 | `model_id` | string \| array<string> | yes | — | — |
@@ -157,7 +157,7 @@ Returns {model_id, summary}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `k` | integer | no | `1` | — |
 | `n` | integer | no | `2` | — |
@@ -197,7 +197,7 @@ allow-write directories, same containment `save_model_as` enforces.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `path` | string | yes | — | — |
 
@@ -234,7 +234,7 @@ describe the rest.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `include_examples` | boolean | no | `true` | — |
 | `limit` | integer | no | `100` | — |
@@ -275,7 +275,7 @@ Allowed under --read-only (it never changes the source file).
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `path` | string | yes | — | — |
 
@@ -339,7 +339,7 @@ validate() first and refuses on ERROR. The layout is saved as it is;
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `format` | string | no | `rbds` | `rbds`, `rbd` |
 | `model_id` | string | yes | — | — |
@@ -429,7 +429,7 @@ Returns {block_id, name, warnings}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `after` | string \| null | no | `null` | — |
 | `fail_dist` | integer \| string \| null | no | `null` | — |
@@ -487,7 +487,7 @@ Returns {added, elements: [{kind, id, name}]}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `elements` | array<object> | yes | — | — |
 | `model_id` | string | yes | — | — |
@@ -534,7 +534,7 @@ Add an event to the model.  `prob` is its probability (0-1).
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `name` | string | yes | — | — |
@@ -592,7 +592,7 @@ Returns {hier_id, name, in_id, out_id, parent, depth, levels_below}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `name` | string | yes | — | — |
@@ -640,7 +640,7 @@ runs.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `k` | integer | no | `-1` | — |
 | `model_id` | string | yes | — | — |
@@ -776,7 +776,7 @@ errors (e.g. `k > n`).
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `auto_layout` | boolean | no | `true` | — |
 | `model_id` | string \| null | no | `null` | — |
@@ -872,7 +872,7 @@ levels_below}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `name` | string \| null | no | `null` | — |
@@ -932,7 +932,7 @@ across server restarts.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `action` | string | no | `list` | `list`, `set`, `clear` |
 | `fail_dist` | integer \| null | no | `null` | — |
@@ -986,7 +986,7 @@ dialog exactly (unknown keys raise an error):
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `defer_flags` | object<string, boolean> \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
@@ -1048,7 +1048,7 @@ for that phase.  Phase rows are always built through rbdlib.make_phase_row.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `assignments` | object<string, array<any>> \| null | no | `null` | — |
 | `mode` | string | no | `replace` | `replace`, `add`, `remove` |
@@ -1104,7 +1104,7 @@ Returns {applied, warnings}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `emergency` | number \| null | no | `null` | — |
 | `level` | integer \| null | no | `null` | — |
@@ -1154,7 +1154,7 @@ system is asked to deliver).  Returns {applied, previous}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `capacity` | boolean \| null | no | `null` | — |
 | `cost` | boolean \| null | no | `null` | — |
@@ -1220,7 +1220,7 @@ element to it.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `from_element` | any | no | `null` | — |
 | `model_id` | string | yes | — | — |
@@ -1258,7 +1258,7 @@ written once. Returns {connected, links: [{link_id, from, to}]}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `links` | array<object> | yes | — | — |
 | `model_id` | string | yes | — | — |
@@ -1303,7 +1303,7 @@ Returns {removed, links_removed}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `reconnect` | boolean | no | `true` | — |
@@ -1342,7 +1342,7 @@ Returns {deleted: [{selector, kind}], links_removed}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `reconnect` | boolean | no | `false` | — |
@@ -1383,7 +1383,7 @@ link ids in `describe_model(detail='full')` or `get_table('inputs.links')`.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `link_id` | string | yes | — | — |
 | `model_id` | string | yes | — | — |
@@ -1416,7 +1416,7 @@ tables).  `level` filters to a hierarchy level (0 = whole model).
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `detail` | string | no | `summary` | `summary`, `full` |
 | `level` | integer | no | `0` | — |
@@ -1485,7 +1485,7 @@ change has `field`, `label`, `category` and the values `a` and `b`
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `detail` | string | no | `summary` | `summary`, `full` |
 | `ignore` | array<string> \| null | no | `null` | — |
@@ -1548,7 +1548,7 @@ The source model is not changed.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `hierarchy` | string \| integer | yes | — | — |
 | `model_id` | string | yes | — | — |
@@ -1604,7 +1604,7 @@ value for those parameters, e.g. a Pearson 5 with shape <= 2.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `detail` | string | no | `summary` | `summary`, `full` |
 | `model_id` | string | yes | — | — |
@@ -1661,7 +1661,7 @@ Returns {rates} for 'list', else the affected entry.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `action` | string | no | `list` | `list`, `add`, `update`, `delete` |
 | `description` | string \| null | no | `null` | — |
@@ -1708,7 +1708,7 @@ refuses while a block still names the resource. Fields match the
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `action` | string | no | `list` | `list`, `add`, `update`, `delete` |
 | `fixed_per_use` | number \| null | no | `null` | — |
@@ -1760,7 +1760,7 @@ The pool's own `stock` is what governs a Pooled block; the block's
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `action` | string | no | `list` | `list`, `add`, `update`, `delete` |
 | `arrive_every` | number \| null | no | `null` | — |
@@ -1809,7 +1809,7 @@ first. Deleting is refused while a block's PM still names it.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `action` | string | no | `list` | `list`, `add`, `update`, `delete` |
 | `dist` | any | no | `null` | — |
@@ -1860,7 +1860,7 @@ moved into itself or one of its own descendants.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `parent` | integer | yes | — | — |
@@ -1894,7 +1894,7 @@ a new edit has cleared the redo history.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 
@@ -1930,7 +1930,7 @@ other editor.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 
@@ -1984,7 +1984,7 @@ model already had (a file written elsewhere) does not block other edits.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `full` | boolean | no | `false` | — |
 | `model_id` | string | yes | — | — |
@@ -2039,7 +2039,7 @@ Returns {updated, results: [{selector, id, name, kind, changed}]}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `updates` | array<object> | yes | — | — |
@@ -2130,7 +2130,7 @@ results), with the stage and the time left in the message.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `at` | number \| null | no | `null` | — |
 | `bx` | array<number> \| null | no | `null` | — |
@@ -2215,7 +2215,7 @@ marked with `>` in the Markdown view.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string \| null | no | `null` | — |
 | `run_id` | string \| null | no | `null` | — |
@@ -2267,7 +2267,7 @@ several simultaneous failures, name them all in one `fail` list; a
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `fail` | array<string \| integer> \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
@@ -2322,7 +2322,7 @@ phase). A bad scenario does not stop the others. `failed` counts them.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `include_log` | boolean | no | `false` | — |
 | `model_id` | string | yes | — | — |
@@ -2388,7 +2388,7 @@ tests on an unphased model.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `limit` | integer | no | `100` | — |
 | `model_id` | string | yes | — | — |
@@ -2432,7 +2432,7 @@ before a run.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 
@@ -2475,7 +2475,7 @@ the job snapshot; poll `run_status` until `state` is `cancelled`.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `job_id` | string | yes | — | — |
 
@@ -2510,7 +2510,7 @@ to stay unique.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `metrics` | array<string> \| null | no | `null` | — |
 | `models` | array<string> | yes | — | — |
@@ -2566,7 +2566,7 @@ per_run_ms, pilot_runs, estimate_seconds, cached, advice}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `importance` | string \| null | no | `null` | `none`, `improvement`, `risk`, `both` |
 | `model_id` | string | yes | — | — |
@@ -2626,7 +2626,7 @@ still in the workspace, the job id is not.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `job_id` | string | yes | — | — |
 
@@ -2694,7 +2694,7 @@ boundary node reports no lost flow.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `collect_events` | boolean | no | `false` | — |
 | `confirm_long_run` | boolean | no | `false` | — |
@@ -2708,6 +2708,11 @@ boundary node reports no lost flow.
 | `timeout_s` | number | no | `1800.0` | — |
 | `treatments` | object \| null | no | `null` | — |
 | `workers` | integer \| null | no | `null` | — |
+
+Parameter notes:
+
+- `num_runs` — Defaults to the model's configured `NumRuns`.
+- `run_length` — Defaults to the model's configured run length.
 
 **Returns**
 
@@ -2772,7 +2777,7 @@ shows `phase` (`setting_up` while a big model is being prepared, then
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `collect_events` | boolean | no | `false` | — |
 | `model_id` | string | yes | — | — |
@@ -2781,6 +2786,11 @@ shows `phase` (`setting_up` while a big model is being prepared, then
 | `seed` | integer \| null | no | `null` | — |
 | `timeout_s` | number | no | `1800.0` | — |
 | `workers` | integer \| null | no | `null` | — |
+
+Parameter notes:
+
+- `num_runs` — Defaults to the model's configured `NumRuns`.
+- `run_length` — Defaults to the model's configured run length.
 
 **Returns**
 
@@ -2818,7 +2828,7 @@ one batch both succeed.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `field` | string | yes | — | — |
 | `metrics` | array<string> \| null | no | `null` | — |
@@ -2906,7 +2916,7 @@ Annotations exist only in `.rbds`; exporting with
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `adjacent_to` | string \| null | no | `null` | — |
 | `from_` | string \| null | no | `null` | — |
@@ -3010,7 +3020,7 @@ handover_points, handover_points_removed, refine_cut_short}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `all_levels` | boolean | no | `false` | — |
 | `direction` | string | no | `LR` | `LR`, `RL`, `TB`, `BT` |
@@ -3053,7 +3063,7 @@ Delete one annotation by id.  Returns {deleted, kind}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `annotation_id` | integer | yes | — | — |
 | `model_id` | string | yes | — | — |
@@ -3090,7 +3100,7 @@ ones, its `anchor` (target/location/gap, or from/to for an arrow).
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `parent` | integer \| null | no | `null` | — |
@@ -3152,7 +3162,7 @@ also written to renders/ in the workspace.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `highlight` | array<string> \| null | no | `null` | — |
 | `include_annotations` | boolean | no | `true` | — |
@@ -3166,7 +3176,7 @@ also written to renders/ in the workspace.
 
 **Returns**
 
-Image content plus `{width, height, elements_drawn, elements_in_view, px_per_unit, effective_label_px, legible, png_path, resource_link}`.
+Image content plus `{width, height, elements_drawn, elements_in_view, px_per_unit, effective_label_px, legible, zoom_to, highlighted, png_path, resource_link}`.
 
 **Example**
 
@@ -3208,7 +3218,7 @@ highlighted, routing, links_routed, inline}. The file is written to renders/ in 
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `highlight` | array<string> \| null | no | `null` | — |
 | `include_annotations` | boolean | no | `true` | — |
@@ -3268,7 +3278,7 @@ where it is.  Returns {annotation_id, annotation, summary}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `annotation_id` | integer | yes | — | — |
 | `model_id` | string | yes | — | — |
@@ -3329,7 +3339,7 @@ availability}]}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `at` | number \| null | no | `null` | — |
 | `bx` | array<number> \| null | no | `null` | — |
@@ -3349,6 +3359,12 @@ availability}]}.
 | `standby` | string \| null | no | `null` | `active`, `absent` |
 | `tau` | number \| null | no | `null` | — |
 | `times` | array<number> \| null | no | `null` | — |
+
+Parameter notes:
+
+- `folder` — Defaults to `Tables/<model>` (or the hierarchy/phase-specific name shown in the description).
+- `modes` — Defaults to `["reliability"]` when omitted.
+- `phase` — Defaults to the current phase; `"all"` solves every phase.
 
 **Returns**
 
@@ -3396,13 +3412,18 @@ Returns {folder, tables, files: [path], resource_links}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `folder` | string \| null | no | `null` | — |
 | `formats` | array<string> \| null | no | `null` | `csv`, `txt`, `txt_report`, `xlsx`, `ods` |
 | `model_id` | string | yes | — | — |
 | `run_id` | string \| null | no | `null` | — |
 | `tables` | array<string> \| null | no | `null` | — |
+
+Parameter notes:
+
+- `folder` — Defaults to `Tables/<model>` (or `Tables/<model>_<run_id>` with a run).
+- `formats` — Defaults to `["xlsx"]` when omitted.
 
 **Returns**
 
@@ -3438,7 +3459,7 @@ replication where the section is per-run.  format: 'markdown'
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `format` | string | no | `markdown` | `markdown`, `raw` |
 | `limit` | integer | no | `200` | — |
@@ -3485,7 +3506,7 @@ a workbook.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `run_id` | string | yes | — | — |
 | `top` | integer | no | `10` | — |
@@ -3521,7 +3542,7 @@ headers, rows, total_rows, next_offset, notes}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `limit` | integer | no | `100` | — |
 | `model_id` | string | yes | — | — |
@@ -3572,7 +3593,7 @@ short Markdown preview.  No image is ever returned.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `points` | integer | no | `100` | — |
 | `run_id` | string | yes | — | — |
@@ -3623,7 +3644,7 @@ ones (event log, end-of-run report, interim cost, all block columns).
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `run_id` | string \| null | no | `null` | — |
@@ -3696,8 +3717,9 @@ Read a documentation source as text (paginated).
 
 `name` is 'rbds' (the `.rbds` format guide), 'rbds-schema' (its JSON
 Schema; open_model, build_model and validate_model check files against
-it), 'dependency' (the
-dependency tutorial chapter), 'mcp-guide' (this MCP
+it), 'dependency' (the dependency tutorial chapter), 'mcp-docs' (the
+human MCP setup guide), 'mcp-reference' (the generated catalogue of
+every tool, parameter, return and example), 'mcp-guide' (the tutorial
 chapter), a tutorial chapter stem like 'ch11-capacity', a chapter
 title fragment, or a path under `docs/` or `new_docs/`.  `offset`/
 `limit` page the lines (limit <= 400).  Returns {name, file,
@@ -3705,7 +3727,7 @@ total_lines, offset, next_offset, text}.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `limit` | integer | no | `200` | — |
 | `name` | string | yes | — | — |
@@ -3746,7 +3768,7 @@ score}.  Use `read_doc` to read a whole document.
 
 **Parameters**
 
-| Parameter | Type | Required | Default | Enum / allowed values |
+| Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `limit` | integer | no | `5` | — |
 | `query` | string | yes | — | — |
@@ -3797,7 +3819,7 @@ Prompts are reusable starting points a client can offer as a slash command or te
 
 ## Book and guide
 
-The tutorial book has **24 chapters**; *RAPTOR from an AI Assistant* is chapter 16, number 23 of 24.  The hand-written [MCP guide](MCP.md) covers install, client configuration, concepts and worked task recipes.
+The tutorial book has **24 chapters**; the MCP chapter is book chapter 23 of 24 (source `new_docs/chapters/ch16-mcp.adoc`).  The hand-written [MCP guide](MCP.md) covers install, client configuration, concepts and worked task recipes.
 
 ## Reporting problems
 

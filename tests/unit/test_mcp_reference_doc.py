@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -103,6 +106,8 @@ def test_every_parameter_default_and_enum_is_in_the_table():
             assert "No parameters." in sections[tool.name]
             continue
         assert len(rows) == len(properties), tool.name
+        assert "| Parameter | Type | Required | Schema default |" in sections[
+            tool.name]
         by_name = {row[0].strip("`"): row for row in rows}
         assert set(by_name) == set(properties), tool.name
         required = set(schema.get("required") or [])
@@ -116,6 +121,26 @@ def test_every_parameter_default_and_enum_is_in_the_table():
             _types, values = mod._schema_types(prop)
             assert row[4] == mod._enum_label(values), (
                 f"{tool.name}.{name} enum")
+
+
+def test_read_only_docs_do_not_overstate_the_gate():
+    reference = REFERENCE.read_text(encoding="utf-8")
+    guide = GUIDE.read_text(encoding="utf-8")
+    assert "not the `--read-only` gate" in reference
+    assert "`simulate`, `start_run` and `open_model`" in reference
+    flat_guide = " ".join(guide.split())
+    assert "refuse tools that create, edit or delete" in flat_guide
+    assert "opening an existing model, analysis and simulation stay" in flat_guide
+
+
+def test_computed_defaults_are_documented():
+    mod, _tools, _fixed, _templates, _prompts = _live()
+    sections = _tool_sections(REFERENCE.read_text(encoding="utf-8"))
+    assert mod.COMPUTED_DEFAULTS
+    for (tool_name, parameter), note in mod.COMPUTED_DEFAULTS.items():
+        section = sections[tool_name]
+        assert f"- `{parameter}` — {note}" in section, (
+            f"{tool_name}.{parameter}: computed default not documented")
 
 
 def test_every_declared_return_field_is_in_the_table():
@@ -224,7 +249,7 @@ def test_counts_match_the_live_server_and_the_book():
         1 if any(tool.name == "render_diagram" for tool in tools) else 0)
     n_resources = len(fixed) + len(templates)
     n_prompts = len(prompts)
-    n_chapters, mcp_position = mod._book_facts()
+    n_chapters, mcp_position, mcp_source = mod._book_facts()
 
     readme = README.read_text(encoding="utf-8")
     tool_counts = {int(n) for n in re.findall(r"\b(\d+) tools\b", readme)}
@@ -246,7 +271,10 @@ def test_counts_match_the_live_server_and_the_book():
     assert f"**{n_resources} resources**" in reference
     assert f"**{n_prompts} prompts**" in reference
     assert f"**{n_chapters} chapters**" in reference
-    assert f"number {mcp_position} of {n_chapters}" in reference
+    assert f"book chapter {mcp_position} of {n_chapters}" in reference
+    assert f"`new_docs/chapters/{mcp_source}.adoc`" in reference
+    chapters = mod._book_chapters()
+    assert chapters[mcp_position - 1] == mcp_source == "ch16-mcp"
 
     guide = GUIDE.read_text(encoding="utf-8")
     block = guide.split(mod.GUIDE_BEGIN, 1)[1].split(mod.GUIDE_END, 1)[0]
@@ -255,7 +283,29 @@ def test_counts_match_the_live_server_and_the_book():
     assert f"**{n_resources} resources**" in block
     assert f"**{n_prompts} prompts**" in block
     assert f"**{n_chapters} chapters**" in block
-    assert f"number {mcp_position} of {n_chapters}" in block
+    assert f"book chapter {mcp_position} of {n_chapters}" in block
+    assert f"`new_docs/chapters/{mcp_source}.adoc`" in block
+
+
+def test_no_render_keeps_svg_and_drops_only_the_png_tool():
+    """The real startup path, not a count assumed from the docs."""
+    script = """\
+import argparse, asyncio
+from raptor.mcp import server
+server._import_tools(argparse.Namespace(no_render=True))
+print("\\n".join(sorted(t.name for t in asyncio.run(server.mcp.list_tools()))))
+"""
+    env = {**os.environ, "PYTHONPATH": str(ROOT)}
+    result = subprocess.run(
+        [sys.executable, "-c", script], cwd=ROOT, env=env,
+        capture_output=True, text=True, timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+    names = set(result.stdout.split())
+    _mod, tools, _fixed, _templates, _prompts = _live()
+    assert names == {tool.name for tool in tools} - {"render_diagram"}
+    assert "render_diagram_svg" in names
+    assert len(names) == len(tools) - 1
 
 
 def test_categories_cover_every_tool_exactly_once():
@@ -270,6 +320,14 @@ def test_categories_cover_every_tool_exactly_once():
         count = sum(1 for value in mod.TOOL_CATEGORY.values() if value == slug)
         assert f'<a id="tools-{slug}"></a>\n\n### {title}' in reference
         assert f"[{title}](#tools-{slug}) — {count} tools" in reference
+
+
+def test_guide_mentions_every_tool():
+    """A tool absent from the human guide is hard to discover from a recipe."""
+    _mod, tools, _fixed, _templates, _prompts = _live()
+    guide = GUIDE.read_text(encoding="utf-8")
+    missing = [tool.name for tool in tools if f"`{tool.name}`" not in guide]
+    assert not missing, f"guide does not mention: {', '.join(missing)}"
 
 
 def test_every_resource_and_prompt_is_listed():
@@ -288,6 +346,16 @@ def test_every_resource_and_prompt_is_listed():
         for argument in prompt.arguments or []:
             assert f"`{argument.name}`" in reference
             assert f"`{argument.name}`" in guide
+
+
+def test_generator_check_passes_as_a_subprocess():
+    """The exact command CI and CONTRIBUTING tell a contributor to run."""
+    result = subprocess.run(
+        [sys.executable, "tools/gen_mcp_reference.py", "--check"],
+        cwd=ROOT, env={**os.environ, "PYTHONPATH": str(ROOT)},
+        capture_output=True, text=True, timeout=60,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
 
 
 def test_generated_reference_is_deterministic():

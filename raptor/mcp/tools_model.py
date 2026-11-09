@@ -2233,8 +2233,9 @@ def read_doc(name: str, offset: int = 0, limit: int = 200) -> CallToolResult:
 
     `name` is 'rbds' (the `.rbds` format guide), 'rbds-schema' (its JSON
     Schema; open_model, build_model and validate_model check files against
-    it), 'dependency' (the
-    dependency tutorial chapter), 'mcp-guide' (this MCP
+    it), 'dependency' (the dependency tutorial chapter), 'mcp-docs' (the
+    human MCP setup guide), 'mcp-reference' (the generated catalogue of
+    every tool, parameter, return and example), 'mcp-guide' (the tutorial
     chapter), a tutorial chapter stem like 'ch11-capacity', a chapter
     title fragment, or a path under `docs/` or `new_docs/`.  `offset`/
     `limit` page the lines (limit <= 400).  Returns {name, file,

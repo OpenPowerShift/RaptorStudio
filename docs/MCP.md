@@ -23,7 +23,7 @@ The server is named `raptor-studio`. Its entry points are
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
 - **68 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **67**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
-- The tutorial book has **24 chapters**; *RAPTOR from an AI Assistant* is chapter 16, number 23 of 24.
+- The tutorial book has **24 chapters**; the MCP chapter is book chapter 23 of 24 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
 
 - **Start small.** Install the optional `[mcp]` extra, connect one client, and
@@ -86,6 +86,10 @@ uvx raptor-studio-mcp --workspace ~/raptor-models
 
 From a checkout, use `uv sync --extra mcp` and
 `uv run python -m raptor.mcp --workspace ~/raptor-models`.
+
+The desktop installers carry the application only; they do not bundle the
+server. Install the `[mcp]` extra (or run `uvx raptor-studio-mcp`) on the
+machine that starts the client.
 
 ### 2. Connect a client
 
@@ -240,6 +244,9 @@ Expected shape:
 }
 ```
 
+The real `advice` string may add model-specific caveats (events, workers,
+time-varying failure rates); show it as returned rather than trimming it.
+
 **Simulate:**
 
 ```json
@@ -366,10 +373,13 @@ Every tool carries an MCP risk hint:
   `delete_element`, `close_model`, `delete_file`, `undo_last_edit`,
   `save_model_as` (overwrites an existing export of that name).
 
-Start the server with `--read-only` to refuse every write and destructive
-tool while keeping open, analysis and simulation available. Unknown tool
-parameters are rejected rather than ignored, so a misspelt `num_runs` fails
-loudly instead of quietly using the default.
+Start the server with `--read-only` to refuse tools that create, edit or
+delete a model or export a file; opening an existing model, analysis and
+simulation stay available. `simulate`, `start_run` and `open_model` still
+carry the coarse `writes` hint because they create run or workspace
+artefacts — the hint is not the `--read-only` gate. Unknown tool parameters
+are rejected rather than ignored, so a misspelt `num_runs` fails loudly
+instead of quietly using the default.
 
 <a id="tasks"></a>
 
@@ -388,6 +398,11 @@ loudly instead of quietly using the default.
 - `open_model` — copy an existing `.rbds`/`.rbd` or a bundled example such
   as `MotorDemo` into the workspace.
 
+Distribution names, codes and parameter order come from
+`list_distributions`. To change what a newly added block starts with, call
+`configure_block_defaults` (`action="set"`, `"clear"` or `"list"`); this
+changes defaults only, not blocks already in the model.
+
 **Edit it** with the smallest tool that matches the job:
 
 - one element: `add_block`, `add_node`, `add_event`, `add_hierarchy`;
@@ -400,6 +415,11 @@ loudly instead of quietly using the default.
   `configure_phases`, `configure_system`, `manage_spare_pools`,
   `manage_resources`, `manage_triggers`, `manage_rates`;
 - inspect: `describe_model`, `get_element`, `diff_models`.
+
+`extract_hierarchy` turns one hierarchy into a standalone model (a port
+extension) or, with `report_only=true`, lists the boundary hazards first —
+shared dependencies, spare/resources pools and streams — and the treatment
+each would get. The source model is not changed.
 
 A bulk edit is one save and one undo step:
 
@@ -417,6 +437,13 @@ Call `get_element` after an edit when you need the full row back, and
 `undo_last_edit` / `redo_last_edit` to step through the model's own history.
 `build_model` auto-lays-out by default; `auto_layout` re-runs the same
 layered layout later.
+
+**Notes and callouts** use `add_annotation`, `list_annotations`,
+`update_annotation` and `delete_annotation`. A text, rectangle or ellipse
+can anchor `adjacent_to` an element (`location` chooses above/below/left/
+right/center); an arrow uses `from_`/`to`. Anchored notes move with
+`auto_layout`; ones placed by coordinates stay put. `delete_annotation`
+returns the deleted count and kind.
 
 <a id="validate-simulate"></a>
 
@@ -454,9 +481,10 @@ it does not:
 | Importance override | yes | no |
 
 After a run, `get_run_results` gives the bundle; `get_report` pages one
-section; `get_table` returns typed rows; `get_timeseries` returns points to
-plot. `describe_metrics` lists the metric names and units if you are unsure
-what a column means.
+section; `list_tables` lists the available input and result table keys;
+`get_table` returns typed rows for one of them; `get_timeseries` returns
+points to plot. `describe_metrics` lists the metric names and units if you
+are unsure what a column means.
 
 <a id="analyse"></a>
 
@@ -494,8 +522,10 @@ long analysis does not surprise you.
 
 For exact static answers, `analytical_analysis` solves series, parallel,
 k-of-n, bridge and hierarchy networks without simulation. It refuses PM,
-spares, resources, standby, phases or dependencies until you say how to treat
-them; `simulate` is the tool for those behaviours.
+spares, resources and non-Bernoulli events outright; standby, phases and
+dependencies are refused until you say how to treat them (`standby=`,
+`phase=`, `dependencies=`). `simulate` is the tool for behaviours the solver
+cannot represent.
 
 For failure combinations:
 
@@ -520,7 +550,8 @@ entry, the best entry per metric, and a Markdown table:
 ```
 
 `sweep_parameter` works on copies, so the original model is untouched. The
-`field` may be friendly (`repair_params[0]`) or indexed:
+`field` may be a friendly field name or an indexed form such as
+`repair_params[0]`:
 
 ```json
 {
@@ -618,9 +649,11 @@ slash command:
 | `improve_availability` | `model_id`, `target` | Propose and test changes that improve availability. |
 
 The server also has `read_doc` and `search_docs`, so a client that cannot read
-resources can still search the shipped documentation. An agent can read the
-whole generated catalogue with `read_doc(name="mcp-reference")`. The
-catalogue lists every resource and prompt with its server description.
+resources can still search the shipped documentation. An agent can read this
+guide with `read_doc(name="mcp-docs")`, the whole generated catalogue with
+`read_doc(name="mcp-reference")`, and the tutorial chapter with
+`read_doc(name="mcp-guide")`. The catalogue lists every resource and prompt
+with its server description.
 
 <a id="transports"></a>
 
@@ -669,7 +702,7 @@ raptor-studio-mcp --transport http --port 8765 --token-file ~/.raptor-token
 | `--tls-cert FILE`, `--tls-key FILE` | none | HTTP: serve HTTPS. |
 | `--allow-insecure-http` | off | HTTP: permit plaintext bearer tokens on a non-loopback bind (not recommended). |
 | `--read-only` | off | Refuse every tool that creates, edits or deletes a model or exports a file. Opening, analysing and simulating stay allowed. |
-| `--no-render` | off | Do not expose `render_diagram`. |
+| `--no-render` | off | Do not expose `render_diagram` (PNG). `render_diagram_svg` needs no Qt and stays available. |
 | `--allow-write DIR` | none | Extra directory `save_model_as` may write to; repeatable. |
 | `--allow-read DIR` | none | Extra directory `open_model` may read from; repeatable. The workspace and examples are always readable. |
 | `--retain-days N` | 30 | Days to keep run and render artefacts. Models are kept. |

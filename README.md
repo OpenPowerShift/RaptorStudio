@@ -166,8 +166,8 @@ The app opens on a start page with a blank model, worked examples (from the guid
 emergency power, a water-treatment works, a data centre and a phased airliner flight) and links to the
 built-in documentation, which the **Help** ribbon tab also opens:
 
-- **User Guide** — the tutorial book _Break It Before It Breaks_: 24 chapters, from a three-block lantern to a tuned
-  data centre, with companion `.rbds` models you can open straight from the book (the `opsmodel` buttons).
+- **User Guide** — the tutorial book _Break It Before It Breaks_: 24 chapters, from a three-block lantern to a
+  phased airliner flight, with companion `.rbds` models you can open straight from the book (the `opsmodel` buttons).
 - **Reference Manual** — field-by-field reference; **F1** jumps to the section for the focused panel or dialog.
 - **Formulas** — every metric, the importance measures and the distribution table as equations, on one page.
 - **Keyboard shortcuts** — [`docs/KEYBOARD_SHORTCUTS.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), also under **Help**. Press **Alt**

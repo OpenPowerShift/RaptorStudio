@@ -22,6 +22,7 @@ RBDS_SCHEMA = REPO / "docs" / "rbds.schema.json"
 IEC61078_DOC = REPO / "docs" / "IEC61078.md"
 ANALYTICAL_DOC = REPO / "docs" / "ANALYTICAL.md"
 MCP_GUIDE = CHAPTERS / "ch16-mcp.adoc"
+MCP_DOCS = REPO / "docs" / "MCP.md"
 MCP_REFERENCE = REPO / "docs" / "MCP-reference.md"
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
@@ -148,6 +149,9 @@ _DOC_ALIASES: dict[str, Path] = {
     "mcp": MCP_GUIDE,
     "mcp-guide": MCP_GUIDE,
     "mcp_guide": MCP_GUIDE,
+    "mcp-docs": MCP_DOCS,
+    "mcp_docs": MCP_DOCS,
+    "mcp-server-guide": MCP_DOCS,
     "mcp-reference": MCP_REFERENCE,
     "mcp_reference": MCP_REFERENCE,
     "guide": MCP_GUIDE,
@@ -157,10 +161,11 @@ _DOC_ALIASES: dict[str, Path] = {
 def read_doc(name: str) -> dict[str, str]:
     """Return ``{name, file, text}`` for a named documentation source.
 
-    *name* may be ``rbds`` (the format guide), ``mcp-guide`` (the MCP
-    chapter), ``mcp-reference`` (the generated tool catalogue), a chapter
-    stem such as ``ch11-capacity``, a chapter title fragment, or a
-    repo-relative path under ``docs/``/``new_docs/``.
+    *name* may be ``rbds`` (the format guide), ``mcp-docs`` (the human
+    setup guide), ``mcp-reference`` (the generated tool catalogue),
+    ``mcp-guide`` (the tutorial chapter), a chapter stem such as
+    ``ch11-capacity``, a chapter title fragment, or a repo-relative path
+    under ``docs/``/``new_docs/``.
     """
     key = name.strip().lower()
     if key in _DOC_ALIASES:
@@ -191,8 +196,10 @@ def read_doc(name: str) -> dict[str, str]:
                 return _load(name, path)
 
     raise FileNotFoundError(
-        f"no documentation named {name!r}; try 'rbds', 'mcp-guide', a "
-        f"chapter like 'ch11-capacity', or a path under docs/ or new_docs/"
+        f"no documentation named {name!r}; try 'rbds', 'mcp-docs' (the "
+        f"human guide), 'mcp-reference' (the generated tool catalogue), "
+        f"'mcp-guide' (the tutorial chapter), a chapter like "
+        f"'ch11-capacity', or a path under docs/ or new_docs/"
     )
 
 
