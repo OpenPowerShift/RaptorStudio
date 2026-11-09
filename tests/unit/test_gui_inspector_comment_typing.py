@@ -395,6 +395,23 @@ def test_new_element_does_not_inherit_deleted_comment_id(win):
     assert v.current_comment_stored("block", new_id) == ""
 
 
+def test_duplicate_named_element_does_not_alias_comment(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    name = v.blocks[5].name
+    sec.rows[:] = [
+        {"Type": "block", "ID": "4", "Name": name,
+         "Comment": "belongs to block 4"},
+    ]
+
+    assert v.current_comment_stored("block", 5) == ""
+    v.set_element_comment("block", 5, "belongs to block 5")
+
+    by_id = {r["ID"]: r.get("Comment") for r in sec.rows
+             if r.get("Type") == "block"}
+    assert by_id == {"4": "belongs to block 4", "5": "belongs to block 5"}
+
+
 def test_delete_keeps_duplicate_named_survivor_comment(win):
     v = win._diagram_dock.view
     sec = v._rbd_ref.sections["COMMENTS"]
@@ -449,6 +466,47 @@ def test_delete_redo_drops_legacy_comment_after_id_stamp(win):
     v._stack.redo()
     QApplication.processEvents()
     assert not sec.rows, "redo failed to drop the now-stamped legacy row"
+
+
+def test_legacy_delete_keeps_a_shared_name_survivor_comment(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    name = v.blocks[5].name
+    survivor_id = next(i for i in v.blocks if i != 5)
+    block_sec = v._rbd_ref.sections["BLOCK_DATA"]
+    for row in block_sec.rows:
+        if int(row["ID"]) == survivor_id:
+            row["blockName"] = name          # duplicate names are legal
+            break
+    sec.rows[:] = [{"Type": "block", "Name": name,
+                    "Comment": "shared legacy comment"}]
+    v._stack.clear()
+    v._scene.clearSelection()
+    v._block_items[5].setSelected(True)
+    QApplication.processEvents()
+
+    v.delete_selected()
+    QApplication.processEvents()
+    assert any(r.get("Comment") == "shared legacy comment"
+               for r in sec.rows), \
+        "legacy name fallback deleted a surviving duplicate-name comment"
+
+
+def test_dissolve_keeps_another_hierarchy_marker_comment(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    sec.rows[:] = [{"Type": "node", "Name": "in",
+                    "Comment": "other hierarchy marker"}]
+    v._stack.clear()
+    v._scene.clearSelection()
+    v._hier_items[23].setSelected(True)
+    QApplication.processEvents()
+
+    v.delete_selected()
+    QApplication.processEvents()
+    assert any(r.get("Comment") == "other hierarchy marker"
+               for r in sec.rows), \
+        "dissolve deleted a legacy comment for another hierarchy's marker"
 
 
 def test_dissolving_a_hierarchy_removes_and_restores_its_comment(

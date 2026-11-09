@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
     QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsLineItem, QWidget, QVBoxLayout,
 )
 
+from raptor.core.fileio.comments import find_comment_row
 from raptor.core.fileio.rbd import RbdFile, RbdSection
 from raptor.core.fileio.rbdlib import dist_param_count as _dist_param_count
 from raptor.core.fileio import view_transform
@@ -2638,36 +2639,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         Names are not stable enough across level changes (the old code
         looked the element up in the level-scoped pools, so a comment
         command replayed after entering a hierarchy found no element and
-        updated/created the wrong row). Legacy rows without an ID still
-        fall back to the name.
+        updated/created the wrong row). The name fallback is only for
+        legacy rows with no ID; an ID-bearing row for another element is
+        never reused just because the names match.
         """
         if self._rbd_ref is None:
             return None
-        sec = self._rbd_ref.sections.get("COMMENTS")
-        if sec is None:
-            return None
-        kind = str(etype).lower()
         name = (self._element_name(etype, oid)
                 or self._element_name_any_level(etype, oid))
-        for row in sec.rows:
-            if (str(row.get("Type", "")).lower() != kind
-                    or _safe_int(row.get("ID")) != int(oid)):
-                continue
-            # A reused ID must not inherit a stale row for a different
-            # element name. Empty names are legacy rows: accept them.
-            if name and row.get("Name", "") and row.get("Name") != name:
-                continue
-            return row
-        if name:
-            for row in sec.rows:
-                if (str(row.get("Type", "")).lower() == kind
-                        and row.get("Name", "") == name):
-                    # Legacy COMMENTS row with no ID: stamp it so later
-                    # level changes/replays resolve by ID too.
-                    if not row.get("ID"):
-                        row["ID"] = str(oid)
-                    return row
-        return None
+        return find_comment_row(
+            self._rbd_ref.sections.get("COMMENTS"), etype, oid, name,
+            stamp=True)
 
     def current_comment_stored(self, etype: str, oid: int) -> str:
         """The COMMENTS row's raw stored value ('~' for newlines) for one

@@ -14,6 +14,7 @@ from raptor.gui.ui.diagram_common import (  # noqa: I001
     _PARENT_COLS,
     _safe_int,
 )
+from raptor.core.fileio.comments import is_legacy_comment_row
 from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 
 
@@ -433,6 +434,28 @@ class AddCmd(_ViewCmd):
             remover(oid)
         self._done()
 
+def _surviving_names(view, section_name: str, name_col: str,
+                     dead_ids: set[int]) -> set:
+    """Names still used by an element OUTSIDE the deleted ID set."""
+    sec = (view._rbd_ref.sections.get(section_name)
+           if getattr(view, "_rbd_ref", None) is not None else None)
+    return {r.get(name_col) for r in (sec.rows if sec is not None else [])
+            if _safe_int(r.get("ID")) not in dead_ids}
+
+
+def _legacy_names(view, kind: str, section_name: str, name_col: str,
+                  dead_ids: set[int], names) -> set:
+    """No-ID name fallbacks that cannot belong to a surviving element.
+
+    Legacy COMMENT rows have no hierarchy context. If another element of
+    the same kind still uses the name (very common for hierarchy In/Out
+    markers called "in"/"out"), dropping by name could erase that
+    element's comment, so only genuinely unique names are eligible.
+    """
+    survivors = _surviving_names(view, section_name, name_col, dead_ids)
+    return {(kind, name) for name in names if name and name not in survivors}
+
+
 def _capture_comment_rows(view, dead_ids, dead_names):
     """[(row copy, original index)] for comments of the deleted elements.
 
@@ -448,7 +471,8 @@ def _capture_comment_rows(view, dead_ids, dead_names):
         kind = str(row.get("Type", "")).lower()
         if (kind, _safe_int(row.get("ID"))) in dead_ids:
             out.append((dict(row), idx))
-        elif not row.get("ID") and (kind, row.get("Name")) in dead_names:
+        elif (is_legacy_comment_row(row)
+              and (kind, row.get("Name")) in dead_names):
             out.append((dict(row), idx))
     return out
 
@@ -462,7 +486,7 @@ def _drop_comment_rows(view, dead_ids, dead_names, captured) -> None:
         r for r in sec.rows
         if not ((str(r.get("Type", "")).lower(),
                  _safe_int(r.get("ID"))) in dead_ids
-                or (not r.get("ID")
+                or (is_legacy_comment_row(r)
                     and (str(r.get("Type", "")).lower(), r.get("Name"))
                     in dead_names))]
 
@@ -496,12 +520,18 @@ class DeleteCmd(_ViewCmd):
                                    for r in self.node_rows}
         self._dead_comment_ids |= {("event", _safe_int(r.get("ID")))
                                    for r in self.event_rows}
-        self._dead_comment_names = {("block", r.get("blockName"))
-                                    for r in self.block_rows}
-        self._dead_comment_names |= {("node", r.get("Name"))
-                                     for r in self.node_rows}
-        self._dead_comment_names |= {("event", r.get("eventName"))
-                                     for r in self.event_rows}
+        self._dead_comment_names = _legacy_names(
+            view, "block", "BLOCK_DATA", "blockName",
+            {_safe_int(r.get("ID")) for r in self.block_rows},
+            {r.get("blockName") for r in self.block_rows})
+        self._dead_comment_names |= _legacy_names(
+            view, "node", "NODE_DATA", "Name",
+            {_safe_int(r.get("ID")) for r in self.node_rows},
+            {r.get("Name") for r in self.node_rows})
+        self._dead_comment_names |= _legacy_names(
+            view, "event", "EVENT_DATA", "eventName",
+            {_safe_int(r.get("ID")) for r in self.event_rows},
+            {r.get("eventName") for r in self.event_rows})
         self.comment_rows = _capture_comment_rows(
             view, self._dead_comment_ids, self._dead_comment_names)
 
@@ -720,10 +750,13 @@ class DissolveCmd(_ViewCmd):
         self._dead_comment_ids = {("hier", self.hier_id)}
         self._dead_comment_ids |= {("node", _safe_int(r.get("ID")))
                                    for r in self.marker_rows}
-        self._dead_comment_names = {
-            ("hier", hier_row.get("hierarchyName"))}
-        self._dead_comment_names |= {("node", r.get("Name"))
-                                     for r in self.marker_rows}
+        self._dead_comment_names = _legacy_names(
+            view, "hier", "HIERARCHY_DATA", "hierarchyName",
+            {self.hier_id}, {hier_row.get("hierarchyName")})
+        self._dead_comment_names |= _legacy_names(
+            view, "node", "NODE_DATA", "Name",
+            {_safe_int(r.get("ID")) for r in self.marker_rows},
+            {r.get("Name") for r in self.marker_rows})
         self.comment_rows = _capture_comment_rows(
             view, self._dead_comment_ids, self._dead_comment_names)
 

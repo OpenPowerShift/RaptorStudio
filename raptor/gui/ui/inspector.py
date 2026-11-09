@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 from raptor.core.engine.diststats import compute_stats
 from raptor.core.annotations import ANNO_DEFAULT_LOCATION, ANNO_LOCATIONS
 
+from raptor.core.fileio.comments import find_comment_row
 from raptor.core.fileio.rbd import RbdFile
 from raptor.core.fileio.typed import system_config_from_row
 # The distribution rules are `raptor.core.distro_rules`'s, not this
@@ -836,19 +837,19 @@ class InspectorDock(QWidget):
                 return row.get("Comment", "") or ""
         return ""
 
-    def _comment_for(self, etype: str, name: str) -> str:
+    def _comment_for(self, etype: str, oid: int, name: str) -> str:
         """Legacy COMMENTS section entry for this element ('~' separates
-        lines, e.g. 'Part # 178830-SP5~Failure data from Skylab')."""
+        lines, e.g. 'Part # 178830-SP5~Failure data from Skylab').
+
+        Uses the same authoritative Type+ID resolver as the canvas: an
+        ID-bearing row belonging to a different same-named element is
+        never adopted; only a legacy row with no ID falls back to name.
+        """
         if self._rbd is None:
             return ""
-        sec = self._rbd.sections.get("COMMENTS")
-        if sec is None:
-            return ""
-        for row in sec.rows:
-            if row.get("Type", "").lower() == etype.lower() \
-                    and row.get("Name", "") == name:
-                return (row.get("Comment", "") or "").replace("~", "\n")
-        return ""
+        row = find_comment_row(
+            self._rbd.sections.get("COMMENTS"), etype, oid, name, stamp=True)
+        return (row.get("Comment", "") or "").replace("~", "\n") if row else ""
 
     def set_undo_stack(self, stack):
         """Adopt the application-level undo stack so formula-record
@@ -1677,7 +1678,7 @@ class InspectorDock(QWidget):
                         on_commit: Callable[[str], None]) -> _CommentEdit:
         """Build the debounced Comment box for one element kind."""
         edit = _CommentEdit(
-            self._comment_for(etype, name).replace("~", "\n"),
+            self._comment_for(etype, oid, name).replace("~", "\n"),
             on_commit)
         edit.setFixedHeight(56)
         edit.setToolTip(
