@@ -690,3 +690,197 @@ def test_the_first_model_load_clamps_the_default_bottom_strip(qapp):
     assert w._results_dock.height() <= 200
     w._dirty = False
     w.close()
+
+
+def test_ribbon_action_restores_a_side_dock_moved_to_the_bottom(qapp):
+    from PySide6.QtWidgets import QToolButton
+
+    w = _shown(qapp)
+    dock, action = w._inspector_dock, w._inspector_toggle_action
+    w.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
+    _pump(qapp)
+    dock.titleBarWidget().findChildren(QToolButton)[-1].click()  # real close
+    _pump(qapp)
+    assert dock.isHidden()
+    assert action.isEnabled()
+    action.setChecked(True)
+    _pump(qapp)
+    assert dock.isVisible()
+    assert dock.widget().isHidden() is False
+
+    # Direct chrome close on a bottom dock must also be a real close,
+    # not a rotated side stub that the ribbon cannot restore.
+    w._dock_chrome["Inspector"]["set_closed"](True)
+    _pump(qapp)
+    assert dock.isHidden()
+    assert w._dock_chrome["Inspector"]["get"]()["closed"] is False
+    assert action.isEnabled()
+    action.setChecked(True)
+    _pump(qapp)
+    assert dock.isVisible() and dock.widget().isHidden() is False
+    w._dirty = False
+    w.close()
+
+
+def test_ribbon_action_expands_a_minimized_side_dock(qapp):
+    w = _shown(qapp)
+    action, dock = w._inspector_toggle_action, w._inspector_dock
+    w._dock_chrome["Inspector"]["set_minimized"](True)
+    _pump(qapp)
+    assert action.isEnabled()
+    action.setChecked(True)
+    _pump(qapp)
+    assert w._dock_chrome["Inspector"]["get"]()["minimized"] is False
+    assert dock.widget().isHidden() is False
+    w._dirty = False
+    w.close()
+
+
+def test_a_closed_inspector_round_trips_through_the_layout_blob(qapp):
+    w = _shown(qapp)
+    w._dock_chrome["Inspector"]["set_closed"](True)
+    _pump(qapp)
+    blob = json.loads(json.dumps(w._layout_blob()))
+    w2 = _shown(qapp)
+    assert w2._apply_layout_blob(blob) is True
+    _pump(qapp)
+    assert w2._dock_chrome["Inspector"]["get"]()["closed"] is True
+    assert w2._inspector_dock.widget().isHidden()
+    for x in (w, w2):
+        x._dirty = False
+        x.close()
+
+
+def test_collapsed_side_width_and_bottom_height_survive_a_blob(qapp):
+    w = _shown(qapp)
+    inspector, results = w._inspector_dock, w._results_dock
+    w.resizeDocks([inspector], [520], Qt.Orientation.Horizontal)
+    w.resizeDocks([results], [330], Qt.Orientation.Vertical)
+    _pump(qapp)
+    side_width, bottom_height = inspector.width(), results.height()
+    w._dock_chrome["Inspector"]["set_minimized"](True)
+    w._dock_chrome["Results"]["set_minimized"](True)
+    _pump(qapp)
+    blob = json.loads(json.dumps(w._layout_blob()))
+    assert blob["chrome"]["Inspector"]["docked_width"] > 400
+    assert blob["chrome"]["Results"]["docked_height"] > 250
+
+    w2 = _shown(qapp)
+    assert w2._apply_layout_blob(blob) is True
+    _pump(qapp)
+    w2._dock_chrome["Inspector"]["set_minimized"](False)
+    w2._dock_chrome["Results"]["set_minimized"](False)
+    _pump(qapp, 8)
+    assert w2._inspector_dock.width() >= side_width - 20, \
+        (w2._inspector_dock.width(), side_width)
+    assert w2._results_dock.height() >= bottom_height - 20, \
+        (w2._results_dock.height(), bottom_height)
+    for x in (w, w2):
+        x._dirty = False
+        x.close()
+
+
+def test_floating_a_minimized_dock_then_redocking_keeps_its_extent(qapp):
+    w = _shown(qapp)
+    inspector = w._inspector_dock
+    w.resizeDocks([inspector], [520], Qt.Orientation.Horizontal)
+    _pump(qapp)
+    before = inspector.width()
+    w._dock_chrome["Inspector"]["set_minimized"](True)
+    _pump(qapp)
+    inspector.setFloating(True)
+    _pump(qapp)
+    w._redock(inspector)
+    _pump(qapp)
+    assert not inspector.isFloating()
+    assert inspector.widget().isHidden() is False
+    assert inspector.width() >= before - 20, (inspector.width(), before)
+    w._dirty = False
+    w.close()
+
+
+def test_floating_a_minimized_bottom_dock_then_redocking_keeps_its_height(qapp):
+    w = _shown(qapp)
+    results = w._results_dock
+    w.resizeDocks([results], [330], Qt.Orientation.Vertical)
+    _pump(qapp)
+    before = results.height()
+    w._dock_chrome["Results"]["set_minimized"](True)
+    _pump(qapp)
+    w._float_results_properly(results, True)
+    _pump(qapp)
+    w._redock(results)
+    _pump(qapp, 8)
+    assert not results.isFloating()
+    assert results.widget().isHidden() is False
+    assert results.height() >= before - 20, (results.height(), before)
+    w._dirty = False
+    w.close()
+
+
+def test_a_sizes_changed_after_startup_skips_first_load_defaults(qapp):
+    from pathlib import Path
+
+    from raptor.core.fileio.rbd import load_rbd
+
+    gold = Path(__file__).resolve().parents[1] / "golden" / "Phasing3" / "input.rbd"
+    w = _shown(qapp)
+    assert w._dock_startup_extents
+    assert not w._dock_user_sized
+    # Simulate a splitter drag: mutate geometry directly, bypassing
+    # resizeDocks(). The snapshot comparison must notice.
+    w._inspector_dock.setMinimumWidth(500)
+    _pump(qapp)
+    assert w._dock_sizes_changed_since_startup()
+    w._load_into_app(load_rbd(str(gold)), None)
+    _pump(qapp, 10)
+    assert w._inspector_dock.width() >= 480
+    w._dirty = False
+    w.close()
+
+
+def test_active_bottom_cap_grows_back_after_window_shrink(qapp):
+    from pathlib import Path
+
+    from raptor.core.fileio.rbd import load_rbd
+
+    gold = Path(__file__).resolve().parents[1] / "golden" / "Phasing3" / "input.rbd"
+    w = _shown(qapp)
+    w._load_into_app(load_rbd(str(gold)), None)
+    _pump(qapp, 8)
+    w.resize(1500, 620)
+    _pump(qapp, 6)
+    small = w._results_dock.maximumHeight()
+    w.resize(1500, 1000)
+    _pump(qapp, 6)
+    assert w._results_dock.maximumHeight() > small
+    w._dirty = False
+    w.close()
+
+
+def test_a_titlebar_drop_at_the_top_does_not_join_the_bottom_strip(qapp):
+    from PySide6.QtCore import QEvent, QPoint, QPointF
+    from PySide6.QtGui import QMouseEvent
+
+    w = _shown(qapp)
+    dock = w._explorer_dock
+    titlebar = dock.titleBarWidget()
+    start = titlebar.mapToGlobal(titlebar.rect().center())
+    target = w.mapToGlobal(QPoint(w.width() // 2, 5))
+    local = QPointF(titlebar.rect().center())
+    for event_type, global_pos, button, buttons in (
+            (QEvent.Type.MouseButtonPress, start,
+             Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton),
+            (QEvent.Type.MouseMove, target,
+             Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton),
+            (QEvent.Type.MouseButtonRelease, target,
+             Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton)):
+        event = QMouseEvent(event_type, local, QPointF(global_pos), button,
+                            buttons, Qt.KeyboardModifier.NoModifier)
+        titlebar.event(event)
+        _pump(qapp, 3)
+    assert not dock.isFloating()
+    assert w.dockWidgetArea(dock) != Qt.DockWidgetArea.TopDockWidgetArea
+    assert dock not in w.tabifiedDockWidgets(w._data_tables_dock)
+    w._dirty = False
+    w.close()
