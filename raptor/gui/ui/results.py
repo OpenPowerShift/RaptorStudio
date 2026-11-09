@@ -25,6 +25,7 @@ from __future__ import annotations
 import itertools
 import os
 import re
+import weakref
 
 from raptor.api.presentation import probability_text
 from raptor.gui.ui.qtcompat import req
@@ -35,7 +36,7 @@ from raptor.gui.ui import msgbox
 
 from typing import Any, cast
 
-from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QStandardItemModel
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QLabel,
@@ -281,7 +282,80 @@ def _pct(v: float) -> str:
     return f"{v:.1f}%"
 
 
-class _FitTable(QTableWidget):
+class _ReadOnlyTable(QTableWidget):
+    """Base class for every results grid: selectable, sortable, not editable.
+
+    `NoEditTriggers` stops the user opening an editor, and overriding
+    `editItem` stops a programmatic call from doing the same. One base
+    class means a new results table cannot forget the rule (#218).
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+
+    def editItem(self, item: QTableWidgetItem) -> None:  # noqa: N802
+        """Never open an editor, even when called directly."""
+        return
+
+
+class _ViewportContextMenuFilter(QObject):
+    """Deliver a viewport's ContextMenu event to a callback.
+
+    A QAbstractScrollArea sends the real mouse context event to its
+    viewport, not the table widget. Relying only on
+    `customContextMenuRequested` made the Weak Link right-click menu
+    silent in real use (#211).
+    """
+
+    def __init__(self, viewport: QWidget, callback) -> None:
+        super().__init__(viewport)
+        self._callback = callback
+        viewport.installEventFilter(self)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if event.type() == QEvent.Type.ContextMenu:
+            self._callback(event.pos())
+            return True
+        return False
+
+
+class _TableActionStrip(QWidget):
+    """A table's Copy/CSV strip, constrained to that table's right edge.
+
+    `_FitTable` hugs its columns while the page is much wider; a plain
+    row with a stretch parked the icons at the page edge, far from a
+    narrow table. This strip tracks the table width so its actions stay
+    directly above the table's top-right corner (#217).
+    """
+
+    def __init__(self, table: QTableWidget, parent=None) -> None:
+        super().__init__(parent)
+        self.setObjectName("TableActionStrip")
+        self.setSizePolicy(QSizePolicy.Policy.Fixed,
+                           QSizePolicy.Policy.Fixed)
+        self._table_ref = weakref.ref(table)
+        table.installEventFilter(self)
+        self._sync_width()
+
+    def _sync_width(self) -> None:
+        table = self._table_ref()
+        if table is None:
+            return
+        hint = table.sizeHint().width()
+        width = table.width() if table.isVisible() and table.width() > 1 \
+            else hint
+        if width > 0 and width != self.width():
+            self.setFixedWidth(width)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if obj is self._table_ref() and event.type() in (
+                QEvent.Type.Resize, QEvent.Type.Show):
+            self._sync_width()
+        return False
+
+
+class _FitTable(_ReadOnlyTable):
     """A results table as wide as its columns (plus its scrollbar when it
     has one), so it hugs its content and never clips the last column."""
 
@@ -940,7 +1014,6 @@ class ResultsDock(QWidget):
                     item.setFont(bold)
                 table.setItem(r, c, item)
         table.verticalHeader().setVisible(False)
-        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setAlternatingRowColors(True)
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         header = table.horizontalHeader()
@@ -1028,8 +1101,7 @@ class ResultsDock(QWidget):
         # never reveal rows outside the current level. A weak reference
         # keeps the closure from re-creating the table -> bar -> table
         # cycle the filter bar deliberately avoids.
-        from weakref import ref as _weakref
-        table_ref = _weakref(table)
+        table_ref = weakref.ref(table)
         attach_if_large(
             table, raw_role=RAW_VALUE_ROLE,
             base_visible=lambda r, tr=table_ref:
@@ -1565,14 +1637,16 @@ class ResultsDock(QWidget):
 
     def attach_goto_menu(self, table: QTableWidget, kind: str) -> None:
         """Give a Weak Link table a right-click "Go to selected element"
-        action, sharing the double-click/button signal path (#211)."""
-        # One working policy: QAbstractScrollArea delivers the real mouse
-        # context event to its viewport, so the table-level policy alone
-        # was silent (and connecting both could open two menus).
-        table.viewport().setContextMenuPolicy(
-            Qt.ContextMenuPolicy.CustomContextMenu)
-        table.viewport().customContextMenuRequested.connect(
-            lambda pos, t=table, k=kind: self._show_goto_menu(t, k, pos))
+        action, sharing the double-click signal path (#211)."""
+        if getattr(table, "_goto_menu_filter", None) is not None:
+            return
+        # Handle the real viewport ContextMenu event: relying only on
+        # `customContextMenuRequested` left the menu silent in use.
+        table_ref = weakref.ref(table)
+        table._goto_menu_filter = _ViewportContextMenuFilter(
+            table.viewport(),
+            lambda pos, tr=table_ref, k=kind:
+            (tr() is not None and self._show_goto_menu(tr(), k, pos)))
 
     def _build_weak_page(self) -> QWidget:
         """Weak Link Analysis: a colour chip per element,
@@ -1599,7 +1673,7 @@ class ResultsDock(QWidget):
             v.addWidget(msg)
             v.addStretch(1)
             return page
-        from PySide6.QtWidgets import QCheckBox, QPushButton
+        from PySide6.QtWidgets import QCheckBox
         from PySide6.QtGui import QColor
         c = active_colour()
         page = QWidget()
@@ -1716,15 +1790,6 @@ class ResultsDock(QWidget):
             table.setMinimumHeight(full)
             table.setMaximumHeight(full)
 
-        def goto_row_button(table: QTableWidget, kind: str) -> QPushButton:
-            btn = QPushButton("Go to Selected Element")
-            btn.setToolTip(
-                f"Select {kind}'s canvas element and scroll to it "
-                "(navigates into its hierarchy level first if needed)")
-            btn.clicked.connect(
-                lambda: self._goto_selected_row(table, kind))
-            return btn
-
         # Blocks: full bucket split. From
         # `core.engine.weak_metric`, the same owner `main_window`'s canvas
         # overlay now uses -- the two previously disagreed on whether `idle`
@@ -1734,14 +1799,13 @@ class ResultsDock(QWidget):
         bup, bdown = weak_metric.buckets(kind)
         block_rows = self._weak_metric_rows(
             runs, bup, bdown, missions=run_missions if rel else None)
-        btable = QTableWidget(0, 3)
+        btable = _ReadOnlyTable(0, 3)
         fill_table(btable, block_rows)
         self._apply_sort(btable, "WEAK::BLOCKS",
                          (2, Qt.SortOrder.DescendingOrder))
         size_to_content(btable)
-        # Both double-click and the button navigate, using the same
-        # underlying signal the Event Log's row-click already uses
-        # (element_clicked). Right-click is the contextual version (#211).
+        # Double-click and the row context menu both navigate on the
+        # element_clicked signal the Event Log already uses.
         btable.cellDoubleClicked.connect(
             lambda r, _c: self._goto_selected_row(btable, "block"))
         self.attach_goto_menu(btable, "block")
@@ -1757,7 +1821,6 @@ class ResultsDock(QWidget):
         self._add_table_header(v, "Blocks", btable, tip=blabel.text(),
                                show_title=False)
         v.addWidget(btable)
-        v.addWidget(goto_row_button(btable, "block"))
 
         # Nodes.
         # Raptor's NODE_RESULTS lists regular nodes only (`typeNode=2`
@@ -1776,7 +1839,7 @@ class ResultsDock(QWidget):
             node_rows = self._weak_metric_rows(
                 node_runs, nup, ndown,
                 missions=node_missions if rel else None)
-            ntable = QTableWidget(0, 3)
+            ntable = _ReadOnlyTable(0, 3)
             fill_table(ntable, node_rows)
             self._apply_sort(ntable, "WEAK::NODES",
                              (2, Qt.SortOrder.DescendingOrder))
@@ -1794,7 +1857,6 @@ class ResultsDock(QWidget):
             self._add_table_header(v, "Nodes", ntable, tip=nlabel.text(),
                                    show_title=False)
             v.addWidget(ntable)
-            v.addWidget(goto_row_button(ntable, "node"))
 
             # Per-state % breakdown (Raptor 7 "State_Data" table):
             # the raw numbers behind the single rolled-up Availability/
@@ -1818,7 +1880,7 @@ class ResultsDock(QWidget):
             names = sorted({name for rows in per_state.values()
                            for name in rows
                            if allowed is None or name in allowed})
-            pct_table = QTableWidget(len(names), 1 + len(states))
+            pct_table = _ReadOnlyTable(len(names), 1 + len(states))
             pct_table.setHorizontalHeaderLabels(
                 ["Name"] + [f"% {s.capitalize()}" for s in states])
             for r, name in enumerate(names):
@@ -1927,7 +1989,8 @@ class ResultsDock(QWidget):
         from raptor.gui.resources import icons
         from raptor.gui.ui.table_export import table_to_grid
 
-        hdr_row = QHBoxLayout()
+        strip = _TableActionStrip(table)
+        hdr_row = QHBoxLayout(strip)
         hdr_row.setContentsMargins(0, 0, 0, 0)
         hdr_row.setSpacing(4)
         label = QLabel(title)
@@ -1935,6 +1998,11 @@ class ResultsDock(QWidget):
         label.setObjectName("TableTitle")
         if tip:
             label.setToolTip(tip)
+        # The strip is only as wide as a narrow table; let a long title
+        # clip rather than push the action icons away from its right edge.
+        label.setMinimumWidth(0)
+        label.setSizePolicy(QSizePolicy.Policy.Ignored,
+                            QSizePolicy.Policy.Preferred)
         if show_title:
             hdr_row.addWidget(label)
         hdr_row.addStretch(1)
@@ -1971,7 +2039,7 @@ class ResultsDock(QWidget):
             f"Save {table_name} table as CSV",
             f"Save the '{table_name}' table as a CSV file (filtered and "
             "sorted rows, full precision)")
-        v.addLayout(hdr_row)
+        v.addWidget(strip)
 
         def _current_grid():
             # Read the table at click time, not a precomputed list: a

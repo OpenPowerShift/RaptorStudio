@@ -16,10 +16,11 @@ pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
-    QApplication, QInputDialog, QLabel, QMenu, QPushButton, QScrollArea,
-    QTableWidget, QVBoxLayout, QWidget)
+    QAbstractItemView, QApplication, QInputDialog, QLabel, QMenu, QPushButton,
+    QScrollArea, QTableWidget, QVBoxLayout, QWidget)
 
 from raptor.core.engine.runner import run_simulation_with_reports
 from raptor.core.fileio.rbd import load_rbd
@@ -213,6 +214,60 @@ def test_every_results_table_card_has_a_copy_csv_pair(rich_dock):
     assert checked >= 4, "expected Summary/Logistics/Sparing/Capacity/Cost/Weak"
 
 
+def test_per_table_actions_hug_a_narrow_table_on_a_wide_page(qapp):
+    dock = ResultsDock()
+    page = QWidget()
+    page.resize(900, 600)
+    lay = QVBoxLayout(page)
+    table = dock._make_table(
+        ["Name", "Value"], [["x", ("1.00", 1.0)]])
+    dock._add_table_header(lay, "Narrow", table)
+    lay.addWidget(table)
+    lay.addStretch(1)
+    page.show()
+    QApplication.processEvents()
+
+    strip = page.findChild(QWidget, "TableActionStrip")
+    assert strip is not None
+    assert table.width() < page.width() // 2
+    assert strip.width() == table.width()
+    strip_right = strip.mapTo(page, QPoint(strip.width(), 0)).x()
+    table_right = table.mapTo(page, QPoint(table.width(), 0)).x()
+    assert abs(strip_right - table_right) <= 1
+    copy = strip.findChild(QPushButton, "TableCopyButton")
+    assert copy is not None
+    assert copy.accessibleName() == "Copy Narrow table"
+    buttons = strip.findChildren(QPushButton)
+    assert {b.objectName() for b in buttons} == {
+        "TableCopyButton", "TableCsvButton"}
+    assert max(b.geometry().right() for b in buttons) >= strip.width() - 8
+    page.deleteLater()
+    dock.deleteLater()
+
+
+def test_every_final_results_table_is_read_only(rich_dock, qapp):
+    importance = ResultsDock()
+    importance.set_results([], "", "", report_data=[],
+                           importance=IMPORTANCE_SAMPLE)
+    checked = 0
+    try:
+        for dock in (rich_dock, importance):
+            for i in range(dock._details_tabs.count()):
+                page = dock._details_tabs.widget(i)
+                for table in _page_body(page).findChildren(QTableWidget):
+                    assert table.editTriggers() == \
+                        QAbstractItemView.EditTrigger.NoEditTriggers
+                    if table.rowCount() and table.columnCount():
+                        table.setCurrentCell(0, 0)
+                        table.editItem(table.item(0, 0))
+                        assert table.state() != \
+                            QAbstractItemView.State.EditingState
+                        checked += 1
+    finally:
+        importance.deleteLater()
+    assert checked >= 6, "expected every Final Results sub-tab to be covered"
+
+
 def test_summary_logistics_and_weak_cards_do_not_repeat_headings(rich_dock):
     for tab in ("Summary", "Logistics", "Weak Link"):
         index = next((i for i in range(rich_dock._details_tabs.count())
@@ -225,6 +280,14 @@ def test_summary_logistics_and_weak_cards_do_not_repeat_headings(rich_dock):
                   if lb.objectName() == "TableTitle"]
         assert titles == [], f"{tab} repeats a table heading: {titles}"
         assert _table_buttons(page), f"{tab} lost its table actions"
+
+
+def test_weak_page_has_no_generic_goto_buttons(rich_dock):
+    index = next(i for i in range(rich_dock._details_tabs.count())
+                 if rich_dock._details_tabs.tabText(i) == "Weak Link")
+    page = rich_dock._details_tabs.widget(index)
+    texts = [b.text() for b in _page_body(page).findChildren(QPushButton)]
+    assert "Go to Selected Element" not in texts
 
 
 def test_cost_block_action_names_do_not_embed_the_live_count(rich_dock):
@@ -520,23 +583,36 @@ def test_weak_link_empty_context_area_does_nothing(rich_dock):
                                    QPoint(-10, -10)) is None
 
 
-def test_weak_link_context_signal_wiring_and_double_click(rich_dock,
-                                                          monkeypatch):
+def test_weak_link_real_context_menu_request_and_double_click(
+        rich_dock, monkeypatch):
     index = next(i for i in range(rich_dock._details_tabs.count())
                  if rich_dock._details_tabs.tabText(i) == "Weak Link")
     page = rich_dock._details_tabs.widget(index)
     table = next(t for t in _page_body(page).findChildren(QTableWidget)
-                 if t.rowCount() > 0)
-    wired: list[tuple[object, str, object]] = []
-    monkeypatch.setattr(
-        rich_dock, "_show_goto_menu",
-        lambda t, k, p: wired.append((t, k, p)))
-    point = table.visualItemRect(table.item(0, 0)).center()
-    # The viewport owns the real right-click policy; emitting its signal
-    # is the one request a context-menu event produces.
-    table.viewport().customContextMenuRequested.emit(point)
-    assert len(wired) == 1       # one policy, not table+viewport duplicates
-    assert wired[-1][0] is table and wired[-1][1] == "block"
+                 if t.rowCount() > 1)
+    requests: list[tuple[object, str, int]] = []
+
+    def fake_show(target, kind, pos):
+        menu = rich_dock._goto_menu_at(target, kind, pos)
+        if menu is not None:
+            requests.append((target, kind, target.currentRow()))
+            menu.deleteLater()
+
+    monkeypatch.setattr(rich_dock, "_show_goto_menu", fake_show)
+    row = 1
+    point = table.visualItemRect(table.item(row, 0)).center()
+    event = QContextMenuEvent(
+        QContextMenuEvent.Reason.Mouse, point,
+        table.viewport().mapToGlobal(point))
+    QApplication.sendEvent(table.viewport(), event)
+    assert requests == [(table, "block", row)]
+
+    requests.clear()
+    empty = QContextMenuEvent(
+        QContextMenuEvent.Reason.Mouse, QPoint(-5, -5),
+        table.viewport().mapToGlobal(QPoint(-5, -5)))
+    QApplication.sendEvent(table.viewport(), empty)
+    assert requests == []       # empty area does nothing
 
     seen: list[tuple[str, str]] = []
     rich_dock.element_clicked.connect(lambda k, n: seen.append((k, n)))
