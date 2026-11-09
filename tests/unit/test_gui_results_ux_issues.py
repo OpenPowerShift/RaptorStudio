@@ -231,6 +231,8 @@ def test_per_table_actions_hug_a_narrow_table_on_a_wide_page(qapp):
     assert strip is not None
     assert table.width() < page.width() // 2
     assert strip.width() == table.width()
+    title = strip.findChild(QLabel, "TableTitle")
+    assert title is not None and title.width() > 0
     strip_right = strip.mapTo(page, QPoint(strip.width(), 0)).x()
     table_right = table.mapTo(page, QPoint(table.width(), 0)).x()
     assert abs(strip_right - table_right) <= 1
@@ -241,7 +243,50 @@ def test_per_table_actions_hug_a_narrow_table_on_a_wide_page(qapp):
     assert {b.objectName() for b in buttons} == {
         "TableCopyButton", "TableCsvButton"}
     assert max(b.geometry().right() for b in buttons) >= strip.width() - 8
+
+    page.resize(1200, 700)
+    QApplication.processEvents()
+    assert strip.width() == table.width()
     page.deleteLater()
+    dock.deleteLater()
+
+
+def test_action_strip_clamps_a_wide_table_to_its_scroll_viewport(qapp):
+    dock = ResultsDock()
+    inner = QWidget()
+    lay = QVBoxLayout(inner)
+    headers = [f"Very long column heading {i}" for i in range(12)]
+    table = dock._make_table(
+        headers, [[f"value {i}" for i in range(12)]])
+    table.setMinimumWidth(900)      # wider than the scroll viewport
+    dock._add_table_header(lay, "Wide", table)
+    lay.addWidget(table)
+    lay.addStretch(1)
+    scroll = dock._scroll_wrap(inner)
+    scroll.resize(320, 240)
+    scroll.show()
+    QApplication.processEvents()
+    QTest.qWait(20)
+
+    strip = inner.findChild(QWidget, "TableActionStrip")
+    assert strip is not None
+    viewport = scroll.viewport().width()
+    assert table.width() > viewport, "fixture must be wider than the viewport"
+    assert strip.width() <= viewport
+    left = strip.mapTo(scroll.viewport(), QPoint(0, 0)).x()
+    assert strip.width() == viewport - left
+    csv = strip.findChild(QPushButton, "TableCsvButton")
+    assert csv is not None
+    right = strip.mapTo(scroll.viewport(),
+                        QPoint(strip.width(), 0)).x()
+    assert right <= viewport + 1
+
+    scroll.resize(380, 260)
+    QApplication.processEvents()
+    viewport = scroll.viewport().width()
+    left = strip.mapTo(scroll.viewport(), QPoint(0, 0)).x()
+    assert strip.width() == viewport - left
+    scroll.deleteLater()
     dock.deleteLater()
 
 
@@ -584,12 +629,19 @@ def test_weak_link_empty_context_area_does_nothing(rich_dock):
 
 
 def test_weak_link_real_context_menu_request_and_double_click(
-        rich_dock, monkeypatch):
+        rich_dock, monkeypatch, qapp):
     index = next(i for i in range(rich_dock._details_tabs.count())
                  if rich_dock._details_tabs.tabText(i) == "Weak Link")
+    rich_dock.show()
+    rich_dock._tabs.show()
+    rich_dock._tabs.setCurrentWidget(rich_dock._details_holder)
+    rich_dock._details_tabs.setCurrentIndex(index)
+    QApplication.processEvents()
     page = rich_dock._details_tabs.widget(index)
     table = next(t for t in _page_body(page).findChildren(QTableWidget)
                  if t.rowCount() > 1)
+    assert table.isVisible() and table.viewport().isVisible()
+
     requests: list[tuple[object, str, int]] = []
 
     def fake_show(target, kind, pos):
@@ -608,14 +660,29 @@ def test_weak_link_real_context_menu_request_and_double_click(
     assert requests == [(table, "block", row)]
 
     requests.clear()
+    # Make a genuinely empty strip inside the viewport, below the last row.
+    full = table.maximumHeight() + 40
+    table.setMinimumHeight(full)
+    table.setMaximumHeight(full)
+    QApplication.processEvents()
+    empty_point = QPoint(table.viewport().width() - 2,
+                         table.viewport().height() - 2)
+    assert not table.indexAt(empty_point).isValid()
     empty = QContextMenuEvent(
-        QContextMenuEvent.Reason.Mouse, QPoint(-5, -5),
-        table.viewport().mapToGlobal(QPoint(-5, -5)))
+        QContextMenuEvent.Reason.Mouse, empty_point,
+        table.viewport().mapToGlobal(empty_point))
     QApplication.sendEvent(table.viewport(), empty)
     assert requests == []       # empty area does nothing
 
     seen: list[tuple[str, str]] = []
     rich_dock.element_clicked.connect(lambda k, n: seen.append((k, n)))
-    table.setCurrentCell(0, 0)
-    table.cellDoubleClicked.emit(0, 0)
+    double_point = table.visualItemRect(table.item(0, 0)).center()
+    QTest.mouseClick(table.viewport(), Qt.MouseButton.LeftButton,
+                     pos=double_point)
+    QTest.mouseDClick(table.viewport(), Qt.MouseButton.LeftButton,
+                      pos=double_point)
+    QTest.qWait(20)
     assert seen and seen[-1][0] == "block"
+    table.setMinimumHeight(full - 40)
+    table.setMaximumHeight(full - 40)
+    rich_dock.hide()

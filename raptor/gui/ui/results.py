@@ -36,7 +36,7 @@ from raptor.gui.ui import msgbox
 
 from typing import Any, cast
 
-from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QStandardItemModel
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QLabel,
@@ -335,22 +335,60 @@ class _TableActionStrip(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Fixed,
                            QSizePolicy.Policy.Fixed)
         self._table_ref = weakref.ref(table)
+        self._viewport_ref = None
         table.installEventFilter(self)
-        self._sync_width()
+        # Do not size from `sizeHint()` before layout: for a table wider
+        # than its scroll viewport that is the page's minimum width and
+        # pushes the actions off-screen. Wait for the first show/resize.
+        QTimer.singleShot(0, self._sync_width)
+
+    @staticmethod
+    def _scroll_viewport(table: QTableWidget) -> QWidget | None:
+        parent = table.parentWidget()
+        while parent is not None:
+            if isinstance(parent, QScrollArea):
+                return parent.viewport()
+            parent = parent.parentWidget()
+        return None
 
     def _sync_width(self) -> None:
-        table = self._table_ref()
-        if table is None:
+        from shiboken6 import isValid
+        if not isValid(self):
             return
-        hint = table.sizeHint().width()
-        width = table.width() if table.isVisible() and table.width() > 1 \
-            else hint
+        table = self._table_ref()
+        if table is None or not isValid(table) or not table.isVisible() \
+                or table.width() <= 1:
+            return
+        width = table.width()
+        viewport = self._scroll_viewport(table)
+        if viewport is not None and isValid(viewport):
+            current = self._viewport_ref() if self._viewport_ref else None
+            if current is not viewport:
+                self._viewport_ref = weakref.ref(viewport)
+                viewport.installEventFilter(self)
+        if viewport is not None and isValid(viewport) \
+                and viewport.width() > 0:
+            # The strip sits inside the page's layout margin; clamp to
+            # what is actually visible, not the table's full width.
+            left = max(0, self.mapTo(viewport, QPoint(0, 0)).x())
+            width = min(width, max(1, viewport.width() - left))
         if width > 0 and width != self.width():
             self.setFixedWidth(width)
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
-        if obj is self._table_ref() and event.type() in (
-                QEvent.Type.Resize, QEvent.Type.Show):
+        if event.type() not in (QEvent.Type.Resize, QEvent.Type.Show):
+            return False
+        from shiboken6 import isValid
+        if not isValid(self):
+            return False
+        table = self._table_ref()
+        viewport = self._viewport_ref() if self._viewport_ref else None
+        if obj is table and table is not None and isValid(table):
+            self._sync_width()
+            # The first pass can run before the page's margins settle;
+            # one deferred pass measures the visible left edge too.
+            QTimer.singleShot(0, self._sync_width)
+        elif viewport is not None and obj is viewport and isValid(viewport):
             self._sync_width()
         return False
 
@@ -2004,8 +2042,12 @@ class ResultsDock(QWidget):
         label.setSizePolicy(QSizePolicy.Policy.Ignored,
                             QSizePolicy.Policy.Preferred)
         if show_title:
-            hdr_row.addWidget(label)
-        hdr_row.addStretch(1)
+            # Take the available width, not a trailing stretch: an Ignored
+            # label has sizeHint 0, and a spacer after it made the title
+            # itself collapse to zero (#217 follow-up).
+            hdr_row.addWidget(label, 1)
+        else:
+            hdr_row.addStretch(1)
         colour = active_colour()["text"]
         # Action names must not go stale when a hierarchy filter changes a
         # "Blocks (N)" heading; the stable name is what a user hears and
