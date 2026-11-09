@@ -648,6 +648,18 @@
    "text": "Failure Effects",
    "tooltip": "Failure Effects View: fail and repair blocks by clicking them and see what happens to the system, with nothing simulated. Click again to leave.\n\nUnavailable: open or create a model first"
   },
+  "_fine_nudge_up_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": false,
+   "has_menu": false,
+   "shortcuts": [
+    "Alt+Up"
+   ],
+   "text": "Fine Move Up",
+   "tooltip": "Fine-nudge the canvas selection by a tenth of a snap step; with nothing selected, ascend one hierarchy level"
+  },
   "_fit_action": {
    "checkable": false,
    "checked": false,
@@ -726,11 +738,9 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [
-    "Alt+Up"
-   ],
+   "shortcuts": [],
    "text": "Up",
-   "tooltip": "Ascend one hierarchy level (or double-click an Out marker) (Alt+Up)"
+   "tooltip": "Ascend one hierarchy level (or double-click an Out marker)"
   },
   "_import_library_action": {
    "checkable": false,
@@ -1532,6 +1542,7 @@
    "_fev_repair_action": false,
    "_fev_status_action": false,
    "_fev_view_action": false,
+   "_fine_nudge_up_action": true,
    "_fit_action": false,
    "_flip_h_action": false,
    "_flip_v_action": false,
@@ -1672,6 +1683,7 @@
    "_fev_repair_action": true,
    "_fev_status_action": false,
    "_fev_view_action": true,
+   "_fine_nudge_up_action": true,
    "_fit_action": true,
    "_flip_h_action": false,
    "_flip_v_action": false,
@@ -1812,6 +1824,7 @@
    "_fev_repair_action": false,
    "_fev_status_action": false,
    "_fev_view_action": false,
+   "_fine_nudge_up_action": true,
    "_fit_action": false,
    "_flip_h_action": false,
    "_flip_v_action": false,

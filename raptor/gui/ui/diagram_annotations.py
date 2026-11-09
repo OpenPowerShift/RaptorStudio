@@ -532,16 +532,34 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
         return self.toPlainText() if self._text_editing else self._source_text
 
     def set_source_text(self, text: str) -> None:
-        """Replace the source and re-render it (unless editing).
+        """Replace the source and re-render it.
 
-        Undo/restore uses this: the item may be mid-edit when a state is
-        applied, in which case the document already shows the plain
-        source and must not be turned back into rendered Markdown under
-        the caret.
+        Undo/restore uses this. If an edit session is open and the model
+        source actually changed (an undo/redo or an external refresh),
+        the external value wins: cancel the edit WITHOUT committing the
+        pending keystrokes, then render the restored source. Otherwise a
+        later `_finish_edit` would write the stale draft back over the
+        undo. An unchanged source leaves the live editor alone.
         """
-        self._source_text = str(text or "")
+        incoming = str(text or "")
+        changed = incoming != self._source_text
+        self._source_text = incoming
         if not self._text_editing:
             self._render_source()
+        elif changed:
+            self._cancel_edit()
+            self._render_source()
+
+    def _cancel_edit(self) -> None:
+        """Leave edit mode without committing the document as source."""
+        self._text_editing = False
+        self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self._announce_edit_state()
+        c = self.textCursor()
+        c.clearSelection()
+        self.setTextCursor(c)
+        self.clearFocus()
 
     def _render_source(self) -> None:
         """Show the source as Markdown (the normal, non-editing view)."""
@@ -920,14 +938,27 @@ class CommentCmd(_ViewCmd):
         self.etype, self.oid = etype, oid
         self.old, self.new = old, new
 
+    def _announce(self, stored: str) -> None:
+        """Tell the Inspector which comment this command now holds.
+
+        Emitted BEFORE model_changed's deferred Inspector refresh, so
+        MainWindow can update the live editor in place and suppress the
+        rebuild for this one target. `_loading` guards programmatic
+        rebuilds, same as `_done`.
+        """
+        if not self._v._loading:
+            self._v.comment_changed.emit(self.etype, self.oid, stored)
+
     def redo(self):
         self._v._apply_element_comment_stored(self.etype, self.oid,
                                               self.new)
+        self._announce(self.new)
         self._done()
 
     def undo(self):
         self._v._apply_element_comment_stored(self.etype, self.oid,
                                               self.old)
+        self._announce(self.old)
         self._done()
 
 class AnnoCmd(_ViewCmd):

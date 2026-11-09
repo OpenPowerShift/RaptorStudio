@@ -133,7 +133,7 @@ def test_new_shortcuts_are_bound_to_their_commands(win):
     pairs = {"Ctrl+2": "_add_block_tool", "Ctrl+3": "_add_node_tool",
              "Ctrl+4": "_add_event_tool", "Ctrl+5": "_add_hier_tool",
              "Ctrl+6": "_connect_tool", "Ctrl+G": "_collapse_action",
-             "Alt+Up": "_hier_up_action", "Ctrl+1": "_select_action",
+             "Alt+Up": "_fine_nudge_up_action", "Ctrl+1": "_select_action",
              "Ctrl+W": "_close_file_action"}
     bound = {_portable(s): a for a in win.findChildren(QAction)
              for s in a.shortcuts()}

@@ -67,7 +67,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Import RBD |Merge an existing model file in as one hierarchy: its Start/End markers become the new level's In/Out |
 |Extract Hierarchy… |Save the selected hierarchy as a standalone model (its input always available) and open it to run on its own. Shows what crosses the hierarchy's boundary and how each crossing is treated. |
-|Up |Ascend one hierarchy level (or double-click an Out marker) (Alt+Up). With a movable selection on the focused canvas, Alt+Up instead fine-nudges it by one tenth of a snap step; deselect, or focus another pane, to ascend. |Alt+Up
+|Up |Ascend one hierarchy level (or double-click an Out marker) |
 |Home |Return to the home level |
 |Go to hierarchy |Go to a hierarchy |choice
 |===

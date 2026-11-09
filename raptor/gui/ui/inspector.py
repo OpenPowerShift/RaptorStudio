@@ -86,6 +86,9 @@ class _CommentEdit(QPlainTextEdit):
         self._timer.timeout.connect(self.commit)
         self.setPlainText(self._committed)
         self.textChanged.connect(lambda: self._timer.start())
+        # Tab leaves the Comment box (and its focus-out commits the
+        # draft) instead of inserting a tab character into free text.
+        self.setTabChangesFocus(True)
 
     def commit(self) -> None:
         """Flush the draft if it differs from the last committed text."""
@@ -743,7 +746,48 @@ class InspectorDock(QWidget):
         for index in sorted(getattr(self, "_deferred_tabs", {})):
             self._run_deferred(index)
 
+    def flush_pending_comment(self) -> bool:
+        """Commit an un-debounced Comment draft now, if there is one.
+
+        Save/autosave/close call this so a sentence typed in the last
+        few hundred milliseconds is not lost to the debounce. Returns
+        whether a draft was actually pending.
+        """
+        edit = getattr(self, "_comment_edit", None)
+        if edit is None:
+            return False
+        try:
+            pending = edit.has_pending()
+            edit.commit()
+        except RuntimeError:          # widget already deleted by a rebuild
+            return False
+        return pending
+
+    def set_comment_source(self, etype: str, oid: int, stored: str) -> bool:
+        """Update the live Comment editor for a model-side comment change.
+
+        Called by MainWindow from `DiagramView.comment_changed` (undo/redo
+        included) when this pane still shows that element. Changing the
+        editor's contents in place keeps the widget, caret and pane scroll
+        stable instead of rebuilding General and jumping to the bottom.
+        """
+        if getattr(self, "_current_target", None) != (etype, oid):
+            return False
+        edit = getattr(self, "_comment_edit", None)
+        if edit is None:
+            return False
+        try:
+            edit.set_source(str(stored or "").replace("~", "\n"))
+        except RuntimeError:          # widget already deleted by a rebuild
+            return False
+        return True
+
     def _begin_populate(self):
+        # A draft belongs to the element being replaced; flush it before
+        # the old editor is deleted. The commit callbacks are not gated on
+        # `_populating`, so a timer/focus-out that lands during a rebuild
+        # cannot silently discard a real user edit either.
+        self.flush_pending_comment()
         self._populating = True
 
     def _restore_tab(self):
@@ -1670,8 +1714,7 @@ class InspectorDock(QWidget):
         """
         edit = self._comment_editor(
             etype, oid, name,
-            lambda txt: None if getattr(self, "_populating", False)
-            else self.element_comment_changed.emit(etype, oid, txt))
+            lambda txt: self.element_comment_changed.emit(etype, oid, txt))
         self._comment_edit = edit
         form.addRow("Comment:", edit)
         self._convert_comment_button(form, etype, oid, edit)
@@ -1826,8 +1869,7 @@ class InspectorDock(QWidget):
             block_id, txt)
         self._comment_edit = self._comment_editor(
             "block", block.id, block.name,
-            lambda txt: None if getattr(self, "_populating_comment", False)
-            else self._comment_setter(txt))
+            lambda txt: self._comment_setter(txt))
         fl.addRow("Comment:", self._comment_edit)
         self._convert_comment_button(fl, "block", block.id,
                                      self._comment_edit)

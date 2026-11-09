@@ -253,15 +253,11 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.hier_up",
-        shortcut="Alt+Up",
         attr="_hier_up_action",
         text="Up",
         icon="up_filled_icon:accent",
-        tooltip=(
-            "Ascend one hierarchy level (or double-click an Out marker). "
-            "With a movable selection on the focused canvas, Alt+Up instead "
-            "nudges it by a tenth of a snap step; deselect to ascend."),
-        handler="_hier_up_or_nudge",
+        tooltip="Ascend one hierarchy level (or double-click an Out marker)",
+        handler="_diagram_dock.view.go_up",
         enabled=False),
     CommandSpec(
         id="model.hier_home",

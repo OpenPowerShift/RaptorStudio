@@ -170,6 +170,14 @@ from raptor.gui.ui.diagram_annotations import (  # noqa: F401
 )
 
 
+#: Everything arrow-key nudge knows how to move. Arrow annotations are
+#: included even though they are not `ItemIsMovable` (their endpoints are
+#: independent); the Alt+Up enablement/handler must use this same predicate
+#: or an arrow-only selection silently ascends instead of nudging.
+_NUDGEABLE_TYPES = (_BlockItem, _NodeItem, _EventItem, _HierItem,
+                    _AnnotationBase, _RouteGripItem)
+
+
 class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     block_selected = Signal(int, str)
     node_selected = Signal(int, str)
@@ -186,6 +194,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     #: `load_rbd`'s own initial placement (guarded by `_loading` below).
     #: `MainWindow` uses this to mark the model dirty.
     model_changed = Signal()
+    #: (etype, id, raw stored comment) -- a COMMENTS row changed, including
+    #: undo/redo. MainWindow updates the live Inspector comment editor in
+    #: place from this instead of rebuilding the pane under the caret.
+    comment_changed = Signal(str, int, str)
     #: A change to LAYOUT ALONE: element/annotation positions, sizes and
     #: z-order. Nothing the engine simulates reads these (the results hash
     #: ignores layout too), so MainWindow marks the file dirty without
@@ -2600,6 +2612,16 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     and row.get("Name", "") == name):
                 return row.get("Comment", "") or ""
         return ""
+
+    def has_convertible_comment(self, etype: str, oid: int) -> bool:
+        """Whether a comment has visible text after `~` newlines expand.
+
+        A row holding only separators ("~~") must offer no conversion:
+        the action would be enabled but `comment_to_annotation` correctly
+        refuses the blank result, so the click would look dead.
+        """
+        return bool(self.current_comment_stored(etype, oid)
+                    .replace("~", "\n").strip())
 
     def _apply_element_comment_stored(self, etype: str, oid: int,
                                       stored: str) -> None:
@@ -7162,9 +7184,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         Alt+Up command can fall back to hierarchy navigation.
         """
         selected = [it for it in self._scene.selectedItems()
-                    if isinstance(it, (_BlockItem, _NodeItem, _EventItem,
-                                       _HierItem, _AnnotationBase,
-                                       _RouteGripItem))]
+                    if isinstance(it, _NUDGEABLE_TYPES)]
         if not selected:
             return False
         if fine:
@@ -7271,15 +7291,27 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # gesture; do not detach the notes that follow it.
         moved_keys |= {("annotation", aid)
                        for aid, _old, _new in anno_edits}
-        for aid, old_state, new_state in anno_edits:
+        for _aid, old_state, new_state in anno_edits:
             self._detach_if_moved_alone(old_state, new_state, moved_keys)
-            self._stack.push(AnnoEditCmd(self, aid, old_state,
-                                         new_state, layout_only=True))
+        # A mixed element+annotation selection used to leave an
+        # AnnoEditCmd and a MoveCmd as two separate undo steps, so one
+        # Ctrl+Z only half-moved the selection. One macro makes the whole
+        # nudge one undo (and redo) step.
+        macro = bool(moves and anno_edits)
+        if macro:
+            self._stack.beginMacro("Nudge")
+        try:
+            for aid, old_state, new_state in anno_edits:
+                self._stack.push(AnnoEditCmd(self, aid, old_state,
+                                             new_state, layout_only=True))
+            if moves or grip_moves:
+                self._stack.push(MoveCmd(self, moves, grips=grip_moves))
+        finally:
+            if macro:
+                self._stack.endMacro()
         if anno_edits:
             self.follow_anchors({("annotation", aid)
                                  for aid, _old, _new in anno_edits})
-        if moves or grip_moves:
-            self._stack.push(MoveCmd(self, moves, grips=grip_moves))
         return True
 
     def keyPressEvent(self, event):
@@ -7321,6 +7353,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # mouse-drag release uses, so this is undoable exactly like a
         # drag (MoveCmd).
         if event.key() in _NUDGE_DIRS:
+            if event.modifiers() & Qt.KeyboardModifier.AltModifier:
+                # Every Alt+arrow chord, with or without a selection, is a
+                # canvas gesture: never let a later Alt release pop the
+                # ribbon key tips.
+                self._suppress_key_tips()
             dxs, dys = _NUDGE_DIRS[event.key()]
             off_grid = bool(event.modifiers()
                             & Qt.KeyboardModifier.ShiftModifier)
@@ -7536,7 +7573,14 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def mouseReleaseEvent(self, event):
         self._band_anchor = None
+        fine_gesture = self._fine_drag
         self._fine_drag = False
+        # A minimum grid's tenth step can be well under half a scene unit
+        # (e.g. snap 4 -> fine 0.4). The old 0.5 "did it move?" threshold
+        # then discarded a legitimate one-step fine drag, so the gesture
+        # showed on screen but produced no MoveCmd. Fine gestures accept
+        # any real movement; ordinary drags keep the noise threshold.
+        move_eps = 1e-6 if fine_gesture else 0.5
         if event.button() == Qt.MouseButton.MiddleButton:
             # Back to the armed tool's cursor, not a plain arrow: a pan
             # must not disarm the placement cursor.
@@ -7553,7 +7597,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if grip is None:
                     continue
                 new = (grip.pos().x(), grip.pos().y())
-                if abs(new[0] - old[0]) > 0.5 or abs(new[1] - old[1]) > 0.5:
+                if (abs(new[0] - old[0]) > move_eps
+                        or abs(new[1] - old[1]) > move_eps):
                     grip_moves.append((entry_id, old, new))
             if grip_moves:
                 cmd = MoveCmd(self, [], grips=grip_moves)
@@ -7578,8 +7623,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if item is None:
                     continue
                 now = (item.scenePos().x(), item.scenePos().y())
-                if (abs(now[0] - start[0]) > 0.5
-                        or abs(now[1] - start[1]) > 0.5):
+                if (abs(now[0] - start[0]) > move_eps
+                        or abs(now[1] - start[1]) > move_eps):
                     moves.append((kind, oid, tuple(start), now))
             started = {(k, o) for k, o, _s in self._drag_start}
             tables = dict(self._element_tables())
@@ -7591,8 +7636,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if it is None:
                     continue
                 now = (it.scenePos().x(), it.scenePos().y())
-                if (abs(now[0] - start[0]) > 0.5
-                        or abs(now[1] - start[1]) > 0.5):
+                if (abs(now[0] - start[0]) > move_eps
+                        or abs(now[1] - start[1]) > move_eps):
                     moves.append((kind, oid, start, now))
             self._press_positions = {}
             drag_start, self._drag_start = self._drag_start, []
@@ -8376,6 +8421,21 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return 0
         return len([it for it in items if it.flags()
                     & QGraphicsItem.GraphicsItemFlag.ItemIsMovable])
+
+    def has_nudgeable_selection(self) -> bool:
+        """Whether `nudge_selection` would move anything.
+
+        Deliberately the same type tuple it uses, not
+        `selected_movable_count`: an arrow annotation is not
+        `ItemIsMovable` (its two ends move independently), but an
+        arrow-only selection must still make Alt+Up nudge rather than
+        silently ascend a hierarchy.
+        """
+        try:
+            return any(isinstance(it, _NUDGEABLE_TYPES)
+                       for it in self._scene.selectedItems())
+        except RuntimeError:        # scene torn down during shutdown
+            return False
 
     def apply_hier_dsi(self, dsi: dict[int, dict]) -> None:
         """Paint end-of-run Descendant Status Indicators on the ovals

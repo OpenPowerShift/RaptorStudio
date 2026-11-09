@@ -119,7 +119,9 @@ def test_comments_are_rendered_as_markdown_source_is_kept(view):
     assert note.text_source() == source
 
 
-def test_editing_shows_plain_source_and_save_reload_keeps_it(view):
+def test_editing_shows_plain_source_and_save_reload_keeps_it(view, tmp_path):
+    from raptor.core.fileio import rbds as rbds_io
+
     source = "**original** source"
     view.set_element_comment("block", 5, source)
     note = view.comment_to_annotation("block", 5)
@@ -141,11 +143,13 @@ def test_editing_shows_plain_source_and_save_reload_keeps_it(view):
     view.write_back_annotations()
     assert view._rbd_ref.annotations[0]["text"] == "**edited** source"
 
-    # Reload the same model the way a file open would: the source, not
-    # the rendered "edited source", must come back.
+    # Serialize through the real .rbds writer, then open the file again:
+    # the source, not the rendered "edited source", must come back.
+    path = tmp_path / "markdown.rbds"
+    rbds_io.save_rbds(view._rbd_ref, str(path))
     reloaded = DiagramView()
     try:
-        reloaded.load_rbd(view._rbd_ref)
+        reloaded.load_rbd(rbds_io.load_rbds(str(path)))
         item = reloaded._anno_items[aid]
         assert item.text_source() == "**edited** source"
         assert item.document().toPlainText() == "edited source"
@@ -153,6 +157,48 @@ def test_editing_shows_plain_source_and_save_reload_keeps_it(view):
         reloaded.close()
         reloaded.deleteLater()
         QApplication.processEvents()
+
+
+def test_undo_of_a_markdown_edit_restores_source_and_rendering(view):
+    view.set_element_comment("block", 5, "**old**")
+    note = view.comment_to_annotation("block", 5)
+    view._stack.clear()
+    note.enter_edit()
+    note.setPlainText("**edited**")
+    note.end_edit()
+    QApplication.processEvents()
+    assert note.text_source() == "**edited**"
+
+    view._stack.undo()
+    QApplication.processEvents()
+    assert note.text_source() == "**old**"
+    assert note.document().toPlainText() == "old"
+
+    view._stack.redo()
+    QApplication.processEvents()
+    assert note.text_source() == "**edited**"
+    assert note.document().toPlainText() == "edited"
+
+
+def test_undo_while_editing_cancels_the_pending_draft(view):
+    view.set_element_comment("block", 5, "**old**")
+    note = view.comment_to_annotation("block", 5)
+    view._stack.clear()
+    note.enter_edit()
+    note.setPlainText("**committed draft**")
+    note.end_edit()
+    QApplication.processEvents()
+
+    note.enter_edit()
+    note.setPlainText("**uncommitted keystrokes**")
+    assert note._text_editing
+    view._stack.undo()                 # the committed edit
+    QApplication.processEvents()
+
+    assert not note._text_editing, "external undo must end the edit session"
+    assert note.text_source() == "**old**"
+    assert note.document().toPlainText() == "old"
+    assert "uncommitted" not in note.document().toPlainText()
 
 
 def test_block_context_menu_converts_only_a_non_empty_comment(view):
@@ -171,6 +217,32 @@ def test_block_context_menu_converts_only_a_non_empty_comment(view):
     note = next(iter(view._anno_items.values()))
     assert note.text_source() == "from the menu"
     assert note.isSelected()
+
+
+def test_multi_selection_context_menu_still_offers_conversion(view):
+    """The multi-select Align menu short-circuits before the element menu;
+    conversion must still be offered for the element actually clicked."""
+    view.set_element_comment("block", 5, "multi note")
+    block = _item(view, "block", 5)
+    event = _item(view, "event", 32) if view._event_items else None
+    view._scene.clearSelection()
+    block.setSelected(True)
+    if event is not None:
+        event.setSelected(True)
+    seen = _right_click(view, block.sceneBoundingRect().center(),
+                        choose="Convert comment to annotation")
+    assert ("Convert comment to annotation", True) in seen
+    note = next(iter(view._anno_items.values()))
+    assert note.text_source() == "multi note"
+
+
+def test_newline_only_comment_does_not_offer_or_create_an_annotation(view):
+    view.set_element_comment("block", 5, "~~")
+    block = _item(view, "block", 5)
+    seen = _right_click(view, block.sceneBoundingRect().center())
+    assert ("Convert comment to annotation", False) in seen
+    assert view.comment_to_annotation("block", 5) is None
+    assert not view.annotations
 
 
 def test_hierarchy_context_menu_also_converts(view):
@@ -215,5 +287,6 @@ def test_general_identity_button_converts_the_comment(qapp):
         assert note.isSelected()
         assert v._stack.count() == 1
     finally:
+        win._inspector.flush_pending_comment()
         win._dirty = False
         win.close()

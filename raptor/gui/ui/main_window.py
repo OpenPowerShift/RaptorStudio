@@ -23,7 +23,7 @@ from pathlib import Path
 from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal,
                             QEvent, QEventLoop)
 from PySide6.QtGui import (QCursor, QKeySequence, QPainter, QColor, QPixmap, QDesktopServices,
-                           QShortcut)
+                           QAction, QShortcut)
 from PySide6.QtCore import QRectF
 from PySide6.QtWidgets import (
     QApplication, QToolTip, QDoubleSpinBox, QMainWindow, QDockWidget, QStatusBar, QFileDialog, QMessageBox,
@@ -404,6 +404,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Ambiguous shortcut overload"; a window context only competes
         # with itself, and the focused window's undo is the right one.
         help_sc.activated.connect(self._open_context_help)
+
+        # Alt+Up is the canvas fine-nudge chord. It cannot live on the
+        # ribbon's Up button: a ribbon click must ALWAYS ascend, while the
+        # key chord nudges a focused selection and falls back to ascending
+        # when there is nothing to move.
+        self._fine_nudge_up_action = QAction("Fine Move Up", self)
+        self._fine_nudge_up_action.setShortcut(QKeySequence("Alt+Up"))
+        self._fine_nudge_up_action.setShortcutContext(
+            Qt.ShortcutContext.WindowShortcut)
+        self._fine_nudge_up_action.setToolTip(
+            "Fine-nudge the canvas selection by a tenth of a snap step; "
+            "with nothing selected, ascend one hierarchy level")
+        self._fine_nudge_up_action.triggered.connect(
+            self._fine_nudge_or_hierarchy)
+        self.addAction(self._fine_nudge_up_action)
 
         # Esc = pause/stop during a run. A WindowShortcut fires no matter
         # which child of the window has focus; when no run is active it
@@ -1483,6 +1498,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._diagram_dock.view.level_changed.connect(
             lambda _pid: self._data_tables.refresh())
         self._diagram_dock.view.model_changed.connect(self._mark_dirty)
+        self._diagram_dock.view.comment_changed.connect(
+            self._on_comment_changed)
         # Position/size/z-order changes are real edits (the file is dirty
         # and Save must write them) but they cannot change what the engine
         # simulates: no whole-model validation, no revision bump, and no
@@ -1511,11 +1528,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # is selected.
         self._diagram_dock.view.selection_changed.connect(
             self._sync_annotation_order_actions)
-        # Alt+Up's fine nudge needs the Up action enabled at the home level
-        # whenever something movable is selected; with no selection it is
-        # still the hierarchy-up command and stays disabled at home.
-        self._diagram_dock.view.selection_changed.connect(
-            self._sync_hier_up_action)
         # Selection-dependent commands (Delete/Collapse/Align/Mass Edit/
         # Zoom to Hierarchy/Extract) must change state on the click that
         # changes the selection, not on the next validation timer tick.
@@ -1952,38 +1964,27 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 f"Out marker or use Up/Home to return)", 6000)
 
     def _sync_hier_up_action(self) -> None:
-        """Up is available inside a hierarchy, or as Alt+Up's fine nudge.
-
-        Alt+Up is both the hierarchy-up shortcut and the fine-move chord.
-        Keeping the action enabled while something is selected lets the
-        shortcut reach `_hier_up_or_nudge` at the home level too, where
-        a selected element should move rather than the disabled action
-        swallowing the key. With no selection it stays the plain
-        hierarchy-up command (and is disabled at home).
-        """
+        """The ribbon's Up button is hierarchy navigation only."""
         action = getattr(self, "_hier_up_action", None)
         view = getattr(getattr(self, "_diagram_dock", None), "view", None)
-        if action is None or view is None:
-            return
-        inside = view._current_parent != 0
-        has_selection = view.selected_movable_count() > 0
-        action.setEnabled(inside or has_selection)
+        if action is not None and view is not None:
+            action.setEnabled(view._current_parent != 0)
 
-    def _hier_up_or_nudge(self) -> None:
+    def _fine_nudge_or_hierarchy(self) -> None:
         """Alt+Up: fine-nudge a focused canvas selection, else ascend.
 
-        The collision is resolved by intent: a keyboard user with a
-        movable selection and canvas focus means "move it", so that wins.
-        With no selection, in a text field, or with the focus elsewhere,
-        the original hierarchy-up command runs unchanged -- and the
-        automatic deselect on a level change also restores navigation.
+        The ribbon's Up button keeps calling `go_up` directly; this chord
+        is the only route that may move something. With no nudgeable
+        selection (including an arrow-only selection), in a text field,
+        or with focus outside the canvas, it falls back to the original
+        hierarchy-up behaviour.
         """
         view = self._diagram_dock.view
+        view._suppress_key_tips()
         focus = QApplication.focusWidget()
         canvas_focused = (focus is None or focus is view
                           or view.isAncestorOf(focus))
-        if canvas_focused and view.selected_movable_count() > 0:
-            view._suppress_key_tips()
+        if canvas_focused and view.has_nudgeable_selection():
             if view.nudge_selection(0, -1, fine=True):
                 return
         view.go_up()
@@ -3122,24 +3123,32 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         box.exec()
         return True
 
+    def _on_comment_changed(self, etype: str, oid: int,
+                            stored: str) -> None:
+        """Comment command (including undo/redo) changed the model.
+
+        If the Inspector still shows that element, update its editor in
+        place. The deferred `model_changed` refresh then skips the
+        Inspector for this one target only; any coalesced change for a
+        different target still rebuilds normally.
+        """
+        if self._inspector.set_comment_source(etype, oid, stored):
+            self._suppress_inspector_refresh_target = (etype, oid)
+
     def _on_comment_committed(self, etype: str, oid: int, text: str) -> None:
         """Inspector Comment commit: undoable write, no Inspector rebuild.
 
-        The editor already shows the text the user just typed, so the
-        deferred `model_changed` refresh must skip the Inspector for this
-        one change; rebuilding it would delete the live editor (and move
-        the pane's scroll/caret), which is the bug this whole draft/
-        debounce path exists to prevent. Everything else the refresh
-        does -- dirty title, validation, tables -- still runs.
+        The editor already shows the text the user just typed. The
+        command's `comment_changed` signal updates it in place (and scopes
+        the one-shot refresh suppression); rebuilding would delete the
+        live editor and move the pane's scroll/caret. Everything else the
+        deferred refresh does -- dirty title, validation, tables -- still
+        runs.
         """
         view = self._diagram_dock.view
         stored = text.replace("\n", "~")
         if view.current_comment_stored(etype, oid) != stored:
             view.set_element_comment(etype, oid, text)
-            if not getattr(view, "_loading", False):
-                # Deferred refresh is queued by the command's _done(); the
-                # flag is read when it runs, after this returns.
-                self._suppress_inspector_refresh = True
         # The old lambda called this even when the text was unchanged;
         # keeping that also covers a commit after the model was already
         # put back by undo.
@@ -3166,12 +3175,16 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         self._view_refresh_busy = True
         try:
-            # A comment commit originated from the live Inspector editor:
-            # it already shows the new text, and re-populating would
-            # destroy that editor and jump the pane. Consume the flag here
-            # so a later undo/redo still refreshes normally.
-            if getattr(self, "_suppress_inspector_refresh", False):
-                self._suppress_inspector_refresh = False
+            # A comment command updated the live Inspector editor in
+            # place; re-populating would destroy it and jump the pane.
+            # The suppression is scoped to the exact target it updated,
+            # so a coalesced refresh for another element still happens.
+            suppress = getattr(
+                self, "_suppress_inspector_refresh_target", None)
+            self._suppress_inspector_refresh_target = None
+            if suppress is not None and \
+                    self._inspector.current_target() == suppress:
+                pass
             else:
                 try:
                     self._refresh_inspector()
@@ -4532,6 +4545,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 "saved. Copy "
                 "the file outside the app if you need an editable copy.")
             return False
+        # A comment draft typed within the debounce window is part of
+        # what the user is saving; commit it before the write-back.
+        self._inspector.flush_pending_comment()
         self._diagram_dock.view.write_back_to_rbd(self._rbd)
         # Resync annotation geometry/text/props (and deletions --
         # delete_selected_annotations reassigns view.annotations to a
@@ -5067,6 +5083,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def closeEvent(self, event):
         """Confirm unsaved changes before closing."""
+        # Commit a Comment draft before the unsaved-change prompt/write
+        # path, so closing cannot silently discard the last few keystrokes.
+        self._inspector.flush_pending_comment()
         if getattr(self, "_export_in_progress", False):
             self._statusbar.showMessage(
                 "Wait for the export to finish before closing", 6000)
@@ -8317,6 +8336,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # Never write back into a model a live engine is reading.
             return
         try:
+            # Recovery must include a comment still inside its debounce
+            # window, same rule as `_write_model`.
+            self._inspector.flush_pending_comment()
             self._diagram_dock.view.write_back_to_rbd(self._rbd)
             # Mandatory or deleted annotations would survive in the
             # recovery file (same rule as `_write_model`).
