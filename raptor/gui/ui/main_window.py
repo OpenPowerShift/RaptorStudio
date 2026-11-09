@@ -454,6 +454,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._dock_startup_extents = None
         self._dock_startup_snapshot_done = False
         self._dock_startup_window_size = None
+        self._dock_resize_generation = 0
         self._live_log_session_shown = False
         self._canvas_room_timer = QTimer(self)
         self._canvas_room_timer.setSingleShot(True)
@@ -1253,8 +1254,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
         def toggle(checked):
             stub = (self._dock_stubs or {}).get(dock)
+            entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                     .get(dock)) or {}
             if checked:
-                if stub is not None and self._is_closed_side_dock(dock):
+                if stub is not None and entry.get("closed"):
+                    # A closed dock may be floating by now: _can_stub_dock
+                    # is false there, but its content still has to come
+                    # back before the dock is shown.
                     stub(False)
                 # A collapsed bottom slot is still "visible"; un-collapse
                 # it or the checkbox appears to do nothing.
@@ -1483,8 +1489,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             width = int(e.get("docked_width") or 0)
             if not width:
                 return
+            generation = self._dock_resize_generation
 
             def apply(attempt=0):
+                if generation != self._dock_resize_generation:
+                    return      # Reset Layout cancelled this restore
                 try:
                     if dock.isFloating() or e.get("minimized") \
                             or e.get("closed"):
@@ -1609,6 +1618,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             for e in entries:
                 dock, stub = e["dock"], e["stub"]
                 if stub is None:
+                    continue
+                try:
+                    floating = dock.isFloating()
+                except RuntimeError:
+                    continue
+                if floating:
+                    # The rotated side stub cannot exist on a free
+                    # window. Restore normal chrome/content; a close
+                    # request really closes the floating window.
+                    e["closed"] = False
+                    e["minimized"] = False
+                    dock.setTitleBarWidget(e["titlebar"])
+                    e["content"].setVisible(True)
+                    if closed:
+                        dock.close()
                     continue
                 edge_now = self._current_dock_edge(dock, e.get("edge"))
                 if closed and edge_now not in ("left", "right"):
@@ -5166,6 +5190,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """View > Reset Layout: every dock back in its first-run place, open and full size; the saved layout is
         forgotten so the next start is the default too."""
         self._reset_dock_chrome()
+        # Cancel the width/height restores that un-collapsing just
+        # scheduled, and any older one: Reset Layout's designed sizes
+        # must win, not the pre-reset 520 px extent.
+        self._dock_resize_generation += 1
         # Repeated tabifyDockWidget calls leave orphan QTabBars behind
         # (same geometry, still visible), which is why a reset could show
         # two bottom strips and "clicking Run does nothing". Drop the old
@@ -7505,6 +7533,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        if not self._canvas_room_defaults_done:
+            QTimer.singleShot(0, self._rebase_startup_bottom_extents)
         # Maximise/restore/resize: re-apply the bottom dock ceiling so
         # a strip sized for a previous window state can't clip the
         # status bar in the new one. Deferred one event-loop turn: the
@@ -7850,7 +7880,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock))
         self._remember_docked_extent(dock, entry)
-        self._unminimize_before_float(dock, entry)
+        if dock is not getattr(self, "_results_dock", None):
+            self._unminimize_before_float(dock, entry)
         if not dock.isFloating():
             if dock is getattr(self, "_results_dock", None):
                 self._float_results_properly(dock, True)
@@ -7875,13 +7906,22 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if not self.frameGeometry().contains(global_pos):
             return
         local = self.mapFromGlobal(global_pos)
-        distances = {
-            Qt.DockWidgetArea.LeftDockWidgetArea: local.x(),
-            Qt.DockWidgetArea.RightDockWidgetArea: self.width() - local.x(),
-            Qt.DockWidgetArea.BottomDockWidgetArea:
-                self.height() - local.y(),
-        }
-        area = min(distances, key=distances.get)
+        if local.y() < self.height() // 2:
+            # A release in the top half, and especially the top band,
+            # must never join the bottom strip even on a short, wide
+            # window where the bottom edge is geometrically nearer.
+            area = (Qt.DockWidgetArea.LeftDockWidgetArea
+                    if local.x() < self.width() // 2
+                    else Qt.DockWidgetArea.RightDockWidgetArea)
+        else:
+            distances = {
+                Qt.DockWidgetArea.LeftDockWidgetArea: local.x(),
+                Qt.DockWidgetArea.RightDockWidgetArea:
+                    self.width() - local.x(),
+                Qt.DockWidgetArea.BottomDockWidgetArea:
+                    self.height() - local.y(),
+            }
+            area = min(distances, key=distances.get)
         self._dock_to_area(dock, area)
 
     def _dock_to_area(self, dock, area) -> None:
@@ -7918,7 +7958,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock))
         self._remember_docked_extent(dock, entry)
-        self._unminimize_before_float(dock, entry)
+        if dock is not getattr(self, "_results_dock", None):
+            self._unminimize_before_float(dock, entry)
         if dock is getattr(self, "_results_dock", None):
             self._float_results_properly(dock, True)
         else:
@@ -7962,8 +8003,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             width = entry.get("docked_width") \
                 or entry.get("normal_min_width") or 320
             width = max(int(width), self._dock_min_dimension(entry, edge))
+            generation = self._dock_resize_generation
 
             def restore_width(d=dock, w=width, attempt=0):
+                if generation != self._dock_resize_generation:
+                    return
                 try:
                     actual = d.width()
                     if attempt and actual >= w - 4:
@@ -7983,8 +8027,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if dock is getattr(self, "_results_dock", None):
             target = self._results_dock_height_before_float or target
         height = self._clamp_dock_height(int(target or 480))
+        generation = self._dock_resize_generation
 
         def restore_height(d=dock, h=height, attempt=0):
+            if generation != self._dock_resize_generation:
+                return
             try:
                 self._bottom_active_dock = d
                 self._release_bottom_strip_ceiling()
@@ -8036,6 +8083,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock))
         if floating:
+            if entry is not None and entry.get("closed"):
+                restore = (self._dock_stubs or {}).get(dock)
+                if restore is not None:
+                    restore(False)
             self._unminimize_before_float(dock, entry)
             self._remember_docked_extent(dock, entry)
             dock.setMinimumSize(160, 90)
@@ -8133,6 +8184,38 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             extents[dock] = (dock.width(), dock.height())
         return extents or None
 
+    def _rebase_startup_bottom_extents(self) -> None:
+        """Rebase the bottom baseline after a window resize.
+
+        Qt legitimately changes the bottom strip's height when the window
+        grows, so comparing a post-resize height with the original
+        snapshot would look like a splitter drag. Re-snapshot the bottom
+        docks once the resize layout has settled; a later splitter drag
+        still differs from that baseline even though the window is now a
+        different size.
+        """
+        if self._canvas_room_defaults_done:
+            return
+        if getattr(self, "_dock_startup_window_size", None) == (
+                self.width(), self.height()):
+            return      # not a window resize; a splitter changed a dock
+        snapshot = getattr(self, "_dock_startup_extents", None)
+        current = self._current_dock_extents()
+        if not snapshot or not current:
+            return
+        try:
+            for dock in list(snapshot):
+                if dock not in current:
+                    continue
+                entry = (getattr(self, "_dock_chrome_entries", None)
+                         or {}).get(dock) or {}
+                if self._current_dock_edge(
+                        dock, entry.get("edge")) not in ("left", "right"):
+                    snapshot[dock] = current[dock]
+            self._dock_startup_window_size = (self.width(), self.height())
+        except RuntimeError:
+            pass
+
     def _dock_sizes_changed_since_startup(self) -> bool:
         snapshot = getattr(self, "_dock_startup_extents", None)
         if not snapshot:
@@ -8142,9 +8225,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # the model populates, and that is not a user size.
         current = getattr(self, "_dock_extents_at_load_start", None) \
             or self._current_dock_extents() or {}
-        window_unchanged = getattr(
-            self, "_dock_startup_window_size", None) == (
-                self.width(), self.height())
         for dock, (width, height) in snapshot.items():
             if dock not in current:
                 continue
@@ -8158,13 +8238,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 cw, ch = current[dock]
                 edge = self._current_dock_edge(
                     dock, entry.get("edge"))
-                if edge in ("left", "right"):
-                    changed = abs(cw - width) > 2
-                else:
-                    # A window resize changes the bottom strip's height
-                    # legitimately; only a same-size window can attribute
-                    # a bottom-height difference to a splitter drag.
-                    changed = window_unchanged and abs(ch - height) > 2
+                changed = abs(cw - width) > 2 if edge in ("left", "right") \
+                    else abs(ch - height) > 2
                 if changed:
                     return True
             except RuntimeError:

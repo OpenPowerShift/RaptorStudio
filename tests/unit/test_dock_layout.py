@@ -839,6 +839,135 @@ def test_a_sizes_changed_after_startup_skips_first_load_defaults(qapp):
     w.close()
 
 
+def test_double_click_floating_minimized_results_redocks_at_its_height(qapp):
+    w = _shown(qapp)
+    results = w._results_dock
+    w.resizeDocks([results], [330], Qt.Orientation.Vertical)
+    _pump(qapp)
+    before = results.height()
+    w._dock_chrome["Results"]["set_minimized"](True)
+    _pump(qapp)
+    w._toggle_dock_floating(results)
+    _pump(qapp)
+    assert results.isFloating()
+    assert results.widget().isHidden() is False
+    w._toggle_dock_floating(results)
+    _pump(qapp, 8)
+    assert not results.isFloating()
+    assert results.height() >= before - 20, (results.height(), before)
+    w._dirty = False
+    w.close()
+
+
+def test_titlebar_drag_of_minimized_results_redocks_at_its_height(qapp):
+    w = _shown(qapp)
+    results = w._results_dock
+    w.resizeDocks([results], [330], Qt.Orientation.Vertical)
+    _pump(qapp)
+    before = results.height()
+    w._dock_chrome["Results"]["set_minimized"](True)
+    _pump(qapp)
+    press = w.mapToGlobal(w.rect().center())
+    w._begin_dock_titlebar_drag(results, press)
+    _pump(qapp)
+    assert results.isFloating()
+    assert results.widget().isHidden() is False
+    w._redock(results)
+    _pump(qapp, 8)
+    assert not results.isFloating()
+    assert results.height() >= before - 20, (results.height(), before)
+    w._dirty = False
+    w.close()
+
+
+def test_a_closed_side_dock_floated_is_recoverable(qapp):
+    w = _shown(qapp)
+    dock, action = w._inspector_dock, w._inspector_toggle_action
+    w._dock_chrome["Inspector"]["set_closed"](True)
+    _pump(qapp)
+    dock.setFloating(True)
+    _pump(qapp)
+    assert w._dock_chrome["Inspector"]["get"]()["closed"] is False
+    assert dock.widget().isHidden() is False
+    dock.close()
+    _pump(qapp)
+    assert action.isEnabled()
+    action.setChecked(True)
+    _pump(qapp)
+    assert dock.isVisible() and dock.widget().isHidden() is False
+    w._dirty = False
+    w.close()
+
+
+def test_set_closed_on_a_floating_side_dock_never_uses_the_stub(qapp):
+    from raptor.gui.ui.main_window import _DockTitleBar
+
+    w = _shown(qapp)
+    dock, action = w._inspector_dock, w._inspector_toggle_action
+    dock.setFloating(True)
+    _pump(qapp)
+    w._dock_chrome["Inspector"]["set_closed"](True)
+    _pump(qapp)
+    assert isinstance(dock.titleBarWidget(), _DockTitleBar)
+    assert dock.widget().isHidden() is False
+    assert dock.isHidden()
+    assert action.isEnabled()
+    action.setChecked(True)
+    _pump(qapp)
+    assert dock.isVisible() and dock.widget().isHidden() is False
+    w._dirty = False
+    w.close()
+
+
+def test_reset_layout_wins_over_a_restored_side_width(qapp):
+    w = _shown(qapp)
+    inspector = w._inspector_dock
+    w.resizeDocks([inspector], [520], Qt.Orientation.Horizontal)
+    _pump(qapp)
+    w._dock_chrome["Inspector"]["set_minimized"](True)
+    _pump(qapp)
+    blob = json.loads(json.dumps(w._layout_blob()))
+    assert blob["chrome"]["Inspector"]["docked_width"] > 400
+
+    w2 = _shown(qapp)
+    assert w2._apply_layout_blob(blob) is True
+    _pump(qapp)
+    w2.reset_layout()
+    _pump(qapp, 12)
+    assert 370 <= w2._inspector_dock.width() <= 430, \
+        w2._inspector_dock.width()
+    for x in (w, w2):
+        x._dirty = False
+        x.close()
+
+
+def test_resize_then_bottom_size_change_still_skips_first_load_defaults(qapp):
+    from pathlib import Path
+
+    from raptor.core.fileio.rbd import load_rbd
+
+    gold = Path(__file__).resolve().parents[1] / "golden" / "Phasing3" / "input.rbd"
+    w = _shown(qapp)
+    w.resize(1500, 620)
+    _pump(qapp, 8)
+    w._results_dock.resize(w._results_dock.width(), 260)
+    _pump(qapp, 6)
+    assert w._dock_sizes_changed_since_startup()
+    calls = []
+    original = w._resize_docks
+
+    def spy(docks, sizes, orientation):
+        calls.append(list(docks))
+        return original(docks, sizes, orientation)
+
+    w._resize_docks = spy
+    w._load_into_app(load_rbd(str(gold)), None)
+    _pump(qapp, 10)
+    assert all(w._results_dock not in docks for docks in calls), calls
+    w._dirty = False
+    w.close()
+
+
 def test_active_bottom_cap_grows_back_after_window_shrink(qapp):
     from pathlib import Path
 
@@ -863,6 +992,8 @@ def test_a_titlebar_drop_at_the_top_does_not_join_the_bottom_strip(qapp):
     from PySide6.QtGui import QMouseEvent
 
     w = _shown(qapp)
+    w.resize(1500, 620)
+    _pump(qapp)
     dock = w._explorer_dock
     titlebar = dock.titleBarWidget()
     start = titlebar.mapToGlobal(titlebar.rect().center())
@@ -881,6 +1012,7 @@ def test_a_titlebar_drop_at_the_top_does_not_join_the_bottom_strip(qapp):
         _pump(qapp, 3)
     assert not dock.isFloating()
     assert w.dockWidgetArea(dock) != Qt.DockWidgetArea.TopDockWidgetArea
+    assert w.dockWidgetArea(dock) != Qt.DockWidgetArea.BottomDockWidgetArea
     assert dock not in w.tabifiedDockWidgets(w._data_tables_dock)
     w._dirty = False
     w.close()
