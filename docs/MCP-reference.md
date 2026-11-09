@@ -2205,7 +2205,8 @@ dependability, MTBDE/MDT, MTBM/MTBMs/MTBMu, MMT/MMTs/MMTu, system and
 component failures, and green/yellow/red percentages, plus, for a run
 with capacity analysis, units produced, mean flow and capacity,
 capacity-weighted availability (mean flow / flow generated) and lost
-flow. **Definitions and
+flow, plus, for a run with cost analysis, grand total, system down cost
+and system lost-flow cost. **Definitions and
 equations are not repeated here** -- call `read_doc('formulas')` for
 them; that page is the single source. With `run_id`, also returns that
 run's sample count, min/mean/max, standard deviation and standard
@@ -2530,6 +2531,7 @@ to stay unique.
 | `markdown` | string | yes |
 | `metrics` | object | yes |
 | `models_or_runs` | array<any> | yes |
+| `warnings` | array<any> | yes |
 
 **Example**
 

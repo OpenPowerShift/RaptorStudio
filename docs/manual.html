@@ -812,6 +812,8 @@ tooltip/empty state says exactly what to tick under Run panel ▸
 Recording (<a href="../new_docs/book.html#ch-trials">Many Trials</a>).
 <strong>Multi-run Ao</strong> auto-fits its Y axis to the observed min/max, so a
 narrow availability band is readable instead of a flat line at 1.0.
+<strong>Y-axis min</strong> is <strong>Auto</strong> at 0; a saved non-zero value is a manual floor
+used by every availability plot. Capacity and Convergence do not use it.
 The single-run <strong>Capacity (Flow)</strong> plot shows the run&#8217;s average flow
 and capacity as horizontal reference lines; <strong>Multi-run Capacity
 (Flow)</strong> shows min/average/max flow and capacity across every run.</p>
@@ -1589,9 +1591,8 @@ individual runs.</p>
 <h2 id="export-tables">Exporting tables</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p><strong>File ▸ Print and Export ▸ Export Tables…</strong> (also a button on the Data Tables and
-Results docks) writes the model&#8217;s tables, and a run&#8217;s result tables, to
-files.</p>
+<p><strong>File ▸ Print and Export ▸ Export Tables…</strong> (also a button on the Data Tables
+dock) writes the model&#8217;s tables, and a run&#8217;s result tables, to files.</p>
 </div>
 <div class="paragraph">
 <p>Pick the tables in two groups:</p>
@@ -2950,6 +2951,11 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Run Panel</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Show the Run panel — trials, termination, analyses and recording for the next run</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Live Log</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show the Live Log — the stepped simulation&#8217;s event list, tabbed beside the Inspector</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

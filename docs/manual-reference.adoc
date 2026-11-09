@@ -284,6 +284,7 @@ current value).
 |Failure Effects |Show the Failure Effects panel — the live system state, failures, effects and capacity while Failure Effects View is open |
 |Results |Results |
 |Run Panel |Show the Run panel — trials, termination, analyses and recording for the next run |
+|Live Log |Show the Live Log — the stepped simulation's event list, tabbed beside the Inspector |
 |Data Tables |Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D) |Ctrl+Shift+D
 |Reset Layout |Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too |
 |===
