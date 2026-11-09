@@ -1681,10 +1681,26 @@ class InspectorDock(QWidget):
             self._comment_for(etype, oid, name).replace("~", "\n"),
             on_commit)
         edit.setFixedHeight(56)
+        edit.setPlaceholderText(
+            "Markdown supported: **bold**, *italic*, lists, links…")
         edit.setToolTip(
             "Free-text comment stored with the model (Part #, data "
-            "source, etc.). Committed when you pause or leave the box.")
+            "source, etc.). Markdown is supported and is rendered when "
+            "the comment is shown as a canvas annotation. Committed when "
+            "you pause or leave the box.")
         return edit
+
+    def _comment_markdown_hint(self, form: QFormLayout,
+                               edit: QWidget) -> QLabel:
+        """A visible reminder that comment text is rendered as Markdown."""
+        hint = QLabel(
+            "Markdown supported: **bold**, *italic*, lists, links and "
+            "headings are rendered on linked canvas annotations.")
+        hint.setObjectName("SectionNote")
+        hint.setWordWrap(True)
+        hint.setToolTip(edit.toolTip())
+        form.addRow("", hint)
+        return hint
 
     def _convert_comment_button(self, form: QFormLayout, etype: str,
                                 oid: int, edit: _CommentEdit) -> QPushButton:
@@ -1733,6 +1749,7 @@ class InspectorDock(QWidget):
             lambda txt: self.element_comment_changed.emit(etype, oid, txt))
         self._comment_edit = edit
         form.addRow("Comment:", edit)
+        self._comment_markdown_hint(form, edit)
         self._convert_comment_button(form, etype, oid, edit)
 
     def _phasing_group(self, layout: QLayout | None, kind: str, oid: int,
@@ -1887,6 +1904,7 @@ class InspectorDock(QWidget):
             "block", block.id, block.name,
             lambda txt: self._comment_setter(txt))
         fl.addRow("Comment:", self._comment_edit)
+        self._comment_markdown_hint(fl, self._comment_edit)
         self._convert_comment_button(fl, "block", block.id,
                                      self._comment_edit)
 

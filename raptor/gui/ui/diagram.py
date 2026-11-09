@@ -44,6 +44,7 @@ from raptor.core.fileio.rbd import RbdFile, RbdSection
 from raptor.core.fileio.rbdlib import dist_param_count as _dist_param_count
 from raptor.core.fileio import view_transform
 from raptor.core.annotations import (
+    ANNO_AUTO_LAYOUT_GAP,
     ANNO_DEFAULT_LOCATION,
     ANNO_Z_DEFAULT,
     annotation_geometry,
@@ -2126,7 +2127,22 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         old["z"] = item.zValue()
         new = dict(old)
         new["text"] = text
-        self._stack.push(AnnoEditCmd(self, aid, old, new))
+        link = entry.get("comment_of")
+        comment_target = None
+        comment_old = comment_new = None
+        if isinstance(link, dict) and link.get("id") is not None:
+            try:
+                etype = str(link.get("type") or "")
+                oid = int(link["id"])
+            except (TypeError, ValueError):
+                etype, oid = "", -1
+            if etype in ("block", "node", "event", "hier") and oid >= 0:
+                comment_target = (etype, oid)
+                comment_old = self.current_comment_stored(etype, oid)
+                comment_new = text.replace("\n", "~")
+        self._stack.push(AnnoEditCmd(
+            self, aid, old, new, comment_target=comment_target,
+            comment_old=comment_old, comment_new=comment_new))
 
     def write_back_annotations(self):
         """Sync every live annotation item's geometry/text/props into
@@ -2802,8 +2818,25 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                     etype, {}).get(int(oid))
         if item is None:
             return None
+        # One note per element comment: converting again selects the
+        # existing note instead of creating a second linked copy.
+        for a in getattr(self, "annotations", []):
+            link = a.get("comment_of") or {}
+            try:
+                same = (link.get("type") == etype
+                        and int(link.get("id", -1)) == int(oid))
+            except (TypeError, ValueError):
+                same = False
+            if same:
+                existing = self._anno_items.get(int(a.get("id", -1)))
+                if existing is not None:
+                    self._scene.clearSelection()
+                    existing.setSelected(True)
+                    self.centerOn(existing)
+                    return existing
         from raptor.api.annotations import _auto_size, _place_at_location
         w, h = _auto_size(source)
+        anchor = None
         if scene_pos is not None:
             x, y = scene_pos.x(), scene_pos.y()
         else:
@@ -2818,16 +2851,33 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 geometry = {"cx": centre.x(), "cy": centre.y(),
                             "half_w": item.sceneBoundingRect().width() / 2,
                             "half_h": item.sceneBoundingRect().height() / 2}
+            try:
+                spacing = float(app_settings.get("layout/spacing", 1.0) or 1.0)
+            except (TypeError, ValueError):
+                spacing = 1.0
+            if not math.isfinite(spacing) or spacing <= 0.0:
+                spacing = 1.0
+            gap = ANNO_AUTO_LAYOUT_GAP * spacing
             x, y = _place_at_location(geometry, ANNO_DEFAULT_LOCATION,
-                                      12.0, w, h)
+                                      gap, w, h)
+            if ref_kind:
+                anchor = {
+                    "target": self._anchor_element_name(etype, int(oid)),
+                    "ref": f"{ref_kind}:{int(oid)}",
+                    "location": ANNO_DEFAULT_LOCATION,
+                    "gap": gap,
+                }
         aid = self._next_anno_id()
         entry = {
             "kind": "text", "id": aid,
             "parent": self._current_parent,
             "x": round(x, 2), "y": round(y, 2),
             "w": w, "h": h, "text": source,
+            "comment_of": {"type": etype, "id": int(oid)},
             "z": self.new_annotation_z(),
             **self._anno_default_props("text")}
+        if anchor is not None:
+            entry["anchor"] = anchor
         self._stack.push(AnnoCmd(self, entry, add=True))
         note = self._anno_items.get(aid)
         if note is not None:

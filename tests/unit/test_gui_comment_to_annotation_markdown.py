@@ -319,3 +319,64 @@ def test_general_identity_button_converts_the_comment(qapp):
         win._inspector.flush_pending_comment()
         win._dirty = False
         win.close()
+
+
+def test_converted_note_is_linked_and_autolayout_anchored(view):
+    from raptor.gui.ui import settings as app_settings
+    old_spacing = app_settings.get("layout/spacing", 1.0)
+    app_settings.set_value("layout/spacing", 1.5)
+    try:
+        view.set_element_comment("block", 5, "linked **note**")
+        note = view.comment_to_annotation("block", 5)
+        entry = view.annotation_entry(note._anno_id)
+        assert entry["comment_of"] == {"type": "block", "id": 5}
+        assert entry["anchor"]["ref"] == "Block:5"
+        assert entry["anchor"]["location"] == "above"
+        assert entry["anchor"]["gap"] == pytest.approx(42.0 * 1.5)
+        assert "Comment description" in note.toolTip()
+    finally:
+        app_settings.set_value("layout/spacing", old_spacing)
+
+
+def test_converting_twice_selects_the_existing_linked_note(view):
+    view.set_element_comment("block", 5, "only once")
+    first = view.comment_to_annotation("block", 5)
+    count = len(view.annotations)
+    second = view.comment_to_annotation("block", 5)
+    assert second is first
+    assert len(view.annotations) == count
+
+
+def test_editing_a_linked_note_updates_the_comment_and_undoes_both(view):
+    view.set_element_comment("block", 5, "old comment")
+    note = view.comment_to_annotation("block", 5)
+    note.enter_edit()
+    note.document().setPlainText("new comment")
+    note._finish_edit()
+    QApplication.processEvents()
+    assert view.current_comment_stored("block", 5) == "new comment"
+    assert view.annotation_entry(note._anno_id)["text"] == "new comment"
+
+    view._stack.undo()
+    QApplication.processEvents()
+    assert view.current_comment_stored("block", 5) == "old comment"
+    assert view.annotation_entry(note._anno_id)["text"] == "old comment"
+
+    view._stack.redo()
+    QApplication.processEvents()
+    assert view.current_comment_stored("block", 5) == "new comment"
+    assert view.annotation_entry(note._anno_id)["text"] == "new comment"
+
+
+def test_editing_the_comment_updates_the_linked_note_and_undoes_both(view):
+    view.set_element_comment("block", 5, "first")
+    note = view.comment_to_annotation("block", 5)
+    view.set_element_comment("block", 5, "second")
+    QApplication.processEvents()
+    assert view.annotation_entry(note._anno_id)["text"] == "second"
+    assert note.text_source() == "second"
+
+    view._stack.undo()
+    QApplication.processEvents()
+    assert view.current_comment_stored("block", 5) == "first"
+    assert view.annotation_entry(note._anno_id)["text"] == "first"

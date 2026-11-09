@@ -998,3 +998,14 @@ def test_focus_out_flushes_a_pending_comment(win, kind, oid):
 
     assert v.current_comment_stored(kind, oid) == "draft"
     assert v._stack.count() == 1
+
+
+def test_comment_editor_advertises_markdown(win):
+    from PySide6.QtWidgets import QLabel
+    _show(win, "block", 5)
+    edit = win._inspector._comment_edit
+    assert "Markdown supported" in edit.placeholderText()
+    assert "Markdown" in edit.toolTip()
+    hints = [lb.text() for lb in win._inspector.findChildren(QLabel)
+             if "Markdown supported" in lb.text()]
+    assert hints, "the Comment field needs a visible Markdown hint"

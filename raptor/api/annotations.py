@@ -1161,4 +1161,6 @@ def _summary(a: dict[str, Any], rbd) -> dict[str, Any]:
                     "w": a.get("w"), "h": a.get("h")})
     if isinstance(a.get("anchor"), dict):
         out["anchor"] = a["anchor"]
+    if isinstance(a.get("comment_of"), dict):
+        out["comment_of"] = a["comment_of"]
     return out

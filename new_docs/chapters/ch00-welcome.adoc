@@ -200,3 +200,14 @@ arrow still frees it.) An arrow's two ends attach separately: each has its
 own *Pick…* and *Remove* buttons in the Inspector, an attached end follows
 its target and stops at the target's edge rather than its centre, and a
 removed end stays where it was.
+
+A block, node, event or hierarchy can also have a *Comment* (General ▸
+Identity). Comment fields accept Markdown — bold, italic, lists, links
+and headings — and the field carries a visible Markdown hint. *Convert
+comment to annotation* turns the comment into a linked text annotation:
+editing the annotation updates the element's comment, editing the
+comment updates the annotation, and one undo restores both. Hover the
+note to see that it is the element's comment description. Conversion
+uses the Auto Layout gap and anchors the note above its element, so Auto
+Layout moves it and leaves room for it. The link is stored as the
+optional `comment_of` field in the `.rbds` annotation entry.

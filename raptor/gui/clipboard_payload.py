@@ -227,7 +227,8 @@ def adapt_for_target(rbd: Any, payload: Payload, *, same_model: bool
     out: Buffer = []
     for kind, row in payload.buffer:
         if kind == "annotation":
-            out.append((kind, {k: v for k, v in row.items() if k != "anchor"}))
+            out.append((kind, {k: v for k, v in row.items()
+                               if k not in ("anchor", "comment_of")}))
         else:
             out.append((kind, _fit_row(kind, row, t)))
     return Adapted(out, t.notes())

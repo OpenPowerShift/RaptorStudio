@@ -354,8 +354,15 @@ class _AnnotationBase(_ItemBase):
                 doc.setDefaultFont(f)
             except Exception:
                 pass
-        self.setToolTip("Annotation — double-click to edit text, "
-                        "right-click for colours/font")
+        link = self.props.get("comment_of")
+        if isinstance(link, dict) and link.get("id") is not None:
+            kind = str(link.get("type") or "element").capitalize()
+            self.setToolTip(
+                f"Comment description for {kind} {link.get('id')} — "
+                "double-click to edit; changes update the element comment.")
+        else:
+            self.setToolTip("Annotation — double-click to edit text, "
+                            "right-click for colours/font")
 
     def ensure_handle(self):
         if self._handle is None and hasattr(self, "resize_to"):
@@ -677,8 +684,15 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
                 "fill_colour") else None
         self._frame_pen, _brush = _anno_pen_brush(self.props)
         self.update()
-        self.setToolTip("Text annotation — double-click to edit, "
-                        "drag the corner to resize")
+        link = self.props.get("comment_of")
+        if isinstance(link, dict) and link.get("id") is not None:
+            kind = str(link.get("type") or "element").capitalize()
+            self.setToolTip(
+                f"Comment description for {kind} {link.get('id')} — "
+                "double-click to edit; changes update the element comment.")
+        else:
+            self.setToolTip("Text annotation — double-click to edit, "
+                            "drag the corner to resize")
 
     def _border_width(self) -> float:
         return float(self.props.get("border_width",
@@ -937,6 +951,31 @@ class CommentCmd(_ViewCmd):
         super().__init__(view, "Edit comment")
         self.etype, self.oid = etype, oid
         self.old, self.new = old, new
+        # Canvas notes linked to this comment follow its text. Capture
+        # their current text so undo restores both sides.
+        self.links: list[tuple[int, str]] = []
+        for a in getattr(view, "annotations", []):
+            link = a.get("comment_of")
+            try:
+                matches = (isinstance(link, dict)
+                           and link.get("type") == etype
+                           and int(link.get("id", -1)) == int(oid))
+            except (TypeError, ValueError):
+                matches = False
+            if matches:
+                self.links.append((int(a.get("id", 0)),
+                                   str(a.get("text") or "")))
+
+    def _sync_annotations(self, stored: str) -> None:
+        text = stored.replace("~", "\n")
+        for aid, _old_text in self.links:
+            entry = next((a for a in getattr(self._v, "annotations", [])
+                          if int(a.get("id", 0)) == aid), None)
+            if entry is None:
+                continue
+            state = dict(entry)
+            state["text"] = text
+            apply_anno_state(self._v, aid, state)
 
     def _announce(self, stored: str) -> None:
         """Tell the Inspector which comment this command now holds.
@@ -952,12 +991,21 @@ class CommentCmd(_ViewCmd):
     def redo(self):
         self._v._apply_element_comment_stored(self.etype, self.oid,
                                               self.new)
+        self._sync_annotations(self.new)
         self._announce(self.new)
         self._done()
 
     def undo(self):
         self._v._apply_element_comment_stored(self.etype, self.oid,
                                               self.old)
+        for aid, old_text in self.links:
+            entry = next((a for a in getattr(self._v, "annotations", [])
+                          if int(a.get("id", 0)) == aid), None)
+            if entry is None:
+                continue
+            state = dict(entry)
+            state["text"] = old_text
+            apply_anno_state(self._v, aid, state)
         self._announce(self.old)
         self._done()
 
@@ -1054,7 +1102,7 @@ def apply_anno_state(v, aid: int, state: dict) -> None:
     item = getattr(v, "_anno_items", {}).get(aid)
     if item is not None:
         item.props = {k: v for k, v in state.items()
-                      if k in ANNO_DEFAULTS}
+                      if k in ANNO_DEFAULTS or k == "comment_of"}
         item.apply_props()
         _apply_item_text(item, state.get("text", _item_text(item)))
         if hasattr(item, "setRect"):
@@ -1097,24 +1145,35 @@ class AnnoEditCmd(_ViewCmd):
     own (the z-order moves) doesn't show up as a generic edit."""
 
     def __init__(self, view, anno_id: int, old: dict, new: dict,
-                 label: str = "Edit annotation", layout_only: bool = False):
+                 label: str = "Edit annotation", layout_only: bool = False,
+                 *, comment_target: tuple[str, int] | None = None,
+                 comment_old: str | None = None,
+                 comment_new: str | None = None):
         super().__init__(view, label)
         self.aid = anno_id
         self.old, self.new = dict(old), dict(new)
+        self.comment_target = comment_target
+        self.comment_old = comment_old
+        self.comment_new = comment_new
         # A drag/resize changes only drawn geometry, which no simulation
         # reads -- send it down the light path (see `_ViewCmd`).
         if layout_only:
             self.changed_signal = "layout_changed"
             self.needs_rule_check = False
 
-    def _apply(self, state: dict):
+    def _apply(self, state: dict, comment: str | None):
         apply_anno_state(self._v, self.aid, state)
+        if self.comment_target is not None and comment is not None:
+            etype, oid = self.comment_target
+            self._v._apply_element_comment_stored(etype, oid, comment)
+            if not self._v._loading:
+                self._v.comment_changed.emit(etype, oid, comment)
 
     def redo(self):
-        self._apply(self.new); self._done()
+        self._apply(self.new, self.comment_new); self._done()
 
     def undo(self):
-        self._apply(self.old); self._done()
+        self._apply(self.old, self.comment_old); self._done()
 
 #: annotation item types
 _ANNO_TYPES = (_AnnoRect, _AnnoEllipse, _AnnoText, _AnnoLine)

@@ -91,6 +91,11 @@ ANNO_LOCATIONS = ("right", "left", "above", "below", "center")
 #: note clear of the links leaving a block's right-hand port.
 ANNO_DEFAULT_LOCATION = "above"
 
+#: Default scene-pixel gap for notes placed by Auto Layout-style rules.
+#: Matches `legacy_layout`'s inter-element gap before the user's
+#: `layout/spacing` factor; the GUI multiplies it by that setting.
+ANNO_AUTO_LAYOUT_GAP = 42.0
+
 #: Human-readable label for an annotation used when it is offered as an
 #: anchor target (and stored in the anchor's ``target``). An annotation
 #: has no name column, so its text is the only meaningful handle; an empty

@@ -169,6 +169,17 @@ def build_schema() -> dict[str, Any]:
         # What keeps an annotation with its target. `location` replaced the
         # old `side`; `center` places it over the target and ignores `gap`.
         # A target can be an element or another annotation (`Annotation:7`).
+        # Two-way link to the element COMMENT this note represents. `anchor`
+        # is placement; `comment_of` is ownership/text sync.
+        "comment_of": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["type", "id"],
+            "properties": {
+                "type": {"enum": ["block", "node", "event", "hier"]},
+                "id": {"type": "integer"},
+            },
+        },
         "anchor": {
             "type": "object",
             "additionalProperties": False,
