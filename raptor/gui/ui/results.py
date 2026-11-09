@@ -23,6 +23,7 @@ checked-in models under `tests/data/models/` exercise the result shapes.
 from __future__ import annotations
 
 import itertools
+import math
 import os
 import re
 
@@ -1978,17 +1979,21 @@ class ResultsDock(QWidget):
         self._cost_blocks_label = None
         self._cost_blocks_title = ""
 
-        def _sum_cost_values(columns: list[str], vals: list) -> str | None:
-            """Sum a report row's additive cost cells, or None.
+        def _sum_cost_values(columns: list[str], vals: list) -> tuple[float, bool]:
+            """Sum a report row's additive cost cells.
 
             The parsed report keeps values as strings (and sometimes
             ``N/A``); the Total column must use the same full-precision
             number the other cells hand to Copy/CSV, not the rounded
-            display text.
+            display text. The Operating table's normal rows carry an
+            extra `InHier`/Level cell before the costs; its Totals row
+            (when the parser keeps it) does not.
             """
             total = 0.0
             found = False
-            for column, value in zip(columns[1:], vals):
+            pairs = (zip(columns[2:], vals) if len(vals) == len(columns) - 2
+                     else zip(columns[1:], vals))
+            for column, value in pairs:
                 if column in ("InHier",):
                     continue
                 if isinstance(value, tuple):
@@ -1997,27 +2002,45 @@ class ResultsDock(QWidget):
                 if not text or text.casefold() in {"n/a", "na", "—", "–", "-"}:
                     continue
                 try:
-                    total += float(text)
+                    number = float(text)
                 except ValueError:
                     continue
+                if not math.isfinite(number):
+                    continue
+                total += number
                 found = True
-            return str(total) if found else None
+            return total, found
 
         def _with_cost_total(title: str, columns: list[str],
                              rows: list[list]):
             """Append a Total column to additive report-section tables.
 
             Blocks/Pools/Hierarchies already carry a Total from their own
-            builders; only the Operating, Sparing and Event tables need
-            one. Cost_Summary is already one value per row.
+            builders; only the Operating and Sparing report-section
+            tables need one. Event rows are assembled separately and use
+            the engine's own event total. Cost_Summary is already one
+            value per row.
             """
             name = title.rsplit(" - ", 1)[-1]
-            if name not in ("Operating", "Sparing"):
+            attr = {"Operating": "operating", "Sparing": "sparing"}.get(name)
+            if attr is None or "Total" in columns:
                 return columns, rows
+            from raptor.core.engine.report_rows import element_of
             out = []
             for label, vals in rows:
-                total = _sum_cost_values(columns, vals)
-                out.append((label, [*vals, total if total is not None else ""]))
+                total: float | None = None
+                element = element_of(label)
+                if element is not None and element[0] == "block":
+                    per_run = [cst.blocks[element[1]] for cst in costs
+                               if element[1] in cst.blocks]
+                    if per_run:
+                        total = sum(getattr(row, attr) for row in per_run) \
+                            / len(per_run)
+                if total is None:
+                    summed, found = _sum_cost_values(columns, vals)
+                    total = summed if found else None
+                out.append((label, [*vals,
+                                    str(total) if total is not None else "N/A"]))
             return [*columns, "Total"], out
 
         def add_table(title: str, headers: list[str], rows: list[list],

@@ -552,10 +552,13 @@ def _run_with_cost():
     return dock
 
 
-def _run_water2_with_cost():
+def _run_multi_cost():
+    """A cost run with blocks, spare pools, events and hierarchies."""
     from raptor.core.engine.runner import run_simulation_with_reports
-    from raptor.core.fileio.rbds import load_rbds
-    rbd = load_rbds(os.path.join(REPO, "new_docs", "models", "Water2.rbds"))
+    from raptor.core.fileio.rbd import load_rbd
+    rbd = load_rbd(os.path.join(REPO, "tests", "golden", "LadL8BEvents",
+                                "input.rbd"))
+    rbd.sections["SYSTEM_DATA"].rows[0]["costAnalysis"] = "1"
     report_data: list = []
     logs, eor, fin = run_simulation_with_reports(
         rbd, num_runs=1, date="fixed", report_sink=report_data)
@@ -607,68 +610,106 @@ def test_cost_totals_are_consistent(qapp):
             pytest.approx(vals[4], rel=1e-6), blocks_table.item(r, 0).text()
 
 
-def _cost_table_with_header(dock, header):
-    for table in dock._cost_tables:
-        headers = [table.horizontalHeaderItem(c).text()
-                   for c in range(table.columnCount())]
-        if header in headers:
-            return table, headers
-    raise AssertionError(f"no cost table with header {header!r}")
-
-
 def _number(table, row, column):
+    """A cell's full-precision RAW value, not its rounded display text."""
+    from raptor.gui.ui.results import RAW_VALUE_ROLE
+    raw = table.item(row, column).data(RAW_VALUE_ROLE)
+    if raw is not None:
+        return float(raw)
     text = table.item(row, column).text().replace(",", "")
     return float(text)
 
 
-def test_cost_operating_table_has_a_total_column(qapp):
-    """Operating's per-state cost columns add up to a row Total."""
-    dock = _run_water2_with_cost()
-    table, headers = _cost_table_with_header(dock, "Repair hold")
+def _table_with_headers(dock, *required):
+    for table in dock._cost_tables:
+        headers = [table.horizontalHeaderItem(c).text()
+                   for c in range(table.columnCount())]
+        if all(name in headers for name in required):
+            return table, headers
+    raise AssertionError(f"no cost table with headers {required!r}")
+
+
+def test_cost_operating_total_matches_the_blocks_table(qapp):
+    """Operating Total is the block's own full-precision Operating cost."""
+    dock = _run_multi_cost()
+    blocks, _b_headers = _table_with_headers(dock, "Purchase", "Disposal")
+    operating, headers = _table_with_headers(dock, "Repair hold")
     assert headers[-1] == "Total"
-    for row in range(table.rowCount()):
-        total = sum(_number(table, row, c)
-                    for c in range(2, table.columnCount() - 1))
+    block_row = {
+        blocks.item(r, 0).text(): r for r in range(blocks.rowCount())}
+    operating_col = _b_headers.index("Operating")
+    for row in range(operating.rowCount()):
+        name = operating.item(row, 0).text()
+        if name not in block_row:
+            continue
+        assert _number(operating, row, operating.columnCount() - 1) == \
+            pytest.approx(_number(blocks, block_row[name], operating_col),
+                          rel=1e-9), name
+
+
+def test_cost_sparing_total_matches_the_blocks_table(qapp):
+    """Sparing Total is InitSpares + NewSpares + EmerShip at full precision."""
+    dock = _run_multi_cost()
+    blocks, b_headers = _table_with_headers(dock, "Purchase", "Disposal")
+    sparing, headers = _table_with_headers(dock, "Initial spares")
+    assert headers[-1] == "Total"
+    block_row = {
+        blocks.item(r, 0).text(): r for r in range(blocks.rowCount())}
+    sparing_col = b_headers.index("Sparing")
+    for row in range(sparing.rowCount()):
+        name = sparing.item(row, 0).text()
+        if name not in block_row:
+            continue
+        total = sum(_number(sparing, row, c)
+                    for c in range(1, sparing.columnCount() - 1))
         assert total == pytest.approx(
-            _number(table, row, table.columnCount() - 1), rel=1e-6), \
-            table.item(row, 0).text()
+            _number(sparing, row, sparing.columnCount() - 1), rel=1e-9), name
+        assert _number(sparing, row, sparing.columnCount() - 1) == \
+            pytest.approx(_number(blocks, block_row[name], sparing_col),
+                          rel=1e-9), name
 
 
-def test_cost_sparing_table_has_a_total_column(qapp):
-    """InitSpares + NewSpares + EmerShip add up to a row Total."""
-    dock = _run_water2_with_cost()
-    table, headers = _cost_table_with_header(dock, "Initial spares")
+def test_cost_events_table_has_a_total_column(qapp):
+    """Initial + Success + Failure add up to each event's Total."""
+    dock = _run_multi_cost()
+    table, headers = _table_with_headers(dock, "Initial", "Success",
+                                         "Failure")
     assert headers[-1] == "Total"
     for row in range(table.rowCount()):
         total = sum(_number(table, row, c)
                     for c in range(1, table.columnCount() - 1))
         assert total == pytest.approx(
-            _number(table, row, table.columnCount() - 1), rel=1e-6), \
+            _number(table, row, table.columnCount() - 1), rel=1e-9), \
             table.item(row, 0).text()
 
 
 def test_cost_tables_with_a_total_do_not_get_a_second_one(qapp):
     """Where a table already has a Total, it keeps exactly one."""
-    dock = _run_water2_with_cost()
-    blocks = 0
+    dock = _run_multi_cost()
+    blocks = pools = hierarchies = 0
     for table in dock._cost_tables:
         headers = [table.horizontalHeaderItem(c).text()
                    for c in range(table.columnCount())]
         assert headers.count("Total") <= 1
-        if "Purchase" in headers and "Disposal" in headers:
+        if "Purchase" in headers and "Disposal" in headers \
+                and "Events" in headers:
+            hierarchies += 1
+        elif "Purchase" in headers and "Disposal" in headers:
             blocks += 1
-            assert headers.count("Total") == 1
-    assert blocks == 1
+        if "Initial" in headers and "New Spares / Per-Time" in headers:
+            pools += 1
+        if headers[:2] == ["Item", "Value"]:
+            assert "Total" not in headers
+    assert (blocks, pools, hierarchies) == (1, 1, 1)
 
 
-def test_cost_total_is_in_the_table_export(qapp):
-    """Copy/CSV get the Total column with the raw numeric value."""
-    from raptor.gui.ui.table_export import table_to_grid
-    dock = _run_water2_with_cost()
-    table, _headers = _cost_table_with_header(dock, "Initial spares")
-    headers, rows = table_to_grid(table, raw=True)
+def test_cost_total_uses_the_real_export_path(qapp):
+    """The Cost page's Copy/CSV data includes the raw Total column."""
+    dock = _run_multi_cost()
+    table, _headers = _table_with_headers(dock, "Initial spares")
+    headers, rows = dock._table_export_data(table)
     assert headers[-1] == "Total"
-    assert rows and rows[0][-1] != ""
+    assert rows and rows[0][-1] not in ("", "N/A")
 
 
 def test_cost_tab_shows_note_when_disabled(qapp):
