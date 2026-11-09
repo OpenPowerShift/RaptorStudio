@@ -184,19 +184,46 @@ def capacity_values(rd: RunReportData) -> dict[str, float | None] | None:
     }
 
 
+#: Cost-analysis metrics, present only when the model runs cost analysis:
+#: ``(key in cost_values, aggregate name)``. The labels are the
+#: ``Cost_Summary``/``Grand_Total`` report rows, so a summary reads the
+#: same as the report.
+COST_FIELDS: list[tuple[str, str]] = [
+    ("grand_total", "Grand_Total"),
+    ("system_down_cost", "System_Down_Cost"),
+    ("system_lost_flow_cost", "System_Lost_Flow_Cost"),
+]
+
+
+def cost_values(rd: RunReportData) -> dict[str, float | None] | None:
+    """One run's cost figures, or None without cost analysis.
+
+    Mirrors :func:`capacity_values`: the keys are the ``CostRunReport``
+    fields, so callers can append them to a per-run row or aggregate them
+    without knowing where the run report keeps its cost picture."""
+    cost = rd.cost
+    if cost is None:
+        return None
+    return {key: getattr(cost, key) for key, _label in COST_FIELDS}
+
+
 def aggregate_metrics(report_data: list[RunReportData]) -> list[Metric]:
     """Compute per-metric ``{min, mean, max, stdev, sem}`` across all runs,
-    with the capacity metrics appended when the model has capacity analysis."""
+    with the capacity and cost metrics appended when the model has those
+    analyses."""
     result: list[Metric] = []
     for attr, label in _METRIC_FIELDS:
         vals = [getattr(rd, attr, None) for rd in report_data]
         metric = _aggregate(vals, label)
         _mark_censored(metric, label, report_data)
         result.append(metric)
-    caps = [capacity_values(rd) for rd in report_data]
-    if caps and all(c is not None for c in caps):
-        for key, label in CAPACITY_FIELDS:
-            result.append(_aggregate([c[key] for c in caps if c is not None], label))
+    for values_fn, fields in ((capacity_values, CAPACITY_FIELDS),
+                              (cost_values, COST_FIELDS)):
+        rows = [values_fn(rd) for rd in report_data]
+        if rows and all(row is not None for row in rows):
+            for key, label in fields:
+                result.append(_aggregate(
+                    [row[key] for row in rows if row is not None], label))
     return result
 
 

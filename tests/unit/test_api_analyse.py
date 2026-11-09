@@ -158,6 +158,55 @@ class TestCompare:
         assert result["labels"][0] != result["labels"][1]
         assert all(lbl.startswith("Copy (") for lbl in result["labels"])
 
+    def test_best_direction_for_capacity_and_cost(self, workspace):
+        """More flow is better; lost flow and every cost are lower-is-better
+        (issue #209)."""
+        import json
+
+        def cache_run(run_id, means):
+            path = workspace.root / "runs" / run_id
+            path.mkdir(parents=True)
+            (path / "summary.json").write_text(json.dumps({
+                "model_id": run_id,
+                "model_name": run_id,
+                "num_runs": 1,
+                "metrics": {
+                    name: {"name": name, "mean": value}
+                    for name, value in means.items()},
+            }))
+
+        cache_run("worse", {
+            "Availability": 0.8,
+            "Units_Produced": 100.0,
+            "Mean_Flow": 5.0,
+            "Mean_Capacity": 6.0,
+            "Capacity_Weighted_Availability": 0.5,
+            "Lost_Flow": 10.0,
+            "Grand_Total": 100.0,
+            "System_Down_Cost": 40.0,
+            "System_Lost_Flow_Cost": 20.0,
+        })
+        cache_run("better", {
+            "Availability": 0.9,
+            "Units_Produced": 200.0,
+            "Mean_Flow": 10.0,
+            "Mean_Capacity": 12.0,
+            "Capacity_Weighted_Availability": 0.8,
+            "Lost_Flow": 5.0,
+            "Grand_Total": 50.0,
+            "System_Down_Cost": 10.0,
+            "System_Lost_Flow_Cost": 4.0,
+        })
+        result = compare(workspace, ["worse", "better"])
+
+        assert result["best"]["Availability"] == "better"
+        for name in ("Units_Produced", "Mean_Flow", "Mean_Capacity",
+                     "Capacity_Weighted_Availability"):
+            assert result["best"][name] == "better", name
+        for name in ("Lost_Flow", "Grand_Total", "System_Down_Cost",
+                     "System_Lost_Flow_Cost"):
+            assert result["best"][name] == "better", name
+
 
 class TestSeries:
     """Series parsing and decimation."""

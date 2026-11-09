@@ -115,6 +115,99 @@ def test_best_is_every_tied_value():
     assert fmt(0.99999) == "0.99999"
 
 
+class _DoneJob:
+    """A finished BatchJob's public shape, without running the engine."""
+
+    done = True
+
+    def __init__(self, results):
+        self.results = results
+
+    def is_running(self):
+        return False
+
+    def cleanup(self):
+        pass
+
+
+def _compare_summary(**extra):
+    base = {"Availability": {"mean": 0.9}}
+    base.update(extra)
+    return base
+
+
+def test_compare_shows_optional_capacity_and_cost_rows(win):
+    """Capacity/cost rows appear when any compared run has them; a run
+    with the analysis off leaves a blank, not a false zero (issue #209)."""
+    from raptor.gui.ui.batch_dialogs import (CompareDialog, METRICS,
+                                            OPTIONAL_METRICS)
+    d = CompareDialog(win)
+    try:
+        d._files = ["b.rbd", "c.rbd"]
+        d._job = _DoneJob([
+            {"label": "A", "summary": _compare_summary(
+                Units_Produced={"mean": 100.0},
+                Mean_Flow={"mean": 10.0},
+                Mean_Capacity={"mean": 12.0},
+                Capacity_Weighted_Availability={"mean": 0.5},
+                Lost_Flow={"mean": 5.0},
+                Grand_Total={"mean": 100.0},
+                System_Down_Cost={"mean": 20.0},
+                System_Lost_Flow_Cost={"mean": 10.0})},
+            {"label": "B", "summary": _compare_summary()},
+            {"label": "C", "summary": _compare_summary(
+                Units_Produced={"mean": 200.0},
+                Mean_Flow={"mean": 20.0},
+                Mean_Capacity={"mean": 24.0},
+                Capacity_Weighted_Availability={"mean": 0.8},
+                Lost_Flow={"mean": 3.0},
+                Grand_Total={"mean": 50.0},
+                System_Down_Cost={"mean": 10.0},
+                System_Lost_Flow_Cost={"mean": 4.0})},
+        ])
+        d._show_results()
+
+        headers = [d._table.verticalHeaderItem(r).text()
+                   for r in range(d._table.rowCount())]
+        assert headers[:len(METRICS)] == [lbl for _, lbl, _ in METRICS]
+        assert headers[len(METRICS):] == [
+            lbl for _, lbl, _ in OPTIONAL_METRICS]
+        rows = {label: i for i, label in enumerate(headers)}
+        for label in ("Mean flow", "Lost flow", "Grand total",
+                      "System down cost"):
+            assert d._table.item(rows[label], 1).text() == "", label
+        # C wins both the higher-is-better flow row and the
+        # lower-is-better lost-flow and cost rows.
+        for label in ("Mean flow", "Lost flow", "Grand total",
+                      "System down cost"):
+            assert d._table.item(rows[label], 2).font().bold(), label
+            assert not d._table.item(rows[label], 1).font().bold(), label
+
+        csv_headers, csv_rows = d._csv()
+        assert csv_headers == ["metric", "A", "B", "C"]
+        metric_rows = {row[0]: row[1:] for row in csv_rows}
+        assert metric_rows["Mean_Flow"] == ["10.0", "", "20.0"]
+        assert metric_rows["Grand_Total"] == ["100.0", "", "50.0"]
+    finally:
+        d.close()
+
+
+def test_compare_hides_capacity_and_cost_without_analysis(win):
+    from raptor.gui.ui.batch_dialogs import CompareDialog, METRICS
+    d = CompareDialog(win)
+    try:
+        d._files = ["b.rbd"]
+        d._job = _DoneJob([
+            {"label": "A", "summary": _compare_summary()},
+            {"label": "B", "summary": _compare_summary()},
+        ])
+        d._show_results()
+        assert d._table.rowCount() == len(METRICS)
+        assert [row[0] for row in d._csv()[1]] == [k for k, _, _ in METRICS]
+    finally:
+        d.close()
+
+
 def test_a_sweep_runs_on_a_copy(win, monkeypatch):
     from raptor.gui import cores
     monkeypatch.setattr(cores, "chosen", lambda: 1)

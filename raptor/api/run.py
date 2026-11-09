@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Callable
 
-from raptor.api.results import aggregate_metrics, capacity_values, metrics_to_dict, Metric
+from raptor.api.results import (aggregate_metrics, capacity_values,
+                                cost_values, metrics_to_dict, Metric)
 from raptor.api.workspace import Workspace
 from raptor.core.fileio.rbd import RbdFile
 from raptor.core.engine.report_rows import tags_of
@@ -147,11 +148,14 @@ def model_hash(rbd: RbdFile) -> str:
 
 def _rd_to_dict(rd: RunReportData) -> dict[str, object]:
     """Single RunReportData → flat dict (one per run), with the capacity
-    figures when the model has capacity analysis."""
+    and cost figures when the model has those analyses."""
     row = _rd_base_dict(rd)
     caps = capacity_values(rd)
     if caps is not None:
         row.update(caps)
+    costs = cost_values(rd)
+    if costs is not None:
+        row.update(costs)
     row["criticality"] = rd.criticality
     row["color_timeline"] = [[float(t), color] for t, color in rd.color_timeline]
     return row

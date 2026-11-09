@@ -443,6 +443,16 @@ _HIGHER_IS_BETTER = {
     "Component_Failures": False,
     "Red_Percent": False,
     "Yellow_Percent": False,
+    # Capacity: more delivered flow is better; lost flow is not.
+    "Units_Produced": True,
+    "Mean_Flow": True,
+    "Mean_Capacity": True,
+    "Capacity_Weighted_Availability": True,
+    "Lost_Flow": False,
+    # Cost: every cost is lower-is-better.
+    "Grand_Total": False,
+    "System_Down_Cost": False,
+    "System_Lost_Flow_Cost": False,
 }
 
 

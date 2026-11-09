@@ -7,8 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from raptor.api import metric_definitions
-from raptor.api.results import CAPACITY_FIELDS, aggregate_metrics, metrics_to_dict
+from raptor.api import batch, metric_definitions
+from raptor.api.results import (CAPACITY_FIELDS, COST_FIELDS, aggregate_metrics,
+                                cost_values, metrics_to_dict)
+from raptor.api.run import _rd_to_dict
+from raptor.api.workspace import Workspace
 from raptor.core.engine.runner import run_simulation_with_reports
 from raptor.core.fileio.rbd import load_rbd
 
@@ -53,3 +56,48 @@ def test_describe_metrics_lists_and_shows_the_capacity_metrics():
     view = metric_definitions.from_summary(metrics, runs=4)
     shown = {row["aggregate"]: row for row in view["metrics"]}
     assert shown["Capacity_Weighted_Availability"]["mean"] is not None
+
+
+# ---------------------------------------------------------------------------
+# Cost analysis (issue #209)
+# ---------------------------------------------------------------------------
+
+def test_a_cost_run_summary_has_the_cost_metrics():
+    data = _report_data(CAPACITY_MODEL)
+    metrics = metrics_to_dict(aggregate_metrics(data))
+    for key, name in COST_FIELDS:
+        expected = sum(getattr(rd.cost, key) for rd in data) / len(data)
+        assert metrics[name]["mean"] == pytest.approx(expected), name
+
+
+def test_cost_values_mirrors_the_run_cost_report():
+    data = _report_data(CAPACITY_MODEL, runs=1)
+    values = cost_values(data[0])
+    assert values is not None
+    for key, _name in COST_FIELDS:
+        assert values[key] == pytest.approx(getattr(data[0].cost, key))
+
+
+def test_a_run_without_cost_analysis_has_no_cost_metrics():
+    plain = _report_data(PLAIN_MODEL)
+    assert cost_values(plain[0]) is None
+    metrics = metrics_to_dict(aggregate_metrics(plain))
+    assert not {name for _key, name in COST_FIELDS} & set(metrics)
+
+
+def test_cost_values_reach_the_per_run_row():
+    data = _report_data(CAPACITY_MODEL, runs=1)
+    row = _rd_to_dict(data[0])
+    for key, _name in COST_FIELDS:
+        assert row[key] == pytest.approx(getattr(data[0].cost, key))
+
+
+def test_a_batch_summary_includes_the_cost_metrics(tmp_path):
+    ws = Workspace(tmp_path)
+    model_id = ws.open_model(CAPACITY_MODEL)["model_id"]
+    (entry,) = batch.run_variants(
+        ws, model_id, [{"label": "cost", "assignments": []}],
+        num_runs=1, workers=1)
+    assert "error" not in entry, entry
+    for _key, name in COST_FIELDS:
+        assert entry["summary"][name]["mean"] is not None, name
