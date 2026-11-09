@@ -6927,7 +6927,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Refresh after every step (no throttle -- stepping is user-paced,
         # the whole point is watching each event land).
         live = self._live_sim_action.isChecked()
-        focus_event = self._focus_event_action.isChecked()
         if live and not self._diagram_dock.isVisible():
             self._diagram_dock.show()
         # Manual stepping is user-paced: paint the live colours (and
