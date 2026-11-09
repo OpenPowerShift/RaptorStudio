@@ -505,6 +505,56 @@ def test_legacy_delete_keeps_a_shared_name_survivor_comment(win):
         "legacy name fallback deleted a surviving duplicate-name comment"
 
 
+def test_comment_write_does_not_stamp_a_shared_legacy_row(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    name = v.blocks[5].name
+    survivor_id = next(i for i in v.blocks if i != 5)
+    for row in v._rbd_ref.sections["BLOCK_DATA"].rows:
+        if int(row["ID"]) == survivor_id:
+            row["blockName"] = name
+            break
+    v.blocks[survivor_id].name = name
+    sec.rows[:] = [{"Type": "block", "Name": name,
+                    "Comment": "shared legacy"}]
+    v._stack.clear()
+
+    v.set_element_comment("block", 5, "block five")
+
+    assert sec.rows[0] == {"Type": "block", "Name": name,
+                           "Comment": "shared legacy"}
+    assert any(r.get("ID") == "5" and r.get("Comment") == "block five"
+               for r in sec.rows)
+    assert v.current_comment_stored("block", 4) == "shared legacy"
+
+
+def test_delete_redo_keeps_rows_added_after_capture(win):
+    v = win._diagram_dock.view
+    sec = v._rbd_ref.sections["COMMENTS"]
+    sec.rows[:] = [{"Type": "block", "ID": "5", "Name": "Attitude",
+                    "Comment": "A"}]
+    v._stack.clear()
+    v._scene.clearSelection()
+    v._block_items[5].setSelected(True)
+    QApplication.processEvents()
+    v.delete_selected()
+    QApplication.processEvents()
+
+    v._stack.undo()
+    QApplication.processEvents()
+    sec.rows.append({"Type": "block", "ID": "6", "Name": "New",
+                     "Comment": "added later"})
+
+    v._stack.redo()
+    QApplication.processEvents()
+    assert [(r.get("ID"), r.get("Comment")) for r in sec.rows] == \
+        [("6", "added later")]
+
+    v._stack.undo()
+    QApplication.processEvents()
+    assert {r.get("Comment") for r in sec.rows} == {"A", "added later"}
+
+
 def test_delete_redo_does_not_drop_uncaptured_shared_legacy_row(win):
     v = win._diagram_dock.view
     sec = v._rbd_ref.sections["COMMENTS"]
@@ -578,6 +628,43 @@ def test_long_name_legacy_save_keeps_comment_with_its_element(qapp, tmp_path):
         view2.load_rbd(reloaded)
         for bid, comment in expected.items():
             assert view2.current_comment_stored("block", bid) == comment
+    finally:
+        view2.close()
+        view2.deleteLater()
+        QApplication.processEvents()
+
+
+def test_long_named_legacy_no_id_comment_survives_save(qapp, tmp_path):
+    from raptor.api.build import build_from_spec
+    from raptor.core.fileio.rbd import load_rbd, save_rbd
+    from raptor.gui.ui.diagram import DiagramView
+
+    name = "VeryLongComponentNameThatExceedsTheCap"
+    rbd = build_from_spec({
+        "name": "LongLegacy",
+        "blocks": [{"name": name}],
+        "nodes": [{"id": 1, "name": "Start", "type": "start"},
+                  {"id": 2, "name": "End", "type": "end"}],
+        "links": [],
+        "comments": [{"element": name, "comment": ""}],
+        "system": {"term_condition": 100, "num_runs": 1},
+    }, auto_layout=False)
+    bid = next(int(float(r["ID"]))
+               for r in rbd.sections["BLOCK_DATA"].rows
+               if int(float(r["ID"])) != 0)
+    rbd.sections["COMMENTS"].rows[:] = [
+        {"Type": "block", "Name": name, "Comment": "legacy long"}]
+    view = DiagramView()
+    view.load_rbd(rbd)
+    path = tmp_path / "long-legacy.rbd"
+    save_rbd(view._rbd_ref, str(path))
+    view.close()
+    view.deleteLater()
+
+    view2 = DiagramView()
+    try:
+        view2.load_rbd(load_rbd(str(path)))
+        assert view2.current_comment_stored("block", bid) == "legacy long"
     finally:
         view2.close()
         view2.deleteLater()

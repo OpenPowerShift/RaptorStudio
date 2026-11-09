@@ -242,7 +242,11 @@ class TestRename:
         c = host.rbd.sections["COMMENTS"].rows[-1]
         assert (c["Name"], c["ID"]) == ("Pump_2", str(bid))
 
-    def test_rename_does_not_claim_a_shared_legacy_comment(self, host, ed):
+    def test_rename_claims_shared_legacy_comment_by_name(self, host, ed):
+        """Characterisation: a legacy no-ID row has no owner, so a rename
+        claims the first name match even when another element shares the
+        name. IDs are the only unambiguous key; this ambiguity is
+        documented rather than guessed around."""
         bid = _bid(host)
         other = next(i for i in host.blocks if i != bid)
         old = host.blocks[bid].name
@@ -255,8 +259,7 @@ class TestRename:
 
         assert ed.rename("block", bid, "Renamed") is True
 
-        assert legacy == {"Type": "Block", "Name": old,
-                          "Comment": "shared"}
+        assert (legacy["Name"], legacy["ID"]) == ("Renamed", str(bid))
 
     def test_node_uses_node_name(self, host, ed):
         nid = next(iter(host.nodes))

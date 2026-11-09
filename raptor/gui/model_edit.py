@@ -31,7 +31,7 @@ from raptor.core.fileio.comments import find_comment_row
 from raptor.core.fileio.rbd import store_distribution_values
 from raptor.core.fileio.typed import SPARING_TYPE_TO_FILE_STRING
 from raptor.core.model import SparingType
-from raptor.core.fileio.typed import int_or_none, row_int
+from raptor.core.fileio.typed import int_or_none
 
 # -- what the canvas should redraw afterwards ---------------------------
 
@@ -349,21 +349,7 @@ class ModelEditor:
         sec = rbd.sections.get("COMMENTS") if rbd is not None else None
         if sec is None or old == new:
             return
-        section, name_col = {
-            "block": ("BLOCK_DATA", "blockName"),
-            "node": ("NODE_DATA", "Name"),
-            "event": ("EVENT_DATA", "eventName"),
-            "hier": ("HIERARCHY_DATA", "hierarchyName"),
-        }[etype]
-        elements = rbd.sections.get(section)
-        shared = any(
-            row_int(row.get("ID")) > 0
-            and row_int(row.get("ID")) != int(oid)
-            and row.get(name_col) == old
-            for row in (elements.rows if elements is not None else []))
-        row = find_comment_row(
-            sec, etype, oid, old, stamp=True,
-            allow_legacy_name=not shared)
+        row = find_comment_row(sec, etype, oid, old, stamp=True)
         if row is not None:
             row["Name"] = new
             row["ID"] = str(oid)

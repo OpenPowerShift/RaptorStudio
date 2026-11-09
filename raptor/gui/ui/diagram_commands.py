@@ -479,39 +479,43 @@ def _capture_comment_rows(view, dead_ids, dead_names):
 
 
 def _drop_comment_rows(view, captured, dead_ids) -> None:
-    """Drop only live rows that the undo payload actually owns.
+    """Drop only the exact rows the undo payload captured.
 
-    The captured row is the authority: a row that appeared after the
-    command was built (a new comment, or a shared legacy row that was
-    deliberately not captured) must survive redo.
+    Rows are removed one-for-one, preferring the captured original index,
+    so duplicate Type+ID rows are not collapsed and a row added after the
+    command was built survives redo. A legacy no-ID row stamped with the
+    deleted element's ID is still the same captured row.
     """
     sec = (view._rbd_ref.sections.get("COMMENTS")
            if getattr(view, "_rbd_ref", None) is not None else None)
     if sec is None or not captured:
         return
-    captured_ids = {}
-    captured_legacy = set()
-    for row, _idx in captured:
-        kind = str(row.get("Type", "")).lower()
-        if is_legacy_comment_row(row):
-            captured_legacy.add((kind, row.get("Name")))
+    rows = sec.rows
+
+    def matches(row, captured_row) -> bool:
+        kind = str(captured_row.get("Type", "")).lower()
+        if str(row.get("Type", "")).lower() != kind:
+            return False
+        if is_legacy_comment_row(captured_row):
+            if not names_agree(captured_row.get("Name", ""),
+                               row.get("Name", "")):
+                return False
+            return (is_legacy_comment_row(row)
+                    or (kind, _safe_int(row.get("ID"))) in dead_ids)
+        return _safe_int(row.get("ID")) == _safe_int(
+            captured_row.get("ID"))
+
+    for captured_row, idx in sorted(captured, key=lambda p: p[1],
+                                    reverse=True):
+        candidate = None
+        if 0 <= idx < len(rows) and matches(rows[idx], captured_row):
+            candidate = idx
         else:
-            captured_ids[(kind, _safe_int(row.get("ID")))] = row.get(
-                "Name", "")
-
-    def owned(row) -> bool:
-        kind = str(row.get("Type", "")).lower()
-        rid = _safe_int(row.get("ID"))
-        if (kind, rid) in captured_ids:
-            return names_agree(captured_ids[(kind, rid)],
-                               row.get("Name", ""))
-        # A legacy row stamped with the deleted element's ID is still the
-        # same captured row; an unrelated real ID must not be dropped.
-        return ((kind, row.get("Name")) in captured_legacy
-                and (is_legacy_comment_row(row)
-                     or (kind, rid) in dead_ids))
-
-    sec.rows[:] = [r for r in sec.rows if not owned(r)]
+            candidate = next(
+                (i for i, row in enumerate(rows)
+                 if matches(row, captured_row)), None)
+        if candidate is not None:
+            rows.pop(candidate)
 
 
 def _restore_comment_rows(view, captured) -> None:

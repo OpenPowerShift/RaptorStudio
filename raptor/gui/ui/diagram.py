@@ -34,7 +34,12 @@ from PySide6.QtWidgets import (
     QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsLineItem, QWidget, QVBoxLayout,
 )
 
-from raptor.core.fileio.comments import comment_text, find_comment_row
+from raptor.core.fileio.comments import (
+    comment_text,
+    find_comment_row,
+    is_legacy_comment_row,
+    names_agree,
+)
 from raptor.core.fileio.rbd import RbdFile, RbdSection
 from raptor.core.fileio.rbdlib import dist_param_count as _dist_param_count
 from raptor.core.fileio import view_transform
@@ -2633,6 +2638,22 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 return row.get(name_col) or row.get("Name") or ""
         return self._element_name(etype, oid)
 
+    def _comment_name_shared(self, etype: str, oid: int, name: str) -> bool:
+        """Whether a surviving element of the same kind uses this name."""
+        section, name_col = {
+            "block": ("BLOCK_DATA", "blockName"),
+            "node": ("NODE_DATA", "Name"),
+            "event": ("EVENT_DATA", "eventName"),
+            "hier": ("HIERARCHY_DATA", "hierarchyName"),
+        }.get(etype, (None, None))
+        sec = (self._rbd_ref.sections.get(section)
+               if self._rbd_ref is not None and section else None)
+        return any(
+            _safe_int(row.get("ID")) > 0
+            and _safe_int(row.get("ID")) != int(oid)
+            and names_agree(row.get(name_col, ""), name)
+            for row in (sec.rows if sec is not None else []))
+
     def _comment_row_for(self, etype: str, oid: int, *,
                          stamp: bool = False):
         """The COMMENTS row for an element, by stored Type+ID first.
@@ -2683,16 +2704,25 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         sec = self._rbd_ref.sections.get("COMMENTS") if self._rbd_ref else None
         if sec is None:
             return
-        target_row = self._comment_row_for(etype, oid, stamp=True)
+        # Prefer the raw-row name: the element may already have moved to
+        # another hierarchy level by the time this undo/redo runs.
+        name = self._element_name_any_level(etype, oid)
+        target_row = find_comment_row(sec, etype, oid, name)
+        if (target_row is not None
+                and is_legacy_comment_row(target_row)
+                and self._comment_name_shared(etype, oid, name)):
+            # A no-ID row shared by duplicate names belongs to no one in
+            # particular: create this element's own ID row instead of
+            # stamping/overwriting the sibling's comment.
+            target_row = None
         if target_row is None:
             if not stored:
                 return
-            # Prefer the raw-row name: the element may already have moved
-            # to another hierarchy level by the time this undo/redo runs.
-            name = self._element_name_any_level(etype, oid)
             sec.rows.append({"Type": etype, "ID": str(oid),
                              "Name": name, "Comment": stored})
         else:
+            if is_legacy_comment_row(target_row):
+                target_row["ID"] = str(oid)
             target_row["Comment"] = stored
 
     def set_element_comment(self, etype: str, oid: int, text: str) -> None:

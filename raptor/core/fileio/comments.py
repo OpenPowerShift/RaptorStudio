@@ -22,29 +22,34 @@ def is_legacy_comment_row(row) -> bool:
     return row_int(row.get("ID")) <= 0
 
 
-def _canonical_name(name: str) -> str:
-    """Compare names the way the legacy writer stores them.
+def _name_forms(name: str) -> set[str]:
+    """The spellings a legacy save may have produced for ``name``.
 
-    `.rbd` save truncates every name to 20 characters and gives colliding
-    truncations a ``~n`` distinguisher; COMMENTS and element rows can
-    therefore disagree (``LongName...`` vs ``LongName...~3``) while still
-    describing the same element. The ID remains the real key.
+    Normalization is deliberately conditional: only names beyond the
+    20-char cap, or a cap-length ``~n`` truncation twin, get truncated
+    forms. Short names ending in ``~2`` are real names and stay exact.
     """
     from raptor.core.fileio.legacy_layout import LEGACY_NAME_CAP
 
     text = str(name or "")
+    forms = {text}
+    if len(text) >= LEGACY_NAME_CAP:
+        # Every possible truncation point the legacy writer can produce.
+        for cut in range(LEGACY_NAME_CAP - 4, LEGACY_NAME_CAP + 1):
+            forms.add(text[:cut])
     base, sep, suffix = text.rpartition("~")
-    if sep and suffix.isdigit():
-        text = base
-    # Leave room for the longest usual `~n` distinguisher: the base of a
-    # truncated twin is shorter than the cap, and both still share this
-    # prefix with the element row's untruncated name.
-    return text[:LEGACY_NAME_CAP - 4]
+    if (sep and suffix.isdigit()
+            and len(base) >= LEGACY_NAME_CAP - 4):
+        # A truncation collision: `base[:cap]` became `base[:cap-4]~n`.
+        forms.add(base)
+        forms.add(text[:LEGACY_NAME_CAP - 4])
+    return forms
 
 
 def names_agree(first: str, second: str) -> bool:
-    return (not first or not second
-            or _canonical_name(first) == _canonical_name(second))
+    if not first or not second:
+        return True
+    return bool(_name_forms(first) & _name_forms(second))
 
 
 def _row_by_id(rows, kind: str, oid: int, name: str):
@@ -70,22 +75,19 @@ def _legacy_row_by_name(rows, kind: str, name: str):
             continue
         if not is_legacy_comment_row(row):
             continue                    # ID-bearing rows are authoritative
-        if row.get("Name", "") == name:
+        if names_agree(row.get("Name", ""), name):
             return row
     return None
 
 
 def find_comment_row(section, etype: str, oid: int, name: str = "",
-                     *, stamp: bool = False, allow_legacy_name: bool = True):
+                     *, stamp: bool = False):
     """Return the COMMENTS row for ``(etype, oid, name)``, or ``None``.
 
     ``stamp=True`` is for MUTATING callers only (write/rename): it writes
     the ID into a name-matched legacy row so later lookups resolve by ID.
     Reads must never stamp a shared no-ID row, or a later delete would
     treat the survivor's comment as the deleted element's.
-
-    ``allow_legacy_name=False`` disables the no-ID fallback when another
-    surviving same-kind element still uses that name.
     """
     if section is None:
         return None
@@ -94,8 +96,6 @@ def find_comment_row(section, etype: str, oid: int, name: str = "",
     row = _row_by_id(section.rows, kind, oid, name)
     if row is not None:
         return row
-    if not allow_legacy_name:
-        return None
     row = _legacy_row_by_name(section.rows, kind, name)
     if row is not None and stamp:
         row["ID"] = str(oid)
