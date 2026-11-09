@@ -20,6 +20,7 @@ import platform
 import re
 import threading
 import time
+import weakref
 from typing import Any, cast
 from pathlib import Path
 from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal,
@@ -480,6 +481,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def __init__(self):
         super().__init__()
         self._rbd: RbdFile | None = None
+        #: Weak compatibility reference to the process-wide Help viewer
+        #: (see `_show_help_viewer`); None before Help / after this window
+        #: closes.
+        self._help_viewer: weakref.ref | None = None
         #: Templates of the library last imported (Data ▸ Import Library); the Block Defaults dialog offers them.
         self._block_library: list[dict] = []
         self._current_file: str | None = None
@@ -1148,20 +1153,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._statusbar.showMessage(f"{name} not found", 6000)
 
     def _show_help_viewer(self, name: str, anchor: str | None = None):
-        """Show (or reuse) the shared in-app help viewer window."""
-        from raptor.gui.ui.help_viewer import HelpViewer, _register_ops_scheme
+        """Show (or reuse) the process-wide in-app help viewer.
+
+        Help belongs to the process, not this window: the same viewer
+        follows the window that invoked it, and closing one model window
+        leaves it open for the others (see `ui/help_service.py`)."""
+        from raptor.gui.ui.help_viewer import _register_ops_scheme
         _register_ops_scheme()
-        if getattr(self, "_help_viewer", None) is None:
-            self._help_viewer = HelpViewer(
-                parent=None, open_model=self.open_model_from_help,
-                switch_to_app=self._switch_from_help)
-            from raptor.gui.resources.design_tokens import ThemeManager
-            ThemeManager.instance().on_changed(
-                self._help_viewer.refresh_theme)
-            self._help_viewer.refresh_theme(
-                ThemeManager.instance().is_dark)
-        self._help_viewer.show_doc(name, anchor)
-        return self._help_viewer
+        from raptor.gui.ui.help_service import get_help_service
+        viewer = get_help_service().show(self, name, anchor)
+        # Compatibility for code (and older tests) that looked for the
+        # viewer on the window. A weak reference on purpose: Help is no
+        # longer owned by this window, and a closing window must not keep
+        # it alive. Access it with `()`; it is empty after Help closes.
+        self._help_viewer = weakref.ref(viewer)
+        return viewer
 
     def open_model_from_help(self, path: str) -> None:
         """opsmodel:// link clicked in the help viewer: load the model
@@ -2596,6 +2602,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if (event.type() == QEvent.Type.ActivationChange
                 and not self.isActiveWindow()):
             self._dismiss_key_tips()
+        if (event.type() == QEvent.Type.ActivationChange
+                and self.isActiveWindow()):
+            # Help follows the model window the user is working in.
+            from raptor.gui.ui.help_service import note_window_activated
+            note_window_activated(self)
         super().changeEvent(event)
 
     def keyReleaseEvent(self, event):
@@ -4419,6 +4430,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         for win in list(open_models.windows()):
             if not win.close():
                 return
+        # Last-window close already did this; also covers a quit with no
+        # windows left (and any path that skipped closeEvent).
+        from raptor.gui.ui.help_service import close_help_viewer
+        close_help_viewer()
         QApplication.quit()
 
     def _new_file(self):
@@ -5513,10 +5528,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # offered as a "crash" on the next launch.
             self._clear_recovery()
             self._save_layout()
-            # The Help viewer is a top-level window of its own (so a modal dialog cannot block it); it must not
-            # outlive the application.
-            if getattr(self, "_help_viewer", None) is not None:
-                self._help_viewer.close()
             # The Analytical window is a window of its own too: left open,
             # it kept the application (and its solve) running after the
             # main window closed. Closing it cancels the solve.
@@ -5524,7 +5535,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if analytic is not None:
                 analytic.shut_down()
             from raptor.gui import open_models
+            from raptor.gui.ui.help_service import notify_window_closed
             open_models.unregister(self)
+            # Help is process-wide: closing one model window must leave it
+            # open while another remains. The service transfers it to a
+            # live window, and closes it only when none are left (#206).
+            notify_window_closed(self)
+            self._help_viewer = None
             event.accept()
         else:
             event.ignore()
