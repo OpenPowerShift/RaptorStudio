@@ -90,7 +90,7 @@ def test_check_tools():
 @pytest.mark.long
 @pytest.mark.parametrize(
     "entry", check_numbers.REGISTRY,
-    ids=[e[0] for e in check_numbers.REGISTRY])
+    ids=[f"{e[0]}:{e[1]}" for e in check_numbers.REGISTRY])
 def test_check_numbers(entry):
     """One tutorial model still produces the headline number its
     chapter/README.md quotes, within tolerance. All models use a fixed

@@ -2,7 +2,8 @@
  "format": "raptor-studio",
  "version": 4,
  "meta": {
-  "generator": "RAPTOR Studio 0.9.0"
+  "generator": "RAPTOR Studio 0.9.0",
+  "file_name": "AirlinerMission.rbds"
  },
  "system": {
   "node_anal_type": "Dependability",
@@ -10,7 +11,7 @@
   "lost_cost": 0.0,
   "flow_generated": 1,
   "legacy": {
-   "zoomVal": "34.000000"
+   "zoomVal": "38.000000"
   }
  },
  "experiment": {
@@ -323,7 +324,7 @@
     "id": 1,
     "name": "Engine_1",
     "parent": 0,
-    "x": 5.0,
+    "x": 6.25,
     "y": 91.25,
     "fail_dist": 15,
     "fail_params": [
@@ -350,7 +351,7 @@
     "id": 2,
     "name": "Engine_2",
     "parent": 0,
-    "x": 5.0,
+    "x": 6.25,
     "y": 93.75,
     "fail_dist": 15,
     "fail_params": [
@@ -377,7 +378,7 @@
     "id": 3,
     "name": "Engine_Gen_1",
     "parent": 0,
-    "x": 11.25,
+    "x": 13.75,
     "y": 90.0,
     "fail_params": [
      300.0,
@@ -395,7 +396,7 @@
     "id": 4,
     "name": "Engine_Gen_2",
     "parent": 0,
-    "x": 11.25,
+    "x": 13.75,
     "y": 92.5,
     "fail_params": [
      300.0,
@@ -413,7 +414,7 @@
     "id": 5,
     "name": "APU_Generator",
     "parent": 0,
-    "x": 11.25,
+    "x": 13.75,
     "y": 95.0,
     "fail_params": [
      150.0,
@@ -439,7 +440,7 @@
     "id": 6,
     "name": "Hydraulics_A",
     "parent": 0,
-    "x": 17.5,
+    "x": 21.25,
     "y": 91.25,
     "fail_params": [
      400.0,
@@ -457,7 +458,7 @@
     "id": 7,
     "name": "Hydraulics_B",
     "parent": 0,
-    "x": 17.5,
+    "x": 21.25,
     "y": 93.75,
     "fail_params": [
      400.0,
@@ -475,7 +476,7 @@
     "id": 8,
     "name": "Pack_1",
     "parent": 0,
-    "x": 27.5,
+    "x": 31.25,
     "y": 91.25,
     "fail_params": [
      250.0,
@@ -501,7 +502,7 @@
     "id": 9,
     "name": "Pack_2",
     "parent": 0,
-    "x": 27.5,
+    "x": 31.25,
     "y": 93.75,
     "fail_params": [
      250.0,
@@ -527,7 +528,7 @@
     "id": 10,
     "name": "Landing_Gear",
     "parent": 0,
-    "x": 32.5,
+    "x": 36.25,
     "y": 92.5,
     "fail_params": [
      300.0,
@@ -553,7 +554,7 @@
     "id": 11,
     "name": "Flight_Controls",
     "parent": 0,
-    "x": 22.5,
+    "x": 26.25,
     "y": 92.5,
     "fail_params": [
      8000.0,
@@ -571,7 +572,7 @@
     "id": 12,
     "name": "Avionics",
     "parent": 0,
-    "x": 35.0,
+    "x": 38.75,
     "y": 92.5,
     "fail_params": [
      2400.0,
@@ -600,7 +601,7 @@
     "name": "Engine_Split",
     "type": 2,
     "parent": 0,
-    "x": 2.5,
+    "x": 3.75,
     "y": 92.5
    },
    {
@@ -608,7 +609,7 @@
     "name": "Thrust",
     "type": 2,
     "parent": 0,
-    "x": 7.5,
+    "x": 8.75,
     "y": 92.5,
     "k": 1,
     "uses_phasing": true,
@@ -625,7 +626,7 @@
     "name": "Power_Split",
     "type": 2,
     "parent": 0,
-    "x": 8.75,
+    "x": 11.25,
     "y": 92.5
    },
    {
@@ -633,7 +634,7 @@
     "name": "Electrics",
     "type": 2,
     "parent": 0,
-    "x": 13.75,
+    "x": 16.25,
     "y": 92.5,
     "k": 1
    },
@@ -642,7 +643,7 @@
     "name": "Hyd_Split",
     "type": 2,
     "parent": 0,
-    "x": 15.0,
+    "x": 18.75,
     "y": 92.5
    },
    {
@@ -650,7 +651,7 @@
     "name": "Hydraulics",
     "type": 2,
     "parent": 0,
-    "x": 20.0,
+    "x": 23.75,
     "y": 92.5,
     "k": 1
    },
@@ -659,7 +660,7 @@
     "name": "Pack_Split",
     "type": 2,
     "parent": 0,
-    "x": 25.0,
+    "x": 28.75,
     "y": 92.5
    },
    {
@@ -667,7 +668,7 @@
     "name": "Cabin_Air",
     "type": 2,
     "parent": 0,
-    "x": 30.0,
+    "x": 33.75,
     "y": 92.5,
     "k": 1
    },
@@ -676,7 +677,7 @@
     "name": "Arrival",
     "type": 3,
     "parent": 0,
-    "x": 37.5,
+    "x": 41.25,
     "y": 92.5
    }
   ],
@@ -690,6 +691,10 @@
    "parent": 0,
    "x": 0.0,
    "y": 0.0,
+   "duty_cycle": 1.0,
+   "start_age": 0.0,
+   "restoration_factor": 0.0,
+   "restoration_type": 0,
    "growth_decay_limit": 1.0,
    "rso": 1,
    "eso": 1,
@@ -711,7 +716,10 @@
     0.25,
     0.0,
     0.0
-   ]
+   ],
+   "legacy": {
+    "Mission": "True"
+   }
   },
   {
    "name": "Takeoff_Climb",
@@ -721,7 +729,10 @@
     0.4,
     0.0,
     0.0
-   ]
+   ],
+   "legacy": {
+    "Mission": "True"
+   }
   },
   {
    "name": "Cruise",
@@ -731,7 +742,10 @@
     3.7,
     0.0,
     0.0
-   ]
+   ],
+   "legacy": {
+    "Mission": "True"
+   }
   },
   {
    "name": "Descent_Landing",
@@ -741,7 +755,10 @@
     0.5,
     0.0,
     0.0
-   ]
+   ],
+   "legacy": {
+    "Mission": "True"
+   }
   },
   {
    "name": "Taxi_In",
@@ -751,7 +768,10 @@
     0.15,
     0.0,
     0.0
-   ]
+   ],
+   "legacy": {
+    "Mission": "True"
+   }
   }
  ],
  "rates": [

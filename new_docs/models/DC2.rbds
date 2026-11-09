@@ -2,14 +2,15 @@
  "format": "raptor-studio",
  "version": 4,
  "meta": {
-  "generator": "RAPTOR Studio 0.9.0"
+  "generator": "RAPTOR Studio 0.9.0",
+  "file_name": "DC2.rbds"
  },
  "system": {
   "red_cost": 300000.0,
   "lost_cost": 0.0,
   "flow_generated": 1,
   "legacy": {
-   "zoomVal": "17.000000"
+   "zoomVal": "18.000000"
   }
  },
  "experiment": {
@@ -973,7 +974,7 @@
     "name": "out",
     "type": 5,
     "parent": 20,
-    "x": 18.75,
+    "x": 20.0,
     "y": 92.5
    },
    {
@@ -1051,7 +1052,7 @@
     "name": "out",
     "type": 5,
     "parent": 40,
-    "x": 13.75,
+    "x": 15.0,
     "y": 92.5
    },
    {
@@ -1122,7 +1123,7 @@
     "x": 3.75,
     "y": 92.5,
     "legacy": {
-     "zoom": "19.000000",
+     "zoom": "21.000000",
      "extraInt1": "20",
      "extraInt2": "20"
     }
@@ -1136,7 +1137,7 @@
     "x": 8.75,
     "y": 92.5,
     "legacy": {
-     "zoom": "14.000000",
+     "zoom": "17.000000",
      "extraInt1": "30",
      "extraInt2": "30"
     }
@@ -1150,7 +1151,7 @@
     "x": 13.75,
     "y": 92.5,
     "legacy": {
-     "zoom": "15.000000",
+     "zoom": "17.000000",
      "extraInt1": "40",
      "extraInt2": "40"
     }

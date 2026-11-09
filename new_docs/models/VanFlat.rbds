@@ -2,12 +2,16 @@
  "format": "raptor-studio",
  "version": 4,
  "meta": {
-  "generator": "RAPTOR Studio 0.9.0"
+  "generator": "RAPTOR Studio 0.9.0",
+  "file_name": "VanFlat.rbds"
  },
  "system": {
   "red_cost": 0.0,
   "lost_cost": 0.0,
-  "flow_generated": 1
+  "flow_generated": 1,
+  "legacy": {
+   "zoomVal": "19.000000"
+  }
  },
  "experiment": {
   "trials": 20,
@@ -166,7 +170,7 @@
     "name": "Fuel_Pump",
     "parent": 0,
     "x": 3.75,
-    "y": 91.25,
+    "y": 92.5,
     "fail_params": [
      500.0,
      0.0,
@@ -184,7 +188,7 @@
     "name": "Engine_Core",
     "parent": 0,
     "x": 6.25,
-    "y": 91.25,
+    "y": 92.5,
     "fail_dist": 15,
     "fail_params": [
      2.0,
@@ -202,8 +206,8 @@
     "id": 5,
     "name": "Tire_FL",
     "parent": 0,
-    "x": 3.75,
-    "y": 86.25,
+    "x": 11.25,
+    "y": 88.75,
     "fail_params": [
      800.0,
      0.0,
@@ -221,8 +225,8 @@
     "id": 6,
     "name": "Tire_FR",
     "parent": 0,
-    "x": 6.25,
-    "y": 86.25,
+    "x": 11.25,
+    "y": 91.25,
     "fail_params": [
      800.0,
      0.0,
@@ -240,8 +244,8 @@
     "id": 7,
     "name": "Tire_RL",
     "parent": 0,
-    "x": 8.75,
-    "y": 86.25,
+    "x": 11.25,
+    "y": 93.75,
     "fail_params": [
      800.0,
      0.0,
@@ -260,7 +264,7 @@
     "name": "Tire_RR",
     "parent": 0,
     "x": 11.25,
-    "y": 86.25,
+    "y": 96.25,
     "fail_params": [
      800.0,
      0.0,
@@ -282,7 +286,7 @@
     "type": 1,
     "parent": 0,
     "x": 1.25,
-    "y": 91.25
+    "y": 92.5
    },
    {
     "id": 2,
@@ -290,7 +294,7 @@
     "type": 3,
     "parent": 0,
     "x": 16.25,
-    "y": 91.25
+    "y": 92.5
    },
    {
     "id": 30,
@@ -298,7 +302,7 @@
     "type": 2,
     "parent": 0,
     "x": 8.75,
-    "y": 91.25
+    "y": 92.5
    },
    {
     "id": 13,
@@ -306,7 +310,7 @@
     "type": 2,
     "parent": 0,
     "x": 13.75,
-    "y": 91.25,
+    "y": 92.5,
     "k": 3
    }
   ],

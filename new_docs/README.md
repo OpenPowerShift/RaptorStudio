@@ -79,6 +79,7 @@ From `new_docs/tools`:
 
     ../../.venv/bin/python gen_models.py       # writes models/*.rbds
     ../../.venv/bin/python gen_advanced_models.py  # the three larger examples
+    ../../.venv/bin/python ../../tools/relayout_examples.py  # re-apply auto-layout only
     ../../.venv/bin/python check_models.py     # runs them headless
     ../../.venv/bin/python capture_screens.py  # rewrites images/*.png
     ../../.venv/bin/python gen_diagrams.py     # rewrites curve SVGs
@@ -128,3 +129,10 @@ Notes:
 * The `.rbds` files are written by `tools/gen_models.py`; export one as
   `.rbd` (File ▸ Save As) for the classic Raptor 7 text format
   (latin-1, CRLF).
+* Water1 and Water2 ship at 200 trials, matching the 200-run figures in
+  the table above. Reliability is per-run 0/1, so a 20-trial quick run
+  can only move in 0.05 steps (0.85, 0.90, 0.95, …); use the shipped
+  count when comparing with the book.
+* Every example is laid out by the size-aware engine
+  (`tools/relayout_examples.py` re-applies it without rebuilding the
+  models); that pass moves coordinates and view zooms only.

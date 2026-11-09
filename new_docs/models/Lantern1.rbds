@@ -2,12 +2,16 @@
  "format": "raptor-studio",
  "version": 4,
  "meta": {
-  "generator": "RAPTOR Studio 0.9.0"
+  "generator": "RAPTOR Studio 0.9.0",
+  "file_name": "Lantern1.rbds"
  },
  "system": {
   "red_cost": 0.0,
   "lost_cost": 0.0,
-  "flow_generated": 1
+  "flow_generated": 1,
+  "legacy": {
+   "zoomVal": "14.000000"
+  }
  },
  "experiment": {
   "trials": 10,
@@ -78,7 +82,7 @@
     "name": "Battery_Pack",
     "parent": 0,
     "x": 3.75,
-    "y": 91.25,
+    "y": 92.5,
     "fail_dist": 15,
     "fail_params": [
      1.5,
@@ -98,7 +102,7 @@
     "name": "Switch",
     "parent": 0,
     "x": 6.25,
-    "y": 91.25,
+    "y": 92.5,
     "fail_params": [
      200.0,
      0.0,
@@ -117,7 +121,7 @@
     "name": "LED_Panel",
     "parent": 0,
     "x": 8.75,
-    "y": 91.25,
+    "y": 92.5,
     "fail_dist": 8,
     "fail_params": [
      100.0,
@@ -140,15 +144,15 @@
     "type": 1,
     "parent": 0,
     "x": 1.25,
-    "y": 91.25
+    "y": 92.5
    },
    {
     "id": 15,
     "name": "end",
     "type": 3,
     "parent": 0,
-    "x": 12.5,
-    "y": 91.25
+    "x": 11.25,
+    "y": 92.5
    }
   ],
   "events": [],

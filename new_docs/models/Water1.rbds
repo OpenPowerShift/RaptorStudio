@@ -2,15 +2,19 @@
  "format": "raptor-studio",
  "version": 4,
  "meta": {
-  "generator": "RAPTOR Studio 0.9.0"
+  "generator": "RAPTOR Studio 0.9.0",
+  "file_name": "Water1.rbds"
  },
  "system": {
   "red_cost": 0.0,
   "lost_cost": 0.0,
-  "flow_generated": 180
+  "flow_generated": 180,
+  "legacy": {
+   "zoomVal": "17.000000"
+  }
  },
  "experiment": {
-  "trials": 20,
+  "trials": 200,
   "termination_type": "TimeSim",
   "term_condition": 8760.0,
   "start_stats": 0.0,
@@ -131,8 +135,8 @@
     "id": 1,
     "name": "Pump_A",
     "parent": 0,
-    "x": 10.0,
-    "y": 87.5,
+    "x": 5.0,
+    "y": 90.0,
     "fail_params": [
      500.0,
      0.0,
@@ -150,8 +154,8 @@
     "id": 2,
     "name": "Pump_B",
     "parent": 0,
-    "x": 10.0,
-    "y": 91.25,
+    "x": 5.0,
+    "y": 92.5,
     "fail_params": [
      500.0,
      0.0,
@@ -169,7 +173,7 @@
     "id": 3,
     "name": "Pump_C",
     "parent": 0,
-    "x": 10.0,
+    "x": 5.0,
     "y": 95.0,
     "fail_params": [
      500.0,
@@ -191,16 +195,16 @@
     "name": "start",
     "type": 1,
     "parent": 0,
-    "x": 6.25,
-    "y": 91.25
+    "x": 1.25,
+    "y": 92.5
    },
    {
     "id": 11,
     "name": "Manifold",
     "type": 2,
     "parent": 0,
-    "x": 14.75,
-    "y": 91.25,
+    "x": 7.5,
+    "y": 92.5,
     "k": 1,
     "full_flow": 0,
     "div_flow": 0
@@ -210,16 +214,16 @@
     "name": "end",
     "type": 3,
     "parent": 0,
-    "x": 18.25,
-    "y": 91.25
+    "x": 10.0,
+    "y": 92.5
    },
    {
     "id": 14,
     "name": "Split",
     "type": 2,
     "parent": 0,
-    "x": 7.5,
-    "y": 91.25
+    "x": 2.5,
+    "y": 92.5
    }
   ],
   "events": [],

@@ -7,12 +7,13 @@ book's own "about" rounding in prose, not sampling variance. A number
 that drifts outside tolerance means either the engine changed behaviour
 or the model file changed without updating the prose that quotes it.
 
-The registry covers every model with one unambiguous headline metric at
-the file's own default run count. Not covered, because each needs a
+The registry covers every model with a headline metric at the file's own
+default run count; a model may appear more than once when the book quotes
+more than one headline number. Not covered, because each needs a
 non-default run or config to reproduce the chapter's comparison:
 CarWash1 (Availability and Dependability read together), Laundromat1
-(naive vs 2200h-delayed-stats comparison), Water1/Water2 (units-produced /
-Grand_Total cost extraction).
+(naive vs 2200h-delayed-stats comparison), Water2 (Grand_Total cost
+extraction).
 
 Usage (from repo root): .venv/bin/python new_docs/tools/check_numbers.py
 """
@@ -80,6 +81,11 @@ REGISTRY = [
     ("CarCare1.rbds", "Availability", 0.992, 0.01, 10, "README: availability @2000h (200 runs)"),
     ("Van1.rbds", "Availability", 0.987, 0.01, 10, "README: availability @2000h (200 runs)"),
     ("VanFlat.rbds", "Availability", 0.987, 0.01, 10, "README: availability @2000h (200 runs)"),
+    # Reliability is per-run 0/1: at 200 trials the mean moves in 0.005
+    # steps, and the 0.03 tolerance covers the prose's "about 0.94".
+    # Ships at 200 runs (the previous 20-run default read ~0.90).
+    ("Water1.rbds", "Reliability", 0.94, 0.03, None, "ch11/README: reliability @8760h (ships at 200 runs)"),
+    ("Water1.rbds", "Availability", 0.9999, 0.0005, None, "ch11/README: availability @8760h (ships at 200 runs)"),
     ("DC1.rbds", "Availability", 0.99948, 0.002, 10, "README: 99.948% down/yr (200 runs)"),
     ("DC2.rbds", "Availability", 0.99984, 0.002, 10, "README: 99.984% down/yr (200 runs)"),
     ("ProdLine0.rbds", "Availability", 0.935, 0.02, 10, "README: ~93.5% (ships at 200 runs)"),
