@@ -2718,7 +2718,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # loaded model and select on the canvas (which also populates the
         # Inspector via the normal selection path).
         self._results.element_clicked.connect(self._on_result_element_clicked)
-        self._results.export_tables_requested.connect(self._export_tables)
         self._results.contents_changed.connect(self._sync_results_notice)
         self._results.set_status_hint_fn(
             lambda msg: self._statusbar.showMessage(msg, 6000))

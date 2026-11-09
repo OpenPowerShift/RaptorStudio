@@ -33,10 +33,9 @@ from PySide6.QtWidgets import QAbstractItemView
 
 from raptor.gui.ui import msgbox
 
-from datetime import datetime
 from typing import Any, cast
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QStandardItemModel
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QLabel,
@@ -83,16 +82,6 @@ def _cell_parts(val):
             return val[0], val[1], bool(val[2])
         return val[0], val[1], False
     return val, None, False
-
-
-def _copy_text(val) -> str:
-    """Clipboard text for a cell: the RAW value at full precision when
-    one was stashed (str() of a Python float is the shortest string that
-    round-trips, i.e. full double precision), else the display text."""
-    _, raw, _censored = _cell_parts(val)
-    if raw is None:
-        return _cell_parts(val)[0]
-    return str(raw)
 
 
 #: Plain-English meanings (Raptor 7 manual, Appendix F "Raptor
@@ -296,6 +285,21 @@ class _FitTable(QTableWidget):
     """A results table as wide as its columns (plus its scrollbar when it
     has one), so it hugs its content and never clips the last column."""
 
+    def sortItems(self, column: int,
+                  order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:  # noqa: N802
+        """Keep the header arrow in step with a programmatic sort.
+
+        `_SortItem` reads the header order to keep N/A/— last. Qt's own
+        click path updates the indicator before sorting, but a direct
+        `sortItems` call would otherwise sort using the previous
+        direction; setting it here keeps both paths identical.
+        """
+        header = self.horizontalHeader()
+        if (header.sortIndicatorSection() != column
+                or header.sortIndicatorOrder() != order):
+            header.setSortIndicator(column, order)
+        super().sortItems(column, order)
+
     def sizeHint(self):  # noqa: N802 (Qt override)
         hint = super().sizeHint()
         width = self.horizontalHeader().length() + 2 * self.frameWidth()
@@ -304,6 +308,67 @@ class _FitTable(QTableWidget):
             width += self.verticalScrollBar().sizeHint().width()
         hint.setWidth(width + 2)
         return hint
+
+
+def _sort_key(item: QTableWidgetItem) -> tuple[str, object]:
+    """The value a results cell sorts by: its raw number, not its text.
+
+    Numeric cells keep full precision in `RAW_VALUE_ROLE` while the grid
+    shows a rounded string, so text sorting put 9.5 after 10. Column 0
+    keeps the un-elided element name in `Qt.UserRole`; two long names can
+    share the same visible prefix. N/A and — are marked "bad" so they can
+    be kept last in both sort directions.
+    """
+    raw = item.data(RAW_VALUE_ROLE)
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        return "num", float(raw)
+    text = item.text()
+    if item.column() == 0:
+        full = item.data(Qt.ItemDataRole.UserRole)
+        return "str", str(full or text).casefold()
+    stripped = text.strip()
+    if stripped.casefold() in {"", "n/a", "na", "—", "–", "-"}:
+        return "bad", ""
+    numeric = stripped.replace(",", "")
+    if numeric.startswith(">"):
+        numeric = numeric[1:].strip()
+    if numeric.endswith("%"):
+        numeric = numeric[:-1].strip()
+    try:
+        return "num", float(numeric)
+    except ValueError:
+        return "str", text.casefold()
+
+
+class _SortItem(QTableWidgetItem):
+    """A results cell whose ordering follows the value behind the display.
+
+    Qt sorts through `operator<`; `N/A`/`—` must stay last whichever
+    direction the header arrow points, so the comparison consults the
+    header's current order for those two sentinels only.
+    """
+
+    def __lt__(self, other):  # noqa: D105 (Qt protocol method)
+        if not isinstance(other, QTableWidgetItem):
+            return super().__lt__(other)
+        a_kind, a_val = _sort_key(self)
+        b_kind, b_val = _sort_key(other)
+        a_bad, b_bad = a_kind == "bad", b_kind == "bad"
+        if a_bad or b_bad:
+            if a_bad and b_bad:
+                return False
+            table = self.tableWidget()
+            desc = (table is not None and
+                    table.horizontalHeader().sortIndicatorOrder()
+                    == Qt.SortOrder.DescendingOrder)
+            # Empirically Qt reverses the ascending comparator for
+            # descending order (and calls it with the operands swapped),
+            # so the sentinel must be "less" only for a descending sort
+            # to land at the bottom in both directions.
+            return desc if a_bad else not desc
+        if a_kind != b_kind:
+            return a_kind == "num"
+        return a_val < b_val
 
 
 class _MetricCard(QFrame):
@@ -377,8 +442,6 @@ class ResultsDock(QWidget):
     #: have changed). The window uses it to tell the Inspector whether an
     #: edit will cost the user their results.
     contents_changed = Signal()
-    #: The "Export Tables..." button: open the window's Export Tables dialog.
-    export_tables_requested = Signal()
     #: User switched Raptor 7 Analysis Type in the Weak Link tab.
     weak_analysis_type_changed = Signal(str)
     #: The metric the Importance tab is measured on changed. The canvas
@@ -398,6 +461,10 @@ class ResultsDock(QWidget):
         self._units: str = ""
         self._allowed_names: set[str] | None = None
         self._ao_lines: list[str] = []
+        #: (column, order) the user chose per logical results table,
+        #: keyed independently of the transient widget so a rebuild keeps
+        #: the indicator exactly where the user left it.
+        self._sort_states: dict[str, tuple[int, Qt.SortOrder]] = {}
         # Whether THIS batch's live capacity view already took over the
         # tab switch (reset at every set_results; see update_live_capacity).
         self._live_cap_autoswitch = False
@@ -654,27 +721,14 @@ class ResultsDock(QWidget):
         bar = QHBoxLayout()
         bar.setSpacing(SPACING["sm"])
         bar.setContentsMargins(SPACING["md"], SPACING["xs"], SPACING["md"], 0)
-        from PySide6.QtWidgets import QPushButton
-        copy_btn = QPushButton("Copy Table")
-        copy_btn.setToolTip("Copy the current section's table as TSV "
-                            "(pastes straight into Excel/Sheets)")
-        copy_btn.clicked.connect(self._copy_current_table)
-        export_btn = QPushButton("Export CSV…")
-        export_btn.setToolTip(
-            "Save every section (with file/run metadata) as a .csv for "
-            "spreadsheet analysis")
-        export_btn.clicked.connect(self._export_csv)
-        tables_btn = QPushButton("Export Tables…")
-        tables_btn.setToolTip(
-            "Write every result table (and the model's inputs) as CSV, "
-            "text or one spreadsheet with a tab per table")
-        tables_btn.clicked.connect(self.export_tables_requested)
-        # Stretch first so the buttons sit in the top-right corner rather
-        # than trailing the row like stray labels.
-        # Hierarchy selector: filters all result tables by a hierarchy
-        # subtree, mirroring Raptor 7's per-dialog hierarchy selectors.
-        # Drives the same level-filter path as canvas navigation via a
-        # signal MainWindow subscribes to.
+        # Copy / CSV live on each table card now (#205). The old global
+        # three-button row spent a full row of height, and its Copy/Export
+        # CSV always acted on whichever sub-tab happened to be visible.
+        # Export all tables stays on File > Export. Hierarchy selector:
+        # filters all result tables by a hierarchy subtree, mirroring
+        # Raptor 7's per-dialog hierarchy selectors. Drives the same
+        # level-filter path as canvas navigation via a signal MainWindow
+        # subscribes to.
         self._hier_filter_label = QLabel("Hierarchy:")
         bar.addWidget(self._hier_filter_label)
         from PySide6.QtWidgets import QComboBox
@@ -687,11 +741,7 @@ class ResultsDock(QWidget):
         self._hier_filter_combo.currentIndexChanged.connect(
             self._on_hier_filter_changed)
         bar.addWidget(self._hier_filter_combo)
-        bar.addSpacing(10)
         bar.addStretch(1)
-        bar.addWidget(copy_btn)
-        bar.addWidget(export_btn)
-        bar.addWidget(tables_btn)
         holder = QWidget()
         hv = QVBoxLayout(holder)
         hv.setContentsMargins(0, 0, 0, 0)
@@ -832,108 +882,6 @@ class ResultsDock(QWidget):
 
 
 
-    def _copy_current_table(self) -> None:
-        # Tab titles are Title-case ("Summary") but the table registry is
-        # keyed by the raw section name ("SUMMARY"), so the lookup
-        # upper-cases the title first.
-        key = self._details_tabs.tabText(
-            self._details_tabs.currentIndex()).upper()
-        table = self.section_table(key)
-        if table is None:
-            # Structured tabs (Capacity/Cost/Weak Link) keep their tables
-            # OUTSIDE the section registry -- find the visible one in the
-            # current sub-tab instead.
-            page = self._details_tabs.currentWidget()
-            if page is not None:
-                candidates = [t for t in page.findChildren(QTableWidget)
-                              if t.rowCount() > 0]
-                if candidates:
-                    # Prefer the table the user is actually in (a cell
-                    # widget's focus chain reaches its table), then one
-                    # with a selected row; only then fall back to the
-                    # first table on the page. Copying the first Cost
-                    # table while looking at another was misleading.
-                    focused = None
-                    w: Any = QApplication.focusWidget()
-                    while w is not None:
-                        if isinstance(w, QTableWidget):
-                            focused = w
-                            break
-                        w = w.parent()
-                    selected = [t for t in candidates
-                                if t.currentRow() >= 0 or t.selectedItems()]
-                    table = (focused if focused in candidates else
-                             selected[0] if selected else candidates[0])
-        if table is None or table.rowCount() == 0:
-            return
-        # DELEGATED (review E-11). This was the ONLY one of six extraction
-        # sites that honoured RAW_VALUE_ROLE, so *Copy Table* gave the exact
-        # double while *Export CSV*, *Print/PDF* and the AsciiDoc report gave
-        # the rounded grid text -- for the same table. `table_to_grid` now
-        # does the extraction once, with `raw=True` for every caller.
-        from raptor.gui.ui.table_export import (
-            grid_to_html, grid_to_tsv, table_to_grid)
-        headers, rows = table_to_grid(table, raw=True)
-        tsv = grid_to_tsv(headers, rows)
-        # Excel pastes best from an HTML <table> (preserves cells); plain
-        # TSV rides along for everything else. Use the one serialiser, so
-        # a cell containing &, < or > cannot produce malformed markup.
-        from PySide6.QtCore import QMimeData
-        mime = QMimeData()
-        mime.setText(tsv)
-        mime.setHtml(grid_to_html(headers, rows))
-        QApplication.clipboard().setMimeData(mime)
-
-    def _export_csv(self) -> None:
-        import csv
-
-        path, _ = fdg.getSaveFileName(
-            self, "Export Results CSV", "results.csv", "CSV (*.csv)")
-        if not path:
-            return
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            # Provenance block: everything needed to identify this data later.
-            writer.writerow(["Model file", self._source_file_name or "?"])
-            writer.writerow(["Exported", datetime.now().isoformat(timespec="seconds")])
-            writer.writerow(["Runs", len(self._report_data)])
-            if self._report_data:
-                st = self._report_data[0].ending_sim_time
-                writer.writerow([f"Sim time per run{', ' + self._units if self._units else ''}", st])
-            writer.writerow([])
-            # DELEGATED (review E-11): this read `item(r, c).text()`
-            # unconditionally, so Export CSV and Copy Table disagreed about
-            # precision for the same table -- one wrote the exact double,
-            # the other the rounded display text.
-            from raptor.gui.ui.table_export import table_to_grid
-            exported: set[int] = set()
-
-            def write_table(label: str, table: QTableWidget) -> None:
-                headers, rows = table_to_grid(table, raw=True)
-                writer.writerow([f"# {label}"])
-                writer.writerow(headers)
-                writer.writerows(rows)
-                writer.writerow([])
-
-            for title in list(self._detail_tables):
-                table = self._detail_tables[title]
-                write_table(title.title(), table)
-                exported.add(id(table))
-            # The dedicated Capacity/Cost/Weak Link pages keep their
-            # tables outside `_detail_tables`, so the old export silently
-            # dropped the very analyses the user was looking at.
-            for i in range(self._details_tabs.count()):
-                page = self._details_tabs.widget(i)
-                if page is None:
-                    continue
-                page_title = self._details_tabs.tabText(i)
-                tables = [t for t in page.findChildren(QTableWidget)
-                          if id(t) not in exported and t.rowCount() > 0]
-                for j, table in enumerate(tables, start=1):
-                    label = (page_title if len(tables) == 1
-                             else f"{page_title} ({j})")
-                    write_table(label, table)
-
     @staticmethod
     def _stat_col_tip(name: str) -> str:
         return STAT_COLUMN_TOOLTIPS.get(
@@ -970,6 +918,46 @@ class ResultsDock(QWidget):
     #: Rows a results table shows before it needs its own scrollbar.
     _TABLE_ROWS_SHOWN = 40
 
+    def _apply_sort(self, table: QTableWidget, key: str,
+                    default: tuple[int, Qt.SortOrder] | None = None) -> None:
+        """Turn on header-click sorting and apply this table's remembered
+        (or default) order.
+
+        `key` is the table's stable identity across `set_results`
+        rebuilds. `default=None` deliberately leaves report order intact
+        until the user clicks a header (Summary and Logistics). Filtering
+        never calls this: `FilterBar` only hides rows.
+        """
+        header = table.horizontalHeader()
+        table.setSortingEnabled(False)
+        state = self._sort_states.get(key, default)
+        if state is None or not (0 <= state[0] < table.columnCount()):
+            header.setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
+        else:
+            column, order = state
+            # Set the indicator; enabling sorting performs the one sort
+            # (an explicit sortItems here would sort the table twice).
+            header.setSortIndicator(column, order)
+        table.setSortingEnabled(True)
+        # A sort moves items but leaves row-hidden flags on the old
+        # indexes. Recompute the hierarchy scope when the model settles;
+        # FilterBar composes with the same rule for its own passes.
+        if not getattr(table, "_hierarchy_sort_hooked", False):
+            table._hierarchy_sort_hooked = True
+            table.model().layoutChanged.connect(
+                lambda *_a: self._apply_level_filter())
+        if getattr(table, "_sort_state_key", None) != key:
+            table._sort_state_key = key
+
+            def remember(column: int, order: Qt.SortOrder, *,
+                         _key: str = key) -> None:
+                if column < 0:
+                    self._sort_states.pop(_key, None)
+                else:
+                    self._sort_states[_key] = (column, order)
+
+            header.sortIndicatorChanged.connect(remember)
+
     def _make_table(self, headers: list[str], rows: list[list[Any]],
                     first_col_label: str = "Measure") -> QTableWidget:
         table = _FitTable(len(rows), len(headers))
@@ -983,7 +971,7 @@ class ResultsDock(QWidget):
         for r, row_vals in enumerate(rows):
             for c, val in enumerate(row_vals):
                 display, raw, censored = _cell_parts(val)
-                item = QTableWidgetItem(display)
+                item = _SortItem(display)
                 if raw is not None:
                     item.setData(RAW_VALUE_ROLE, raw)
                 if censored:
@@ -1079,8 +1067,17 @@ class ResultsDock(QWidget):
                                   "this large.")
                     item.setToolTip(_GT_NOTE + "\n\n" + reason)
         # A long table (one row per block in a big model) can be filtered
-        # by column; a short one is read at a glance and gets no bar.
-        attach_if_large(table, raw_role=RAW_VALUE_ROLE)
+        # by column; a short one is read at a glance and gets no bar. The
+        # bar also composes with the hierarchy scope, so its own passes
+        # never reveal rows outside the current level. A weak reference
+        # keeps the closure from re-creating the table -> bar -> table
+        # cycle the filter bar deliberately avoids.
+        from weakref import ref as _weakref
+        table_ref = _weakref(table)
+        attach_if_large(
+            table, raw_role=RAW_VALUE_ROLE,
+            base_visible=lambda r, tr=table_ref:
+            (tr() is not None and self._hierarchy_row_visible(tr(), r)))
         return table
 
     #: Last details sub-tab the user viewed, by name -- survives
@@ -1174,10 +1171,11 @@ class ResultsDock(QWidget):
                     self._add_runs_line(v)
             v = pages[group]
             name = table_title(title)
-            if name != group:
-                label = QLabel(name)
-                label.setObjectName("SectionTitle")
-                v.addWidget(label)
+            # One header per table card: its own Copy/CSV icons. The
+            # title is omitted where the tab already names the table
+            # (Summary/Logistics), so there is no duplicate heading.
+            self._add_table_header(v, name, table,
+                                   show_title=name != group)
             v.addWidget(table)
             if title == "SUMMARY":
                 self._add_summary_notes(v)
@@ -1220,7 +1218,9 @@ class ResultsDock(QWidget):
         # re-evaluate now that the tables are built.
         self._update_hier_filter_visibility()
     def _section_widget(self, title: str, columns: list[str],
-                        rows) -> QTableWidget:
+                        rows, *, sort_key: str | None = None,
+                        default_sort: tuple[int, Qt.SortOrder] | None = None,
+                        keep_report_order: bool | None = None) -> QTableWidget:
         """One Final Results table: readable headers, measures as words
         with their unit, values formatted by kind (full value kept for
         Copy Table), element names as the model has them (elided, the
@@ -1274,6 +1274,16 @@ class ResultsDock(QWidget):
                 if it is not None and full != it.text():
                     it.setData(Qt.ItemDataRole.UserRole, full)
                     it.setToolTip(full)
+        # Element-level sections read best alphabetically. Summary and
+        # Logistics are ordered by the report itself (measures have a
+        # meaningful sequence) and only sort once the user asks.
+        report_order = (keep_report_order if keep_report_order is not None
+                        else title.split(" - ", 1)[0]
+                        in ("SUMMARY", "LOGISTICS"))
+        self._apply_sort(
+            table, sort_key or f"SECTION::{title}",
+            None if report_order else
+            (default_sort or (0, Qt.SortOrder.AscendingOrder)))
         return table
 
     def _add_runs_line(self, v: QVBoxLayout) -> None:
@@ -1463,7 +1473,12 @@ class ResultsDock(QWidget):
             "Usage = AveFlow/AveCap · Capability = AveCap/MaxCap.\n"
             "Full-flow boundary nodes show N/A usage/capability.")
         self._cap_table = table
+        self._add_table_header(v, "Capacity by node", table)
         v.addWidget(table)
+        # Capacity is planned by throughput: the busiest node is the one
+        # that matters, so start on average flow descending (#208).
+        self._apply_sort(table, "CAPACITY",
+                         (3, Qt.SortOrder.DescendingOrder))
         v.addStretch(1)
         return page
 
@@ -1560,6 +1575,48 @@ class ResultsDock(QWidget):
             # Full name (elision keeps it in UserRole data)
             name = item.data(Qt.ItemDataRole.UserRole) or item.text()
             self.element_clicked.emit(kind, name)
+
+    def _goto_menu_at(self, table: QTableWidget, kind: str, pos):
+        """The Weak Link row menu at `pos`, or None on empty space.
+
+        Kept separate from `QMenu.exec` so tests can inspect the action
+        without spinning an event loop; the signal handler below is the
+        only caller that shows it.
+        """
+        from PySide6.QtWidgets import QMenu
+        index = table.indexAt(pos)
+        if not index.isValid() or index.row() < 0:
+            return None
+        row = index.row()
+        # A context action must act on the row the user right-clicked,
+        # not on whatever was current before.
+        table.setCurrentCell(row, max(index.column(), 0))
+        table.selectRow(row)
+        menu = QMenu(table)
+        action = menu.addAction("Go to selected element")
+        action.triggered.connect(
+            lambda _checked=False, t=table, k=kind:
+            self._goto_selected_row(t, k))
+        return menu
+
+    def _show_goto_menu(self, table: QTableWidget, kind: str, pos) -> None:
+        menu = self._goto_menu_at(table, kind, pos)
+        if menu is not None:
+            try:
+                menu.exec(table.viewport().mapToGlobal(pos))
+            finally:
+                menu.deleteLater()
+
+    def attach_goto_menu(self, table: QTableWidget, kind: str) -> None:
+        """Give a Weak Link table a right-click "Go to selected element"
+        action, sharing the double-click/button signal path (#211)."""
+        # One working policy: QAbstractScrollArea delivers the real mouse
+        # context event to its viewport, so the table-level policy alone
+        # was silent (and connecting both could open two menus).
+        table.viewport().setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
+        table.viewport().customContextMenuRequested.connect(
+            lambda pos, t=table, k=kind: self._show_goto_menu(t, k, pos))
 
     def _build_weak_page(self) -> QWidget:
         """Weak Link Analysis: a colour chip per element,
@@ -1662,11 +1719,11 @@ class ResultsDock(QWidget):
                     continue
                 mean_v, mn, mx, sd, sem = self._stats(vals)
                 table.insertRow(r)
-                n_it = QTableWidgetItem(name)
+                n_it = _SortItem(name)
                 table.setItem(r, 0, n_it)
                 ck, band = self._band(mean_v, self._weak_gy,
                                       self._weak_yr)
-                chip = QTableWidgetItem(band)
+                chip = _SortItem(band)
                 chip.setBackground(QColor(c[ck]))
                 chip.setToolTip(
                     f"{band} band — Green ≥ {self._weak_gy:.2f}, "
@@ -1674,7 +1731,7 @@ class ResultsDock(QWidget):
                     f"(colour-band thresholds)")
                 chip.setFlags(chip.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 table.setItem(r, 1, chip)
-                v_it = QTableWidgetItem(f"{mean_v:.9f}")
+                v_it = _SortItem(f"{mean_v:.9f}")
                 # Raw value rides along for full-precision Copy Table:
                 # the grid shows 9 decimals, the clipboard gets the exact
                 # double.
@@ -1683,7 +1740,7 @@ class ResultsDock(QWidget):
                     name, mean_v, mean_v))
                 table.setItem(r, 2, v_it)
                 for col, val in zip((3, 4, 5, 6), (mn, mx, sd, sem)):
-                    it_s = QTableWidgetItem(
+                    it_s = _SortItem(
                         "" if val is None else f"{val:.9f}")
                     if val is not None:
                         it_s.setData(RAW_VALUE_ROLE, val)
@@ -1723,12 +1780,15 @@ class ResultsDock(QWidget):
             runs, bup, bdown, missions=run_missions if rel else None)
         btable = QTableWidget(0, 3)
         fill_table(btable, block_rows)
+        self._apply_sort(btable, "WEAK::BLOCKS",
+                         (2, Qt.SortOrder.DescendingOrder))
         size_to_content(btable)
         # Both double-click and the button navigate, using the same
         # underlying signal the Event Log's row-click already uses
-        # (element_clicked).
+        # (element_clicked). Right-click is the contextual version (#211).
         btable.cellDoubleClicked.connect(
             lambda r, _c: self._goto_selected_row(btable, "block"))
+        self.attach_goto_menu(btable, "block")
         blabel = QLabel(
             "Blocks — "
             + ("reliability is the fraction of attempted missions the "
@@ -1738,6 +1798,8 @@ class ResultsDock(QWidget):
                "availability counts standby (blue) as uptime"))
         blabel.setObjectName("SectionNote")
         v.addWidget(blabel)
+        self._add_table_header(v, "Blocks", btable, tip=blabel.text(),
+                               show_title=False)
         v.addWidget(btable)
         v.addWidget(goto_row_button(btable, "block"))
 
@@ -1760,9 +1822,12 @@ class ResultsDock(QWidget):
                 missions=node_missions if rel else None)
             ntable = QTableWidget(0, 3)
             fill_table(ntable, node_rows)
+            self._apply_sort(ntable, "WEAK::NODES",
+                             (2, Qt.SortOrder.DescendingOrder))
             size_to_content(ntable)
             ntable.cellDoubleClicked.connect(
                 lambda r, _c: self._goto_selected_row(ntable, "node"))
+            self.attach_goto_menu(ntable, "node")
             nlabel = QLabel(
                 "Nodes — same bands; reliability is the fraction of "
                 "attempted missions the node was up through" if rel else
@@ -1770,6 +1835,8 @@ class ResultsDock(QWidget):
                 "excludes blue/brown/orange")
             nlabel.setObjectName("SectionNote")
             v.addWidget(nlabel)
+            self._add_table_header(v, "Nodes", ntable, tip=nlabel.text(),
+                                   show_title=False)
             v.addWidget(ntable)
             v.addWidget(goto_row_button(ntable, "node"))
 
@@ -1799,17 +1866,22 @@ class ResultsDock(QWidget):
             pct_table.setHorizontalHeaderLabels(
                 ["Name"] + [f"% {s.capitalize()}" for s in states])
             for r, name in enumerate(names):
-                pct_table.setItem(r, 0, QTableWidgetItem(name))
+                pct_table.setItem(r, 0, _SortItem(name))
                 for ci, s in enumerate(states, start=1):
                     vals = per_state[s].get(name, [0.0])
                     mean_v, *_rest = self._stats(vals)
-                    it = QTableWidgetItem(f"{mean_v * 100:.2f}")
+                    it = _SortItem(f"{mean_v * 100:.2f}")
                     it.setData(RAW_VALUE_ROLE, mean_v * 100)
                     it.setFlags(it.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     pct_table.setItem(r, ci, it)
+            self._apply_sort(pct_table, "WEAK::STATES",
+                             (0, Qt.SortOrder.AscendingOrder))
             size_to_content(pct_table)
             pct_table.cellDoubleClicked.connect(
                 lambda r, _c: self._goto_selected_row(pct_table, "node"))
+            self.attach_goto_menu(pct_table, "node")
+            self._add_table_header(v, "Node state breakdown", pct_table,
+                                   tip=pct_label.text(), show_title=False)
             v.addWidget(pct_table)
 
         v.addStretch(1)
@@ -1881,91 +1953,99 @@ class ResultsDock(QWidget):
         if weak_index >= 0 and was_current == weak_index:
             self._details_tabs.setCurrentIndex(index)
 
-    @staticmethod
-    def _table_export_data(table: QTableWidget) -> tuple[list[str], list[list[str]]]:
-        """Headers plus full-precision cell text for a built table.
-
-        Used by the Cost page's report-section tables, which are created
-        by `_section_widget` rather than the cost page's own builder.
-        """
-        headers = [(h.text() if (h := table.horizontalHeaderItem(c)) is not None
-                    else "")
-                   for c in range(table.columnCount())]
-        rows: list[list[str]] = []
-        for r in range(table.rowCount()):
-            row: list[str] = []
-            for c in range(table.columnCount()):
-                item = table.item(r, c)
-                if item is None:
-                    row.append("")
-                    continue
-                raw = item.data(RAW_VALUE_ROLE)
-                row.append(str(raw) if raw is not None else item.text())
-            rows.append(row)
-        return headers, rows
-
     def _add_table_header(self, v: QVBoxLayout, title: str,
                           table: QTableWidget,
-                          headers: list[str] | None = None,
-                          copy_rows: list[list[str]] | None = None,
-                          tip: str = "") -> QLabel:
-        """A table title with its Copy and CSV actions, above the table."""
+                          tip: str = "", *, show_title: bool = True) -> QLabel:
+        """A table's Copy and CSV icon actions, optionally with a title.
+
+        `show_title=False` is for cards whose tab or existing note already
+        names the table (Summary, Logistics, Weak Link rows): the icon
+        strip remains but there is no duplicate heading (#205 review).
+
+        The actions read `table` at click time through `table_to_grid`, so
+        they follow the rows the user can actually see (filter and sort)
+        and keep full precision. No global Copy/Export row exists any
+        more; Export all tables lives under File > Export.
+        """
         from PySide6.QtWidgets import QPushButton
-        if headers is None or copy_rows is None:
-            headers, copy_rows = self._table_export_data(table)
+        from raptor.gui.resources import icons
+        from raptor.gui.ui.table_export import table_to_grid
+
         hdr_row = QHBoxLayout()
+        hdr_row.setContentsMargins(0, 0, 0, 0)
+        hdr_row.setSpacing(4)
         label = QLabel(title)
         # Bigger than body notes: the title is the table's visual anchor.
         label.setObjectName("TableTitle")
-        hdr_row.addWidget(label)
-        # Keep the actions with their table title. A trailing stretch put
-        # them at the page's far edge, visually detached from short
-        # tables.
-        hdr_row.addSpacing(12)
-        cp = QPushButton("Copy")
-        cp.setToolTip(f"Copy the '{title}' table to the clipboard "
-                      "as TSV (pastes into Excel/Sheets)")
-        sv = QPushButton("CSV…")
-        sv.setToolTip(f"Save the '{title}' table as a CSV file")
-        cp.setFixedHeight(22)
-        sv.setFixedHeight(22)
-        hdr_row.addWidget(cp)
-        hdr_row.addWidget(sv)
-        # Keep the actions compact beside the title; without this stretch
-        # Qt expands both buttons across the remaining row.
+        if tip:
+            label.setToolTip(tip)
+        if show_title:
+            hdr_row.addWidget(label)
         hdr_row.addStretch(1)
+        colour = active_colour()["text"]
+        # Action names must not go stale when a hierarchy filter changes a
+        # "Blocks (N)" heading; the stable name is what a user hears and
+        # what the CSV filename uses.
+        table_name = re.sub(r"\s*\(\d+\)", "", title).strip() or "table"
+        tip_text = f"\n\n{tip}" if tip else ""
+
+        def icon_button(icon, object_name: str, accessible: str,
+                        tooltip: str):
+            button = QPushButton()
+            button.setObjectName(object_name)
+            button.setIcon(icon)
+            button.setIconSize(QSize(16, 16))
+            button.setFixedSize(22, 22)
+            button.setFlat(True)
+            button.setText("")
+            button.setAccessibleName(accessible)
+            button.setToolTip(tooltip + tip_text)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            hdr_row.addWidget(button)
+            return button
+
+        cp = icon_button(
+            icons.copy_icon(colour), "TableCopyButton",
+            f"Copy {table_name} table",
+            f"Copy the '{table_name}' table to the clipboard as TSV "
+            "(pastes into Excel/Sheets; filtered and sorted rows, full "
+            "precision)")
+        sv = icon_button(
+            icons.csv_icon(colour), "TableCsvButton",
+            f"Save {table_name} table as CSV",
+            f"Save the '{table_name}' table as a CSV file (filtered and "
+            "sorted rows, full precision)")
         v.addLayout(hdr_row)
 
         def _current_grid():
             # Read the table at click time, not a precomputed list: a
-            # hierarchy filter may have hidden rows since it was built.
-            return self._table_export_data(table)
+            # hierarchy filter, row filter or sort may have changed since
+            # it was built.
+            return table_to_grid(table, raw=True)
 
         def _copy_this():
-            live_headers, live_rows = _current_grid()
-            tsv = "\t".join(live_headers) + "\n" + "\n".join(
-                "\t".join(r) for r in live_rows)
             from PySide6.QtCore import QMimeData
-            from raptor.gui.ui.table_export import grid_to_html
+            from raptor.gui.ui.table_export import grid_to_html, grid_to_tsv
+            headers, rows = _current_grid()
             mime = QMimeData()
-            mime.setText(tsv)
-            mime.setHtml(grid_to_html(live_headers, live_rows))
+            mime.setText(grid_to_tsv(headers, rows))
+            mime.setHtml(grid_to_html(headers, rows))
             QApplication.clipboard().setMimeData(mime)
             self._status_hint_f and self._status_hint_f(
-                f"Copied '{title}'")
+                f"Copied '{table_name}'")
 
         def _save_this():
-            import csv
+            from raptor.gui.ui.table_export import grid_to_csv
+            safe = "".join(c if c.isalnum() or c in " _-"
+                           else "_" for c in table_name).strip()
+            safe = safe.replace(" ", "_") or "table"
             path, _f = fdg.getSaveFileName(
-                self, f"Export {title}", title.replace(" ", "_")
-                + ".csv", "CSV (*.csv)")
+                self, f"Export {table_name}", safe + ".csv", "CSV (*.csv)")
             if not path:
                 return
-            live_headers, live_rows = _current_grid()
+            headers, rows = _current_grid()
             with open(path, "w", newline="", encoding="utf-8") as f:
-                w2 = csv.writer(f)
-                w2.writerow(live_headers)
-                w2.writerows(live_rows)
+                f.write(grid_to_csv(headers, rows))
             self._status_hint_f and self._status_hint_f(f"Saved: {path}")
 
         cp.clicked.connect(_copy_this)
@@ -2023,7 +2103,8 @@ class ResultsDock(QWidget):
         self._cost_blocks_title = ""
 
         def add_table(title: str, headers: list[str], rows: list[list],
-                      tip: str = ""):
+                      tip: str = "", sort_key: str = "",
+                      default_sort: tuple[int, Qt.SortOrder] | None = None):
             # Cells may be (display, raw) tuples: the grid shows the
             # rounded display text, copy/CSV take the raw value at full
             # precision (same rule as the main Copy Table).
@@ -2035,17 +2116,17 @@ class ResultsDock(QWidget):
                     out_row.append((display, raw, censored)
                                    if raw is not None else display)
                 ui_rows.append(out_row)
-            copy_rows = [[_copy_text(c) for c in row] for row in rows]
             table = self._make_table(headers, ui_rows)
             if tip:
                 table.setToolTip(tip)
-            label = self._add_table_header(
-                v, title, table, headers, copy_rows)
+            label = self._add_table_header(v, title, table)
             if title.startswith("Blocks ("):
                 self._cost_blocks_label = label
                 self._cost_blocks_title = title
             v.addWidget(table)
             self._cost_tables.append(table)
+            self._apply_sort(table, sort_key or f"COST::{title}",
+                             default_sort)
 
         # Blocks: life-cycle costs (Raptor 7's Life_cycle_cost table).
         block_ids = sorted({bid for cst in costs for bid in cst.blocks})
@@ -2064,7 +2145,9 @@ class ResultsDock(QWidget):
                 (money(avg("total")), avg("total"))])
         add_table(f"Blocks ({len(block_rows)}) -- life-cycle costs",
                   self._COST_HEADERS, block_rows,
-                  "Purchase + Operating + Sparing + Disposal = Total")
+                  "Purchase + Operating + Sparing + Disposal = Total",
+                  sort_key="COST::BLOCKS",
+                  default_sort=(5, Qt.SortOrder.DescendingOrder))
 
         # Pools: spare pools keep their column names; RESOURCE pools
         # relabel NewSpares->PerTimeCost / EmerShip->PerUseCost
@@ -2094,7 +2177,8 @@ class ResultsDock(QWidget):
                 "Pools",
                 ["Name", "Initial", f"New Spares / Per-Time{time_unit}",
                  f"Emer. Shipping / Per-Use{time_unit}", "Total"],
-                pool_rows)
+                pool_rows, sort_key="COST::POOLS",
+                default_sort=(4, Qt.SortOrder.DescendingOrder))
 
         # Events (initial/success/failure charges).
         event_ids = sorted({eid for cst in costs for eid in cst.events})
@@ -2113,7 +2197,8 @@ class ResultsDock(QWidget):
                     (money(avg("success")), avg("success")),
                     (money(avg("failure")), avg("failure"))])
             add_table("Events", ["Name", "Initial", "Success", "Failure"],
-                      event_rows)
+                      event_rows, sort_key="COST::EVENTS",
+                      default_sort=(3, Qt.SortOrder.DescendingOrder))
 
         # Hierarchies: child-cost rollups.
         hier_ids = sorted({hid for cst in costs for hid in cst.hiers})
@@ -2138,7 +2223,8 @@ class ResultsDock(QWidget):
                 "Hierarchies",
                 ["Name", "Purchase", "Operating", "Sparing", "Disposal",
                  "Events", "Total"],
-                hier_rows)
+                hier_rows, sort_key="COST::HIERS",
+                default_sort=(6, Qt.SortOrder.DescendingOrder))
 
         # The report's per-state operating cost and per-block sparing cost
         # (not in the snapshots' life-cycle view above).
@@ -2163,8 +2249,40 @@ class ResultsDock(QWidget):
         self._apply_level_filter()
 
 
+    def _hierarchy_row_visible(self, table: QTableWidget, row: int,
+                               allowed: set[str] | None = None) -> bool:
+        """Whether `row` belongs to the current hierarchy scope.
+
+        Shared by `_apply_level_filter` and the table's FilterBar: sorting
+        moves the items but leaves row-hidden flags on the old indexes, so
+        both paths must recompute this rather than trusting the flags.
+        """
+        if allowed is None:
+            allowed = getattr(self, "_allowed_names", None)
+        if allowed is None:
+            return True
+        item = table.item(row, 0)
+        shown = item.text().split("(")[0].strip() if item is not None else ""
+        # Prefer the item's full name (kept as UserRole data when the
+        # shown label was elided); fall back to a prefix match so a name
+        # truncated somewhere in the report chain still matches its one
+        # allowed owner.
+        name = (item.data(Qt.ItemDataRole.UserRole)
+                if item is not None else None)
+        if not name:
+            name = shown
+        if not name:
+            return True
+        if name in allowed:
+            return True
+        matches = [a for a in allowed if a.startswith(shown)]
+        return len(matches) == 1
+
     def _apply_level_filter(self):
         from shiboken6 import isValid
+        if not hasattr(self, "_detail_tables") \
+                or not hasattr(self, "_details_tabs"):
+            return   # a table built directly by a test, outside a full dock
         allowed = getattr(self, "_allowed_names", None)
 
         def alive(w):
@@ -2204,24 +2322,8 @@ class ResultsDock(QWidget):
                              if alive(t)]
         for table in tables:
             for r in range(table.rowCount()):
-                item = table.item(r, 0)
-                shown = (item.text().split("(")[0].strip()
-                         if item else "")
-                # Prefer the item's full name (kept as UserRole data when
-                # the shown label was elided); fall back to a prefix match
-                # so a name truncated somewhere in the report chain still
-                # matches its one allowed owner.
-                name = item.data(Qt.ItemDataRole.UserRole) if item is not None else None
-                if not name:
-                    name = shown
-                if allowed is not None and name and name not in allowed:
-                    matches = [a for a in allowed
-                               if a.startswith(shown)]
-                    table.setRowHidden(r, len(matches) != 1)
-                else:
-                    table.setRowHidden(r, allowed is not None
-                                       and bool(name)
-                                       and name not in allowed)
+                table.setRowHidden(
+                    r, not self._hierarchy_row_visible(table, r, allowed))
         label = getattr(self, "_cost_blocks_label", None)
         title = getattr(self, "_cost_blocks_title", "")
         cost_tables = getattr(self, "_cost_tables", [])
@@ -2303,16 +2405,21 @@ class ResultsDock(QWidget):
         picker.addStretch(1)
         v.addLayout(picker)
 
-        # Rank once, by Birnbaum descending, undefined last -- the table and
-        # the tooltips must walk the SAME order or a hover explains the
-        # wrong block.
+        # Build rows in the report's ranking order, but let the table's
+        # own default (Birnbaum descending, #208) reorder them. Tooltips
+        # are attached before sorting, so they travel with their row.
         ordered = _ranked(rows)
+
+        def _metric_cell(value, places):
+            shown = _num(value, places)
+            return shown if value is None else (shown, value)
+
         table_rows = [[
             r["block"],
-            _num(r.get("birnbaum"), 4),
-            _num(r.get("raw"), 2),
-            _num(r.get("rrw"), 2),
-            _num(r.get("vesely_fussell"), 3),
+            _metric_cell(r.get("birnbaum"), 4),
+            _metric_cell(r.get("raw"), 2),
+            _metric_cell(r.get("rrw"), 2),
+            _metric_cell(r.get("vesely_fussell"), 3),
         ] for r in ordered]
         table = self._make_table(
             ["Block", "Birnbaum", "RAW", "RRW", "Vesely\u2013Fussell"],
@@ -2337,6 +2444,12 @@ class ResultsDock(QWidget):
                 f"with this block dead: {_num(r.get('failed'), 4)}\n"
                 f"Combined standard error of the difference: "
                 f"{_num(r.get('sem'), 4)}")
+        # The table's own default: Birnbaum descending. The prose above
+        # ranks by the tab's chosen measure; clicking Birnbaum shows the
+        # sensitivity ordering the column actually contains (#208).
+        self._apply_sort(table, "IMPORTANCE",
+                         (1, Qt.SortOrder.DescendingOrder))
+        self._add_table_header(v, "Blocks", table)
         v.addWidget(table)
 
         note = QLabel(
@@ -2467,13 +2580,10 @@ class ResultsDock(QWidget):
         top.addWidget(QLabel("Run:"))
         top.addWidget(self._graph_run)
         top.addStretch(1)
-        self._y_axis_btn = QPushButton("Y-axis min…")
-        self._y_axis_btn.setToolTip(
-            "Set the lowest value on the availability graphs' Y axis "
-            "(0 up to 0.999999); Multi-run Ao auto-fits its own range. "
-            "Saved with the model.")
+        self._y_axis_btn = QPushButton("Y-axis min: Auto")
         self._y_axis_btn.clicked.connect(self._ask_y_axis_min)
         top.addWidget(self._y_axis_btn)
+        self._update_y_axis_control()
         save_img_btn = QPushButton("Save Image…")
         save_img_btn.setToolTip(
             "Save the currently displayed plot as a PNG image. "
@@ -2503,24 +2613,64 @@ class ResultsDock(QWidget):
     def set_y_axis_min(self, value: float) -> None:
         """The model's saved `graphYmin`, as the graphs' lower bound (no signal, no dirty flag)."""
         self._ao_plot.set_y_min(value)
+        self._update_y_axis_control()
+
+    def _update_y_axis_control(self) -> None:
+        """Keep the Y-min button honest about the current mode and value.
+
+        The control is always visible. In capacity/convergence modes it
+        names the reason it does not apply; on availability plots it says
+        Auto (0, the model default) or the saved manual floor, so a
+        disabled-looking result is never mistaken for a broken button
+        (#199).
+        """
+        if not hasattr(self, "_y_axis_btn"):
+            return
+        from raptor.gui.ui.plots import AoPlotWidget
+        index = (self._graph_mode.currentIndex()
+                 if hasattr(self, "_graph_mode") else 0)
+        capacity = index in (AoPlotWidget.CAPACITY,
+                             AoPlotWidget.MULTI_CAPACITY)
+        convergence = index == AoPlotWidget.CONVERGENCE
+        y_min = self._ao_plot.y_min if hasattr(self, "_ao_plot") else 0.0
+        applies = not (capacity or convergence)
+        self._y_axis_btn.setEnabled(applies)
+        if capacity:
+            self._y_axis_btn.setText("Y-axis min: n/a")
+            self._y_axis_btn.setToolTip(
+                "Not used by capacity plots: their Y axis is derived from "
+                "the flow/capacity data.")
+        elif convergence:
+            self._y_axis_btn.setText("Y-axis min: n/a")
+            self._y_axis_btn.setToolTip(
+                "Not used by the convergence plot: its Y scale is fitted "
+                "to the cumulative means.")
+        else:
+            self._y_axis_btn.setText(
+                "Y-axis min: Auto" if y_min <= 0.0
+                else f"Y-axis min: {y_min:.4f}")
+            self._y_axis_btn.setToolTip(
+                "Y-axis minimum for availability plots (0 to 0.999999). "
+                "0 = Auto: Per-trial/Interval show 0–1, Multi-run Ao fits "
+                "the data envelope. A value above 0 is a manual floor and "
+                "is used by every availability mode, including Multi-run "
+                "Ao. Saved with the model as graphYmin.")
 
     def _ask_y_axis_min(self) -> None:
-        """Raptor 7's "Set Y-Axis" box: the minimum must be at least
-        0 and below 1; an out-of-range value is corrected and the box says why."""
+        """Raptor 7's "Set Y-Axis" box, constrained to 0 <= min < 1."""
         from PySide6.QtWidgets import QInputDialog
         value, ok = QInputDialog.getDouble(
-            self, "Set Y-Axis", "Y-axis minimum:", self._ao_plot.y_min, -1.0, 2.0, 6)
+            self, "Set Y-Axis", "Y-axis minimum (0 = Auto):",
+            self._ao_plot.y_min, 0.0, 0.999999, 6)
         if not ok:
             return
-        if value < 0.0:
-            msgbox.warning(self, "Set Y-Axis",
-                                "Y-axis minimum must be greater than or equal to 0.0.")
-            value = 0.0
-        elif value > 0.999999:
-            msgbox.warning(self, "Set Y-Axis", "Y-axis minimum must be less than 1.0.")
-            value = 0.999999
+        # The dialog enforces the range itself; this guard only protects
+        # callers/tests that bypass it. No accepted-then-warned value.
+        if not (0.0 <= value < 1.0):
+            return
         if value != self._ao_plot.y_min:
             self._ao_plot.set_y_min(value)
+            self._update_y_axis_control()
             self.y_axis_min_changed.emit(value)
 
     #: Plot-file parsing guard: beyond this many rows the interactive
@@ -2619,19 +2769,9 @@ class ResultsDock(QWidget):
                           AoPlotWidget.MULTI_CAPACITY,
                           AoPlotWidget.CONVERGENCE))
         # The Y-axis-minimum control applies to availability plots only;
-        # capacity paints a data-derived axis and ignored it.
-        cap_mode = index in (AoPlotWidget.CAPACITY,
-                             AoPlotWidget.MULTI_CAPACITY)
-        conv = index == AoPlotWidget.CONVERGENCE
-        self._y_axis_btn.setEnabled(not (cap_mode or conv))
-        self._y_axis_btn.setToolTip(
-            "Not used by capacity plots: their Y axis is derived from the "
-            "flow/capacity data." if cap_mode else
-            "Not used by the convergence plot: its Y scale is fitted to "
-            "the cumulative means." if conv else
-            "Set the lowest value on the availability graphs' Y axis "
-            "(0 up to 0.999999); Multi-run Ao auto-fits its own range. "
-            "Saved with the model.")
+        # capacity paints a data-derived axis and convergence fits its own
+        # scale. The button always says which state it is in (#199).
+        self._update_y_axis_control()
 
     def _on_graph_run(self, index: int):
         self._ao_plot.set_run(index)
@@ -2711,6 +2851,9 @@ class ResultsDock(QWidget):
             self._graph_mode.setCurrentIndex(first)
         self._graph_run.setEnabled(
             n_runs > 0 and self._graph_mode.currentIndex() not in (2, 4, 5))
+        # A result set can force a mode change; the Y-min button's state
+        # and reason must follow it even when currentIndexChanged did not.
+        self._update_y_axis_control()
 
     def _update_convergence_data(self):
         """Cumulative mean Availability/Dependability vs. run count
@@ -3795,6 +3938,15 @@ class ResultsDock(QWidget):
 
     def _refresh_theme(self, _dark: bool | None = None):
         c = active_colour()
+        # Per-table action icons are painted from the palette tokens, so
+        # they need re-painting when the theme changes (the icons module's
+        # own contract). New tables pick up the new colour at build time.
+        from PySide6.QtWidgets import QPushButton
+        from raptor.gui.resources import icons
+        for button in self.findChildren(QPushButton, "TableCopyButton"):
+            button.setIcon(icons.copy_icon(c["text"]))
+        for button in self.findChildren(QPushButton, "TableCsvButton"):
+            button.setIcon(icons.csv_icon(c["text"]))
         self.setStyleSheet(f"""
             QWidget {{ background: {c['surface']}; }}
             QLabel#ResultsPlaceholder {{

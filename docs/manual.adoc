@@ -463,6 +463,8 @@ After a run (or a stepped Finish) the Results dock offers:
   Recording (xref:../new_docs/book.html#ch-trials[Many Trials]).
   **Multi-run Ao** auto-fits its Y axis to the observed min/max, so a
   narrow availability band is readable instead of a flat line at 1.0.
+  **Y-axis min** is *Auto* at 0; a saved non-zero value is a manual floor
+  used by every availability plot. Capacity and Convergence do not use it.
   The single-run **Capacity (Flow)** plot shows the run's average flow
   and capacity as horizontal reference lines; **Multi-run Capacity
   (Flow)** shows min/average/max flow and capacity across every run.
@@ -1045,9 +1047,8 @@ individual runs.
 [[export-tables]]
 == Exporting tables
 
-*File ▸ Print and Export ▸ Export Tables…* (also a button on the Data Tables and
-Results docks) writes the model's tables, and a run's result tables, to
-files.
+*File ▸ Print and Export ▸ Export Tables…* (also a button on the Data Tables
+dock) writes the model's tables, and a run's result tables, to files.
 
 Pick the tables in two groups:
 
