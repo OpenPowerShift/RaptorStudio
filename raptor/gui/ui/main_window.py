@@ -486,6 +486,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     #: A populated baseline whose importance phase follows. Caps the
     #: results-population bar at 99% so it cannot read as finished.
     _results_follow_up: bool = False
+    #: Canvas level to return to when the Run panel's hierarchy scope is
+    #: cleared; None while whole-model scope is active.
+    _run_scope_return_level: int | None = None
+    #: The model handed to the last run (an extract when a hierarchy is
+    #: selected), for ETA/importance reporting.
+    _last_run_model: RbdFile | None = None
 
     def __init__(self):
         super().__init__()
@@ -1102,6 +1108,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         badge = getattr(self, "_validation_badge", None)
         if badge is not None:                  # no model: no "Model OK"
             badge.setVisible(state.model_open)
+        # Hierarchy edits change the Run panel's scope list. Guarded
+        # because reselecting a scope can rebuild the scene, which calls
+        # back into this method.
+        if not getattr(self, "_refreshing_scope_options", False):
+            self._refreshing_scope_options = True
+            try:
+                self._refresh_run_scope_options()
+            finally:
+                self._refreshing_scope_options = False
 
     def _open_print_dialog(self) -> None:
         from raptor.gui.ui import printing
@@ -2149,6 +2164,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._on_system_config_changed)
         self._run_panel.dependency_blocked.connect(self._on_panel_dependency)
         self._run_panel.cores_changed.connect(self._on_cores_changed)
+        self._run_panel.scope_changed.connect(self._on_run_scope_changed)
         self._sync_cores_box()
         self._run_dock.setMinimumHeight(120)
         self._sync_run_panel_units()
@@ -4994,6 +5010,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # its own row.
         self._sync_run_mirrors()
         self._sync_run_panel_units()
+        # A new model starts on whole-model scope even if a hierarchy id
+        # from the previous file happens to collide.
+        self._run_scope_return_level = None
+        self._run_panel.set_hierarchies([])
+        self._refresh_run_scope_options()
         self._update_readiness()
         name = Path(path).name if path else "NewModel"
         nb, nn, ne, nl = self._model_totals()
@@ -5738,6 +5759,86 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         view.write_back_to_rbd(rbd)
         return _copy.deepcopy(rbd) if copy else rbd
 
+    def _refresh_run_scope_options(self) -> None:
+        """Keep the Run panel's scope list in step with the model."""
+        panel = getattr(self, "_run_panel", None)
+        if panel is None:
+            return
+        if self._rbd is None:
+            panel.set_hierarchies([])
+            return
+        view = self._diagram_dock.view
+        rows: list[tuple[int, str]] = []
+        for hid in view.hiers:
+            names: list[str] = []
+            cur = hid
+            seen: set[int] = set()
+            while cur and cur in view.hiers and cur not in seen:
+                seen.add(cur)
+                names.append(view.hiers[cur].name or f"Hierarchy {cur}")
+                cur = view.hiers[cur].parent_id
+            rows.append((hid, "  " * (len(names) - 1) + " / ".join(
+                reversed(names))))
+        rows.sort(key=lambda r: r[1].lower())
+        panel.set_hierarchies(rows)
+
+    def _on_run_scope_changed(self, hid: int) -> None:
+        """Follow the Run panel's scope: show the hierarchy, or go back."""
+        view = self._diagram_dock.view
+        if hid:
+            if self._run_scope_return_level is None:
+                self._run_scope_return_level = view._current_parent
+            if hid in view.hiers:
+                view._set_level(hid)
+            self._statusbar.showMessage(
+                "Running one hierarchy: results will be scoped to it", 6000)
+        else:
+            level = self._run_scope_return_level
+            self._run_scope_return_level = None
+            if level is not None:
+                view._set_level(level if (not level or level in view.hiers)
+                                else 0)
+            self._statusbar.showMessage("Run scope: whole model", 4000)
+        # Scoped and whole-model results must never sit side by side as
+        # though they described the same system.
+        if self._results.has_results():
+            self._results.clear()
+            view.clear_result_overlays()
+            self._statusbar.showMessage(
+                "Results cleared: the run scope changed", 6000)
+
+    def _prepare_run_model(self, copy: bool = False):
+        """The model the next run should use, plus its isolation record.
+
+        A hierarchy scope extracts in memory: the source model and file
+        are never replaced, so Save can not write the extract by mistake.
+        Returns (None, None) after telling the user why the run was
+        cancelled.
+        """
+        model = self._model_for_engine(copy=copy)
+        hid = self._run_panel.hierarchy_scope() \
+            if getattr(self, "_run_panel", None) is not None else 0
+        if not hid:
+            return model, None
+        from raptor.api import isolate
+        try:
+            extracted, record = isolate.extract(
+                model, hid, self._run_panel.scope_treatments())
+        except isolate.IsolationError as exc:
+            msgbox.warning(self, "Run Hierarchy", str(exc))
+            return None, None
+        from raptor.api.validate import issues
+        errors = [issue for issue in issues(extracted)
+                  if getattr(issue, "severity", "") == "error"]
+        if errors:
+            msgbox.critical(
+                self, "Run Hierarchy",
+                "The isolated hierarchy failed validation; fix these "
+                "before running:\n\n"
+                + "\n".join(str(issue) for issue in errors[:10]))
+            return None, None
+        return extracted, record
+
     def _open_diff_dialog(self, other_path: str | None = None,
                           open_model=None):
         """Model > Differences: this model against its saved file, another
@@ -5810,11 +5911,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         try:
             mode = str(self._current_experiment().get("importance", "none")
                        or "none")
-            if mode in ("", "none") or self._rbd is None:
+            model = getattr(self, "_last_run_model", None) or self._rbd
+            if mode in ("", "none") or model is None:
                 return 0
             from raptor.api import importance as _imp
             return max(0, _imp.batch_count(
-                len(_imp.block_rows(self._rbd)), mode) - 1)
+                len(_imp.block_rows(model)), mode) - 1)
         except (ImportError, KeyError, ValueError, TypeError, AttributeError):
             return 0
 
@@ -6287,7 +6389,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if not self._maybe_save_before_run():
             self._statusbar.showMessage("Run cancelled")
             return
-        run_model = self._model_for_engine()
+        run_model, isolation = self._prepare_run_model()
+        if run_model is None:
+            return
+        self._last_run_model = run_model
         # Read the experiment, not the ribbon mirror: the mirror can be
         # stale after undo/redo or an external model edit, and the next
         # run must use the same value the panel shows and the manifest
@@ -6306,7 +6411,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._edit_run_abandoned = False
         # Warn before the run about features the engine will reject
         # mid-run with NotImplementedError.
-        preflight = self._preflight_issues()
+        preflight = self._preflight_issues(run_model)
         if preflight:
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Warning)
@@ -6527,7 +6632,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Freeze the manifest BEFORE the engine is handed anything, so it
         # describes the run that actually happened even if the model is
         # edited while the engine works.
-        run_metadata["manifest"] = self._build_run_manifest()
+        run_metadata["manifest"] = self._build_run_manifest(
+            run_model, isolation)
         # Wrap the per-event hook so the animation delay is applied on
         # EVERY event, not just the ones that pass the 30 Hz paint
         # throttle inside `_on_event`. `_effective_event_delay` returns
@@ -6645,7 +6751,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
             units = None
             try:
-                cfg_section = self._rbd.sections.get("SYSTEM_DATA")
+                cfg_section = run_model.sections.get("SYSTEM_DATA")
                 if cfg_section and cfg_section.rows:
                     units = system_config_from_row(cfg_section.rows[0]).units
             except (ValueError, KeyError):
@@ -7577,6 +7683,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         units = self._current_units()
         self._push_weak_settings()
         self._results._source_file_name = self._current_file or ""
+        iso = (manifest or {}).get("isolation") or {}
+        if iso.get("banner"):
+            # The End-of-Run text is what leaves the app with the report;
+            # label it before the engine's own header.
+            eor_lines = [iso["banner"], ""] + list(eor_lines)
         event_logs = self._dev_filtered_event_logs(event_logs)
         self._results.set_results(event_logs, eor_lines, final_lines,
                                   report_data=report_data, units=units,
@@ -9362,7 +9473,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
 
 
-    def _preflight_issues(self) -> list[str]:
+    def _preflight_issues(self, rbd: RbdFile | None = None) -> list[str]:
         """Model features the engine will reject, found before Run is
         pressed. The checks themselves are a pure function of the model
         and live in `ui/preflight.py` -- this is the window-facing
@@ -9370,7 +9481,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         could not be fixed while the answer lived inside the widget
         that has the question."""
         from raptor.gui.ui.preflight import preflight_issues
-        return preflight_issues(self._rbd, self._diagram_dock.view,
+        return preflight_issues(rbd or self._rbd, self._diagram_dock.view,
                                 self._preflight_elem_name)
 
     @staticmethod
@@ -10448,8 +10559,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if self._bg_thread is not None and self._bg_thread.is_alive():
             return
         # Taken on the GUI thread, before the worker starts.
-        bg_model = self._model_for_engine(copy=True)
-        main_manifest = self._build_run_manifest()
+        bg_model, isolation = self._prepare_run_model(copy=True)
+        if bg_model is None:
+            return
+        self._last_run_model = bg_model
+        main_manifest = self._build_run_manifest(bg_model, isolation)
         # Plain-data snapshots for the worker: QAction/QSettings reads
         # must stay on this thread.
         report_choices = self._report_choices()

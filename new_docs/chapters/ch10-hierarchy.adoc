@@ -151,6 +151,14 @@ presented as whole-model results. To see a hierarchy's figures inside the
 whole model, run the whole model and read the weak-link results.
 ====
 
+The quickest route is the Run panel. Set **Model scope** to the hierarchy
+(then the canvas follows you into it). A warning appears with the same
+boundary treatments as Extract Hierarchy, and Run produces the ordinary
+tables, graphs and importance measures scoped to that hierarchy. Nothing
+is written to disk and the source model is not changed; the Results dock
+carries a persistent "isolated hierarchy" banner. **Extract Hierarchy…**
+is still the route when you want to keep the part as a separate model.
+
 When you are building a big model one part at a time, you often want to
 know how *just the tires* behave before the rest of the van exists. Pick
 the hierarchy (the Model Explorer or the canvas), choose **Extract

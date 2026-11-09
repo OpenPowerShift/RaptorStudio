@@ -57,6 +57,8 @@ class RunPanel(QWidget):
     column mirror all stay in one place)."""
 
     experiment_changed = Signal(dict)
+    #: The run scope changed: 0 = whole model, otherwise a hierarchy id.
+    scope_changed = Signal(int)
     #: A model-level system value edited here (flowGenerated/systemRedCost/
     #: sysLostCost). Kept separate from `experiment_changed`: these are
     #: SYSTEM_DATA columns, not experiment fields, even though the panel
@@ -78,6 +80,8 @@ class RunPanel(QWidget):
         self._exp = rx.defaults()
         self._loading = False
         self._enabled = True
+        self._hierarchies: list[tuple[int, str]] = []
+        self._scope_hid = 0
         # Mirrors of the SYSTEM_DATA cells shown in this panel. Kept here
         # (not in `_exp`) so the experiment stays a run-settings object;
         # MainWindow remains the writer of the row.
@@ -211,10 +215,57 @@ class RunPanel(QWidget):
 
     # -- construction --------------------------------------------------
 
+    def _build_scope_rows(self, form: QFormLayout) -> None:
+        """The model-scope selector and, when needed, its warning/options."""
+        # Running one hierarchy is an experiment SCOPE, so it belongs here
+        # with Trials and Stop at, not in a second Run dialog. The warning
+        # and treatments only appear when a hierarchy is chosen.
+        self._scope = QComboBox()
+        self._scope.setToolTip(
+            "Run the whole model, or one hierarchy on its own. A hierarchy "
+            "run is isolated: its input is assumed always available and "
+            "the results describe that hierarchy only.")
+        self._scope.currentIndexChanged.connect(self._on_scope_changed)
+        form.addRow("Model scope:", self._scope)
+
+        self._scope_warning = QLabel()
+        self._scope_warning.setObjectName("RunScopeWarning")
+        self._scope_warning.setWordWrap(True)
+        self._scope_warning.setTextFormat(Qt.TextFormat.RichText)
+        self._scope_warning.setStyleSheet(
+            "QLabel#RunScopeWarning { background: rgba(245, 158, 11, 36); "
+            "border: 1px solid #b45309; border-radius: 3px; padding: 4px; }")
+        form.addRow("", self._scope_warning)
+
+        self._scope_options = QWidget()
+        opt = QFormLayout(self._scope_options)
+        opt.setContentsMargins(0, 0, 0, 0)
+        self._scope_deps = QComboBox()
+        self._scope_deps.addItem("Assume outside elements are always up", "up")
+        self._scope_deps.addItem("Follow the extract's own end", "system")
+        self._scope_deps.addItem("Refuse (stop if any)", "refuse")
+        self._scope_pools = QComboBox()
+        self._scope_pools.addItem("Give it the whole pool", "full")
+        self._scope_pools.addItem("Share by the fraction of users inside",
+                                  "share")
+        self._scope_pools.addItem("Refuse (stop if any)", "refuse")
+        self._scope_streams = QComboBox()
+        self._scope_streams.addItem("Keep the random streams", "keep")
+        self._scope_streams.addItem("Give shared draws their own streams",
+                                    "separate")
+        opt.addRow("Outside dependencies:", self._scope_deps)
+        opt.addRow("Shared spare / resource pools:", self._scope_pools)
+        opt.addRow("Shared random streams:", self._scope_streams)
+        form.addRow("", self._scope_options)
+        self._scope_options.setVisible(False)
+        self._scope_warning.setVisible(False)
+
     def _build_experiment_box(self) -> QGroupBox:
         box = QGroupBox("Experiment")
         form = QFormLayout(box)
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+
+        self._build_scope_rows(form)
 
         self._profile = QComboBox()
         for key, spec in rx.PROFILES.items():
@@ -731,6 +782,68 @@ class RunPanel(QWidget):
     def experiment(self) -> dict:
         return rx.normalise(self._exp)
 
+    def set_hierarchies(self, rows: list[tuple[int, str]]) -> None:
+        """Fill the model-scope selector without changing the user's pick.
+
+        `rows` is (hierarchy id, indented display path), already ordered by
+        the owner. A hierarchy that disappeared (undo, delete, another
+        model) falls back to Whole model.
+        """
+        rows = [(int(h), str(label)) for h, label in rows]
+        if rows == self._hierarchies:
+            return
+        self._hierarchies = rows
+        keep = self._scope_hid
+        self._scope.blockSignals(True)
+        try:
+            self._scope.clear()
+            self._scope.addItem("Whole model", 0)
+            for hid, label in rows:
+                self._scope.addItem(label, hid)
+            index = self._scope.findData(keep)
+            self._scope.setCurrentIndex(max(0, index))
+            self._scope_hid = int(self._scope.currentData() or 0)
+        finally:
+            self._scope.blockSignals(False)
+        self._refresh_scope()
+        if self._scope_hid != keep:
+            self.scope_changed.emit(self._scope_hid)
+
+    def hierarchy_scope(self) -> int:
+        """0 for the whole model, otherwise the selected hierarchy id."""
+        return int(self._scope_hid)
+
+    def scope_treatments(self) -> dict:
+        """Boundary treatments for the selected hierarchy, in the shape
+        `raptor.api.isolate.extract` expects."""
+        return {"deps": self._scope_deps.currentData() or "up",
+                "pools": self._scope_pools.currentData() or "full",
+                "streams": self._scope_streams.currentData() or "keep",
+                "items": {}}
+
+    def _on_scope_changed(self, _index: int = 0) -> None:
+        hid = int(self._scope.currentData() or 0)
+        if hid == self._scope_hid:
+            return
+        self._scope_hid = hid
+        self._refresh_scope()
+        self.scope_changed.emit(hid)
+
+    def _refresh_scope(self) -> None:
+        hierarchy = bool(self._scope_hid)
+        self._scope_warning.setVisible(hierarchy)
+        self._scope_options.setVisible(hierarchy)
+        if hierarchy:
+            name = self._scope.currentText().strip()
+            self._scope_warning.setText(
+                "<b>Isolated hierarchy run.</b> Results describe "
+                f"<b>{name}</b> alone, not the whole model. Its input is "
+                "assumed always available. Node status changes do not cross "
+                "the hierarchy boundary, and phase Cut/Linked behaviour "
+                "inside the hierarchy is ignored. Importance measures, when "
+                "enabled, rank blocks within this hierarchy only.")
+        self.size_changed.emit()
+
     def set_units(self, units: str, display_unit: str | None) -> None:
         """Show the time unit on the run-length and statistics rows, and
         convert the time-valued fields into it.
@@ -861,8 +974,9 @@ class RunPanel(QWidget):
         NEXT step press, and a session in progress is stepped by hand, so
         locking them would prevent the very use they exist for."""
         self._enabled = enabled
-        for w in (self._profile, self._trials, self._term_type,
-                  self._term_value, self._start_stats,
+        for w in (self._scope, self._scope_deps, self._scope_pools,
+                  self._scope_streams, self._profile, self._trials,
+                  self._term_type, self._term_value, self._start_stats,
                   self._ao_interval, self._cost_interval,
                   self._flow_gen, self._system_red_cost_field,
                   self._lost_flow_cost_field,

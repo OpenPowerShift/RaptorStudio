@@ -636,8 +636,19 @@ class ResultsDock(QWidget):
             if page_lay is not None:
                 page_lay.setSizeConstraint(_QLayout.SizeConstraint.SetNoConstraint)
 
+        self._scope_banner = QLabel("")
+        self._scope_banner.setObjectName("RunScopeBanner")
+        self._scope_banner.setWordWrap(True)
+        self._scope_banner.setTextFormat(Qt.TextFormat.RichText)
+        self._scope_banner.setStyleSheet(
+            "QLabel#RunScopeBanner { background: rgba(245, 158, 11, 36); "
+            "border: 1px solid #b45309; border-radius: 3px; "
+            "padding: 4px 8px; margin: 4px; }")
+        self._scope_banner.setVisible(False)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._scope_banner)
         layout.addWidget(self._placeholder)
         layout.addWidget(self._tabs, 1)
         self._tabs.hide()
@@ -3376,6 +3387,7 @@ class ResultsDock(QWidget):
 
     def clear(self):
         """Reset every result surface to the pre-run placeholder state."""
+        self._manifest = None
         self._event_logs = []
         self._report_data = []
         self._importance = None
@@ -3425,6 +3437,7 @@ class ResultsDock(QWidget):
             self._graph_note.hide()
         self._tabs.hide()
         self._placeholder.show()
+        self._refresh_scope_banner()
         self.contents_changed.emit()
 
     def set_results(self, event_logs, end_of_run_lines, final_results_lines,
@@ -3442,6 +3455,7 @@ class ResultsDock(QWidget):
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
+        self._refresh_scope_banner()
         from datetime import datetime
         self._run_at = datetime.now()
         self._event_logs = event_logs
@@ -3611,6 +3625,40 @@ class ResultsDock(QWidget):
         without waiting for the next simulation run. A no-op before any
         run (`_populate_overview` exits early with no `_report_data`)."""
         self._populate_overview()
+
+    def _refresh_scope_banner(self) -> None:
+        """State, in the dock itself, when the numbers are an isolated
+        hierarchy run rather than whole-model results."""
+        banner = getattr(self, "_scope_banner", None)
+        if banner is None:
+            return
+        iso = (getattr(self, "_manifest", None) or {}).get("isolation")
+        if not iso:
+            banner.clear()
+            banner.setToolTip("")
+            banner.setVisible(False)
+            return
+        name = iso.get("hierarchy") or "hierarchy"
+        text = iso.get("banner") or f"Isolated run of {name}"
+        banner.setText(
+            f"<b>{text}.</b> These results describe <b>{name}</b> alone; "
+            "its input is assumed always available. Summary, tables, Weak "
+            "Links, Capacity, Cost and importance are scoped to this "
+            "hierarchy.")
+        treatments = iso.get("treatments") or {}
+        tips = [f"dependencies: {treatments.get('deps', '?')}",
+                f"pools/resources: {treatments.get('pools', '?')}",
+                f"random streams: {treatments.get('streams', '?')}"]
+        for note in iso.get("notes") or []:
+            tips.append(str(note))
+        for hazard in iso.get("hazards") or []:
+            if hazard.get("effect") and hazard.get("effect") != "information":
+                tips.append(
+                    f"{hazard.get('kind')}: "
+                    f"{', '.join(hazard.get('elements') or [])} -> "
+                    f"{hazard.get('treatment')} ({hazard.get('effect')})")
+        banner.setToolTip("\n".join(tips))
+        banner.setVisible(True)
 
     def _refresh_manifest_line(self) -> None:
         """One line saying what this result set IS, from its manifest.
