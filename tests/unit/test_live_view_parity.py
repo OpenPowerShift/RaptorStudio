@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from raptor.core.fileio.rbd import load_rbd
 from raptor.core.model import NodeStatus
 from raptor.gui.ui.diagram import DiagramView
-from raptor.gui.ui.diagram_items import COLOUR
+from raptor.gui.resources.design_tokens import COLOUR
 from raptor.gui.ui.diagram_live import _flow_label
 from raptor.gui.ui.window_support import _live_state_signature
 
