@@ -184,6 +184,17 @@ class LiveLogPanel(QWidget):
         self.status.setText("")
         self._sync_buttons()
 
+    _CAPTION = "Live event log — stepping / animated run"
+
+    def set_scope_note(self, hierarchy: str | None) -> None:
+        """Say plainly when the session steps one isolated hierarchy."""
+        if hierarchy:
+            self.caption.setText(
+                f"Live event log — stepping the hierarchy “{hierarchy}” "
+                "on its own (isolated from the rest of the model)")
+        else:
+            self.caption.setText(self._CAPTION)
+
     def update_session(self, finished: Sequence[Sequence[str]],
                        current: Sequence[str], total_runs: int,
                        time: float) -> None:

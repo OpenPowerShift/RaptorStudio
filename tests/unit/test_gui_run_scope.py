@@ -178,3 +178,66 @@ def test_results_banner_names_the_isolated_hierarchy(win):
     assert "not a whole-model result" in banner.text()
     win._results.clear()
     assert not banner.isVisibleTo(win._results)
+
+
+def test_stepping_a_hierarchy_scope_steps_the_extract(win):
+    """Step honours the Run-panel scope: it steps the isolated extract, the
+    scope stays selected, and the extract's ids still match the canvas."""
+    hid = _hierarchy(win)
+    panel = win._run_panel
+    panel._scope.setCurrentIndex(panel._scope.findData(hid))
+    try:
+        session = win._ensure_step_session()
+        assert session is not None
+        assert panel.hierarchy_scope() == hid
+        assert win._step_isolation is not None
+        blocks = {b.id for b in session.blocks}
+        canvas = set(win._diagram_dock.view.blocks)
+        assert blocks and blocks <= canvas
+        assert len(blocks) < len(win._rbd.sections["BLOCK_DATA"].rows) - 1
+        win._on_step()
+        assert win._step_session is session
+        win._on_step_finish()
+        iso = (win._results._manifest or {}).get("isolation") or {}
+        assert iso.get("hierarchy") == "650path"
+    finally:
+        win._end_step_session()
+
+
+def test_stepping_whole_model_has_no_isolation(win):
+    try:
+        session = win._ensure_step_session()
+        assert session is not None
+        assert win._step_isolation is None
+    finally:
+        win._end_step_session()
+
+
+def test_refused_isolation_cancels_stepping_cleanly(win, monkeypatch):
+    from raptor.api import isolate
+    from raptor.gui.ui import msgbox
+    hid = _hierarchy(win)
+    panel = win._run_panel
+    panel._scope.setCurrentIndex(panel._scope.findData(hid))
+    monkeypatch.setattr(msgbox, "warning", lambda *a, **k: None)
+
+    def refuse(*a, **k):
+        raise isolate.IsolationError("nope")
+    monkeypatch.setattr(isolate, "extract", refuse)
+    assert win._ensure_step_session() is None
+    assert win._step_session is None
+    win._on_step()                     # must not raise
+    assert win._advance_until(max_steps=1) is False
+
+
+def test_stepping_a_hierarchy_is_labelled_in_live_log_and_status(win):
+    hid = _hierarchy(win)
+    panel = win._run_panel
+    panel._scope.setCurrentIndex(panel._scope.findData(hid))
+    try:
+        win._on_step()
+        assert "650path" in win._live_log_panel.caption.text()
+        assert "isolated" in win._live_log_panel.caption.text()
+    finally:
+        win._end_step_session()
+        win._reset_live_log()

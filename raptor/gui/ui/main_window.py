@@ -492,6 +492,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     #: The model handed to the last run (an extract when a hierarchy is
     #: selected), for ETA/importance reporting.
     _last_run_model: RbdFile | None = None
+    #: Isolation record of the stepped session (None for the whole model).
+    _step_isolation = None
 
     def __init__(self):
         super().__init__()
@@ -6882,6 +6884,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         (resets + synchronous initialization) happens HERE, synchronously,
         without advancing the clock."""
         if self._step_session is None or self._step_sink is None:
+            # Step honours the Run panel's scope like Run does: a hierarchy
+            # scope steps the isolated extract. The extract keeps the source
+            # model's element ids, so the live colours land on the canvas.
+            step_model, self._step_isolation = self._prepare_run_model()
+            if step_model is None:
+                return None
+            self._last_run_model = step_model
             self._step_sink = []
             self._step_ao: list[str] = []
             self._results.clear()   # new debug session: clear stale results
@@ -6890,7 +6899,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # The session spans the configured runs, as Raptor 7's does: Jump goes on to the next run
             # and Finish completes every run that is left.
             self._step_session = StepSession(
-                self._model_for_engine(), report_sink=self._step_sink,
+                step_model, report_sink=self._step_sink,
                 ao_sink=self._step_ao,
                 num_runs=int(self._current_experiment()["trials"]))
             # A stepped session is a run for as long as it is open -- it
@@ -7046,6 +7055,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._statusbar.showMessage(
             f"Live log row has no canvas element named '{name}'", 4000)
 
+    def _step_scope_suffix(self) -> str:
+        iso = getattr(self, "_step_isolation", None)
+        name = getattr(iso, "hierarchy", "") if iso is not None else ""
+        return f" hierarchy “{name}”" if name else ""
+
     def _refresh_live_step_view(self, session):
         # Refresh after every step (no throttle -- stepping is user-paced,
         # the whole point is watching each event land).
@@ -7075,12 +7089,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._live_log_session_shown = True
         # Follows the run being stepped, across run boundaries; the
         # selector keeps the finished runs readable.
+        iso = getattr(self, "_step_isolation", None)
+        self._live_log_panel.set_scope_note(
+            getattr(iso, "hierarchy", None) if iso is not None else None)
         self._live_log_panel.update_session(
             [lg for lg, _ in getattr(session, "completed", [])],
             session.logs, getattr(session, "num_runs", 1), session.time)
         logs = session.logs
         self._statusbar.showMessage(
-            f"Stepping — t = {session.time:.3f} "
+            f"Stepping{self._step_scope_suffix()} — t = {session.time:.3f} "
             f"({len(logs)} event-log lines)"
             f"{self._phase_status_suffix(session)}")
         # Live progress in the Live Log dock/tab title -- the tabified
@@ -7210,6 +7227,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         try:
             session = self._ensure_step_session()
+            if session is None:           # isolation refused; user told why
+                return
             prev = {b.id: b.op_status for b in session.blocks}
             prev_lines = len(session.logs)
             # Step pauses only when system state actually changed (Raptor 7's
@@ -7247,6 +7266,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         try:
             session = self._ensure_step_session()
+            if session is None:           # isolation refused; user told why
+                return
             prev = {b.id: b.op_status for b in session.blocks}
             prev_lines = len(session.logs)
             advanced = session.step_to_change()
@@ -7279,6 +7300,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if self._step_finalize_state is not None:
             return False
         session = self._ensure_step_session()
+        if session is None:               # isolation refused; user told why
+            return False
         start_time = session.time if until_time_changes else None
         fired = False
         done = False
@@ -7523,7 +7546,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         QApplication.restoreOverrideCursor()
         self._diagram_dock.view.clear_live_states()
         # The manifest says how many runs the numbers on screen come from.
-        step_manifest = self._build_run_manifest()
+        step_manifest = self._build_run_manifest(
+            self._last_run_model if getattr(self, "_step_isolation", None)
+            else None, getattr(self, "_step_isolation", None))
         if step_manifest:
             step_manifest["trials"] = len(event_logs)
         try:
@@ -11197,7 +11222,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if (getattr(self, "_step_session", None) is None
                 and not bg_active
                 and self._rbd is not None):
-            self._ensure_step_session()
+            if self._ensure_step_session() is None:
+                return
             self._show_live_log_dock(True)
             self._refresh_live_step_view(self._step_session)
             return
@@ -11936,7 +11962,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if self._rbd is None or self._step_finalize_state is not None:
             return
         self._invalidate_step_session()
-        self._ensure_step_session()
+        if self._ensure_step_session() is None:
+            return
         self._refresh_live_step_view(self._step_session)
         self._statusbar.showMessage(
             "Stepped run restarted — t = 0", 6000)
