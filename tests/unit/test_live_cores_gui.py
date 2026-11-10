@@ -114,7 +114,7 @@ def test_the_status_message_says_how_many_of_the_cores_are_busy(win):
 def test_a_background_run_hands_the_engine_a_live_limit(win, monkeypatch):
     """The wiring: the limit the engine polls is the state's `workers_now`."""
     from raptor.gui import cores
-    from raptor.gui.ui import main_window
+    from raptor.gui.ui import background_run_mixin as main_window
     seen = {}
     release = threading.Event()
 
