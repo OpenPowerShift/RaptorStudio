@@ -36,6 +36,19 @@ def _hierarchy(win, name="650path"):
                 if hr.name == name)
 
 
+def test_hierarchy_names_are_escaped_in_warning_and_banner(win):
+    from raptor.api import isolate
+    source = win._rbd
+    hid = _hierarchy(win)
+    _extracted, record = isolate.extract(source, hid, {})
+    record.hierarchy = "<b>not markup</b>"
+    win._results._manifest = {"isolation": record.to_dict()}
+    win._results._refresh_scope_banner()
+    text = win._results._scope_banner.text()
+    assert "<b>not markup</b>" not in text
+    assert "&lt;b&gt;not markup&lt;/b&gt;" in text
+
+
 def test_selecting_a_hierarchy_shows_the_warning_and_switches_level(win):
     hid = _hierarchy(win)
     panel = win._run_panel
@@ -128,7 +141,12 @@ def test_a_scoped_run_uses_the_extract_and_labels_its_results(win):
     panel = win._run_panel
     panel._scope.setCurrentIndex(panel._scope.findData(hid))
     panel._trials.setValue(1)
+    panel._trials.editingFinished.emit()    # commit 1 trial, not the model's 10
     panel._cores.setValue(1)
+    # Changing a run setting marks the model dirty; this test is about the
+    # scoped run not dirtying it, so reset that test setup change.
+    win._dirty = False
+    assert win._current_experiment()["trials"] == 1
     win._live_sim_action.setChecked(True)   # synchronous one-core run
     win._on_run()
     iso = (win._results._manifest or {}).get("isolation") or {}

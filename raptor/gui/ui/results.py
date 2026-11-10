@@ -3652,8 +3652,10 @@ class ResultsDock(QWidget):
             banner.setToolTip("")
             banner.setVisible(False)
             return
-        name = iso.get("hierarchy") or "hierarchy"
-        text = iso.get("banner") or f"Isolated run of {name}"
+        from html import escape
+        name = escape(str(iso.get("hierarchy") or "hierarchy"))
+        text = escape(str(iso.get("banner")
+                           or f"Isolated run of {name}"))
         banner.setText(
             f"<b>{text}.</b> These results describe <b>{name}</b> alone; "
             "its input is assumed always available. Summary, tables, Weak "

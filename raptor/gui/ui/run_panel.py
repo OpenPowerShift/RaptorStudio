@@ -834,7 +834,8 @@ class RunPanel(QWidget):
         self._scope_warning.setVisible(hierarchy)
         self._scope_options.setVisible(hierarchy)
         if hierarchy:
-            name = self._scope.currentText().strip()
+            from html import escape
+            name = escape(self._scope.currentText().strip())
             self._scope_warning.setText(
                 "<b>Isolated hierarchy run.</b> Results describe "
                 f"<b>{name}</b> alone, not the whole model. Its input is "
