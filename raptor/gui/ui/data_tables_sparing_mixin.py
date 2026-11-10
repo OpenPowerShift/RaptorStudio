@@ -3,7 +3,7 @@
 Expects on `self`: the dock's tabs and tables."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from raptor.gui.ui.qtcompat import req
 
@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
 from raptor.gui.ui.data_tables_common import (
     _SortItem,
 )
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base

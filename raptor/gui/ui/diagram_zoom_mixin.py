@@ -4,7 +4,7 @@ Expects on `self`: the scene and the view transform."""
 from __future__ import annotations
 
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import (
     Qt, QRectF,
@@ -25,7 +25,6 @@ from raptor.gui.ui.diagram_items import (
 #: included even though they are not `ItemIsMovable` (their endpoints are
 #: independent); the Alt+Up enablement/handler must use this same predicate
 #: or an arrow-only selection silently ascends instead of nudging.
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base

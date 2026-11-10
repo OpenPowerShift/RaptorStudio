@@ -9,7 +9,7 @@ import itertools
 import math
 import os
 import re
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from shiboken6 import isValid
 from PySide6.QtCore import (
@@ -62,7 +62,6 @@ from raptor.gui.ui.diagram_items import (
 #: included even though they are not `ItemIsMovable` (their endpoints are
 #: independent); the Alt+Up enablement/handler must use this same predicate
 #: or an arrow-only selection silently ascends instead of nudging.
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base

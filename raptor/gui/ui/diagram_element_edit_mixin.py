@@ -5,7 +5,7 @@ from __future__ import annotations
 
 
 import math
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import (
     QPointF,
@@ -52,7 +52,6 @@ from raptor.gui.ui.diagram_annotations import (
 #: included even though they are not `ItemIsMovable` (their endpoints are
 #: independent); the Alt+Up enablement/handler must use this same predicate
 #: or an arrow-only selection silently ascends instead of nudging.
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base

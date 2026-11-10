@@ -13,7 +13,7 @@ import os
 
 from raptor.gui.ui import msgbox
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QPlainTextEdit,
@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (
 
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.resources.design_tokens import SPACING
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base

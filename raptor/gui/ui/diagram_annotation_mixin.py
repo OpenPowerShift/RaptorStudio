@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from raptor.gui.ui.qtcompat import req
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from shiboken6 import isValid
 from PySide6.QtCore import (
@@ -56,7 +56,6 @@ from raptor.gui.ui.diagram_annotations import (
 #: included even though they are not `ItemIsMovable` (their endpoints are
 #: independent); the Alt+Up enablement/handler must use this same predicate
 #: or an arrow-only selection silently ascends instead of nudging.
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base

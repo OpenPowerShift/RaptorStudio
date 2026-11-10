@@ -13,7 +13,7 @@ from raptor.gui.ui.inspector_common import (
 from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QAbstractItemView
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QLayout, QScrollArea, QLabel, QCheckBox, QComboBox, QRadioButton, QButtonGroup, QTableWidget,
@@ -30,7 +30,6 @@ from raptor.core.model import RBDNode
 #: The box was
 #: editable, so these are presets rather than a closed list: Raptor 7
 #: reads `unitsBox.Text()` and every label is built from it.
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base

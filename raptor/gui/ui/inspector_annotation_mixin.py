@@ -9,7 +9,7 @@ from raptor.gui.ui.inspector_common import (
 
 from raptor.gui.ui.qtcompat import req
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QScrollArea, QLabel, QFormLayout, QHBoxLayout, QLineEdit,
@@ -29,7 +29,6 @@ from raptor.gui.resources.design_tokens import (
 #: The box was
 #: editable, so these are presets rather than a closed list: Raptor 7
 #: reads `unitsBox.Text()` and every label is built from it.
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base

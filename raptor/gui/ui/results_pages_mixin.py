@@ -22,7 +22,7 @@ from raptor.gui.ui.qtcompat import req
 
 
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor
@@ -35,7 +35,6 @@ from raptor.core.engine import weak_metric
 from raptor.core.engine.reports import flow_loss_across_runs
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.resources.design_tokens import SPACING, active_colour
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base

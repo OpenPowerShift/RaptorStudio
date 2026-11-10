@@ -10,7 +10,7 @@ from raptor.gui.ui.inspector_common import (
 )
 
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from collections.abc import Callable
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator, QIntValidator
@@ -34,7 +34,6 @@ from raptor.gui.ui import param_entry
 #: The box was
 #: editable, so these are presets rather than a closed list: Raptor 7
 #: reads `unitsBox.Text()` and every label is built from it.
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base

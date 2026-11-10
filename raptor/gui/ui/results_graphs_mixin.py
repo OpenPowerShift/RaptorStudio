@@ -9,7 +9,7 @@ from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (
@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
 from raptor.core.engine import weak_metric
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.resources.design_tokens import SPACING
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
