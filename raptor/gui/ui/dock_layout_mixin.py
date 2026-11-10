@@ -8,7 +8,7 @@ from __future__ import annotations
 from raptor.gui.ui.qtcompat import req
 
 import logging
-from typing import Any, cast
+from typing import Any, TYPE_CHECKING, cast
 from collections.abc import Callable
 from PySide6.QtCore import QEvent, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter
@@ -156,8 +156,30 @@ class _DockStub(QWidget):
         p.end()
 
 
-class DockLayoutMixin:
+if TYPE_CHECKING:
+    # Mixin methods call Qt on `self`; type-check them as a main window.
+    from PySide6.QtWidgets import QMainWindow as _Base
+else:
+    _Base = object
+
+
+class DockLayoutMixin(_Base):
     """Dock chrome and window layout: minimise/float/redock, saved layout, canvas room."""
+
+    if TYPE_CHECKING:      # pragma: no cover - typing only
+        _dock_state_sync: Any
+        _compact_minimized: Any
+        _dock_stubs: Any
+        _dock_chrome: Any
+        _dock_titlebar_rethemers: Any
+        _dock_resize_generation: Any
+        _dock_startup_snapshot_done: Any
+        _dock_startup_window_size: Any
+        _results_float_geom: Any
+        _results_dock_height_before_float: Any
+        def __getattr__(self, name: str) -> Any:
+            """State owned by `MainWindow`; typed loosely here."""
+            ...
 
     def _can_stub_dock(self, dock) -> bool:
         """True only while the dock is on a side edge and not floating.

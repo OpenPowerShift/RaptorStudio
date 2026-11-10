@@ -234,7 +234,7 @@ run_check("U07.results.tabs_domains_raw", u07_results_tabs)
 def u08_stepped_session_fev():
     v = w._diagram_dock.view
     sess = None
-    from raptor.gui.ui.main_window import StepSession  # noqa: F401
+    from raptor.core.engine.step_session import StepSession  # noqa: F401
     # drive the window's own stepped controls
     w._on_step_start() if hasattr(w, "_on_step_start") else None
     step_btn = getattr(w, "_step_action", None)

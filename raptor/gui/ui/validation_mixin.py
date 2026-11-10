@@ -3,6 +3,8 @@
 Expects on `self`: `_rbd`, `_statusbar`, `_diagram_dock`, `_current_file`.
 """
 from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from raptor.gui.ui.modality import exec_dialog
 
 
@@ -20,8 +22,20 @@ from raptor.gui.resources.design_tokens import (
 )
 
 
-class ValidationMixin:
+if TYPE_CHECKING:
+    # Mixin methods call Qt on `self`; type-check them as a main window.
+    from PySide6.QtWidgets import QMainWindow as _Base
+else:
+    _Base = object
+
+
+class ValidationMixin(_Base):
     """Model validation: preflight checks, the issues dialog and the status-bar badge."""
+
+    if TYPE_CHECKING:      # pragma: no cover - typing only
+        def __getattr__(self, name: str) -> Any:
+            """State owned by `MainWindow`; typed loosely here."""
+            ...
 
     def _preflight_issues(self, rbd: RbdFile | None = None) -> list[str]:
         """Model features the engine will reject, found before Run is
