@@ -1062,6 +1062,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                                only={"can_copy", "can_paste", "has_deletable"})
 
     def _setup_docks(self):
+        self._build_explorer_dock()
+        self._build_inspector_dock()
+        self._build_fev_inspector_dock()
+        self._build_live_log_dock()
+        self._build_results_dock()
+        self._build_data_tables_dock()
+        self._build_run_dock_and_arrange()
+
+    def _build_explorer_dock(self):
         self._explorer = ExplorerDock()
         self._explorer.hier_activated.connect(
             lambda hid: self._diagram_dock.view.enter_level(hid))
@@ -1091,6 +1100,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock_left)
         self._explorer_dock = dock_left
 
+    def _build_inspector_dock(self):
         self._inspector = InspectorDock()
         self._inspector.set_undo_stack(self._undo_stack)
         # Animation is application state, so the Inspector cannot read it
@@ -1112,6 +1122,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # while Failure Effects View is enabled. It shares the Inspector's
         # tab group, so no new width is reserved for a mode the user is
         # usually not in, and raises itself only for that mode.
+
+    def _build_fev_inspector_dock(self):
         from raptor.gui.ui.fev_inspector import FevInspectorDock
         self._fev_inspector = FevInspectorDock(
             summary_provider=self._fev_text)
@@ -1122,7 +1134,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         fev_dock.setWidget(self._fev_inspector)
         fev_dock.setMinimumSize(340, 1)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, fev_dock)
-        self.tabifyDockWidget(dock_right, fev_dock)
+        self.tabifyDockWidget(self._inspector_dock, fev_dock)
         fev_dock.hide()
         self._fev_inspector_dock = fev_dock
 
@@ -1130,6 +1142,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # shows the streaming event log (like the Results Event Log)
         # instead of the Inspector; the Inspector returns after.
         # The panel carries a run selector, a position line and the tree.
+
+    def _build_live_log_dock(self):
         from raptor.gui.ui.live_log_panel import LiveLogPanel
         self._live_log_panel = LiveLogPanel()
         live_page = self._live_log_panel
@@ -1152,6 +1166,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._live_log_dock)
         self._live_log_dock.hide()
 
+    def _build_results_dock(self):
         self._results = ResultsDock()
         dock_bottom = QDockWidget("Results", self)
         self._set_dock_icon(dock_bottom, "results_dock_icon")
@@ -1174,6 +1189,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         dock_bottom.installEventFilter(self._floated_results_closer)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock_bottom)
 
+    def _build_data_tables_dock(self):
         self._data_tables = DataTablesDock()
         self._data_tables.model_edited.connect(self._mark_dirty)
         self._data_tables.export_tables_requested.connect(self._export_tables)
@@ -1193,8 +1209,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Data Tables and Results share one bottom slot as tabs, so a
         # single tabbed strip keeps one sane height the splitter
         # controls.
-        self.tabifyDockWidget(dock_tables, dock_bottom)
-        dock_bottom.raise_()
+        self.tabifyDockWidget(dock_tables, self._results_dock)
+        self._results_dock.raise_()
         dock_tables.setMinimumHeight(160)
 
         # Run panel: the third tab in the same bottom strip. Deliberately
@@ -1203,6 +1219,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # against the spec's own 700px minimum
         # (the internal UI blueprint). Tabifying costs no new
         # width and reuses the existing splitter.
+
+    def _build_run_dock_and_arrange(self):
         from raptor.gui.ui.run_panel import RunPanelDock
         self._run_dock = RunPanelDock(self)
         self._set_dock_icon(self._run_dock, "run_panel_icon")
@@ -1215,20 +1233,20 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._run_to_time_spin = self._run_panel._run_to
         self._breakpoint_combo = self._run_panel._breakpoint
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._run_dock)
-        self.tabifyDockWidget(dock_tables, self._run_dock)
+        self.tabifyDockWidget(self._data_tables_dock, self._run_dock)
         # Results, Data Tables and Run share one physical strip, and the
         # strip can only grow to the smallest maximumHeight() among the
         # three. Tie that ceiling to whichever tab is on show: Run hugs
         # its own content, Results/Data Tables may use the window.
-        self._bottom_active_dock: QDockWidget | None = dock_bottom
-        for _tab in (dock_bottom, dock_tables, self._run_dock):
+        self._bottom_active_dock: QDockWidget | None = self._results_dock
+        for _tab in (self._results_dock, self._data_tables_dock, self._run_dock):
             _tab.visibilityChanged.connect(
                 lambda visible, d=_tab:
                 self._on_bottom_dock_visibility_changed(d, visible))
         # Adding Run last made it the active tab on every startup, even
         # on the Model tab. Results is the default front tab; Simulate
         # raises Run explicitly.
-        dock_bottom.raise_()
+        self._results_dock.raise_()
         self._setup_dock_toggle(self._run_toggle_action, self._run_dock)
         self._run_panel.experiment_changed.connect(self._on_panel_experiment)
         self._run_panel.system_config_changed.connect(
@@ -1254,12 +1272,12 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
 
         # Ribbon View > Docks toggles, kept in sync with the docks' own X
         # buttons in both directions.
-        self._setup_dock_toggle(self._explorer_toggle_action, dock_left)
-        self._setup_dock_toggle(self._inspector_toggle_action, dock_right)
-        self._setup_dock_toggle(self._fev_inspector_toggle_action, fev_dock,
+        self._setup_dock_toggle(self._explorer_toggle_action, self._explorer_dock)
+        self._setup_dock_toggle(self._inspector_toggle_action, self._inspector_dock)
+        self._setup_dock_toggle(self._fev_inspector_toggle_action, self._fev_inspector_dock,
                                 manage_enabled=False)
-        self._setup_dock_toggle(self._results_toggle_action, dock_bottom)
-        self._setup_dock_toggle(self._data_tables_action, dock_tables)
+        self._setup_dock_toggle(self._results_toggle_action, self._results_dock)
+        self._setup_dock_toggle(self._data_tables_action, self._data_tables_dock)
         self._setup_dock_toggle(
             self._live_log_toggle_action, self._live_log_dock,
             manage_enabled=False,
@@ -1269,8 +1287,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Floating/re-docking can create a fresh QTabBar whose default
         # elide mode is ElideRight, so tabs show "Data Tab...". Re-apply
         # the no-elide rule whenever the dock placement changes.
-        for d in (dock_left, dock_right, fev_dock, self._live_log_dock,
-                  dock_bottom, dock_tables, self._run_dock):
+        for d in (self._explorer_dock, self._inspector_dock, self._fev_inspector_dock, self._live_log_dock,
+                  self._results_dock, self._data_tables_dock, self._run_dock):
             d.dockLocationChanged.connect(
                 lambda area, dock=d:
                 self._on_dock_location_changed(dock, area))
@@ -1290,10 +1308,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         QTimer.singleShot(0, self._sync_dock_toggles)
 
         # `saveState()` keys each dock by object name; without one Qt drops it from the saved layout.
-        for dock, name in ((dock_left, "ExplorerDock"), (dock_right, "InspectorDock"),
-                           (fev_dock, "FevInspectorDock"),
-                           (self._live_log_dock, "LiveLogDock"), (dock_bottom, "ResultsDock"),
-                           (dock_tables, "DataTablesDock"), (self._run_dock, "RunPanelDock")):
+        for dock, name in ((self._explorer_dock, "ExplorerDock"), (self._inspector_dock, "InspectorDock"),
+                           (self._fev_inspector_dock, "FevInspectorDock"),
+                           (self._live_log_dock, "LiveLogDock"), (self._results_dock, "ResultsDock"),
+                           (self._data_tables_dock, "DataTablesDock"), (self._run_dock, "RunPanelDock")):
             dock.setObjectName(name)
 
         # A dock's tab and its title bar carry the same glyph as the
@@ -1304,10 +1322,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Minimize-to-stub: Data Tables + Results collapse together as
         # one bottom stub since they're tabified into one physical slot
         # -- minimizing either one collapses both.
-        self._make_dock_minimizable([dock_left], "left")
-        self._make_dock_minimizable([dock_right], "right")
+        self._make_dock_minimizable([self._explorer_dock], "left")
+        self._make_dock_minimizable([self._inspector_dock], "right")
         self._make_dock_minimizable(
-            [dock_bottom, dock_tables, self._run_dock], "bottom",
+            [self._results_dock, self._data_tables_dock, self._run_dock], "bottom",
             restore_max=lambda: self._max_bottom_dock_height())
         # Snapshot the first-run arrangement. Reset Layout restores this
         # instead of re-tabifying repeatedly (which created orphan tab
@@ -1872,11 +1890,21 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._sync_cores_box()
 
     def _wire_signals(self):
+        """Connect the child widgets' signals to the window, one source at a time."""
+        self._wire_explorer_signals()
+        self._wire_inspector_signals()
+        self._wire_canvas_signals()
+        self._wire_widget_hooks()
+        self._wire_results_signals()
+
+    def _wire_explorer_signals(self):
         self._explorer.block_selected.connect(self._on_explorer_block_selected)
         self._explorer.node_selected.connect(self._on_explorer_node_selected)
         self._explorer.event_selected.connect(self._on_explorer_event_selected)
         self._explorer.hier_selected.connect(self._on_explorer_hier_selected)
         self._explorer.system_config_selected.connect(self._on_explorer_sysconfig_selected)
+
+    def _wire_inspector_signals(self):
         self._inspector.block_renamed.connect(self._on_block_renamed)
         self._inspector.block_comment_changed.connect(
             lambda bid, txt: self._on_comment_committed("block", bid, txt))
@@ -1885,13 +1913,6 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._inspector.comment_to_annotation_requested.connect(
             lambda etype, oid: self._diagram_dock.view
             .comment_to_annotation(etype, oid))
-        # Flush a pending Comment draft BEFORE `_set_level`/`load_rbd`
-        # rebuilds the scene and Inspector; the level_changed handlers run
-        # after the old editor has already been destroyed.
-        self._diagram_dock.view.level_about_to_change.connect(
-            self._inspector.flush_pending_comment)
-        self._diagram_dock.view.structural_about_to_change.connect(
-            self._inspector.flush_pending_comment)
         self._inspector.node_renamed.connect(self._on_node_renamed)
         self._inspector.hier_renamed.connect(self._on_hier_renamed)
         self._inspector.phasing_changed.connect(self._on_phasing_changed)
@@ -1903,8 +1924,6 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._inspector.block_init_stock_changed.connect(
             lambda bid, v: self._diagram_dock.view.set_block_init_stock(
                 bid, v))
-        self._diagram_dock.view.event_selected.connect(
-            self._on_canvas_event_selected)
         self._inspector.event_renamed.connect(self._on_event_renamed)
         self._inspector.event_field_changed.connect(
             self._on_event_field_changed)
@@ -2085,8 +2104,6 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             lambda aid, end: self._diagram_dock.view.start_anchor_pick(aid, end))
         self._inspector.annotation_anchor_pick_requested.connect(
             lambda aid: self._diagram_dock.view.start_anchor_pick(aid))
-        # The Inspector's Anchor controls list this level's elements.
-        self._inspector.anchor_source = self._diagram_dock.view
         self._inspector.rates_changed.connect(self._mark_dirty)
         self._inspector.system_threshold_changed.connect(
             self._on_system_threshold_changed)
@@ -2094,15 +2111,25 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._on_system_config_changed)
         self._inspector.system_comment_changed.connect(
             self._on_system_comment_changed)
-        # Event-log rows carry element names; resolve them against the
-        # loaded model and select on the canvas (which also populates the
-        # Inspector via the normal selection path).
-        self._results.element_clicked.connect(self._on_result_element_clicked)
-        self._results.contents_changed.connect(self._sync_results_notice)
+
+    def _wire_canvas_signals(self):
+        # Flush a pending Comment draft BEFORE `_set_level`/`load_rbd`
+        # rebuilds the scene and Inspector; the level_changed handlers run
+        # after the old editor has already been destroyed.
+        self._diagram_dock.view.level_about_to_change.connect(
+            self._inspector.flush_pending_comment)
+        self._diagram_dock.view.structural_about_to_change.connect(
+            self._inspector.flush_pending_comment)
+        self._diagram_dock.view.event_selected.connect(
+            self._on_canvas_event_selected)
+        self._diagram_dock.view.selection_changed.connect(
+            self._results.refresh_weak_selection)
+
+    def _wire_widget_hooks(self):
+        # The Inspector's Anchor controls list this level's elements.
+        self._inspector.anchor_source = self._diagram_dock.view
         self._results.set_status_hint_fn(
             lambda msg: self._statusbar.showMessage(msg, 6000))
-        self._results.hierarchy_filter_changed.connect(
-            self._on_results_hier_filter)
         self._results.set_hierarchy_options({})
         self._results.set_selected_block_names_fn(
             lambda: {self._diagram_dock.view.blocks[b].name
@@ -2110,8 +2137,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                      if b in self._diagram_dock.view._block_items
                      and self._diagram_dock.view._block_items[b]
                      .isSelected()})
-        self._diagram_dock.view.selection_changed.connect(
-            self._results.refresh_weak_selection)
+
+    def _wire_results_signals(self):
+        # Event-log rows carry element names; resolve them against the
+        # loaded model and select on the canvas (which also populates the
+        # Inspector via the normal selection path).
+        self._results.element_clicked.connect(self._on_result_element_clicked)
+        self._results.contents_changed.connect(self._sync_results_notice)
+        self._results.hierarchy_filter_changed.connect(
+            self._on_results_hier_filter)
         self._results.weak_analysis_type_changed.connect(
             self._on_weak_type_changed)
         self._results.importance_metric_changed.connect(
