@@ -117,7 +117,7 @@ def test_completion_status_says_successfully(w, qapp, monkeypatch):
     w._report_stream_actions if hasattr(w, "_report_stream_actions") else None
     import inspect
     import raptor.gui.ui.main_window as mw
-    sync_src = inspect.getsource(mw.MainWindow._run_simulation)
+    sync_src = inspect.getsource(mw.MainWindow._show_run_outcome)
     assert "Completed {len(event_logs)} run(s) successfully" in sync_src
     step_src = inspect.getsource(mw.MainWindow._present_run_results)
     assert "run(s) successfully" in step_src
@@ -331,7 +331,7 @@ def test_midrun_edit_dialog_paths(w, qapp, monkeypatch):
     from raptor.core.engine.step_session import StepSession
     w._step_session = StepSession(w._rbd, report_sink=[], ao_sink=[])
 
-    import raptor.gui.ui.main_window as mw
+    import raptor.gui.ui.edit_guard_mixin as mw
     from PySide6.QtWidgets import QMessageBox
 
     class BoxCancel(QMessageBox):

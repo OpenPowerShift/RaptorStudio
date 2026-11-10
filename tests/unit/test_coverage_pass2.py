@@ -20,9 +20,8 @@ def pe(app=None):
     (QApplication.instance() or QApplication()).processEvents()
 from raptor.gui.ui.data_tables import DataTablesDock
 from raptor.gui.ui.diagram import DiagramView
-from raptor.gui.ui.inspector import (
-    InspectorDock, validate_distro_params, DISTRO_PARAM_LABELS,
-)
+from raptor.core.distro_rules import DISTRO_PARAM_LABELS, validate_distro_params
+from raptor.gui.ui.inspector import InspectorDock
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 GOLD = os.path.join(REPO, "tests", "golden")

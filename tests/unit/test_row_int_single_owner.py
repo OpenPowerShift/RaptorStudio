@@ -44,7 +44,7 @@ CONSOLIDATED = {
     "raptor/gui/clipboard_plan.py": "-1",
     "raptor/gui/model_edit.py": "None",
     "raptor/gui/ui/phasing_dialog.py": "0",
-    "raptor/gui/ui/inspector.py": "0",   # _i_raw's own default
+    "raptor/gui/ui/inspector_common.py": "0",   # _i_raw's own default
 }
 
 
@@ -104,7 +104,7 @@ class TestTheSixthCopyIsGone:
                     "raptor/core/edit/hierarchy_plan.py",
                     "raptor/gui/clipboard_plan.py",
                     "raptor/gui/ui/diagram_common.py",
-                    "raptor/gui/ui/inspector.py"):
+                    "raptor/gui/ui/inspector_common.py"):
             tree = ast.parse((REPO / rel).read_text())
             for fn in ast.walk(tree):
                 if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
