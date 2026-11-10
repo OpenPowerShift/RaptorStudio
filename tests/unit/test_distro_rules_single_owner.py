@@ -188,7 +188,7 @@ class TestBothDoorsGetTheSameRule:
 
     def test_the_inspector_imports_the_canonical_function(self):
         from raptor.core import distro_rules
-        from raptor.gui.ui import inspector
+        from raptor.gui.ui import inspector_rows_mixin as inspector
         assert inspector.validate_distro_params \
             is distro_rules.validate_distro_params
 
@@ -196,7 +196,7 @@ class TestBothDoorsGetTheSameRule:
         """A cross-check that would have caught the original drift, and
         that the old "three golden fixtures" claim could not support."""
         from raptor.api.validate import validate_distro_params as api_v
-        from raptor.gui.ui.inspector import (
+        from raptor.gui.ui.inspector_rows_mixin import (
             validate_distro_params as gui_v,
         )
         import itertools

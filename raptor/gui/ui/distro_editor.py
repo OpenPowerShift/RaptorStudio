@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from raptor.core.distro_rules import (
     DISTRO_PARAM_LABELS, validate_distro_params, param_error,
     params_after_change)
-from raptor.gui.ui.inspector import compute_stats
+from raptor.core.engine.diststats import compute_stats
 from raptor.gui.ui import param_entry
 
 

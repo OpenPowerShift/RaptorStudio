@@ -81,7 +81,8 @@ from raptor.gui.ui.results_common import (  # noqa: F401  (names tests and calle
 )
 
 
-class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin, QWidget):
+class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
+                  QWidget):
     #: ("block"|"node", element_NAME) -- the user clicked an event-log row.
     #: The log stores names, not IDs; MainWindow resolves the name against
     #: the loaded model to make the canvas selection.

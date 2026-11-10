@@ -1165,7 +1165,7 @@ def _dist_message() -> QLabel:
 def _add_stats_rows(form, win, combo, spins, *, to_canonical=None):
     """Mean and Std Dev rows under a distribution + parameters, as every other distribution entry shows them;
     returns the function that recomputes them. Parameters not offered (a one-parameter dialog) count as 0."""
-    from raptor.gui.ui.inspector import compute_stats
+    from raptor.core.engine.diststats import compute_stats
     units = (win._current_units() if hasattr(win, "_current_units") else "") or ""
     suffix = f" ({units})" if units else ""
     mean_l, sd_l = QLabel("—"), QLabel("—")
