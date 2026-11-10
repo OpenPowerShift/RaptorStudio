@@ -1,0 +1,64 @@
+name: GUI coverage
+
+# Branch coverage of raptor/gui, measured in CI because a traced local run of the
+# GUI tests takes over an hour. Used as the safety net before splitting the large
+# GUI modules (main_window, diagram, results, inspector, data_tables).
+on:
+  workflow_dispatch:
+  push:
+    branches: [refactor/gui-split]
+
+jobs:
+  measure:
+    name: measure (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: "3.13"
+          extras: "dev,mcp"
+      - name: GUI tests under coverage
+        env:
+          QT_QPA_PLATFORM: offscreen
+          RAPTOR_TEST_SHARD: ${{ matrix.shard }}/4
+          COVERAGE_FILE: .coverage.shard${{ matrix.shard }}
+        run: >-
+          pytest -q -n auto -p no:cacheprovider -m "gui and not slow and not fidelity and not long"
+          --cov=raptor.gui --cov-branch --cov-report=
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-cov-${{ matrix.shard }}
+          path: .coverage.shard*
+          include-hidden-files: true
+
+  report:
+    needs: measure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python-qt
+        with:
+          python-version: "3.13"
+          extras: "dev"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gui-cov-*
+          merge-multiple: true
+      - name: Combine and report
+        run: |
+          coverage combine .coverage.shard*
+          coverage report --include='raptor/gui/*' --sort=cover | tee gui-coverage.txt
+          coverage json --include='raptor/gui/*' -o gui-coverage.json
+          coverage html --include='raptor/gui/*' -d gui-coverage-html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-coverage
+          path: |
+            gui-coverage.txt
+            gui-coverage.json
+            gui-coverage-html
