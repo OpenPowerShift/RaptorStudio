@@ -8,6 +8,10 @@ on:
   push:
     branches: [refactor/gui-split]
 
+concurrency:
+  group: gui-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   measure:
     name: measure (${{ matrix.shard }}/4)
