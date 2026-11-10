@@ -23,6 +23,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from tests.unit.diagram_patch import swap
 from tests.unit.golden_support import (
     assert_matches_golden, plain, regenerate)
 
@@ -76,7 +77,7 @@ def observe() -> dict:
             captured.append([kind, plain(rows)])
             super().__init__(view, kind, rows, *a, **k)
 
-    diagram.AddCmd = RecAdd
+    restore_cmd = swap("AddCmd", RecAdd)
     out: dict = {}
     try:
         for m in MODELS:
@@ -111,7 +112,7 @@ def observe() -> dict:
         v = diagram.DiagramView()
         out["empty"] = {"copy": v.copy_selection(), "paste": v.paste()}
     finally:
-        diagram.AddCmd = RealAdd
+        restore_cmd()
     return out
 
 

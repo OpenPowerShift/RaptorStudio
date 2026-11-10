@@ -23,6 +23,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from tests.unit.diagram_patch import swap
 from tests.unit.golden_support import (
     assert_matches_golden, plain, regenerate)
 
@@ -47,8 +48,7 @@ def observe() -> dict:
             super().__init__("rec")
             captured.append([kind, plain(rows)])
 
-    real = diagram.AddCmd
-    diagram.AddCmd = RecCmd
+    restore_cmd = swap("AddCmd", RecCmd)
     out: dict = {}
     try:
         for host in HOSTS:
@@ -101,7 +101,7 @@ def observe() -> dict:
             finally:
                 rbd_mod.load_rbd = real_load
     finally:
-        diagram.AddCmd = real
+        restore_cmd()
     return out
 
 

@@ -61,7 +61,7 @@ def test_lower_layers_do_not_import_upward(package):
 # A ratchet: remove a name when its last direct import goes, never add one.
 GUI_ENGINE_IMPORTERS = frozenset({
     "raptor/gui/ui/analytic_dialog.py", "raptor/gui/ui/block_labels.py",
-    "raptor/gui/ui/data_tables.py", "raptor/gui/ui/diagram.py",
+    "raptor/gui/ui/data_tables.py",
     "raptor/gui/ui/dialogs.py", "raptor/gui/ui/fev_inspector.py",
     "raptor/gui/ui/fev_mixin.py", "raptor/gui/ui/inspector.py",
     "raptor/gui/ui/main_window.py", "raptor/gui/ui/results.py",
@@ -69,7 +69,7 @@ GUI_ENGINE_IMPORTERS = frozenset({
     # moved out of main_window.py, not new:
     "raptor/gui/ui/background_run_mixin.py", "raptor/gui/ui/file_io_mixin.py",
     "raptor/gui/ui/overlay_mixin.py", "raptor/gui/ui/status_summary_mixin.py",
-    "raptor/gui/ui/step_mixin.py",
+    "raptor/gui/ui/step_mixin.py", "raptor/gui/ui/diagram_element_edit_mixin.py",
 })
 _ENGINE = ("raptor.core.engine", "raptor.core.rng", "raptor.core.scheduler",
            "raptor.core.analytical", "raptor.core.run_experiment")
