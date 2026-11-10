@@ -32,11 +32,21 @@ class _DockTitleBar(QWidget):
         self._press_global = None
         self._dragging = False
         self._drag_offset = None
+        self._awaiting_system_move = False
 
     def _clear_drag(self) -> None:
         self._press_global = None
         self._dragging = False
         self._drag_offset = None
+        self._awaiting_system_move = False
+
+    def _try_system_move(self, event) -> bool:
+        """Hand the drag to the compositor if it will take it now; True when it did."""
+        if not self._window._start_dock_system_move(self._dock):
+            return False
+        self._clear_drag()
+        event.accept()
+        return True
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -68,16 +78,18 @@ class _DockTitleBar(QWidget):
                 self._dock, self._press_global)
             # Wayland does not let a client position a top-level window
             # with move(); ask the compositor for a system move instead,
-            # so the dock can cross screens and be placed freely.
-            if self._window._system_move_supported():
-                if self._window._start_dock_system_move(self._dock):
-                    self._clear_drag()
-                    event.accept()
-                    return
+            # so the dock can cross screens and be placed freely. A dock
+            # floated by this very drag is not configured yet, so the
+            # request is retried on the following mouse moves.
+            self._awaiting_system_move = self._window._system_move_supported()
+            if self._awaiting_system_move and self._try_system_move(event):
+                return
             # The dock may have just been re-parented into its own
             # floating window. Anchor further movement to where that
             # window now sits so it does not jump on the next event.
             self._drag_offset = self._press_global - self._dock.pos()
+        if self._awaiting_system_move and self._try_system_move(event):
+            return
         if self._drag_offset is not None and self._dock.isFloating():
             self._dock.move(pos - self._drag_offset)
         event.accept()

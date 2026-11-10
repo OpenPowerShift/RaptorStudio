@@ -264,10 +264,20 @@ class DockFloatMixin(_Base):
         return "wayland" in QGuiApplication.platformName().casefold()
 
     def _start_dock_system_move(self, dock: QDockWidget) -> bool:
-        """Ask the compositor to move a floating dock (works on Wayland)."""
+        """Ask the compositor to move a floating dock (works on Wayland).
+
+        Returns False, without asking, until the floating window has been shown
+        and configured by the compositor (`isExposed`). Asking earlier is a fatal
+        Wayland protocol error ("xdg_toplevel: surface has not been configured
+        yet") that drops the whole connection and kills the app: a dock that was
+        only just floated by this same drag has no configured surface yet. The
+        caller keeps trying on later mouse moves (see `_DockTitleBar`).
+        """
         try:
             handle = dock.windowHandle()
-            return bool(handle is not None and handle.startSystemMove())
+            if handle is None or not handle.isExposed():
+                return False
+            return bool(handle.startSystemMove())
         except RuntimeError:
             return False
 
