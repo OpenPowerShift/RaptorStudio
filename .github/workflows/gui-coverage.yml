@@ -31,6 +31,7 @@ jobs:
           pytest -q -n auto -p no:cacheprovider -m "gui and not slow and not fidelity and not long"
           --cov=raptor.gui --cov-branch --cov-report=
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: gui-cov-${{ matrix.shard }}
           path: .coverage.shard*
@@ -38,6 +39,7 @@ jobs:
 
   report:
     needs: measure
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
