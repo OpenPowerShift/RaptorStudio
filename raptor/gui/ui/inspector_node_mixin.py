@@ -21,15 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.core.fileio.typed import system_config_from_row
-# The distribution rules are `raptor.core.distro_rules`'s, not this
-# module's (review D-04) -- they are pure model rules and belong in a
-# Qt-free home. Imported here because this widget still uses both.
 from raptor.core.model import RBDNode
-
-#: Raptor 7's `UnitsCombo` items, in its own order
-#: The box was
-#: editable, so these are presets rather than a closed list: Raptor 7
-#: reads `unitsBox.Text()` and every label is built from it.
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base

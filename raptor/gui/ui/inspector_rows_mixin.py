@@ -30,11 +30,6 @@ from raptor.gui.resources.design_tokens import (
 )
 from raptor.gui.ui import param_entry
 
-#: Raptor 7's `UnitsCombo` items, in its own order
-#: The box was
-#: editable, so these are presets rather than a closed list: Raptor 7
-#: reads `unitsBox.Text()` and every label is built from it.
-
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
 else:

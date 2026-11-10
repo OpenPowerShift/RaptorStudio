@@ -164,7 +164,7 @@ def test_fixing_the_model_brings_them_back(win):
 
 def _during_sync_run(win, monkeypatch, probe):
     """Run a real synchronous batch and call `probe()` from inside it."""
-    from raptor.gui.ui import main_window as mw
+    from raptor.gui.ui import run_mixin as mw
     real = mw.run_simulation_with_reports
     seen = {}
 
@@ -215,7 +215,7 @@ def test_a_failed_run_restores_the_commands_and_unlocks_the_panel(
         win, monkeypatch):
     """Regression: the error paths cleared the run flag but never unlocked
     the Run panel, so the settings stayed greyed out after a failure."""
-    from raptor.gui.ui import main_window as mw
+    from raptor.gui.ui import run_mixin as mw
 
     def boom(*a, **k):
         raise RuntimeError("engine exploded")

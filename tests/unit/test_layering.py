@@ -70,7 +70,7 @@ GUI_ENGINE_IMPORTERS = frozenset({
     "raptor/gui/ui/background_run_mixin.py", "raptor/gui/ui/file_io_mixin.py",
     "raptor/gui/ui/overlay_mixin.py", "raptor/gui/ui/status_summary_mixin.py",
     "raptor/gui/ui/step_mixin.py", "raptor/gui/ui/run_mixin.py",
-    "raptor/gui/ui/step_terminate_mixin.py", "raptor/gui/ui/diagram_element_edit_mixin.py",
+    "raptor/gui/ui/step_terminate_mixin.py", "raptor/gui/ui/foreground_run.py", "raptor/gui/ui/diagram_element_edit_mixin.py",
     "raptor/gui/ui/results_graphs_mixin.py", "raptor/gui/ui/results_pages_mixin.py",
     "raptor/gui/ui/results_raw_mixin.py", "raptor/gui/ui/distro_editor.py",
     "raptor/gui/ui/inspector_rows_mixin.py",

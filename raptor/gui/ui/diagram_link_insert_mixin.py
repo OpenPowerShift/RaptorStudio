@@ -34,11 +34,6 @@ from raptor.gui.ui.diagram_items import (
 )
 
 
-#: Everything arrow-key nudge knows how to move. Arrow annotations are
-#: included even though they are not `ItemIsMovable` (their endpoints are
-#: independent); the Alt+Up enablement/handler must use this same predicate
-#: or an arrow-only selection silently ascends instead of nudging.
-
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
 else:

@@ -3,7 +3,7 @@
 Expects on `self`: the window's docks, `_rbd` and `_statusbar`."""
 from __future__ import annotations
 
-from raptor.gui.ui.window_support import _live_state_signature
+from raptor.gui.ui.foreground_run import ForegroundRun
 
 from raptor.gui.ui.qtcompat import req
 
@@ -24,8 +24,16 @@ from raptor.core.engine.errors import RunAborted
 
 
 
-#: Auto Layout's tooltip when it arranges the whole level (no selection,
-#: or everything selected); the selection variant is built per count.
+def _system_units(rbd):
+    """The model's display units from its SYSTEM_DATA row, or None."""
+    try:
+        cfg_section = rbd.sections.get("SYSTEM_DATA")
+        if cfg_section and cfg_section.rows:
+            return system_config_from_row(cfg_section.rows[0]).units
+    except (ValueError, KeyError):
+        pass
+    return None
+
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
@@ -340,10 +348,8 @@ class RunMixin(_Base):
         box.exec()
         return box.clickedButton() is run_btn
 
-    def _run_simulation(self):
-        # Synchronous/blocking: the engine runs on the GUI thread, and
-        # the progress/event callbacks below pump the event loop so the
-        # window stays responsive and Stop can land mid-run.
+    def _run_may_start(self) -> bool:
+        """The early exits shared by every foreground run."""
         if getattr(self, "_results_populating", False):
             # The previous batch's results are still being built and the
             # population stages pump the event loop (paint feedback).
@@ -352,12 +358,39 @@ class RunMixin(_Base):
             self._statusbar.showMessage(
                 "Still rendering the previous results — try again in a "
                 "moment.", 5000)
-            return
+            return False
         if self._step_finalize_state is not None:
             self._statusbar.showMessage(
                 "Finalizing the stepped run — wait for its results", 5000)
-            return
-        if self._rbd is None:
+            return False
+        return self._rbd is not None
+
+    def _confirm_unsupported_features(self, run_model) -> bool:
+        """Warn about features the engine will reject mid-run with
+        NotImplementedError; False when the user cancels."""
+        preflight = self._preflight_issues(run_model)
+        if not preflight:
+            return True
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Unsupported Model Features")
+        box.setDetailedText("\n".join(preflight))
+        from raptor.gui.ui.preflight import run_dialog_text
+        box.setText(run_dialog_text(preflight))
+        run_btn = box.addButton("Run Anyway", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if box.clickedButton() is not run_btn:
+            self._statusbar.showMessage("Run cancelled — unsupported "
+                                        "features present")
+            return False
+        return True
+
+    def _run_simulation(self):
+        # Synchronous/blocking: the engine runs on the GUI thread, and
+        # the progress/event callbacks pump the event loop so the
+        # window stays responsive and Stop can land mid-run.
+        if not self._run_may_start():
             return
         # A spin box commits on editingFinished, which F5 does not cause.
         # Clear focus so the number on screen is the number the run uses.
@@ -395,23 +428,8 @@ class RunMixin(_Base):
         # previous run's "cancel" choice must not silence this run's
         # own guard).
         self._edit_run_abandoned = False
-        # Warn before the run about features the engine will reject
-        # mid-run with NotImplementedError.
-        preflight = self._preflight_issues(run_model)
-        if preflight:
-            box = QMessageBox(self)
-            box.setIcon(QMessageBox.Icon.Warning)
-            box.setWindowTitle("Unsupported Model Features")
-            box.setDetailedText("\n".join(preflight))
-            from raptor.gui.ui.preflight import run_dialog_text
-            box.setText(run_dialog_text(preflight))
-            run_btn = box.addButton("Run Anyway", QMessageBox.ButtonRole.AcceptRole)
-            box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-            box.exec()
-            if box.clickedButton() is not run_btn:
-                self._statusbar.showMessage("Run cancelled — unsupported "
-                                            "features present")
-                return
+        if not self._confirm_unsupported_features(run_model):
+            return
         if getattr(self, "_run_full_speed", False):
             if not self._confirm_long_batch(num_runs):
                 return
@@ -423,182 +441,8 @@ class RunMixin(_Base):
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         # Units are needed by the per-run status refresh, so parse them
         # before the batch starts.
-        units = None
-        try:
-            cfg_section = self._rbd.sections.get("SYSTEM_DATA")
-            if cfg_section and cfg_section.rows:
-                units = system_config_from_row(cfg_section.rows[0]).units
-        except (ValueError, KeyError):
-            pass
-        # Keep the UI responsive during the synchronous batch: the
-        # engine's progress hook fires after every completed run, and the
-        # loop is pumped there; without it, long runs would freeze the
-        # window into "Not Responding". Re-entrancy guarded by disabling
-        # Run for the duration.
-        self._run_in_progress = True
-        self._refresh_commands()
-        self._disable_run_panel_for_run()
-        # Fresh run: wipe stale results so old numbers can't be mistaken
-        # for the new batch.
-        self._results.clear()
-        # The live-frame fingerprint belongs to the previous run (a
-        # stopped run left its last state in it).
-        self._live_sig = None
-        # A new run invalidates the old Weak Link labels, including on a
-        # Start/End node where they would collide with the live capacity
-        # readout.
-        self._diagram_dock.view.clear_result_overlays()
-        self._reset_status_summary()
-        self._start_run_eta()
-        # ...and the stepping Live Log dock.
-        self._reset_live_log()
-        # Sync runs pump the event loop between runs, so a Stop press
-        # can land: flag checked in _progress, engine aborts cleanly.
-        self._sync_stop = False
-        runs_done = [0]
-        live_logs: list[list[str]] = []
-        status_updates = True   # readouts update per-run, always
-        live_view = self._live_sim_action.isChecked()
-
-        # Live intra-run view (Raptor 7's Simulation View behaviour):
-        # every processed event re-colours the blocks by their current
-        # state (manual Appendix D colours). Throttled to ~30 UI
-        # updates/second so huge models don't drown in repaints.
-        # Note: the status bar does not show within-run values -- Raptor 7
-        #reads cross-run monitors there, refreshed as each run
-        # finishes, so the averages update per run via _progress below,
-        # not per event.
-        import time as _time
-        last_paint = [_time.monotonic()]
-
-        # Long single runs (or a big model generating lots of events)
-        # would freeze the window for the run's entire duration if only
-        # `_progress` (fired between whole runs) pumped the event loop,
-        # leaving paint/input/OS keepalive pings blocked while a run was
-        # actually in progress. Both event callbacks below pump the loop
-        # themselves, throttled so the extra per-event cost stays
-        # negligible next to the engine work; this also lets a Stop press
-        # land mid-run instead of only between runs.
-        # There is one status-bar text format, always both the run number
-        # and the current time: while Live Sim is on, _on_event is the
-        # sole writer (it is far more frequent and has the live time
-        # _progress never does) -- _progress only writes text when Live
-        # Sim is off, the one case _on_event never fires.
-        def _on_event(scheduler, system_state, blocks, cap_data=None,
-                      model=None):
-            now = _time.monotonic()
-            if now - last_paint[0] < 1 / 30:
-                return
-            last_paint[0] = now
-            # System-status square in the status bar: the live
-            # SystemColor straight from the running cascade.
-            self._update_system_swatch(getattr(system_state, "color", None))
-            # Raptor 7's status panels 2/3/4: cycles completed, the
-            # current phase name, and MISSION/Nonmission (phased models).
-            self._update_phase_labels(system_state)
-            # cap_data (when capacity analysis is enabled): the engine's
-            # live per-node flow dicts, painted under the nodes Raptor 7
-            # `ShowFlow` style. model (engine's on_event 5th arg): the
-            # live engine model -- node/link/event/hierarchy colours are
-            # painted from it (the canvas's own objects are a stale
-            # separate parse).
-            #
-            # Repaint only when something painted actually changed
-            # (`_live_state_signature`). The kickoff burst at t=0 is
-            # thousands of scheduler steps with an identical picture;
-            # repainting each one looked frozen and dominated the run.
-            sig = _live_state_signature(blocks, cap_data, model, system_state)
-            if sig != getattr(self, "_live_sig", None):
-                self._live_sig = sig
-                self._diagram_dock.view.update_live_states(
-                    blocks, cap_data=cap_data, model=model,
-                    phase=getattr(system_state, "current_phase", None))
-            if status_updates:
-                self._statusbar.showMessage(self._run_status_text(
-                    f"Running ({self._threads_label(1)}) — run "
-                    f"{runs_done[0] + 1} of {num_runs}, "
-                    f"t = {scheduler.time:.3f}",
-                    runs_done[0], num_runs))
-            QApplication.processEvents()
-            if getattr(self, "_sync_stop", False):
-                raise RunAborted()
-
-        def _on_event_keepalive(scheduler, system_state, blocks,
-                                cap_data=None, model=None):
-            # Animate off: the run is at full speed, so skip the
-            # repaint/status-text work _on_event does, but still pump the
-            # loop occasionally so a long run at max speed doesn't go
-            # fully unresponsive either.
-            now = _time.monotonic()
-            if now - last_paint[0] < 0.5:
-                return
-            last_paint[0] = now
-            QApplication.processEvents()
-            if getattr(self, "_sync_stop", False):
-                raise RunAborted()
-
-        def _throttle() -> None:
-            """Animation pacing for the SYNCHRONOUS path.
-
-            The speed dial used to be read only inside the background
-            worker, so in the default (foreground) run mode all four
-            buttons did nothing but move a label. This applies the same
-            per-event delay here, via `_effective_event_delay` (which
-            returns 0 whenever Animate is off, matching Raptor 7's
-            "no graphics = full speed" rule)."""
-            d = self._effective_event_delay()
-            if d:
-                _time.sleep(d)
-
-        runaway_asked = [False]
-
-        def _progress(completed: int, total: int):
-            runs_done[0] = completed
-            if run_metadata.get("runaway_runs") and not runaway_asked[0]:
-                runaway_asked[0] = True
-                if completed < total and not self._ask_keep_going_after_runaway(completed, total):
-                    from raptor.core.engine.errors import RunAborted
-                    raise RunAborted()
-            if getattr(self, "_sync_stop", False):
-                # mimic the background path's abort: raise through the
-                # engine so it stops between draws with results kept
-                from raptor.core.engine.errors import RunAborted
-                raise RunAborted()
-            pct = 100 * completed // max(total, 1)
-            if status_updates and not live_view:
-                self._statusbar.showMessage(self._run_status_text(
-                    f"Running ({self._threads_label(1)}) — run "
-                    f"{completed} of {total}", completed, total))
-            self._run_progress.setValue(pct)
-            self._run_progress.setVisible(True)
-            self._run_progress_label.setText(f"{pct}%")
-            self._run_progress_label.setVisible(True)
-            # Cross-run averages (AvailMon.Mean semantics): refresh the
-            # permanent readouts from every completed run's data,
-            # independent of any toggle.
-            self._update_status_summary(report_data, units)
-            if live_view and live_logs:
-                # Stream the completed runs' logs into the Event Log tab
-                # so the user watches the simulation arrive run-by-run.
-                if not self._results_dock.isVisible():
-                    self._results_dock.show()
-                self._results.show_live_logs(live_logs, total)
-            if cap_lines:
-                # Capacity analysis enabled: stream the capacity
-                # snapshots completed so far into the Graphs tab's
-                # Capacity plot, so the capacity is visible during the
-                # run.
-                self._results.update_live_capacity(cap_lines)
-                if not self._results_dock.isVisible():
-                    self._results_dock.show()
-            if ao_lines:
-                # Live Ao plot (Raptor 7 displays it during a run).
-                self._results.update_live_ao(ao_lines)
-                if not self._results_dock.isVisible():
-                    self._results_dock.show()
-            if status_updates or live_view:
-                QApplication.processEvents()
-
+        units = _system_units(self._rbd)
+        self._lock_for_foreground_run()
         report_data: list = []
         report_notes: list[str] = []
         # Files & Reports opt-ins: plot sinks are only created -- and
@@ -613,27 +457,22 @@ class RunMixin(_Base):
         # disk-backed sink).
         ao_lines = streams.get("ao")
         cap_lines = streams.get("capacity")
-        cost_lines = streams.get("cost")
         run_metadata: dict = {}
         # Freeze the manifest BEFORE the engine is handed anything, so it
         # describes the run that actually happened even if the model is
         # edited while the engine works.
         run_metadata["manifest"] = self._build_run_manifest(
             run_model, isolation)
-        # Wrap the per-event hook so the animation delay is applied on
-        # EVERY event, not just the ones that pass the 30 Hz paint
-        # throttle inside `_on_event`. `_effective_event_delay` returns
-        # 0.0 while Animate is off, so a non-animated run pays nothing.
-        _raw_on_event = _on_event if live_view else _on_event_keepalive
-
-        def _on_event_throttled(*a, **kw):
-            _throttle()
-            return _raw_on_event(*a, **kw)
+        hooks = ForegroundRun(
+            self, num_runs=num_runs, units=units,
+            live_view=self._live_sim_action.isChecked(),
+            report_data=report_data, run_metadata=run_metadata,
+            ao_lines=ao_lines, cap_lines=cap_lines)
         try:
             event_logs, end_of_run_lines, final_results_lines = run_simulation_with_reports(
                 run_model, num_runs=num_runs, report_sink=report_data,
-                progress=_progress, notes_sink=report_notes,
-                on_event=_on_event_throttled,
+                progress=hooks.progress, notes_sink=report_notes,
+                on_event=hooks.on_event,
                 # Enabled sinks pass their ResultStream (never truthiness
                 # tests — a fresh empty stream must still collect);
                 # disabled ones pass None so the engine skips them.
@@ -660,23 +499,12 @@ class RunMixin(_Base):
                 keep_partial_logs=True,
             )
         except RunAborted:
-            # Stop pressed (between runs via _progress, or now mid-run
-            # via _on_event/_on_event_keepalive): keep completed results
-            # and fall through to the normal results path (flag already
-            # set).
+            # Stop pressed (between runs via progress, or now mid-run via the
+            # event hook): keep completed results and fall through to the normal
+            # results path (flag already set).
             pass
         except NotImplementedError as e:
-            QApplication.restoreOverrideCursor()
-            self._run_in_progress = False
-            self._refresh_commands()
-            # A failed run is over too: without this the run settings
-            # stayed locked after an error.
-            self._reenable_run_panel()
-            self._run_progress.setVisible(False)
-            self._run_progress_label.setVisible(False)
-            self._clear_run_eta()
-            self._hide_phase_labels()
-            self._discard_report_streams(streams)
+            self._abandon_foreground_run(streams)
             msgbox.warning(
                 self, "Unsupported Model Feature",
                 f"This model uses a feature the simulation engine doesn't support yet:\n\n{e}",
@@ -684,21 +512,62 @@ class RunMixin(_Base):
             self._statusbar.showMessage("Run failed — unsupported feature")
             return
         except Exception as e:
-            QApplication.restoreOverrideCursor()
-            self._run_in_progress = False
-            self._refresh_commands()
-            # A failed run is over too: without this the run settings
-            # stayed locked after an error.
-            self._reenable_run_panel()
-            self._run_progress.setVisible(False)
-            self._run_progress_label.setVisible(False)
-            self._clear_run_eta()
-            self._hide_phase_labels()
-            self._discard_report_streams(streams)
+            self._abandon_foreground_run(streams)
             msgbox.critical(self, "Simulation Failed", f"The run failed:\n\n{e}")
             self._statusbar.showMessage("Run failed")
             return
         QApplication.restoreOverrideCursor()
+        self._present_foreground_run(
+            run_model, event_logs, end_of_run_lines, final_results_lines,
+            streams=streams, report_data=report_data, report_notes=report_notes,
+            run_metadata=run_metadata)
+
+    def _lock_for_foreground_run(self) -> None:
+        """Re-entrancy guard and a clean slate for a synchronous batch: Run is
+        disabled for its duration, and the previous run's numbers are wiped so they
+        cannot be mistaken for this batch's."""
+        self._run_in_progress = True
+        self._refresh_commands()
+        self._disable_run_panel_for_run()
+        self._results.clear()
+        # The live-frame fingerprint belongs to the previous run (a
+        # stopped run left its last state in it).
+        self._live_sig = None
+        # A new run invalidates the old Weak Link labels, including on a
+        # Start/End node where they would collide with the live capacity
+        # readout.
+        self._diagram_dock.view.clear_result_overlays()
+        self._reset_status_summary()
+        self._start_run_eta()
+        # ...and the stepping Live Log dock.
+        self._reset_live_log()
+        # Sync runs pump the event loop between runs, so a Stop press
+        # can land: flag checked in the progress hook, engine aborts cleanly.
+        self._sync_stop = False
+
+    def _unlock_after_run(self) -> None:
+        self._run_in_progress = False
+        self._refresh_commands()
+        # Without this the run settings stay locked after a run or an error.
+        self._reenable_run_panel()
+        self._run_progress.setVisible(False)
+        self._run_progress_label.setVisible(False)
+
+    def _abandon_foreground_run(self, streams) -> None:
+        """A failed run is over too: restore the window and drop its report streams."""
+        QApplication.restoreOverrideCursor()
+        self._unlock_after_run()
+        self._clear_run_eta()
+        self._hide_phase_labels()
+        self._discard_report_streams(streams)
+
+    def _present_foreground_run(self, run_model, event_logs, end_of_run_lines,
+                                final_results_lines, *, streams, report_data,
+                                report_notes, run_metadata) -> None:
+        """Put a finished (or stopped) batch's results on screen and release the UI."""
+        ao_lines = streams.get("ao")
+        cap_lines = streams.get("capacity")
+        cost_lines = streams.get("cost")
         # Importance variants are still to come. Keep the run "in progress"
         # for the whole of them: Run must not start a second batch over the
         # baseline on screen, Stop must still land (the worker reads
@@ -711,11 +580,7 @@ class RunMixin(_Base):
                                and bool(report_data))
         try:
             if not will_run_importance:
-                self._run_in_progress = False
-                self._refresh_commands()
-                self._reenable_run_panel()
-                self._run_progress.setVisible(False)
-                self._run_progress_label.setVisible(False)
+                self._unlock_after_run()
             else:
                 # The bar belongs to the importance phase from now on.
                 self._run_progress.setVisible(True)
@@ -735,13 +600,7 @@ class RunMixin(_Base):
             self._statusbar.showMessage("Processing results…")
             QApplication.processEvents(
                 QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
-            units = None
-            try:
-                cfg_section = run_model.sections.get("SYSTEM_DATA")
-                if cfg_section and cfg_section.rows:
-                    units = system_config_from_row(cfg_section.rows[0]).units
-            except (ValueError, KeyError):
-                pass
+            units = _system_units(run_model)
             self._push_weak_settings()
             # FailSim/CycleSim anti-runaway bound hit: surface it loudly
             # instead of silently reporting numbers from a truncated
@@ -823,23 +682,7 @@ class RunMixin(_Base):
             self._update_status_summary(report_data, units)
             from raptor.core import diagnostics as _dg
             self._diag(_dg.end_simulation_line())
-            total_lines = sum(len(lines) for lines in event_logs)
-            if getattr(self, "_sync_stop", False):
-                completed = len(report_data)
-                if completed < len(event_logs):
-                    self._statusbar.showMessage(
-                        "Stopped — partial event log kept for the interrupted "
-                        f"run, {total_lines} event-log lines", 10000)
-                else:
-                    self._statusbar.showMessage(
-                        f"Stopped after {completed} run(s), "
-                        f"{total_lines} event-log lines")
-            else:
-                # State success explicitly so a finished run is never
-                # mistaken for an aborted one.
-                self._statusbar.showMessage(
-                    f"Completed {len(event_logs)} run(s) successfully, "
-                    f"{total_lines} event-log lines")
+            self._show_run_outcome(event_logs, len(report_data))
         finally:
             # The run is over whether or not presenting its results raised:
             # leaving Run disabled (or `_sync_stop` latched) is the stranding
@@ -854,14 +697,27 @@ class RunMixin(_Base):
             self._pause_action.setText("Pause")
             self._sync_stop = False
 
+    def _show_run_outcome(self, event_logs, completed: int) -> None:
+        """Status line for how the batch ended: stopped (and where) or completed."""
+        total_lines = sum(len(lines) for lines in event_logs)
+        if getattr(self, "_sync_stop", False):
+            if completed < len(event_logs):
+                self._statusbar.showMessage(
+                    "Stopped — partial event log kept for the interrupted "
+                    f"run, {total_lines} event-log lines", 10000)
+            else:
+                self._statusbar.showMessage(
+                    f"Stopped after {completed} run(s), "
+                    f"{total_lines} event-log lines")
+        else:
+            # State success explicitly so a finished run is never
+            # mistaken for an aborted one.
+            self._statusbar.showMessage(
+                f"Completed {len(event_logs)} run(s) successfully, "
+                f"{total_lines} event-log lines")
+
     def _current_units(self):
-        try:
-            cfg_section = req(self._rbd).sections.get("SYSTEM_DATA")
-            if cfg_section and cfg_section.rows:
-                return system_config_from_row(cfg_section.rows[0]).units
-        except (ValueError, KeyError):
-            pass
-        return None
+        return _system_units(req(self._rbd))
 
     def _diag(self, *lines: str) -> None:
         """Append to the `/d` diagnostics file beside the model when `diagnostics_log` is on."""

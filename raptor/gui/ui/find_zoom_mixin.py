@@ -11,9 +11,6 @@ from typing import TYPE_CHECKING, Any
 
 
 
-#: Auto Layout's tooltip when it arranges the whole level (no selection,
-#: or everything selected); the selection variant is built per count.
-
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
 else:
