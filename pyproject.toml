@@ -228,6 +228,7 @@ max-complexity = 10
 "raptor/gui/ui/help_viewer.py" = ["PLR0915"]
 "raptor/gui/ui/inspector.py" = ["C901", "PLR0912", "PLR0915"]
 "raptor/gui/ui/main_window.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/validation_mixin.py" = ["C901", "PLR0912", "PLR0915"]
 "raptor/gui/ui/phasing_dialog.py" = ["C901", "PLR0912", "PLR0915"]
 "raptor/gui/ui/plots.py" = ["C901", "PLR0912", "PLR0915"]
 "raptor/gui/ui/pool_dialogs.py" = ["C901", "PLR0912", "PLR0915"]
