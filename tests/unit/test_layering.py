@@ -54,3 +54,29 @@ def _violations(package: str):
 def test_lower_layers_do_not_import_upward(package):
     bad = sorted(set(_violations(package)))
     assert not bad, "layering violations:\n  " + "\n  ".join(bad)
+
+
+# The GUI reaches the simulator through `raptor.api`; only these files still import
+# the engine directly (status colours, FMECA, distribution stats, the run loop).
+# A ratchet: remove a name when its last direct import goes, never add one.
+GUI_ENGINE_IMPORTERS = frozenset({
+    "raptor/gui/ui/analytic_dialog.py", "raptor/gui/ui/block_labels.py",
+    "raptor/gui/ui/data_tables.py", "raptor/gui/ui/diagram.py",
+    "raptor/gui/ui/dialogs.py", "raptor/gui/ui/fev_inspector.py",
+    "raptor/gui/ui/fev_mixin.py", "raptor/gui/ui/inspector.py",
+    "raptor/gui/ui/main_window.py", "raptor/gui/ui/results.py",
+    "raptor/gui/ui/run_experiment_mixin.py", "raptor/gui/ui/run_panel.py",
+})
+_ENGINE = ("raptor.core.engine", "raptor.core.rng", "raptor.core.scheduler",
+           "raptor.core.analytical", "raptor.core.run_experiment")
+
+
+def test_gui_engine_imports_only_shrink():
+    found = set()
+    for path in (ROOT / "gui").rglob("*.py"):
+        if any(m.startswith(_ENGINE) for m in _imports(path)):
+            found.add(path.relative_to(ROOT.parent).as_posix())
+    new = sorted(found - GUI_ENGINE_IMPORTERS)
+    assert not new, f"new direct engine imports in the GUI (use raptor.api): {new}"
+    gone = sorted(GUI_ENGINE_IMPORTERS - found)
+    assert not gone, f"no longer import the engine; drop from the ratchet: {gone}"
