@@ -549,6 +549,7 @@ def model_labels(paths: list) -> list[str]:
 
 
 def _model_copy(win):
+    win._note_whole_model_tool("Sweeps and comparisons")
     return win._model_for_engine(copy=True)
 
 

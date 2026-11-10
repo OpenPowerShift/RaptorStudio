@@ -53,7 +53,7 @@ def test_run_panel_checkbox_sets_both_by_default(qapp):
     p._importance_check.setChecked(True)
     assert p.experiment()["importance"] == "both"
     # The cost line has to state the actual work before the user commits.
-    note = p._importance_note.text()
+    note = p.importance_note()
     assert "6 block(s)" in note and "13 batches" in note
     p._importance_check.setChecked(False)
     assert p.experiment()["importance"] == "none"
@@ -68,7 +68,7 @@ def test_run_panel_mode_picker_changes_the_family(qapp):
     idx = p._importance_mode.findData("improvement")
     p._importance_mode.setCurrentIndex(idx)
     assert p.experiment()["importance"] == "improvement"
-    assert "5 batches" in p._importance_note.text()
+    assert "5 batches" in p.importance_note()
 
 
 # ------------------------------------------------------------ Results tab

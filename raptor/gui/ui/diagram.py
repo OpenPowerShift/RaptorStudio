@@ -1035,14 +1035,23 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         sec = rbd.sections.get(section)
         if sec is None:
             return False
+        # The log names elements, not ids, and names may repeat. Prefer the
+        # one on the level already on screen (so stepping a hierarchy stays
+        # put), then the first in the file.
+        matches: list[tuple[int, int]] = []
+        parent_col = self._LOCATE[element_kind][1]
         for row in sec.rows:
             oid = _safe_int(row.get("ID"))
             if oid <= 0:
                 continue  # the ID-0 column template, not an element
             row_name = row.get(name_col) or row.get("Name") or ""
             if row_name == name:
-                return self.locate_id(element_kind, oid)
-        return False
+                matches.append((oid, _safe_int(row.get(parent_col))))
+        if not matches:
+            return False
+        here = [oid for oid, parent in matches
+                if parent == self._current_parent]
+        return self.locate_id(element_kind, (here or [matches[0][0]])[0])
 
     def locate_element(self, kind: str, name: str) -> bool:
         """Select `name` (a block or node) and centre the view on it,

@@ -55,8 +55,7 @@ def test_selecting_a_hierarchy_shows_the_warning_and_switches_level(win):
     assert panel._scope.findData(hid) >= 0
     panel._scope.setCurrentIndex(panel._scope.findData(hid))
     assert panel.hierarchy_scope() == hid
-    assert panel._scope_warning.isVisibleTo(panel)
-    assert panel._scope_options.isVisibleTo(panel)
+    assert panel._scope_button.isVisibleTo(panel)
     assert "Importance measures" in panel._scope_warning.text()
     panel._scope_deps.setCurrentIndex(panel._scope_deps.findData("system"))
     assert panel.scope_treatments()["deps"] == "system"
@@ -64,7 +63,7 @@ def test_selecting_a_hierarchy_shows_the_warning_and_switches_level(win):
 
     panel._scope.setCurrentIndex(0)
     assert win._diagram_dock.view._current_parent == 0
-    assert not panel._scope_warning.isVisibleTo(panel)
+    assert not panel._scope_button.isVisibleTo(panel)
 
 
 def test_scoped_run_model_is_an_extract_and_source_is_untouched(win):
@@ -241,3 +240,37 @@ def test_stepping_a_hierarchy_is_labelled_in_live_log_and_status(win):
     finally:
         win._end_step_session()
         win._reset_live_log()
+
+
+def test_whole_model_tools_say_so_under_a_hierarchy_scope(win):
+    hid = _hierarchy(win)
+    panel = win._run_panel
+    win._statusbar.clearMessage()
+    win._note_whole_model_tool("Failure Effects")
+    assert win._statusbar.currentMessage() == ""
+    panel._scope.setCurrentIndex(panel._scope.findData(hid))
+    win._statusbar.clearMessage()
+    win._note_whole_model_tool("Failure Effects")
+    assert "whole model" in win._statusbar.currentMessage()
+
+
+def test_duplicate_names_prefer_the_element_on_the_current_level(win):
+    """A log row names an element, not an id. With the same name at Home and
+    inside a hierarchy, the level on screen wins."""
+    v = win._diagram_dock.view
+    rbd = win._rbd
+    inner = next(r for r in rbd.sections["BLOCK_DATA"].rows
+                 if str(r.get("ID")) not in ("0", "")
+                 and int(float(r.get("ParentId", 0) or 0)) != 0)
+    inner_parent = int(float(inner["ParentId"]))
+    name = inner["blockName"]
+    home = next(r for r in rbd.sections["BLOCK_DATA"].rows
+                if str(r.get("ID")) not in ("0", "")
+                and int(float(r.get("ParentId", 0) or 0)) == 0)
+    home["blockName"] = name                       # duplicate the name
+    v._set_level(inner_parent)
+    assert v.locate_log_element("Block", name)
+    assert v._current_parent == inner_parent       # stayed on this level
+    v._set_level(0)
+    assert v.locate_log_element("Block", name)
+    assert v._current_parent == 0

@@ -7055,6 +7055,16 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._statusbar.showMessage(
             f"Live log row has no canvas element named '{name}'", 4000)
 
+    def _note_whole_model_tool(self, tool: str) -> None:
+        """Failure Effects and the batch tools always use the whole model;
+        say so when a hierarchy run scope is selected, rather than leave
+        the user to assume they follow it."""
+        panel = getattr(self, "_run_panel", None)
+        if panel is not None and panel.hierarchy_scope():
+            self._statusbar.showMessage(
+                f"{tool} uses the whole model; the Run panel's hierarchy "
+                "scope applies to Run and Step only", 8000)
+
     def _step_scope_suffix(self) -> str:
         iso = getattr(self, "_step_isolation", None)
         name = getattr(iso, "hierarchy", "") if iso is not None else ""

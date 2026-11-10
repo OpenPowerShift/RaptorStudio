@@ -83,6 +83,7 @@ class FevMixin:
         # so report its own progress and pump the event loop between slices;
         # otherwise the window is a white rectangle that looks hung for as
         # long as the build takes.
+        self._note_whole_model_tool("Failure Effects")  # type: ignore[attr-defined]
         progress = _FevProgress(self)  # type: ignore[arg-type]
         QApplication.setOverrideCursor(_wait_cursor_shape())
         try:
