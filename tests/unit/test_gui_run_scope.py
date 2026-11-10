@@ -274,3 +274,21 @@ def test_duplicate_names_prefer_the_element_on_the_current_level(win):
     v._set_level(0)
     assert v.locate_log_element("Block", name)
     assert v._current_parent == 0
+
+
+def test_analytical_dialog_follows_the_run_scope(win):
+    """The exact solver can be scoped to a hierarchy, and opens on the
+    hierarchy the Run panel is scoped to."""
+    hid = _hierarchy(win)
+    panel = win._run_panel
+    dialog = win._open_analytic_dialog() or win._analytic_dialog
+    assert dialog._hierarchy.currentData() is None          # whole model
+    panel._scope.setCurrentIndex(panel._scope.findData(hid))
+    win._open_analytic_dialog()
+    assert dialog._hierarchy.currentData() == hid
+    assert dialog._values("reliability")["hierarchy"] == hid
+    # Whole model scope leaves the dialog's own choice alone.
+    panel._scope.setCurrentIndex(0)
+    win._open_analytic_dialog()
+    assert dialog._hierarchy.currentData() == hid
+    dialog.close()
