@@ -4,12 +4,12 @@ Expects on `self`: the scene, `_rbd`, the undo stack and the item tables."""
 from __future__ import annotations
 
 
-import itertools
-import math
 from typing import Any
 
 
 from raptor.gui.ui.diagram_items import routing_batch
+from raptor.gui.layout_options import (
+    element_extents, grid_gap, layout_seeds, normalise_layout_options)
 from raptor.gui.ui import settings as app_settings
 from raptor.gui.ui.diagram_common import (
     BLOCK_H,
@@ -64,29 +64,8 @@ class AutoLayoutMixin(_Base):
         isolation -- and translated so the group keeps its old centre;
         neighbours are untouched. With no selection, the whole level is
         laid out. The selection is kept either way."""
-        if direction is None:
-            direction = str(app_settings.get("layout/direction", "LR"))
-        if direction not in ("LR", "RL", "TB", "BT"):
-            direction = "LR"
-        if max_columns is None:
-            try:
-                configured = int(app_settings.get("layout/max_columns", 0)
-                                 or 0)
-            except (TypeError, ValueError):
-                configured = 0
-            max_columns = configured if configured > 0 else None
-        if spacing is None:
-            try:
-                spacing = float(app_settings.get("layout/spacing", 1.0) or 1.0)
-            except (TypeError, ValueError):
-                spacing = 1.0
-        if label_side is None:
-            label_side = str(app_settings.get("layout/label_side", "auto"))
-        if label_side not in ("left", "right"):
-            label_side = None
-        spacing = float(spacing)
-        if not math.isfinite(spacing) or spacing <= 0.0:
-            spacing = 1.0
+        direction, max_columns, spacing, label_side = normalise_layout_options(
+            direction, max_columns, spacing, label_side, app_settings.get)
         set_flow_direction(direction)
         # Bipartite adjacency, ref-aware: ('Node', 3) and ('Block', 3)
         # are different elements -- keying by bare id let a layering walk
@@ -112,20 +91,7 @@ class AutoLayoutMixin(_Base):
         # markers; inside a hierarchy the flow enters through that
         # hierarchy's own In node -- otherwise there is nothing reachable
         # to seed from on sub-level contents.
-        cur_parent = self._current_parent
-        if cur_parent and cur_parent in self.hiers:
-            h = self.hiers[cur_parent]
-            starts = [("node", h.in_id)]
-            pins = {("node", h.out_id)}
-        else:
-            starts = [("node", nid) for nid, n in self.nodes.items()
-                      if n.type_node == 1]
-            # Pin only the terminal marker(s) to the centre line. The
-            # old rule pinned every regular (type 2) node, so two
-            # same-layer regular nodes were forced to identical
-            # coordinates and rendered stacked.
-            pins = {("node", nid) for nid, n in self.nodes.items()
-                    if n.type_node in (3, 5)}
+        starts, pins = layout_seeds(self._current_parent, self.hiers, self.nodes)
 
         # Positions come from the shared layout engine (legacy_layout.
         # layout_container_positions): longest-path layering, barycenter
@@ -177,25 +143,11 @@ class AutoLayoutMixin(_Base):
                 GUI_REFINE_BUDGET_S, layout_container_positions,
                 refine_budget, LAYER_PITCH, ROW_PITCH,
             )
-            section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
-                          "event": "EVENT_DATA", "hier": "HIERARCHY_DATA"}
             from raptor.core.fileio.element_size import REFERENCE_SCALE
-            sizes = {}
-            render_extents = {}
-            for key, item in members.items():
-                rect = item.sceneBoundingRect()
-                # Exact Qt extents, converted at the FIXED reference scale.
-                # Dividing by the current view scale would feed this pass's
-                # output back into the next pass and ratchet the diagram:
-                # the first pass, run at a stale/degenerate scale, pitches
-                # columns differently from every later one.
-                hw = max(rect.width() / 2.0 / REFERENCE_SCALE, 0.1)
-                hh = max(rect.height() / 2.0 / REFERENCE_SCALE, 0.1)
-                sizes[key] = (hw, hh)
-                section = section_of.get(key[0])
-                if section is not None:
-                    render_extents[(section, str(key[1]))] = (
-                        rect.width() / 2.0, rect.height() / 2.0)
+            rects = {key: item.sceneBoundingRect() for key, item in members.items()}
+            sizes, render_extents = element_extents(
+                {key: (r.width(), r.height()) for key, r in rects.items()},
+                REFERENCE_SCALE)
             # This blocks the UI thread: the shorter GUI budget, not the
             # engine's default.
             with refine_budget(GUI_REFINE_BUDGET_S):
@@ -216,14 +168,8 @@ class AutoLayoutMixin(_Base):
             # Grid pitch = the smallest resulting column/row gap, so the
             # drawn grid follows the size-aware pitches rather than the
             # fixed constants.
-            xs = sorted({round(mx, 6) for mx, _my in pos.values()})
-            ys = sorted({round(my, 6) for _mx, my in pos.values()})
-            def _gap(values, fallback):
-                gaps = [b - a for a, b in itertools.pairwise(values)
-                        if b - a > 1e-6]
-                return min(gaps) if gaps else fallback
-            x_step = _gap(xs, LAYER_PITCH)
-            y_step = _gap(ys, ROW_PITCH)
+            x_step = grid_gap({round(mx, 6) for mx, _my in pos.values()}, LAYER_PITCH)
+            y_step = grid_gap({round(my, 6) for _mx, my in pos.values()}, ROW_PITCH)
         finally:
             self._loading = False
         with routing_batch(self._scene):
