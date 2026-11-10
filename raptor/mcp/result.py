@@ -41,6 +41,7 @@ from raptor.api.annotations import AnnotationNotFound
 from raptor.api.build import AmbiguousName, BuildError, ElementNotFound
 from raptor.core.input_rules import InputRuleViolation
 from raptor.api.estimate import EstimateError
+from raptor.api.markdown import markdown_table  # noqa: F401 - re-exported to the tool modules
 from raptor.api.render import (
     RenderError,
     RenderFailed,
@@ -319,25 +320,3 @@ def DESTRUCTIVE(title: str) -> ToolAnnotations:
     return _ann(title, read_only_hint=False, destructive_hint=True,
                 idempotent_hint=False)
 
-
-def markdown_table(headers: list[str], rows: list[list[Any]]) -> str:
-    """Render a simple Markdown table."""
-    lines = [
-        "| " + " | ".join(str(h) for h in headers) + " |",
-        "| " + " | ".join("---" for _ in headers) + " |",
-    ]
-    for row in rows:
-        lines.append("| " + " | ".join(_cell(v) for v in row) + " |")
-    return "\n".join(lines)
-
-
-def _cell(value: Any) -> str:
-    if value is None:
-        return "N/A"
-    if isinstance(value, float):
-        return f"{value:.6g}"
-    # Model-controlled text: keep it inside one table cell and don't let a
-    # pipe create a fake column.  This is containment, not a substitute for
-    # treating the content as untrusted data.
-    return (str(value).replace("\\", "\\\\").replace("|", "\\|")
-            .replace("\r", " ").replace("\n", " "))

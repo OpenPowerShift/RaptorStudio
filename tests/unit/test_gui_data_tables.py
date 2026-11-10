@@ -208,7 +208,7 @@ def test_display_unit_controls_headers_and_computed_means(qapp):
     """A display-unit override must relabel and convert the computed
     Mean/Std Dev cells too, and a native-unit edit must replace the
     conversion basis rather than leave the old one."""
-    from raptor.gui.ui.units_conv import native_to_display
+    from raptor.core.units_conv import native_to_display
 
     w = MainWindow()
     w._load_into_app(load_rbd(os.path.join(

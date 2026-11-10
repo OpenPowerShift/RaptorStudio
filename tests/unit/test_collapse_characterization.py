@@ -5,7 +5,7 @@ For several selections on several fixtures -- with and without an existing
 HIERARCHY_DATA section -- the golden records what `CollapseCmd` receives,
 the returned id, and the file's section order afterwards. Captured from the
 ORIGINAL implementation before the planning moved into the Qt-free
-`raptor.gui.hierarchy_plan` / `raptor.gui.row_ops`. Regenerate on purpose
+`raptor.core.edit.hierarchy_plan` / `raptor.core.edit.row_ops`. Regenerate on purpose
 with `python tests/unit/test_collapse_characterization.py --write`.
 """
 from __future__ import annotations

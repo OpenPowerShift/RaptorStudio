@@ -411,7 +411,7 @@ class Workspace:
 
         # Build the initial RbdFile
         if template == "blank":
-            from raptor.gui.new_model import build_new_model
+            from raptor.core.edit.new_model import build_new_model
             rbd = build_new_model(file_name=name)
         elif template in ("series", "parallel", "k_of_n"):
             from raptor.api.limits import MAX_TEMPLATE_BLOCKS

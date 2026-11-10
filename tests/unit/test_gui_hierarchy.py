@@ -534,7 +534,7 @@ def test_import_rbd_as_hierarchy_preserves_metrics(qapp, tmp_path, suffix):
     an .rbds at its first line."""
     from raptor.core.engine.runner import run_simulation_with_reports
     from raptor.core.fileio.rbd import load_rbd, save_rbd
-    from raptor.gui.new_model import build_new_model
+    from raptor.core.edit.new_model import build_new_model
     from raptor.gui.ui.diagram import DiagramView
 
     def metrics(fin):
@@ -593,7 +593,7 @@ def test_import_rbd_as_hierarchy_preserves_metrics(qapp, tmp_path, suffix):
 def test_import_skips_template_rows(qapp):
     """The imported file's ID=0 DEFAULTS rows must not become phantom
     elements (the engine's graph walk dies on a link-less block)."""
-    from raptor.gui.new_model import build_new_model
+    from raptor.core.edit.new_model import build_new_model
     from raptor.gui.ui.diagram import DiagramView
     host = build_new_model("host")
     _strip_skeleton(host)
@@ -612,7 +612,7 @@ def test_import_skips_template_rows(qapp):
 
 
 def test_import_macro_undo(qapp):
-    from raptor.gui.new_model import build_new_model
+    from raptor.core.edit.new_model import build_new_model
     from raptor.gui.ui.diagram import DiagramView
     host = build_new_model("host")
     _strip_skeleton(host)
@@ -928,7 +928,7 @@ def test_import_shows_only_the_oval_and_keeps_the_files_layout(qapp, tmp_path):
     host's drawing units, which shrank every spacing)."""
     from raptor.core.fileio.rbd import load_rbd
     from raptor.core.fileio.rbds import save_rbds
-    from raptor.gui.new_model import build_new_model
+    from raptor.core.edit.new_model import build_new_model
     from raptor.gui.ui.diagram import DiagramView
 
     def centres(v):

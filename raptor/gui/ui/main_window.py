@@ -59,7 +59,7 @@ from raptor.core.engine.reports import (
     build_final_results_report,
 )
 from raptor import __version__ as _APP_VERSION
-from raptor.gui.new_model import build_new_model
+from raptor.core.edit.new_model import build_new_model
 from raptor.gui.widgets.ribbon import Ribbon, RibbonButton
 from raptor.gui.command_table import COMMANDS, LAYOUT
 from raptor.gui.commands import (PREDICATES, AppState, CommandRegistry, build_pages)
@@ -7381,7 +7381,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     def _on_run_to(self):
         if self._rbd is None:
             return
-        from raptor.gui.ui.units_conv import display_to_native
+        from raptor.core.units_conv import display_to_native
         try:
             native_units = system_config_from_row(
                 self._rbd.sections["SYSTEM_DATA"].rows[0]).units

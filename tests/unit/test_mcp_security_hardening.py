@@ -20,7 +20,7 @@ pytest.importorskip("mcp")
 from raptor.api.build import BuildError, _check_scalar, _require_dist_code  # noqa: E402
 from raptor.core.fileio.rbd import load_rbd  # noqa: E402
 from raptor.core.input_rules import check, has_blank, new_violations  # noqa: E402
-from raptor.gui.ui.expr_eval import ExpressionError, eval_expression  # noqa: E402
+from raptor.core.expr_eval import ExpressionError, eval_expression  # noqa: E402
 from raptor.mcp.server import mcp  # noqa: E402
 
 

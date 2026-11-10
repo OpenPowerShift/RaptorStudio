@@ -722,8 +722,8 @@ def show_preferences(win):
     model_page = QWidget()
     model_form = QFormLayout(model_page)
     model_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-    from raptor.gui.ui.units_conv import DISPLAY_UNIT_CHOICES
-    from raptor.gui.ui.units_conv import parse_display_unit
+    from raptor.core.units_conv import DISPLAY_UNIT_CHOICES
+    from raptor.core.units_conv import parse_display_unit
     display_unit_combo = QComboBox()
     display_unit_combo.setEditable(True)
     for choice in DISPLAY_UNIT_CHOICES:
@@ -923,7 +923,7 @@ def show_system_config(win):
     # same call the (now removed) Simulation Options form resolved via
     # its dynamic per-mode
     # label/value switch).
-    from raptor.gui.ui.units_conv import native_to_display, display_to_native
+    from raptor.core.units_conv import native_to_display, display_to_native
     native_units = cfg.units
     display_unit = getattr(win._rbd, "display_unit", None)
     shown_units = display_unit or native_units

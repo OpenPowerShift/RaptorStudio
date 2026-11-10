@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 
 from raptor.core.fileio.rbd import load_rbd
-from raptor.gui import row_ops
-from raptor.gui.hierarchy_plan import plan_collapse
+from raptor.core.edit import row_ops
+from raptor.core.edit.hierarchy_plan import plan_collapse
 
 GOLD = Path(__file__).resolve().parents[1] / "golden"
 
@@ -19,7 +19,7 @@ def _rbd(name):
 
 
 def test_modules_need_no_qt():
-    code = ("import sys, raptor.gui.row_ops, raptor.gui.hierarchy_plan;"
+    code = ("import sys, raptor.core.edit.row_ops, raptor.core.edit.hierarchy_plan;"
             "sys.exit(any(m.startswith('PySide') for m in sys.modules))")
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
 

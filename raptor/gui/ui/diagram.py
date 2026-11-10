@@ -50,12 +50,13 @@ from raptor.core.annotations import (
     annotation_geometry,
     annotation_label,
 )
-from raptor.gui import clipboard_payload, row_ops, text_editing
+from raptor.core.edit import row_ops
+from raptor.gui import clipboard_payload, text_editing
 from raptor.gui.clipboard_plan import (
     count_elements, plan_copy, plan_paste, remap_dependencies)
 from raptor.core.fileio.band_handover import handover_points
 from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
-from raptor.gui.hierarchy_plan import (apply_collapse_plan,
+from raptor.core.edit.hierarchy_plan import (apply_collapse_plan,
                                        collapse_new_violations,
                                        plan_collapse, plan_dissolve,
                                        plan_import)

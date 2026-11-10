@@ -1670,7 +1670,7 @@ class DataTablesDock(QWidget):
                 return f"{shown[i]:.6g}", float(shown[i])
             return "", None
         if b is not None and col == 12:
-            from raptor.gui.ui.units_conv import native_to_display
+            from raptor.core.units_conv import native_to_display
             v = native_to_display(
                 b.pm_freq, getattr(self, "_native_units", "") or "",
                 getattr(self, "_display_unit", None))
@@ -1793,7 +1793,7 @@ class DataTablesDock(QWidget):
         if self._view is None:
             t.setUpdatesEnabled(True)
             return
-        from raptor.gui.ui.units_conv import native_to_display
+        from raptor.core.units_conv import native_to_display
         native_u = getattr(self, "_native_units", "") or ""
         display_u = getattr(self, "_display_unit", None)
 
@@ -2226,7 +2226,7 @@ class DataTablesDock(QWidget):
         `on_commit_entry` is for a slot in Raptor's lambda/mu-sigma entry
         mode: `shown_value` is already in entry space, and the callback
         converts the typed number before validating/storing it."""
-        from raptor.gui.ui.units_conv import native_to_display, display_to_native
+        from raptor.core.units_conv import native_to_display, display_to_native
         native_units = getattr(self, "_native_units", "") or ""
         display_unit = getattr(self, "_display_unit", None) if is_time \
             else None
@@ -2427,7 +2427,7 @@ class DataTablesDock(QWidget):
         from PySide6.QtWidgets import QLineEdit
         from raptor.core.fileio.typed import (
             _SPARING_TYPE_BY_NAME, SPARING_TYPE_TO_FILE_STRING)
-        from raptor.gui.ui.units_conv import native_to_display, display_to_native
+        from raptor.core.units_conv import native_to_display, display_to_native
         native_u = getattr(self, "_native_units", "") or ""
         display_u = getattr(self, "_display_unit", None)
         combo = QComboBox()
@@ -3028,7 +3028,7 @@ class DataTablesDock(QWidget):
 
     def _entry_values(self, distro: int, values: list[float]) -> list[float]:
         """Canonical values -> what the entry-mode shows, in shown units."""
-        from raptor.gui.ui.units_conv import native_to_display
+        from raptor.core.units_conv import native_to_display
         native_u = getattr(self, "_native_units", "") or ""
         display_u = getattr(self, "_display_unit", None)
         labels = DISTRO_PARAM_LABELS.get(distro, ("", "", ""))
@@ -3073,7 +3073,7 @@ class DataTablesDock(QWidget):
             return False
         entered = self._entry_values(distro, (old + [0.0] * 3)[:3])
         entered[index] = raw
-        from raptor.gui.ui.units_conv import native_to_display, display_to_native
+        from raptor.core.units_conv import native_to_display, display_to_native
         native_u = getattr(self, "_native_units", "") or ""
         display_u = getattr(self, "_display_unit", None)
         base_labels = DISTRO_PARAM_LABELS.get(distro, ("", "", ""))

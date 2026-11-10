@@ -1,0 +1,56 @@
+"""Import layering: the engine, API and MCP never depend on the GUI or on Qt.
+
+Dependencies point one way: ``gui -> api -> core`` (``mcp`` and ``cli`` sit beside the
+GUI). Headless logic the GUI and the API both need lives in ``raptor.core``, not in
+``raptor.gui``. Imports inside functions count: a lazy import is still a dependency.
+"""
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2] / "raptor"
+
+# package -> top-level names it must not import
+FORBIDDEN = {
+    "core": ("raptor.gui", "raptor.mcp", "raptor.api", "raptor.cli", "PySide6"),
+    "api": ("raptor.gui", "raptor.mcp", "raptor.cli", "PySide6"),
+    "mcp": ("raptor.gui", "PySide6"),
+}
+
+# (file, imported module): every entry is debt, not design. Shrink this, never grow it.
+ALLOWED: set[tuple[str, str]] = {
+    # Loading an .rbds recomputes linked rate fields through the API's rate code.
+    # `propagate_rates` should move down into core once api.build.store_numeric does.
+    ("raptor/core/fileio/rbds.py", "raptor.api.rates"),
+    ("raptor/core/fileio/rbds.py", "raptor.api.rates.propagate_rates"),
+}
+
+
+def _imports(path: Path):
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                yield alias.name
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            yield node.module
+            for alias in node.names:
+                yield f"{node.module}.{alias.name}"
+
+
+def _violations(package: str):
+    for path in sorted((ROOT / package).rglob("*.py")):
+        rel = path.relative_to(ROOT.parent).as_posix()
+        for mod in set(_imports(path)):
+            for banned in FORBIDDEN[package]:
+                if (mod == banned or mod.startswith(banned + ".")) \
+                        and (rel, mod) not in ALLOWED:
+                    yield f"{rel} imports {mod}"
+
+
+@pytest.mark.parametrize("package", sorted(FORBIDDEN))
+def test_lower_layers_do_not_import_upward(package):
+    bad = sorted(set(_violations(package)))
+    assert not bad, "layering violations:\n  " + "\n  ".join(bad)

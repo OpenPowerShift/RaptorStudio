@@ -17,7 +17,7 @@ from raptor.api.annotations import (
 )
 from raptor.api.build import BuildError
 from raptor.api.workspace import Workspace
-from raptor.gui.new_model import NEW_MODEL_TEXT
+from raptor.core.edit.new_model import NEW_MODEL_TEXT
 from raptor.core.fileio.rbd import parse_rbd
 
 

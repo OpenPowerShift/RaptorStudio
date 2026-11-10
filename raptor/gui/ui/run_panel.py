@@ -972,7 +972,7 @@ class RunPanel(QWidget):
 
     def _to_display(self, native: float, termination_type: str) -> float:
         """Native -> shown, honouring the same rule the writes use."""
-        from raptor.gui.ui.units_conv import native_to_display
+        from raptor.core.units_conv import native_to_display
         if not getattr(self, "_display_unit", None):
             return float(native)
         if termination_type == "TimeSim":
@@ -983,7 +983,7 @@ class RunPanel(QWidget):
 
     def _to_native(self, shown: float, termination_type: str) -> float:
         """Shown -> native, the exact inverse of `_to_display`."""
-        from raptor.gui.ui.units_conv import display_to_native
+        from raptor.core.units_conv import display_to_native
         if not getattr(self, "_display_unit", None):
             return float(shown)
         if termination_type == "TimeSim":

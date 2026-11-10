@@ -467,7 +467,7 @@ def _record_formula(rbd: RbdFile, kind: str, elem_id: Any, col: str,
                     text: str, value: float) -> None:
     """Record the expression/rate behind a stored float (see
     ``RbdFile.formulas``)."""
-    from raptor.gui.ui.expr_eval import is_bare_rate_ref
+    from raptor.core.expr_eval import is_bare_rate_ref
     if rbd.formulas is None:
         rbd.formulas = {}
     key = f"{kind}:{elem_id}:{col}"
@@ -1449,7 +1449,7 @@ def template_spec(template: str, *, n: int = 2, k: int = 1) -> RbdFile:
     """
     name = template.strip().lower()
     if name in ("blank", "new", ""):
-        from raptor.gui.new_model import build_new_model
+        from raptor.core.edit.new_model import build_new_model
         return build_new_model()
     if name == "series":
         return build_from_spec(series(n))
@@ -1966,7 +1966,7 @@ def _hierarchy_rows(rbd: RbdFile, name: str, parent: int,
     ``parent`` is the hierarchy's id (the file format's convention), and
     ``level`` is one more than the container's (Raptor's
     `NestedHierarchyCost` reads it)."""
-    from raptor.gui.row_ops import build_hierarchy_rows
+    from raptor.core.edit.row_ops import build_hierarchy_rows
 
     _reject_duplicate_name(rbd, "HIERARCHY_DATA", name)
     parent_row = next((r for r in rbd.section("HIERARCHY_DATA").rows
@@ -2132,7 +2132,7 @@ def collapse_selection(
     # selection moves into the hierarchy, internal links travel with it,
     # and each boundary link SPLITS into an outside half on the oval and
     # an inside half on the In/Out marker.
-    from raptor.gui.hierarchy_plan import apply_collapse_plan, plan_collapse
+    from raptor.core.edit.hierarchy_plan import apply_collapse_plan, plan_collapse
     plan = plan_collapse(
         rbd, hid=hid, in_id=in_id, out_id=out_id, parent=parent,
         blocks=selected_ids["BLOCK_DATA"], nodes=selected_ids["NODE_DATA"],
@@ -2144,7 +2144,7 @@ def collapse_selection(
                         level_moves=plan.level_moves)
 
     from raptor.core.input_rules import refusal_text
-    from raptor.gui.hierarchy_plan import collapse_new_violations
+    from raptor.core.edit.hierarchy_plan import collapse_new_violations
 
     problems = collapse_new_violations(
         saved_model, rbd, hid=hid, selected=selected_ids,

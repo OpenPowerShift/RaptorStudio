@@ -207,7 +207,7 @@ def test_new_model_links_connect_node_to_block_not_node_to_node(qapp):
     kind-blind bare-id lookup, so an id shared between a node and a
     block resolves correctly.
 """
-    from raptor.gui.new_model import build_new_model
+    from raptor.core.edit.new_model import build_new_model
 
     v = DiagramView()
     v.load_rbd(build_new_model("Test"))

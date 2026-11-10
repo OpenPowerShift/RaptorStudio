@@ -4,7 +4,7 @@ The golden records what the method hands `DissolveCmd` (rows to remove,
 parent and link rewrites, boundary rewiring) plus the status message, for
 every hierarchy of every golden fixture that has one, captured from the
 ORIGINAL inline implementation before the planning moved into the Qt-free
-`raptor.gui.hierarchy_plan`. Regenerate on purpose with
+`raptor.core.edit.hierarchy_plan`. Regenerate on purpose with
 `python tests/unit/test_dissolve_characterization.py --write`.
 """
 from __future__ import annotations

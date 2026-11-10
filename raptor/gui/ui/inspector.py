@@ -1255,9 +1255,9 @@ class InspectorDock(QWidget):
         # Three slots whatever arrives: a list left short by a distribution
         # change (an Empirical's points) crashed every redraw of the block.
         current = (list(values) + [0.0, 0.0, 0.0])[:max(3, len(values))]
-        from raptor.gui.ui.expr_eval import (
+        from raptor.core.expr_eval import (
             resolve, is_plain_number, is_bare_rate_ref, ExpressionError)
-        from raptor.gui.ui.units_conv import native_to_display, display_to_native
+        from raptor.core.units_conv import native_to_display, display_to_native
 
         def addr_of(idx: int) -> str | None:
             return f"{addr_prefix}Param{idx + 1}" if addr_prefix else None
@@ -1544,7 +1544,7 @@ class InspectorDock(QWidget):
         the way in and out. Callers with a non-time value (percentages,
         counts) leave this False, which also means no unit suffix is added
         to `label`."""
-        from raptor.gui.ui.units_conv import native_to_display, display_to_native
+        from raptor.core.units_conv import native_to_display, display_to_native
         native_units = getattr(self, "_units_str", "") or ""
         display_unit = getattr(self, "_display_unit", None) if is_time else None
         shown_units = (display_unit or native_units) if is_time else ""

@@ -9,7 +9,7 @@ import pytest
 
 from raptor.core.fileio.rbd import load_rbd
 from raptor.core.fileio.typed import hier_from_row
-from raptor.gui.hierarchy_plan import plan_dissolve
+from raptor.core.edit.hierarchy_plan import plan_dissolve
 
 GOLD = Path(__file__).resolve().parents[1] / "golden"
 
@@ -28,7 +28,7 @@ def _load(name):
 
 
 def test_module_needs_no_qt():
-    code = ("import sys, raptor.gui.hierarchy_plan;"
+    code = ("import sys, raptor.core.edit.hierarchy_plan;"
             "sys.exit(any(m.startswith('PySide') for m in sys.modules))")
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
 
@@ -99,7 +99,7 @@ def test_a_nested_hierarchys_contents_are_promoted_too():
 # -- import ---------------------------------------------------------------
 
 def _plan_import(host_name, imp_name, hid=500):
-    from raptor.gui.hierarchy_plan import plan_import
+    from raptor.core.edit.hierarchy_plan import plan_import
     host, imp = _load(host_name)[0], _load(imp_name)[0]
     return host, imp, plan_import(host, imp, imp_name, hid=hid,
                                   wrapper_ids=(hid, hid + 1, hid + 2))
@@ -157,7 +157,7 @@ def test_links_follow_the_remapped_elements():
 
 
 def test_a_model_without_exactly_one_start_and_end_is_refused():
-    from raptor.gui.hierarchy_plan import plan_import
+    from raptor.core.edit.hierarchy_plan import plan_import
     host, imp = _load("ComplexModel")[0], _load("TwoBlockRedundancy")[0]
     imp.sections["NODE_DATA"].rows = [
         r for r in imp.sections["NODE_DATA"].rows

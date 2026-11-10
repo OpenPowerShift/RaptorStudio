@@ -63,5 +63,5 @@ def test_validate_names_the_unit_for_a_model(tmp_path):
 
 
 def test_the_unit_table_matches_the_gui_conversions():
-    from raptor.gui.ui.units_conv import HOURS_PER_UNIT
+    from raptor.core.units_conv import HOURS_PER_UNIT
     assert _UNIT_HOURS == HOURS_PER_UNIT

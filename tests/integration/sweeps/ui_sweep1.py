@@ -18,7 +18,7 @@ from PySide6.QtCore import QRectF, QSettings
 import _sweep_base as sb
 
 from raptor.gui.ui.diagram import RowCellCmd
-from raptor.gui.new_model import build_new_model
+from raptor.core.edit.new_model import build_new_model
 from raptor.gui.resources.design_tokens import ThemeManager
 
 ctx = sb.make_context()
