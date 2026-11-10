@@ -417,7 +417,7 @@ def test_custom_titlebar_drag_floats_the_dock(qapp):
     w = _shown(qapp)
     dock = w._explorer_dock
     titlebar = dock.titleBarWidget()
-    from raptor.gui.ui.main_window import _DockTitleBar
+    from raptor.gui.ui.dock_layout_mixin import _DockTitleBar
     assert isinstance(titlebar, _DockTitleBar)
     start = titlebar.mapToGlobal(titlebar.rect().center())
     moved = QPoint(start.x() + 40, start.y() + 40)
@@ -1076,7 +1076,7 @@ def test_a_closed_side_dock_floated_is_recoverable(qapp):
 
 
 def test_set_closed_on_a_floating_side_dock_never_uses_the_stub(qapp):
-    from raptor.gui.ui.main_window import _DockTitleBar
+    from raptor.gui.ui.dock_layout_mixin import _DockTitleBar
 
     w = _shown(qapp)
     dock, action = w._inspector_dock, w._inspector_toggle_action
