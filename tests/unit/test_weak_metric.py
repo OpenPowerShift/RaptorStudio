@@ -153,8 +153,8 @@ class TestConsumersDoNotReimplementIt:
         return "\n".join(lines[node.lineno - 1: node.end_lineno])
 
     @pytest.mark.parametrize("rel, qualname", [
-        ("raptor/gui/ui/main_window.py", "MainWindow._toggle_weak_colors"),
-        ("raptor/gui/ui/results.py", "ResultsDock._weak_metric_rows"),
+        ("raptor/gui/ui/overlay_mixin.py", "OverlayMixin._toggle_weak_colors"),
+        ("raptor/gui/ui/results_pages_mixin.py", "ResultsPagesMixin._weak_metric_rows"),
     ])
     def test_the_metric_function_names_no_buckets(self, rel, qualname):
         body = self._function_source(rel, qualname)
@@ -170,14 +170,14 @@ class TestConsumersDoNotReimplementIt:
         """The canvas overlay's colouring path specifically. It averaged
         per-run fractions across runs; the helper must still be the thing
         doing that."""
-        src = _module_source("raptor/gui/ui/main_window.py")
+        src = _module_source("raptor/gui/ui/overlay_mixin.py")
         assert "cross_run_weak_metric(" in src, (
-            "main_window no longer calls the shared metric -- check "
+            "the weak-colour overlay no longer calls the shared metric -- check "
             "_toggle_weak_colors still colours from weak_metric"
         )
 
     def test_results_tab_takes_its_buckets_from_the_module(self):
-        src = _module_source("raptor/gui/ui/results.py")
+        src = _module_source("raptor/gui/ui/results_pages_mixin.py")
         assert "weak_metric.buckets(" in src, (
             "the Weak Link tab no longer takes its bucket sets from the "
             "shared module"

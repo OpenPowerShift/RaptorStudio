@@ -249,6 +249,9 @@ max-complexity = 10
 "raptor/gui/ui/printing.py" = ["PLR0915"]
 "raptor/gui/ui/rates_dialog.py" = ["PLR0915"]
 "raptor/gui/ui/results.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/results_raw_mixin.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/results_graphs_mixin.py" = ["C901", "PLR0912", "PLR0915"]
+"raptor/gui/ui/results_pages_mixin.py" = ["C901", "PLR0912", "PLR0915"]
 "raptor/render/worker.py" = ["C901", "PLR0912", "PLR0915"]
 
 [tool.mypy]

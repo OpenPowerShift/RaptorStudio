@@ -177,7 +177,7 @@ def test_saving_a_closed_backing_stream_warns_and_writes_nothing(
         qapp, monkeypatch, tmp_path):
     """A new run closes the previous batch's stream while its preview is
     still on screen; Save must say so, not raise."""
-    from raptor.gui.ui import results as results_mod
+    from raptor.gui.ui import msgbox
 
     stream = ResultStream("end_of_run", directory=str(tmp_path))
     stream.extend(["line"])
@@ -186,7 +186,7 @@ def test_saving_a_closed_backing_stream_warns_and_writes_nothing(
     stream.close()
 
     warnings: list[tuple] = []
-    monkeypatch.setattr(results_mod.msgbox, "warning",
+    monkeypatch.setattr(msgbox, "warning",
                         lambda *a, **kw: warnings.append(a))
     out = str(tmp_path / "end_of_run.txt")
     monkeypatch.setattr(fdg, "getSaveFileName",
