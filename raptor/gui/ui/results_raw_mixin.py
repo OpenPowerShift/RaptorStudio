@@ -24,6 +24,7 @@ from raptor.gui.resources.design_tokens import SPACING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -34,15 +35,18 @@ class ResultsRawMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         _ao_lines: list[str]
-        _appendix_c_checks: Any
-        _appendix_c_dialog: Any
-        _interim_cost_view: Any
-        _raw_page: Any
-        _raw_sources: Any
-        _raw_tabs: Any
-        _raw_views: Any
-        _report_data: Any
+        _appendix_c_checks: tuple[PySide6.QtWidgets.QCheckBox, PySide6.QtWidgets.QCheckBox, PySide6.QtWidgets.QCheckBox, PySide6.QtWidgets.QCheckBox, PySide6.QtWidgets.QCheckBox]
+        _appendix_c_dialog: PySide6.QtWidgets.QDialog
+        _interim_cost_view: PySide6.QtWidgets.QPlainTextEdit
+        _raw_page: PySide6.QtWidgets.QWidget
+        _raw_sources: dict[str, object]
+        _raw_tabs: PySide6.QtWidgets.QTabWidget
+        _raw_views: dict[str, PySide6.QtWidgets.QPlainTextEdit]
+        _report_data: list[Any]
 
     def _build_raw_tab(self):
         page = QWidget()

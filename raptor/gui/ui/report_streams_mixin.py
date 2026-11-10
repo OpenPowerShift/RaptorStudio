@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -22,10 +23,13 @@ class ReportStreamsMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _active_report_streams: Any
-        _rbd: Any
-        _run_own_change: Any
-        _statusbar: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _active_report_streams: list[Any]
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _run_own_change: bool
+        _statusbar: PySide6.QtWidgets.QStatusBar
 
     def _report_choices(self) -> dict[str, bool]:
         """Snapshot the Files & Reports checkboxes on the GUI thread.

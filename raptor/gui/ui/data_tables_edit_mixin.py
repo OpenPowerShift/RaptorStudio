@@ -27,6 +27,8 @@ from raptor.gui.ui.data_tables_common import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
+    import raptor.gui.ui.data_tables_common
 else:
     _Base = object
 
@@ -37,14 +39,17 @@ class DataTablesEditMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         def _apply_rows(self, oid: int, what: str, value: str, fn: Any, applicable: Any = ...) -> bool: ...
-        _costs_table: Any
+        _costs_table: raptor.gui.ui.data_tables_common._DataTable
         def _edit_table(self) -> Any: ...
-        _on_cost_cell_changed: Any
+        def _on_cost_cell_changed(self, item: Any) -> Any: ...
         def _src(self) -> Any: ...
-        _view: Any
-        model_edited: Any
-        validation_failed: Any
+        _view: Any  # really Any | None
+        model_edited: PySide6.QtCore.SignalInstance
+        validation_failed: PySide6.QtCore.SignalInstance
 
     def fill_down(self) -> bool:
         """Ctrl+D: the first editable selected row's value in the current

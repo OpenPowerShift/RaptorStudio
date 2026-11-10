@@ -23,6 +23,8 @@ from raptor.gui.ui.diagram_items import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -33,17 +35,20 @@ class ZoomMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _LOD_LABEL_ATTRS: Any
-        _content_rect: Any
-        _current_parent: Any
-        _deferred_sublabels: Any
-        _lod_enabled: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _LOD_LABEL_ATTRS: tuple[str, str, str]
+        _content_rect: PySide6.QtCore.QRectF
+        _current_parent: int
+        _deferred_sublabels: bool
+        _lod_enabled: bool
         _lod_labels_visible: bool | None
         _lod_mode: str | None
-        _refresh_block_sublabels: Any
-        _scene: Any
-        _user_zoomed: Any
-        enter_level: Any
+        def _refresh_block_sublabels(self, block_id: int | None = ...) -> Any: ...
+        _scene: PySide6.QtWidgets.QGraphicsScene
+        _user_zoomed: bool
+        def enter_level(self, hier_id: int) -> Any: ...
 
     def zoom_by(self, factor: float):
         """Multiplicative zoom, clamped only at the extreme ends."""

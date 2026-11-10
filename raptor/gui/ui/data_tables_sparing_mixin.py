@@ -22,6 +22,9 @@ from raptor.gui.ui.data_tables_common import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.gui.ui.data_tables_common
 else:
     _Base = object
 
@@ -32,21 +35,24 @@ class DataTablesSparingMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         def _active_src(self) -> Any: ...
         def _apply_rows(self, oid: int, what: str, value: str, fn: Any, applicable: Any = ...) -> bool: ...
         def _label_row_widgets(self, table: Any, r: int) -> None: ...
-        _lazy_pending: Any
+        _lazy_pending: dict[PySide6.QtWidgets.QTableWidget, set[int]]
         def _level_item(self, kind: str, oid: int) -> Any: ...
         def _param_cell(self, table: Any, row: Any, col: Any, value: float, on_commit: Any, is_time: bool = ..., *, shown_value: float | None = ..., on_commit_entry: Any = ...) -> Any: ...
-        _pm_table: Any
+        _pm_table: raptor.gui.ui.data_tables_common._DataTable
         def _realize_initial(self, t: Any) -> None: ...
-        _set_pm: Any
-        _sparing_table: Any
+        def _set_pm(self, bid: int, value: float) -> bool: ...
+        _sparing_table: raptor.gui.ui.data_tables_common._DataTable
         @classmethod
         def _tag_row_with_name(cls, t: Any, row: int, name: str) -> None: ...
         def _text_cell(self, table: Any, row: int, col: int, value: str, on_commit: Any) -> Any: ...
-        _view: Any
-        model_edited: Any
+        _view: Any  # really Any | None
+        model_edited: PySide6.QtCore.SignalInstance
 
     def _populate_sparing(self):
         """Sparing tab (Raptor 7 "Block Input Tables" -- Sparing

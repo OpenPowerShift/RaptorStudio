@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -23,20 +25,23 @@ class DockFloatMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _bottom_active_dock: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _bottom_active_dock: Any  # really PySide6.QtWidgets.QDockWidget | None
         def _clamp_dock_height(self, target: int) -> int: ...
         _compact_minimized: set[str]
-        _data_tables_dock: Any
+        _data_tables_dock: PySide6.QtWidgets.QDockWidget
         _dock_chrome: dict
-        _dock_resize_generation: Any
+        _dock_resize_generation: int
         _dock_stubs: dict
-        _inspector_dock: Any
+        _inspector_dock: PySide6.QtWidgets.QDockWidget
         def _release_bottom_strip_ceiling(self) -> None: ...
         def _resize_docks(self, docks: Any, sizes: Any, orientation: Any) -> None: ...
         def _restore_results_chrome(self) -> None: ...
-        _results_dock: Any
-        _results_dock_height_before_float: Any
-        _results_float_geom: Any
+        _results_dock: PySide6.QtWidgets.QDockWidget
+        _results_dock_height_before_float: Any  # None until set; really int | None
+        _results_float_geom: Any  # None until set; really QRect | None
         @staticmethod
         def _set_dock_min_width(dock: Any, width: int) -> None: ...
         def _sync_dock_tab_bars(self) -> Any: ...

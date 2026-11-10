@@ -27,6 +27,10 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 from raptor.gui.ui import filedialogs as fdg
 
 if TYPE_CHECKING:
+    import PySide6.QtGui
+    import PySide6.QtWidgets
+    import raptor.core.fileio.rbd
+    import raptor.gui.ui.diagram
     from raptor.core.engine.fev import FevSession
 
 
@@ -41,16 +45,19 @@ class FevMixin:
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _diagram_dock: Any
-        _fev_log_close_action: Any
-        _fev_log_write_action: Any
-        _fev_status_write_btn: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
+        _fev_log_close_action: PySide6.QtGui.QAction
+        _fev_log_write_action: PySide6.QtGui.QAction
+        _fev_status_write_btn: PySide6.QtWidgets.QPushButton
         def _invalidate_step_session(self) -> Any: ...
         def _model_for_engine(self, copy: bool = ...) -> Any: ...
         def _note_whole_model_tool(self, tool: str) -> None: ...
-        _rbd: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _refresh_commands(self, state: Any = ..., only: set[str] | None = ...) -> None: ...
-        _statusbar: Any
+        _statusbar: PySide6.QtWidgets.QStatusBar
         def _update_system_swatch(self, colour: Any, force: bool = ...) -> None: ...
         def _zoom_to_selection(self) -> Any: ...
 

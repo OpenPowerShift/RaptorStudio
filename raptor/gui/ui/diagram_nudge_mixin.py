@@ -53,6 +53,12 @@ _NUDGEABLE_TYPES = (_BlockItem, _NodeItem, _EventItem, _HierItem,
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.core.model
+    import raptor.gui.ui.diagram_element_items
+    import raptor.gui.ui.diagram_item_core
+    import raptor.gui.ui.diagram_link_items
 else:
     _Base = object
 
@@ -63,33 +69,36 @@ class NudgeMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         def _apply_scene_layout(self) -> Any: ...
-        _block_items: Any
+        _block_items: dict[int, raptor.gui.ui.diagram_item_core._BlockItem]
         def _compute_model_transform(self, rbd: Any, spacing: float = ..., band_aware: bool = ...) -> Any: ...
-        _current_parent: Any
-        _detach_if_moved_alone: Any
-        _event_items: Any
-        _hier_items: Any
+        _current_parent: int
+        def _detach_if_moved_alone(self, old_state: dict, new_state: dict, moved: set) -> None: ...
+        _event_items: dict[int, raptor.gui.ui.diagram_element_items._EventItem]
+        _hier_items: dict[int, raptor.gui.ui.diagram_element_items._HierItem]
         def _keys_of_items(self, items: Any) -> set[tuple[str, int]] | None: ...
-        _links: Any
+        _links: list[raptor.gui.ui.diagram_link_items._LinkItem]
         @staticmethod
         def _move_by(item: Any, dx: Any, dy: Any) -> Any: ...
-        _node_items: Any
+        _node_items: dict[int, raptor.gui.ui.diagram_item_core._NodeItem]
         _pos_overrides: dict[tuple[str, int], tuple[float, float]]
-        _rbd_ref: Any
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _rebuild_scene(self) -> Any: ...
-        _scene: Any
+        _scene: PySide6.QtWidgets.QGraphicsScene
         def _selected_items(self) -> Any: ...
-        _snap_state: Any
+        _snap_state: dict[str, float]
         _stack: Any
         def _sync_items(self, items: Any) -> None: ...
-        blocks: Any
+        blocks: dict[int, raptor.core.model.RBDBlock]
         events: dict[int, Any]
-        follow_anchors: Any
-        hiers: Any
-        layout_changed: Any
-        nodes: Any
-        route_grip_by_entry: Any
+        def follow_anchors(self, moved: set | None = ...) -> int: ...
+        hiers: dict[int, raptor.core.model.RBDHier]
+        layout_changed: PySide6.QtCore.SignalInstance
+        nodes: dict[int, raptor.core.model.RBDNode]
+        def route_grip_by_entry(self, entry_id: int) -> Any: ...
         def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
 
     def _layout_state(self) -> tuple[dict, dict | None, tuple[str, str | None]]:

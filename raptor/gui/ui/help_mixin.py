@@ -24,6 +24,8 @@ from PySide6.QtWidgets import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtWidgets
+    import raptor.gui.widgets.ribbon
 else:
     _Base = object
 
@@ -34,14 +36,17 @@ class HelpMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        GITHUB_REPO_URL: Any
-        _HELP_ANCHORS: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        GITHUB_REPO_URL: str
+        _HELP_ANCHORS: dict[str, str]
         _current_file: str | None
-        _help_viewer: Any
+        _help_viewer: Any  # really weakref.ReferenceType[Any] | None
         def _open_path(self, path: str) -> Any: ...
-        _ribbon: Any
-        _shortcuts_window: Any
-        _statusbar: Any
+        _ribbon: raptor.gui.widgets.ribbon.Ribbon
+        _shortcuts_window: PySide6.QtWidgets.QDialog
+        _statusbar: PySide6.QtWidgets.QStatusBar
 
     def _open_shortcuts(self):
         """Help > Keyboard Shortcuts: the shortcut list in a themed window

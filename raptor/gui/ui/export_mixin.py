@@ -22,6 +22,9 @@ from raptor.gui.ui import filedialogs as fdg
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtWidgets
+    import raptor.gui.ui.diagram
+    import raptor.gui.ui.results
 else:
     _Base = object
 
@@ -32,13 +35,16 @@ class ExportMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _BITMAP_SCALE: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _BITMAP_SCALE: int
         _current_file: str | None
-        _diagram_dock: Any
-        _export_in_progress: Any
-        _rbd: Any
-        _results: Any
-        _statusbar: Any
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
+        _export_in_progress: bool
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _results: raptor.gui.ui.results.ResultsDock
+        _statusbar: PySide6.QtWidgets.QStatusBar
 
     def _export_pdf(self):
         if self._rbd is None:
@@ -236,7 +242,8 @@ class ExportMixin(_Base):
         # Full model rect (content), supersampled — never the
         # infinite-canvas world sceneRect (multi-GB pixmap -> OOM).
         view = self._diagram_dock.view
-        rect = getattr(view, "_content_rect", None) or             QRectF(view._scene.itemsBoundingRect())
+        rect = (getattr(view, "_content_rect", None)
+                or QRectF(view._scene.itemsBoundingRect()))
         pm = self._render_scene_png(QRectF(rect))
         if not pm.save(path, "PNG"):
             msgbox.critical(self, "Export Failed",

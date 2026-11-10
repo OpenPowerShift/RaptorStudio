@@ -25,6 +25,8 @@ from raptor.core.model import RBDNode
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -35,42 +37,46 @@ class InspectorNodeMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         def _begin_populate(self) -> Any: ...
         def _clear_tab(self, scroll: Any) -> Any: ...
-        _comment_row: Any
+        def _comment_row(self, form: Any, etype: str, oid: int, name: str) -> None: ...
         def _configure_tabs(self, kind: str) -> Any: ...
         _current_block_id: int | None
         _current_node_id: int | None
-        _group: Any
-        _header: Any
-        _int_row: Any
-        _name_edit: Any
-        _phasing_group: Any
-        _position_labels: Any
-        _position_source: Any
+        def _group(self, title: str, layout: Any) -> Any: ...
+        _header: PySide6.QtWidgets.QLabel
+        def _int_row(self, form: Any, label: str, value: int, on_commit: Any, *, minimum: int = ..., maximum: int | None = ...) -> Any: ...
+        def _name_edit(self, form: Any, current_name: str, on_commit: Any) -> Any: ...
+        def _phasing_group(self, layout: Any, kind: str, oid: int, phased_now: bool, entries_now: list[tuple[str, float]]) -> Any: ...
+        _position_labels: Any  # None until set; really tuple | None
+        _position_source: Any  # None until set; really RBDNode | None
         def _raw_node_row(self, node_id: int) -> dict | None: ...
-        _rbd: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _restore_tab(self) -> Any: ...
-        _row: Any
-        _scroll_costs: Any
-        _scroll_deps: Any
-        _scroll_failure: Any
-        _scroll_general: Any
-        _scroll_repair: Any
-        _tabs: Any
-        flow_cell_changed: Any
-        link_standby_cell_changed: Any
-        node_any_path_changed: Any
-        node_check_autos_first_changed: Any
-        node_cold_standby_changed: Any
-        node_dep_changed: Any
-        node_full_flow_changed: Any
-        node_good_paths_changed: Any
-        node_k_star_changed: Any
-        node_priority_return_changed: Any
-        node_renamed: Any
-        node_report_anal_changed: Any
-        validation_failed: Any
+        @staticmethod
+        def _row(form: Any, label: str, value: Any, tooltip: str = ...) -> Any: ...
+        _scroll_costs: PySide6.QtWidgets.QScrollArea
+        _scroll_deps: PySide6.QtWidgets.QScrollArea
+        _scroll_failure: PySide6.QtWidgets.QScrollArea
+        _scroll_general: PySide6.QtWidgets.QScrollArea
+        _scroll_repair: PySide6.QtWidgets.QScrollArea
+        _tabs: PySide6.QtWidgets.QTabWidget
+        flow_cell_changed: PySide6.QtCore.SignalInstance
+        link_standby_cell_changed: PySide6.QtCore.SignalInstance
+        node_any_path_changed: PySide6.QtCore.SignalInstance
+        node_check_autos_first_changed: PySide6.QtCore.SignalInstance
+        node_cold_standby_changed: PySide6.QtCore.SignalInstance
+        node_dep_changed: PySide6.QtCore.SignalInstance
+        node_full_flow_changed: PySide6.QtCore.SignalInstance
+        node_good_paths_changed: PySide6.QtCore.SignalInstance
+        node_k_star_changed: PySide6.QtCore.SignalInstance
+        node_priority_return_changed: PySide6.QtCore.SignalInstance
+        node_renamed: PySide6.QtCore.SignalInstance
+        node_report_anal_changed: PySide6.QtCore.SignalInstance
+        validation_failed: PySide6.QtCore.SignalInstance
 
     def _populate_node(self, node: RBDNode):
         """Node properties across General/Capacity/Dependency/Advanced,

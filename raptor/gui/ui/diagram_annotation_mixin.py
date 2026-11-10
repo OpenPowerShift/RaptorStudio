@@ -54,6 +54,11 @@ from raptor.gui.ui.diagram_annotations import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.core.model
+    import raptor.gui.ui.diagram_element_items
+    import raptor.gui.ui.diagram_item_core
 else:
     _Base = object
 
@@ -64,38 +69,41 @@ class AnnotationMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _KIND_REF: Any
-        _REF_KIND: Any
-        _anchor_leader: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _KIND_REF: dict[str, str]
+        _REF_KIND: dict[str, str]
+        _anchor_leader: Any  # really PySide6.QtWidgets.QGraphicsLineItem | None
         _anchor_pick_end: str | None
         _anchor_pick_for: int | None
         _anno_items: dict[int, Any]
-        _anno_state: Any
+        def _anno_state(self, aid: int) -> dict | None: ...
         def _apply_tool_cursor(self) -> Any: ...
-        _arrow_ghost: Any
-        _block_items: Any
-        _current_parent: Any
+        _arrow_ghost: Any  # really PySide6.QtWidgets.QGraphicsLineItem | None
+        _block_items: dict[int, raptor.gui.ui.diagram_item_core._BlockItem]
+        _current_parent: int
         def _element_at(self, scene_pos: Any) -> Any: ...
-        _event_items: Any
+        _event_items: dict[int, raptor.gui.ui.diagram_element_items._EventItem]
         _hidden_following: list[int]
-        _node_items: Any
-        _rbd_ref: Any
-        _scene: Any
-        _shape_anno_ghost: Any
+        _node_items: dict[int, raptor.gui.ui.diagram_item_core._NodeItem]
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _scene: PySide6.QtWidgets.QGraphicsScene
+        _shape_anno_ghost: Any  # really Any | None
         _stack: Any
-        annotation_style_default_changed: Any
-        annotations: Any
-        blocks: Any
-        copy_selection: Any
-        current_comment_stored: Any
+        annotation_style_default_changed: PySide6.QtCore.SignalInstance
+        annotations: list[Any]
+        blocks: dict[int, raptor.core.model.RBDBlock]
+        def copy_selection(self) -> int: ...
+        def current_comment_stored(self, etype: str, oid: int) -> str: ...
         default_annotation_props: dict[str, dict]
         events: dict[int, Any]
-        hiers: Any
-        layout_changed: Any
-        model_changed: Any
-        nodes: Any
-        paste: Any
-        set_annotation_props: Any
+        hiers: dict[int, raptor.core.model.RBDHier]
+        layout_changed: PySide6.QtCore.SignalInstance
+        model_changed: PySide6.QtCore.SignalInstance
+        nodes: dict[int, raptor.core.model.RBDNode]
+        def paste(self, at_model: Any = ..., offset: Any = ..., buffer: Any = ...) -> Any: ...
+        def set_annotation_props(self, aid: int, changes: dict) -> None: ...
 
     # -------------------------------------------------- annotations --
     def _next_anno_id(self) -> int:

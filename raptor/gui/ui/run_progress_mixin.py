@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     # Mixin methods call Qt on `self`; type-check them as a main window.
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -29,18 +30,21 @@ class RunProgressMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _bg_last_paused: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _bg_last_paused: bool
         def _current_experiment(self) -> dict: ...
-        _imp_eta: Any
+        _imp_eta: Any  # really None
         _imp_last_key: Any
         _importance_running: bool
-        _last_run_profile: Any
+        _last_run_profile: tuple[float, int, float, int, int]
         _pause_action: Any
-        _rbd: Any
-        _run_eta: Any
-        _run_progress: Any
-        _run_progress_label: Any
-        _statusbar: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _run_eta: Any  # really raptor.gui.ui.run_eta.RunEstimate | None
+        _run_progress: PySide6.QtWidgets.QProgressBar
+        _run_progress_label: PySide6.QtWidgets.QLabel
+        _statusbar: PySide6.QtWidgets.QStatusBar
 
     def _start_run_eta(self) -> None:
         """Begin timing a batch for the "approximately N left" readout."""

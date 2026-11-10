@@ -25,6 +25,10 @@ from raptor.gui.resources.design_tokens import (
 if TYPE_CHECKING:
     # Mixin methods call Qt on `self`; type-check them as a main window.
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.gui.commands
+    import raptor.gui.ui.diagram
 else:
     _Base = object
 
@@ -35,17 +39,20 @@ class ValidationMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _commands: Any
-        _diagram_dock: Any
-        _rbd: Any
-        _statusbar: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _commands: raptor.gui.commands.CommandRegistry
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _statusbar: PySide6.QtWidgets.QStatusBar
         def _sync_simulate_enabled_state(self) -> Any: ...
         def _update_readiness(self) -> None: ...
-        _validation_badge: Any
-        _validation_cache: Any
-        _validation_timer: Any
-        _validity_cache: Any
-        _validity_dirty_since_check: Any
+        _validation_badge: PySide6.QtWidgets.QPushButton
+        _validation_cache: tuple[Any | int, list[str], list[str]]
+        _validation_timer: PySide6.QtCore.QTimer
+        _validity_cache: tuple[Any | int, bool]
+        _validity_dirty_since_check: bool
 
     def _preflight_issues(self, rbd: RbdFile | None = None) -> list[str]:
         """Model features the engine will reject, found before Run is
@@ -285,7 +292,7 @@ class ValidationMixin(_Base):
             from_id = int(float(row.get("FromID", 0)))
         except (TypeError, ValueError):
             from_id = 0
-        found = bool(kind) and from_id != 0 and \
+        found = kind is not None and from_id != 0 and \
             self._diagram_dock.view.locate_id(kind, from_id)
         if self._diagram_dock.view.locate_link(link_id):
             return True

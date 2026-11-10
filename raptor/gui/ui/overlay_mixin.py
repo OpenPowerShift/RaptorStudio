@@ -25,6 +25,11 @@ from raptor.core.fileio.typed import system_config_from_row
 if TYPE_CHECKING:
     # Mixin methods call Qt on `self`; type-check them as a main window.
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtGui
+    import PySide6.QtWidgets
+    import raptor.core.model
+    import raptor.gui.ui.diagram
+    import raptor.gui.ui.results
 else:
     _Base = object
 
@@ -35,23 +40,26 @@ class OverlayMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _analysis_actions: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _analysis_actions: dict[str, PySide6.QtGui.QAction]
         def _apply_threshold_edits(self, edits: Any, macro_label: str) -> bool: ...
         _capacity_overlay_action: Any
         _cost_overlay_action: Any
-        _cost_spread: Any
-        _diagram_dock: Any
-        _gy_spin: Any
+        _cost_spread: bool
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
+        _gy_spin: PySide6.QtWidgets.QDoubleSpinBox
         _importance_overlay_action: Any
-        _rbd: Any
-        _results: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _results: raptor.gui.ui.results.ResultsDock
         _spares_overlay_action: Any
-        _statusbar: Any
+        _statusbar: PySide6.QtWidgets.QStatusBar
         def _uncheck_overlay(self, attr: str) -> None: ...
         _weak_color_action: Any
-        _weak_metric_cache: Any
-        _weak_type_combo: Any
-        _yr_spin: Any
+        _weak_metric_cache: tuple[tuple[int, int, str, float, float], tuple[dict[int, float], dict[int, float], dict[int, float], dict[int, float], str, raptor.core.model.SystemConfig]]
+        _weak_type_combo: PySide6.QtWidgets.QComboBox
+        _yr_spin: PySide6.QtWidgets.QDoubleSpinBox
 
     def _sync_analysis_checkboxes(self):
         """Reflect SYSTEM_DATA flags onto the Simulate ribbon checks +

@@ -21,6 +21,9 @@ from raptor.core.engine.reports import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.gui.ui.diagram
 else:
     _Base = object
 
@@ -31,22 +34,25 @@ class StepTerminateMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _diagram_dock: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
         def _end_step_session(self, *, clear_sink: bool = ...) -> bool: ...
         def _ensure_step_session(self) -> Any: ...
         def _invalidate_step_session(self) -> Any: ...
         def _on_fev_log_close(self) -> None: ...
         def _present_run_results(self, event_logs: Any, eor_lines: Any, final_lines: Any, report_data: Any, ao_lines: list[str] | None = ..., cap_lines: list[str] | None = ..., manifest: Any = ...) -> Any: ...
-        _rbd: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _refresh_commands(self, state: Any = ..., only: set[str] | None = ...) -> None: ...
         def _refresh_live_step_view(self, session: Any) -> Any: ...
         def _reset_live_log(self) -> Any: ...
-        _run_in_progress: Any
-        _statusbar: Any
+        _run_in_progress: bool
+        _statusbar: PySide6.QtWidgets.QStatusBar
         _step_ao: list[str]
         _step_finalize_state: Any
         _step_finalize_thread: Any
-        _step_finalize_timer: Any
+        _step_finalize_timer: PySide6.QtCore.QTimer
         _step_session: Any
         _step_sink: list
         def _sync_run_settings_lock(self) -> None: ...

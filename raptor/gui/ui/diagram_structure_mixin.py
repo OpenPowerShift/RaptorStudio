@@ -60,6 +60,13 @@ from raptor.gui.ui.diagram_items import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.core.fileio.view_transform
+    import raptor.core.model
+    import raptor.gui.ui.diagram_element_items
+    import raptor.gui.ui.diagram_item_core
+    import raptor.gui.ui.diagram_link_items
 else:
     _Base = object
 
@@ -70,56 +77,61 @@ class StructureMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         _anno_items: dict[int, Any]
-        _apply_block_labels: Any
-        _block_items: Any
-        _clear_link_insert_hover: Any
-        _current_depth: Any
-        _current_parent: Any
-        _defer_block_refresh: Any
+        def _apply_block_labels(self, item: Any, block: Any) -> Any: ...
+        _block_items: dict[int, raptor.gui.ui.diagram_item_core._BlockItem]
+        def _clear_link_insert_hover(self) -> None: ...
+        def _current_depth(self) -> int: ...
+        _current_parent: int
+        _defer_block_refresh: bool
         def _dependency_visual(self, dependency_num: int, dep_type: str) -> dict | None: ...
-        _element_shape_rect: Any
-        _endpoint_text: Any
-        _event_items: Any
-        _hier_items: Any
+        @staticmethod
+        def _element_shape_rect(item: Any) -> Any: ...
+        def _endpoint_text(self, item: Any) -> str: ...
+        _event_items: dict[int, raptor.gui.ui.diagram_element_items._EventItem]
+        _hier_items: dict[int, raptor.gui.ui.diagram_element_items._HierItem]
         def _item_moved(self, obj_id: int, item: Any = ...) -> Any: ...
-        _layout_state: Any
-        _link_endpoint_label: Any
-        _link_flow_axis: Any
-        _link_insert_refusal: Any
-        _links: Any
-        _loading: Any
-        _next_anno_id: Any
-        _node_items: Any
+        def _layout_state(self) -> tuple[dict, dict | None, tuple[str, str | None]]: ...
+        def _link_endpoint_label(self, link: Any) -> str: ...
+        def _link_flow_axis(self, link: Any) -> Any: ...
+        def _link_insert_refusal(self, link: Any, info: tuple[str, str, str]) -> str | None: ...
+        _links: list[raptor.gui.ui.diagram_link_items._LinkItem]
+        _loading: bool
+        def _next_anno_id(self) -> int: ...
+        _node_items: dict[int, raptor.gui.ui.diagram_item_core._NodeItem]
         def _on_dep_hover(self, item: Any, entering: bool) -> Any: ...
-        _page_flow: Any
-        _rbd_ref: Any
-        _refresh_lod: Any
+        def _page_flow(self) -> str: ...
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        def _refresh_lod(self) -> Any: ...
         def _resolve_link_endpoint(self, ref: str, oid: int) -> Any: ...
         _route_grips: dict[int, list]
-        _scene: Any
-        _snap_state: Any
-        _span_of: Any
+        _scene: PySide6.QtWidgets.QGraphicsScene
+        _snap_state: dict[str, float]
+        @staticmethod
+        def _span_of(rect: Any, axis: str) -> tuple[float, float]: ...
         _stack: Any
-        _standard_insert_gap: Any
+        def _standard_insert_gap(self) -> float: ...
         def _tx(self, x: float) -> float: ...
         def _ty(self, y: float) -> float: ...
-        _user_arranged: Any
-        _vt: Any
-        blocks: Any
-        default_block_fdist: Any
-        default_block_fparams: Any
-        default_block_rdist: Any
-        default_block_rparams: Any
-        default_block_sparing: Any
-        element_created: Any
+        _user_arranged: bool
+        _vt: raptor.core.fileio.view_transform.ViewTransform
+        blocks: dict[int, raptor.core.model.RBDBlock]
+        default_block_fdist: int
+        default_block_fparams: list[float]
+        default_block_rdist: int
+        default_block_rparams: list[float]
+        default_block_sparing: str
+        element_created: PySide6.QtCore.SignalInstance
         events: dict[int, Any]
-        hiers: Any
-        layout_changed: Any
-        links: Any
-        nodes: Any
+        hiers: dict[int, raptor.core.model.RBDHier]
+        layout_changed: PySide6.QtCore.SignalInstance
+        links: list[raptor.core.model.Link]
+        nodes: dict[int, raptor.core.model.RBDNode]
         def scene_to_model(self, scene_pos: Any) -> tuple[float, float]: ...
-        structural_about_to_change: Any
+        structural_about_to_change: PySide6.QtCore.SignalInstance
         def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
 
     def _template_row(self, section_name: str, id_col: str):

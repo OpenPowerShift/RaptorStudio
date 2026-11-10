@@ -26,6 +26,12 @@ from raptor.core.engine.runner import run_simulation_with_reports
 if TYPE_CHECKING:
     # Mixin methods call Qt on `self`; type-check them as a main window.
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtCore
+    import PySide6.QtGui
+    import PySide6.QtWidgets
+    import raptor.gui.ui.diagram
+    import raptor.gui.ui.inspector
+    import raptor.gui.ui.results
 else:
     _Base = object
 
@@ -36,17 +42,20 @@ class BackgroundRunMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _BG_POLL_INTERVAL_DEFAULT: Any
-        _BG_POLL_INTERVAL_FLOOR: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _BG_POLL_INTERVAL_DEFAULT: int
+        _BG_POLL_INTERVAL_FLOOR: int
         def _apply_hier_status(self, report_data: Any) -> None: ...
         def _apply_importance_progress(self, state: Any) -> None: ...
         _bg_baseline_presented: bool
         _bg_baseline_presenting: bool
         _bg_last_bar: Any
         _bg_last_progress: Any
-        _bg_last_report_count: Any
+        _bg_last_report_count: int
         _bg_last_t: Any
-        _bg_poll: Any
+        _bg_poll: PySide6.QtCore.QTimer
         _bg_state: dict
         _bg_thread: Any
         def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ...) -> dict: ...
@@ -54,20 +63,20 @@ class BackgroundRunMixin(_Base):
         def _clear_run_eta(self) -> None: ...
         _current_file: str | None
         def _current_units(self) -> Any: ...
-        _diagram_dock: Any
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
         def _disable_run_panel_for_run(self) -> None: ...
         @staticmethod
         def _discard_report_streams(streams: Any) -> None: ...
         def _effective_run_interval(self, key: str) -> float: ...
         def _ensure_step_session(self) -> Any: ...
         def _hide_phase_labels(self) -> None: ...
-        _imp_eta: Any
+        _imp_eta: Any  # really None
         _imp_last_key: Any
         _importance_overlay_action: Any
         _importance_running: bool
-        _inspector: Any
-        _last_run_model: Any
-        _live_sim_action: Any
+        _inspector: raptor.gui.ui.inspector.InspectorDock
+        _last_run_model: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _live_sim_action: PySide6.QtGui.QAction
         def _note_results_basis(self) -> None: ...
         def _note_run_profile(self, done_runs: int) -> None: ...
         def _on_step_jump(self) -> Any: ...
@@ -77,7 +86,7 @@ class BackgroundRunMixin(_Base):
         def _present_background_baseline(self, state: Any) -> bool: ...
         def _present_results(self) -> Any: ...
         def _push_weak_settings(self) -> Any: ...
-        _rbd: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _reapply_checked_overlays(self, state: dict[str, bool] | None) -> None: ...
         def _reenable_run_panel(self) -> None: ...
         def _refresh_commands(self, state: Any = ..., only: set[str] | None = ...) -> None: ...
@@ -86,13 +95,13 @@ class BackgroundRunMixin(_Base):
         def _report_choices(self) -> dict[str, bool]: ...
         def _reset_live_log(self) -> Any: ...
         def _reset_status_summary(self) -> Any: ...
-        _results: Any
-        _results_dock: Any
+        _results: raptor.gui.ui.results.ResultsDock
+        _results_dock: PySide6.QtWidgets.QDockWidget
         _results_float_action: Any
         _results_show_action: Any
-        _run_in_progress: Any
-        _run_progress: Any
-        _run_progress_label: Any
+        _run_in_progress: bool
+        _run_progress: PySide6.QtWidgets.QProgressBar
+        _run_progress_label: PySide6.QtWidgets.QLabel
         def _run_status_text(self, prefix: str, done: Any, total: Any) -> str: ...
         def _set_results_with_progress(self, *args: Any, follow_up: bool = ..., **kwargs: Any) -> Any: ...
         def _show_live_log_dock(self, show: bool, *, tabify: bool = ..., raise_: bool = ...) -> Any: ...
@@ -100,14 +109,14 @@ class BackgroundRunMixin(_Base):
         _speed_reset_1: Any
         _speed_reset_max: Any
         _speed_slower: Any
-        _speed_state: Any
+        _speed_state: Any  # really dict[str, None]
         def _start_run_eta(self) -> None: ...
-        _statusbar: Any
+        _statusbar: PySide6.QtWidgets.QStatusBar
         _step_finalize_state: Any
         _step_session: Any
         def _sync_cores_box(self) -> None: ...
         def _sync_overlay_actions(self, report_data: Any) -> None: ...
-        _sync_stop: Any
+        _sync_stop: bool
         def _track_paused_eta(self, paused: bool) -> None: ...
         def _update_phase_labels(self, system_state: Any) -> None: ...
         def _update_readiness(self) -> None: ...

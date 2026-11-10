@@ -5,161 +5,32 @@ and `_statusbar`.
 """
 from __future__ import annotations
 
-from raptor.gui.ui.qtcompat import req
 
 import logging
 from typing import Any, TYPE_CHECKING, cast
 from collections.abc import Callable
-from PySide6.QtCore import QEvent, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
-    QApplication, QDockWidget, QHBoxLayout, QLabel, QToolButton, QWidget,
+    QDockWidget,
 )
 
-from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import (
     active_colour,
 )
 from raptor.gui.ui.dock_layout_persistence_mixin import DockLayoutPersistenceMixin
+from raptor.gui.ui.dock_chrome import DockSlotChrome
 from raptor.gui.ui.dock_float_mixin import DockFloatMixin
-
-
-class _DockTitleBar(QWidget):
-    """The custom dock title bar, which also carries the drag gesture.
-
-    `QDockWidget.setTitleBarWidget()` replaces Qt's own title bar
-    outright, and with it the built-in drag-to-move/float handling:
-    accepting mouse presses here without forwarding them left the
-    panel impossible to detach by dragging. Reproduce that one gesture
-    (drag = float, then move the floating window; double-click = toggle
-    float) and leave the title-bar buttons to their own widgets.
-    """
-
-    def __init__(self, dock: QDockWidget, window):
-        super().__init__()
-        self._dock = dock
-        self._window = window
-        self._press_global = None
-        self._dragging = False
-        self._drag_offset = None
-
-    def _clear_drag(self) -> None:
-        self._press_global = None
-        self._dragging = False
-        self._drag_offset = None
-
-    def mousePressEvent(self, event) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._press_global = event.globalPosition().toPoint()
-            self._dragging = False
-            self._drag_offset = None
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event) -> None:
-        if self._press_global is None:
-            super().mouseMoveEvent(event)
-            return
-        if not (event.buttons() & Qt.MouseButton.LeftButton):
-            # A lost release (window switch, popup, remote desktop) used
-            # to leave the title bar stuck in drag state: the next hover
-            # without a button moved the window.
-            self._clear_drag()
-            super().mouseMoveEvent(event)
-            return
-        pos = event.globalPosition().toPoint()
-        if not self._dragging:
-            if (pos - self._press_global).manhattanLength() \
-                    < QApplication.startDragDistance():
-                return
-            self._dragging = True
-            self._window._begin_dock_titlebar_drag(
-                self._dock, self._press_global)
-            # Wayland does not let a client position a top-level window
-            # with move(); ask the compositor for a system move instead,
-            # so the dock can cross screens and be placed freely.
-            if self._window._system_move_supported():
-                if self._window._start_dock_system_move(self._dock):
-                    self._clear_drag()
-                    event.accept()
-                    return
-            # The dock may have just been re-parented into its own
-            # floating window. Anchor further movement to where that
-            # window now sits so it does not jump on the next event.
-            self._drag_offset = self._press_global - self._dock.pos()
-        if self._drag_offset is not None and self._dock.isFloating():
-            self._dock.move(pos - self._drag_offset)
-        event.accept()
-
-    def mouseReleaseEvent(self, event) -> None:
-        if self._dragging and event.button() == Qt.MouseButton.LeftButton:
-            self._window._finish_dock_titlebar_drag(
-                self._dock, event.globalPosition().toPoint())
-        self._clear_drag()
-        event.accept()
-
-    def mouseDoubleClickEvent(self, event) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._clear_drag()
-            self._window._toggle_dock_floating(self._dock)
-            event.accept()
-            return
-        super().mouseDoubleClickEvent(event)
-
-    def leaveEvent(self, event) -> None:
-        # While the button is held the pointer must be allowed to leave
-        # the title bar (that is the drag). Without the button it is a
-        # stale press state.
-        if not (QApplication.mouseButtons() & Qt.MouseButton.LeftButton):
-            self._clear_drag()
-        super().leaveEvent(event)
-
-    def event(self, event) -> bool:
-        if event.type() == QEvent.Type.WindowDeactivate:
-            self._clear_drag()
-        return super().event(event)
-
-
-class _DockStub(QWidget):
-    """Vertical 'closed dock' stub: a ~24px strip in the dock's old slot
-    showing the dock's name rotated to read facing the user. Clicking
-    it restores the dock."""
-
-    clicked = Signal()
-
-    def __init__(self, text: str, angle: float, parent=None):
-        super().__init__(parent)
-        self._text = text
-        self._angle = angle
-        self.setToolTip(f"{text} — click to restore this panel")
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-
-    def mousePressEvent(self, event) -> None:
-        self.clicked.emit()
-
-    def paintEvent(self, event) -> None:
-        c = active_colour()
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.fillRect(self.rect(), QColor(c["group_header"]))
-        p.setPen(QColor(c["text"]))
-        f = self.font()
-        f.setBold(True)
-        f.setPointSize(10)
-        p.setFont(f)
-        p.translate(self.width() / 2, self.height() / 2)
-        p.rotate(self._angle)
-        fm = p.fontMetrics()
-        p.drawText(QRectF(-fm.horizontalAdvance(self._text) / 2, -fm.height() / 2,
-                          fm.horizontalAdvance(self._text), fm.height()),
-                   Qt.AlignmentFlag.AlignCenter, self._text)
-        p.end()
+from raptor.gui.ui.dock_title_widgets import _DockStub, _DockTitleBar  # noqa: F401  (re-exported)
 
 
 if TYPE_CHECKING:
     # Mixin methods call Qt on `self`; type-check them as a main window.
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.gui.ui.diagram
+    import raptor.gui.ui.run_panel
+    import raptor.gui.widgets.ribbon
 else:
     _Base = object
 
@@ -170,40 +41,43 @@ class DockLayoutMixin(DockFloatMixin, DockLayoutPersistenceMixin, _Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        DATA_TABLES_OPEN_HEIGHT: Any
-        _DOCK_ICONS: Any
-        _bottom_active_dock: Any
-        _canvas_room_defaults_done: Any
-        _canvas_room_shown: Any
-        _canvas_room_stage: Any
-        _canvas_room_timer: Any
-        _compact_forced: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        DATA_TABLES_OPEN_HEIGHT: int
+        _DOCK_ICONS: tuple[tuple[str, str, str], ...]
+        _bottom_active_dock: Any  # really PySide6.QtWidgets.QDockWidget | None
+        _canvas_room_defaults_done: bool
+        _canvas_room_shown: bool
+        _canvas_room_stage: int
+        _canvas_room_timer: PySide6.QtCore.QTimer
+        _compact_forced: bool
         _compact_minimized: set[str]
         def _current_dock_edge(self, dock: Any, fallback: Any = ...) -> Any: ...
-        _data_tables_dock: Any
-        _diagram_dock: Any
+        _data_tables_dock: PySide6.QtWidgets.QDockWidget
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
         _dock_chrome: dict
         _dock_chrome_entries: Any
         @staticmethod
         def _dock_min_dimension(entry: dict, edge: str) -> int: ...
-        _dock_rebase_pending: Any
-        _dock_resize_generation: Any
-        _dock_splitter_moved: Any
-        _dock_startup_extents: Any
-        _dock_startup_snapshot_done: Any
-        _dock_startup_window_size: Any
+        _dock_rebase_pending: bool
+        _dock_resize_generation: int
+        _dock_splitter_moved: bool
+        _dock_startup_extents: Any  # really dict[Any, Any] | None
+        _dock_startup_snapshot_done: bool
+        _dock_startup_window_size: Any  # None until set; really tuple[int, int] | None
         _dock_state_sync: dict
         _dock_stubs: dict
         _dock_titlebar_rethemers: list | None
-        _dock_user_sized: Any
+        _dock_user_sized: bool
         def _float_results_properly(self, dock: Any, floating: bool) -> Any: ...
-        _internal_dock_resize: Any
-        _rbd: Any
-        _results_dock: Any
+        _internal_dock_resize: bool
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _results_dock: PySide6.QtWidgets.QDockWidget
         _results_float_action: Any
-        _ribbon: Any
-        _run_dock: Any
-        _statusbar: Any
+        _ribbon: raptor.gui.widgets.ribbon.Ribbon
+        _run_dock: raptor.gui.ui.run_panel.RunPanelDock
+        _statusbar: PySide6.QtWidgets.QStatusBar
 
     def _can_stub_dock(self, dock) -> bool:
         """True only while the dock is on a side edge and not floating.
@@ -349,398 +223,16 @@ class DockLayoutMixin(DockFloatMixin, DockLayoutPersistenceMixin, _Base):
         maximum size to restore to (bottom docks have their own,
         session-mutable cap -- `self._results_dock_max` -- so this is
         read fresh at restore time via a callable, not baked in here).
+
+        The work is in `dock_chrome.DockSlotChrome`; this returns its
+        `set_minimized` so callers can drive the slot.
         """
-        if self._dock_titlebar_rethemers is None:
-            self._dock_titlebar_rethemers = []
-        if self._dock_stubs is None:
-            self._dock_stubs = {}
-        if self._dock_state_sync is None:
-            self._dock_state_sync = {}
-        glyph_collapse = {"left": "◂", "right": "▸", "bottom": "▾"}[edge]
-        glyph_expand = {"left": "▸", "right": "◂", "bottom": "▴"}[edge]
-        # LEFT/RIGHT titlebars are always laid out horizontally (Qt
-        # never rotates one for a side dock) -- there's no room for the
-        # label + all three buttons at a genuinely thin stub width, so
-        # collapsing there hides everything but the toggle itself. The
-        # bottom dock only squeezes height, so its titlebar keeps its
-        # full width and every button stays visible either way.
-        entries: list[dict[str, Any]] = []
-        for dock in docks:
-            content = dock.widget()
-
-            titlebar = _DockTitleBar(dock, self)
-            tb = QHBoxLayout(titlebar)
-            tb.setContentsMargins(8, 4, 4, 4)
-            tb.setSpacing(2)
-            # The tab bar gets its icon from `windowIcon`; a custom
-            # titlebar has to paint the same one itself so the dock is
-            # recognisable once floated as well.
-            icon_label = QLabel()
-            icon_label.setFixedSize(16, 16)
-            icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            icon = dock.windowIcon()
-            if not icon.isNull():
-                icon_label.setPixmap(icon.pixmap(16, 16))
-            tb.addWidget(icon_label)
-            label = QLabel(dock.windowTitle())
-            tb.addWidget(label)
-            tb.addStretch(1)
-
-            min_btn = QToolButton()
-            min_btn.setAutoRaise(True)
-            min_btn.setText(glyph_collapse)
-            min_btn.setToolTip(f"Minimize {dock.windowTitle()}")
-            min_btn.setAccessibleName(f"Minimize {dock.windowTitle()}")
-            tb.addWidget(min_btn)
-
-            features = dock.features()
-            float_btn = close_btn = None
-            if features & QDockWidget.DockWidgetFeature.DockWidgetFloatable:
-                float_btn = QToolButton()
-                float_btn.setAutoRaise(True)
-                float_btn.setIcon(icons.float_window_icon(active_colour()["text"]))
-                float_btn.setProperty("titleIcon", "float_window_icon")
-                float_btn.setToolTip("Float")
-                float_btn.setAccessibleName(
-                    f"Float {dock.windowTitle()} in its own window")
-                float_btn.clicked.connect(
-                    lambda _checked=False, d=dock: (
-                        self._float_results_properly(d, not d.isFloating())
-                        if d is self._results_dock
-                        else d.setFloating(not d.isFloating())))
-                tb.addWidget(float_btn)
-            if features & QDockWidget.DockWidgetFeature.DockWidgetClosable:
-                close_btn = QToolButton()
-                close_btn.setAutoRaise(True)
-                close_btn.setIcon(icons.close_x_icon(active_colour()["text"]))
-                close_btn.setProperty("titleIcon", "close_x_icon")
-                close_btn.setToolTip("Close")
-                close_btn.setAccessibleName(f"Close {dock.windowTitle()}")
-                # left/right docks (rotated stub available) collapse to
-                # the stub instead of vanishing; a dock moved to the
-                # bottom, and any floated window, close for real.
-                close_btn.clicked.connect(
-                    lambda _checked=False, d=dock: (
-                        d.close()
-                        if (d.isFloating()
-                            or self._current_dock_edge(d) not in
-                            ("left", "right"))
-                        else set_closed(True)))
-                tb.addWidget(close_btn)
-
-            # The rotated closed-dock stub (left/right only). Closing the
-            # dock swaps this in as the titlebar and pins the dock to a
-            # ~24px strip, so the panel's slot stays findable and
-            # clickable instead of the dock vanishing entirely.
-            stub = None
-            if edge in ("left", "right"):
-                word = {"Model Explorer": "Model"}.get(
-                    dock.windowTitle(), dock.windowTitle())
-                stub = _DockStub(word, -90.0 if edge == "left" else 90.0)
-                stub.setFixedWidth(24)
-
-            dock.setTitleBarWidget(titlebar)
-
-            normal_min_width = max(dock.minimumWidth(), 0)
-            normal_min_height = max(dock.minimumHeight(), 0)
-            entries.append({"dock": dock, "content": content,
-                            "titlebar": titlebar, "icon_label": icon_label,
-                            "label": label,
-                            "min_btn": min_btn, "float_btn": float_btn,
-                            "close_btn": close_btn, "stub": stub,
-                            "edge": edge,
-                            "normal_min_width": normal_min_width,
-                            "normal_min_height": normal_min_height,
-                            "docked_width": None, "docked_height": None,
-                            "minimized": False, "closed": False})
-
-        # Every titled dock's own chrome entry (its title-bar buttons and
-        # the last edge it was docked on), not just the group built last:
-        # the loop runs once per dock slot, and replacing the map here
-        # left `_redock` and the floating handler with no entry at all
-        # for Explorer/Inspector.
-        if getattr(self, "_dock_chrome_entries", None) is None:
-            self._dock_chrome_entries = {}
-        self._dock_chrome_entries.update({e["dock"]: e for e in entries})
-
-        def retheme():
-            c = active_colour()
-            for e in entries:
-                collapsed = e["minimized"]
-                bg = c["group_header"] if collapsed else c["surface"]
-                e["titlebar"].setStyleSheet(
-                    f"background: {bg}; border-bottom: 1px solid "
-                    f"{c['border']};")
-                icon = e["dock"].windowIcon()
-                if not icon.isNull():
-                    e["icon_label"].setPixmap(icon.pixmap(16, 16))
-                e["label"].setStyleSheet(
-                    f"font-weight: 600; color: {c['accent'] if collapsed else c['text']};")
-                if e["stub"] is not None:
-                    # Custom-painted: must be told to repaint on a theme
-                    # flip like the titlebars themselves.
-                    e["stub"].update()
-        req(self._dock_titlebar_rethemers).append(retheme)
-        retheme()
-
-        def sync_action(dock):
-            """Push a dock's open/closed state to its ribbon action.
-            `set_closed` hides the dock's *content* and swaps the
-            titlebar for the stub, so the QDockWidget never becomes
-            hidden and `visibilityChanged` never fires -- without this
-            the Docks list keeps showing a closed panel as if it were
-            there. Only the close path syncs: a *minimized* dock is
-            still present and the ribbon toggle cannot restore it, so
-            greying its action out would strand it."""
-            fn = (self._dock_state_sync or {}).get(dock)
-            if fn is not None:
-                fn(dock.isVisible())
-
-        def restore_side_extent(e, dock):
-            """Re-apply the user's width once Qt has released the
-            minimise/close lock. Deferred: the dock's min/max are still
-            being changed on this turn."""
-            width = int(e.get("docked_width") or 0)
-            if not width:
-                return
-            generation = self._dock_resize_generation
-
-            def apply(attempt=0):
-                if generation != self._dock_resize_generation:
-                    return      # Reset Layout cancelled this restore
-                try:
-                    if dock.isFloating() or e.get("minimized") \
-                            or e.get("closed"):
-                        return
-                    if self._current_dock_edge(
-                            dock, e.get("edge")) not in ("left", "right"):
-                        return
-                    actual = dock.width()
-                    if attempt and actual >= width - 4:
-                        return
-                    requested = width + (width - actual) \
-                        if actual < width - 4 else width
-                    self._resize_docks([dock], [requested],
-                                       Qt.Orientation.Horizontal)
-                except (RuntimeError, TypeError):
-                    return
-                if attempt < 1:
-                    QTimer.singleShot(
-                        0, lambda: apply(attempt + 1))
-            QTimer.singleShot(0, apply)
-
-        def set_minimized(minimized: bool):
-            for e in entries:
-                dock, content = e["dock"], e["content"]
-                edge_now = self._current_dock_edge(dock, e.get("edge"))
-                e["edge"] = edge_now
-                e["minimized"] = minimized
-                content.setVisible(not minimized)
-                e["min_btn"].setText(glyph_expand if minimized
-                                     else glyph_collapse)
-                e["min_btn"].setToolTip(
-                    f"Restore {dock.windowTitle()}" if minimized
-                     else f"Minimize {dock.windowTitle()}")
-                e["min_btn"].setAccessibleName(
-                    f"Restore {dock.windowTitle()}" if minimized
-                    else f"Minimize {dock.windowTitle()}")
-                if edge_now in ("left", "right"):
-                    e["label"].setVisible(not minimized)
-                    if e["float_btn"] is not None:
-                        e["float_btn"].setVisible(not minimized)
-                    if e["close_btn"] is not None:
-                        e["close_btn"].setVisible(not minimized)
-                if edge_now in ("left", "right"):
-                    if minimized:
-                        if not getattr(self, "_restoring_dock_chrome", False):
-                            e["docked_width"] = max(dock.width(), 1)
-                        e["titlebar"].adjustSize()
-                        # Qt logs "Negative sizes" when setFixedWidth
-                        # pairs the new width with a -1 height (dock
-                        # not yet laid out) — clamp to the current
-                        # height.
-                        h = max(dock.height(), 1)
-                        dock.setFixedHeight(h)
-                        dock.setFixedWidth(
-                            e["titlebar"].sizeHint().width())
-                    else:
-                        min_w = self._dock_min_dimension(e, "left")
-                        dock.setMaximumSize(16777215, 16777215)
-                        self._set_dock_min_width(dock, min_w)
-                        dock.setMinimumHeight(0)
-                        dock.setMaximumHeight(16777215)
-                        restore_side_extent(e, dock)
-                else:
-                    if minimized:
-                        # Remember the pre-collapse height so restore
-                        # comes back to the same size rather than
-                        # leaving it to the layout.
-                        if not getattr(self, "_restoring_dock_chrome", False):
-                            e["saved_height"] = dock.height()
-                            e["docked_height"] = max(dock.height(), 1)
-                        e["titlebar"].adjustSize()
-                        w = max(dock.width(), 1)
-                        dock.setFixedWidth(w)
-                        dock.setFixedHeight(
-                            e["titlebar"].sizeHint().height())
-                    else:
-                        # Release the width lock that collapsing applied:
-                        # setFixedWidth(w) also set maximumWidth(w), so a
-                        # bottom dock stayed 271 px wide forever after one
-                        # minimise.
-                        dock.setMaximumSize(16777215, 16777215)
-                        dock.setMinimumWidth(0)
-                        dock.setMaximumWidth(16777215)
-                        min_h = self._dock_min_dimension(e, "bottom")
-                        dock.setMinimumHeight(min_h)
-                        cap = (16777215 if dock.isFloating() else
-                               (restore_max() if callable(restore_max)
-                                else restore_max))
-                        dock.setMaximumHeight(cap or 16777215)
-                        saved = e.get("saved_height") or e.get("docked_height")
-                        if saved:
-                            # Apply the remembered height first (fixed),
-                            # then release the fix on the next event-
-                            # loop pass so the splitter stays draggable.
-                            # Guarded: the dock may already be torn down
-                            # when the timer fires (window close).
-                            dock.setFixedHeight(max(saved, min_h))
-                            def _release(d=dock, cap_=cap or 16777215,
-                                         nm=min_h):
-                                try:
-                                    d.setMinimumHeight(nm)
-                                    d.setMaximumHeight(cap_)
-                                except RuntimeError:
-                                    pass  # C++ object already deleted
-                            QTimer.singleShot(0, _release)
-            retheme()
-            # Minimising hides content without hiding the dock, so
-            # `visibilityChanged` never fires; sync the ribbon toggle or
-            # it still reads "open" and the next click closes instead of
-            # restoring.
-            for e in entries:
-                sync_action(e["dock"])
-
-        def _toggle_minimized(_checked=False):
-            # A user minimize/restore takes ownership back from the
-            # narrow-window compact policy.
-            try:
-                self._compact_minimized.discard(
-                    entries[0]["dock"].windowTitle())
-            except AttributeError:
-                pass
-            set_minimized(not entries[0]["minimized"])
-
-        for e in entries:
-            e["min_btn"].clicked.connect(_toggle_minimized)
-
-        def set_closed(closed: bool):
-            """Swap the dock between its normal chrome and the rotated
-            closed-stub: a closed Model/Inspector shows its name rotated
-            to face the user, and stays restorable by clicking."""
-            for e in entries:
-                dock, stub = e["dock"], e["stub"]
-                if stub is None:
-                    continue
-                try:
-                    floating = dock.isFloating()
-                except RuntimeError:
-                    continue
-                if not closed:
-                    # Restoring chrome (stub click, Properties,
-                    # _show_inspector_dock) takes the dock back from the
-                    # compact policy.
-                    try:
-                        self._compact_minimized.discard(dock.windowTitle())
-                    except AttributeError:
-                        pass
-                if floating:
-                    # The rotated side stub cannot exist on a free
-                    # window. Restore normal chrome/content; a close
-                    # request really closes the floating window.
-                    e["closed"] = False
-                    e["minimized"] = False
-                    dock.setTitleBarWidget(e["titlebar"])
-                    e["content"].setVisible(True)
-                    # Release the stub's fixed-width lock, but keep the
-                    # floating window's own 160x90 floor so reopening it
-                    # cannot collapse below a usable panel.
-                    dock.setMinimumSize(160, 90)
-                    dock.setMaximumSize(16777215, 16777215)
-                    if closed:
-                        dock.close()
-                    continue
-                edge_now = self._current_dock_edge(dock, e.get("edge"))
-                if closed and edge_now not in ("left", "right"):
-                    # A dock moved to the bottom has no usable rotated
-                    # side stub: close it for real, and leave the chrome
-                    # flags consistent so View > Panels can restore it.
-                    e["closed"] = False
-                    e["minimized"] = False
-                    dock.setTitleBarWidget(e["titlebar"])
-                    dock.close()
-                    continue
-                e["closed"] = closed
-                if closed:
-                    if not e["minimized"] and not getattr(
-                            self, "_restoring_dock_chrome", False):
-                        # Remember the width the user had before the stub
-                        # pins the dock to 24 px. Do not overwrite it when
-                        # a minimised dock is already squeezed.
-                        e["docked_width"] = max(
-                            dock.width(), int(e.get("docked_width") or 0))
-                    e["minimized"] = False
-                    e["content"].setVisible(False)
-                    dock.setTitleBarWidget(stub)
-                    dock.setFixedHeight(max(dock.height(), 1))
-                    dock.setFixedWidth(stub.width() or 24)
-                else:
-                    edge_now = self._current_dock_edge(dock, e.get("edge"))
-                    e["edge"] = edge_now
-                    dock.setTitleBarWidget(e["titlebar"])
-                    if e["minimized"]:
-                        # Restoring the *chrome* of a minimised dock must
-                        # not release its collapse locks or reveal its
-                        # content: `set_minimized(False)` owns that.
-                        e["content"].setVisible(False)
-                    else:
-                        dock.setMaximumSize(16777215, 16777215)
-                        if edge_now in ("left", "right"):
-                            self._set_dock_min_width(
-                                dock, self._dock_min_dimension(e, edge_now))
-                            dock.setMinimumHeight(0)
-                            restore_side_extent(e, dock)
-                        else:
-                            dock.setMinimumWidth(0)
-                            dock.setMinimumHeight(
-                                self._dock_min_dimension(e, "bottom"))
-                        e["content"].setVisible(True)
-            sync_action(e["dock"])
-            retheme()
-
-        for e in entries:
-            e["set_minimized"] = set_minimized
-            if e["stub"] is not None:
-                e["stub"].clicked.connect(
-                    lambda _c=False, fn=set_closed: fn(False))
-                self._dock_stubs[e["dock"]] = set_closed
-        # Layout persistence: `saveState()` cannot see the chrome (a closed dock is pinned to a 24 px stub, a
-        # minimized one to its titlebar), so each slot says how to read and set its own.
-        if self._dock_chrome is None:
-            self._dock_chrome = {}
-        self._dock_chrome[entries[0]["dock"].windowTitle()] = {
-            "dock": entries[0]["dock"],
-            "get": lambda: {"closed": bool(entries[0]["closed"]), "minimized": bool(entries[0]["minimized"])},
-            "set_closed": set_closed if entries[0]["stub"] is not None else None,
-            "set_minimized": set_minimized,
-        }
-        return set_minimized
+        return DockSlotChrome(self, docks, edge, restore_max).wire()
 
     def _set_dock_icon(self, dock, factory_name: str,
                        token: str = "text") -> None:
         """Give one dock the painted glyph of its ribbon command."""
         from raptor.gui.resources import icons as _ic
-        from raptor.gui.resources.design_tokens import active_colour
         dock.setWindowIcon(getattr(_ic, factory_name)(active_colour()[token]))
 
     def _apply_dock_icons(self) -> None:

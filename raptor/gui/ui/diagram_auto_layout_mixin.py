@@ -33,6 +33,12 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.core.fileio.view_transform
+    import raptor.core.model
+    import raptor.gui.ui.diagram_item_core
+    import raptor.gui.ui.diagram_link_items
 else:
     _Base = object
 
@@ -43,33 +49,36 @@ class AutoLayoutMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _apply_route_grip: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        def _apply_route_grip(self, entry: dict, add: bool) -> None: ...
         def _apply_scene_layout(self) -> Any: ...
-        _auto_layout_selection: Any
-        _block_items: Any
+        def _auto_layout_selection(self, selected: Any, members: Any, edges: Any, *, direction: str, max_columns: int | None, spacing: float, anchor: tuple[str, int] | None = ..., text: str = ...) -> None: ...
+        _block_items: dict[int, raptor.gui.ui.diagram_item_core._BlockItem]
         def _compute_model_transform(self, rbd: Any, spacing: float = ..., band_aware: bool = ...) -> Any: ...
-        _current_parent: Any
-        _layout_graph: Any
-        _layout_state: Any
-        _links: Any
-        _loading: Any
-        _model_dx_min: Any
-        _model_dy_min: Any
-        _node_items: Any
+        _current_parent: int
+        def _layout_graph(self) -> Any: ...
+        def _layout_state(self) -> tuple[dict, dict | None, tuple[str, str | None]]: ...
+        _links: list[raptor.gui.ui.diagram_link_items._LinkItem]
+        _loading: bool
+        _model_dx_min: float
+        _model_dy_min: float
+        _node_items: dict[int, raptor.gui.ui.diagram_item_core._NodeItem]
         _pos_overrides: dict[tuple[str, int], tuple[float, float]]
-        _push_handover_grips: Any
-        _rbd_ref: Any
+        def _push_handover_grips(self, stack: Any, direction: str) -> None: ...
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _rebuild_scene(self) -> Any: ...
-        _remember_flow_direction: Any
-        _scene: Any
-        _snap_state: Any
-        _user_arranged: Any
-        _vt: Any
-        blocks: Any
+        def _remember_flow_direction(self) -> None: ...
+        _scene: PySide6.QtWidgets.QGraphicsScene
+        _snap_state: dict[str, float]
+        _user_arranged: bool
+        _vt: raptor.core.fileio.view_transform.ViewTransform
+        blocks: dict[int, raptor.core.model.RBDBlock]
         events: dict[int, Any]
-        hiers: Any
-        layout_changed: Any
-        nodes: Any
+        hiers: dict[int, raptor.core.model.RBDHier]
+        layout_changed: PySide6.QtCore.SignalInstance
+        nodes: dict[int, raptor.core.model.RBDNode]
         def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
         def write_back_to_rbd(self, rbd: Any) -> Any: ...
 

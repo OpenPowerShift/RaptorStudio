@@ -38,6 +38,8 @@ from raptor.gui.resources.design_tokens import SPACING, active_colour
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -48,37 +50,40 @@ class ResultsPagesMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _CAP_HEADERS: Any
-        _COST_HEADERS: Any
-        _WEAK_COLOUR_TIPS: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _CAP_HEADERS: list[str]
+        _COST_HEADERS: list[str]
+        _WEAK_COLOUR_TIPS: dict[str, str]
         _allowed_names: set[str] | None
         def _apply_sort(self, table: Any, key: str, default: Any = ...) -> None: ...
         _cap_table: Any
-        _cost_blocks_label: Any
-        _cost_blocks_title: Any
-        _cost_tables: Any
-        _detail_tables: Any
-        _details_tabs: Any
-        _importance: Any
+        _cost_blocks_label: Any  # really PySide6.QtWidgets.QLabel | None
+        _cost_blocks_title: str
+        _cost_tables: list[PySide6.QtWidgets.QTableWidget]
+        _detail_tables: dict[str, PySide6.QtWidgets.QTableWidget]
+        _details_tabs: PySide6.QtWidgets.QTabWidget
+        _importance: Any  # really Any | None
         _importance_metric: str
         def _make_table(self, headers: list[str], rows: list[list[Any]], first_col_label: str = ...) -> Any: ...
         def _populate_details(self, lines: list[str]) -> Any: ...
-        _report_data: Any
+        _report_data: list[Any]
         @staticmethod
         def _scroll_wrap(widget: Any) -> Any: ...
         def _section_widget(self, title: str, columns: list[str], rows: Any, *, sort_key: str | None = ..., default_sort: Any = ..., keep_report_order: bool | None = ...) -> Any: ...
-        _selected_block_names_fn: Any
+        _selected_block_names_fn: Any  # really None
         @staticmethod
         def _stat_col_tip(name: str) -> str: ...
-        _status_hint_f: Any
+        _status_hint_f: Any  # really Any | None
         _units: str
         _weak_anal_type: str
         _weak_gy: float
-        _weak_rebuilding: Any
+        _weak_rebuilding: bool
         _weak_sel_only: Any
         _weak_yr: float
-        element_clicked: Any
-        importance_metric_changed: Any
+        element_clicked: PySide6.QtCore.SignalInstance
+        importance_metric_changed: PySide6.QtCore.SignalInstance
 
     @staticmethod
     def _capacity_node_ids(caps, sys_nid: int) -> list[int]:

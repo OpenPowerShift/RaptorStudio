@@ -36,6 +36,9 @@ from raptor.gui.ui.diagram_items import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtWidgets
+    import raptor.core.model
+    import raptor.gui.ui.diagram_link_items
 else:
     _Base = object
 
@@ -46,31 +49,36 @@ class LinkInsertMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _INSERT_GAP_SCALE: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _INSERT_GAP_SCALE: float
         _INSERT_TOOL_KINDS: dict[str, tuple[str, str, str]]
-        _LINK_AMBIGUITY_PX: Any
-        _LINK_PICK_RADIUS_PX: Any
-        _between: Any
-        _current_depth: Any
-        _current_parent: Any
+        _LINK_AMBIGUITY_PX: float
+        _LINK_PICK_RADIUS_PX: float
+        @staticmethod
+        def _between(split: Any, join: Any, edges: Any) -> set: ...
+        def _current_depth(self) -> int: ...
+        _current_parent: int
         def _endpoint_name(self, kind: str, oid: int) -> str: ...
         _insert_halo: Any
         _insert_halos: list
         _insert_hover_link: Any
         _insert_hover_state: str | None
-        _insert_hover_status: Any
-        _is_regular_node: Any
-        _item_key: Any
-        _item_links: Any
-        _layout_generation: Any
-        _layout_graph: Any
-        _links: Any
+        _insert_hover_status: str
+        def _is_regular_node(self, item: Any) -> bool: ...
+        @staticmethod
+        def _item_key(item: Any) -> tuple[str, int] | None: ...
+        def _item_links(self, item: Any) -> tuple[list, list]: ...
+        _layout_generation: int
+        def _layout_graph(self) -> Any: ...
+        _links: list[raptor.gui.ui.diagram_link_items._LinkItem]
         _page_flow_cache: tuple[tuple, str] | None
-        _parallel_refusal: Any
-        _rbd_ref: Any
-        _scene: Any
-        nodes: Any
-        tool_mode: Any
+        def _parallel_refusal(self, target: Any, info: Any) -> str | None: ...
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _scene: PySide6.QtWidgets.QGraphicsScene
+        nodes: dict[int, raptor.core.model.RBDNode]
+        tool_mode: str
 
     # ------------------------------------------------------ insert on link
     #

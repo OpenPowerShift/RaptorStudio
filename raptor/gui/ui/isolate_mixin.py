@@ -12,6 +12,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    import PySide6.QtWidgets
+    import raptor.core.fileio.rbd
+    import raptor.gui.ui.diagram
+    import raptor.gui.ui.isolate_mixin
+
 from raptor.gui.ui import msgbox
 
 from pathlib import Path
@@ -98,14 +104,17 @@ class IsolateMixin:
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         def _confirm_discard_unsaved(self, *, closing: bool = ...) -> bool: ...
         _current_file: str | None
-        _diagram_dock: Any
-        _isolate_dialog: Any
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
+        _isolate_dialog: raptor.gui.ui.isolate_mixin.IsolateDialog
         def _load_into_app(self, rbd: Any, path: str | None) -> Any: ...
-        _rbd: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _remember_recent(self, path: str) -> Any: ...
-        _statusbar: Any
+        _statusbar: PySide6.QtWidgets.QStatusBar
 
     def _selected_hierarchy(self):
         v = self._diagram_dock.view

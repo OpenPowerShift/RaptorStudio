@@ -26,6 +26,8 @@ from raptor.gui.ui.data_tables_common import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -36,19 +38,22 @@ class DataTablesKeyedMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _KEYED_TEMPLATES: Any
-        _KEYED_TIME_FIELDS: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _KEYED_TEMPLATES: dict[str, dict[str, str]]
+        _KEYED_TIME_FIELDS: dict[str, set[str]]
         @staticmethod
         def _cell_tip(t: Any, row: int, col: int, *, header: bool = ...) -> str: ...
-        _keyed: Any
+        _keyed: dict[PySide6.QtWidgets.QTableWidget, tuple[str, str, dict[str, type]]]
         def _param_cell(self, table: Any, row: Any, col: Any, value: float, on_commit: Any, is_time: bool = ..., *, shown_value: float | None = ..., on_commit_entry: Any = ...) -> Any: ...
         @staticmethod
         def _set_cell_tip(t: Any, row: int, col: int, text: str) -> None: ...
-        _tabs: Any
-        _view: Any
-        model_edited: Any
+        _tabs: PySide6.QtWidgets.QTabWidget
+        _view: Any  # really Any | None
+        model_edited: PySide6.QtCore.SignalInstance
         def refresh(self, force: bool = ...) -> Any: ...
-        validation_failed: Any
+        validation_failed: PySide6.QtCore.SignalInstance
 
     def _populate_keyed(self, table):
         section_name, key_col, kinds = self._keyed[table]

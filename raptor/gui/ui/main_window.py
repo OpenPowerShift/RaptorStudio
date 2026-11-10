@@ -922,6 +922,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     #: save/restore and Reset Layout.
     _dock_chrome: dict = None  # type: ignore[assignment]
 
+    def _link_cell_edit(self, setter, lid, col, old, new) -> None:
+        """One undoable LINK_DATA cell edit, then re-parse the live link the canvas
+        reads (a separate step: `resync_link` returns nothing, so it cannot sit in a
+        value-yielding lambda)."""
+        setter(lid, col, old, new)
+        self._diagram_dock.view.resync_link(lid)
+
     def _setup_central(self):
         self._diagram_dock = DiagramDock()
         self._diagram_dock.view.status_message_sink = \
@@ -2061,17 +2068,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # live Link object the canvas reads holds a parsed copy, so
         # re-parse it to keep open views in sync.
         self._inspector.flow_cell_changed.connect(
-            lambda lid, col, old, new: (
-                self._diagram_dock.view.set_link_flow_field(
-                    lid, col, old, new),
-                self._diagram_dock.view.resync_link(lid)))
+            lambda lid, col, old, new: self._link_cell_edit(
+                self._diagram_dock.view.set_link_flow_field, lid, col, old, new))
         # Node Standby tab's per-incoming-link switchover table (same
         # LINK_DATA/undo plumbing as the flow cells above).
         self._inspector.link_standby_cell_changed.connect(
-            lambda lid, col, old, new: (
-                self._diagram_dock.view.set_link_standby_field(
-                    lid, col, old, new),
-                self._diagram_dock.view.resync_link(lid)))
+            lambda lid, col, old, new: self._link_cell_edit(
+                self._diagram_dock.view.set_link_standby_field, lid, col, old, new))
         self._inspector.node_report_anal_changed.connect(
             lambda nid, v: self._diagram_dock.view.set_node_report_anal(nid, v))
         self._inspector.node_k_star_changed.connect(
@@ -2687,7 +2690,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             return
         kind, oid = target
         v = self._diagram_dock.view
-        gone = {"block": v.blocks, "node": v.nodes, "event": v.events,
+        gone: dict[str, Any] = {"block": v.blocks, "node": v.nodes, "event": v.events,
                 "hier": v.hiers}
         if kind in gone and oid not in gone[kind]:
             # Deleted (or undone): it used to stay on show, with editable
@@ -2712,7 +2715,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             # externally -- left the on-screen colour/font values stale
             # until the user re-selected the note. Every other element
             # kind refreshed here already.
-            item = v._anno_items.get(oid)
+            item = v._anno_items.get(cast(int, oid))   # annotation ids are ints
             if item is not None:
                 self._inspector.show_annotation(item)
 
@@ -3920,9 +3923,5 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     _RECENT_MAX = 50
 
 
-    #: "Block  ", "Node  ", ... -- the prefixed form the (now
-    #: popup-less) completer still produces, kept so an old entry, a
-    #: pasted string, or a test's text still resolves.
-    _FIND_PREFIXES = ("Block", "Node", "Event", "Hier")
 
 

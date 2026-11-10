@@ -19,6 +19,9 @@ from raptor.core import run_manifest
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtWidgets
+    import raptor.gui.ui.diagram
+    import raptor.gui.ui.results
 else:
     _Base = object
 
@@ -29,23 +32,26 @@ class EditGuardMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _EDIT_GUARD_MAX_PROMPTS: Any
-        _EDIT_GUARD_WINDOW: Any
-        _diagram_dock: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _EDIT_GUARD_MAX_PROMPTS: int
+        _EDIT_GUARD_WINDOW: float
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
         def _discard_step_finalize(self, message: str | None = ...) -> bool: ...
-        _edit_during_run_guard: Any
+        _edit_during_run_guard: bool
         _edit_guard_prompt_times: list[float]
-        _edit_guard_reentrancy: Any
-        _edit_run_abandoned: Any
+        _edit_guard_reentrancy: bool
+        _edit_run_abandoned: bool
         def _invalidate_step_session(self) -> Any: ...
-        _rbd: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _reset_status_summary(self) -> Any: ...
-        _results: Any
-        _results_basis: Any
-        _results_guard_pending: Any
-        _results_guard_reentrancy: Any
+        _results: raptor.gui.ui.results.ResultsDock
+        _results_basis: Any  # really str | None
+        _results_guard_pending: bool
+        _results_guard_reentrancy: bool
         def _run_or_step_active(self) -> bool: ...
-        _statusbar: Any
+        _statusbar: PySide6.QtWidgets.QStatusBar
         _step_finalize_state: Any
         def _stop_bg_run(self) -> Any: ...
         def _sync_overlay_actions(self, report_data: Any) -> None: ...

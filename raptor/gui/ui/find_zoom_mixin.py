@@ -4,15 +4,19 @@ Expects on `self`: the window's docks, `_rbd` and `_statusbar`."""
 from __future__ import annotations
 
 
-import re
 from typing import TYPE_CHECKING, Any
 
 
 
 
 
+from raptor.gui.find_text import find_entries, resolve_find_text
+
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.gui.ui.diagram
 else:
     _Base = object
 
@@ -23,11 +27,21 @@ class FindZoomMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _FIND_PREFIXES: Any
-        _diagram_dock: Any
-        _find_edit: Any
-        _find_model: Any
-        _statusbar: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
+        _find_edit: PySide6.QtWidgets.QLineEdit
+        _find_model: PySide6.QtCore.QStringListModel
+        _statusbar: PySide6.QtWidgets.QStatusBar
+
+    def _find_names(self) -> dict[str, dict[int, str]]:
+        """The diagram's current-level elements as the plain tables `find_text` takes."""
+        v = self._diagram_dock.view
+        return {"Block": {i: b.name for i, b in v.blocks.items()},
+                "Node": {i: n.node_name for i, n in v.nodes.items()},
+                "Event": {i: e.name for i, e in v.events.items()},
+                "Hier": {i: h.name for i, h in v.hiers.items()}}
 
     def _find_combo_refresh(self, _filter_text: str = ""):
         """Rebuild the Find Item backing list: every block, node, event
@@ -36,22 +50,9 @@ class FindZoomMixin(_Base):
         (load, edit, undo/redo) -- not on every keystroke; typing is
         handled by the Model Explorer's own filter, which is the only
         place the results are shown."""
-        entries = []
-        v = getattr(self, "_diagram_dock", None)
-        if v is not None:
-            v = v.view
-            def add(prefix, items):
-                for name, eid in items:
-                    entries.append(f"{prefix}  {name} ({eid})")
-            add("Block", sorted(((b.name, i) for i, b in v.blocks.items()),
-                                key=lambda t: t[0].lower()))
-            add("Node", sorted(((n.node_name, i) for i, n in v.nodes.items()),
-                               key=lambda t: t[0].lower()))
-            add("Event", sorted(((e.name, i)
-                                 for i, e in v.events.items()),
-                                key=lambda t: t[0].lower()))
-            add("Hier", sorted(((h.name, i) for i, h in v.hiers.items()),
-                               key=lambda t: t[0].lower()))
+        # The dock can be absent while the window is still being built.
+        entries = (find_entries(self._find_names())
+                   if getattr(self, "_diagram_dock", None) is not None else [])
         self._find_model.setStringList(entries)
         self._find_edit.setEnabled(bool(entries))
 
@@ -65,64 +66,8 @@ class FindZoomMixin(_Base):
             dock.filter_items(text)
 
     def _resolve_find_text(self, text: str) -> tuple[str, str] | None:
-        """What the Find box holds -> `(kind, name)`, or None.
-
-        Accepts the prefixed form (`Block  Pump (12)`), a bare name
-        (`Pump`), a bare id (`12`), and a name carrying its id
-        (`Pump (12)`) -- which is what the Explorer rows now show, so a
-        row the user clicked through from is a valid thing to press
-        Enter on."""
-        text = text.strip()
-        if not text:
-            return None
-        kind = None
-        for p in self._FIND_PREFIXES:
-            if text.startswith(p + "  "):
-                kind, text = p, text[len(p) + 2:].strip()
-                break
-        if not text:
-            return None
-        # A bare id first: `12`, or the Explorer row form `Pump (12)`.
-        eid = None
-        name = text
-        if text.isdigit():
-            eid, name = int(text), ""
-        else:
-            m = re.fullmatch(r"(.*?)\s*\((\d+)\)\s*", text)
-            if m:
-                name, eid = m.group(1).strip(), int(m.group(2))
-        v = self._diagram_dock.view
-        if eid is not None and not name:
-            # An id alone identifies exactly one element, if it exists.
-            for k, table, attr in (("Block", v.blocks, "name"),
-                                   ("Node", v.nodes, "node_name"),
-                                   ("Event", v.events, "name"),
-                                   ("Hier", v.hiers, "name")):
-                if eid in table:
-                    return k, getattr(table[eid], attr)
-            return None
-        if kind is not None:
-            return kind, name
-        if eid is not None:
-            # Name AND id: the id is authoritative when it names something.
-            for k, table, attr in (("Block", v.blocks, "name"),
-                                   ("Node", v.nodes, "node_name"),
-                                   ("Event", v.events, "name"),
-                                   ("Hier", v.hiers, "name")):
-                if eid in table and \
-                        getattr(table[eid], attr).lower() == name.lower():
-                    return k, name
-            return None
-        # A bare name: first match wins, blocks before nodes (a name is far
-        # more often a block's) -- same order the completer listed.
-        for k, table, attr in (("Block", v.blocks, "name"),
-                               ("Node", v.nodes, "node_name"),
-                               ("Event", v.events, "name"),
-                               ("Hier", v.hiers, "name")):
-            if any(getattr(o, attr).lower() == name.lower()
-                   for o in table.values()):
-                return k, name
-        return None
+        """What the Find box holds -> `(kind, name)`, or None (see `find_text`)."""
+        return resolve_find_text(text, self._find_names())
 
     def _on_find_submit(self, text: str):
         resolved = self._resolve_find_text(text)
@@ -143,14 +88,14 @@ class FindZoomMixin(_Base):
             self._find_edit.clear()
             return
 
-        target = None
+        target: Any = None     # a _EventItem or a _HierItem
         if kind == "Event":
             target = next((it for eid, it in v._event_items.items()
                            if v.events[eid].name == name), None)
         elif kind == "Hier":
             hid = next((h for h in v.hiers if v.hiers[h].name == name),
                        None)
-            target = v._hier_items.get(hid)
+            target = v._hier_items.get(hid) if hid is not None else None
         if target is None:
             return
         for it in list(v._scene.selectedItems()):

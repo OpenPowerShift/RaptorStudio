@@ -23,6 +23,9 @@ from raptor.gui.resources.design_tokens import SPACING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.gui.ui.plots
 else:
     _Base = object
 
@@ -33,19 +36,22 @@ class ResultsGraphsMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _MAX_PARSE_ROWS: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _MAX_PARSE_ROWS: int
         _ao_lines: list[str]
-        _ao_plot: Any
-        _graph_mode: Any
-        _graph_note: Any
-        _graph_run: Any
-        _graphs_page: Any
-        _report_data: Any
+        _ao_plot: raptor.gui.ui.plots.AoPlotWidget
+        _graph_mode: PySide6.QtWidgets.QComboBox
+        _graph_note: PySide6.QtWidgets.QLabel
+        _graph_run: PySide6.QtWidgets.QComboBox
+        _graphs_page: PySide6.QtWidgets.QWidget
+        _report_data: list[Any]
         _source_file_name: str
-        _status_hint_f: Any
+        _status_hint_f: Any  # really Any | None
         _weak_anal_type: str
-        _y_axis_btn: Any
-        y_axis_min_changed: Any
+        _y_axis_btn: PySide6.QtWidgets.QPushButton
+        y_axis_min_changed: PySide6.QtCore.SignalInstance
 
     def _build_graphs_tab(self):
         """Ao availability graphs: Per-Trial, Interval, and Multi-run plots fed by the

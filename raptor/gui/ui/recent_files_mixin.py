@@ -21,6 +21,9 @@ from raptor.gui.ui import settings
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtWidgets
+    import raptor.gui.ui.backstage
+    import raptor.gui.ui.inspector
 
     from raptor.gui.ui.main_window import MainWindow
 else:
@@ -33,19 +36,22 @@ class RecentFilesMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _RECENT_KEY: Any
-        _RECENT_MAX: Any
-        _backstage: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _RECENT_KEY: str
+        _RECENT_MAX: int
+        _backstage: raptor.gui.ui.backstage.Backstage
         def _confirm_discard_unsaved(self, *, closing: bool = ...) -> bool: ...
         _current_file: str | None
-        _dirty: Any
+        _dirty: bool
         def _doc_candidates(self, name: str) -> Any: ...
-        _inspector: Any
+        _inspector: raptor.gui.ui.inspector.InspectorDock
         def _load_into_app(self, rbd: Any, path: str | None) -> Any: ...
         def _open_model_any(self, path: str) -> Any: ...
-        _rbd: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _refuse_during_run(self, what: str) -> bool: ...
-        _statusbar: Any
+        _statusbar: PySide6.QtWidgets.QStatusBar
 
     def _show_backstage(self, page: str = "Home") -> None:
         """The full-page File view (`ui/backstage.py`), on `page`."""

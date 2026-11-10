@@ -30,6 +30,12 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.core.model
+    import raptor.gui.ui.diagram_element_items
+    import raptor.gui.ui.diagram_item_core
+    import raptor.gui.ui.diagram_link_items
 else:
     _Base = object
 
@@ -40,24 +46,27 @@ class NavigationMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         _DEP_TARGET_KINDS: Any
-        _LOCATE: Any
-        _LOG_ELEMENT_KINDS: Any
-        _block_items: Any
-        _current_parent: Any
-        _event_items: Any
+        _LOCATE: dict[str, tuple[str, str, str]]
+        _LOG_ELEMENT_KINDS: dict[str, tuple[str, str, str]]
+        _block_items: dict[int, raptor.gui.ui.diagram_item_core._BlockItem]
+        _current_parent: int
+        _event_items: dict[int, raptor.gui.ui.diagram_element_items._EventItem]
         _global_name_index: dict[tuple[str, int], str] | None
-        _links: Any
-        _loading: Any
-        _node_items: Any
-        _rbd_ref: Any
+        _links: list[raptor.gui.ui.diagram_link_items._LinkItem]
+        _loading: bool
+        _node_items: dict[int, raptor.gui.ui.diagram_item_core._NodeItem]
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _reapply_live_states(self) -> None: ...
         def _reapply_result_visuals(self) -> None: ...
         def _rebuild_scene(self) -> Any: ...
-        _scene: Any
-        hiers: Any
-        level_about_to_change: Any
-        level_changed: Any
+        _scene: PySide6.QtWidgets.QGraphicsScene
+        hiers: dict[int, raptor.core.model.RBDHier]
+        level_about_to_change: PySide6.QtCore.SignalInstance
+        level_changed: PySide6.QtCore.SignalInstance
 
     def _current_depth(self) -> int:
         """How many hierarchy levels deep `self._current_parent` is,

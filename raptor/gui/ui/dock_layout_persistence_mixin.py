@@ -11,6 +11,8 @@ from raptor.gui.ui import settings
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtWidgets
+    import raptor.gui.ui.run_panel
 else:
     _Base = object
 
@@ -21,28 +23,31 @@ class DockLayoutPersistenceMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _DEFAULT_WINDOW_SIZE: Any
-        _LAYOUT_VERSION: Any
-        _canvas_room_defaults_done: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _DEFAULT_WINDOW_SIZE: tuple[int, int]
+        _LAYOUT_VERSION: int
+        _canvas_room_defaults_done: bool
         _compact_minimized: set[str]
-        _data_tables_dock: Any
+        _data_tables_dock: PySide6.QtWidgets.QDockWidget
         _dock_chrome: dict
-        _dock_resize_generation: Any
+        _dock_resize_generation: int
         _dock_state_sync: dict
-        _dock_user_sized: Any
+        _dock_user_sized: bool
         def _ensure_status_bar_visible(self) -> Any: ...
-        _explorer_dock: Any
+        _explorer_dock: PySide6.QtWidgets.QDockWidget
         def _give_canvas_room(self, *, force: bool = ...) -> Any: ...
-        _inspector_dock: Any
-        _live_log_dock: Any
-        _persist_layout: Any
+        _inspector_dock: PySide6.QtWidgets.QDockWidget
+        _live_log_dock: PySide6.QtWidgets.QDockWidget
+        _persist_layout: bool
         def _reset_right_docks(self) -> Any: ...
-        _restoring_dock_chrome: Any
-        _results_dock: Any
-        _run_dock: Any
+        _restoring_dock_chrome: bool
+        _results_dock: PySide6.QtWidgets.QDockWidget
+        _run_dock: raptor.gui.ui.run_panel.RunPanelDock
         @staticmethod
         def _set_dock_min_width(dock: Any, width: int) -> None: ...
-        _statusbar: Any
+        _statusbar: PySide6.QtWidgets.QStatusBar
         def _sync_dock_tab_bars(self) -> Any: ...
         def _update_dock_max_heights(self) -> None: ...
 

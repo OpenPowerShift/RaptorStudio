@@ -34,6 +34,10 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtCore
+    import raptor.core.model
+    import raptor.gui.ui.diagram_element_items
+    import raptor.gui.ui.diagram_item_core
 else:
     _Base = object
 
@@ -44,18 +48,21 @@ class HierarchyMoveMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _block_items: Any
-        _current_parent: Any
-        _event_items: Any
-        _hier_items: Any
-        _node_items: Any
-        _rbd_ref: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _block_items: dict[int, raptor.gui.ui.diagram_item_core._BlockItem]
+        _current_parent: int
+        _event_items: dict[int, raptor.gui.ui.diagram_element_items._EventItem]
+        _hier_items: dict[int, raptor.gui.ui.diagram_element_items._HierItem]
+        _node_items: dict[int, raptor.gui.ui.diagram_item_core._NodeItem]
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _row_for(self, section_name: str, oid: int) -> dict | None: ...
         _stack: Any
-        _statusbar_msg: Any
-        hiers: Any
-        nodes: Any
-        structural_about_to_change: Any
+        _statusbar_msg: Any  # really Any | None
+        hiers: dict[int, raptor.core.model.RBDHier]
+        nodes: dict[int, raptor.core.model.RBDNode]
+        structural_about_to_change: PySide6.QtCore.SignalInstance
 
     def _drop_target_hier(self, moves) -> int | None:
         """The hierarchy oval the drag gesture ended on (primary moved

@@ -23,6 +23,8 @@ from raptor.gui.resources.design_tokens import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -33,80 +35,84 @@ class InspectorBlockMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         def _clear_tab(self, scroll: Any) -> Any: ...
         _comment_edit: Any
-        _comment_editor: Any
-        _comment_markdown_hint: Any
+        def _comment_editor(self, etype: str, oid: int, name: str, on_commit: Any) -> Any: ...
+        def _comment_markdown_hint(self, form: Any, edit: Any) -> Any: ...
         _comment_setter: Any
         def _configure_tabs(self, kind: str) -> Any: ...
-        _convert_comment_button: Any
+        def _convert_comment_button(self, form: Any, etype: str, oid: int, edit: Any) -> Any: ...
         _current_block_id: int | None
         _current_node_id: int | None
         _deferred_tabs: dict[int, object]
-        _dependency_group: Any
-        _distribution_params_row: Any
-        _distro_type_row: Any
-        _float_row: Any
-        _group: Any
-        _header: Any
-        _name_edit: Any
-        _phasing_group: Any
-        _populating_comment: Any
-        _position_labels: Any
-        _position_source: Any
-        _rbd: Any
+        def _dependency_group(self, layout: Any, oid: int, dependency_num: int, dep_type: str, emit: Any = ...) -> Any: ...
+        def _distribution_params_row(self, form: Any, distro: int, use: str, values: list[float], on_commit: Any, addr_prefix: str | None = ..., lambda_mode: bool | None = ...) -> Any: ...
+        def _distro_type_row(self, form: Any, distro: int, is_failure: bool, bid: int, signal: Any) -> None: ...
+        def _float_row(self, form: Any, label: str, value: float, on_commit: Any, is_time: bool = ...) -> Any: ...
+        def _group(self, title: str, layout: Any) -> Any: ...
+        _header: PySide6.QtWidgets.QLabel
+        def _name_edit(self, form: Any, current_name: str, on_commit: Any) -> Any: ...
+        def _phasing_group(self, layout: Any, kind: str, oid: int, phased_now: bool, entries_now: list[tuple[str, float]]) -> Any: ...
+        _populating_comment: bool
+        _position_labels: Any  # None until set; really tuple | None
+        _position_source: Any  # None until set; really RBDNode | None
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _restore_tab(self) -> Any: ...
-        _row: Any
+        @staticmethod
+        def _row(form: Any, label: str, value: Any, tooltip: str = ...) -> Any: ...
         def _run_deferred(self, index: int) -> None: ...
-        _scroll_costs: Any
-        _scroll_deps: Any
-        _scroll_failure: Any
-        _scroll_general: Any
-        _scroll_pm: Any
-        _scroll_repair: Any
-        _scroll_spares: Any
-        _stream_editor_row: Any
-        _tabs: Any
-        block_always_done_changed: Any
-        block_comment_changed: Any
-        block_costs_changed: Any
-        block_dep_changed: Any
-        block_dep_default_idle_changed: Any
-        block_dep_master_changed: Any
-        block_duty_cycle_changed: Any
-        block_fail_params_changed: Any
-        block_fail_type_changed: Any
-        block_gd_enabled_changed: Any
-        block_gd_rate_limit_changed: Any
-        block_gd_type_changed: Any
-        block_init_stock_changed: Any
-        block_new_spares_changed: Any
-        block_pm_dist_changed: Any
-        block_pm_enabled_changed: Any
-        block_pm_freq_changed: Any
-        block_pm_option_changed: Any
-        block_pm_params_changed: Any
-        block_pm_stagger_changed: Any
-        block_pm_trig_changed: Any
-        block_post_ldt_dist_changed: Any
-        block_post_ldt_params_changed: Any
-        block_pre_ldt_dist_changed: Any
-        block_pre_ldt_params_changed: Any
-        block_renamed: Any
-        block_repair_params_changed: Any
-        block_repair_type_changed: Any
-        block_resource_counts_changed: Any
-        block_resource_pool_changed: Any
-        block_restoration_factor_changed: Any
-        block_restoration_type_changed: Any
-        block_standby_stress_changed: Any
-        block_start_age_changed: Any
+        _scroll_costs: PySide6.QtWidgets.QScrollArea
+        _scroll_deps: PySide6.QtWidgets.QScrollArea
+        _scroll_failure: PySide6.QtWidgets.QScrollArea
+        _scroll_general: PySide6.QtWidgets.QScrollArea
+        _scroll_pm: PySide6.QtWidgets.QScrollArea
+        _scroll_repair: PySide6.QtWidgets.QScrollArea
+        _scroll_spares: PySide6.QtWidgets.QScrollArea
+        def _stream_editor_row(self, form: Any, cur: int, which: str, bid: int) -> None: ...
+        _tabs: PySide6.QtWidgets.QTabWidget
+        block_always_done_changed: PySide6.QtCore.SignalInstance
+        block_comment_changed: PySide6.QtCore.SignalInstance
+        block_costs_changed: PySide6.QtCore.SignalInstance
+        block_dep_changed: PySide6.QtCore.SignalInstance
+        block_dep_default_idle_changed: PySide6.QtCore.SignalInstance
+        block_dep_master_changed: PySide6.QtCore.SignalInstance
+        block_duty_cycle_changed: PySide6.QtCore.SignalInstance
+        block_fail_params_changed: PySide6.QtCore.SignalInstance
+        block_fail_type_changed: PySide6.QtCore.SignalInstance
+        block_gd_enabled_changed: PySide6.QtCore.SignalInstance
+        block_gd_rate_limit_changed: PySide6.QtCore.SignalInstance
+        block_gd_type_changed: PySide6.QtCore.SignalInstance
+        block_init_stock_changed: PySide6.QtCore.SignalInstance
+        block_new_spares_changed: PySide6.QtCore.SignalInstance
+        block_pm_dist_changed: PySide6.QtCore.SignalInstance
+        block_pm_enabled_changed: PySide6.QtCore.SignalInstance
+        block_pm_freq_changed: PySide6.QtCore.SignalInstance
+        block_pm_option_changed: PySide6.QtCore.SignalInstance
+        block_pm_params_changed: PySide6.QtCore.SignalInstance
+        block_pm_stagger_changed: PySide6.QtCore.SignalInstance
+        block_pm_trig_changed: PySide6.QtCore.SignalInstance
+        block_post_ldt_dist_changed: PySide6.QtCore.SignalInstance
+        block_post_ldt_params_changed: PySide6.QtCore.SignalInstance
+        block_pre_ldt_dist_changed: PySide6.QtCore.SignalInstance
+        block_pre_ldt_params_changed: PySide6.QtCore.SignalInstance
+        block_renamed: PySide6.QtCore.SignalInstance
+        block_repair_params_changed: PySide6.QtCore.SignalInstance
+        block_repair_type_changed: PySide6.QtCore.SignalInstance
+        block_resource_counts_changed: PySide6.QtCore.SignalInstance
+        block_resource_pool_changed: PySide6.QtCore.SignalInstance
+        block_restoration_factor_changed: PySide6.QtCore.SignalInstance
+        block_restoration_type_changed: PySide6.QtCore.SignalInstance
+        block_standby_stress_changed: PySide6.QtCore.SignalInstance
+        block_start_age_changed: PySide6.QtCore.SignalInstance
         def ensure_all_tabs_built(self) -> None: ...
-        lazy_tabs: Any
-        manage_pool_requested: Any
-        pool_name_changed: Any
-        sparing_type_changed: Any
-        validation_failed: Any
+        lazy_tabs: bool
+        manage_pool_requested: PySide6.QtCore.SignalInstance
+        pool_name_changed: PySide6.QtCore.SignalInstance
+        sparing_type_changed: PySide6.QtCore.SignalInstance
+        validation_failed: PySide6.QtCore.SignalInstance
 
     def _populate_block(self, block: RBDBlock):
         self._populating_comment = True

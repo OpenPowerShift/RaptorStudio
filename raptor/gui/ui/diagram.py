@@ -2565,7 +2565,10 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
 
     #: `(kind, id) -> str | None`; when set, the element under the cursor is described to
     #: `status_message_sink` (Raptor 7's `/dev` hover text).
-    hover_inspector: Callable[..., str] | None = None
+    hover_inspector: Callable[..., str | None] | None = None
+    #: Where the view sends a transient message (the window's status bar). Set by
+    #: MainWindow; the mixins read it with `getattr(..., None)` so a bare view works.
+    status_message_sink: Callable[[str], None] | None = None
 
     def _inspect_under_cursor(self, event) -> None:
         item = self.itemAt(event.position().toPoint())

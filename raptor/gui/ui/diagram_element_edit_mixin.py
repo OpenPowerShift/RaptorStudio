@@ -50,6 +50,11 @@ from raptor.gui.ui.diagram_annotations import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtWidgets
+    import raptor.core.model
+    import raptor.gui.model_edit
+    import raptor.gui.ui.diagram_element_items
+    import raptor.gui.ui.diagram_item_core
 else:
     _Base = object
 
@@ -60,41 +65,44 @@ class ElementEditMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        BLOCK_COST_FIELDS: Any
-        STREAM_SYSTEM_MAX: Any
-        STREAM_SYSTEM_MIN: Any
-        _KIND_REF: Any
-        _PM_OPTION_ATTRS: Any
-        _anchor_element_name: Any
-        _anchor_geometry: Any
-        _anchored_geometry: Any
-        _anno_default_props: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        BLOCK_COST_FIELDS: tuple[tuple[str, str], ...]
+        STREAM_SYSTEM_MAX: int
+        STREAM_SYSTEM_MIN: int
+        _KIND_REF: dict[str, str]
+        _PM_OPTION_ATTRS: dict[str, str]
+        def _anchor_element_name(self, kind: str, oid: int) -> str: ...
+        def _anchor_geometry(self, ref: Any) -> dict | None: ...
+        def _anchored_geometry(self, entry: dict) -> dict | None: ...
+        def _anno_default_props(self, kind: str) -> dict: ...
         _anno_items: dict[int, Any]
-        _block_items: Any
-        _clear_route_caches: Any
-        _current_parent: Any
-        _deferred_sublabels: Any
+        _block_items: dict[int, raptor.gui.ui.diagram_item_core._BlockItem]
+        def _clear_route_caches(self) -> None: ...
+        _current_parent: int
+        _deferred_sublabels: bool
         def _dependency_visual(self, dependency_num: int, dep_type: str) -> dict | None: ...
-        _edited: Any
-        _editor: Any
-        _event_items: Any
-        _hier_items: Any
+        _edited: raptor.gui.model_edit.EditedFields
+        _editor: raptor.gui.model_edit.ModelEditor
+        _event_items: dict[int, raptor.gui.ui.diagram_element_items._EventItem]
+        _hier_items: dict[int, raptor.gui.ui.diagram_element_items._HierItem]
         _label_mode_cache: str | None
-        _label_phase: Any
-        _label_units: Any
-        _layout_generation: Any
-        _next_anno_id: Any
-        _node_items: Any
-        _rbd_ref: Any
-        _refresh_node_badges: Any
-        _scene: Any
+        _label_phase: int
+        _label_units: str
+        _layout_generation: int
+        def _next_anno_id(self) -> int: ...
+        _node_items: dict[int, raptor.gui.ui.diagram_item_core._NodeItem]
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        def _refresh_node_badges(self) -> None: ...
+        _scene: PySide6.QtWidgets.QGraphicsScene
         _stack: Any
-        annotations: Any
-        blocks: Any
+        annotations: list[Any]
+        blocks: dict[int, raptor.core.model.RBDBlock]
         events: dict[int, Any]
-        hiers: Any
-        new_annotation_z: Any
-        nodes: Any
+        hiers: dict[int, raptor.core.model.RBDHier]
+        def new_annotation_z(self) -> float: ...
+        nodes: dict[int, raptor.core.model.RBDNode]
         def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
 
     def _element_name(self, etype: str, oid: int) -> str:

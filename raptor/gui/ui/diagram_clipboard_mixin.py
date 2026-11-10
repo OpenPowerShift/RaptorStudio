@@ -41,6 +41,12 @@ from raptor.gui.ui.diagram_annotations import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.core.model
+    import raptor.gui.ui.diagram_element_items
+    import raptor.gui.ui.diagram_item_core
+    import raptor.gui.ui.diagram_link_items
 else:
     _Base = object
 
@@ -51,37 +57,40 @@ class ClipboardMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _block_items: Any
-        _clear_route_caches: Any
-        _current_parent: Any
-        _dissolve_hierarchies: Any
-        _event_items: Any
-        _links: Any
-        _loading: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _block_items: dict[int, raptor.gui.ui.diagram_item_core._BlockItem]
+        def _clear_route_caches(self) -> None: ...
+        _current_parent: int
+        def _dissolve_hierarchies(self, hids: Any) -> Any: ...
+        _event_items: dict[int, raptor.gui.ui.diagram_element_items._EventItem]
+        _links: list[raptor.gui.ui.diagram_link_items._LinkItem]
+        _loading: bool
         def _model_to_scene(self, model_xy: tuple[float, float]) -> tuple[float, float]: ...
-        _model_token: Any
-        _n_deletable_selected: Any
-        _name_index: Any
-        _node_items: Any
+        _model_token: str
+        def _n_deletable_selected(self) -> int: ...
+        def _name_index(self) -> dict[tuple[str, int], str]: ...
+        _node_items: dict[int, raptor.gui.ui.diagram_item_core._NodeItem]
         _paste_buffer: list
-        _rbd_ref: Any
-        _recount_link_ends: Any
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        def _recount_link_ends(self) -> None: ...
         def _resolve_link_endpoint(self, ref: str, oid: int) -> Any: ...
         _scale: float
-        _scene: Any
+        _scene: PySide6.QtWidgets.QGraphicsScene
         _stack: Any
         def _tx(self, x: float) -> float: ...
         def _ty(self, y: float) -> float: ...
-        annotations: Any
-        blocks: Any
+        annotations: list[Any]
+        blocks: dict[int, raptor.core.model.RBDBlock]
         events: dict[int, Any]
-        hiers: Any
-        links: Any
-        model_changed: Any
-        nodes: Any
-        paste_state_changed: Any
+        hiers: dict[int, raptor.core.model.RBDHier]
+        links: list[raptor.core.model.Link]
+        model_changed: PySide6.QtCore.SignalInstance
+        nodes: dict[int, raptor.core.model.RBDNode]
+        paste_state_changed: PySide6.QtCore.SignalInstance
         def selected_element_count(self) -> int: ...
-        structural_about_to_change: Any
+        structural_about_to_change: PySide6.QtCore.SignalInstance
 
     def copyable_count(self) -> int:
         """Selected things Copy/Cut take: elements and annotations."""

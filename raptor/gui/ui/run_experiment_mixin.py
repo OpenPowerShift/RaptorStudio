@@ -31,6 +31,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    import PySide6.QtWidgets
+    import raptor.gui.ui.diagram
+    import raptor.gui.ui.inspector
+    import raptor.gui.ui.run_panel
+    import raptor.gui.widgets.ribbon
+
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QSpinBox
@@ -91,15 +98,15 @@ class RunExperimentMixin:
     # All are provided by MainWindow; none is defined here.
     if TYPE_CHECKING:      # pragma: no cover - typing only
         _rbd: RbdFile | None
-        _diagram_dock: Any
-        _inspector: Any
-        _statusbar: Any
-        _run_panel: Any
-        _run_dock: Any
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
+        _inspector: raptor.gui.ui.inspector.InspectorDock
+        _statusbar: PySide6.QtWidgets.QStatusBar
+        _run_panel: raptor.gui.ui.run_panel.RunPanel
+        _run_dock: raptor.gui.ui.run_panel.RunPanelDock
         _run_count_spin: QSpinBox
         _analysis_actions: dict[str, QAction]
         _report_stream_actions: dict[str, QAction]
-        _ribbon: Any
+        _ribbon: raptor.gui.widgets.ribbon.Ribbon
         _simulate_page_index: int
 
         def _mark_dirty(self) -> None: ...

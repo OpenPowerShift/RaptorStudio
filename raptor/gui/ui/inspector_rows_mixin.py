@@ -32,6 +32,7 @@ from raptor.gui.ui import param_entry
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
 else:
     _Base = object
 
@@ -42,18 +43,21 @@ class InspectorRowsMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
         _comment_edit: Any
         def _comment_for(self, etype: str, oid: int, name: str) -> str: ...
-        _rbd: Any
-        _stack: Any
-        block_fail_stream_changed: Any
-        block_repair_stream_changed: Any
-        comment_to_annotation_requested: Any
-        element_comment_changed: Any
-        manage_pool_requested: Any
-        phasing_changed: Any
-        rates_changed: Any
-        validation_failed: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _stack: Any  # really Any | None
+        block_fail_stream_changed: PySide6.QtCore.SignalInstance
+        block_repair_stream_changed: PySide6.QtCore.SignalInstance
+        comment_to_annotation_requested: PySide6.QtCore.SignalInstance
+        element_comment_changed: PySide6.QtCore.SignalInstance
+        manage_pool_requested: PySide6.QtCore.SignalInstance
+        phasing_changed: PySide6.QtCore.SignalInstance
+        rates_changed: PySide6.QtCore.SignalInstance
+        validation_failed: PySide6.QtCore.SignalInstance
 
     def _group(self, title: str, layout: QLayout | None) -> tuple[QGroupBox, QFormLayout]:
         layout = _vbox(layout)

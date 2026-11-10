@@ -27,6 +27,8 @@ from raptor.gui.ui.data_tables_common import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
+    import raptor.gui.ui.data_tables_common
 else:
     _Base = object
 
@@ -37,13 +39,16 @@ class DataTablesCostsMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _COST_DECIMALS: Any
-        _COST_LABELS: Any
-        _COST_LIMIT: Any
-        _POOLED_COST_TIP: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _COST_DECIMALS: int
+        _COST_LABELS: dict[str, str]
+        _COST_LIMIT: float
+        _POOLED_COST_TIP: str
         def _active_src(self) -> Any: ...
         def _confirm_multi(self, n: int) -> bool: ...
-        _costs_table: Any
+        _costs_table: raptor.gui.ui.data_tables_common._DataTable
         def _is_foreign(self, kind: str, oid: int | None) -> bool: ...
         def _level_item(self, kind: str, oid: int) -> Any: ...
         @staticmethod
@@ -56,10 +61,10 @@ class DataTablesCostsMixin(_Base):
         @classmethod
         def _tag_row_with_name(cls, t: Any, row: int, name: str) -> None: ...
         def _targets(self, table: Any, oid: int) -> list[int]: ...
-        _view: Any
-        model_edited: Any
-        status_message: Any
-        validation_failed: Any
+        _view: Any  # really Any | None
+        model_edited: PySide6.QtCore.SignalInstance
+        status_message: PySide6.QtCore.SignalInstance
+        validation_failed: PySide6.QtCore.SignalInstance
 
     @classmethod
     def _fmt_cost(cls, value: float) -> str:

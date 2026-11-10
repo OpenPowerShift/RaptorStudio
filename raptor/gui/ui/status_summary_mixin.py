@@ -24,6 +24,9 @@ from raptor.gui.resources.design_tokens import (
 if TYPE_CHECKING:
     # Mixin methods call Qt on `self`; type-check them as a main window.
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtGui
+    import PySide6.QtWidgets
+    import raptor.gui.ui.window_support
 else:
     _Base = object
 
@@ -34,18 +37,21 @@ class StatusSummaryMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _SUMMARY_SAMPLES: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _SUMMARY_SAMPLES: dict[str, str]
         def _clear_run_eta(self) -> None: ...
-        _cycles_label: Any
-        _live_sim_action: Any
-        _mission_label: Any
-        _phase_label: Any
-        _rbd: Any
-        _readouts: Any
-        _statusbar: Any
-        _summary_labels: Any
-        _summary_units_cache: Any
-        _system_swatch: Any
+        _cycles_label: PySide6.QtWidgets.QLabel
+        _live_sim_action: PySide6.QtGui.QAction
+        _mission_label: PySide6.QtWidgets.QLabel
+        _phase_label: PySide6.QtWidgets.QLabel
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _readouts: raptor.gui.ui.window_support._NoMinimumWidth
+        _statusbar: PySide6.QtWidgets.QStatusBar
+        _summary_labels: dict[str, PySide6.QtWidgets.QLabel]
+        _summary_units_cache: Any  # really Any | None
+        _system_swatch: PySide6.QtWidgets.QLabel
 
     def _ensure_summary_labels(self):
         """Create the permanent status-bar stat readouts once."""

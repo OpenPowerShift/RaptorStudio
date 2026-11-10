@@ -17,6 +17,10 @@ from raptor.core.fileio import rbds as rbds_io
 if TYPE_CHECKING:
     # Mixin methods call Qt on `self`; type-check them as a main window.
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.gui.ui.diagram
+    import raptor.gui.ui.inspector
 else:
     _Base = object
 
@@ -27,16 +31,19 @@ class AutosaveMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _autosave_timer: Any
-        _diagram_dock: Any
-        _dirty: Any
-        _inspector: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _autosave_timer: PySide6.QtCore.QTimer
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
+        _dirty: bool
+        _inspector: raptor.gui.ui.inspector.InspectorDock
         def _load_into_app(self, rbd: Any, path: Any) -> Any: ...
         def _open_model_any(self, path: str) -> Any: ...
         def _prefs(self) -> dict: ...
-        _rbd: Any
+        _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _spawn_window(self) -> Any: ...
-        _statusbar: Any
+        _statusbar: PySide6.QtWidgets.QStatusBar
 
     def _apply_autosave_timer(self):
         prefs = self._prefs()

@@ -4,7 +4,7 @@ Expects on `self`: the window's docks, `_rbd` and `_statusbar`."""
 from __future__ import annotations
 
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 
 
@@ -12,6 +12,11 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
+    import raptor.gui.ui.diagram
+    import raptor.gui.ui.explorer
+    import raptor.gui.ui.inspector
 else:
     _Base = object
 
@@ -22,13 +27,16 @@ class SelectionMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _diagram_dock: Any
-        _explorer: Any
-        _inspector: Any
-        _inspector_select_timer: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _diagram_dock: raptor.gui.ui.diagram.DiagramDock
+        _explorer: raptor.gui.ui.explorer.ExplorerDock
+        _inspector: raptor.gui.ui.inspector.InspectorDock
+        _inspector_select_timer: PySide6.QtCore.QTimer
         _pending_block_selection: int | None
         _pending_inspector_selection: tuple[str, int] | None
-        _statusbar: Any
+        _statusbar: PySide6.QtWidgets.QStatusBar
 
     def _queue_inspector_selection(self, kind: str, oid: int) -> None:
         """Queue one Inspector rebuild on the debounce timer (see

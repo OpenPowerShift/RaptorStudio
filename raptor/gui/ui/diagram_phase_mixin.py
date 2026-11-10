@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QGraphicsView as _Base
+    import raptor.core.model
 else:
     _Base = object
 
@@ -42,10 +43,13 @@ class PhaseKeyedMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _PHASE_SECTION: Any
-        _rbd_ref: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _PHASE_SECTION: dict[str, tuple[str, str, str]]
+        _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
         _stack: Any
-        links: Any
+        links: list[raptor.core.model.Link]
 
     def set_link_flow_field(self, link_id: int, col: str, old: str,
                             new: str) -> bool:

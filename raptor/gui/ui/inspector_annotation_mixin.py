@@ -24,6 +24,8 @@ from raptor.gui.resources.design_tokens import (
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget as _Base
+    import PySide6.QtCore
+    import PySide6.QtWidgets
 else:
     _Base = object
 
@@ -34,22 +36,25 @@ class InspectorAnnotationMixin(_Base):
     if TYPE_CHECKING:      # pragma: no cover - typing only
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
-        _ANCHOR_LOCATIONS: Any
+        # `x: Any  # really T | None` marks an attribute the host sets to None first and
+        # fills in later: declaring it as `T` would be wrong and `T | None` would force
+        # a None check at every use, so it stays Any with its real type noted.
+        _ANCHOR_LOCATIONS: tuple[tuple[str, str], ...]
         def _begin_populate(self) -> Any: ...
         def _clear_tab(self, scroll: Any) -> Any: ...
         def _configure_tabs(self, kind: str) -> Any: ...
         _current_block_id: int | None
         _current_node_id: int | None
         _current_target: tuple[str, object] | None
-        _group: Any
-        _header: Any
+        def _group(self, title: str, layout: Any) -> Any: ...
+        _header: PySide6.QtWidgets.QLabel
         def _restore_tab(self) -> Any: ...
-        _scroll_general: Any
-        _tabs: Any
+        _scroll_general: PySide6.QtWidgets.QScrollArea
+        _tabs: PySide6.QtWidgets.QTabWidget
         anchor_source: Any
-        annotation_anchor_pick_requested: Any
-        annotation_arrow_pick_requested: Any
-        annotation_prop_changed: Any
+        annotation_anchor_pick_requested: PySide6.QtCore.SignalInstance
+        annotation_arrow_pick_requested: PySide6.QtCore.SignalInstance
+        annotation_prop_changed: PySide6.QtCore.SignalInstance
 
     def show_annotation(self, item):
         """Colours & Font for one canvas annotation (rect/ellipse/text
