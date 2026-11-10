@@ -22,7 +22,7 @@ from raptor.core.model import NodeStatus
 from raptor.gui.ui.diagram import DiagramView
 from raptor.gui.ui.diagram_items import COLOUR
 from raptor.gui.ui.diagram_live import _flow_label
-from raptor.gui.ui.main_window import _live_state_signature
+from raptor.gui.ui.window_support import _live_state_signature
 
 MODEL = "tests/golden/HierarchyExample/input.rbd"
 

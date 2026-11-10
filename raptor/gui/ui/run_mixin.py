@@ -3,6 +3,7 @@
 Expects on `self`: the window's docks, `_rbd` and `_statusbar`."""
 from __future__ import annotations
 
+from raptor.gui.run_text import run_outcome_text
 from raptor.gui.ui.foreground_run import ForegroundRun
 
 from raptor.gui.ui.qtcompat import req
@@ -699,22 +700,11 @@ class RunMixin(_Base):
 
     def _show_run_outcome(self, event_logs, completed: int) -> None:
         """Status line for how the batch ended: stopped (and where) or completed."""
-        total_lines = sum(len(lines) for lines in event_logs)
-        if getattr(self, "_sync_stop", False):
-            if completed < len(event_logs):
-                self._statusbar.showMessage(
-                    "Stopped — partial event log kept for the interrupted "
-                    f"run, {total_lines} event-log lines", 10000)
-            else:
-                self._statusbar.showMessage(
-                    f"Stopped after {completed} run(s), "
-                    f"{total_lines} event-log lines")
-        else:
-            # State success explicitly so a finished run is never
-            # mistaken for an aborted one.
-            self._statusbar.showMessage(
-                f"Completed {len(event_logs)} run(s) successfully, "
-                f"{total_lines} event-log lines")
+        text, timeout = run_outcome_text(
+            stopped=bool(getattr(self, "_sync_stop", False)), completed=completed,
+            logs=len(event_logs),
+            event_log_lines=sum(len(lines) for lines in event_logs))
+        self._statusbar.showMessage(text, timeout)
 
     def _current_units(self):
         return _system_units(req(self._rbd))
