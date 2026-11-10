@@ -24,7 +24,7 @@ from raptor.gui.ui.qtcompat import req
 
 from typing import TYPE_CHECKING, Any, cast
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -774,6 +774,31 @@ class ResultsPagesMixin(_Base):
         table.setMinimumWidth(max(table.minimumWidth(), needed))
         strip.setMinimumWidth(needed)
         v.addWidget(strip)
+
+        def _remeasure_title() -> None:
+            # The measurement above used the font before the parent's
+            # stylesheet reached the label (the "TableTitle" rule makes it
+            # larger), so on some platforms the reserved width came out a
+            # few pixels short and the buttons overlapped the heading.
+            # Measure again once the label is parented and polished.
+            from shiboken6 import isValid
+            if not (isValid(strip) and isValid(label) and isValid(table)):
+                return
+            label.ensurePolished()
+            real = (label.fontMetrics().horizontalAdvance(title) + 32
+                    if show_title else 0)
+            if real <= title_width:
+                return
+            want = real + 2 * 22 + 3 * hdr_row.spacing()
+            label.setMinimumWidth(real)
+            table.setMinimumWidth(max(table.minimumWidth(), want))
+            # `setFixedWidth` (used by the strip's width sync) pinned the
+            # maximum too; release it so the larger minimum can apply.
+            strip.setMaximumWidth(16777215)
+            strip.setMinimumWidth(want)
+            strip._sync_width()
+
+        QTimer.singleShot(0, _remeasure_title)
 
         def _current_grid():
             # Read the table at click time, not a precomputed list: a
