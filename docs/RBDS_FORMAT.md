@@ -576,6 +576,17 @@ the box spanned by an arrow's two endpoints. `location` is `right`,
 `left`, `above`, `below` or `center`; the default is `above`.
 `center` places the annotation over the target and ignores `gap`.
 
+**Comment notes.** A text annotation converted from an element comment
+carries `comment_of` — `{"type": "block", "id": 5}` (or `node`, `event`,
+`hier`). `comment_of` is the text/ownership link; `anchor` remains only
+placement. Editing the note writes the same Markdown source to that
+element's COMMENTS row, and editing the comment updates every linked note;
+one undo restores both. The conversion uses the Auto Layout gap
+(`42` scene px × `layout/spacing`) and anchors the note above its element,
+so it follows the element and Auto Layout makes room for it. A copied or
+pasted annotation drops `comment_of`, so it cannot take over another
+model's comment.
+
 The stored geometry is what is drawn; the anchor says what keeps it
 there: the annotation moves with its target when the target is dragged,
 aligned or laid out, in the GUI and through `auto_layout`. Anchors can

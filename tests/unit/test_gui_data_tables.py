@@ -41,6 +41,56 @@ def window(qapp):
     return w
 
 
+def test_data_table_headers_are_plain_english_and_name_is_shown_once(window):
+    dt = window._data_tables
+    tables = {
+        dt._costs_table: ["Name", "ID", "Initial cost", "Running cost",
+                          "Standby cost", "Idle cost", "Repair fixed cost",
+                          "Repair cost per time",
+                          "Repair hold cost per time", "PM fixed cost",
+                          "PM cost per time", "PM hold cost per time",
+                          "Done fixed cost", "Done cost per time",
+                          "Spare cost", "Emergency shipping cost", "Level"],
+        dt._spares_table: dt._SPARES_COLS,
+        dt._resources_table: dt._RESOURCE_COLS,
+        dt._triggers_table: dt._TRIGGER_COLS,
+        dt._phases_table: dt._PHASE_COLS,
+    }
+    raw = {
+        "initial", "Running", "standby", "idle", "repFixed", "repPerTime",
+        "repHold", "pmFixedCost", "pmCost", "pmHoldCost", "doneFixed",
+        "donePerTime", "perSpare", "emerShipping", "PoolName", "RSO",
+        "Stock", "NewSp", "ArriveEvery", "ESO", "EmerTime", "SLO", "Quan",
+        "SLOTime", "NumIn", "SpareCost", "FixedPerUse", "PerTimeUnit",
+        "TriggerName", "IDnum", "InitUsed", "Dist", "Param1", "Param2",
+        "Param3", "PhaseName", "Num", "Mission",
+    }
+    for table, expected in tables.items():
+        headers = [table.horizontalHeaderItem(c).text().split(" (", 1)[0]
+                   for c in range(table.columnCount())]
+        assert headers == expected
+        assert not (set(headers) & raw), headers
+        assert not table.verticalHeader().isVisible(), \
+            "the name column already identifies the row"
+    # Every grid, including the already-human Blocks/Nodes/etc. tabs,
+    # keeps the duplicate vertical name hidden.
+    for table in dt._all_tables:
+        assert not table.verticalHeader().isVisible()
+
+
+def test_keyed_time_headers_follow_the_display_unit(window):
+    dt = window._data_tables
+    dt.set_units("minutes")
+    spares = [dt._spares_table.horizontalHeaderItem(c).text()
+              for c in range(dt._spares_table.columnCount())]
+    triggers = [dt._triggers_table.horizontalHeaderItem(c).text()
+                for c in range(dt._triggers_table.columnCount())]
+    assert "Routine order interval (minutes)" in spares
+    assert "Emergency arrival time (minutes)" in spares
+    assert "Reorder arrival time (minutes)" in spares
+    assert "First use offset (minutes)" in triggers
+
+
 def _event_row(rbd, eid):
     return next(r for r in rbd.sections["EVENT_DATA"].rows
                 if int(float(r["ID"])) == eid)

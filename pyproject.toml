@@ -269,6 +269,7 @@ include = ["raptor*"]
 [tool.setuptools.data-files]
 "docs" = ["docs/manual.html", "docs/formulas.html", "docs/ops_asciidoctor.css", "docs/RBDS_FORMAT.md",
          "docs/KEYBOARD_SHORTCUTS.md", "docs/IEC61078.md", "docs/MCP.md",
+         "docs/MCP-reference.md",
          "docs/ANALYTICAL.md", "docs/rbds.schema.json"]
 # MathJax (Apache-2.0, see its LICENSE) typesets the formulas page offline: the page loads it from js/.
 "docs/js" = ["docs/js/mathjax-config.js"]

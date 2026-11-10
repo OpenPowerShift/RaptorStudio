@@ -7,7 +7,10 @@
  "system": {
   "red_cost": 0.0,
   "lost_cost": 0.0,
-  "flow_generated": 1
+  "flow_generated": 1,
+  "legacy": {
+   "zoomVal": "14.000000"
+  }
  },
  "experiment": {
   "trials": 40,
@@ -56,7 +59,7 @@
     "name": "Heating_Element",
     "parent": 0,
     "x": 3.75,
-    "y": 91.25,
+    "y": 92.5,
     "fail_dist": 15,
     "fail_params": [
      1.5,
@@ -79,15 +82,15 @@
     "type": 1,
     "parent": 0,
     "x": 1.25,
-    "y": 91.25
+    "y": 92.5
    },
    {
     "id": 15,
     "name": "end",
     "type": 3,
     "parent": 0,
-    "x": 7.5,
-    "y": 91.25
+    "x": 6.25,
+    "y": 92.5
    }
   ],
   "events": [],

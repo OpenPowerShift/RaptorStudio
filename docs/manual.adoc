@@ -59,7 +59,7 @@ live in the Run panel, beside the Capacity and Cost analyses they feed.
 Open from *View → Panels → Data Tables*. It edits the model as
 spreadsheets, one tab per element type or per section of the `.rbds`
 file. Only some cells are editable; invalid values revert on entry.
-Blocks, Nodes, Events, Sparing and Preventive Maintenance show the
+Blocks, Costs, Nodes, Events, Sparing and Preventive Maintenance show the
 hierarchy level currently on the canvas; the header says “current level:
 8 of 17 blocks…” when the model has nested levels. Tick **Whole model**
 to see every level at once (see below), or use Model Explorer to reach
@@ -76,6 +76,13 @@ are inside) and the window title ends with its name and id, for example
 |Name, ID, Failure Dist, Failure Param 1–3, # Failure Params, Repair
 Dist, Repair Param 1–3, # Repair Params, PM Frequency, plus read-only
 Failure/Repair Mean and Std Dev computed from the current parameters
+
+|Costs
+|Name, ID, initial, Running, standby, idle, repFixed, repPerTime,
+repHold, pmFixedCost, pmCost, pmHoldCost, doneFixed, donePerTime,
+perSpare, emerShipping — one row per block. A Pooled block's spare and
+emergency-shipping cells are read-only: its pool owns those costs. A
+cell edit changes that one cost on every selected row in one undo step
 
 |Nodes
 |Name, ID, Type (Regular / Start / End / Hierarchy In-Out), Required
@@ -112,9 +119,10 @@ above
 [[data-tables-whole-model]]
 === Whole model
 
-The **Whole model** box in the bar above the tabs shows the blocks, nodes
-and events of *every* level in the same grids, with an extra **Level**
-column (`Home`, `Pump Bank`, `Pump Bank / Stage 2`). The header reads
+The **Whole model** box in the bar above the tabs shows the blocks,
+their costs, nodes and events of *every* level in the same grids, with an
+extra **Level** column (`Home`, `Pump Bank`, `Pump Bank / Stage 2`). The
+header reads
 “Whole model (14 blocks across 4 levels)”. Nothing is drawn on the canvas
 for the other levels, so it stays quick on large models. Rows on the level
 that is open on the canvas stay editable; rows of other levels are
@@ -132,9 +140,9 @@ Tables with more than 10 rows have a filter row under the column headings.
 It is hidden until you ask for it: press *Ctrl+F* while the table has the
 focus, or right-click the column headings and choose **Filter**. The
 Results tables (Capacity, Weak link, Cost, Importance, the per-element
-table of the analytical results) and the Data Tables (Blocks, Nodes,
-Events, Sparing, Preventive Maintenance) have it. Short tables and the
-event log (which has its own filter box) do not.
+table of the analytical results) and the Data Tables (Blocks, Costs,
+Nodes, Events, Sparing, Preventive Maintenance) have it. Short tables and
+the event log (which has its own filter box) do not.
 
 Type in the box above a column to keep only the rows that match that
 column; boxes in several columns must all match. Filtering hides rows
@@ -183,12 +191,12 @@ a `%`, a leading `>` (a censored result) and a trailing unit such as
 “hours”. A cell with no number never matches a number term.
 
 In the Data Tables the filter reads the model's own values (names,
-distribution names, parameters, means), not the cell editors, so rows that
-are filtered out never build their editors. In the Sparing table only
-Name, ID and Sparing Type can be filtered. Export CSV writes only the rows
-the filter shows (the dialog says “only N of M rows”). Editing a cell so
-that its row stops matching does not hide the row from under your cursor;
-it goes at the next filter pass.
+distribution names, parameters, means, full-precision costs), not the
+cell editors, so rows that are filtered out never build their editors. In
+the Sparing table only Name, ID and Sparing Type can be filtered. Export
+CSV writes only the rows the filter shows (the dialog says “only N of M
+rows”). Editing a cell so that its row stops matching does not hide the
+row from under your cursor; it goes at the next filter pass.
 
 [[data-tables-multi-edit]]
 === Changing several rows at once
@@ -463,6 +471,8 @@ After a run (or a stepped Finish) the Results dock offers:
   Recording (xref:../new_docs/book.html#ch-trials[Many Trials]).
   **Multi-run Ao** auto-fits its Y axis to the observed min/max, so a
   narrow availability band is readable instead of a flat line at 1.0.
+  **Y-axis min** is *Auto* at 0; a saved non-zero value is a manual floor
+  used by every availability plot. Capacity and Convergence do not use it.
   The single-run **Capacity (Flow)** plot shows the run's average flow
   and capacity as horizontal reference lines; **Multi-run Capacity
   (Flow)** shows min/average/max flow and capacity across every run.
@@ -473,7 +483,7 @@ After a run (or a stepped Finish) the Results dock offers:
 
 === Analytical analysis
 
-**Results ▸ Analytical…** opens the exact static solver. It does not sample
+**Model ▸ Analytical…** opens the exact static solver. It does not sample
 and does not change the model. Choose **Reliability** for a non-repairable
 `R(t)` (PDF, hazard, MTTF, BX life, conditional reliability, exact importance)
 or **Availability** for steady-state availability with independent, perfectly
@@ -861,9 +871,12 @@ the Help tab) opens this page. Step-by-step setup for Claude Code, Claude
 Desktop, OpenCode and any other MCP client, with worked examples, is in
 the User Guide:
 xref:../new_docs/book.html#ch-mcp[RAPTOR from an AI Assistant]. The
-generated reference for every tool, option and transport is
+standalone guide, with concepts and task recipes, is
 https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md[the
-MCP server reference].
+MCP server guide]; the generated catalogue of every tool, parameter and
+return field is
+https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md[the
+MCP tool reference].
 
 Over stdio the client starts the server itself:
 
@@ -1024,15 +1037,16 @@ is in the User Guide's xref:../new_docs/book.html#ch-debugger[debugger chapter].
 [[extract-hierarchy]]
 == Checking part of a model: Extract Hierarchy
 
-Select one hierarchy oval and press **Extract Hierarchy…** on the **Simulate**
+Select one hierarchy oval and press **Extract Hierarchy…** on the **Model**
 tab. The hierarchy becomes a standalone model: its input node is the start
 and its output node the end, so its input is always available. The dialog
 lists what crosses the hierarchy's boundary and how each kind is treated:
 elements that follow something outside (assumed always up, or following the
 extract's own end), spare and resource pools shared with outside blocks (the
 whole pool, or scaled by the share of users inside), and random streams shared
-with outside elements (kept, or each given its own). Save the extract as an
-`.rbd` or `.rbds`; it can be opened in this window and run like any model, and
+with outside elements (kept, or each given its own). Save the extract as
+`.rbds` (the default) or `.rbd`; it can be opened in this window and run like
+any model, and
 `raptor run --hierarchy NAME` and
 `raptor extract` do the same from the command line, and the MCP `simulate` tool
 takes a `hierarchy` argument.
@@ -1042,12 +1056,18 @@ labelled as an isolated run. No treatment can make an isolated run reproduce the
 hierarchy would have had inside the whole model, so compare averages, not
 individual runs.
 
+To run the part without saving an extract, use the Run panel's **Model
+scope** selector: choose the hierarchy, review the warning and boundary
+treatments there, then Run. The canvas follows the scope, the source model
+and file are not changed, and the Results dock carries an isolated-hierarchy
+banner. Importance measures in that run rank blocks within the hierarchy
+only.
+
 [[export-tables]]
 == Exporting tables
 
-*File ▸ Print and Export ▸ Export Tables…* (also a button on the Data Tables and
-Results docks) writes the model's tables, and a run's result tables, to
-files.
+*File ▸ Print and Export ▸ Export Tables…* (also a button on the Data Tables
+dock) writes the model's tables, and a run's result tables, to files.
 
 Pick the tables in two groups:
 

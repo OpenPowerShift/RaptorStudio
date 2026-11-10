@@ -708,6 +708,18 @@ own <strong>Pick…</strong> and <strong>Remove</strong> buttons in the Inspecto
 its target and stops at the target&#8217;s edge rather than its centre, and a
 removed end stays where it was.</p>
 </div>
+<div class="paragraph">
+<p>A block, node, event or hierarchy can also have a <strong>Comment</strong> (General ▸
+Identity). Comment fields accept Markdown — bold, italic, lists, links
+and headings — and the field carries a visible Markdown hint. <strong>Convert
+comment to annotation</strong> turns the comment into a linked text annotation:
+editing the annotation updates the element&#8217;s comment, editing the
+comment updates the annotation, and one undo restores both. Hover the
+note to see that it is the element&#8217;s comment description. Conversion
+uses the Auto Layout gap and anchors the note above its element, so Auto
+Layout moves it and leaves room for it. The link is stored as the
+optional <code>comment_of</code> field in the <code>.rbds</code> annotation entry.</p>
+</div>
 </div>
 </div>
 </div>
@@ -3701,7 +3713,7 @@ the coin is bent, the calculation is wrong and the tosses are right.</p>
 <p>Open <code>Lantern1.rbds</code>.</p>
 </li>
 <li>
-<p>Click <strong>Results ▸ Analytical…</strong>. The solver window opens. It does not
+<p>Click <strong>Model ▸ Analytical…</strong>. The solver window opens. It does not
 solve yet.</p>
 </li>
 <li>
@@ -3916,7 +3928,7 @@ finished. For a repairable system, use availability mode.</p>
 <p>Open <code>Vendo1.rbds</code>, the vending machine from <a href="#ch-repair">Chapter 7, <em>Repair: The Vending Machine That Keeps Getting Up</em></a>.</p>
 </li>
 <li>
-<p>Click <strong>Results ▸ Analytical…</strong>.</p>
+<p>Click <strong>Model ▸ Analytical…</strong>.</p>
 </li>
 <li>
 <p>Set <strong>Mode</strong> to <strong>Availability — steady state</strong>.</p>
@@ -6053,6 +6065,15 @@ whole model, run the whole model and read the weak-link results.</p>
 </table>
 </div>
 <div class="paragraph">
+<p>The quickest route is the Run panel. Set <strong>Model scope</strong> to the hierarchy
+(then the canvas follows you into it). A warning appears with the same
+boundary treatments as Extract Hierarchy, and Run produces the ordinary
+tables, graphs and importance measures scoped to that hierarchy. Nothing
+is written to disk and the source model is not changed; the Results dock
+carries a persistent "isolated hierarchy" banner. <strong>Extract Hierarchy…</strong>
+is still the route when you want to keep the part as a separate model.</p>
+</div>
+<div class="paragraph">
 <p>When you are building a big model one part at a time, you often want to
 know how <strong>just the tires</strong> behave before the rest of the van exists. Pick
 the hierarchy (the Model Explorer or the canvas), choose <strong>Extract
@@ -6427,7 +6448,8 @@ not just up/down.</p>
 <div class="sect2">
 <h3 id="_run_it_6">15.6. Run it</h3>
 <div class="paragraph">
-<p>Run <strong>200 trials</strong> of the 8760-hour mission (one year). The summary
+<p>The shipped model runs <strong>200 trials</strong> of the 8760-hour mission (one
+year); the <strong>Trials</strong> box in the Run panel shows that count. The summary
 still opens with the old friends:</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
@@ -6460,6 +6482,24 @@ still opens with the old friends:</p>
 </tr>
 </tbody>
 </table>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Reliability is a per-run yes/no, so its mean moves in steps of 1/N. A
+quick 20-trial test can therefore only read 0.85, 0.90, 0.95 and so on;
+the shipped 200-trial model is what the 0.94 above refers to.
+Availability and the capacity totals average continuous quantities and
+settle much faster.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
 <div class="paragraph">
 <p>Availability looks <strong>perfect</strong> — and that is exactly the trap. The
 system is "up" whenever any path from start to end exists; with three
@@ -9526,8 +9566,10 @@ full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
 <p>The server exposes <strong>68 tools</strong> (including the <code>ping</code> health check), a set of
-resources, and three prompts. A standalone reference to every tool,
-option and transport is in <code>docs/MCP.md</code> in the repository.</p>
+resources, and three prompts. A standalone guide to installing, connecting,
+concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
+catalogue of every tool, parameter, return field and example is
+<code>docs/MCP-reference.md</code>, both in the repository.</p>
 </div>
 <div class="sect2">
 <h3 id="_prerequisites">23.1. Prerequisites</h3>
@@ -9882,7 +9924,8 @@ inspect its inputs and outputs.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>--no-render</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">off</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Do not expose <code>render_diagram</code>. Use on machines without Qt/PySide6, or
-  when you do not want image output. Everything else still works.</p></td>
+  when you do not want PNG output. <code>render_diagram_svg</code> needs no Qt and
+  stays available; everything else still works.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>--allow-write PATH</code></p></td>
@@ -10069,6 +10112,13 @@ with parameter names and valid ranges.</p>
 </div>
 <div class="sect2">
 <h3 id="mcp-tools">23.6. Available tools</h3>
+<div class="paragraph">
+<p>The tables below are the task tour. The generated
+<code>docs/MCP-reference.md</code> is the authoritative catalogue for every parameter,
+default, return field and example; it is built from the live server and
+checked in CI. Use this chapter to choose a workflow, and the reference when
+you need the exact argument shape.</p>
+</div>
 <div class="sect3">
 <h4 id="_workspace_and_lifecycle">23.6.1. Workspace and lifecycle</h4>
 <table class="tableblock frame-all grid-all stretch">
@@ -10723,7 +10773,9 @@ or <code>results.summary</code>.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>read_doc</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Read a documentation source as paginated text: <code>rbds</code> (the format guide),
-  <code>mcp-guide</code> (this chapter), or a chapter such as <code>ch11-capacity</code>.</p></td>
+  <code>mcp-docs</code> (the standalone human guide), <code>mcp-reference</code> (the generated
+  tool catalogue), <code>mcp-guide</code> (this chapter), or a chapter such as
+  <code>ch11-capacity</code>.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>ping</code></p></td>
@@ -12372,7 +12424,7 @@ holding your hand. Go point it at something that matters to you.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Analytical solver</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The tool that calculates an exact answer from the diagram and the
-failure distributions, with no trials (<strong>Results ▸ Analytical…</strong>). It
+failure distributions, with no trials (<strong>Model ▸ Analytical…</strong>). It
 handles a simpler set of models than simulation. Use it to check a
 simulation. See <a href="#ch-exact">Chapter 9, <em>Exact Answers: Checking a Simulation with the Analytical Solver</em></a>.</p></td>
 </tr>
@@ -12688,7 +12740,7 @@ by simulation.</p>
 <p>The simulator does not calculate minimal cut/tie sets, qualitative Boolean/BDD
 expressions, PFD<sub>avg</sub> or the standard&#8217;s analytical failure intensities. It
 does <em>estimate</em> the Annex D importance measures by re-simulation (see below).
-The separate <strong>Results ▸ Analytical…</strong> solver computes exact reliability,
+The separate <strong>Model ▸ Analytical…</strong> solver computes exact reliability,
 steady-state availability and importance on its static subset. Neither
 represents repeated/common blocks, multi-port transfer gates, non-coherent
 (inverted) blocks, PAND/SEQ gates or a common-cause beta factor.</p>

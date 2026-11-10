@@ -677,6 +677,10 @@ _PER_RUN_LABELS = {
     "mean_capacity": "Mean Capacity",
     "capacity_weighted_availability": "Capacity-Weighted Availability",
     "lost_flow": "Lost Flow",
+    # cost analysis only
+    "grand_total": "Grand Total",
+    "system_down_cost": "System Down Cost",
+    "system_lost_flow_cost": "System Lost Flow Cost",
 }
 
 

@@ -65,6 +65,18 @@ class TestSummaryTable:
         assert "1.00" in table   # 24 h -> 1 day
         assert "3.00" in table   # 72 h -> 3 days
 
+    def test_cost_metrics_two_decimals(self):
+        metrics = [
+            Metric(name="Grand_Total", min=1234.5678, mean=2345.6789,
+                   max=3456.7891, stdev=None, sem=None),
+            Metric(name="System_Lost_Flow_Cost", min=10.9876,
+                   mean=20.9876, max=30.9876, stdev=None, sem=None),
+        ]
+        table = summary_table(type("R", (), {"metrics": metrics})())
+        assert "1234.57" in table and "2345.68" in table
+        assert "10.99" in table and "20.99" in table
+        assert "2345.6789" not in table
+
     def test_probabilities_four_significant_figures(self):
         metrics = [Metric(name="Availability", min=0.726184837,
                           mean=0.927892862, max=1.0,

@@ -253,7 +253,6 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open"),
     CommandSpec(
         id="model.hier_up",
-        shortcut="Alt+Up",
         attr="_hier_up_action",
         text="Up",
         icon="up_filled_icon:accent",
@@ -1081,6 +1080,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
             " the next run"),
         checkable=True),
     CommandSpec(
+        id="view.live_log_toggle",
+        attr="_live_log_toggle_action",
+        text="Live Log",
+        icon="log_icon:text",
+        tooltip=(
+            "Show the Live Log — the stepped simulation's event list, "
+            "tabbed beside the Inspector"),
+        checkable=True,
+        enabled=False,
+        enabled_when="live_session"),
+    CommandSpec(
         id="view.reset_layout",
         attr="_reset_layout_action",
         text="Reset Layout",
@@ -1214,8 +1224,8 @@ LAYOUT: tuple[Page, ...] = (
                        Btn("model.add_event", True),
                        Btn("model.add_hier", True),
                        Btn("model.collapse"), Btn("model.delete"))),
-       Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True)),
-             priority=4),
+       Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True),
+                       Btn("results.analytical", True)), priority=4),
        # Annotations are put on the canvas like elements, so they sit
        # beside Build; what is done to them afterwards is on Arrange.
        Group("Annotate", (Btn("arrange.anno_text", True),
@@ -1282,8 +1292,7 @@ LAYOUT: tuple[Page, ...] = (
        Group("Show", (Btn("results.results_show", True),
                       Btn("results.results_float", True),
                       Btn("results.clear_results"),
-                      Btn("results.spof"), Btn("results.domains"),
-                      Btn("results.analytical"))),
+                      Btn("results.spof"), Btn("results.domains"))),
        Group("Show on Canvas", (Btn("results.weak_color", True),
                                 Btn("results.capacity_overlay"),
                                 Btn("results.cost_overlay"),
@@ -1303,6 +1312,7 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.inspector_toggle"),
                         Btn("view.fev_inspector_toggle"),
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
+                        Btn("view.live_log_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        Group("Appearance", (Btn("view.theme", True), Btn("view.prefs", True),

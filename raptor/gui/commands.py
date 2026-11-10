@@ -136,6 +136,9 @@ PREDICATES: dict[str, Callable[[AppState], bool]] = {
     # Terminate / Finish / Restart: they end or restart a stepped session,
     # so they need one (they were enabled with none, and did nothing).
     "stepping": lambda s: s.model_open and s.stepping and s.run == "idle",
+    # The Live Log holds a stepped session's event list; without one the
+    # action is unavailable with a reason rather than a dead checkbox.
+    "live_session": lambda s: s.model_open and s.stepping,
     # Jump: the next run of a stepped session, or skip a run of a background batch.
     "jump_available": lambda s: ((s.run == "background" and not s.bg_parallel)
                                  or s.step_next_run),
@@ -214,6 +217,7 @@ UNMET: dict[str, str | Callable[[AppState], str]] = {
         "open or create a model first" if not s.model_open else
         "a run is in progress — stop it first"),
     "stepping": "nothing is being stepped — press Step (Debug tab) first",
+    "live_session": "start a stepped simulation (Debug ▸ Step) to use the Live Log",
     "background_run": "no run is in progress — press Run (with Animate off "
                       "it runs in the background, where it can be paused)",
     "jump_available": lambda s: (

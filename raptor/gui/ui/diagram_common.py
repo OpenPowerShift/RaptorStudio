@@ -63,3 +63,9 @@ _SNAP_STATE = {"x": 0.0, "y": 0.0}
 #: this many snap-steps away in either direction, so existing
 #: rows/columns stay reachable -- just with finer control.
 SNAP_SUBDIVISIONS = 4
+
+#: Alt is the fine-move modifier: while it is held, the hover/drag/nudge
+#: snap increment is divided by this factor (one tenth of a normal snap
+#: step). The canvas temporarily scales `_snap_state` during the gesture,
+#: because every item's `itemChange` re-snaps whatever it is given.
+FINE_MOVE_SUBDIVISIONS = 10

@@ -110,6 +110,18 @@ def test_the_layout_has_the_expected_tabs():
         "Results", "View", "Help"]
 
 
+def test_the_live_log_is_in_view_panels():
+    """The Live Log is a dock, so once hidden it must be recoverable
+    from View > Panels like every other dock."""
+    view = next(p for p in LAYOUT if p.title == "View")
+    panels = next(g for g in view.groups if g.title == "Panels")
+    assert "view.live_log_toggle" in {i.id for i in panels.items
+                                      if isinstance(i, Btn)}
+    spec = next(c for c in COMMANDS if c.id == "view.live_log_toggle")
+    assert spec.checkable
+    assert spec.enabled_when == "live_session"
+
+
 # -- the live window ---------------------------------------------------
 
 @pytest.fixture

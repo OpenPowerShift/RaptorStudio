@@ -2303,6 +2303,27 @@
        "dash-dot-dot"
       ]
      },
+     "comment_of": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "type",
+       "id"
+      ],
+      "properties": {
+       "type": {
+        "enum": [
+         "block",
+         "node",
+         "event",
+         "hier"
+        ]
+       },
+       "id": {
+        "type": "integer"
+       }
+      }
+     },
      "anchor": {
       "type": "object",
       "additionalProperties": false,

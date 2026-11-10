@@ -55,6 +55,7 @@ def _wheel_data_files() -> set[str]:
 def test_wheel_ships_what_the_mcp_server_serves():
     shipped = _wheel_data_files()
     needed = [docs.RBDS_FORMAT, docs.IEC61078_DOC, docs.MCP_GUIDE,
+              docs.MCP_DOCS, docs.MCP_REFERENCE,
               REPO / "docs" / "ANALYTICAL.md",
               *docs.CHAPTERS.glob("*.adoc"),
               *(REPO / "new_docs" / "models").glob("*.rbd*")]

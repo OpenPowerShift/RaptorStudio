@@ -79,10 +79,25 @@ From `new_docs/tools`:
 
     ../../.venv/bin/python gen_models.py       # writes models/*.rbds
     ../../.venv/bin/python gen_advanced_models.py  # the three larger examples
+    ../../.venv/bin/python ../../tools/relayout_examples.py  # re-apply auto-layout only
     ../../.venv/bin/python check_models.py     # runs them headless
     ../../.venv/bin/python capture_screens.py  # rewrites images/*.png
     ../../.venv/bin/python gen_diagrams.py     # rewrites curve SVGs
     ../../.venv/bin/python ../../tools/make_example_thumbnails.py  # start-page thumbnails
+    ../../.venv/bin/python ../../tools/make_readme_gifs.py  # README GIFs
+
+Layout-only edits should use `tools/relayout_examples.py`: it patches
+coordinates and stored view zooms in place. A full generator run also
+re-emits the current writer's metadata and default rows, which is correct
+for those scripts but is more churn than a layout refresh needs.
+
+Freshness gates (all read-only; the latter two drive the full GUI and are
+long/manual):
+
+    ../../.venv/bin/python ../../tools/relayout_examples.py --check
+    ../../.venv/bin/python ../../tools/make_example_thumbnails.py --check
+    ../../.venv/bin/python capture_screens.py --check
+    ../../.venv/bin/python ../../tools/make_readme_gifs.py --check
 
 ## Model provenance and verified numbers
 
@@ -128,3 +143,10 @@ Notes:
 * The `.rbds` files are written by `tools/gen_models.py`; export one as
   `.rbd` (File ▸ Save As) for the classic Raptor 7 text format
   (latin-1, CRLF).
+* Water1 and Water2 ship at 200 trials, matching the 200-run figures in
+  the table above. Reliability is per-run 0/1, so a 20-trial quick run
+  can only move in 0.05 steps (0.85, 0.90, 0.95, …); use the shipped
+  count when comparing with the book.
+* Every example is laid out by the size-aware engine
+  (`tools/relayout_examples.py` re-applies it without rebuilding the
+  models); that pass moves coordinates and view zooms only.

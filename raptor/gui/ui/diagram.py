@@ -34,10 +34,17 @@ from PySide6.QtWidgets import (
     QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsLineItem, QWidget, QVBoxLayout,
 )
 
+from raptor.core.fileio.comments import (
+    comment_text,
+    find_comment_row,
+    is_legacy_comment_row,
+    names_agree,
+)
 from raptor.core.fileio.rbd import RbdFile, RbdSection
 from raptor.core.fileio.rbdlib import dist_param_count as _dist_param_count
 from raptor.core.fileio import view_transform
 from raptor.core.annotations import (
+    ANNO_AUTO_LAYOUT_GAP,
     ANNO_DEFAULT_LOCATION,
     ANNO_Z_DEFAULT,
     annotation_geometry,
@@ -71,6 +78,7 @@ from raptor.gui.ui import settings as app_settings
 from raptor.gui.ui.diagram_common import (  # noqa: F401
     BLOCK_H,
     BLOCK_W,
+    FINE_MOVE_SUBDIVISIONS,
     MIN_ELEMENT_GAP,
     NODE_R,
     SNAP_SUBDIVISIONS,
@@ -85,6 +93,7 @@ from raptor.gui import link_insert
 from raptor.gui.ui.diagram_items import flow_direction
 from raptor.gui.ui.diagram_commands import (  # noqa: F401
     AddCmd,
+    BlockCostCmd,
     BulkGeometryCmd,
     LayoutCmd,
     CollapseCmd,
@@ -169,6 +178,14 @@ from raptor.gui.ui.diagram_annotations import (  # noqa: F401
 )
 
 
+#: Everything arrow-key nudge knows how to move. Arrow annotations are
+#: included even though they are not `ItemIsMovable` (their endpoints are
+#: independent); the Alt+Up enablement/handler must use this same predicate
+#: or an arrow-only selection silently ascends instead of nudging.
+_NUDGEABLE_TYPES = (_BlockItem, _NodeItem, _EventItem, _HierItem,
+                    _AnnotationBase, _RouteGripItem)
+
+
 class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     block_selected = Signal(int, str)
     node_selected = Signal(int, str)
@@ -176,6 +193,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     #: Emitted on every level change with the new current ParentId
     #: (0 = home) -- MainWindow uses it to enable Up/Home navigation.
     level_changed = Signal(int)
+    #: Emitted BEFORE a level rebuild (and before `load_rbd` swaps the
+    #: model). MainWindow uses it to flush a pending Inspector comment
+    #: draft while its old element/editor still exists.
+    level_about_to_change = Signal()
+    #: Emitted at the start of a structural edit (delete/collapse/reparent/
+    #: move-out), before it pushes its undo command. MainWindow flushes a
+    #: pending Comment draft here so the comment command lands BELOW the
+    #: structural command: one Ctrl+Z undoes the structure, not the text.
+    structural_about_to_change = Signal()
     hier_selected = Signal(int)
     event_selected = Signal(int)
     #: (annotation id) -- drives the Inspector's colour/font tab, same
@@ -185,6 +211,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     #: `load_rbd`'s own initial placement (guarded by `_loading` below).
     #: `MainWindow` uses this to mark the model dirty.
     model_changed = Signal()
+    #: (etype, id, raw stored comment) -- a COMMENTS row changed, including
+    #: undo/redo. MainWindow updates the live Inspector comment editor in
+    #: place from this instead of rebuilding the pane under the caret.
+    comment_changed = Signal(str, int, str)
     #: A change to LAYOUT ALONE: element/annotation positions, sizes and
     #: z-order. Nothing the engine simulates reads these (the results hash
     #: ignores layout too), so MainWindow marks the file dirty without
@@ -431,6 +461,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         #: yet -- see `mouseMoveEvent`'s own comment for why.
         self._press_viewport_pos: QPointF | None = None
         self._drag_armed = False
+        #: Alt state captured at press, so a drag stays fine even on
+        #: platforms/test harnesses whose synthetic move events omit the
+        #: keyboard modifiers.
+        self._fine_drag = False
 
         # Live-theme the canvas: without this hook the background brush and
         # every item kept whichever theme was active when the file loaded.
@@ -725,6 +759,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def load_rbd(self, rbd: RbdFile):
         log.debug("load_rbd: start (%s)", getattr(rbd, "path", "?"))
+        # The Inspector may still hold a draft for the model being
+        # replaced (Close/New/Open all end here). Flush before the swap.
+        self.level_about_to_change.emit()
         self._loading = True
         self._compute_model_transform(rbd)
         # annotations belong to this model (.rbds only)
@@ -833,6 +870,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._set_level(0)
 
     def _set_level(self, parent_id: int):
+        # A Comment draft belongs to an element on the level being left;
+        # flush it before the scene (and Inspector) is rebuilt.
+        self.level_about_to_change.emit()
         # A large level still pays for item construction even after the
         # parser and routing caches. Say what is happening and put the wait
         # cursor up before doing it; otherwise the window looks frozen for
@@ -969,6 +1009,49 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if parent != self._current_parent:
             self._set_level(parent)
         return on_screen()
+
+    #: Live Log row kind -> (element kind, RBD section, name column).
+    _LOG_ELEMENT_KINDS = {
+        "Block": ("block", "BLOCK_DATA", "blockName"),
+        "Node": ("node", "NODE_DATA", "Name"),
+        "Event": ("event", "EVENT_DATA", "eventName"),
+        "Hier": ("hier", "HIERARCHY_DATA", "hierarchyName"),
+    }
+
+    def locate_log_element(self, kind: str, name: str) -> bool:
+        """Select/centre the element a live-log row names.
+
+        Unlike `locate_element`, this handles every element kind and
+        searches the raw rows, so it can navigate into the hierarchy the
+        element lives on (and back out again on the next home-level
+        event). Trigger/Pool/System rows have no canvas element and
+        return False without changing the level.
+        """
+        spec = self._LOG_ELEMENT_KINDS.get(kind)
+        rbd = self._rbd_ref
+        if spec is None or rbd is None:
+            return False
+        element_kind, section, name_col = spec
+        sec = rbd.sections.get(section)
+        if sec is None:
+            return False
+        # The log names elements, not ids, and names may repeat. Prefer the
+        # one on the level already on screen (so stepping a hierarchy stays
+        # put), then the first in the file.
+        matches: list[tuple[int, int]] = []
+        parent_col = self._LOCATE[element_kind][1]
+        for row in sec.rows:
+            oid = _safe_int(row.get("ID"))
+            if oid <= 0:
+                continue  # the ID-0 column template, not an element
+            row_name = row.get(name_col) or row.get("Name") or ""
+            if row_name == name:
+                matches.append((oid, _safe_int(row.get(parent_col))))
+        if not matches:
+            return False
+        here = [oid for oid, parent in matches
+                if parent == self._current_parent]
+        return self.locate_id(element_kind, (here or [matches[0][0]])[0])
 
     def locate_element(self, kind: str, name: str) -> bool:
         """Select `name` (a block or node) and centre the view on it,
@@ -2053,7 +2136,22 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         old["z"] = item.zValue()
         new = dict(old)
         new["text"] = text
-        self._stack.push(AnnoEditCmd(self, aid, old, new))
+        link = entry.get("comment_of")
+        comment_target = None
+        comment_old = comment_new = None
+        if isinstance(link, dict) and link.get("id") is not None:
+            try:
+                etype = str(link.get("type") or "")
+                oid = int(link["id"])
+            except (TypeError, ValueError):
+                etype, oid = "", -1
+            if etype in ("block", "node", "event", "hier") and oid >= 0:
+                comment_target = (etype, oid)
+                comment_old = self.current_comment_stored(etype, oid)
+                comment_new = text.replace("\n", "~")
+        self._stack.push(AnnoEditCmd(
+            self, aid, old, new, comment_target=comment_target,
+            comment_old=comment_old, comment_new=comment_new))
 
     def write_back_annotations(self):
         """Sync every live annotation item's geometry/text/props into
@@ -2074,8 +2172,9 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                         a["y1"] = round(ln.y1(), 2)
                         a["x2"] = round(ln.x2(), 2)
                         a["y2"] = round(ln.y2(), 2)
-                    if hasattr(item, "toPlainText"):
-                        a["text"] = item.toPlainText()
+                    if hasattr(item, "text_source"):
+                        # Raw Markdown, not the rendered visible text.
+                        a["text"] = item.text_source()
                     for k in ANNO_DEFAULTS:
                         if k in item.props:
                             a[k] = item.props[k]
@@ -2580,20 +2679,86 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         return (getattr(obj, "node_name", "") if etype == "node" else
                 getattr(obj, "name", "")) or ""
 
+    def _element_name_any_level(self, etype: str, oid: int) -> str:
+        """Element name from the raw RBD rows, regardless of level.
+
+        A comment command can replay after the user has moved the element
+        into another hierarchy; the level-scoped pools no longer contain
+        it, but the row and its name do.
+        """
+        section = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                   "event": "EVENT_DATA",
+                   "hier": "HIERARCHY_DATA"}.get(etype)
+        name_col = {"block": "blockName", "node": "Name",
+                    "event": "eventName", "hier": "hierarchyName"}.get(etype)
+        if section is None or name_col is None:
+            return self._element_name(etype, oid)
+        sec = (self._rbd_ref.sections.get(section)
+               if self._rbd_ref is not None else None)
+        for row in (sec.rows if sec is not None else []):
+            if _safe_int(row.get("ID")) == int(oid):
+                return row.get(name_col) or row.get("Name") or ""
+        return self._element_name(etype, oid)
+
+    def _comment_name_shared(self, etype: str, oid: int, name: str) -> bool:
+        """Whether a surviving element of the same kind uses this name."""
+        section, name_col = {
+            "block": ("BLOCK_DATA", "blockName"),
+            "node": ("NODE_DATA", "Name"),
+            "event": ("EVENT_DATA", "eventName"),
+            "hier": ("HIERARCHY_DATA", "hierarchyName"),
+        }.get(etype, (None, None))
+        if section is None or name_col is None:
+            return False
+        sec = (self._rbd_ref.sections.get(section)
+               if self._rbd_ref is not None else None)
+        return any(
+            _safe_int(row.get("ID")) > 0
+            and _safe_int(row.get("ID")) != int(oid)
+            and names_agree(row.get(name_col, ""), name)
+            for row in (sec.rows if sec is not None else []))
+
+    def _comment_row_for(self, etype: str, oid: int, *,
+                         stamp: bool = False):
+        """The COMMENTS row for an element, by stored Type+ID first.
+
+        Reads must leave a shared legacy no-ID row alone; only mutating
+        callers pass ``stamp=True``. Names are compared through the
+        legacy 20-char cap (a save may add a `~n` to one side only), and
+        an ID-bearing row for another element is never reused just
+        because the names match.
+        """
+        if self._rbd_ref is None:
+            return None
+        name = (self._element_name(etype, oid)
+                or self._element_name_any_level(etype, oid))
+        return find_comment_row(
+            self._rbd_ref.sections.get("COMMENTS"), etype, oid, name,
+            stamp=stamp)
+
     def current_comment_stored(self, etype: str, oid: int) -> str:
         """The COMMENTS row's raw stored value ('~' for newlines) for one
-        element, or "" -- the undo command's "old" state."""
+        element, or "" -- the undo command's "old" state.
+
+        Read-only: never stamps a legacy row (menu enablement and
+        Inspector population go through this).
+        """
         if self._rbd_ref is None:
             return ""
-        sec = self._rbd_ref.sections.get("COMMENTS")
-        if sec is None:
-            return ""
-        name = self._element_name(etype, oid)
-        for row in sec.rows:
-            if (row.get("Type", "").lower() == etype
-                    and row.get("Name", "") == name):
-                return row.get("Comment", "") or ""
-        return ""
+        name = (self._element_name(etype, oid)
+                or self._element_name_any_level(etype, oid))
+        return comment_text(
+            self._rbd_ref.sections.get("COMMENTS"), etype, oid, name)
+
+    def has_convertible_comment(self, etype: str, oid: int) -> bool:
+        """Whether a comment has visible text after `~` newlines expand.
+
+        A row holding only separators ("~~") must offer no conversion:
+        the action would be enabled but `comment_to_annotation` correctly
+        refuses the blank result, so the click would look dead.
+        """
+        return bool(self.current_comment_stored(etype, oid)
+                    .replace("~", "\n").strip())
 
     def _apply_element_comment_stored(self, etype: str, oid: int,
                                       stored: str) -> None:
@@ -2603,19 +2768,29 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         sec = self._rbd_ref.sections.get("COMMENTS") if self._rbd_ref else None
         if sec is None:
             return
-        name = self._element_name(etype, oid)
-        target_row = None
-        for row in sec.rows:
-            if (row.get("Type", "").lower() == etype
-                    and row.get("Name", "") == name):
-                target_row = row
-                break
+        # Prefer the raw-row name: the element may already have moved to
+        # another hierarchy level by the time this undo/redo runs.
+        name = self._element_name_any_level(etype, oid)
+        target_row = find_comment_row(sec, etype, oid, name)
+        shadow_shared = False
+        if (target_row is not None
+                and is_legacy_comment_row(target_row)
+                and self._comment_name_shared(etype, oid, name)):
+            # A no-ID row shared by duplicate names belongs to no one in
+            # particular: create this element's own ID row instead of
+            # stamping/overwriting the sibling's comment. An empty write
+            # still needs that ID row, so this element reads blank while
+            # the sibling keeps the legacy text.
+            target_row = None
+            shadow_shared = True
         if target_row is None:
-            if not stored:
+            if not stored and not shadow_shared:
                 return
             sec.rows.append({"Type": etype, "ID": str(oid),
                              "Name": name, "Comment": stored})
         else:
+            if is_legacy_comment_row(target_row):
+                target_row["ID"] = str(oid)
             target_row["Comment"] = stored
 
     def set_element_comment(self, etype: str, oid: int, text: str) -> None:
@@ -2630,6 +2805,94 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         if old == stored:
             return
         self._stack.push(CommentCmd(self, etype, oid, old, stored))
+
+    def comment_to_annotation(self, etype: str, oid: int,
+                              scene_pos: QPointF | None = None):
+        """Turn one element's stored comment into a text annotation.
+
+        The comment (with the legacy `~` newlines restored) becomes the
+        annotation's raw Markdown source. Placement is beside the element
+        on this level (`above` by default, or `scene_pos` when a caller
+        supplies one), and the new note is selected. Creation is one
+        `AnnoCmd`, so undo removes it in one step. Returns the new item,
+        or None when the element/comment is not there (or is blank).
+        """
+        etype = str(etype).lower()
+        source = self.current_comment_stored(etype, oid).replace("~", "\n")
+        if not source.strip() or self._rbd_ref is None:
+            return None
+        item = {"block": self._block_items, "node": self._node_items,
+                "event": self._event_items,
+                "hier": getattr(self, "_hier_items", {})}.get(
+                    etype, {}).get(int(oid))
+        if item is None:
+            return None
+        # One note per element comment: converting again selects the
+        # existing note instead of creating a second linked copy.
+        for a in getattr(self, "annotations", []):
+            link = a.get("comment_of") or {}
+            try:
+                same = (link.get("type") == etype
+                        and int(link.get("id", -1)) == int(oid))
+            except (TypeError, ValueError):
+                same = False
+            if same:
+                existing = self._anno_items.get(int(a.get("id", -1)))
+                if existing is not None:
+                    self._scene.clearSelection()
+                    existing.setSelected(True)
+                    self.centerOn(existing)
+                    return existing
+        from raptor.api.annotations import _auto_size, _place_at_location
+        w, h = _auto_size(source)
+        anchor = None
+        if scene_pos is not None:
+            x, y = scene_pos.x(), scene_pos.y()
+        else:
+            # Same geometry helper anchors use, so blocks/nodes/events/
+            # hierarchy ovals all get a note just outside their outline
+            # rather than at an arbitrary corner of the bounding box.
+            ref_kind = self._KIND_REF.get(etype)
+            geometry = (self._anchor_geometry(f"{ref_kind}:{int(oid)}")
+                        if ref_kind else None)
+            if geometry is None:
+                centre = item.sceneBoundingRect().center()
+                geometry = {"cx": centre.x(), "cy": centre.y(),
+                            "half_w": item.sceneBoundingRect().width() / 2,
+                            "half_h": item.sceneBoundingRect().height() / 2}
+            try:
+                spacing = float(app_settings.get("layout/spacing", 1.0) or 1.0)
+            except (TypeError, ValueError):
+                spacing = 1.0
+            if not math.isfinite(spacing) or spacing <= 0.0:
+                spacing = 1.0
+            gap = ANNO_AUTO_LAYOUT_GAP * spacing
+            x, y = _place_at_location(geometry, ANNO_DEFAULT_LOCATION,
+                                      gap, w, h)
+            if ref_kind:
+                anchor = {
+                    "target": self._anchor_element_name(etype, int(oid)),
+                    "ref": f"{ref_kind}:{int(oid)}",
+                    "location": ANNO_DEFAULT_LOCATION,
+                    "gap": gap,
+                }
+        aid = self._next_anno_id()
+        entry = {
+            "kind": "text", "id": aid,
+            "parent": self._current_parent,
+            "x": round(x, 2), "y": round(y, 2),
+            "w": w, "h": h, "text": source,
+            "comment_of": {"type": etype, "id": int(oid)},
+            "z": self.new_annotation_z(),
+            **self._anno_default_props("text")}
+        if anchor is not None:
+            entry["anchor"] = anchor
+        self._stack.push(AnnoCmd(self, entry, add=True))
+        note = self._anno_items.get(aid)
+        if note is not None:
+            self._scene.clearSelection()
+            note.setSelected(True)
+        return note
 
     def _note_duplicate_name(self, kind: str, eid: int, name: str) -> None:
         """Status-bar notice (not a refusal: Raptor 7 allows a shared name)
@@ -3308,10 +3571,32 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                                    block_id, block.always_add_done_cost,
                                    flag))
 
-    def set_block_costs(self, block_id: int, values: list[float]):
-        """All 14 block cost fields in UI order."""
+    def set_block_costs(self, block_id: int, values: list[float],
+                        index: int | None = None):
+        """Block cost fields.
+
+        With `index`, change just `values[index]` and write only that
+        BLOCK_DATA column: an unrelated cost edit must not reformat the
+        other 13 (which would truncate long decimals and turn blanks into
+        `0.000000`). Without it, all 14 fields, as the Inspector's Apply
+        does.
+        """
         block = self.blocks.get(block_id)
         if block is None or len(values) != len(self.BLOCK_COST_FIELDS):
+            return
+        if index is not None:
+            if not 0 <= index < len(self.BLOCK_COST_FIELDS):
+                return
+            attr, col = self.BLOCK_COST_FIELDS[index]
+            old = float(getattr(block, attr))
+            new = float(values[index])
+            if abs(old - new) < 1e-9:
+                return
+            row = self._block_row_by_id(block_id)
+            old_text = (row.get(col, "") if row is not None
+                        else f"{old:.6f}")
+            self._stack.push(BlockCostCmd(self, block_id, attr, col,
+                                          old, old_text, new))
             return
         old_value = [getattr(block, attr)
                 for attr, _col in self.BLOCK_COST_FIELDS]
@@ -3373,8 +3658,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             (dict(a) for a in self.annotations
              if int(a.get("id", 0)) == aid), dict(item.props))
         start_state.update(item.geometry_snapshot())
-        if hasattr(item, "toPlainText"):
-            start_state["text"] = item.toPlainText()
+        if hasattr(item, "text_source"):
+            start_state["text"] = item.text_source()
         start_state["z"] = item.zValue()
         end_state = dict(start_state)
         changes = dict(changes)
@@ -3403,6 +3688,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._stack.push(AnnoEditCmd(
             self, aid, start_state, end_state,
             layout_only=set(changes) <= geometry))
+
+    def _apply_block_cost(self, bid: int, attr: str, col: str,
+                          value: float, text: str) -> None:
+        """One block cost field, in the model and ONLY its BLOCK_DATA
+        column. `text` is the row's exact serialized value, so undo can
+        restore a long decimal or a blank verbatim."""
+        block = self.blocks.get(bid)
+        if block is not None:
+            setattr(block, attr, value)
+        if self._rbd_ref is None:
+            return
+        row = self._editor.block_row(bid)
+        if row is not None:
+            row[col] = text
 
     def _apply_value(self, what: str, oid: int, value):
         """Perform edit `what`. The model change is the editor's
@@ -3777,6 +4076,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         result would add a rule violation (including the run-time
         connectivity rules), is refused atomically with a message: the live
         model, the undo stack and the annotations are left untouched."""
+        self.structural_about_to_change.emit()   # draft before the command
         if self._rbd_ref is None:
             return None
         sel_b = [bid for bid, it in self._block_items.items()
@@ -5274,6 +5574,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
     def delete_selected(self):
         """Delete every selected block/node/event/link/annotation (plus
         any links orphaned by the deletion)."""
+        # Commit a Comment draft before the deletion command is pushed:
+        # the comment must be part of the model the delete captures (and
+        # must not become the top undo step above DeleteCmd).
+        self.structural_about_to_change.emit()
         # Selected ANNOTATIONS ride along with everything else. They used
         # to be deleted only when NO block/node/event was also selected,
         # so a mixed selection silently left the notes behind while the
@@ -6441,6 +6745,11 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._connect_ghost = None
 
     def mousePressEvent(self, event):
+        self._fine_drag = bool(
+            event.modifiers() & Qt.KeyboardModifier.AltModifier)
+        if self._fine_drag:
+            # Alt+drag is a fine move, not the start of a key-tip chord.
+            self._suppress_key_tips()
         if event.button() == Qt.MouseButton.MiddleButton:
             self._pan_anchor = event.position()
             self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
@@ -6814,8 +7123,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return None
         state = dict(entry)
         state.update(item.geometry_snapshot())
-        if hasattr(item, "toPlainText"):
-            state["text"] = item.toPlainText()
+        if hasattr(item, "text_source"):
+            state["text"] = item.text_source()
         state["z"] = item.zValue()
         return state
 
@@ -6978,14 +7287,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         self._shape_anno_from = None
 
     def _nudge_route_grips(self, chosen, moves, dxs, dys, off_grid,
-                           step_x, step_y):
+                           step_x, step_y, fine=False):
         """Routing points for an arrow-key nudge: [(entry id, old, new)].
 
-        A selected point moves by one grid step (1 px with Shift) like any
-        element. A point on a link whose BOTH ends are being nudged goes
-        with them by the same distance, so the dog-leg keeps its shape;
-        only points already drawn (active) follow, so a point that has not
-        been dragged yet does not start changing a route."""
+        A selected point moves by one grid step (1 px with Shift, a tenth
+        of a step with Alt) like any element. A point on a link whose
+        BOTH ends are being nudged goes with them by the same distance,
+        so the dog-leg keeps its shape; only points already drawn
+        (active) follow, so a point that has not been dragged yet does
+        not start changing a route."""
         by_id: dict[int, tuple[float, float]] = {}
         shift: dict[int, tuple[float, float]] = {}
         for kind, oid, old, new in moves:
@@ -7014,12 +7324,22 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             if follow is not None:
                 new = (old[0] + follow[0], old[1] + follow[1])
             else:
-                nx = old[0] + dxs if (off_grid or step_x <= 0) \
-                    else (_next_grid_line(old[0], step_x, dxs)
-                          if dxs else old[0])
-                ny = old[1] + dys if (off_grid or step_y <= 0) \
-                    else (_next_grid_line(old[1], step_y, dys)
-                          if dys else old[1])
+                # Alt (fine) adds the fractional step directly rather
+                # than seeking the next fine grid line: an unaligned
+                # point then still moves by exactly step/10 instead of
+                # catching up to a line.
+                if fine and not off_grid and step_x > 0 and dxs:
+                    nx = old[0] + dxs * step_x
+                else:
+                    nx = old[0] + dxs if (off_grid or step_x <= 0) \
+                        else (_next_grid_line(old[0], step_x, dxs)
+                              if dxs else old[0])
+                if fine and not off_grid and step_y > 0 and dys:
+                    ny = old[1] + dys * step_y
+                else:
+                    ny = old[1] + dys if (off_grid or step_y <= 0) \
+                        else (_next_grid_line(old[1], step_y, dys)
+                              if dys else old[1])
                 new = (nx, ny)
             if new != old:
                 out.append((grip._entry_id, old, new))
@@ -7033,6 +7353,221 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         finally:
             self._snap_state["x"], self._snap_state["y"] = saved
         return out
+
+    def _suppress_key_tips(self) -> None:
+        """A canvas Alt+arrow chord must not arm the ribbon key tips.
+
+        The tips show on a quick, otherwise-unused Alt release; when the
+        canvas consumes the arrow itself the window never sees that key
+        and its `_alt_alone` flag would stay set, so Alt release popped
+        the tips over the diagram. Clear it (and any already-shown tips)
+        from the gesture that used the modifier.
+        """
+        win = self.window()
+        if getattr(win, "_key_tips_active", False):
+            dismiss = getattr(win, "_dismiss_key_tips", None)
+            if callable(dismiss):
+                dismiss()
+        if hasattr(win, "_alt_alone"):
+            win._alt_alone = False
+
+    @contextmanager
+    def _fine_snap(self, fine: bool):
+        """Scale the live snap state to the Alt fine step for a gesture.
+
+        Every item's `itemChange` re-snaps whatever position it is given
+        to the CURRENT `_snap_state`, so simply dividing a drag/nudge
+        distance never survives. Scaling the state (exactly the way
+        Shift bypasses it by zeroing) makes the item land on the tenth
+        grid while the gesture runs; the normal step is restored after.
+        """
+        if not fine:
+            yield
+            return
+        saved = (self._snap_state["x"], self._snap_state["y"])
+        self._snap_state["x"] = (saved[0] / FINE_MOVE_SUBDIVISIONS
+                                 if saved[0] > 0 else 0.0)
+        self._snap_state["y"] = (saved[1] / FINE_MOVE_SUBDIVISIONS
+                                 if saved[1] > 0 else 0.0)
+        try:
+            yield
+        finally:
+            self._snap_state["x"], self._snap_state["y"] = saved
+
+    def _push_move_commands(self, moves, anno_edits, grip_moves=(),
+                            label: str = "Move") -> None:
+        """Push one gesture's moves as one undo step.
+
+        A gesture can produce two command kinds (element MoveCmd plus one
+        AnnoEditCmd per annotation, or annotations plus a routed grip).
+        Anything above one command becomes a macro, wrapped in
+        `_stack.ungated()`: the rule gate would otherwise take its two
+        whole-model snapshots at `beginMacro`/`endMacro` for a gesture
+        that cannot break an input rule (nothing here changes model
+        values, only geometry).
+        """
+        stack = self._stack
+        grip_only = bool(grip_moves) and not moves and not anno_edits
+        if grip_only:
+            cmd = MoveCmd(self, [], grips=list(grip_moves))
+            cmd.setText("Move routing point")
+            stack.push(cmd)
+            return
+        has_move = bool(moves or grip_moves)
+        total = len(anno_edits) + (1 if has_move else 0)
+        if not total:
+            return
+        if total == 1:
+            if anno_edits:
+                aid, old_state, new_state = anno_edits[0]
+                stack.push(AnnoEditCmd(self, aid, old_state, new_state,
+                                       layout_only=True))
+            else:
+                stack.push(MoveCmd(self, moves, grips=list(grip_moves)))
+            return
+        # The ungated scope must cover beginMacro itself: that is where
+        # the gate takes its "before" snapshot.
+        with stack.ungated():
+            stack.beginMacro(label)
+            try:
+                for aid, old_state, new_state in anno_edits:
+                    stack.push(AnnoEditCmd(self, aid, old_state,
+                                           new_state, layout_only=True))
+                if has_move:
+                    stack.push(MoveCmd(self, moves,
+                                       grips=list(grip_moves)))
+            finally:
+                stack.endMacro()
+
+    def nudge_selection(self, dxs: int, dys: int, *, fine: bool = False,
+                        off_grid: bool = False) -> bool:
+        """Move the selected elements/annotations/grips by one step.
+
+        Plain arrows use one snap step, Shift uses 1 px off-grid, and Alt
+        (fine) uses `step / FINE_MOVE_SUBDIVISIONS`. Same (kind, id, old,
+        new) shape a mouse-drag release uses, so the whole nudge is one
+        MoveCmd (plus one AnnoEditCmd for an annotation that carries its
+        own geometry). Returns whether there was anything to move, so the
+        Alt+Up command can fall back to hierarchy navigation.
+        """
+        selected = [it for it in self._scene.selectedItems()
+                    if isinstance(it, _NUDGEABLE_TYPES)]
+        if not selected:
+            return False
+        if fine:
+            self._suppress_key_tips()
+        base_x, base_y = self._snap_state["x"], self._snap_state["y"]
+        if off_grid:
+            step_x = step_y = 0.0
+        else:
+            step_x, step_y = base_x, base_y
+        # Alt only subdivides a snap that is actually on; with snapping
+        # off (or that axis at 0) it behaves exactly like a plain nudge.
+        fine = fine and not off_grid and (base_x > 0 or base_y > 0)
+        if fine:
+            step_x = (base_x / FINE_MOVE_SUBDIVISIONS
+                      if base_x > 0 else 0.0)
+            step_y = (base_y / FINE_MOVE_SUBDIVISIONS
+                      if base_y > 0 else 0.0)
+        # itemChange() applies whatever self._snap_state currently holds
+        # to every setPos(). Both off-grid and fine nudges silence it
+        # while the explicit distance below is applied: a fine nudge must
+        # be exactly step/10 even from an element that is not already on
+        # the fine grid, and re-snapping to the nearest fine line would
+        # otherwise make the distance depend on the starting offset.
+        saved_snap = None
+        if off_grid or fine:
+            saved_snap = (base_x, base_y)
+            self._snap_state["x"] = self._snap_state["y"] = 0.0
+        moves = []
+        anno_edits = []
+        item: Any
+        chosen_grips = [it for it in selected
+                        if isinstance(it, _RouteGripItem)]
+        try:
+            for item in selected:
+                if isinstance(item, _RouteGripItem):
+                    continue                 # placed with the others below
+                if isinstance(item, _AnnotationBase):
+                    # Annotations aren't grid-snapped, so an arrow-key
+                    # nudge moves by one snap increment (or 1px when
+                    # snapping is off) rather than to the next grid line.
+                    # Arrows shift both endpoints via the item's own
+                    # translate_by override.
+                    aid = item._anno_id
+                    old_state = self._anno_state(aid)
+                    if old_state is None:
+                        continue
+                    adx = dxs * (1.0 if (off_grid or step_x <= 0)
+                                 else step_x)
+                    ady = dys * (1.0 if (off_grid or step_y <= 0)
+                                 else step_y)
+                    _shift_annotation(item, adx, ady)
+                    new_state = self._anno_state(aid)
+                    if new_state is not None and new_state != old_state:
+                        anno_edits.append((aid, old_state, new_state))
+                    continue
+                kind = ("block" if isinstance(item, _BlockItem)
+                        else "node" if isinstance(item, _NodeItem)
+                        else "event" if isinstance(item, _EventItem)
+                        else "hier")
+                oid = (item._block_id if kind == "block"
+                       else item._node_id if kind == "node"
+                       else item._event_id if kind == "event"
+                       else item._hier_id)
+                old = (item.pos().x(), item.pos().y())
+                # Work in centre space (matches how each item's own
+                # itemChange snaps -- _BlockItem's pos() is its
+                # top-left, not its centre) then convert back.
+                # `_true_centre`, NOT `sceneBoundingRect().center()`:
+                # a node's bounding rect is inflated by the capacity
+                # gauge and the dependency badge, which skews its
+                # reported centre a few px off the circle.
+                centre = _LinkItem._true_centre(item)
+                offset = QPointF(old[0] - centre.x(), old[1] - centre.y())
+                if off_grid or step_x <= 0:
+                    new_cx = centre.x() + dxs * 1.0
+                elif fine:
+                    # Add the fractional step directly (snap is silenced
+                    # for the gesture): an unaligned element still moves
+                    # by exactly step/10 instead of catching up to a
+                    # grid line.
+                    new_cx = centre.x() + dxs * step_x
+                else:
+                    new_cx = (_next_grid_line(centre.x(), step_x, dxs)
+                              if dxs else centre.x())
+                if off_grid or step_y <= 0:
+                    new_cy = centre.y() + dys * 1.0
+                elif fine:
+                    new_cy = centre.y() + dys * step_y
+                else:
+                    new_cy = (_next_grid_line(centre.y(), step_y, dys)
+                              if dys else centre.y())
+                item.setPos(new_cx + offset.x(), new_cy + offset.y())
+                new = (item.pos().x(), item.pos().y())
+                if old != new:
+                    moves.append((kind, oid, old, new))
+            grip_moves = self._nudge_route_grips(
+                chosen_grips, moves, dxs, dys, off_grid, step_x, step_y,
+                fine=fine)
+        finally:
+            if saved_snap is not None:
+                self._snap_state["x"], self._snap_state["y"] = saved_snap
+        moved_keys = {(k, i) for k, i, _o, _n in moves}
+        # An annotation that is itself a target can move in the same
+        # gesture; do not detach the notes that follow it.
+        moved_keys |= {("annotation", aid)
+                       for aid, _old, _new in anno_edits}
+        for _aid, old_state, new_state in anno_edits:
+            self._detach_if_moved_alone(old_state, new_state, moved_keys)
+        # Two command kinds in one gesture become one macro (and one undo
+        # step), off the whole-model rule gate.
+        self._push_move_commands(moves, anno_edits, grip_moves,
+                                 label="Nudge")
+        if anno_edits:
+            self.follow_anchors({("annotation", aid)
+                                 for aid, _old, _new in anno_edits})
+        return True
 
     def keyPressEvent(self, event):
         # A text annotation being edited owns Backspace/Delete.
@@ -7069,110 +7604,32 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         # Arrow-key nudge: move the current selection without a mouse
         # drag. Plain arrow = one grid step (stays on the grid the rest
         # of the diagram sits on); Shift+arrow = 1px, bypassing snap
-        # entirely. Same (kind, id, old, new) shape mouse-drag release
-        # uses, so this is undoable exactly like a drag (MoveCmd).
+        # entirely; Alt+arrow = step/10. Same (kind, id, old, new) shape
+        # mouse-drag release uses, so this is undoable exactly like a
+        # drag (MoveCmd).
         if event.key() in _NUDGE_DIRS:
-            selected = [it for it in self._scene.selectedItems()
-                       if isinstance(it, (_BlockItem, _NodeItem, _EventItem,
-                                          _HierItem, _AnnotationBase,
-                                          _RouteGripItem))]
-            if selected:
-                dxs, dys = _NUDGE_DIRS[event.key()]
-                off_grid = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
-                step_x = 0.0 if off_grid else self._snap_state["x"]
-                step_y = 0.0 if off_grid else self._snap_state["y"]
-                # itemChange() applies whatever self._snap_state currently
-                # holds to every setPos() unconditionally -- an off-grid
-                # nudge has to silence it for the duration, or the 1px
-                # move below gets immediately re-snapped back onto the
-                # grid it was deliberately trying to leave.
-                saved_snap = None
-                if off_grid:
-                    saved_snap = (self._snap_state["x"], self._snap_state["y"])
-                    self._snap_state["x"] = self._snap_state["y"] = 0.0
-                moves = []
-                anno_edits = []
-                item: Any
-                chosen_grips = [it for it in selected
-                                if isinstance(it, _RouteGripItem)]
-                for item in selected:
-                    if isinstance(item, _RouteGripItem):
-                        continue                 # placed with the others below
-                    if isinstance(item, _AnnotationBase):
-                        # Annotations aren't grid-snapped, so an
-                        # arrow-key nudge moves by one snap increment (or
-                        # 1px when snapping is off) rather than to the
-                        # next grid line. Arrows shift both endpoints via
-                        # the item's own translate_by override.
-                        aid = item._anno_id
-                        old_state = self._anno_state(aid)
-                        if old_state is None:
-                            continue
-                        adx = dxs * (1.0 if (off_grid or step_x <= 0)
-                                     else step_x)
-                        ady = dys * (1.0 if (off_grid or step_y <= 0)
-                                     else step_y)
-                        _shift_annotation(item, adx, ady)
-                        new_state = self._anno_state(aid)
-                        if new_state is not None and new_state != old_state:
-                            anno_edits.append((aid, old_state, new_state))
-                        continue
-                    kind = ("block" if isinstance(item, _BlockItem)
-                           else "node" if isinstance(item, _NodeItem)
-                           else "event" if isinstance(item, _EventItem)
-                           else "hier")
-                    oid = (item._block_id if kind == "block"
-                          else item._node_id if kind == "node"
-                          else item._event_id if kind == "event"
-                          else item._hier_id)
-                    old = (item.pos().x(), item.pos().y())
-                    # Work in centre space (matches how each item's own
-                    # itemChange snaps -- _BlockItem's pos() is its
-                    # top-left, not its centre) then convert back.
-                    # `_true_centre`, NOT `sceneBoundingRect().center()`:
-                    # a node's bounding rect is inflated by the capacity
-                    # gauge and the dependency badge, which skews its
-                    # reported centre a few px off the circle. `_next_grid_line`
-                    # then picked a grid line for that skewed point and
-                    # `itemChange`'s snap-to-grid snapped it straight
-                    # back onto the line the node already sat on -- so
-                    # Up (the direction the skew works against) was a
-                    # no-op on nodes.
-                    centre = _LinkItem._true_centre(item)
-                    offset = QPointF(old[0] - centre.x(), old[1] - centre.y())
-                    if off_grid or step_x <= 0:
-                        new_cx = centre.x() + dxs * 1.0
-                    else:
-                        new_cx = (_next_grid_line(centre.x(), step_x, dxs)
-                                  if dxs else centre.x())
-                    if off_grid or step_y <= 0:
-                        new_cy = centre.y() + dys * 1.0
-                    else:
-                        new_cy = (_next_grid_line(centre.y(), step_y, dys)
-                                  if dys else centre.y())
-                    item.setPos(new_cx + offset.x(), new_cy + offset.y())
-                    new = (item.pos().x(), item.pos().y())
-                    if old != new:
-                        moves.append((kind, oid, old, new))
-                grip_moves = self._nudge_route_grips(
-                    chosen_grips, moves, dxs, dys, off_grid, step_x, step_y)
-                if saved_snap is not None:
-                    self._snap_state["x"], self._snap_state["y"] = saved_snap
-                moved_keys = {(k, i) for k, i, _o, _n in moves}
-                # An annotation that is itself a target can move in
-                # the same gesture; do not detach the notes that
-                # follow it.
-                moved_keys |= {("annotation", aid)
-                               for aid, _old, _new in anno_edits}
-                for aid, old_state, new_state in anno_edits:
-                    self._detach_if_moved_alone(old_state, new_state, moved_keys)
-                    self._stack.push(AnnoEditCmd(self, aid, old_state,
-                                                 new_state, layout_only=True))
-                if anno_edits:
-                    self.follow_anchors({("annotation", aid)
-                                         for aid, _old, _new in anno_edits})
-                if moves or grip_moves:
-                    self._stack.push(MoveCmd(self, moves, grips=grip_moves))
+            if event.modifiers() & Qt.KeyboardModifier.AltModifier:
+                # Every Alt+arrow chord, with or without a selection, is a
+                # canvas gesture: never let a later Alt release pop the
+                # ribbon key tips.
+                self._suppress_key_tips()
+            dxs, dys = _NUDGE_DIRS[event.key()]
+            off_grid = bool(event.modifiers()
+                            & Qt.KeyboardModifier.ShiftModifier)
+            fine = bool(event.modifiers()
+                        & Qt.KeyboardModifier.AltModifier) and not off_grid
+            if self.nudge_selection(dxs, dys, fine=fine, off_grid=off_grid):
+                event.accept()
+                return
+            if (event.key() == Qt.Key.Key_Up
+                    and event.modifiers()
+                    & Qt.KeyboardModifier.AltModifier):
+                # The Alt+Up command normally handles this before the key
+                # reaches the canvas; when the view itself receives the
+                # chord (no QAction match), an empty selection still
+                # means the original hierarchy-up fallback.
+                self._suppress_key_tips()
+                self.go_up()
                 event.accept()
                 return
         # Scoped clipboard shortcuts: only when the canvas has focus, so
@@ -7298,7 +7755,17 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 event.accept()
                 return
             self._drag_armed = True
-        super().mouseMoveEvent(event)
+        # Alt+drag is a fine move: Qt's own item drag calls setPos(), and
+        # every itemChange re-snaps to `_snap_state`, so the snap step
+        # itself has to be subdivided for the duration of the move. Alt
+        # may be pressed AFTER the press: latch it so the release uses
+        # the fine epsilon for the one-step move that follows.
+        fine_now = self._fine_drag or bool(
+            event.modifiers() & Qt.KeyboardModifier.AltModifier)
+        if fine_now:
+            self._fine_drag = True
+        with self._fine_snap(fine_now):
+            super().mouseMoveEvent(event)
         if self._drag_primary is not None and self._drag_armed:
             self._move_group_with_primary()
         # Direction-aware rubber band. Qt's built-in
@@ -7364,6 +7831,15 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
 
     def mouseReleaseEvent(self, event):
         self._band_anchor = None
+        fine_gesture = self._fine_drag or bool(
+            event.modifiers() & Qt.KeyboardModifier.AltModifier)
+        self._fine_drag = False
+        # A minimum grid's tenth step can be well under half a scene unit
+        # (e.g. snap 4 -> fine 0.4). The old 0.5 "did it move?" threshold
+        # then discarded a legitimate one-step fine drag, so the gesture
+        # showed on screen but produced no MoveCmd. Fine gestures accept
+        # any real movement; ordinary drags keep the noise threshold.
+        move_eps = 1e-6 if fine_gesture else 0.5
         if event.button() == Qt.MouseButton.MiddleButton:
             # Back to the armed tool's cursor, not a plain arrow: a pan
             # must not disarm the placement cursor.
@@ -7371,21 +7847,20 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             self._pan_anchor = None
             event.accept()
             return
+        grip_moves = []
         if event.button() == Qt.MouseButton.LeftButton and self._grip_press:
-            # A routing point was dragged: one undo step puts it back.
+            # A routing point was dragged: collect it here and let the
+            # same gesture helper below fold it into a macro if anything
+            # else moved too.
             pressed, self._grip_press = self._grip_press, {}
-            grip_moves = []
             for entry_id, old in pressed.items():
                 grip = self.route_grip_by_entry(entry_id)
                 if grip is None:
                     continue
                 new = (grip.pos().x(), grip.pos().y())
-                if abs(new[0] - old[0]) > 0.5 or abs(new[1] - old[1]) > 0.5:
+                if (abs(new[0] - old[0]) > move_eps
+                        or abs(new[1] - old[1]) > move_eps):
                     grip_moves.append((entry_id, old, new))
-            if grip_moves:
-                cmd = MoveCmd(self, [], grips=grip_moves)
-                cmd.setText("Move routing point")
-                self._stack.push(cmd)
         if event.button() == Qt.MouseButton.LeftButton and self._drag_start:
             # A drag gesture just ended: one MoveCmd for every element
             # whose scene position actually changed.
@@ -7405,8 +7880,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if item is None:
                     continue
                 now = (item.scenePos().x(), item.scenePos().y())
-                if (abs(now[0] - start[0]) > 0.5
-                        or abs(now[1] - start[1]) > 0.5):
+                if (abs(now[0] - start[0]) > move_eps
+                        or abs(now[1] - start[1]) > move_eps):
                     moves.append((kind, oid, tuple(start), now))
             started = {(k, o) for k, o, _s in self._drag_start}
             tables = dict(self._element_tables())
@@ -7418,8 +7893,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 if it is None:
                     continue
                 now = (it.scenePos().x(), it.scenePos().y())
-                if (abs(now[0] - start[0]) > 0.5
-                        or abs(now[1] - start[1]) > 0.5):
+                if (abs(now[0] - start[0]) > move_eps
+                        or abs(now[1] - start[1]) > move_eps):
                     moves.append((kind, oid, start, now))
             self._press_positions = {}
             drag_start, self._drag_start = self._drag_start, []
@@ -7433,15 +7908,8 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 # follow it.
                 moved_keys |= {("annotation", aid)
                                for aid, _old, _new in anno_edits}
-                for aid, old_state, new_state in anno_edits:
+                for _aid, old_state, new_state in anno_edits:
                     self._detach_if_moved_alone(old_state, new_state, moved_keys)
-                    self._stack.push(AnnoEditCmd(self, aid, old_state,
-                                                 new_state, layout_only=True))
-                # Anything anchored to the annotations that just moved
-                # follows them, including notes chained through another
-                # annotation.
-                self.follow_anchors({("annotation", aid)
-                                     for aid, _old, _new in anno_edits})
             if moves:
                 # A drag can now carry hierarchy ovals too -- they ride
                 # along in the same gesture but never reparent (only
@@ -7452,14 +7920,39 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
                 drop_hid = self._drop_target_hier(element_moves)
                 if drop_hid is not None:
                     # Dropping onto a hierarchy oval transports the whole
-                    # selection into it -- positions are not
-                    # committed; the child level lays out on its own.
-                    self._reparent_into(drop_hid, element_moves)
-                    if oval_moves:
-                        self._stack.push(MoveCmd(self, oval_moves))
+                    # selection into it -- positions are not committed;
+                    # the child level lays out on its own. The reparent
+                    # can affect rules, so this outer macro stays GATED;
+                    # its move commands nest inside it (their own macro
+                    # is ungated, but a nested macro is not checked).
+                    # Flush before beginMacro so a pending CommentCmd is
+                    # BELOW this macro: a refused macro must not take the
+                    # typed comment with it.
+                    self.structural_about_to_change.emit()
+                    self._stack.beginMacro("Move into hierarchy")
+                    try:
+                        self._reparent_into(drop_hid, element_moves)
+                        self._push_move_commands(
+                            oval_moves, anno_edits, grip_moves,
+                            label="Move")
+                    finally:
+                        self._stack.endMacro()
                 else:
-                    self._stack.push(MoveCmd(self, moves))
-            elif len(drag_start) == 1:
+                    self._push_move_commands(
+                        moves, anno_edits, grip_moves, label="Move")
+                grip_moves = []
+            elif anno_edits or grip_moves:
+                self._push_move_commands(
+                    [], anno_edits, grip_moves, label="Move")
+                grip_moves = []
+            if anno_edits:
+                # Anything anchored to the annotations that just moved
+                # follows them, including notes chained through another
+                # annotation.
+                self.follow_anchors({("annotation", aid)
+                                     for aid, _old, _new in anno_edits})
+            if not moves and not anno_edits and not grip_moves \
+                    and len(drag_start) == 1:
                 # A plain click (no drag) on a single element centres the
                 # view on it, e.g. after panning/zooming left it near an
                 # edge. Skipped for a multi-select click (shift-click adds
@@ -7483,6 +7976,10 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             # The gesture is over and `follow_anchors` has put every note
             # where it belongs: show the ones hidden at press.
             self._show_following_annotations()
+        if event.button() == Qt.MouseButton.LeftButton and grip_moves:
+            # A routing-point drag with no element/annotation part (the
+            # common case) still needs its one undo command.
+            self._push_move_commands([], [], grip_moves)
         super().mouseReleaseEvent(event)
 
     def _item_comfortably_visible(self, item) -> bool:
@@ -7516,6 +8013,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         fully inside the selection travel with it; links that would now
         cross the boundary are removed (the tutorial wires In/Out
         markers manually afterwards)."""
+        self.structural_about_to_change.emit()   # draft before ReParentCmd
         section_of = {"block": "BLOCK_DATA", "node": "NODE_DATA",
                       "event": "EVENT_DATA"}
         parent_moves = []
@@ -7547,6 +8045,7 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
         its parent (Raptor 7 out-drag counterpart). Links fully
         inside the moving set travel; boundary links are cut. Returns
         True when anything moved."""
+        self.structural_about_to_change.emit()   # draft before the command
         if self._rbd_ref is None or self._current_parent == 0:
             return False
         target = self.hiers[self._current_parent].parent_id or 0
@@ -8203,6 +8702,21 @@ class DiagramView(ContextMenuMixin, LiveOverlayMixin, QGraphicsView):
             return 0
         return len([it for it in items if it.flags()
                     & QGraphicsItem.GraphicsItemFlag.ItemIsMovable])
+
+    def has_nudgeable_selection(self) -> bool:
+        """Whether `nudge_selection` would move anything.
+
+        Deliberately the same type tuple it uses, not
+        `selected_movable_count`: an arrow annotation is not
+        `ItemIsMovable` (its two ends move independently), but an
+        arrow-only selection must still make Alt+Up nudge rather than
+        silently ascend a hierarchy.
+        """
+        try:
+            return any(isinstance(it, _NUDGEABLE_TYPES)
+                       for it in self._scene.selectedItems())
+        except RuntimeError:        # scene torn down during shutdown
+            return False
 
     def apply_hier_dsi(self, dsi: dict[int, dict]) -> None:
         """Paint end-of-run Descendant Status Indicators on the ovals

@@ -19,6 +19,7 @@ CITATION = re.compile(r"[A-Za-z0-9_]+\.(?:mod|py|cpp|h):\d+")
 
 USER_DOCS = [
     REPO / "docs" / "MCP.md",
+    REPO / "docs" / "MCP-reference.md",
     REPO / "docs" / "RBDS_FORMAT.md",
     REPO / "docs" / "IEC61078.md",
     *sorted((REPO / "new_docs" / "chapters").glob("*.adoc")),

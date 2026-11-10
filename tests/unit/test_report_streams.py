@@ -167,7 +167,7 @@ def test_gui_files_and_reports_wiring(qtbot=None):
         w._set_recording("ao_plot", True)
         assert acts["ao_plot"].isChecked() is True, \
             "the ribbon toggle must mirror the experiment"
-        w._preflight_issues = lambda: []
+        w._preflight_issues = lambda *_args, **_kwargs: []
         # This is a wiring test, not a save test: clear the dirty flag so
         # the "unsaved changes before running" preference doesn't open a
         # modal prompt the headless run can't answer.

@@ -12,18 +12,22 @@ from raptor.gui.ui.qtcompat import req
 from raptor.gui.ui import msgbox
 from raptor.gui import text_editing
 from raptor.bundled import candidate_roots
+import gc
 import logging
 import math
 import os
 import platform
 import re
+import threading
 import time
+import weakref
 from typing import Any, cast
+from collections.abc import Callable
 from pathlib import Path
 from PySide6.QtCore import (QSize, Qt, QTimer, QObject, QPoint, QUrl, Signal,
                             QEvent, QEventLoop)
 from PySide6.QtGui import (QCursor, QKeySequence, QPainter, QColor, QPixmap, QDesktopServices,
-                           QShortcut)
+                           QAction, QShortcut)
 from PySide6.QtCore import QRectF
 from PySide6.QtWidgets import (
     QApplication, QToolTip, QDoubleSpinBox, QMainWindow, QDockWidget, QStatusBar, QFileDialog, QMessageBox,
@@ -93,6 +97,37 @@ def _engine_version() -> str:
     """The version string recorded in a run manifest, so a result can be
     traced back to the engine that produced it."""
     return f"raptor-studio {_APP_VERSION}"
+
+
+#: Cyclic-GC suppression shared by the background-run and Terminate
+#: finalize workers. A worker thread must not collect Qt wrappers owned by
+#: the GUI thread. Disable/enable is reference-counted so one worker's
+#: exit cannot re-enable collection while another is still running.
+_GC_SUPPRESS_LOCK = threading.Lock()
+_GC_SUPPRESS_USERS = 0
+_GC_SUPPRESS_RESTORE = False
+
+
+def _suppress_cyclic_gc() -> None:
+    """Disable cyclic GC for a worker; safe when workers overlap."""
+    global _GC_SUPPRESS_USERS, _GC_SUPPRESS_RESTORE
+    with _GC_SUPPRESS_LOCK:
+        if _GC_SUPPRESS_USERS == 0:
+            _GC_SUPPRESS_RESTORE = gc.isenabled()
+            if _GC_SUPPRESS_RESTORE:
+                gc.disable()
+        _GC_SUPPRESS_USERS += 1
+
+
+def _resume_cyclic_gc() -> None:
+    """Release one worker's suppression; the last one restores GC."""
+    global _GC_SUPPRESS_USERS
+    with _GC_SUPPRESS_LOCK:
+        if _GC_SUPPRESS_USERS == 0:
+            return
+        _GC_SUPPRESS_USERS -= 1
+        if _GC_SUPPRESS_USERS == 0 and _GC_SUPPRESS_RESTORE:
+            gc.enable()
 
 
 from raptor.gui.key_tips import FILE_KEY_TIP, TAB_KEY_TIPS  # noqa: E402
@@ -214,6 +249,103 @@ _TERMINATION_CHOICES = [
 ]
 
 
+class _DockTitleBar(QWidget):
+    """The custom dock title bar, which also carries the drag gesture.
+
+    `QDockWidget.setTitleBarWidget()` replaces Qt's own title bar
+    outright, and with it the built-in drag-to-move/float handling:
+    accepting mouse presses here without forwarding them left the
+    panel impossible to detach by dragging. Reproduce that one gesture
+    (drag = float, then move the floating window; double-click = toggle
+    float) and leave the title-bar buttons to their own widgets.
+    """
+
+    def __init__(self, dock: QDockWidget, window):
+        super().__init__()
+        self._dock = dock
+        self._window = window
+        self._press_global = None
+        self._dragging = False
+        self._drag_offset = None
+
+    def _clear_drag(self) -> None:
+        self._press_global = None
+        self._dragging = False
+        self._drag_offset = None
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._press_global = event.globalPosition().toPoint()
+            self._dragging = False
+            self._drag_offset = None
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if self._press_global is None:
+            super().mouseMoveEvent(event)
+            return
+        if not (event.buttons() & Qt.MouseButton.LeftButton):
+            # A lost release (window switch, popup, remote desktop) used
+            # to leave the title bar stuck in drag state: the next hover
+            # without a button moved the window.
+            self._clear_drag()
+            super().mouseMoveEvent(event)
+            return
+        pos = event.globalPosition().toPoint()
+        if not self._dragging:
+            if (pos - self._press_global).manhattanLength() \
+                    < QApplication.startDragDistance():
+                return
+            self._dragging = True
+            self._window._begin_dock_titlebar_drag(
+                self._dock, self._press_global)
+            # Wayland does not let a client position a top-level window
+            # with move(); ask the compositor for a system move instead,
+            # so the dock can cross screens and be placed freely.
+            if self._window._system_move_supported():
+                if self._window._start_dock_system_move(self._dock):
+                    self._clear_drag()
+                    event.accept()
+                    return
+            # The dock may have just been re-parented into its own
+            # floating window. Anchor further movement to where that
+            # window now sits so it does not jump on the next event.
+            self._drag_offset = self._press_global - self._dock.pos()
+        if self._drag_offset is not None and self._dock.isFloating():
+            self._dock.move(pos - self._drag_offset)
+        event.accept()
+
+    def mouseReleaseEvent(self, event) -> None:
+        if self._dragging and event.button() == Qt.MouseButton.LeftButton:
+            self._window._finish_dock_titlebar_drag(
+                self._dock, event.globalPosition().toPoint())
+        self._clear_drag()
+        event.accept()
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._clear_drag()
+            self._window._toggle_dock_floating(self._dock)
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        # While the button is held the pointer must be allowed to leave
+        # the title bar (that is the drag). Without the button it is a
+        # stale press state.
+        if not (QApplication.mouseButtons() & Qt.MouseButton.LeftButton):
+            self._clear_drag()
+        super().leaveEvent(event)
+
+    def event(self, event) -> bool:
+        if event.type() == QEvent.Type.WindowDeactivate:
+            self._clear_drag()
+        return super().event(event)
+
+
 class _DockStub(QWidget):
     """Vertical 'closed dock' stub: a ~24px strip in the dock's old slot
     showing the dock's name rotated to read facing the user. Clicking
@@ -313,18 +445,63 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     #: smooth enough for human perception, without hammering the Qt
     #: event loop at Max speed.
     _BG_POLL_INTERVAL_FLOOR = 30
+    #: Terminate finalize worker poll (ms). Short enough that results
+    #: appear as soon as the worker finishes, long enough not to spin.
+    _STEP_FINALIZE_POLL_MS = 50
     #: the stepping session, the background-run thread and its last progress/bar keys (None when idle)
     _bg_thread: Any = None
     _bg_last_progress: Any = None
     _bg_last_bar: Any = None
+    #: A Terminate finalize running on a worker thread: plain state dict
+    #: shared with the thread and polled by `_step_finalize_timer` (no
+    #: cross-thread Qt calls), plus the thread itself.
+    _step_finalize_state: Any = None
+    _step_finalize_thread: Any = None
+    #: The background worker has finished its baseline and is now spending
+    #: the user's time on importance variants. The baseline has already
+    #: been put on screen once (`_bg_baseline_presented`), so the poll must
+    #: not re-populate it and must ignore the baseline's stale
+    #: stage/progress fields while this is true.
+    _bg_baseline_presented: bool = False
+    #: True only for the (re-entrant-safe) baseline population itself.
+    _bg_baseline_presenting: bool = False
+    #: Last importance progress tuple written to the status bar -- the poll
+    #: runs at 10 Hz and would otherwise rewrite the same sentence.
+    _imp_last_key: Any = None
+    #: The canvas-overlay ribbon buttons, in the order the Results page
+    #: offers them. Used to carry the user's chosen overlay across a
+    #: same-run refresh (baseline -> baseline + Importance).
+    _OVERLAY_ACTION_ATTRS = (
+        "_weak_color_action", "_capacity_overlay_action",
+        "_cost_overlay_action", "_spares_overlay_action",
+        "_importance_overlay_action")
+    #: True only while the extra importance batches are being measured.
+    #: Run/Stop/settings stay locked, but the edit guard's wording must not
+    #: claim a live simulation when the baseline has already finished.
+    _importance_running: bool = False
     #: True while ResultsDock.set_results is populating; its progress
     #: callback pumps the event loop, which must not re-enter the poll
     #: tick or start a second population.
     _results_populating: bool = False
+    #: A populated baseline whose importance phase follows. Caps the
+    #: results-population bar at 99% so it cannot read as finished.
+    _results_follow_up: bool = False
+    #: Canvas level to return to when the Run panel's hierarchy scope is
+    #: cleared; None while whole-model scope is active.
+    _run_scope_return_level: int | None = None
+    #: The model handed to the last run (an extract when a hierarchy is
+    #: selected), for ETA/importance reporting.
+    _last_run_model: RbdFile | None = None
+    #: Isolation record of the stepped session (None for the whole model).
+    _step_isolation = None
 
     def __init__(self):
         super().__init__()
         self._rbd: RbdFile | None = None
+        #: Weak compatibility reference to the process-wide Help viewer
+        #: (see `_show_help_viewer`); None before Help / after this window
+        #: closes.
+        self._help_viewer: weakref.ref | None = None
         #: Templates of the library last imported (Data ▸ Import Library); the Block Defaults dialog offers them.
         self._block_library: list[dict] = []
         self._current_file: str | None = None
@@ -337,6 +514,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._bg_poll = QTimer(self)
         self._bg_poll.setInterval(self._BG_POLL_INTERVAL_DEFAULT)
         self._bg_poll.timeout.connect(self._bg_poll_tick)
+        # Terminate finalize worker poll: the worker only fills a plain
+        # dict; this timer presents the results on the GUI thread.
+        self._step_finalize_timer = QTimer(self)
+        self._step_finalize_timer.setInterval(self._STEP_FINALIZE_POLL_MS)
+        self._step_finalize_timer.timeout.connect(
+            self._step_finalize_poll_tick)
         # Canvas selection -> Inspector rebuild is debounced (see
         # `_on_canvas_block_selected`): one rebuild for a burst of clicks.
         self._pending_block_selection: int | None = None
@@ -354,6 +537,22 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # timer (not QTimer.singleShot with a lambda) cannot fire after
         # this window's C++ object is gone.
         self._canvas_room_stage = 0
+        #: The designed startup dock widths/heights are applied once.
+        #: Later model loads must not resize docks the user has chosen.
+        self._canvas_room_defaults_done = False
+        #: Set when any resizeDocks() call did not come from the window's
+        #: own startup/clamp code -- i.e. the user (or a test) chose a
+        #: size. First-load defaults must then be skipped.
+        self._dock_user_sized = False
+        self._internal_dock_resize = False
+        self._dock_startup_extents = None
+        self._dock_startup_snapshot_done = False
+        self._dock_startup_window_size = None
+        self._dock_resize_generation = 0
+        self._dock_splitter_moved = False
+        self._dock_rebase_pending = False
+        self._compact_minimized: set[str] = set()
+        self._live_log_session_shown = False
         self._canvas_room_timer = QTimer(self)
         self._canvas_room_timer.setSingleShot(True)
         self._canvas_room_timer.setInterval(0)
@@ -404,6 +603,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Ambiguous shortcut overload"; a window context only competes
         # with itself, and the focused window's undo is the right one.
         help_sc.activated.connect(self._open_context_help)
+
+        # Alt+Up is the canvas fine-nudge chord. It cannot live on the
+        # ribbon's Up button: a ribbon click must ALWAYS ascend, while the
+        # key chord nudges a focused selection and falls back to ascending
+        # when there is nothing to move.
+        self._fine_nudge_up_action = QAction("Fine Move Up", self)
+        self._fine_nudge_up_action.setShortcut(QKeySequence("Alt+Up"))
+        self._fine_nudge_up_action.setShortcutContext(
+            Qt.ShortcutContext.WindowShortcut)
+        self._fine_nudge_up_action.setToolTip(
+            "Fine-nudge the canvas selection by a tenth of a snap step; "
+            "with nothing selected, ascend one hierarchy level")
+        self._fine_nudge_up_action.triggered.connect(
+            self._fine_nudge_or_hierarchy)
+        self.addAction(self._fine_nudge_up_action)
 
         # Esc = pause/stop during a run. A WindowShortcut fires no matter
         # which child of the window has focus; when no run is active it
@@ -459,12 +673,16 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     @_step_session.setter
     def _step_session(self, session) -> None:
         """A session starting or ending changes what Terminate / Finish /
-        Restart / Jump can do; it is set in many places, so they follow it
-        here rather than at each one."""
-        changed = (session is None) != (getattr(self, "_step_session_obj", None) is None)
+        Restart / Jump / View > Live Log can do; it is set in many places,
+        so they follow it here rather than at each one."""
+        previous = getattr(self, "_step_session_obj", None)
+        changed = (session is None) != (previous is None)
         self._step_session_obj = session
+        if session is not None and previous is None:
+            self._live_log_session_shown = False
         if changed and getattr(self, "_commands", None) is not None:
-            self._refresh_commands(only={"stepping", "jump_available"})
+            self._refresh_commands(
+                only={"stepping", "jump_available", "live_session"})
 
     def _show_key_tips(self) -> None:
         """Alt: put a letter over the File button and every ribbon tab, and
@@ -892,6 +1110,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         badge = getattr(self, "_validation_badge", None)
         if badge is not None:                  # no model: no "Model OK"
             badge.setVisible(state.model_open)
+        # Hierarchy edits change the Run panel's scope list. Guarded
+        # because reselecting a scope can rebuild the scene, which calls
+        # back into this method.
+        if not getattr(self, "_refreshing_scope_options", False):
+            self._refreshing_scope_options = True
+            try:
+                self._refresh_run_scope_options()
+            finally:
+                self._refreshing_scope_options = False
 
     def _open_print_dialog(self) -> None:
         from raptor.gui.ui import printing
@@ -967,20 +1194,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._statusbar.showMessage(f"{name} not found", 6000)
 
     def _show_help_viewer(self, name: str, anchor: str | None = None):
-        """Show (or reuse) the shared in-app help viewer window."""
-        from raptor.gui.ui.help_viewer import HelpViewer, _register_ops_scheme
+        """Show (or reuse) the process-wide in-app help viewer.
+
+        Help belongs to the process, not this window: the same viewer
+        follows the window that invoked it, and closing one model window
+        leaves it open for the others (see `ui/help_service.py`)."""
+        from raptor.gui.ui.help_viewer import _register_ops_scheme
         _register_ops_scheme()
-        if getattr(self, "_help_viewer", None) is None:
-            self._help_viewer = HelpViewer(
-                parent=None, open_model=self.open_model_from_help,
-                switch_to_app=self._switch_from_help)
-            from raptor.gui.resources.design_tokens import ThemeManager
-            ThemeManager.instance().on_changed(
-                self._help_viewer.refresh_theme)
-            self._help_viewer.refresh_theme(
-                ThemeManager.instance().is_dark)
-        self._help_viewer.show_doc(name, anchor)
-        return self._help_viewer
+        from raptor.gui.ui.help_service import get_help_service
+        viewer = get_help_service().show(self, name, anchor)
+        # Compatibility for code (and older tests) that looked for the
+        # viewer on the window. A weak reference on purpose: Help is no
+        # longer owned by this window, and a closing window must not keep
+        # it alive. Access it with `()`; it is empty after Help closes.
+        self._help_viewer = weakref.ref(viewer)
+        return viewer
 
     def open_model_from_help(self, path: str) -> None:
         """opsmodel:// link clicked in the help viewer: load the model
@@ -1073,7 +1301,32 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             anchor = self._HELP_ANCHORS["Simulate"]
         self._open_doc("manual.html", anchor)
 
-    def _setup_dock_toggle(self, action, dock, *, manage_enabled: bool = True):
+    def _can_stub_dock(self, dock) -> bool:
+        """True only while the dock is on a side edge and not floating.
+
+        `_dock_stubs` membership outlives a move to the bottom: the
+        rotated stub is meaningless there, so close/toggle must consult
+        the live edge and chrome state, not the map."""
+        entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                 .get(dock))
+        if entry is None or entry.get("stub") is None:
+            return False
+        try:
+            if dock.isFloating():
+                return False
+        except RuntimeError:
+            return False
+        return self._current_dock_edge(
+            dock, entry.get("edge")) in ("left", "right")
+
+    def _is_closed_side_dock(self, dock) -> bool:
+        entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                 .get(dock))
+        return bool(entry and entry.get("closed")) \
+            and self._can_stub_dock(dock)
+
+    def _setup_dock_toggle(self, action, dock, *, manage_enabled: bool = True,
+                           on_show=None, on_hide=None):
         """Checkable ribbon action <-> dock visibility, both directions.
         LEFT/RIGHT docks with a rotated stub (`self._dock_stubs`) don't
         close: unchecking collapses them to the rotated "Model"/
@@ -1084,7 +1337,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         `manage_enabled=False` leaves the action's enabled state to the
         command table's own predicate. The Failure Effects panel uses this:
         it is only enabled while Failure Effects View is open, but it must
-        stay clickable after the user hides it during that mode."""
+        stay clickable after the user hides it during that mode.
+        `on_show`/`on_hide` let a dock with its own swap policy (the Live
+        Log returns to the Inspector tab) run it around the generic
+        show/close."""
         content = dock.widget()
 
         def is_open():
@@ -1110,8 +1366,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # and a state-dependent tooltip would document whichever
             # dock state the generator happened to be looking at.
             if manage_enabled:
-                recoverable = dock in (self._dock_stubs or {})
-                action.setEnabled(open_ or not recoverable)
+                # A closed side dock is recoverable, so its ribbon action
+                # must stay clickable. Disabling it left the Inspector
+                # impossible to bring back from View > Panels.
+                action.setEnabled(True)
             action.blockSignals(False)
 
         if self._dock_state_sync is None:
@@ -1119,9 +1377,18 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._dock_state_sync[dock] = sync
 
         def toggle(checked):
+            try:
+                self._compact_minimized.discard(dock.windowTitle())
+            except AttributeError:
+                pass
             stub = (self._dock_stubs or {}).get(dock)
+            entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                     .get(dock)) or {}
             if checked:
-                if stub is not None:
+                if stub is not None and entry.get("closed"):
+                    # A closed dock may be floating by now: _can_stub_dock
+                    # is false there, but its content still has to come
+                    # back before the dock is shown.
                     stub(False)
                 # A collapsed bottom slot is still "visible"; un-collapse
                 # it or the checkbox appears to do nothing.
@@ -1133,16 +1400,25 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     chrome = (self._dock_chrome or {}).get("Results")
                 if chrome is not None and chrome["get"]()["minimized"]:
                     chrome["set_minimized"](False)
+                if on_show is not None:
+                    on_show()
                 dock.setVisible(True)
                 dock.raise_()
                 sync(True)
             elif dock.isFloating():
                 dock.close()
-            elif stub is not None:
-                stub(True)
+                if on_hide is not None:
+                    on_hide()
+            elif self._can_stub_dock(dock):
+                cast(Callable[[bool], None], stub)(True)
                 sync(False)
             else:
                 dock.close()
+                if on_hide is not None:
+                    on_hide()
+            # A hidden bottom dock can change which tab sizes the strip;
+            # keep the status bar from being squeezed out (#231).
+            QTimer.singleShot(0, self._ensure_status_bar_visible)
         action.toggled.connect(toggle)
         dock.visibilityChanged.connect(sync)
         sync(dock.isVisible())
@@ -1205,12 +1481,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # collapsing there hides everything but the toggle itself. The
         # bottom dock only squeezes height, so its titlebar keeps its
         # full width and every button stays visible either way.
-        squeeze_chrome = edge in ("left", "right")
         entries: list[dict[str, Any]] = []
         for dock in docks:
             content = dock.widget()
 
-            titlebar = QWidget()
+            titlebar = _DockTitleBar(dock, self)
             tb = QHBoxLayout(titlebar)
             tb.setContentsMargins(8, 4, 4, 4)
             tb.setSpacing(2)
@@ -1259,13 +1534,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 close_btn.setToolTip("Close")
                 close_btn.setAccessibleName(f"Close {dock.windowTitle()}")
                 # left/right docks (rotated stub available) collapse to
-                # the stub instead of vanishing; bottom docks and any
-                # floated window close for real.
-                has_stub = edge in ("left", "right")
+                # the stub instead of vanishing; a dock moved to the
+                # bottom, and any floated window, close for real.
                 close_btn.clicked.connect(
-                    lambda _checked=False, d=dock, stubbed=has_stub: (
+                    lambda _checked=False, d=dock: (
                         d.close()
-                        if (d.isFloating() or not stubbed)
+                        if (d.isFloating()
+                            or self._current_dock_edge(d) not in
+                            ("left", "right"))
                         else set_closed(True)))
                 tb.addWidget(close_btn)
 
@@ -1282,20 +1558,27 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
             dock.setTitleBarWidget(titlebar)
 
-            normal_min = (dock.minimumWidth() if edge in ("left", "right")
-                          else dock.minimumHeight())
+            normal_min_width = max(dock.minimumWidth(), 0)
+            normal_min_height = max(dock.minimumHeight(), 0)
             entries.append({"dock": dock, "content": content,
                             "titlebar": titlebar, "icon_label": icon_label,
                             "label": label,
                             "min_btn": min_btn, "float_btn": float_btn,
                             "close_btn": close_btn, "stub": stub,
-                            "normal_min": normal_min, "minimized": False,
-                            "closed": False})
+                            "edge": edge,
+                            "normal_min_width": normal_min_width,
+                            "normal_min_height": normal_min_height,
+                            "docked_width": None, "docked_height": None,
+                            "minimized": False, "closed": False})
 
-        # The floating handler needs each dock's own chrome entry (its
-        # title-bar buttons). The `_dock_chrome` map below is keyed by
-        # TITLE for the bottom strip's state only.
-        self._dock_chrome_entries = {e["dock"]: e for e in entries}
+        # Every titled dock's own chrome entry (its title-bar buttons and
+        # the last edge it was docked on), not just the group built last:
+        # the loop runs once per dock slot, and replacing the map here
+        # left `_redock` and the floating handler with no entry at all
+        # for Explorer/Inspector.
+        if getattr(self, "_dock_chrome_entries", None) is None:
+            self._dock_chrome_entries = {}
+        self._dock_chrome_entries.update({e["dock"]: e for e in entries})
 
         def retheme():
             c = active_colour()
@@ -1330,9 +1613,44 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if fn is not None:
                 fn(dock.isVisible())
 
+        def restore_side_extent(e, dock):
+            """Re-apply the user's width once Qt has released the
+            minimise/close lock. Deferred: the dock's min/max are still
+            being changed on this turn."""
+            width = int(e.get("docked_width") or 0)
+            if not width:
+                return
+            generation = self._dock_resize_generation
+
+            def apply(attempt=0):
+                if generation != self._dock_resize_generation:
+                    return      # Reset Layout cancelled this restore
+                try:
+                    if dock.isFloating() or e.get("minimized") \
+                            or e.get("closed"):
+                        return
+                    if self._current_dock_edge(
+                            dock, e.get("edge")) not in ("left", "right"):
+                        return
+                    actual = dock.width()
+                    if attempt and actual >= width - 4:
+                        return
+                    requested = width + (width - actual) \
+                        if actual < width - 4 else width
+                    self._resize_docks([dock], [requested],
+                                       Qt.Orientation.Horizontal)
+                except (RuntimeError, TypeError):
+                    return
+                if attempt < 1:
+                    QTimer.singleShot(
+                        0, lambda: apply(attempt + 1))
+            QTimer.singleShot(0, apply)
+
         def set_minimized(minimized: bool):
             for e in entries:
                 dock, content = e["dock"], e["content"]
+                edge_now = self._current_dock_edge(dock, e.get("edge"))
+                e["edge"] = edge_now
                 e["minimized"] = minimized
                 content.setVisible(not minimized)
                 e["min_btn"].setText(glyph_expand if minimized
@@ -1343,14 +1661,16 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 e["min_btn"].setAccessibleName(
                     f"Restore {dock.windowTitle()}" if minimized
                     else f"Minimize {dock.windowTitle()}")
-                if squeeze_chrome:
+                if edge_now in ("left", "right"):
                     e["label"].setVisible(not minimized)
                     if e["float_btn"] is not None:
                         e["float_btn"].setVisible(not minimized)
                     if e["close_btn"] is not None:
                         e["close_btn"].setVisible(not minimized)
-                if edge in ("left", "right"):
+                if edge_now in ("left", "right"):
                     if minimized:
+                        if not getattr(self, "_restoring_dock_chrome", False):
+                            e["docked_width"] = max(dock.width(), 1)
                         e["titlebar"].adjustSize()
                         # Qt logs "Negative sizes" when setFixedWidth
                         # pairs the new width with a -1 height (dock
@@ -1361,15 +1681,20 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                         dock.setFixedWidth(
                             e["titlebar"].sizeHint().width())
                     else:
-                        self._set_dock_min_width(dock, e["normal_min"])
-                        dock.setMaximumWidth(16777215)
-                        dock.setMinimumHeight(max(dock.minimumHeight(), 1))
+                        min_w = self._dock_min_dimension(e, "left")
+                        dock.setMaximumSize(16777215, 16777215)
+                        self._set_dock_min_width(dock, min_w)
+                        dock.setMinimumHeight(0)
+                        dock.setMaximumHeight(16777215)
+                        restore_side_extent(e, dock)
                 else:
                     if minimized:
                         # Remember the pre-collapse height so restore
                         # comes back to the same size rather than
                         # leaving it to the layout.
-                        e["saved_height"] = dock.height()
+                        if not getattr(self, "_restoring_dock_chrome", False):
+                            e["saved_height"] = dock.height()
+                            e["docked_height"] = max(dock.height(), 1)
                         e["titlebar"].adjustSize()
                         w = max(dock.width(), 1)
                         dock.setFixedWidth(w)
@@ -1380,23 +1705,25 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                         # setFixedWidth(w) also set maximumWidth(w), so a
                         # bottom dock stayed 271 px wide forever after one
                         # minimise.
-                        self._set_dock_min_width(dock, 0)
+                        dock.setMaximumSize(16777215, 16777215)
+                        dock.setMinimumWidth(0)
                         dock.setMaximumWidth(16777215)
-                        dock.setMinimumHeight(e["normal_min"])
+                        min_h = self._dock_min_dimension(e, "bottom")
+                        dock.setMinimumHeight(min_h)
                         cap = (16777215 if dock.isFloating() else
                                (restore_max() if callable(restore_max)
                                 else restore_max))
                         dock.setMaximumHeight(cap or 16777215)
-                        saved = e.get("saved_height")
+                        saved = e.get("saved_height") or e.get("docked_height")
                         if saved:
                             # Apply the remembered height first (fixed),
                             # then release the fix on the next event-
                             # loop pass so the splitter stays draggable.
                             # Guarded: the dock may already be torn down
                             # when the timer fires (window close).
-                            dock.setFixedHeight(max(saved, e["normal_min"]))
+                            dock.setFixedHeight(max(saved, min_h))
                             def _release(d=dock, cap_=cap or 16777215,
-                                         nm=e["normal_min"]):
+                                         nm=min_h):
                                 try:
                                     d.setMinimumHeight(nm)
                                     d.setMaximumHeight(cap_)
@@ -1411,9 +1738,18 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             for e in entries:
                 sync_action(e["dock"])
 
+        def _toggle_minimized(_checked=False):
+            # A user minimize/restore takes ownership back from the
+            # narrow-window compact policy.
+            try:
+                self._compact_minimized.discard(
+                    entries[0]["dock"].windowTitle())
+            except AttributeError:
+                pass
+            set_minimized(not entries[0]["minimized"])
+
         for e in entries:
-            e["min_btn"].clicked.connect(
-                lambda _checked=False: set_minimized(not entries[0]["minimized"]))
+            e["min_btn"].clicked.connect(_toggle_minimized)
 
         def set_closed(closed: bool):
             """Swap the dock between its normal chrome and the rotated
@@ -1423,25 +1759,84 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 dock, stub = e["dock"], e["stub"]
                 if stub is None:
                     continue
+                try:
+                    floating = dock.isFloating()
+                except RuntimeError:
+                    continue
+                if not closed:
+                    # Restoring chrome (stub click, Properties,
+                    # _show_inspector_dock) takes the dock back from the
+                    # compact policy.
+                    try:
+                        self._compact_minimized.discard(dock.windowTitle())
+                    except AttributeError:
+                        pass
+                if floating:
+                    # The rotated side stub cannot exist on a free
+                    # window. Restore normal chrome/content; a close
+                    # request really closes the floating window.
+                    e["closed"] = False
+                    e["minimized"] = False
+                    dock.setTitleBarWidget(e["titlebar"])
+                    e["content"].setVisible(True)
+                    # Release the stub's fixed-width lock, but keep the
+                    # floating window's own 160x90 floor so reopening it
+                    # cannot collapse below a usable panel.
+                    dock.setMinimumSize(160, 90)
+                    dock.setMaximumSize(16777215, 16777215)
+                    if closed:
+                        dock.close()
+                    continue
+                edge_now = self._current_dock_edge(dock, e.get("edge"))
+                if closed and edge_now not in ("left", "right"):
+                    # A dock moved to the bottom has no usable rotated
+                    # side stub: close it for real, and leave the chrome
+                    # flags consistent so View > Panels can restore it.
+                    e["closed"] = False
+                    e["minimized"] = False
+                    dock.setTitleBarWidget(e["titlebar"])
+                    dock.close()
+                    continue
                 e["closed"] = closed
                 if closed:
+                    if not e["minimized"] and not getattr(
+                            self, "_restoring_dock_chrome", False):
+                        # Remember the width the user had before the stub
+                        # pins the dock to 24 px. Do not overwrite it when
+                        # a minimised dock is already squeezed.
+                        e["docked_width"] = max(
+                            dock.width(), int(e.get("docked_width") or 0))
                     e["minimized"] = False
                     e["content"].setVisible(False)
                     dock.setTitleBarWidget(stub)
                     dock.setFixedHeight(max(dock.height(), 1))
                     dock.setFixedWidth(stub.width() or 24)
                 else:
+                    edge_now = self._current_dock_edge(dock, e.get("edge"))
+                    e["edge"] = edge_now
                     dock.setTitleBarWidget(e["titlebar"])
-                    self._set_dock_min_width(dock, e["normal_min"])
-                    dock.setMaximumWidth(16777215)
-                    # release the stub's fixed height
-                    dock.setMinimumHeight(0)
-                    dock.setMaximumHeight(16777215)
-                    e["content"].setVisible(True)
+                    if e["minimized"]:
+                        # Restoring the *chrome* of a minimised dock must
+                        # not release its collapse locks or reveal its
+                        # content: `set_minimized(False)` owns that.
+                        e["content"].setVisible(False)
+                    else:
+                        dock.setMaximumSize(16777215, 16777215)
+                        if edge_now in ("left", "right"):
+                            self._set_dock_min_width(
+                                dock, self._dock_min_dimension(e, edge_now))
+                            dock.setMinimumHeight(0)
+                            restore_side_extent(e, dock)
+                        else:
+                            dock.setMinimumWidth(0)
+                            dock.setMinimumHeight(
+                                self._dock_min_dimension(e, "bottom"))
+                        e["content"].setVisible(True)
             sync_action(e["dock"])
             retheme()
 
         for e in entries:
+            e["set_minimized"] = set_minimized
             if e["stub"] is not None:
                 e["stub"].clicked.connect(
                     lambda _c=False, fn=set_closed: fn(False))
@@ -1483,6 +1878,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._diagram_dock.view.level_changed.connect(
             lambda _pid: self._data_tables.refresh())
         self._diagram_dock.view.model_changed.connect(self._mark_dirty)
+        self._diagram_dock.view.comment_changed.connect(
+            self._on_comment_changed)
         # Position/size/z-order changes are real edits (the file is dirty
         # and Save must write them) but they cannot change what the engine
         # simulates: no whole-model validation, no revision bump, and no
@@ -1505,7 +1902,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._diagram_dock.view.annotations_may_be_invisible.connect(
             self._on_annotations_may_be_invisible)
         self._diagram_dock.view.properties_requested.connect(
-            self._show_inspector_dock)
+            lambda: self._show_inspector_dock(expand_minimized=True))
         # Any selection change can enable/disable the z-order buttons and
         # Align & Distribute, neither of which depends on WHICH element
         # is selected.
@@ -1669,6 +2066,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         live_page = self._live_log_panel
         self._live_log_tree = self._live_log_panel.tree
         self._live_log_caption = self._live_log_panel.caption
+        # Focus Event controls whether new log rows are followed to the
+        # bottom; with it off the user's selection/scroll stays put.
+        self._live_log_panel.set_follow_latest(
+            self._focus_event_action.isChecked())
+        self._focus_event_action.toggled.connect(
+            self._live_log_panel.set_follow_latest)
         # Same affordances as the Results dock's Event Log: the State
         # column coloured green/amber/red, and a click on a Block/Node row
         # locating that element on the canvas.
@@ -1748,7 +2151,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # strip can only grow to the smallest maximumHeight() among the
         # three. Tie that ceiling to whichever tab is on show: Run hugs
         # its own content, Results/Data Tables may use the window.
-        self._bottom_active_dock = dock_bottom
+        self._bottom_active_dock: QDockWidget | None = dock_bottom
         for _tab in (dock_bottom, dock_tables, self._run_dock):
             _tab.visibilityChanged.connect(
                 lambda visible, d=_tab:
@@ -1763,6 +2166,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._on_system_config_changed)
         self._run_panel.dependency_blocked.connect(self._on_panel_dependency)
         self._run_panel.cores_changed.connect(self._on_cores_changed)
+        self._run_panel.scope_changed.connect(self._on_run_scope_changed)
         self._sync_cores_box()
         self._run_dock.setMinimumHeight(120)
         self._sync_run_panel_units()
@@ -1787,6 +2191,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                                 manage_enabled=False)
         self._setup_dock_toggle(self._results_toggle_action, dock_bottom)
         self._setup_dock_toggle(self._data_tables_action, dock_tables)
+        self._setup_dock_toggle(
+            self._live_log_toggle_action, self._live_log_dock,
+            manage_enabled=False,
+            on_show=lambda: self._show_live_log_dock(True),
+            on_hide=self._show_inspector_dock)
         self._sync_dock_tab_bars()
         # Floating/re-docking can create a fresh QTabBar whose default
         # elide mode is ElideRight, so tabs show "Data Tab...". Re-apply
@@ -1794,7 +2203,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         for d in (dock_left, dock_right, fev_dock, self._live_log_dock,
                   dock_bottom, dock_tables, self._run_dock):
             d.dockLocationChanged.connect(
-                lambda _area: QTimer.singleShot(0, self._sync_dock_tab_bars))
+                lambda area, dock=d:
+                self._on_dock_location_changed(dock, area))
             # Floating/re-docking can create a fresh QTabBar whose default
             # elide mode is ElideRight, so tabs show "Data Tab...". Re-apply
             # the no-elide rule whenever the dock placement changes. The
@@ -1834,6 +2244,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # instead of re-tabifying repeatedly (which created orphan tab
         # bars and could leave Data Tables in front).
         self._default_dock_state = self.saveState()
+        # Startup is an unrun model: Inspector front, Live Log parked
+        # until a step session exists.
+        self._reset_right_docks()
 
     #: `(dock attribute, icons.py factory, colour token)` for every dock
     #: that appears in a tab strip or a title bar.
@@ -1921,7 +2334,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         inside = parent_id != 0
         name = self._diagram_dock.view.hiers.get(parent_id)
         self._update_title()
-        self._hier_up_action.setEnabled(inside)
+        self._sync_hier_up_action()
         self._hier_home_action.setEnabled(inside)
         # A level switch rebuilds the annotation items, so a selection
         # held in the old level's notes is gone: re-gate the z-order
@@ -1945,6 +2358,32 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._statusbar.showMessage(
                 f"Viewing hierarchy level: {name.name} (double-click an "
                 f"Out marker or use Up/Home to return)", 6000)
+
+    def _sync_hier_up_action(self) -> None:
+        """The ribbon's Up button is hierarchy navigation only."""
+        action = getattr(self, "_hier_up_action", None)
+        view = getattr(getattr(self, "_diagram_dock", None), "view", None)
+        if action is not None and view is not None:
+            action.setEnabled(view._current_parent != 0)
+
+    def _fine_nudge_or_hierarchy(self) -> None:
+        """Alt+Up: fine-nudge a focused canvas selection, else ascend.
+
+        The ribbon's Up button keeps calling `go_up` directly; this chord
+        is the only route that may move something. With no nudgeable
+        selection (including an arrow-only selection), in a text field,
+        or with focus outside the canvas, it falls back to the original
+        hierarchy-up behaviour.
+        """
+        view = self._diagram_dock.view
+        view._suppress_key_tips()
+        focus = QApplication.focusWidget()
+        canvas_focused = (focus is None or focus is view
+                          or view.isAncestorOf(focus))
+        if canvas_focused and view.has_nudgeable_selection():
+            if view.nudge_selection(0, -1, fine=True):
+                return
+        view.go_up()
 
     def _push_domains(self) -> None:
         """Compute Weak Link Raptor 7 domains from the loaded model and
@@ -2238,6 +2677,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if (event.type() == QEvent.Type.ActivationChange
                 and not self.isActiveWindow()):
             self._dismiss_key_tips()
+        if (event.type() == QEvent.Type.ActivationChange
+                and self.isActiveWindow()):
+            # Help follows the model window the user is working in.
+            from raptor.gui.ui.help_service import note_window_activated
+            note_window_activated(self)
         super().changeEvent(event)
 
     def keyReleaseEvent(self, event):
@@ -2262,6 +2706,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         active: False -- the focused widget's own Esc semantics (canvas
         tool-cancel, annotation-edit exit) take over via the re-dispatch;
         a stepped session is left alone (Terminate ends it)."""
+        if getattr(self, "_step_finalize_state", None) is not None:
+            self._statusbar.showMessage(
+                "Finalizing the stepped run — results appear when ready", 4000)
+            return True
         if getattr(self, "_run_action", None) is not None and \
                 not self._run_action.isEnabled():
             bg_state = getattr(self, "_bg_state", None)
@@ -2423,13 +2871,19 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._explorer.system_config_selected.connect(self._on_explorer_sysconfig_selected)
         self._inspector.block_renamed.connect(self._on_block_renamed)
         self._inspector.block_comment_changed.connect(
-            lambda bid, txt: self._diagram_dock.view
-            .set_element_comment("block", bid, txt)
-            or self._mark_dirty())
+            lambda bid, txt: self._on_comment_committed("block", bid, txt))
         self._inspector.element_comment_changed.connect(
-            lambda etype, oid, txt: self._diagram_dock.view
-            .set_element_comment(etype, oid, txt)
-            or self._mark_dirty())
+            self._on_comment_committed)
+        self._inspector.comment_to_annotation_requested.connect(
+            lambda etype, oid: self._diagram_dock.view
+            .comment_to_annotation(etype, oid))
+        # Flush a pending Comment draft BEFORE `_set_level`/`load_rbd`
+        # rebuilds the scene and Inspector; the level_changed handlers run
+        # after the old editor has already been destroyed.
+        self._diagram_dock.view.level_about_to_change.connect(
+            self._inspector.flush_pending_comment)
+        self._diagram_dock.view.structural_about_to_change.connect(
+            self._inspector.flush_pending_comment)
         self._inspector.node_renamed.connect(self._on_node_renamed)
         self._inspector.hier_renamed.connect(self._on_hier_renamed)
         self._inspector.phasing_changed.connect(self._on_phasing_changed)
@@ -2636,7 +3090,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # loaded model and select on the canvas (which also populates the
         # Inspector via the normal selection path).
         self._results.element_clicked.connect(self._on_result_element_clicked)
-        self._results.export_tables_requested.connect(self._export_tables)
         self._results.contents_changed.connect(self._sync_results_notice)
         self._results.set_status_hint_fn(
             lambda msg: self._statusbar.showMessage(msg, 6000))
@@ -3026,6 +3479,41 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         action.setChecked(False)
         action.blockSignals(False)
 
+    def _checked_overlay_state(self) -> dict[str, bool]:
+        """Which canvas overlays the user currently has on."""
+        return {attr: bool(getattr(self, attr).isChecked())
+                for attr in self._OVERLAY_ACTION_ATTRS}
+
+    def _reapply_checked_overlays(self, state: dict[str, bool] | None) -> None:
+        """Restore the overlays a same-run refresh cleared off the canvas.
+
+        `_sync_overlay_actions` clears every overlay because a NEW result
+        set invalidates them. When the refresh is only the baseline being
+        completed with its Importance data, the numbers the user is looking
+        at are unchanged -- throwing away their Weak Link/Capacity view is
+        not a new-run decision.
+        """
+        if not state:
+            return
+        for attr, was_on in state.items():
+            if not was_on:
+                continue
+            action = getattr(self, attr, None)
+            if action is None or not action.isEnabled():
+                continue
+            if attr == "_weak_color_action":
+                if not getattr(self._diagram_dock.view,
+                               "_weak_colors_on", False):
+                    self._toggle_weak_colors()
+            elif attr == "_capacity_overlay_action":
+                self._on_capacity_overlay_toggled(True)
+            elif attr == "_cost_overlay_action":
+                self._on_cost_overlay_toggled(True)
+            elif attr == "_spares_overlay_action":
+                self._on_spares_overlay_toggled(True)
+            elif attr == "_importance_overlay_action":
+                self._on_importance_overlay_toggled(True)
+
     def _sync_results_notice(self) -> None:
         """Tell the Inspector whether editing will cost the results."""
         try:
@@ -3081,6 +3569,38 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         box.exec()
         return True
 
+    def _on_comment_changed(self, etype: str, oid: int,
+                            stored: str) -> None:
+        """Comment command (including undo/redo) changed the model.
+
+        If the Inspector still shows that element, update its editor in
+        place. The deferred `model_changed` refresh then skips the
+        Inspector for this one target only; any coalesced change for a
+        different target still rebuilds normally.
+        """
+        if self._inspector.set_comment_source(etype, oid, stored):
+            self._suppress_inspector_refresh_target: tuple[str, int] | None = (
+                etype, oid)
+
+    def _on_comment_committed(self, etype: str, oid: int, text: str) -> None:
+        """Inspector Comment commit: undoable write, no Inspector rebuild.
+
+        The editor already shows the text the user just typed. The
+        command's `comment_changed` signal updates it in place (and scopes
+        the one-shot refresh suppression); rebuilding would delete the
+        live editor and move the pane's scroll/caret. Everything else the
+        deferred refresh does -- dirty title, validation, tables -- still
+        runs.
+        """
+        view = self._diagram_dock.view
+        stored = text.replace("\n", "~")
+        if view.current_comment_stored(etype, oid) != stored:
+            view.set_element_comment(etype, oid, text)
+        # The old lambda called this even when the text was unchanged;
+        # keeping that also covers a commit after the model was already
+        # put back by undo.
+        self._mark_dirty()
+
     def _schedule_view_refresh(self):
         """Coalesced, deferred refresh of the model-derived views
         (Inspector, Data Tables, Explorer) after a model mutation.
@@ -3102,10 +3622,21 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         self._view_refresh_busy = True
         try:
-            try:
-                self._refresh_inspector()
-            except Exception:
+            # A comment command updated the live Inspector editor in
+            # place; re-populating would destroy it and jump the pane.
+            # The suppression is scoped to the exact target it updated,
+            # so a coalesced refresh for another element still happens.
+            suppress = getattr(
+                self, "_suppress_inspector_refresh_target", None)
+            self._suppress_inspector_refresh_target = None
+            if suppress is not None and \
+                    self._inspector.current_target() == suppress:
                 pass
+            else:
+                try:
+                    self._refresh_inspector()
+                except Exception:
+                    pass
             try:
                 self._explorer.refresh()
             except Exception:
@@ -3167,6 +3698,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         v = self._diagram_dock.view
         if getattr(v, "_loading", False):
             return
+        # Deselect is another way the Inspector stops showing the element
+        # whose Comment box holds a draft.
+        self._inspector.flush_pending_comment()
         self._cancel_pending_block_selection()
         target = self._inspector.current_target()
         if target and target[0] in ("block", "node", "event", "hier", "annotation"):
@@ -3328,19 +3862,35 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if self._edit_guard_prompt_budget() <= 0:
             # Out of budget: do the enforced thing without asking.
             self._edit_during_run_guard = False
+            importance_only = bool(
+                getattr(self, "_importance_running", False)
+                or (getattr(self, "_bg_state", None) or {}).get("phase")
+                == "importance")
             self._stop_run_for_edit()
             self._statusbar.showMessage(
+                "Importance measures stopped — the model was edited"
+                if importance_only else
                 "Simulation stopped — the model was edited", 6000)
             return
         self._edit_guard_reentrancy = True
         self._note_edit_guard_prompt()
         try:
+            importance_only = bool(
+                getattr(self, "_importance_running", False)
+                or (getattr(self, "_bg_state", None) or {}).get("phase")
+                == "importance")
             stack = getattr(self._diagram_dock.view, "_stack", None)
             can_revert = bool(stack and stack.canUndo())
             box = QMessageBox(self)
-            box.setWindowTitle("Simulation in progress")
+            box.setWindowTitle(
+                "Importance measures in progress" if importance_only
+                else "Simulation in progress")
             box.setIcon(QMessageBox.Icon.Warning)
             box.setText(
+                "Importance measures are still running against the "
+                "baseline results already on screen. Keeping this edit "
+                "stops the measures; the baseline results stay."
+                if importance_only else
                 "A simulation is running (or being stepped), and it was "
                 "built from the model as it was. Keeping this edit stops it.")
             # Two choices, each saying what it does. There was a third,
@@ -3349,12 +3899,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             keep_btn = None
             if can_revert:
                 keep_btn = box.addButton(
-                    "Keep running (undo this edit)",
+                    "Keep measuring (undo this edit)" if importance_only
+                    else "Keep running (undo this edit)",
                     QMessageBox.ButtonRole.RejectRole)
                 box.setDefaultButton(keep_btn)
                 box.setEscapeButton(keep_btn)
-            stop_btn = box.addButton("Stop the run, keep the edit",
-                                     QMessageBox.ButtonRole.AcceptRole)
+            stop_btn = box.addButton(
+                "Stop measuring, keep the edit" if importance_only
+                else "Stop the run, keep the edit",
+                QMessageBox.ButtonRole.AcceptRole)
             if keep_btn is None:
                 box.setDefaultButton(stop_btn)
                 box.setEscapeButton(stop_btn)
@@ -3367,6 +3920,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 # unmodified model.
                 req(stack).undo()
                 self._statusbar.showMessage(
+                    "Model edit reverted — importance measures continue"
+                    if importance_only else
                     "Model edit reverted — simulation continues", 6000)
                 return
             # "Stop the run, keep the edit": the run dies through the same
@@ -3386,6 +3941,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         Stop button's own mechanisms (sync flag / bg event / step
         session teardown)."""
         self._edit_run_abandoned = True
+        if self._step_finalize_state is not None:
+            # Terminate's finalize cannot be cancelled; drop its results
+            # and let the worker wind down. The status says so instead of
+            # silently losing the early-terminate report.
+            self._discard_step_finalize(
+                "Early-terminate results discarded — model edited")
+            self._sync_run_settings_lock()
+            return
         if getattr(self, "_step_session", None) is not None:
             self._invalidate_step_session()
             self._statusbar.showMessage(
@@ -3400,20 +3963,48 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._live_log_panel.clear()
         self._live_log_dock.setWindowTitle("Live Log")
 
+    def _end_step_session(self, *, clear_sink: bool = True) -> bool:
+        """End the current stepped session through one path.
+
+        Raw `_step_session = None` assignments skipped the dock reset and
+        the Live Log's action refresh, so a failed step left a visible
+        panel whose action was already disabled. Returns True when a
+        session was actually open. `clear_sink=False` keeps the reports
+        Finish/Terminate are about to present."""
+        if getattr(self, "_step_session", None) is None:
+            return False
+        self._step_session = None
+        if clear_sink:
+            self._step_sink = []
+        self._diagram_dock.view.clear_live_states()
+        # The run is over, so the run settings unlock. Derived, not
+        # remembered -- see `_sync_run_settings_lock`.
+        self._sync_run_settings_lock()
+        self._live_log_session_shown = False
+        self._reset_right_docks()
+        return True
+
     def _invalidate_step_session(self):
         self._leave_fev()
         self._on_fev_log_close()
         if getattr(self, "_fev_status_dialog", None) is not None:
             cast(Any, self)._fev_status_dialog.close()
-        self._reset_live_log()
-        if getattr(self, "_step_session", None) is not None:
-            self._step_session = None
-            self._step_sink = []
+        # A Terminate finalize may still be running; its results are for
+        # the session being discarded, so drop them and let the worker
+        # finish on its own.
+        finalizing = self._step_finalize_state is not None
+        self._discard_step_finalize()
+        ended = self._end_step_session()
+        if not ended:
+            # A discarded finalize has no session left, but its live
+            # colours and stale Live Log rows must still go.
+            self._reset_live_log()
             self._diagram_dock.view.clear_live_states()
-            # The run is over, so the run settings unlock. Derived, not
-            # remembered -- see `_sync_run_settings_lock`.
-            self._sync_run_settings_lock()
+        if ended:
             self._statusbar.showMessage("Stepped run discarded — model changed")
+        elif finalizing:
+            self._statusbar.showMessage(
+                "Early-terminate results discarded — model changed", 6000)
 
     def _update_title(self):
         star = "*" if self._dirty else ""
@@ -3780,7 +4371,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._diagram_dock.view.go_home()
 
     def _open_analytic_dialog(self):
-        """Results ▸ Analytical: exact static reliability/availability."""
+        """Model ▸ Analytical: exact static reliability/availability."""
         if self._rbd is None:
             return
         from raptor.gui.ui.analytic_dialog import open_analytic_dialog
@@ -3917,11 +4508,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """File ▸ Close: back to the no-model state (save prompt)."""
         if self._refuse_during_run("close the model"):
             return
+        # The discard prompt must see the comment draft as part of the
+        # model; otherwise Cancel/Don't Save loses/writes it too late.
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         self._invalidate_step_session()
-        # Reset the view's per-file state, then leave the canvas EMPTY. It
-        # used to keep showing that placeholder model -- a diagram, a full
+        # Closing the model is not an edit: always return the right-hand
+        # docks to their unrun state.
+        self._reset_right_docks()
+        # Reset the view's per-file state, then leave the canvas EMPTY.
+        # It used to keep showing that placeholder model -- a diagram, a full
         # Explorer and "Model OK" over a ribbon with everything disabled.
         view = self._diagram_dock.view
         view.load_rbd(build_new_model("Closed"))
@@ -3963,6 +4560,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         for win in list(open_models.windows()):
             if not win.close():
                 return
+        # Last-window close already did this; also covers a quit with no
+        # windows left (and any path that skipped closeEvent).
+        from raptor.gui.ui.help_service import close_help_viewer
+        close_help_viewer()
         QApplication.quit()
 
     def _new_file(self):
@@ -3972,6 +4573,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         if self._refuse_during_run("create a new model"):
             return
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         # A new model is seeded from the Preferences dialog's "New models"
@@ -4250,6 +4852,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         unexplained white screen. The indicator is application-modal, so
         a click that lands during the rebuild cannot start a second Open.
         """
+        self._dock_extents_at_load_start = self._current_dock_extents()
+        # Must run before `_loading_model` and before the model swap: the
+        # draft belongs to the old model and its old Inspector editor.
+        self._inspector.flush_pending_comment()
         self._loading_model = True
         busy = False
         try:
@@ -4276,6 +4882,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # a stepped session belongs to the previous model -- stepping
         # after an Open must never touch the old engine context
         self._invalidate_step_session()
+        # A New/Open model is unrun even when no step session was open:
+        # Inspector front, Live Log parked.
+        self._reset_right_docks()
         self._current_file = path
         # Retention rule: a file opened as legacy .rbd keeps saving as
         # .rbd; new models and .rbds files default to .rbds.
@@ -4403,6 +5012,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # its own row.
         self._sync_run_mirrors()
         self._sync_run_panel_units()
+        # A new model starts on whole-model scope even if a hierarchy id
+        # from the previous file happens to collide.
+        self._run_scope_return_level = None
+        self._run_panel.set_hierarchies([])
+        self._refresh_run_scope_options()
         self._update_readiness()
         name = Path(path).name if path else "NewModel"
         nb, nn, ne, nl = self._model_totals()
@@ -4461,6 +5075,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 "saved. Copy "
                 "the file outside the app if you need an editable copy.")
             return False
+        # A comment draft typed within the debounce window is part of
+        # what the user is saving; commit it before the write-back.
+        self._inspector.flush_pending_comment()
         self._diagram_dock.view.write_back_to_rbd(self._rbd)
         # Resync annotation geometry/text/props (and deletions --
         # delete_selected_annotations reassigns view.annotations to a
@@ -4835,12 +5452,19 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             settings.remove("layout/docks")
 
     def _layout_blob(self) -> dict:
-        """The dock layout as plain data: Qt's `saveState()` plus each slot's chrome (closed / minimized)."""
+        """The dock layout as plain data: Qt's `saveState()` plus each slot's chrome (closed / minimized) and the
+        user's normal extent, which `saveState()` only records as the collapsed strip while a dock is minimised."""
         import base64
         chrome = {}
         for title, c in (self._dock_chrome or {}).items():
             state = dict(c["get"]())
             dock = c.get("dock")
+            entry = (getattr(self, "_dock_chrome_entries", None)
+                     or {}).get(dock) or {}
+            for key in ("docked_width", "docked_height"):
+                value = entry.get(key)
+                if isinstance(value, int) and value > 0:
+                    state[key] = value
             if state.get("minimized") and dock is not None and dock.isFloating():
                 # A collapsed floating dock saves as a 36px empty window.
                 # Persist it expanded; the next start is then usable.
@@ -4866,21 +5490,38 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 return False
         except (KeyError, TypeError, ValueError, RuntimeError):
             return False
-        for title, c in (self._dock_chrome or {}).items():
-            want = chrome.get(title)
-            if not isinstance(want, dict):
-                continue
-            if want.get("closed") is True and c["set_closed"] is not None:
-                c["set_closed"](True)
-            elif want.get("minimized") is True:
-                dock = c.get("dock")
-                # Repair blobs written by older builds: a collapsed
-                # floating dock restores as an empty titlebar-height
-                # window, so show its content instead.
-                if dock is not None and dock.isFloating():
-                    c["set_minimized"](False)
-                else:
-                    c["set_minimized"](True)
+        # Park the right docks before applying saved chrome. Doing it
+        # afterwards forced a saved-closed Inspector back open.
+        self._reset_right_docks()
+        self._restoring_dock_chrome = True
+        try:
+            for title, c in (self._dock_chrome or {}).items():
+                want = chrome.get(title)
+                if not isinstance(want, dict):
+                    continue
+                entry = (getattr(self, "_dock_chrome_entries", None)
+                         or {}).get(c.get("dock")) or {}
+                for key in ("docked_width", "docked_height"):
+                    value = want.get(key)
+                    if isinstance(value, int) and value > 0:
+                        entry[key] = value
+                if want.get("closed") is True and c["set_closed"] is not None:
+                    c["set_closed"](True)
+                elif want.get("minimized") is True:
+                    dock = c.get("dock")
+                    # Repair blobs written by older builds: a collapsed
+                    # floating dock restores as an empty titlebar-height
+                    # window, so show its content instead.
+                    if dock is not None and dock.isFloating():
+                        c["set_minimized"](False)
+                    else:
+                        c["set_minimized"](True)
+        finally:
+            self._restoring_dock_chrome = False
+        # The user's saved widths/heights are deliberate; a later model
+        # load must not replace them with the designed defaults.
+        self._canvas_room_defaults_done = True
+        self._dock_user_sized = True
         return True
 
     def _reset_dock_chrome(self) -> None:
@@ -4894,6 +5535,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """View > Reset Layout: every dock back in its first-run place, open and full size; the saved layout is
         forgotten so the next start is the default too."""
         self._reset_dock_chrome()
+        # Reset Layout takes over from the narrow-window compact policy:
+        # widening must not re-minimize/re-expand or restore old widths.
+        self._compact_minimized.clear()
+        # Cancel the width/height restores that un-collapsing just
+        # scheduled, and any older one: Reset Layout's designed sizes
+        # must win, not the pre-reset 520 px extent.
+        self._dock_resize_generation += 1
         # Repeated tabifyDockWidget calls leave orphan QTabBars behind
         # (same geometry, still visible), which is why a reset could show
         # two bottom strips and "clicking Run does nothing". Drop the old
@@ -4938,6 +5586,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._sync_dock_tab_bars()
         for fn in (self._dock_state_sync or {}).values():
             fn(True)
+        self._reset_right_docks()
         settings.remove("layout/docks")
         # Layout settles after the event loop; raise/size then, not
         # before the re-tabification has been applied.
@@ -4955,8 +5604,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._update_dock_max_heights()
             self._results_dock.show()
             self._results_dock.raise_()
-            self._give_canvas_room()
+            self._give_canvas_room(force=True)
             self._sync_dock_tab_bars()
+            # Reset must also restore the fixed chrome, not just the docks.
+            QTimer.singleShot(0, self._ensure_status_bar_visible)
         except RuntimeError:
             pass
 
@@ -4996,6 +5647,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def closeEvent(self, event):
         """Confirm unsaved changes before closing."""
+        # Commit a Comment draft before the unsaved-change prompt/write
+        # path, so closing cannot silently discard the last few keystrokes.
+        self._inspector.flush_pending_comment()
         if getattr(self, "_export_in_progress", False):
             self._statusbar.showMessage(
                 "Wait for the export to finish before closing", 6000)
@@ -5015,15 +5669,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # abort, not a Python exception, if it lands after teardown).
             self._canvas_room_timer.stop()
             self._inspector_select_timer.stop()
+            self._step_finalize_timer.stop()
             self._close_report_streams()
             # Clean exit: drop the crash-recovery copy so it isn't
             # offered as a "crash" on the next launch.
             self._clear_recovery()
             self._save_layout()
-            # The Help viewer is a top-level window of its own (so a modal dialog cannot block it); it must not
-            # outlive the application.
-            if getattr(self, "_help_viewer", None) is not None:
-                self._help_viewer.close()
             # The Analytical window is a window of its own too: left open,
             # it kept the application (and its solve) running after the
             # main window closed. Closing it cancels the solve.
@@ -5031,7 +5682,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             if analytic is not None:
                 analytic.shut_down()
             from raptor.gui import open_models
+            from raptor.gui.ui.help_service import notify_window_closed
             open_models.unregister(self)
+            # Help is process-wide: closing one model window must leave it
+            # open while another remains. The service transfers it to a
+            # live window, and closes it only when none are left (#206).
+            notify_window_closed(self)
+            self._help_viewer = None
             event.accept()
         else:
             event.ignore()
@@ -5045,6 +5702,22 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         note, which read as the window ignoring the click (and in Qt 6 it
         also cancels Quit)."""
         from raptor.gui.ui.dialogs import question_box
+        finalize = getattr(self, "_step_finalize_state", None)
+        if finalize is not None:
+            # Closing discards the in-flight finalize: its results cannot
+            # be shown after the window is gone. Keep its state until the
+            # worker is actually done, then let the poll clear/unlock it.
+            self._discard_step_finalize()
+            thread = self._step_finalize_thread
+            deadline = time.monotonic() + 15.0
+            while thread is not None and thread.is_alive() \
+                    and time.monotonic() < deadline:
+                QApplication.processEvents()
+                thread.join(0.05)
+            state = self._step_finalize_state
+            if state is not None and state.get("done"):
+                self._step_finalize_poll_tick()
+            return True
         bg_state = getattr(self, "_bg_state", None) or {}
         if not bg_state or bg_state.get("done"):
             msgbox.information(
@@ -5087,6 +5760,86 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         view.flush_pending_moves()     # before the run, not during it
         view.write_back_to_rbd(rbd)
         return _copy.deepcopy(rbd) if copy else rbd
+
+    def _refresh_run_scope_options(self) -> None:
+        """Keep the Run panel's scope list in step with the model."""
+        panel = getattr(self, "_run_panel", None)
+        if panel is None:
+            return
+        if self._rbd is None:
+            panel.set_hierarchies([])
+            return
+        view = self._diagram_dock.view
+        rows: list[tuple[int, str]] = []
+        for hid in view.hiers:
+            names: list[str] = []
+            cur = hid
+            seen: set[int] = set()
+            while cur and cur in view.hiers and cur not in seen:
+                seen.add(cur)
+                names.append(view.hiers[cur].name or f"Hierarchy {cur}")
+                cur = view.hiers[cur].parent_id
+            rows.append((hid, "  " * (len(names) - 1) + " / ".join(
+                reversed(names))))
+        rows.sort(key=lambda r: r[1].lower())
+        panel.set_hierarchies(rows)
+
+    def _on_run_scope_changed(self, hid: int) -> None:
+        """Follow the Run panel's scope: show the hierarchy, or go back."""
+        view = self._diagram_dock.view
+        if hid:
+            if self._run_scope_return_level is None:
+                self._run_scope_return_level = view._current_parent
+            if hid in view.hiers:
+                view._set_level(hid)
+            self._statusbar.showMessage(
+                "Running one hierarchy: results will be scoped to it", 6000)
+        else:
+            level = self._run_scope_return_level
+            self._run_scope_return_level = None
+            if level is not None:
+                view._set_level(level if (not level or level in view.hiers)
+                                else 0)
+            self._statusbar.showMessage("Run scope: whole model", 4000)
+        # Scoped and whole-model results must never sit side by side as
+        # though they described the same system.
+        if self._results.has_results():
+            self._results.clear()
+            view.clear_result_overlays()
+            self._statusbar.showMessage(
+                "Results cleared: the run scope changed", 6000)
+
+    def _prepare_run_model(self, copy: bool = False):
+        """The model the next run should use, plus its isolation record.
+
+        A hierarchy scope extracts in memory: the source model and file
+        are never replaced, so Save can not write the extract by mistake.
+        Returns (None, None) after telling the user why the run was
+        cancelled.
+        """
+        model = self._model_for_engine(copy=copy)
+        hid = self._run_panel.hierarchy_scope() \
+            if getattr(self, "_run_panel", None) is not None else 0
+        if not hid:
+            return model, None
+        from raptor.api import isolate
+        try:
+            extracted, record = isolate.extract(
+                model, hid, self._run_panel.scope_treatments())
+        except isolate.IsolationError as exc:
+            msgbox.warning(self, "Run Hierarchy", str(exc))
+            return None, None
+        from raptor.api.validate import issues
+        errors = [issue for issue in issues(extracted)
+                  if getattr(issue, "severity", "") == "error"]
+        if errors:
+            msgbox.critical(
+                self, "Run Hierarchy",
+                "The isolated hierarchy failed validation; fix these "
+                "before running:\n\n"
+                + "\n".join(str(issue) for issue in errors[:10]))
+            return None, None
+        return extracted, record
 
     def _open_diff_dialog(self, other_path: str | None = None,
                           open_model=None):
@@ -5146,17 +5899,26 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._run_eta: RunEstimate | None = RunEstimate(
             extra_batches=self._importance_extra_batches())
         self._bg_last_paused = False
+        # A previous run may have ended while paused; the button must not
+        # come back reading "Resume" for a run that is not paused.
+        self._pause_action.setText("Pause")
+        # Importance has its own estimate (started when the baseline is
+        # presented) and its own deduplicated status key.
+        self._imp_eta: RunEstimate | None = None
+        self._imp_last_key = None
+        self._importance_running = False
 
     def _importance_extra_batches(self) -> int:
         """Batches importance measures add after the baseline (0 when off)."""
         try:
             mode = str(self._current_experiment().get("importance", "none")
                        or "none")
-            if mode in ("", "none") or self._rbd is None:
+            model = getattr(self, "_last_run_model", None) or self._rbd
+            if mode in ("", "none") or model is None:
                 return 0
             from raptor.api import importance as _imp
             return max(0, _imp.batch_count(
-                len(_imp.block_rows(self._rbd)), mode) - 1)
+                len(_imp.block_rows(model)), mode) - 1)
         except (ImportError, KeyError, ValueError, TypeError, AttributeError):
             return 0
 
@@ -5217,39 +5979,99 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             est.resume()
         self._bg_last_paused = paused
 
-    def _update_importance_progress(self, done, total, label="") -> None:
+    def _update_importance_progress(self, done, total, label="", *,
+                                    paused: bool = False) -> None:
         """Show importance progress on the run progress bar and in the bar.
 
         The same widgets the simulation uses: with Animate off (the default)
         there is no canvas activity at all, so without this a run that then
         spends minutes on variants looks hung.
+
+        The bar is driven by the VARIANT fraction, ``(done - 1) /
+        (total - 1)``: `done` counts batches finished with the baseline as
+        the first, so the old ``done / total`` formula showed 1/N before a
+        single variant had run and then jumped. It is deliberately capped
+        at 99% here -- the last variant's callback fires before the metric
+        rows are assembled, and showing 100% while work remained is exactly
+        the "stuck at 100%" bug this replaces.
+
+        Writes are deduplicated on ``(done, total, label, paused)`` and on
+        the rendered sentence: the background poll calls this ten times a
+        second, and rewriting an identical sentence made the status line
+        flicker. If another writer replaced that sentence in the meantime,
+        the same key reasserts it rather than leaving a stale
+        "Processing results" up. An ETA rides the same message once two
+        variants have completed.
         """
         total = max(int(total), 1)
-        pct = 100 * int(done) // total
+        done = max(int(done), 1)
+        variants_total = max(total - 1, 1)
+        variants_done = min(max(done - 1, 0), variants_total)
+        if variants_done <= 0:
+            pct = 0
+        else:
+            # Ceiling, not floor: with more than 100 variants a floor
+            # leaves the bar reading 0% after the first one has finished.
+            pct = min(99, max(1, (100 * variants_done + variants_total - 1)
+                              // variants_total))
+        key = (done, total, str(label), bool(paused))
+        # Timed from the first report: the estimate was dropped here before,
+        # which left the slowest part of a run (one batch per block per
+        # measure) with no time at all.
+        imp = getattr(self, "_imp_eta", None)
+        if imp is None:
+            from raptor.gui.ui.run_eta import RunEstimate
+            imp = RunEstimate()
+            self._imp_eta = imp
+        if paused:
+            imp.pause()
+        else:
+            imp.resume()
+        eta = None if paused else imp.text(variants_done, variants_total)
+        if paused:
+            what = (f"Importance measures paused — variant {variants_done} "
+                    f"of {variants_total}")
+        elif variants_done <= 0 and not label:
+            what = (f"Importance measures running — variant 0 of "
+                    f"{variants_total}")
+        else:
+            what = (f"Importance measures — variant {variants_done} of "
+                    f"{variants_total}")
+        detail = f" ({label})" if label else ""
+        message = (f"{what}{detail} ({pct}%)"
+                   + (f" · {eta}" if eta else ""))
+        # Deduplicate the WRITE, not the state: another writer may have
+        # replaced the status line between polls (the results stage does),
+        # so the same key must reassert its own sentence rather than leave
+        # a stale "Processing results" up for minutes.
+        if (key == getattr(self, "_imp_last_key", None)
+                and self._statusbar.currentMessage() == message):
+            return
+        self._imp_last_key = key
         self._run_progress.setVisible(True)
         self._run_progress.setValue(pct)
         self._run_progress_label.setVisible(True)
         self._run_progress_label.setText(f"{pct}%")
         self._clear_run_eta()      # the baseline batch is over
-        # `done` counts batches finished with the baseline as the first, so
-        # the variants finished are done - 1 of total - 1. Timed from the
-        # first report: the estimate was dropped here before, which left the
-        # slowest part of a run (one batch per block per measure) with no
-        # time at all.
-        imp = getattr(self, "_imp_eta", None)
-        if imp is None:
-            from raptor.gui.ui.run_eta import RunEstimate
-            imp = RunEstimate()
-            self._imp_eta: RunEstimate | None = imp
-        eta = imp.text(int(done) - 1, int(total) - 1)
-        detail = f" [{label}]" if label else ""
-        self._statusbar.showMessage(
-            f"Importance measures — variant {int(done)} of {int(total)}"
-            f"{detail} ({pct}%)" + (f" · {eta}" if eta else ""), 0)
-        QApplication.processEvents()
+        self._statusbar.showMessage(message, 0)
+
+    def _begin_importance_progress(self, total) -> None:
+        """Baseline is on screen; make the wait for the variants explicit.
+
+        Called once per run, on the GUI thread, by whichever run path
+        presented the baseline results. `_imp_eta` exists from here on, so
+        `_importance_for` can tell a baseline-first presentation from a
+        direct call (tests, old callers) that still needs to start it.
+        """
+        self._imp_last_key = None
+        self._imp_eta = None
+        self._importance_running = True
+        self._update_importance_progress(1, max(int(total or 1), 1), "")
 
     def _end_importance_progress(self, message: str) -> None:
         self._imp_eta = None
+        self._imp_last_key = None
+        self._importance_running = False
         self._run_progress.setVisible(False)
         self._run_progress_label.setVisible(False)
         self._statusbar.showMessage(message, 8000)
@@ -5258,18 +6080,123 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """The background worker's importance progress, applied on the GUI
         thread. Kept as its own method so the poll path is testable without
         standing up a whole worker run."""
-        progress = (state or {}).get("importance_progress")
+        state = state or {}
+        progress = state.get("importance_progress")
+        paused = bool(state.get("paused"))
         if progress:
-            self._update_importance_progress(*progress)
+            self._update_importance_progress(*progress, paused=paused)
+        elif state.get("baseline_ready"):
+            # No variant finished yet (or the worker is paused before the
+            # first one): show that importance is running, not the stale
+            # baseline stage that preceded it.
+            total = state.get("importance_total") or 1
+            self._update_importance_progress(1, total, "", paused=paused)
+
+    def _analyse_importance_off_thread(self, run_model, report_data, *,
+                                       mode: str, batches: int):
+        """Run `importance.analyse` on a worker; pump this thread until done.
+
+        Importance is the longest stretch of a run (one batch per block per
+        measure) and `analyse` is pure engine work -- there is no Qt in it.
+        Running it on the GUI thread froze the Help viewer and the whole
+        window for minutes on the synchronous path. The worker gets a
+        private snapshot for the same reason the background batch does: the
+        canvas may keep painting, and a user may inspect results, while it
+        reads the model.
+
+        The snapshot itself still costs one deep copy on the GUI thread.
+        Say so and paint it before starting: a silent multi-second freeze
+        here looked like the Help bug this method fixes.
+        """
+        import copy as _copy
+        import threading
+
+        from PySide6.QtCore import QEventLoop, QTimer
+
+        from raptor.api import importance as _imp
+
+        self._statusbar.showMessage("Preparing importance measures…", 0)
+        QApplication.processEvents(
+            QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+        worker_model = _copy.deepcopy(run_model)
+        # Back to the real phase message (the same key now reasserts).
+        self._update_importance_progress(1, batches, "")
+        # Read the setting HERE, on the GUI thread; the worker must not
+        # touch the model/experiment.
+        workers = max(1, int(
+            (self._current_experiment() or {}).get("workers", 1) or 1))
+        state: dict = {"done": False, "progress": None, "error": None,
+                       "cancel": False}
+
+        def stopped() -> bool:
+            return bool(state["cancel"]
+                        or getattr(self, "_sync_stop", False))
+
+        def worker():
+            try:
+                state["data"] = _imp.analyse(
+                    worker_model, report_data, mode=mode,
+                    runs=len(report_data), workers=workers,
+                    progress=lambda d, t, lab: state.__setitem__(
+                        "progress", (d, t, lab)),
+                    # Stop must stop this too. It is the same button and the
+                    # same wait; without it an "aborted" run ground through
+                    # every remaining batch with no way out.
+                    stop_check=stopped)
+            except Exception as exc:            # noqa: BLE001
+                state["error"] = exc
+            finally:
+                state["done"] = True
+
+        thread = threading.Thread(target=worker, daemon=True,
+                                  name="raptor-importance")
+        thread.start()
+        loop = QEventLoop()
+        timer = QTimer(self)
+        timer.setInterval(50)
+
+        def tick():
+            try:
+                progress = state.get("progress")
+                if progress is not None:
+                    self._update_importance_progress(*progress)
+            except Exception as exc:            # noqa: BLE001
+                # A failed repaint must not leave the nested loop running
+                # forever: record it, cancel the worker, quit.
+                state["ui_error"] = exc
+                state["cancel"] = True
+                loop.quit()
+            finally:
+                # Checked in a `finally`, so an update failure cannot skip
+                # the only exit from `loop.exec()`.
+                if state.get("done"):
+                    loop.quit()
+
+        timer.timeout.connect(tick)
+        timer.start()
+        try:
+            if not state.get("done"):
+                loop.exec()
+        finally:
+            state["cancel"] = True
+            timer.stop()
+            timer.deleteLater()
+            thread.join(timeout=5.0)
+        if state.get("ui_error") is not None:
+            raise state["ui_error"]
+        if state.get("error") is not None:
+            raise state["error"]
+        return state.get("data")
 
     def _importance_for(self, run_model, report_data):
         """Importance measures for a finished batch, or None.
 
-        Called by BOTH run paths. Only the background worker had it wired,
-        so ticking the box and pressing Run (the synchronous default) did
-        nothing at all -- the setting was silently dropped. Returns None
-        when the experiment did not ask for it, and records a note rather
-        than losing the batch if the analysis itself fails.
+        Called by BOTH run paths. The analysis itself always runs on a
+        worker (see `_analyse_importance_off_thread`); this method owns the
+        user-facing start/finish messages so neither path has to know how
+        the wait is presented. Returns None when the experiment did not ask
+        for it, and records a note rather than losing the batch if the
+        analysis itself fails.
         """
         mode = str((self._current_experiment() or {}).get("importance",
                                                           "none"))
@@ -5277,17 +6204,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return None
         from raptor.api import importance as _imp
         batches = _imp.batch_count(len(_imp.block_rows(run_model)), mode)
-        self._update_importance_progress(1, batches, "starting")
+        if getattr(self, "_imp_eta", None) is None:
+            self._begin_importance_progress(batches)
         try:
-            data = _imp.analyse(
-                run_model, report_data, mode=mode, runs=len(report_data),
-                workers=max(1, int(
-                    self._current_experiment().get("workers", 1) or 1)),
-                progress=self._update_importance_progress,
-                # Stop must stop this too. It is the same button and the same
-                # wait; without it an "aborted" run ground through every
-                # remaining batch with no way out.
-                stop_check=lambda: bool(getattr(self, "_sync_stop", False)))
+            data = self._analyse_importance_off_thread(
+                run_model, report_data, mode=mode, batches=batches)
         except RuntimeError:
             self._end_importance_progress(
                 "Importance measures cancelled — the simulation results are "
@@ -5300,6 +6221,69 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             f"Importance measures complete — Results ▸ Final Results ▸ "
             f"Importance ({batches} batches)")
         return data
+
+    def _present_baseline_results(self, *, logs, eor, fin, report_data,
+                                  notes, ao_lines, cap_lines, cost_lines,
+                                  units, manifest, importance_total=None):
+        """Put the finished baseline on screen while importance runs.
+
+        Called once per run, on the GUI thread. `follow_up=True` keeps the
+        progress bar alive and below 100%: the next thing the user sees is
+        the importance phase, not a `100/100` that then sits there. The
+        final refresh is still allowed to replace this population with one
+        that includes the Importance tab.
+        """
+        if getattr(self, "_results_populating", False):
+            return False
+        self._results._source_file_name = self._current_file or ""
+        ok = self._set_results_with_progress(
+            logs, eor, fin, report_data=report_data, units=units,
+            notes=notes, ao_lines=ao_lines, cap_lines=cap_lines,
+            cost_lines=cost_lines, manifest=manifest, importance=None,
+            follow_up=True)
+        if not ok:
+            return False
+        self._note_results_basis()
+        self._results_show_action.setEnabled(bool(report_data))
+        self._results_float_action.setEnabled(bool(report_data))
+        self._sync_overlay_actions(report_data)
+        self._apply_hier_status(report_data)
+        self._present_results()
+        self._begin_importance_progress(importance_total or 1)
+        return True
+
+    def _present_background_baseline(self, state) -> bool:
+        """The background worker's baseline, rendered by the GUI thread.
+
+        The worker deliberately keeps `done` False until importance ends,
+        so this is the only chance to show the baseline before the extra
+        batches are spent. Returns True only when the population actually
+        ran; the poll retries on the next tick if another population was
+        still in flight.
+        """
+        result = state.get("result")
+        if not result:
+            return False
+        try:
+            (logs, eor, fin, report_data, report_notes, ao_lines,
+             cap_lines, cost_lines, units) = result
+        except (TypeError, ValueError):
+            return False
+        self._push_weak_settings()
+        result_streams = state.get("streams") or {}
+        eor_source = result_streams.get("end_of_run")
+        if eor_source is None:
+            eor_source = eor
+        total = state.get("importance_total")
+        if not total:
+            progress = state.get("importance_progress")
+            total = progress[1] if progress else 1
+        return self._present_baseline_results(
+            logs=logs, eor=eor_source, fin=fin, report_data=report_data,
+            notes=report_notes, ao_lines=ao_lines, cap_lines=cap_lines,
+            cost_lines=cost_lines, units=units,
+            manifest=(state.get("run_metadata") or {}).get("manifest"),
+            importance_total=total)
 
     def _confirm_long_batch(self, num_runs: int) -> bool:
         """Ask before a batch that is likely to run for tens of minutes.
@@ -5385,6 +6369,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 "Still rendering the previous results — try again in a "
                 "moment.", 5000)
             return
+        if self._step_finalize_state is not None:
+            self._statusbar.showMessage(
+                "Finalizing the stepped run — wait for its results", 5000)
+            return
         if self._rbd is None:
             return
         # A spin box commits on editingFinished, which F5 does not cause.
@@ -5403,7 +6391,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if not self._maybe_save_before_run():
             self._statusbar.showMessage("Run cancelled")
             return
-        run_model = self._model_for_engine()
+        run_model, isolation = self._prepare_run_model()
+        if run_model is None:
+            return
+        self._last_run_model = run_model
         # Read the experiment, not the ribbon mirror: the mirror can be
         # stale after undo/redo or an external model edit, and the next
         # run must use the same value the panel shows and the manifest
@@ -5422,7 +6413,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._edit_run_abandoned = False
         # Warn before the run about features the engine will reject
         # mid-run with NotImplementedError.
-        preflight = self._preflight_issues()
+        preflight = self._preflight_issues(run_model)
         if preflight:
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Warning)
@@ -5643,7 +6634,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Freeze the manifest BEFORE the engine is handed anything, so it
         # describes the run that actually happened even if the model is
         # edited while the engine works.
-        run_metadata["manifest"] = self._build_run_manifest()
+        run_metadata["manifest"] = self._build_run_manifest(
+            run_model, isolation)
         # Wrap the per-event hook so the animation delay is applied on
         # EVERY event, not just the ones that pass the 30 Hz paint
         # throttle inside `_on_event`. `_effective_event_delay` returns
@@ -5723,93 +6715,160 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             self._statusbar.showMessage("Run failed")
             return
         QApplication.restoreOverrideCursor()
-        self._run_in_progress = False
-        self._refresh_commands()
-        self._reenable_run_panel()
-        self._run_progress.setVisible(False)
-        self._run_progress_label.setVisible(False)
-        self._clear_run_eta()
-        # Raptor 7 clears its cycle/phase panels at batch end; same
-        # here. Clear the live fills/Linked/Cut badges too: the
-        # synchronous (Animate) path used to leave them on the canvas, so
-        # a finished run still showed white Linked squares.
-        self._hide_phase_labels()
-        self._diagram_dock.view.clear_live_states()
-        # Status bar says "Processing results" between the run(s)
-        # finishing and the results actually being parsed/rendered;
-        # without this, the bar would show a stale "Running — run N of
-        # N" message for however long set_results/_present_results took
-        # on a large model, looking frozen.
-        self._statusbar.showMessage("Processing results…")
-        QApplication.processEvents()
-        units = None
+        # Importance variants are still to come. Keep the run "in progress"
+        # for the whole of them: Run must not start a second batch over the
+        # baseline on screen, Stop must still land (the worker reads
+        # `_sync_stop`), and the run-settings lock must stay on. Ordinary
+        # runs unlock here exactly as before.
+        importance_mode = str(
+            (self._current_experiment() or {}).get("importance", "none")
+            or "none")
+        will_run_importance = (importance_mode not in ("", "none")
+                               and bool(report_data))
         try:
-            cfg_section = self._rbd.sections.get("SYSTEM_DATA")
-            if cfg_section and cfg_section.rows:
-                units = system_config_from_row(cfg_section.rows[0]).units
-        except (ValueError, KeyError):
-            pass
-        self._push_weak_settings()
-        # FailSim/CycleSim anti-runaway bound hit: surface it loudly
-        # instead of silently reporting numbers from a truncated
-        # simulation.
-        self._notify_negative_times(run_metadata.get("negative_draws", []), report_notes)
-        if run_metadata.get("hit_safety_bound"):
-            report_notes.append(
-                "Note: the run reached the simulation safety bound "
-                "(t = 10,000,000) WITHOUT meeting its termination "
-                "condition — results cover only the simulated portion. "
-                "Check the model's termination condition; see Help ▸ "
-                "Report Issue if this model should have ended earlier.")
-            self._statusbar.showMessage(
-                "WARNING: run stopped at the t=10,000,000 safety bound — "
-                "termination condition never met", 12000)
-        self._results._source_file_name = self._current_file or ""
-        event_logs = self._dev_filtered_event_logs(event_logs)
-        importance = self._importance_for(run_model, report_data)
-        eor_source = streams.get("end_of_run")
-        if eor_source is None:
-            eor_source = end_of_run_lines
-        self._set_results_with_progress(
-            event_logs, eor_source, final_results_lines,
-            report_data=report_data, units=units,
-            notes=report_notes, ao_lines=ao_lines,
-            cap_lines=cap_lines, cost_lines=cost_lines,
-            manifest=run_metadata.get("manifest"),
-            importance=importance)
-        self._note_results_basis()
-        self._remember_report_streams(streams)
-        self._results_show_action.setEnabled(bool(report_data))
-        self._results_float_action.setEnabled(bool(report_data))
-        self._sync_overlay_actions(report_data)
-        # Do NOT auto-enable a canvas overlay here. A run should not
-        # silently repaint the model (and must never override the
-        # overlay the user explicitly chose). The Results ribbon offers
-        # Weak Links/Capacity/Cost/Spares once their data exists.
-        self._apply_hier_status(report_data)
-        self._present_results()
-        self._note_run_profile(len(report_data))
-        self._update_status_summary(report_data, units)
-        from raptor.core import diagnostics as _dg
-        self._diag(_dg.end_simulation_line())
-        total_lines = sum(len(lines) for lines in event_logs)
-        if getattr(self, "_sync_stop", False):
-            completed = len(report_data)
-            if completed < len(event_logs):
-                self._statusbar.showMessage(
-                    "Stopped — partial event log kept for the interrupted "
-                    f"run, {total_lines} event-log lines", 10000)
+            if not will_run_importance:
+                self._run_in_progress = False
+                self._refresh_commands()
+                self._reenable_run_panel()
+                self._run_progress.setVisible(False)
+                self._run_progress_label.setVisible(False)
             else:
+                # The bar belongs to the importance phase from now on.
+                self._run_progress.setVisible(True)
+                self._run_progress_label.setVisible(True)
+            self._clear_run_eta()
+            # Raptor 7 clears its cycle/phase panels at batch end; same
+            # here. Clear the live fills/Linked/Cut badges too: the
+            # synchronous (Animate) path used to leave them on the canvas, so
+            # a finished run still showed white Linked squares.
+            self._hide_phase_labels()
+            self._diagram_dock.view.clear_live_states()
+            # Status bar says "Processing results" between the run(s)
+            # finishing and the results actually being parsed/rendered;
+            # without this, the bar would show a stale "Running — run N of
+            # N" message for however long set_results/_present_results took
+            # on a large model, looking frozen.
+            self._statusbar.showMessage("Processing results…")
+            QApplication.processEvents(
+                QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+            units = None
+            try:
+                cfg_section = run_model.sections.get("SYSTEM_DATA")
+                if cfg_section and cfg_section.rows:
+                    units = system_config_from_row(cfg_section.rows[0]).units
+            except (ValueError, KeyError):
+                pass
+            self._push_weak_settings()
+            # FailSim/CycleSim anti-runaway bound hit: surface it loudly
+            # instead of silently reporting numbers from a truncated
+            # simulation.
+            self._notify_negative_times(
+                run_metadata.get("negative_draws", []), report_notes)
+            if run_metadata.get("hit_safety_bound"):
+                report_notes.append(
+                    "Note: the run reached the simulation safety bound "
+                    "(t = 10,000,000) WITHOUT meeting its termination "
+                    "condition — results cover only the simulated portion. "
+                    "Check the model's termination condition; see Help ▸ "
+                    "Report Issue if this model should have ended earlier.")
                 self._statusbar.showMessage(
-                    f"Stopped after {completed} run(s), "
+                    "WARNING: run stopped at the t=10,000,000 safety bound — "
+                    "termination condition never met", 12000)
+            self._results._source_file_name = self._current_file or ""
+            event_logs = self._dev_filtered_event_logs(event_logs)
+            eor_source = streams.get("end_of_run")
+            if eor_source is None:
+                eor_source = end_of_run_lines
+            baseline_presented = False
+            importance = None
+            # Everything from the importance bookkeeping call through the
+            # final population is inside this try: a failure in any part of
+            # the epilogue must still hit the `finally` that unlocks Run and
+            # clears the stop/importance state.
+            if will_run_importance and not getattr(self, "_sync_stop", False):
+                from raptor.api import importance as _imp
+                importance_total = _imp.batch_count(
+                    len(_imp.block_rows(run_model)), importance_mode)
+                baseline_presented = self._present_baseline_results(
+                    logs=event_logs, eor=eor_source,
+                    fin=final_results_lines, report_data=report_data,
+                    notes=report_notes, ao_lines=ao_lines,
+                    cap_lines=cap_lines, cost_lines=cost_lines,
+                    units=units, manifest=run_metadata.get("manifest"),
+                    importance_total=importance_total)
+                importance = self._importance_for(run_model, report_data)
+            overlays = (self._checked_overlay_state()
+                        if baseline_presented else None)
+            if baseline_presented and importance is not None:
+                # Same run, same baseline numbers: only the Importance tab
+                # is new. Rebuild that one page instead of parsing every
+                # result table a second time.
+                self._results.set_importance(importance)
+                self._importance_overlay_action.setEnabled(True)
+                self._note_results_basis()
+                self._remember_report_streams(streams)
+                self._results_show_action.setEnabled(bool(report_data))
+                self._results_float_action.setEnabled(bool(report_data))
+                self._apply_hier_status(report_data)
+            else:
+                self._set_results_with_progress(
+                    event_logs, eor_source, final_results_lines,
+                    report_data=report_data, units=units,
+                    notes=report_notes, ao_lines=ao_lines,
+                    cap_lines=cap_lines, cost_lines=cost_lines,
+                    manifest=run_metadata.get("manifest"),
+                    importance=importance)
+                self._note_results_basis()
+                self._remember_report_streams(streams)
+                self._results_show_action.setEnabled(bool(report_data))
+                self._results_float_action.setEnabled(bool(report_data))
+                self._sync_overlay_actions(report_data)
+                self._reapply_checked_overlays(overlays)
+                # Do NOT auto-enable a canvas overlay here. A run should
+                # not silently repaint the model (and must never override
+                # the overlay the user explicitly chose). The Results
+                # ribbon offers Weak Links/Capacity/Cost/Spares once their
+                # data exists.
+                self._apply_hier_status(report_data)
+                # Present on the baseline population. Re-presenting after
+                # the importance refresh would yank the user out of
+                # whatever tab they had moved to while waiting.
+                if not baseline_presented:
+                    self._present_results()
+            self._note_run_profile(len(report_data))
+            self._update_status_summary(report_data, units)
+            from raptor.core import diagnostics as _dg
+            self._diag(_dg.end_simulation_line())
+            total_lines = sum(len(lines) for lines in event_logs)
+            if getattr(self, "_sync_stop", False):
+                completed = len(report_data)
+                if completed < len(event_logs):
+                    self._statusbar.showMessage(
+                        "Stopped — partial event log kept for the interrupted "
+                        f"run, {total_lines} event-log lines", 10000)
+                else:
+                    self._statusbar.showMessage(
+                        f"Stopped after {completed} run(s), "
+                        f"{total_lines} event-log lines")
+            else:
+                # State success explicitly so a finished run is never
+                # mistaken for an aborted one.
+                self._statusbar.showMessage(
+                    f"Completed {len(event_logs)} run(s) successfully, "
                     f"{total_lines} event-log lines")
-        else:
-            # State success explicitly so a finished run is never
-            # mistaken for an aborted one.
-            self._statusbar.showMessage(
-                f"Completed {len(event_logs)} run(s) successfully, "
-                f"{total_lines} event-log lines")
-        self._sync_stop = False
+        finally:
+            # The run is over whether or not presenting its results raised:
+            # leaving Run disabled (or `_sync_stop` latched) is the stranding
+            # bug this guard exists for.
+            if will_run_importance:
+                self._run_in_progress = False
+                self._refresh_commands()
+                self._reenable_run_panel()
+            self._imp_eta = None
+            self._imp_last_key = None
+            self._importance_running = False
+            self._pause_action.setText("Pause")
+            self._sync_stop = False
 
     def _current_units(self):
         try:
@@ -5825,6 +6884,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         (resets + synchronous initialization) happens HERE, synchronously,
         without advancing the clock."""
         if self._step_session is None or self._step_sink is None:
+            # Step honours the Run panel's scope like Run does: a hierarchy
+            # scope steps the isolated extract. The extract keeps the source
+            # model's element ids, so the live colours land on the canvas.
+            step_model, self._step_isolation = self._prepare_run_model()
+            if step_model is None:
+                return None
+            self._last_run_model = step_model
             self._step_sink = []
             self._step_ao: list[str] = []
             self._results.clear()   # new debug session: clear stale results
@@ -5833,7 +6899,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # The session spans the configured runs, as Raptor 7's does: Jump goes on to the next run
             # and Finish completes every run that is left.
             self._step_session = StepSession(
-                self._model_for_engine(), report_sink=self._step_sink,
+                step_model, report_sink=self._step_sink,
                 ao_sink=self._step_ao,
                 num_runs=int(self._current_experiment()["trials"]))
             # A stepped session is a run for as long as it is open -- it
@@ -5875,7 +6941,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                         and prev_status.get(b.id) != BlockStatus.REPAIRING)
         return False
 
-    def _show_inspector_dock(self):
+    def _show_inspector_dock(self, *, expand_minimized: bool = False):
         """Bring the Inspector dock to front -- same show()+raise_()
         pattern used elsewhere for a tabbed dock (`_show_live_log_dock`).
 
@@ -5883,26 +6949,94 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         to its rotated stub by hiding its content, and the QDockWidget
         stays visible, so `show()` was a no-op and right-click >
         Properties appeared to do nothing. Go through the stub's own
-        restore first."""
-        stub = (self._dock_stubs or {}).get(self._inspector_dock)
-        if stub is not None:
-            stub(False)
+        restore -- but only when it is actually closed, and never touch
+        a minimised dock's constraints unless an explicit reveal asks to
+        expand it (`set_minimized(False)` restores its content first)."""
+        entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                 .get(self._inspector_dock)) or {}
+        if entry.get("closed"):
+            stub = (self._dock_stubs or {}).get(self._inspector_dock)
+            if stub is not None:
+                stub(False)
+        if expand_minimized and entry.get("minimized"):
+            try:
+                self._compact_minimized.discard("Inspector")
+            except AttributeError:
+                pass
+            chrome = (self._dock_chrome or {}).get("Inspector")
+            if chrome is not None:
+                chrome["set_minimized"](False)
         self._inspector_dock.show()
         self._inspector_dock.raise_()
 
-    def _show_live_log_dock(self, show: bool):
+    def _show_live_log_dock(self, show: bool, *, tabify: bool = True,
+                            raise_: bool = True):
         """Swap right-side docks: Live Log during stepping, Inspector
         otherwise. Tabified on the same area so the user's layout is
-        preserved."""
+        preserved. Repeated steps pass `tabify=False, raise_=False`:
+        re-tabifying or raising on every event would pull the tab back
+        from the Inspector and rebuild tab bars needlessly."""
         if show:
-            self.tabifyDockWidget(self._live_log_dock,
-                                  self._inspector_dock)
-            self._sync_dock_tab_bars()
-            self._live_log_dock.show()
-            self._live_log_dock.raise_()
+            already = self._live_log_dock in \
+                self.tabifiedDockWidgets(self._inspector_dock)
+            if tabify and not already:
+                self.tabifyDockWidget(self._live_log_dock,
+                                      self._inspector_dock)
+                self._sync_dock_tab_bars()
+            if not self._live_log_dock.isVisible():
+                self._live_log_dock.show()
+            if raise_:
+                self._live_log_dock.raise_()
+            self._live_log_session_shown = True
         else:
             self._live_log_dock.hide()
-            self._inspector_dock.show()
+            self._show_inspector_dock()
+        self._refresh_commands(self._command_state(reuse_validity=True),
+                               only={"live_session"})
+
+    def _reset_right_docks(self):
+        """The one right-hand dock policy for an unrun/closed session.
+
+        A new or opened model, and the end of a stepped run, show the
+        Inspector; the Live Log is hidden and emptied until a session
+        starts. Other docks are deliberately left alone -- a user's
+        Results/Run/Explorer arrangement is not this method's business.
+        The corresponding View > Panels actions are synced from the live
+        dock state (and the Live Log action's availability from the
+        session predicate)."""
+        live = getattr(self, "_live_log_dock", None)
+        if live is not None:
+            try:
+                if live.isFloating():
+                    # A restored layout can leave the Live Log as its own
+                    # window. It belongs back in the right dock before it
+                    # is hidden, or the next Show reopens a floating
+                    # panel over the Inspector.
+                    live.setFloating(False)
+                    self.addDockWidget(
+                        Qt.DockWidgetArea.RightDockWidgetArea, live)
+                live.hide()
+                self._reset_live_log()
+            except RuntimeError:
+                pass
+        inspector = getattr(self, "_inspector_dock", None)
+        if inspector is not None:
+            try:
+                self._show_inspector_dock()
+            except RuntimeError:
+                pass
+        self._live_log_session_shown = False
+        for dock in (live, inspector):
+            if dock is None:
+                continue
+            fn = (getattr(self, "_dock_state_sync", None) or {}).get(dock)
+            if fn is not None:
+                try:
+                    fn(dock.isVisible())
+                except RuntimeError:
+                    pass
+        self._refresh_commands(self._command_state(reuse_validity=True),
+                               only={"live_session"})
 
     def _on_live_log_row_clicked(self):
         """Focus the canvas on the selected live-log row's element."""
@@ -5921,28 +7055,59 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._statusbar.showMessage(
             f"Live log row has no canvas element named '{name}'", 4000)
 
+    def _note_whole_model_tool(self, tool: str) -> None:
+        """Failure Effects and the batch tools always use the whole model;
+        say so when a hierarchy run scope is selected, rather than leave
+        the user to assume they follow it."""
+        panel = getattr(self, "_run_panel", None)
+        if panel is not None and panel.hierarchy_scope():
+            self._statusbar.showMessage(
+                f"{tool} uses the whole model; the Run panel's hierarchy "
+                "scope applies to Run and Step only", 8000)
+
+    def _step_scope_suffix(self) -> str:
+        iso = getattr(self, "_step_isolation", None)
+        name = getattr(iso, "hierarchy", "") if iso is not None else ""
+        return f" hierarchy “{name}”" if name else ""
+
     def _refresh_live_step_view(self, session):
         # Refresh after every step (no throttle -- stepping is user-paced,
         # the whole point is watching each event land).
-        if self._live_sim_action.isChecked():
-            if not self._diagram_dock.isVisible():
-                self._diagram_dock.show()
-            self._diagram_dock.view.update_live_states(
-                session.blocks, model=session.model,
-                phase=getattr(getattr(session.cascade, "system_state", None), "current_phase", None))
-            # Status-bar system square tracks stepping too.
-            self._update_system_swatch(
-                getattr(getattr(session.cascade, "system_state", None),
-                        "color", None))
-            self._show_live_log_dock(True)
-            # Follows the run being stepped, across run boundaries; the
-            # selector keeps the finished runs readable.
-            self._live_log_panel.update_session(
-                [lg for lg, _ in getattr(session, "completed", [])],
-                session.logs, getattr(session, "num_runs", 1), session.time)
+        live = self._live_sim_action.isChecked()
+        if live and not self._diagram_dock.isVisible():
+            self._diagram_dock.show()
+        # Manual stepping is user-paced: paint the live colours (and
+        # cache them for level traversal) even with Animate off. Finishing
+        # and terminating clear them explicitly.
+        self._diagram_dock.view.update_live_states(
+            session.blocks, model=session.model,
+            phase=getattr(getattr(session.cascade, "system_state", None),
+                          "current_phase", None))
+        # Status-bar system square tracks stepping too, including with
+        # Animate off (force shows it without the live-run gate).
+        self._update_system_swatch(
+            getattr(getattr(session.cascade, "system_state", None),
+                    "color", None), force=True)
+        # The Live Log belongs to the stepped session, not to the Animate
+        # canvas overlay: show it even when Animate is off, so Step always
+        # has an event list to read. Tabify/raise only on the session's
+        # first step, so repeated steps do not steal the Inspector tab.
+        first_view = not getattr(self, "_live_log_session_shown", False)
+        self._show_live_log_dock(True, tabify=first_view,
+                                 raise_=first_view)
+        if first_view:
+            self._live_log_session_shown = True
+        # Follows the run being stepped, across run boundaries; the
+        # selector keeps the finished runs readable.
+        iso = getattr(self, "_step_isolation", None)
+        self._live_log_panel.set_scope_note(
+            getattr(iso, "hierarchy", None) if iso is not None else None)
+        self._live_log_panel.update_session(
+            [lg for lg, _ in getattr(session, "completed", [])],
+            session.logs, getattr(session, "num_runs", 1), session.time)
         logs = session.logs
         self._statusbar.showMessage(
-            f"Stepping — t = {session.time:.3f} "
+            f"Stepping{self._step_scope_suffix()} — t = {session.time:.3f} "
             f"({len(logs)} event-log lines)"
             f"{self._phase_status_suffix(session)}")
         # Live progress in the Live Log dock/tab title -- the tabified
@@ -5951,7 +7116,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # no cached custom-titlebar label to keep in sync.
         self._live_log_dock.setWindowTitle(
             f"Live Log — t = {session.time:.3f} ({len(logs)} events)")
-        if self._results_dock.isVisible() and self._live_sim_action.isChecked():
+        if self._results_dock.isVisible() and live:
             self._results.show_live_logs(
                 [lg for lg, _ in session.completed] + [logs],
                 session.num_runs)
@@ -5966,33 +7131,36 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         v = self._diagram_dock.view
         target_item = None
         message = None
-        # Prefer the last new log line mentioning a real element
-        # (skip System bookkeeping) for both wording and focus.
-        parsed = []
-        for line in new_lines:
+        focus_index = None
+        # The event described is the LAST new log line that is not System
+        # bookkeeping. Keep its absolute index: that exact Live Log row is
+        # selected, whether or not the element lives on the canvas level
+        # currently shown (a block inside a hierarchy has no current-level
+        # item; the row must still be the described one).
+        parsed: list[tuple[int, list[str]]] = []
+        for offset, line in enumerate(new_lines):
             parts = [p.strip() for p in line.split("\t")]
             if len(parts) >= 4:
-                parsed.append(parts)  # time, Kind, Name, Status, [comment]
-        for parts in reversed(parsed):
-            kind, name, status = parts[1], parts[2], parts[3]
-            if kind == "System" or name in ("--",):
+                parsed.append((prev_line_count + offset,
+                               parts))  # time, Kind, Name, Status, [comment]
+        described: tuple[int, list[str]] | None = None
+        for index, parts in reversed(parsed):
+            if parts[1] == "System" or parts[2] in ("--",):
                 continue
+            described = (index, parts)
+            break
+        if described is None and parsed:
+            # Only System bookkeeping in this step: describe/select the
+            # newest one rather than leaving the previous row current.
+            described = parsed[-1]
+        if described is not None:
+            focus_index, parts = described
+            kind, name, status = parts[1], parts[2], parts[3]
             message = f"{kind} {name} → {status}  (t = {parts[0]})"
-            target_item = (
-                next((it for bid, it in v._block_items.items()
-                      if v.blocks[bid].name == name), None)
-                or next((it for nid, it in v._node_items.items()
-                         if v.nodes[nid].node_name == name), None)
-                or next((it for eid, it in v._event_items.items()
-                         if v.events[eid].name == name), None)
-                or v._hier_items.get(next(
-                    (h for h in v.hiers if v.hiers[h].name == name),
-                    None)))
-            if target_item is not None:
-                break
-        if message is None and parsed:
-            parts = parsed[-1]
-            message = f"{parts[1]} {parts[2]} → {parts[3]}  (t = {parts[0]})"
+            # Best effort at centring the canvas: a hierarchy target (or a
+            # trigger) simply has no item on the level shown -- do not
+            # navigate to find it.
+            target_item = self._canvas_item_for_log(kind, name)
         # Fall back to block-status diff when log parsing finds nothing.
         if message is None:
             for b in session.blocks:
@@ -6001,12 +7169,24 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                                f"{getattr(b.op_status, 'value', b.op_status)}"
                                f"  (t = {session.time:.3f})")
                     target_item = v._block_items.get(b.id)
+                    focus_index = None
                     break
-        if self._focus_event_action.isChecked() and target_item is not None:
-            v.centerOn(target_item)
-        self._statusbar.showMessage(
-            (message or f"Step — t = {session.time:.3f}")
-            + self._phase_status_suffix(session))
+        if self._focus_event_action.isChecked():
+            # Navigate to the level the event actually belongs to. This
+            # enters a hierarchy for an inner block/node/event and leaves
+            # it again when the next event is at Home or in a sibling.
+            navigated = False
+            if described is not None:
+                navigated = v.locate_log_element(described[1][1],
+                                                 described[1][2])
+            if not navigated and target_item is not None:
+                v.centerOn(target_item)
+            if focus_index is not None:
+                self._live_log_panel.focus_event(focus_index)
+        shown = (message or f"Step — t = {session.time:.3f}") \
+            + self._phase_status_suffix(session)
+        self._statusbar.showMessage(shown)
+        return message
 
     def _phase_status_suffix(self, session) -> str:
         """Raptor 7 status-bar readout during step sim: current
@@ -6027,11 +7207,38 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             label += f' "{name}"'
         return f" — {label} ({mission})"
 
+    def _canvas_item_for_log(self, kind: str, name: str):
+        """The canvas item a log row names, by the row's OWN kind. No
+        cross-kind fallback: a `Hier` row must not select a same-named
+        node, and a Trigger/Pool/System row has no canvas target."""
+        v = self._diagram_dock.view
+        if kind == "Block":
+            return next((it for bid, it in v._block_items.items()
+                         if v.blocks[bid].name == name), None)
+        if kind == "Node":
+            return next((it for nid, it in v._node_items.items()
+                         if v.nodes[nid].node_name == name), None)
+        if kind == "Event":
+            return next((it for eid, it in v._event_items.items()
+                         if v.events[eid].name == name), None)
+        if kind == "Hier":
+            hid = next((h for h in v.hiers if v.hiers[h].name == name), None)
+            return v._hier_items.get(hid) if hid is not None else None
+        return None
+
+    def _clear_failed_step(self) -> None:
+        """A step path failed: drop its live colours and stale Live Log."""
+        self._diagram_dock.view.clear_live_states()
+        self._reset_live_log()
+        self._sync_run_settings_lock()
+
     def _on_step(self):
-        if self._rbd is None:
+        if self._rbd is None or self._step_finalize_state is not None:
             return
         try:
             session = self._ensure_step_session()
+            if session is None:           # isolation refused; user told why
+                return
             prev = {b.id: b.op_status for b in session.blocks}
             prev_lines = len(session.logs)
             # Step pauses only when system state actually changed (Raptor 7's
@@ -6060,15 +7267,17 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 self, "Step Failed",
                 "The step could not be executed:\n\n"
                 + traceback.format_exc(limit=4))
-            self._step_session = None
-            self._sync_run_settings_lock()
+            self._end_step_session()
+            self._reset_live_log()
 
     def _on_step_change(self):
         """Step to the next system-state change (Raptor 7's Step; `StepSession.step_to_change`)."""
-        if self._rbd is None:
+        if self._rbd is None or self._step_finalize_state is not None:
             return
         try:
             session = self._ensure_step_session()
+            if session is None:           # isolation refused; user told why
+                return
             prev = {b.id: b.op_status for b in session.blocks}
             prev_lines = len(session.logs)
             advanced = session.step_to_change()
@@ -6087,8 +7296,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             msgbox.critical(
                 self, "Step Failed",
                 "The step could not be executed:\n\n" + traceback.format_exc(limit=4))
-            self._step_session = None
-            self._sync_run_settings_lock()
+            self._end_step_session()
+            self._reset_live_log()
 
     def _advance_until(self, *, max_steps=None, target_time=None,
                        until_time_changes=False):
@@ -6098,7 +7307,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         (`until_time_changes`), or the run ends. Focuses/describes only
         the LAST change (per-event centring during a multi-step would
         be seizure-inducing). Returns True if a breakpoint fired."""
+        if self._step_finalize_state is not None:
+            return False
         session = self._ensure_step_session()
+        if session is None:               # isolation refused; user told why
+            return False
         start_time = session.time if until_time_changes else None
         fired = False
         done = False
@@ -6115,7 +7328,6 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 # Time/stepping off nonexistent times. Run-To and
                 # budgeted Multi keep their exact one-entry semantics.
                 continue
-            self._refresh_live_step_view(session)
             if not advanced:
                 done = True          # run out of events -> auto-finish below
                 break
@@ -6133,6 +7345,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if done:
             self._end_of_stepped_run(session)
         else:
+            # Multi/Run-To/Next-Time are one user action: paint and tell
+            # the Live Log only the final state. Per-internal-event
+            # repaints now that stepping always colours would animate the
+            # whole batch and slow it down.
+            self._refresh_live_step_view(session)
             self._describe_and_focus_step(session, prev_statuses,
                                           prev_lines)
         if fired:
@@ -6245,16 +7462,24 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if not session.has_next_run:
             self._on_step_finish()
             return
+        session.jump_to_next_run_start()
+        # Snapshot AFTER the jump: it replaces the driver's log list, so
+        # a `prev_lines` taken before points past the new run's lines and
+        # Focus Event would have no row to select.
         prev = {b.id: b.op_status for b in session.blocks}
         prev_lines = len(session.logs)
-        session.jump_to_next_run_start()
         session.step_to_change()
+        if len(session.logs) == prev_lines:
+            # The new run paused on its kickoff rows (they were already in
+            # the fresh log); they are the event to show.
+            prev_lines = 0
         self._refresh_live_step_view(session)
-        self._describe_and_focus_step(session, prev, prev_lines)
+        description = self._describe_and_focus_step(session, prev, prev_lines)
         self._statusbar.showMessage(
             f"Run {session.run_index} finished — now stepping run "
             f"{session.run_index + 1} of {session.num_runs} "
-            f"(Finish runs the rest without stopping)", 8000)
+            f"(Finish runs the rest without stopping)"
+            + (f" — {description}" if description else ""), 8000)
         self._refresh_commands()
 
     def _on_step_jump(self):
@@ -6270,21 +7495,27 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 prev = {b.id: b.op_status for b in session.blocks}
                 prev_lines = len(session.logs)
                 session.step_to_change()
+                if len(session.logs) == prev_lines:
+                    # Kickoff already logged this run's first rows: they
+                    # are the step Focus Event should reveal.
+                    prev_lines = 0
             finally:
                 QApplication.restoreOverrideCursor()
             self._refresh_live_step_view(session)
-            self._describe_and_focus_step(session, prev, prev_lines)
+            description = self._describe_and_focus_step(
+                session, prev, prev_lines)
             self._statusbar.showMessage(
                 f"Jump — run {session.run_index + 1} of {session.num_runs}, "
-                f"t = {session.time:.3f}")
+                f"t = {session.time:.3f}"
+                + (f" — {description}" if description else ""))
             self._refresh_commands()
         except Exception:
             import traceback
             msgbox.critical(
                 self, "Jump Failed",
                 "The jump could not be executed:\n\n" + traceback.format_exc(limit=4))
-            self._step_session = None
-            self._sync_run_settings_lock()
+            self._end_step_session()
+            self._reset_live_log()
 
     def _on_step_finish(self):
         """Complete the stepped run (remaining events + closing passes),
@@ -6293,8 +7524,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         session = self._step_session
         self._on_fev_log_close()
-        self._step_session = None  # single-use; next Step starts fresh
-        self._sync_run_settings_lock()
+        self._end_step_session(clear_sink=False)
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             event_logs, _ = session.finish_all()
@@ -6302,6 +7532,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             QApplication.restoreOverrideCursor()
             msgbox.critical(self, "Simulation Failed",
                                  f"The run failed:\n\n{e}")
+            self._clear_failed_step()
+            self._run_progress.setVisible(False)
+            self._run_progress_label.setVisible(False)
+            self._clear_run_eta()
             self._statusbar.showMessage("Run failed")
             return
         eor_lines: list[str] = []
@@ -6322,14 +7556,24 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         QApplication.restoreOverrideCursor()
         self._diagram_dock.view.clear_live_states()
         # The manifest says how many runs the numbers on screen come from.
-        step_manifest = self._build_run_manifest()
+        step_manifest = self._build_run_manifest(
+            self._last_run_model if getattr(self, "_step_isolation", None)
+            else None, getattr(self, "_step_isolation", None))
         if step_manifest:
             step_manifest["trials"] = len(event_logs)
-        self._present_run_results(event_logs, eor_lines, final_lines,
-                                  report_data,
-                                  ao_lines=list(self._step_ao or []),
-                                  cap_lines=session.cap_lines,
-                                  manifest=step_manifest)
+        try:
+            self._present_run_results(event_logs, eor_lines, final_lines,
+                                      report_data,
+                                      ao_lines=list(self._step_ao or []),
+                                      cap_lines=session.cap_lines,
+                                      manifest=step_manifest)
+        finally:
+            # Finish is the end of the stepped run: the progress line
+            # belongs to the finishing/population work, not to the idle
+            # results screen (#230).
+            self._run_progress.setVisible(False)
+            self._run_progress_label.setVisible(False)
+            self._clear_run_eta()
 
     def _diag(self, *lines: str) -> None:
         """Append to the `/d` diagnostics file beside the model when `diagnostics_log` is on."""
@@ -6474,6 +7718,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         units = self._current_units()
         self._push_weak_settings()
         self._results._source_file_name = self._current_file or ""
+        iso = (manifest or {}).get("isolation") or {}
+        if iso.get("banner"):
+            # The End-of-Run text is what leaves the app with the report;
+            # label it before the engine's own header.
+            eor_lines = [iso["banner"], ""] + list(eor_lines)
         event_logs = self._dev_filtered_event_logs(event_logs)
         self._results.set_results(event_logs, eor_lines, final_lines,
                                   report_data=report_data, units=units,
@@ -6801,8 +8050,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if state.run != "idle":
             return
         if not state.valid:
-            self._step_session = None
-            self._sync_run_settings_lock()
+            self._end_step_session()
 
     def _reset_status_summary(self):
         """Run starts with the readouts cleared -- no stale values from
@@ -6939,11 +8187,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         has_results = bool(getattr(self._results, "_report_data", None))
         if has_results:
             self._release_bottom_strip_ceiling()
-            self.resizeDocks([dock], [self._results_full_target()],
+            self._resize_docks([dock], [self._results_full_target()],
                              Qt.Orientation.Vertical)
         else:
             self._release_bottom_strip_ceiling()
-            self.resizeDocks([dock], [260], Qt.Orientation.Vertical)
+            self._resize_docks([dock], [260], Qt.Orientation.Vertical)
 
     def _on_bottom_dock_visibility_changed(self, dock, visible: bool) -> None:
         """Apply the height policy of the bottom tab that came to front.
@@ -6955,10 +8203,20 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         make Results smaller or larger. Deferred, so Qt's own tab swap
         has finished before the caps change.
         """
-        if not visible or dock is None:
+        if dock is None:
+            return
+        # Hiding Results can make Run the only bottom tab and let its
+        # content height squeeze the status bar out (#231). Self-heal on
+        # both show and hide, after Qt has applied the tab change.
+        QTimer.singleShot(0, self._ensure_status_bar_visible)
+        if not visible:
             return
         try:
             if dock.isFloating():
+                return
+            if self.dockWidgetArea(dock) not in (
+                    Qt.DockWidgetArea.BottomDockWidgetArea,
+                    Qt.DockWidgetArea.TopDockWidgetArea):
                 return
         except RuntimeError:           # C++ object already torn down
             return
@@ -6984,7 +8242,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 return
             if dock.height() < self.DATA_TABLES_OPEN_HEIGHT:
                 self._release_bottom_strip_ceiling()
-                self.resizeDocks([dock], [self.DATA_TABLES_OPEN_HEIGHT],
+                self._resize_docks([dock], [self.DATA_TABLES_OPEN_HEIGHT],
                                  Qt.Orientation.Vertical)
         except RuntimeError:
             pass
@@ -7055,33 +8313,74 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         maximumHeight bounds every path at once: resizeDocks requests,
         splitter drags, and stale carried-over geometry. Floating docks
         are exempt (a floating window owns its own size)."""
+        try:
+            self.objectName()      # liveness: a deferred call can outlive
+        except RuntimeError:       # the window's C++ object
+            return
         limit = self._max_bottom_dock_height()
-        active = getattr(self, "_bottom_active_dock", None) \
-            or getattr(self, "_results_dock", None)
-        for d in (getattr(self, "_results_dock", None),
-                  getattr(self, "_data_tables_dock", None),
-                  getattr(self, "_run_dock", None)):
-            dock: Any = d
-            if dock is None:
+        docks = [d for d in self.findChildren(QDockWidget)
+                 if d.parent() is self]
+        entries = getattr(self, "_dock_chrome_entries", None) or {}
+        bottom: list[QDockWidget] = []
+        for dock in docks:
+            try:
+                if dock.isFloating():
+                    entry = entries.get(dock) or {}
+                    if not entry.get("minimized") and \
+                            dock.maximumHeight() != 16777215:
+                        dock.setMaximumHeight(16777215)
+                    continue
+                area = self.dockWidgetArea(dock)
+            except RuntimeError:
                 continue
-            if dock.isFloating():
+            entry = entries.get(dock) or {}
+            if entry.get("minimized"):
                 continue
+            if area in (Qt.DockWidgetArea.BottomDockWidgetArea,
+                        Qt.DockWidgetArea.TopDockWidgetArea):
+                bottom.append(dock)
+            elif dock.maximumHeight() != 16777215:
+                # No longer in a vertical dock area: a stale bottom cap
+                # must not follow the dock to the right/left.
+                dock.setMaximumHeight(16777215)
+        # The active dock may have been moved out of the bottom area.
+        # Recompute from the docks still there rather than trusting an
+        # identity remembered before the move.
+        active = getattr(self, "_bottom_active_dock", None)
+        available = [d for d in bottom
+                     if not (entries.get(d) or {}).get("minimized")]
+        if active not in available:
+            preferred = (getattr(self, "_results_dock", None),
+                         getattr(self, "_data_tables_dock", None),
+                         getattr(self, "_run_dock", None),
+                         getattr(self, "_inspector_dock", None),
+                         getattr(self, "_explorer_dock", None),
+                         getattr(self, "_live_log_dock", None),
+                         getattr(self, "_fev_inspector_dock", None))
+            active = next((d for d in preferred if d in available), None)
+        self._bottom_active_dock = active
+        for dock in bottom:
             # A tab that is tucked behind does not size the strip;
             # leaving its cap in place would let the hidden Run tab
             # squeeze Results to its content height again.
-            cap: int = 16777215
-            if dock is active:
+            cap = limit
+            if dock is active and dock is getattr(self, "_run_dock", None):
                 # Run keeps its own content cap (never raise a lower cap
                 # here, or the Simulate tab re-opens the empty field
-                # under its last section).
-                cap = int(dock.maximumHeight())  # type: ignore[union-attr]
-                if cap > limit:
-                    cap = limit
+                # under its last section). Every other active tab follows
+                # the window limit both ways, so a shrink-then-grow
+                # resize restores its ceiling.
+                current = int(dock.maximumHeight())
+                if current < cap:
+                    cap = current
             if dock.maximumHeight() != cap:
                 dock.setMaximumHeight(cap)
 
     def showEvent(self, event):
         super().showEvent(event)
+        if not self._dock_startup_snapshot_done:
+            self._dock_startup_snapshot_done = True
+            QTimer.singleShot(0, self._snapshot_startup_dock_sizes)
         # The startup clamp is queued when a model loads, which can be
         # BEFORE the window is shown. Qt's first post-show layout pass
         # then gives the tabified Results dock its sizeHint (a tall
@@ -7120,6 +8419,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             pass
 
     def resizeEvent(self, event):
+        if not self._canvas_room_defaults_done:
+            # Check BEFORE Qt lays out the resized window: a size that
+            # already differs from the startup snapshot is a splitter
+            # drag made before this resize, and must survive it.
+            if self._dock_sizes_changed_since_startup():
+                self._dock_splitter_moved = True
+            self._dock_rebase_pending = True
+            QTimer.singleShot(0, self._rebase_startup_bottom_extents)
         super().resizeEvent(event)
         # Maximise/restore/resize: re-apply the bottom dock ceiling so
         # a strip sized for a previous window state can't clip the
@@ -7142,16 +8449,34 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             forced = bool(getattr(self, "_compact_forced", False))
             chrome = self._dock_chrome or {}
             if compact and not forced:
+                self._compact_minimized = set()
                 for title in ("Model Explorer", "Inspector"):
                     c = chrome.get(title)
-                    if c is not None and not c["get"]()["minimized"]:
-                        c["set_minimized"](True)
+                    if c is None:
+                        continue
+                    state = c["get"]()
+                    dock = c.get("dock")
+                    # A closed stub must stay closed (and keep its saved
+                    # width), a dock the user already minimized is their
+                    # choice, and a floating window is not part of the
+                    # narrow main-window side layout.
+                    if state["closed"] or state["minimized"]:
+                        continue
+                    if dock is not None:
+                        try:
+                            if dock.isFloating():
+                                continue
+                        except RuntimeError:
+                            continue
+                    c["set_minimized"](True)
+                    self._compact_minimized.add(title)
                 self._compact_forced = True
             elif not compact and forced:
-                for title in ("Model Explorer", "Inspector"):
+                for title in getattr(self, "_compact_minimized", set()):
                     c = chrome.get(title)
-                    if c is not None:
+                    if c is not None and not c["get"]()["closed"]:
                         c["set_minimized"](False)
+                self._compact_minimized = set()
                 self._compact_forced = False
         except Exception:
             pass
@@ -7161,6 +8486,30 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         ro = getattr(self, "_readouts", None)
         if ro is not None:
             ro.setVisible(self.width() >= 1200)
+
+    def resizeDocks(self, docks, sizes, orientation) -> None:
+        """Mark a size choice made outside this window's own layout code.
+
+        QMainWindow has no "user dragged the splitter" signal, so the
+        public `resizeDocks()` is the one observable entry point. The
+        window's own startup/fit/restore calls go through
+        `_resize_docks()` with the internal guard set; anything else is
+        treated as a deliberate size that the first model load must not
+        overwrite.
+        """
+        if not getattr(self, "_internal_dock_resize", False) and docks \
+                and all(isinstance(d, QDockWidget) for d in docks):
+            self._dock_user_sized = True
+        super().resizeDocks(docks, sizes, orientation)
+
+    def _resize_docks(self, docks, sizes, orientation) -> None:
+        """Internal `resizeDocks()`: never marks the docks user-sized."""
+        previous = getattr(self, "_internal_dock_resize", False)
+        self._internal_dock_resize = True
+        try:
+            super().resizeDocks(docks, sizes, orientation)
+        finally:
+            self._internal_dock_resize = previous
 
     @staticmethod
     def _set_dock_min_width(dock, width: int) -> None:
@@ -7187,11 +8536,18 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         try:
             sb = self.statusBar()
             geo = sb.geometry() if sb is not None else None
-            if geo is None or self._rbd is None:
+            if geo is None:
                 return
             _ = self.height()   # raises RuntimeError if the C++ object
             # was already deleted (tests and teardown close the window while
             # the deferred self-heal singleShot is still queued).
+        except RuntimeError:
+            return
+        # The status bar is fixed chrome: always keep its floor, even when
+        # no model is open or the current geometry happens to look fine.
+        try:
+            sb.setMinimumHeight(sb.sizeHint().height())
+            sb.show()
         except RuntimeError:
             return
         clipped = (geo.y() + geo.height() > self.height()) or \
@@ -7228,10 +8584,14 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                      if d is not None and not d.isFloating()
                      and d.isVisible()]
             if docks:
-                self.resizeDocks(docks, [limit] * len(docks), Qt.Orientation.Vertical)
+                self._resize_docks(docks, [limit] * len(docks), Qt.Orientation.Vertical)
             for d in (self._results_dock, self._data_tables_dock,
                       self._run_dock):
                 if d is not None and not d.isFloating():
+                    # A content-sized Run panel can leave a minimum that
+                    # makes the window unable to shrink; release it before
+                    # applying the ceiling.
+                    d.setMinimumHeight(min(120, max(1, limit)))
                     d.setMaximumHeight(limit)
             self._statusbar.setMinimumHeight(
                 self._statusbar.sizeHint().height())
@@ -7263,9 +8623,24 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if floating:
             # Never carry a titlebar collapse into the floating window:
             # set_minimized pins the dock to its titlebar height, so the
-            # new window would be an empty 36px strip.
+            # new window would be an empty 36px strip. The un-collapse
+            # is deferred, so seed the remembered height from the saved
+            # extent instead of reading the strip that is still on screen.
+            entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                     .get(dock)) or {}
+            chrome = (self._dock_chrome or {}).get("Results")
+            was_minimized = bool(chrome and chrome["get"]()["minimized"])
             self._restore_results_chrome()
-            self._results_dock_height_before_float = dock.height()
+            if was_minimized and entry.get("docked_height"):
+                self._results_dock_height_before_float = int(
+                    entry["docked_height"])
+            else:
+                self._results_dock_height_before_float = dock.height()
+            if was_minimized:
+                # Qt restores the previous floating geometry before the
+                # topLevelChanged handler; do not remember that as the
+                # docked height.
+                entry["_skip_extent_remember"] = True
         dock.setFloating(floating)
         if floating:
             # A floated dock is a frameless tool window: no taskbar entry,
@@ -7307,7 +8682,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 self._update_dock_max_heights()
                 target = getattr(self, "_results_dock_height_before_float",
                                  None) or 480
-                self.resizeDocks([dock],
+                self._resize_docks([dock],
                                  [self._clamp_dock_height(target)],
                                  Qt.Orientation.Vertical)
             except Exception:
@@ -7338,20 +8713,303 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if btn is not None:
             btn.setVisible(show)
 
-    def _redock(self, dock) -> None:
+    def _edge_for_area(self, area):
+        """Translate a Qt dock area into the edge that names its sizing
+        dimension: left/right docks are sized by width, top/bottom by
+        height."""
+        from PySide6.QtCore import Qt as _Qt
+        if area == _Qt.DockWidgetArea.LeftDockWidgetArea:
+            return "left"
+        if area == _Qt.DockWidgetArea.RightDockWidgetArea:
+            return "right"
+        if area in (_Qt.DockWidgetArea.TopDockWidgetArea,
+                    _Qt.DockWidgetArea.BottomDockWidgetArea):
+            return "bottom"
+        return None
+
+    def _current_dock_edge(self, dock, fallback=None):
+        """The edge a dock is on *now*.
+
+        The edge passed to `_make_dock_minimizable` is only the
+        construction-time default: a user can drag Explorer to the
+        bottom, and a minimised/redocked dock must then restore a height
+        rather than its old width minimum."""
+        try:
+            area = self.dockWidgetArea(dock)
+        except RuntimeError:
+            return fallback
+        return self._edge_for_area(area) or fallback
+
+    @staticmethod
+    def _dock_min_dimension(entry: dict, edge: str) -> int:
+        """The dock's own minimum along `edge`'s dimension.
+
+        Store width and height minima separately: a side panel sent to
+        the bottom must not inherit its 340 px width as a 340 px height
+        floor."""
+        if edge in ("left", "right"):
+            return max(1, int(entry.get("normal_min_width") or 0))
+        return max(1, int(entry.get("normal_min_height") or 0))
+
+    def _apply_docked_dock_constraints(self, dock, entry, edge) -> None:
+        """Release every stale min/max lock, then apply the one minimum
+        the dock needs on the edge it now occupies. A dock that was
+        floated had 160x90/uncapped; one collapsed earlier may still
+        carry equal minimum/maximum values."""
+        try:
+            dock.setMaximumSize(16777215, 16777215)
+            if edge in ("left", "right"):
+                dock.setMinimumHeight(0)
+                dock.setMaximumHeight(16777215)
+                self._set_dock_min_width(
+                    dock, self._dock_min_dimension(entry, edge))
+            else:
+                dock.setMinimumWidth(0)
+                dock.setMaximumWidth(16777215)
+                dock.setMinimumHeight(
+                    self._dock_min_dimension(entry, "bottom"))
+        except RuntimeError:
+            pass
+
+    def _remember_docked_extent(self, dock, entry) -> None:
+        """Remember the docked size before a float so Redock restores the
+        user's width/height, not a hard-coded one."""
+        if entry is None:
+            return
+        if entry.get("minimized") or entry.get("closed"):
+            return
+        if entry.pop("_skip_extent_remember", False):
+            return
+        try:
+            width, height = max(dock.width(), 1), max(dock.height(), 1)
+        except RuntimeError:
+            return
+        edge = self._current_dock_edge(dock, entry.get("edge"))
+        if edge in ("left", "right"):
+            entry["docked_width"] = width
+        else:
+            entry["docked_height"] = height
+
+    def _unminimize_before_float(self, dock, entry) -> None:
+        """A minimised dock floated as-is is an empty 36 px window.
+        Restore its content before it becomes a free window."""
+        if entry is not None and entry.get("minimized"):
+            setter = entry.get("set_minimized")
+            if setter is not None:
+                setter(False)
+            # Floating is the user's next explicit state; compact must
+            # not later widen/restore this dock behind their back.
+            try:
+                self._compact_minimized.discard(dock.windowTitle())
+            except AttributeError:
+                pass
+            # The un-minimise restore is deferred; the titlebar strip
+            # geometry on this turn is not the user's docked extent.
+            entry["_skip_extent_remember"] = True
+
+    @staticmethod
+    def _system_move_supported() -> bool:
+        """Wayland forbids client-side top-level positioning."""
+        from PySide6.QtGui import QGuiApplication
+        return "wayland" in QGuiApplication.platformName().casefold()
+
+    def _start_dock_system_move(self, dock: QDockWidget) -> bool:
+        """Ask the compositor to move a floating dock (works on Wayland)."""
+        try:
+            handle = dock.windowHandle()
+            return bool(handle is not None and handle.startSystemMove())
+        except RuntimeError:
+            return False
+
+    def _begin_dock_titlebar_drag(self, dock: QDockWidget,
+                                  press_global) -> None:
+        """A custom title bar must float the dock itself: replacing Qt's
+        title bar also removes its built-in drag gesture."""
+        entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                 .get(dock))
+        self._remember_docked_extent(dock, entry)
+        if dock is not getattr(self, "_results_dock", None):
+            self._unminimize_before_float(dock, entry)
+        if not dock.isFloating():
+            if dock is getattr(self, "_results_dock", None):
+                self._float_results_properly(dock, True)
+            else:
+                dock.setFloating(True)
+                dock.show()
+                dock.raise_()
+        if dock.isFloating():
+            # Put the new window under the pointer instead of leaving it
+            # at Qt's default position, which can be far from the drag.
+            dock.move(max(0, press_global.x() - 40),
+                      max(0, press_global.y() - 12))
+
+    def _finish_dock_titlebar_drag(self, dock: QDockWidget,
+                                   global_pos) -> None:
+        """A release over the main window docks to its nearest edge.
+
+        Without this, dragging a custom-titled panel out was one-way:
+        the window followed the mouse but could never be put back except
+        with the Redock button."""
+        if not dock.isFloating():
+            return
+        if not self.frameGeometry().contains(global_pos):
+            return
+        local = self.mapFromGlobal(global_pos)
+        if local.y() < self.height() // 2:
+            # A release in the top half, and especially the top band,
+            # must never join the bottom strip even on a short, wide
+            # window where the bottom edge is geometrically nearer.
+            area = (Qt.DockWidgetArea.LeftDockWidgetArea
+                    if local.x() < self.width() // 2
+                    else Qt.DockWidgetArea.RightDockWidgetArea)
+        else:
+            distances = {
+                Qt.DockWidgetArea.LeftDockWidgetArea: local.x(),
+                Qt.DockWidgetArea.RightDockWidgetArea:
+                    self.width() - local.x(),
+                Qt.DockWidgetArea.BottomDockWidgetArea:
+                    self.height() - local.y(),
+            }
+            area = min(distances, key=lambda a: distances[a])
+        self._dock_to_area(dock, area)
+
+    def _dock_to_area(self, dock: QDockWidget, area) -> None:
+        """Dock a dragged floating panel into `area`, restoring its own
+        remembered size."""
+        entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                 .get(dock)) or {}
+        dock.setFloating(False)
+        self.addDockWidget(area, dock)
+        if area == Qt.DockWidgetArea.BottomDockWidgetArea:
+            if dock is not getattr(self, "_data_tables_dock", None):
+                self.tabifyDockWidget(self._data_tables_dock, dock)
+            self._bottom_active_dock = dock
+        elif area == Qt.DockWidgetArea.RightDockWidgetArea and dock in (
+                getattr(self, "_live_log_dock", None),
+                getattr(self, "_fev_inspector_dock", None)):
+            self.tabifyDockWidget(self._inspector_dock, dock)
+        edge = self._edge_for_area(area) or entry.get("edge")
+        entry["edge"] = edge
+        if not dock.isFloating():
+            self._apply_docked_dock_constraints(dock, entry, edge)
+        self._restore_dock_extent(dock, entry, edge)
+        if dock is getattr(self, "_results_dock", None):
+            dock.setWindowTitle("Results")
+        dock.show()
+        dock.raise_()
+
+    def _toggle_dock_floating(self, dock: QDockWidget) -> None:
+        """Double-clicking a custom title bar toggles float, like the
+        native one."""
+        if dock.isFloating():
+            self._redock(dock)
+            return
+        entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                 .get(dock))
+        self._remember_docked_extent(dock, entry)
+        if dock is not getattr(self, "_results_dock", None):
+            self._unminimize_before_float(dock, entry)
+        if dock is getattr(self, "_results_dock", None):
+            self._float_results_properly(dock, True)
+        else:
+            dock.setFloating(True)
+            dock.show()
+            dock.raise_()
+
+    def _on_dock_location_changed(self, dock, area) -> None:
+        """Update the entry's edge after a dock moves between areas and
+        re-apply the minimum for the new dimension."""
+        entry = ((getattr(self, "_dock_chrome_entries", None) or {})
+                 .get(dock))
+        if entry is not None:
+            edge = self._edge_for_area(area) or entry.get("edge")
+            entry["edge"] = edge
+            if not dock.isFloating():
+                self._apply_docked_dock_constraints(dock, entry, edge)
+            stub = entry.get("stub")
+            if stub is not None and edge not in ("left", "right") \
+                    and entry.get("closed"):
+                # A side-stub closed dock moved to the bottom cannot use
+                # the rotated title bar there: restore its normal chrome
+                # first, then it closes for real.
+                restore = (self._dock_stubs or {}).get(dock)
+                if restore is not None:
+                    restore(False)
+        QTimer.singleShot(0, self._sync_dock_tab_bars)
+        QTimer.singleShot(0, self._update_dock_max_heights)
+
+    def _restore_dock_extent(self, dock, entry, edge) -> None:
+        """Reassert the user's docked width/height after a float/redock.
+
+        Deferred: on the same turn as setFloating(False) the main layout
+        has not re-adopted the dock yet, and a synchronous resizeDocks
+        request is discarded. Release the shared strip's tab ceiling
+        first or the smallest maximumHeight in the group wins. One
+        correction pass compensates for the tab-bar allowance Qt leaves
+        outside the dock's own height.
+        """
+        if edge in ("left", "right"):
+            width = entry.get("docked_width") \
+                or entry.get("normal_min_width") or 320
+            width = max(int(width), self._dock_min_dimension(entry, edge))
+            generation = self._dock_resize_generation
+
+            def restore_width(d=dock, w=width, attempt=0):
+                if generation != self._dock_resize_generation:
+                    return
+                try:
+                    actual = d.width()
+                    if attempt and actual >= w - 4:
+                        return
+                    requested = w + (w - actual) if actual < w - 4 else w
+                    self._resize_docks([d], [requested],
+                                       Qt.Orientation.Horizontal)
+                except (RuntimeError, TypeError):
+                    return
+                if attempt < 1:
+                    QTimer.singleShot(
+                        0, lambda: restore_width(d, w, attempt + 1))
+            QTimer.singleShot(0, restore_width)
+            return
+
+        target = entry.get("docked_height")
+        if dock is getattr(self, "_results_dock", None):
+            target = self._results_dock_height_before_float or target
+        height = self._clamp_dock_height(int(target or 480))
+        generation = self._dock_resize_generation
+
+        def restore_height(d=dock, h=height, attempt=0):
+            if generation != self._dock_resize_generation:
+                return
+            try:
+                self._bottom_active_dock = d
+                self._release_bottom_strip_ceiling()
+                self._update_dock_max_heights()
+                actual = d.height()
+                if attempt and actual >= h - 4:
+                    return
+                requested = h + (h - actual) if actual < h - 4 else h
+                self._resize_docks([d], [requested],
+                                   Qt.Orientation.Vertical)
+            except (RuntimeError, TypeError):
+                return
+            if attempt < 2:
+                QTimer.singleShot(
+                    0, lambda: restore_height(d, h, attempt + 1))
+        QTimer.singleShot(0, restore_height)
+        if target is None and hasattr(dock, "fit_height"):
+            QTimer.singleShot(0, dock.fit_height)
+
+    def _redock(self, dock: QDockWidget) -> None:
         """Put a floating panel back where it was docked, at its own size."""
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock)) or {}
-        edge = entry.get("edge")
+        edge = self._current_dock_edge(dock, entry.get("edge"))
+        entry["edge"] = edge
         dock.setFloating(False)
-        if edge in ("left", "right"):
-            width = entry.get("normal_min") or 320
-            try:
-                self.resizeDocks([dock], [width], Qt.Orientation.Horizontal)
-            except Exception:                          # noqa: BLE001
-                pass
-        elif hasattr(dock, "fit_height"):
-            QTimer.singleShot(0, dock.fit_height)
+        self._restore_dock_extent(dock, entry, edge)
+        if dock is getattr(self, "_results_dock", None):
+            dock.setWindowTitle("Results")
         dock.show()
         dock.raise_()
 
@@ -7374,17 +9032,39 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock))
         if floating:
+            try:
+                self._compact_minimized.discard(dock.windowTitle())
+            except AttributeError:
+                pass
+            if entry is not None and entry.get("closed"):
+                restore = (self._dock_stubs or {}).get(dock)
+                if restore is not None:
+                    restore(False)
+                # set_closed() pinned the stub to 24 px; keep the real
+                # docked width and do not let the float transition
+                # remember the stub instead.
+                entry["_skip_extent_remember"] = True
+                width = int(entry.get("docked_width") or 0)
+                if width > 160:
+                    try:
+                        dock.resize(width, max(dock.height(), 120))
+                    except RuntimeError:
+                        pass
+            self._unminimize_before_float(dock, entry)
+            self._remember_docked_extent(dock, entry)
             dock.setMinimumSize(160, 90)
             dock.setMaximumSize(16777215, 16777215)
-            # No collapse/expand (or re-float) controls on a detached
-            # window: its own title bar and frame already do that job, and
-            # an "expand up" arrow on a free-floating window is meaningless
-            # (reported). Close stays.
+            # A floating window keeps its minimize/restore control, so
+            # the panel can still be expanded/collapsed anywhere. The
+            # float button is meaningless once detached; Close and Back
+            # stay.
             if entry is not None:
-                for key in ("min_btn", "float_btn"):
-                    widget = entry.get(key)
-                    if widget is not None:
-                        widget.setVisible(False)
+                min_btn = entry.get("min_btn")
+                if min_btn is not None:
+                    min_btn.setVisible(True)
+                float_btn = entry.get("float_btn")
+                if float_btn is not None:
+                    float_btn.setVisible(False)
                 self._show_dock_back_button(dock, entry, True)
             return
         if entry is not None:
@@ -7393,18 +9073,23 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 if widget is not None:
                     widget.setVisible(True)
             self._show_dock_back_button(dock, entry, False)
-        if entry is not None:
-            edge = entry.get("edge")
-            if edge in ("left", "right"):
-                self._set_dock_min_width(dock, entry.get("normal_min", 240))
-            else:
-                dock.setMinimumHeight(entry.get("normal_min", 0))
-        dock.setMaximumSize(16777215, 16777215)
+            edge = self._current_dock_edge(dock, entry.get("edge"))
+            entry["edge"] = edge
+            self._apply_docked_dock_constraints(dock, entry, edge)
+        else:
+            dock.setMaximumSize(16777215, 16777215)
+        self._update_dock_max_heights()
         # The bottom strip sizes itself from the panel that is showing.
+        # Run hugs its content; Results keeps the height the user had
+        # before floating, which `_redock` restores immediately after
+        # this signal.
         for attr in ("_run_dock", "_results_dock"):
             panel_dock = getattr(self, attr, None)
             fit = getattr(dock, "fit_height", None)
-            if panel_dock is dock and fit is not None:
+            remembered = (entry or {}).get("docked_height")
+            if panel_dock is dock and fit is not None \
+                    and (dock is getattr(self, "_run_dock", None)
+                         or remembered is None):
                 QTimer.singleShot(0, fit)
 
     def _sync_dock_tab_bars(self):
@@ -7435,32 +9120,163 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             bar.setElideMode(_Qt.TextElideMode.ElideNone)
             bar.setExpanding(False)
 
-    def _give_canvas_room(self):
-        """Clamp the shared bottom dock strip so the central canvas
-        keeps the majority of the window (PySide6's resizeDocks trips a
-        generic-isinstance warning with dock subclasses, so constraints
-        are set directly). Data Tables and Results are tabified into
-        one strip; the user can still drag the splitter.
+    def _snapshot_startup_dock_sizes(self) -> None:
+        """Remember the first laid-out sizes before any model load.
 
-        Runs once at startup, before any model is loaded or run -- both
-        tabs are at their emptiest here, so this only needs to fit that
-        placeholder state, not a populated table. `_expand_results`
-        grows it back up once there's real content to show."""
+        A real splitter drag does not call Python `resizeDocks()`, so the
+        first-load canvas clamp compares against this untouched snapshot
+        to tell a user's size from Qt's default strip.
+        """
         try:
-            docks = [d for d in (getattr(self, "_data_tables_dock", None),
-                                 getattr(self, "_results_dock", None),
-                                 getattr(self, "_run_dock", None))
-                     if d is not None and not d.isFloating()]
-            if docks:
-                self.resizeDocks(docks, [150] * len(docks), Qt.Orientation.Vertical)
+            self._dock_startup_extents = self._current_dock_extents()
+            self._dock_startup_window_size = (self.width(), self.height())
+        except RuntimeError:
+            pass
+
+    def _current_dock_extents(self) -> dict | None:
+        docks = (getattr(self, "_explorer_dock", None),
+                 getattr(self, "_inspector_dock", None),
+                 getattr(self, "_results_dock", None),
+                 getattr(self, "_data_tables_dock", None))
+        extents = {}
+        for dock in docks:
+            if dock is None or dock.isFloating():
+                continue
+            entry = (getattr(self, "_dock_chrome_entries", None)
+                     or {}).get(dock) or {}
+            if entry.get("minimized") or entry.get("closed"):
+                continue
+            extents[dock] = (dock.width(), dock.height())
+        return extents or None
+
+    def _rebase_startup_bottom_extents(self) -> None:
+        """Rebase the bottom baseline after a window resize.
+
+        Qt legitimately changes the bottom strip's height when the window
+        grows, so comparing a post-resize height with the original
+        snapshot would look like a splitter drag. Re-snapshot the bottom
+        docks once the resize layout has settled; a later splitter drag
+        still differs from that baseline even though the window is now a
+        different size.
+        """
+        try:
+            if self._canvas_room_defaults_done:
+                return
+            self._dock_rebase_pending = False
+            if getattr(self, "_dock_startup_window_size", None) == (
+                    self.width(), self.height()):
+                return      # not a window resize; a splitter changed a dock
+            snapshot = getattr(self, "_dock_startup_extents", None)
+            current = self._current_dock_extents()
+            if not snapshot or not current:
+                return
+            for dock in list(snapshot):
+                if dock not in current:
+                    # Minimised/closed between snapshot and resize: keep
+                    # its old baseline; the chrome itself is the user's
+                    # choice and first-load sizing must not override it.
+                    continue
+                entry = (getattr(self, "_dock_chrome_entries", None)
+                         or {}).get(dock) or {}
+                if self._current_dock_edge(
+                        dock, entry.get("edge")) not in ("left", "right"):
+                    snapshot[dock] = current[dock]
+            self._dock_startup_window_size = (self.width(), self.height())
+        except RuntimeError:
+            # Resize event queued a callback that outlived the window.
+            return
+
+    def _dock_sizes_changed_since_startup(self) -> bool:
+        snapshot = getattr(self, "_dock_startup_extents", None)
+        if not snapshot:
+            return False
+        # Compare the sizes at the START of the load, not after the load
+        # rebuilt the panels: Qt may legitimately change the strip while
+        # the model populates, and that is not a user size.
+        current = getattr(self, "_dock_extents_at_load_start", None) \
+            or self._current_dock_extents() or {}
+        for dock, (width, height) in snapshot.items():
+            try:
+                if dock.isFloating():
+                    continue
+                entry = (getattr(self, "_dock_chrome_entries", None)
+                         or {}).get(dock) or {}
+                if entry.get("minimized") or entry.get("closed"):
+                    # A collapsed dock is not resized by the first-load
+                    # defaults anyway. Ignore only this dock; the other
+                    # docks (notably the bottom strip) still need their
+                    # designed size.
+                    continue
+                if dock not in current:
+                    continue
+                cw, ch = current[dock]
+                edge = self._current_dock_edge(
+                    dock, entry.get("edge"))
+                if edge in ("left", "right"):
+                    changed = abs(cw - width) > 2
+                else:
+                    # A pending resize rebase means the bottom height may
+                    # legitimately have changed with the window. A
+                    # recorded splitter drag overrides that.
+                    changed = (not self._dock_rebase_pending
+                               and abs(ch - height) > 2)
+                if changed:
+                    return True
+            except RuntimeError:
+                continue
+        return False
+
+    def _give_canvas_room(self, *, force: bool = False):
+        """Apply the designed first-load dock sizes exactly once.
+
+        `QMainWindow` gives the tabified bottom strip a tall default
+        size, so the first model load still needs the 150/320/400 clamp.
+        But a size the user (or a restored layout) chose before that
+        load is deliberate: `_dock_user_sized` records any public
+        `resizeDocks()` call, and later loads never touch sizes again.
+        `force=True` (Reset Layout) reapplies the designed sizes even if
+        that means shrinking.
+        """
+        if not force:
+            if self._canvas_room_defaults_done:
+                self._update_dock_max_heights()
+                return
+            if self._dock_user_sized or self._dock_splitter_moved \
+                    or self._dock_sizes_changed_since_startup():
+                # Chosen before the first load (or restored from a saved
+                # layout): keep it, and do not try again later.
+                self._canvas_room_defaults_done = True
+                self._update_dock_max_heights()
+                return
+        try:
+            bottom = [d for d in (getattr(self, "_data_tables_dock", None),
+                                  getattr(self, "_results_dock", None),
+                                  getattr(self, "_run_dock", None))
+                      if d is not None and not d.isFloating()]
+            active = getattr(self, "_bottom_active_dock", None) \
+                or getattr(self, "_results_dock", None)
+            if active is not None and active in bottom:
+                entry = (getattr(self, "_dock_chrome_entries", None)
+                         or {}).get(active) or {}
+                if not entry.get("minimized"):
+                    self._resize_docks([active], [150],
+                                       Qt.Orientation.Vertical)
             # Startup widths for the side docks: Explorer keeps its
             # designed 320, Inspector gets 400 so its tab strip doesn't
-            # scroll.
-            side = [d for d in (getattr(self, "_explorer_dock", None),
-                                getattr(self, "_inspector_dock", None))
-                    if d is not None and not d.isFloating()]
-            if side:
-                self.resizeDocks(side, [320, 400][:len(side)], Qt.Orientation.Horizontal)
+            # scroll. Minimised/closed slots are not touched.
+            for dock, target in ((getattr(self, "_explorer_dock", None), 320),
+                                 (getattr(self, "_inspector_dock", None), 400)):
+                if dock is None or dock.isFloating():
+                    continue
+                entry = (getattr(self, "_dock_chrome_entries", None)
+                         or {}).get(dock) or {}
+                if entry.get("minimized") or entry.get("closed"):
+                    continue
+                self._resize_docks([dock], [target],
+                                   Qt.Orientation.Horizontal)
+            self._canvas_room_defaults_done = True
+            if force:
+                self._dock_user_sized = False
         except Exception:
             pass
 
@@ -7485,7 +9301,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # a user-expanded strip keeps its size.
             if d.height() >= 280:
                 return
-            self.resizeDocks([d], [target], Qt.Orientation.Vertical)
+            self._resize_docks([d], [target], Qt.Orientation.Vertical)
         except Exception:
             pass
 
@@ -7521,6 +9337,11 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             pct = 100 * int(done) // max(int(total), 1)
         pct = max(int(pct), int(getattr(self, "_results_stage_pct", 0)))
         pct = min(pct, 100)
+        if getattr(self, "_results_follow_up", False):
+            # More work follows this population (importance variants). A
+            # "100%" here would be indistinguishable from "finished" and
+            # is exactly what used to sit on screen for minutes.
+            pct = min(pct, 99)
         self._results_stage_pct = pct
         self._run_progress.setVisible(True)
         self._run_progress.setValue(pct)
@@ -7540,13 +9361,22 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
     #: batch's report phase slower than the report itself.
     _STAGE_PUMP_SECONDS = 0.05
 
-    def _set_results_with_progress(self, *args, **kwargs):
-        """Call ResultsDock.set_results with smooth stage feedback, guarded."""
+    def _set_results_with_progress(self, *args, follow_up: bool = False,
+                                   **kwargs):
+        """Call ResultsDock.set_results with smooth stage feedback, guarded.
+
+        Returns False when another population is already in progress; the
+        caller can then retry on the next poll instead of assuming the
+        dock now holds its results. `follow_up=True` leaves the progress
+        bar visible below 100% for a phase that is still to come
+        (importance variants); the normal final population still clears it.
+        """
         if getattr(self, "_results_populating", False):
-            return
+            return False
         self._results_populating = True
         self._results_stage_pct = 0
         self._last_results_pump = 0.0
+        self._results_follow_up = bool(follow_up)
         self._run_progress.setRange(0, 100)
         self._run_progress.setValue(0)
         self._run_progress_label.setText("0%")
@@ -7561,10 +9391,13 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         finally:
             self._results_populating = False
             self._results_stage_pct = 0
-            self._run_progress.setValue(100)
-            self._run_progress_label.setText("100%")
-            self._run_progress.setVisible(False)
-            self._run_progress_label.setVisible(False)
+            self._results_follow_up = False
+            if not follow_up:
+                self._run_progress.setValue(100)
+                self._run_progress_label.setText("100%")
+                self._run_progress.setVisible(False)
+                self._run_progress_label.setVisible(False)
+        return True
 
     def _report_stage_progress(self, done: int, total: int, label: str) -> None:
         """Worker/poll-facing report-stage callback (no Qt widgets).
@@ -7675,7 +9508,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
 
 
-    def _preflight_issues(self) -> list[str]:
+    def _preflight_issues(self, rbd: RbdFile | None = None) -> list[str]:
         """Model features the engine will reject, found before Run is
         pressed. The checks themselves are a pure function of the model
         and live in `ui/preflight.py` -- this is the window-facing
@@ -7683,7 +9516,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         could not be fixed while the answer lived inside the widget
         that has the question."""
         from raptor.gui.ui.preflight import preflight_issues
-        return preflight_issues(self._rbd, self._diagram_dock.view,
+        return preflight_issues(rbd or self._rbd, self._diagram_dock.view,
                                 self._preflight_elem_name)
 
     @staticmethod
@@ -8236,7 +10069,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         writer and a recovery path avoids overwriting an open .rbds with
         legacy .rbd text, mutating the live model in place, and dropping
         annotations."""
-        if not (self._dirty and self._rbd is not None):
+        if self._rbd is None:
             return
         if getattr(self, "_loading_model", False):
             # A load is replacing the model; the old one's recovery copy
@@ -8245,7 +10078,15 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if getattr(self, "_run_in_progress", False):
             # Never write back into a model a live engine is reading.
             return
+        # A pending Comment draft is not in `_dirty` yet. Flush it BEFORE
+        # deciding there is nothing to save, or a clean model with only a
+        # just-typed comment would leave no recovery copy at all.
+        self._inspector.flush_pending_comment()
+        if not self._dirty:
+            return
         try:
+            # Recovery must include a comment still inside its debounce
+            # window, same rule as `_write_model`.
             self._diagram_dock.view.write_back_to_rbd(self._rbd)
             # Mandatory or deleted annotations would survive in the
             # recovery file (same rule as `_write_model`).
@@ -8746,17 +10587,29 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
 
     def _start_background_run(self, num_runs: int):
         import threading
+        if self._step_finalize_state is not None:
+            self._statusbar.showMessage(
+                "Finalizing the stepped run — wait for its results", 5000)
+            return
         if self._bg_thread is not None and self._bg_thread.is_alive():
             return
         # Taken on the GUI thread, before the worker starts.
-        bg_model = self._model_for_engine(copy=True)
-        main_manifest = self._build_run_manifest()
+        bg_model, isolation = self._prepare_run_model(copy=True)
+        if bg_model is None:
+            return
+        self._last_run_model = bg_model
+        main_manifest = self._build_run_manifest(bg_model, isolation)
         # Plain-data snapshots for the worker: QAction/QSettings reads
         # must stay on this thread.
         report_choices = self._report_choices()
         event_delay = self._effective_event_delay()
         state: dict = {"done": False, "progress": (0, num_runs),
-                       "snapshot": None, "paused": False}
+                       "snapshot": None, "paused": False,
+                       # Explicit worker phase. The poll uses it to stop
+                       # rendering the baseline's last (100/100) stage once
+                       # the ordinary batch is over, and to present the
+                       # baseline exactly once while importance runs.
+                       "phase": "baseline", "baseline_ready": False}
         # `resume_ev` cleared = paused (Event.wait blocks while clear);
         # Resume sets it, Pause clears it again.
         resume_ev = threading.Event()
@@ -8776,6 +10629,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         self._bg_last_progress = None
         self._bg_last_bar = None
         self._bg_last_report_count = -1
+        self._bg_baseline_presented = False
+        self._bg_baseline_presenting = False
         self._bg_state = state
 
         units = self._current_units()
@@ -8810,11 +10665,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             # its C++ object is a use-after-free (seen as a segfault in
             # `Garbage-collecting` on a large model). The run's own objects
             # are reference-counted; defer only the cyclic collector and
-            # restore it when the worker exits.
-            import gc
-            gc_was_enabled = gc.isenabled()
-            if gc_was_enabled:
-                gc.disable()
+            # restore it when the worker exits. Reference-counted because
+            # a Terminate finalize worker may overlap this one.
+            _suppress_cyclic_gc()
             try:
                 report_data: list = []
                 report_notes: list[str] = []
@@ -8953,6 +10806,12 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 state["result"] = (logs, eor, fin, report_data,
                                    report_notes, ao_lines, cap_lines,
                                    cost_lines, units)
+                # Publish the artefacts the baseline presentation needs
+                # before the long importance wait, so the interim results
+                # carry the stream and manifest exactly as the final
+                # refresh will.
+                state["streams"] = streams
+                state["run_metadata"] = run_metadata
                 # Importance measures run here, in the worker, after the
                 # ordinary batch -- which is their baseline. Same rule as
                 # `api.run`: the user's own results exist before the extra
@@ -8960,22 +10819,33 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 _mode = str((getattr(bg_model, "experiment", None) or {})
                             .get("importance", "none"))
                 if _mode not in ("none", "") and report_data:
-                    from raptor.api import importance as _imp
+                    # The baseline is complete and must stay on screen even
+                    # if the importance bookkeeping (block_rows/batch_count)
+                    # or the analysis itself fails. Publish the phase in ONE
+                    # update, before either can raise, and treat everything
+                    # below as note-only.
+                    state.update({"baseline_ready": True,
+                                  "phase": "importance"})
                     try:
+                        from raptor.api import importance as _imp
+                        state["importance_total"] = _imp.batch_count(
+                            len(_imp.block_rows(bg_model)), _mode)
                         state["importance"] = _imp.analyse(
                             bg_model, report_data, mode=_mode,
                             runs=len(report_data), workers=workers,
-                            stop_check=stop_ev.is_set,
+                            # `stop_check`, not `stop_ev.is_set`: Pause is
+                            # checked between variants (and blocks there),
+                            # so a paused run neither advances nor spins to
+                            # completion. Stop still sets `stop_ev`.
+                            stop_check=stop_check,
                             progress=lambda d, t, lab: state.__setitem__(
                                 "importance_progress", (d, t, lab)))
                     except Exception as exc:      # noqa: BLE001
-                        # A failed importance pass must not lose the batch
-                        # the user actually asked for.
+                        # A failed importance pass (or its bookkeeping) must
+                        # not lose the batch the user actually asked for.
                         report_notes.append(
                             f"importance measures were not calculated: {exc}")
                         state["importance"] = None
-                state["streams"] = streams
-                state["run_metadata"] = run_metadata
             except Exception as e:
                 import traceback
                 traceback.print_exc()
@@ -8984,9 +10854,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                     traceback.format_exception_only(type(e), e)).strip() \
                     + "\n" + traceback.format_exc(limit=8)
             finally:
-                if gc_was_enabled:
-                    gc.enable()
-                state["done"] = True
+                _resume_cyclic_gc()
+                state.update({"phase": "done", "done": True})
 
         self._bg_thread = threading.Thread(target=worker, daemon=True)
         self._bg_thread.start()
@@ -9037,9 +10906,38 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         state = self._bg_state
         if not state:
             return
-        # The worker records importance progress; nothing displayed it, so a
-        # background run spent its last minutes silently.
-        self._apply_importance_progress(state)
+        phase = str(state.get("phase") or "baseline")
+        importance_phase = phase == "importance"
+        baseline_phase = phase == "baseline"
+        self._importance_running = importance_phase and not state.get("done")
+        # Baseline finished, importance variants still running: put the
+        # baseline's Final Results on screen ONCE, so the user can read them
+        # instead of staring at "Processing results". `presenting` is set
+        # before the population: `_present_results` pumps the event loop,
+        # and a re-entrant poll must not start a second population.
+        if (not state.get("done") and state.get("baseline_ready")
+                and importance_phase
+                and not getattr(self, "_bg_baseline_presented", False)
+                and not getattr(self, "_bg_baseline_presenting", False)):
+            self._bg_baseline_presenting = True
+            try:
+                presented = self._present_background_baseline(state)
+            finally:
+                self._bg_baseline_presenting = False
+            if presented:
+                self._bg_baseline_presented = True
+                result = state.get("result")
+                if result:
+                    # The baseline is now on screen; do not let the live
+                    # Ao/Capacity catch-up re-show the dock or steal the
+                    # Graphs tab while importance runs.
+                    self._bg_last_report_count = len(result[3] or [])
+        # Importance owns the status line and the bar for this phase. The
+        # ordinary-batch progress/stage below are stale now (the worst is
+        # the runner's "Final results report 100/100"), so they must not be
+        # rendered on top on every 100 ms poll.
+        if importance_phase:
+            self._apply_importance_progress(state)
         if state.get("runaway_ask") and not state.get("runaway_asked"):
             state["runaway_asked"] = True
             done, total = state["runaway_ask"]
@@ -9047,7 +10945,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 state["stop_ev"].set()
             state["resume_ev"].set()
         stage = state.get("stage")
-        if stage and not state.get("done"):
+        if stage and not state.get("done") and baseline_phase:
             label, done, total = stage
             total = max(int(total), 1)
             self._statusbar.showMessage(
@@ -9137,7 +11035,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
                 self._diagram_dock.view.update_live_states(
                     shim, cap_data=state.get("cap_snapshot"),
                     model=dict_model)
-        if state.get("progress"):
+        if state.get("progress") and baseline_phase:
             done, total = state.get("progress", (0, 0))
             paused = bool(state.get("paused"))
             pool = state.get("workers", 1)
@@ -9185,8 +11083,9 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # Refreshed only when another run lands (report_data grows); no
         # point recomputing against unchanged data every 100 ms.
         report_data = state.get("report_data")
-        if report_data and len(report_data) != \
-                getattr(self, "_bg_last_report_count", -1):
+        if (report_data and not importance_phase
+                and len(report_data) !=
+                getattr(self, "_bg_last_report_count", -1)):
             self._bg_last_report_count = len(report_data)
             self._update_status_summary(report_data, self._current_units())
             cap_lines = state.get("cap_lines")
@@ -9207,84 +11106,124 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if not state.get("done"):
             return
         self._bg_poll.stop()
-        self._run_in_progress = False
-        self._refresh_commands()
+        # Keep the run locked until the final results are on screen. A Run
+        # click landing in the population gap used to start a second batch
+        # over the old one; user input is excluded from the pumps below for
+        # the same reason.
         self._run_progress.setVisible(False)
         self._run_progress_label.setVisible(False)
         self._clear_run_eta()
         self._hide_phase_labels()
         self._diagram_dock.view.clear_live_states()
-        # Unlock the run settings: whether the run finished, failed or was
-        # stopped, it is over, and leaving the panel locked would read as
-        # "still running".
-        self._reenable_run_panel()
-        err = state.get("error")
-        if err:
-            msgbox.critical(self, "Simulation Failed",
-                                 f"The background run failed:\n\n{err}")
-            self._statusbar.showMessage("Run failed")
-            return
-        stopped = state["stop_ev"].is_set()
-        # Same gap as the synchronous run path (see its own comment):
-        # results still need parsing/rendering below, which can take a
-        # visible moment on a large model -- without this the bar was
-        # left showing the last "Background — ..." progress line.
-        self._statusbar.showMessage("Processing results…")
-        QApplication.processEvents()
-        (logs, eor, fin, report_data, report_notes, ao_lines, cap_lines,
-         cost_lines, units) = state["result"]
-        self._push_weak_settings()
-        # Same safety-bound surfacing as the synchronous path.
-        if state.get("run_metadata", {}).get("hit_safety_bound"):
-            report_notes.append(
-                "Note: the run reached the simulation safety bound "
-                "(t = 10,000,000) WITHOUT meeting its termination "
-                "condition — results cover only the simulated portion. "
-                "Check the model's termination condition; see Help ▸ "
-                "Report Issue if this model should have ended earlier.")
+        self._importance_running = False
+        baseline_presented = bool(
+            getattr(self, "_bg_baseline_presented", False))
+        try:
+            err = state.get("error")
+            if err:
+                msgbox.critical(self, "Simulation Failed",
+                                f"The background run failed:\n\n{err}")
+                self._statusbar.showMessage("Run failed")
+                return
+            stopped = state["stop_ev"].is_set()
+            importance = state.get("importance")
+            # Same gap as the synchronous run path (see its own comment):
+            # results still need parsing/rendering below, which can take a
+            # visible moment on a large model -- without this the bar was
+            # left showing the last "Background — ..." progress line.
             self._statusbar.showMessage(
-                "WARNING: run stopped at the t=10,000,000 safety bound — "
-                "termination condition never met", 12000)
-        self._results._source_file_name = self._current_file or ""
-        result_streams = state.get("streams") or {}
-        eor_source = result_streams.get("end_of_run")
-        if eor_source is None:
-            eor_source = eor
-        self._set_results_with_progress(
-            logs, eor_source, fin, report_data=report_data,
-            units=units, notes=report_notes,
-            ao_lines=ao_lines, cap_lines=cap_lines,
-            cost_lines=cost_lines,
-            manifest=(state.get("run_metadata") or {}).get("manifest"),
-            importance=state.get("importance"))
-        self._note_results_basis()
-        self._remember_report_streams(state.get("streams") or {})
-        self._results_show_action.setEnabled(bool(report_data))
-        self._results_float_action.setEnabled(bool(report_data))
-        self._sync_overlay_actions(report_data)
-        # Do NOT auto-enable a canvas overlay here. A run should not
-        # silently repaint the model (and must never override the
-        # overlay the user explicitly chose). The Results ribbon offers
-        # Weak Links/Capacity/Cost/Spares once their data exists.
-        self._apply_hier_status(report_data)
-        self._present_results()
-        self._note_run_profile(len(report_data))
-        self._update_status_summary(report_data, units)
-        if stopped:
-            if not report_data:
+                "Importance measures complete — refreshing results…"
+                if importance is not None else "Processing results…")
+            QApplication.processEvents(
+                QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+            (logs, eor, fin, report_data, report_notes, ao_lines, cap_lines,
+             cost_lines, units) = state["result"]
+            self._push_weak_settings()
+            # Same safety-bound surfacing as the synchronous path.
+            if state.get("run_metadata", {}).get("hit_safety_bound"):
+                report_notes.append(
+                    "Note: the run reached the simulation safety bound "
+                    "(t = 10,000,000) WITHOUT meeting its termination "
+                    "condition — results cover only the simulated portion. "
+                    "Check the model's termination condition; see Help ▸ "
+                    "Report Issue if this model should have ended earlier.")
                 self._statusbar.showMessage(
-                    "Stopped before any run completed — no results", 10000)
-            elif len(report_data) < len(logs):
-                self._statusbar.showMessage(
-                    "Stopped — partial event log kept for the interrupted "
-                    "run", 10000)
+                    "WARNING: run stopped at the t=10,000,000 safety bound — "
+                    "termination condition never met", 12000)
+            self._results._source_file_name = self._current_file or ""
+            result_streams = state.get("streams") or {}
+            eor_source = result_streams.get("end_of_run")
+            if eor_source is None:
+                eor_source = eor
+            if baseline_presented and importance is not None:
+                # Same run: only the Importance page is new. Rebuilding
+                # every table a second time both costs a full report parse
+                # and clears the overlay/tab the user chose while waiting.
+                self._results.set_importance(importance)
+                self._importance_overlay_action.setEnabled(True)
+                self._note_results_basis()
+                self._remember_report_streams(state.get("streams") or {})
+                self._results_show_action.setEnabled(bool(report_data))
+                self._results_float_action.setEnabled(bool(report_data))
+                self._apply_hier_status(report_data)
+            else:
+                overlays = (self._checked_overlay_state()
+                            if baseline_presented else None)
+                self._set_results_with_progress(
+                    logs, eor_source, fin, report_data=report_data,
+                    units=units, notes=report_notes,
+                    ao_lines=ao_lines, cap_lines=cap_lines,
+                    cost_lines=cost_lines,
+                    manifest=(state.get("run_metadata") or {}).get("manifest"),
+                    importance=importance)
+                self._note_results_basis()
+                self._remember_report_streams(state.get("streams") or {})
+                self._results_show_action.setEnabled(bool(report_data))
+                self._results_float_action.setEnabled(bool(report_data))
+                self._sync_overlay_actions(report_data)
+                self._reapply_checked_overlays(overlays)
+                # Do NOT auto-enable a canvas overlay here. A run should
+                # not silently repaint the model (and must never override
+                # the overlay the user explicitly chose). The Results
+                # ribbon offers Weak Links/Capacity/Cost/Spares once their
+                # data exists.
+                self._apply_hier_status(report_data)
+                # The baseline presentation already surfaced Results.
+                # Re-presenting would yank the user out of the tab they
+                # moved to while waiting; the refresh preserves it.
+                if not baseline_presented:
+                    self._present_results()
+            self._note_run_profile(len(report_data))
+            self._update_status_summary(report_data, units)
+            if stopped:
+                if not report_data:
+                    self._statusbar.showMessage(
+                        "Stopped before any run completed — no results", 10000)
+                elif len(report_data) < len(logs):
+                    self._statusbar.showMessage(
+                        "Stopped — partial event log kept for the interrupted "
+                        "run", 10000)
+                else:
+                    self._statusbar.showMessage(
+                        f"Stopped after {len(logs)} run(s) — results ready")
             else:
                 self._statusbar.showMessage(
-                    f"Stopped after {len(logs)} run(s) — results ready")
-        else:
-            self._statusbar.showMessage(
-                f"Completed {len(logs)} run(s) successfully — results "
-                f"ready")
+                    f"Completed {len(logs)} run(s) successfully — results "
+                    f"ready" + (" (importance measures included)"
+                                if importance is not None else ""))
+        finally:
+            # Unlock only now: the run is over whether it succeeded, failed
+            # or was stopped. Every flag a later run could inherit is reset
+            # here, not only on the happy path.
+            self._run_in_progress = False
+            self._refresh_commands()
+            self._reenable_run_panel()
+            self._imp_eta = None
+            self._imp_last_key = None
+            self._importance_running = False
+            self._pause_action.setText("Pause")
+            self._bg_baseline_presented = False
+            self._bg_baseline_presenting = False
 
     def _toggle_bg_pause(self):
         # Pre-arm: Pause before any Run kicks off a stepped session
@@ -9293,7 +11232,8 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         if (getattr(self, "_step_session", None) is None
                 and not bg_active
                 and self._rbd is not None):
-            self._ensure_step_session()
+            if self._ensure_step_session() is None:
+                return
             self._show_live_log_dock(True)
             self._refresh_live_step_view(self._step_session)
             return
@@ -9318,6 +11258,10 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         # kind) combined with a genuinely live (not-yet-`done`)
         # `_bg_state` check -- the same "bg_running" test
         # `keyPressEvent`'s own Esc handler uses.
+        if getattr(self, "_step_finalize_state", None) is not None:
+            self._statusbar.showMessage(
+                "Finalizing the stepped run — results appear when ready", 4000)
+            return
         bg_state = getattr(self, "_bg_state", None)
         bg_running = bool(bg_state and not bg_state.get("done"))
         if not bg_running:
@@ -9597,6 +11541,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         if self._refuse_during_run("open an example"):
             return
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         path = next((p for p in self._doc_candidates(f"models/{file_name}")
@@ -9699,6 +11644,7 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
             return
         if self._refuse_during_run("open another file"):
             return
+        self._inspector.flush_pending_comment()
         if not self._confirm_discard_unsaved(closing=True):
             return
         try:
@@ -10023,57 +11969,185 @@ class MainWindow(RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin, QMa
         """B-11 Restart: tear down the current stepped session and start
         an identical fresh one (kickoff resets everything; RNG streams
         reseed from the table, matching a brand-new session)."""
-        if self._rbd is None:
+        if self._rbd is None or self._step_finalize_state is not None:
             return
         self._invalidate_step_session()
-        self._ensure_step_session()
+        if self._ensure_step_session() is None:
+            return
         self._refresh_live_step_view(self._step_session)
         self._statusbar.showMessage(
             "Stepped run restarted — t = 0", 6000)
 
+    def _discard_step_finalize(self, message: str | None = None) -> bool:
+        """Mark a running Terminate finalize's results as discarded.
+
+        The worker cannot be cancelled; its state, timer and thread stay
+        alive until it reports done, when `_step_finalize_poll_tick`
+        clears them and unlocks the window. Keeping them until then means
+        a new finalize/background worker cannot overlap the old one."""
+        state = self._step_finalize_state
+        if state is None:
+            return False
+        state["discard"] = True
+        self._diagram_dock.view.clear_live_states()
+        if message:
+            state["discard_message"] = message
+            self._statusbar.showMessage(message, 6000)
+        if state.get("done") and not self._step_finalize_timer.isActive():
+            # The worker finished between the last poll and this call.
+            self._step_finalize_timer.start()
+        return True
+
     def _on_step_terminate(self):
-        """Manual B-11 Early Terminate on the stepped session."""
-        if self._step_session is None:
+        """Manual B-11 Early Terminate on the stepped session.
+
+        The expensive part (finalize passes, report tables, results
+        construction) runs on a worker thread; the GUI only presents the
+        finished result on its own thread. See
+        `_step_finalize_poll_tick`. No hierarchy level is entered or left.
+        """
+        if self._step_session is None or self._step_finalize_state is not None:
             return
         session = self._step_session
         t = session.time
         self._reset_live_log()
-        self._show_live_log_dock(False)
         self._on_fev_log_close()
-        self._step_session = None   # single-use from here
+        state = {
+            "done": False,
+            "error": None,
+            "result": None,
+            "session": session,
+            "t": t,
+            "rbd": self._rbd,
+            "sink": self._step_sink,
+            "ao_sink": self._step_ao,
+            "discard": False,
+            "discard_message": None,
+        }
+        self._step_finalize_state = state
+        # The worker owns `session` from here; end the GUI-side session
+        # (keeps the sink for the report the worker is building) and show
+        # the Inspector again.
+        self._end_step_session(clear_sink=False)
+        self._run_in_progress = True
+        # `_end_step_session` unlocked the panel while the flag was still
+        # false; lock it again now the finalize owns the run.
         self._sync_run_settings_lock()
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            logs, report = session.early_terminate()
-        except Exception as e:
-            QApplication.restoreOverrideCursor()
-            msgbox.critical(self, "Terminate Failed",
-                                 f"Early terminate failed:\n\n{e}")
-            return
-        event_logs = [logs]
-        eor_lines: list[str] = []
-        final_lines: list[str] = []
-        report_data = list(self._step_sink)
-        if report is not None:
-            model = session.model
-            date = time.ctime()
-            file_name = session.rbd_file.file_name
-            eor_lines = [f"End_Of_Run Report for {file_name}  {date}",
-                         "(Early Terminate)", ""]
-            eor_lines.extend(build_end_of_run_report(
-                report, model.blocks_by_id))
-            final_lines = build_final_results_report(
-                [report], model.blocks_by_id, file_name,
-                model.run_length, date,
-                termination_type=model.termination_type)
-        QApplication.restoreOverrideCursor()
-        self._diagram_dock.view.clear_live_states()
-        self._present_run_results(event_logs, eor_lines, final_lines,
-                                  report_data,
-                                  ao_lines=list(self._step_ao or []),
-                                  cap_lines=session.cap_lines)
+        self._refresh_commands()
         self._statusbar.showMessage(
-            f"Early Terminate at t = {t:.3f} — partial results kept")
+            f"Finalizing early terminate at t = {t:.3f} — results appear "
+            "when ready")
+
+        def worker():
+            # Same cyclic-GC rule as the background run: never let a pass
+            # walk Qt wrappers owned by the GUI thread. Reference-counted
+            # so an overlapping background worker cannot have GC re-enabled
+            # by this worker's exit (or vice versa).
+            _suppress_cyclic_gc()
+            try:
+                logs, report = session.early_terminate()
+                report_data = list(state["sink"] or [])
+                eor_lines: list[str] = []
+                final_lines: list[str] = []
+                if report is not None:
+                    model = session.model
+                    date = time.ctime()
+                    file_name = session.rbd_file.file_name
+                    eor_lines = [
+                        f"End_Of_Run Report for {file_name}  {date}",
+                        "(Early Terminate)", ""]
+                    eor_lines.extend(build_end_of_run_report(
+                        report, model.blocks_by_id))
+                    final_lines = build_final_results_report(
+                        [report], model.blocks_by_id, file_name,
+                        model.run_length, date,
+                        termination_type=model.termination_type)
+                state["result"] = (
+                    [logs], eor_lines, final_lines, report_data,
+                    list(state["ao_sink"] or []), session.cap_lines)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                state["error"] = "".join(
+                    traceback.format_exception_only(type(e), e)).strip() \
+                    + "\n" + traceback.format_exc(limit=8)
+            finally:
+                _resume_cyclic_gc()
+                state["done"] = True
+
+        try:
+            thread = threading.Thread(target=worker, daemon=True)
+            self._step_finalize_thread = thread
+            thread.start()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._step_finalize_thread = None
+            state["error"] = "".join(
+                traceback.format_exception_only(type(e), e)).strip() \
+                + "\n" + traceback.format_exc(limit=8)
+            state["done"] = True
+        self._step_finalize_timer.start()
+
+    def _step_finalize_poll_tick(self):
+        """Present a finished Terminate finalize on the GUI thread."""
+        state = self._step_finalize_state
+        if state is None:
+            self._step_finalize_timer.stop()
+            return
+        if not state.get("done"):
+            return
+        # Stop before any presentation: `set_results` pumps the event loop
+        # and must not re-enter this tick.
+        self._step_finalize_timer.stop()
+        try:
+            # The model/window went away (or was replaced) while the
+            # worker ran: drop the result rather than painting it over
+            # another model.
+            if state.get("discard") or self._rbd is not state.get("rbd"):
+                self._diagram_dock.view.clear_live_states()
+                if not state.get("discard_message"):
+                    self._statusbar.showMessage(
+                        "Early-terminate results discarded", 6000)
+                return
+            err = state.get("error")
+            if err:
+                self._diagram_dock.view.clear_live_states()
+                msgbox.critical(self, "Terminate Failed",
+                                f"Early terminate failed:\n\n{err}")
+                self._statusbar.showMessage("Early terminate failed")
+                return
+            if state.get("result") is None:
+                self._diagram_dock.view.clear_live_states()
+                return
+            event_logs, eor_lines, final_lines, report_data, ao_lines, \
+                cap_lines = state["result"]
+            self._diagram_dock.view.clear_live_states()
+            self._present_run_results(event_logs, eor_lines, final_lines,
+                                      report_data,
+                                      ao_lines=ao_lines,
+                                      cap_lines=cap_lines)
+            self._statusbar.showMessage(
+                f"Early Terminate at t = {state['t']:.3f} — partial results "
+                "kept")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            msgbox.critical(self, "Results Failed",
+                            "The early-terminated run finished, but its "
+                            f"results could not be shown:\n\n{e}")
+            self._statusbar.showMessage("Early terminate results failed")
+        finally:
+            # Unlock only after presentation (or failure) has finished.
+            self._step_finalize_state = None
+            self._step_finalize_thread = None
+            self._run_in_progress = False
+            try:
+                self._refresh_commands()
+                self._sync_run_settings_lock()
+            except Exception:
+                import traceback
+                traceback.print_exc()
 
     def _on_event_renamed(self, eid: int, new_name: str):
         v = self._diagram_dock.view

@@ -47,6 +47,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Project Settings |Project Settings — simulation-wide configuration for this model |
 |Issues |No problems stop a run. Click for the list (F7) |F7
+|Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
 |===
 
 ==== Annotate
@@ -67,7 +68,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Import RBD |Merge an existing model file in as one hierarchy: its Start/End markers become the new level's In/Out |
 |Extract Hierarchy… |Save the selected hierarchy as a standalone model (its input always available) and open it to run on its own. Shows what crosses the hierarchy's boundary and how each crossing is treated. |
-|Up |Ascend one hierarchy level (or double-click an Out marker) (Alt+Up) |Alt+Up
+|Up |Ascend one hierarchy level (or double-click an Out marker) |
 |Home |Return to the home level |
 |Go to hierarchy |Go to a hierarchy |choice
 |===
@@ -233,7 +234,6 @@ current value).
 |Clear Results |Empty every results tab and return to the placeholder |
 |Single-Point Failures |List every component that alone can fail the system — series elements; export as a text file |
 |Domains… |Domain of each node — which elements' failures can propagate to it |
-|Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
 |===
 
 ==== Show on Canvas
@@ -284,6 +284,7 @@ current value).
 |Failure Effects |Show the Failure Effects panel — the live system state, failures, effects and capacity while Failure Effects View is open |
 |Results |Results |
 |Run Panel |Show the Run panel — trials, termination, analyses and recording for the next run |
+|Live Log |Show the Live Log — the stepped simulation's event list, tabbed beside the Inspector |
 |Data Tables |Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D) |Ctrl+Shift+D
 |Reset Layout |Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too |
 |===
@@ -373,5 +374,6 @@ documentation.
 |===
 |Tab |Columns
 |Blocks |Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev, Level
+|Costs |Name, ID, Initial cost, Running cost, Standby cost, Idle cost, Repair fixed cost, Repair cost per time, Repair hold cost per time, PM fixed cost, PM cost per time, PM hold cost per time, Done fixed cost, Done cost per time, Spare cost, Emergency shipping cost, Level
 |===
 

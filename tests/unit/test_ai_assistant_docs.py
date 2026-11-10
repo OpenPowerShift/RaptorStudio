@@ -28,12 +28,13 @@ def test_the_reference_manual_names_the_supported_clients():
         assert client in section
 
 
-def test_the_generated_reference_has_the_opencode_v2_config():
+def test_the_mcp_guide_has_the_opencode_v2_config():
     text = (ROOT / "docs" / "MCP.md").read_text(encoding="utf-8")
     assert "**OpenCode**" in text
     assert '"type": "local"' in text
     assert '"mcp": {' in text
     assert '"servers": {' in text
+    assert "MCP-reference.md" in text
 
 
 def test_the_user_guide_has_the_opencode_v2_config():

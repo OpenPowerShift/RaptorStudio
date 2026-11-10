@@ -552,6 +552,21 @@ def _run_with_cost():
     return dock
 
 
+def _run_multi_cost():
+    """A cost run with blocks, spare pools, events and hierarchies."""
+    from raptor.core.engine.runner import run_simulation_with_reports
+    from raptor.core.fileio.rbd import load_rbd
+    rbd = load_rbd(os.path.join(REPO, "tests", "golden", "LadL8BEvents",
+                                "input.rbd"))
+    rbd.sections["SYSTEM_DATA"].rows[0]["costAnalysis"] = "1"
+    report_data: list = []
+    logs, eor, fin = run_simulation_with_reports(
+        rbd, num_runs=1, date="fixed", report_sink=report_data)
+    dock = ResultsDock()
+    dock.set_results(logs, eor, fin, report_data=report_data)
+    return dock
+
+
 def _cost_page(dock):
     for i in range(dock._details_tabs.count()):
         if dock._details_tabs.tabText(i) == "Cost":
@@ -574,8 +589,9 @@ def test_cost_resource_pool_relabels_columns(qapp):
     page = _cost_page(dock)
     pool_tables = [t for t in page.findChildren(QTableWidget)
                    if t.columnCount() == 5 and t.rowCount() > 0
-                   and "[Resource]" in (t.item(0, 0).text()
-                                        if t.item(0, 0) else "")]
+                   and any("[Resource]" in (t.item(r, 0).text()
+                                            if t.item(r, 0) else "")
+                           for r in range(t.rowCount()))]
     assert pool_tables, "Capacity1 has an Astronauts resource pool"
     names = {pool_tables[0].item(r, 0).text()
              for r in range(pool_tables[0].rowCount())}
@@ -593,6 +609,148 @@ def test_cost_totals_are_consistent(qapp):
                 for c in range(1, 6)]
         assert vals[0] + vals[1] + vals[2] + vals[3] == \
             pytest.approx(vals[4], rel=1e-6), blocks_table.item(r, 0).text()
+
+
+def _number(table, row, column):
+    """A cell's full-precision RAW value, not its rounded display text."""
+    from raptor.gui.ui.results import RAW_VALUE_ROLE
+    raw = table.item(row, column).data(RAW_VALUE_ROLE)
+    if raw is not None:
+        return float(raw)
+    text = table.item(row, column).text().replace(",", "")
+    return float(text)
+
+
+def _table_with_headers(dock, *required):
+    for table in dock._cost_tables:
+        headers = [table.horizontalHeaderItem(c).text()
+                   for c in range(table.columnCount())]
+        if all(name in headers for name in required):
+            return table, headers
+    raise AssertionError(f"no cost table with headers {required!r}")
+
+
+def test_cost_operating_total_matches_the_blocks_table(qapp):
+    """Operating Total is the block's own full-precision Operating cost."""
+    dock = _run_multi_cost()
+    blocks, _b_headers = _table_with_headers(dock, "Purchase", "Disposal")
+    operating, headers = _table_with_headers(dock, "Repair hold")
+    assert headers[-1] == "Total"
+    block_row = {
+        blocks.item(r, 0).text(): r for r in range(blocks.rowCount())}
+    operating_col = _b_headers.index("Operating")
+    for row in range(operating.rowCount()):
+        name = operating.item(row, 0).text()
+        if name not in block_row:
+            continue
+        assert _number(operating, row, operating.columnCount() - 1) == \
+            pytest.approx(_number(blocks, block_row[name], operating_col),
+                          rel=1e-9), name
+
+
+def test_cost_sparing_total_matches_the_blocks_table(qapp):
+    """Sparing Total is InitSpares + NewSpares + EmerShip at full precision."""
+    dock = _run_multi_cost()
+    blocks, b_headers = _table_with_headers(dock, "Purchase", "Disposal")
+    sparing, headers = _table_with_headers(dock, "Initial spares")
+    assert headers[-1] == "Total"
+    block_row = {
+        blocks.item(r, 0).text(): r for r in range(blocks.rowCount())}
+    sparing_col = b_headers.index("Sparing")
+    for row in range(sparing.rowCount()):
+        name = sparing.item(row, 0).text()
+        if name not in block_row:
+            continue
+        total = sum(_number(sparing, row, c)
+                    for c in range(1, sparing.columnCount() - 1))
+        assert total == pytest.approx(
+            _number(sparing, row, sparing.columnCount() - 1), rel=1e-9), name
+        assert _number(sparing, row, sparing.columnCount() - 1) == \
+            pytest.approx(_number(blocks, block_row[name], sparing_col),
+                          rel=1e-9), name
+
+
+def test_cost_events_table_has_a_total_column(qapp):
+    """Initial + Success + Failure add up to each event's Total."""
+    dock = _run_multi_cost()
+    table, headers = _table_with_headers(dock, "Initial", "Success",
+                                         "Failure")
+    assert headers[-1] == "Total"
+    for row in range(table.rowCount()):
+        total = sum(_number(table, row, c)
+                    for c in range(1, table.columnCount() - 1))
+        assert total == pytest.approx(
+            _number(table, row, table.columnCount() - 1), rel=1e-9), \
+            table.item(row, 0).text()
+
+
+def test_cost_tables_with_a_total_do_not_get_a_second_one(qapp):
+    """Where a table already has a Total, it keeps exactly one."""
+    dock = _run_multi_cost()
+    blocks = pools = hierarchies = 0
+    for table in dock._cost_tables:
+        headers = [table.horizontalHeaderItem(c).text()
+                   for c in range(table.columnCount())]
+        if headers[:2] == ["Item", "Value"]:
+            assert "Total" not in headers
+            continue
+        assert headers.count("Total") == 1, headers
+        if "Purchase" in headers and "Disposal" in headers \
+                and "Events" in headers:
+            hierarchies += 1
+        elif "Purchase" in headers and "Disposal" in headers:
+            blocks += 1
+        if "Initial" in headers and "New Spares / Per-Time" in headers:
+            pools += 1
+    assert (blocks, pools, hierarchies) == (1, 1, 1)
+
+
+def test_cost_total_uses_the_real_export_path(qapp):
+    """Copy/CSV uses table_to_grid: filtered rows and raw totals."""
+    from raptor.gui.ui.table_export import table_to_grid
+    dock = _run_multi_cost()
+    table, _headers = _table_with_headers(dock, "Initial spares")
+    for row in range(1, table.rowCount()):
+        table.setRowHidden(row, True)
+    headers, rows = table_to_grid(table, raw=True)
+    assert headers[-1] == "Total"
+    assert len(rows) == 1
+    assert rows[0][-1] not in ("", "N/A")
+
+
+def test_cost_summary_title_is_not_covered_by_actions(qapp):
+    """A narrow Cost summary table must still show its full heading."""
+    from PySide6.QtWidgets import QPushButton
+    dock = _run_multi_cost()
+    idx = next(i for i in range(dock._details_tabs.count())
+               if dock._details_tabs.tabText(i) == "Cost")
+    dock._details_tabs.setCurrentIndex(idx)
+    dock.resize(700, 900)
+    dock.show()
+    qapp.processEvents()
+    from raptor.gui.ui.results import _TableActionStrip
+    page = dock._details_tabs.widget(idx)
+    scroll = page.widget() if hasattr(page, "widget") else page
+    strip = next(s for s in scroll.findChildren(_TableActionStrip)
+                 if any(lb.text() == "Cost summary"
+                        for lb in s.findChildren(QLabel)))
+    label = next(lb for lb in strip.findChildren(QLabel)
+                 if lb.text() == "Cost summary")
+    buttons = strip.findChildren(QPushButton)
+    assert len(buttons) == 2
+    table = strip._table_ref()
+    assert table.minimumWidth() >= strip.minimumWidth()
+    strip.resize(strip.minimumWidth(), 22)
+    strip.layout().activate()
+    qapp.processEvents()
+    assert label.width() >= label.fontMetrics().horizontalAdvance(
+        "Cost summary")
+    assert label.geometry().right() < min(b.geometry().left()
+                                         for b in buttons)
+    assert strip.width() >= strip.minimumWidth()
+    dock.close()
+    dock.deleteLater()
+    qapp.processEvents()
 
 
 def test_cost_tab_shows_note_when_disabled(qapp):
@@ -622,21 +780,45 @@ def test_weak_link_tab_from_enabled_model(qapp):
     idx = next((i for i in range(dock._details_tabs.count())
                 if dock._details_tabs.tabText(i) == "Weak Link"), None)
     assert idx is not None
-    table = dock._details_tabs.widget(idx).findChildren(QTableWidget)[0]
+    tables = dock._details_tabs.widget(idx).findChildren(QTableWidget)
+    table = tables[0]
     # Ch.11 layout: Name | Colour chip | metric + stats.
     headers = [table.horizontalHeaderItem(c).text()
                for c in range(table.columnCount())]
     assert headers[:3] == ["Name", "Colour", "Availability"], headers
     assert "Min" in headers and "StdDev" in headers  # Fig 11.6 stats
+    for chip_table in tables:
+        chip_headers = [chip_table.horizontalHeaderItem(c).text()
+                        for c in range(chip_table.columnCount())]
+        if "Colour" not in chip_headers:
+            continue
+        for r in range(chip_table.rowCount()):
+            band = chip_table.item(r, 1).text()
+            assert band in ("Green", "Yellow", "Red"), band
+            tip = chip_table.item(r, 1).toolTip()
+            assert band in tip
+            assert ResultsDock._WEAK_COLOUR_TIPS[band.casefold()] in tip
+            assert "Thresholds:" in tip
     for r in range(table.rowCount()):
         band = table.item(r, 1).text()
-        assert band in ("Green", "Yellow", "Red"), band
         val = float(table.item(r, 2).text())
         assert 0.0 <= val <= 1.0
         if band == "Green":
             assert val >= 0.95
         elif band == "Red":
             assert val < 0.90
+
+    state = next(t for t in tables
+                 if any((t.horizontalHeaderItem(c).text() == "% Green")
+                        for c in range(t.columnCount())))
+    for colour in ("Green", "Yellow", "Red", "Blue", "Brown", "Orange"):
+        col = next(c for c in range(state.columnCount())
+                   if state.horizontalHeaderItem(c).text() == f"% {colour}")
+        tip = state.horizontalHeaderItem(col).toolTip()
+        assert ResultsDock._WEAK_COLOUR_TIPS[colour.casefold()] in tip, colour
+        if state.rowCount():
+            assert ResultsDock._WEAK_COLOUR_TIPS[colour.casefold()] in \
+                state.item(0, col).toolTip()
 
 
 def test_weak_link_table_keeps_stats_columns_for_one_run(qapp):
@@ -687,10 +869,14 @@ def test_capacity_table_shows_envelope_and_run_average_extremes(qapp):
     per_run = [cap.nodes[sys_nid] for cap in caps]
     mins = [s.min_flow for s in per_run]
     maxs = [s.max_flow for s in per_run]
-    assert table.item(0, 1).text() == f"{int(min(mins)):,}"
-    assert table.item(0, 2).text() == f"{sum(mins) / len(mins):,.2f}"
-    assert table.item(0, 4).text() == f"{sum(maxs) / len(maxs):,.2f}"
-    assert table.item(0, 5).text() == f"{int(max(maxs)):,}"
+    # Capacity defaults to average-flow descending, so find the system
+    # row by name rather than assuming it stays at index 0.
+    names = [table.item(r, 0).text() for r in range(table.rowCount())]
+    row = names.index("SystemCapacity")
+    assert table.item(row, 1).text() == f"{int(min(mins)):,}"
+    assert table.item(row, 2).text() == f"{sum(mins) / len(mins):,.2f}"
+    assert table.item(row, 4).text() == f"{sum(maxs) / len(maxs):,.2f}"
+    assert table.item(row, 5).text() == f"{int(max(maxs)):,}"
 
 
 def test_weak_link_tab_shows_note_when_disabled(qapp):
@@ -884,36 +1070,16 @@ def test_weak_page_rebuilds_when_metric_or_bands_change(qapp):
                if dock._details_tabs.tabText(i) == "Weak Link")
     table = dock._details_tabs.widget(idx).findChildren(QTableWidget)[0]
     assert table.horizontalHeaderItem(2).text() == "Availability"
-    first = table.item(0, 2).text()
+    avail = {table.item(r, 0).text(): table.item(r, 2).text()
+             for r in range(table.rowCount())}
     dock.set_weak_settings("Dependability", 0.80, 0.50)
     idx = next(i for i in range(dock._details_tabs.count())
                if dock._details_tabs.tabText(i) == "Weak Link")
     table = dock._details_tabs.widget(idx).findChildren(QTableWidget)[0]
     assert table.horizontalHeaderItem(2).text() == "Dependability"
-    assert table.item(0, 2).text() != first
-
-
-def test_export_csv_includes_capacity_cost_and_weak(qapp, tmp_path,
-                                                    monkeypatch):
-    rbd = load_rbd(os.path.join(REPO, "tests/golden/Capacity1/input.rbd"))
-    row = rbd.sections["SYSTEM_DATA"].rows[0]
-    row["weakAnalysis"] = "1"
-    row["costAnalysis"] = "1"
-    row["capacityAnalysis"] = "1"
-    report_data: list = []
-    logs, eor, fin = run_simulation_with_reports(
-        rbd, num_runs=2, date="fixed", report_sink=report_data)
-    dock = ResultsDock()
-    dock.set_results(logs, eor, fin, report_data=report_data)
-    target = tmp_path / "results.csv"
-    monkeypatch.setattr(
-        _fdg, "getSaveFileName",
-        staticmethod(lambda *a, **k: (str(target), "CSV (*.csv)")))
-    dock._export_csv()
-    text = target.read_text(encoding="utf-8")
-    assert "# Capacity" in text
-    assert "# Cost" in text
-    assert "# Weak Link" in text
+    dep = {table.item(r, 0).text(): table.item(r, 2).text()
+           for r in range(table.rowCount())}
+    assert dep != avail
 
 
 def test_cost_tables_keep_raw_values_for_the_top_copy(qapp):
@@ -926,12 +1092,17 @@ def test_cost_tables_keep_raw_values_for_the_top_copy(qapp):
     dock.set_results(logs, eor, fin, report_data=report_data)
     from raptor.gui.ui.results import RAW_VALUE_ROLE
     blocks = dock._cost_tables[0]
-    assert blocks.item(0, 1).data(RAW_VALUE_ROLE) is not None
+    assert any(blocks.item(r, 1).data(RAW_VALUE_ROLE) is not None
+               for r in range(blocks.rowCount()))
 
 
 def test_every_cost_table_has_a_title_copy_and_csv(qapp):
-    """The report-section cost tables (Operating/Sparing/Cost summary)
-    were added without the Copy/CSV actions the life-cycle tables had."""
+    """Every cost table card has its own icon-only Copy/CSV pair.
+
+    The old global header row was removed in #205; these are the per-table
+    actions that replaced it, including the report-section cost tables
+    (Operating/Sparing/Cost summary).
+    """
     from PySide6.QtWidgets import QPushButton
     from raptor.core.fileio.rbds import load_rbds
 
@@ -948,10 +1119,12 @@ def test_every_cost_table_has_a_title_copy_and_csv(qapp):
     titles = [lb.text() for lb in scroll.findChildren(QLabel)
               if lb.objectName() == "TableTitle"]
     buttons = [b for b in scroll.findChildren(QPushButton)
-               if b.text() in ("Copy", "CSV…")]
+               if b.accessibleName().startswith(("Copy ", "Save "))]
     assert dock._cost_extra, "Water2 should exercise the extra cost tables"
     assert len(titles) == len(dock._cost_tables)
     assert len(buttons) == 2 * len(dock._cost_tables)
+    assert all(b.text() == "" and not b.icon().isNull()
+               and b.toolTip() and b.accessibleName() for b in buttons)
     assert any("Operating" in t for t in titles)
     assert any("Sparing" in t for t in titles)
 

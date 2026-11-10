@@ -1,0 +1,382 @@
+"""Focus Event selects and reveals the matching row in the Live Log.
+
+The row must be the event just described (not simply the last row), the
+run being stepped must be brought back on screen when an earlier run is
+being read, and with Focus Event off the user's selection/scroll must not
+move.
+"""
+from __future__ import annotations
+
+import os
+
+import pytest
+
+pytest.importorskip("PySide6")
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
+
+from raptor.api.tables import parse_event_log_line
+from raptor.core.fileio.rbd import load_rbd
+from raptor.gui.ui.main_window import MainWindow
+
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+FIXTURE = os.path.join(REPO, "tests", "golden", "TwoBlockRedundancy", "input.rbd")
+HIER_FIXTURE = os.path.join(REPO, "tests", "golden", "HierarchyExample",
+                            "input.rbd")
+
+
+@pytest.fixture(scope="module")
+def qapp():
+    return QApplication.instance() or QApplication([])
+
+
+@pytest.fixture
+def window(qapp):
+    w = MainWindow()
+    rbd = load_rbd(FIXTURE)
+    rbd.section("SYSTEM_DATA").rows[0]["TermCondition"] = "200"
+    rbd.section("SYSTEM_DATA").rows[0]["NumRuns"] = "3"
+    w._load_into_app(rbd, None)
+    w.show()
+    w._live_sim_action.setChecked(True)
+    qapp.processEvents()
+    yield w
+    w._invalidate_step_session()
+    w._dirty = False
+    w.close()
+    w.deleteLater()
+    qapp.processEvents()
+
+
+@pytest.fixture
+def hierarchy_window(qapp):
+    w = MainWindow()
+    rbd = load_rbd(HIER_FIXTURE)
+    rbd.section("SYSTEM_DATA").rows[0]["TermCondition"] = "200"
+    rbd.section("SYSTEM_DATA").rows[0]["NumRuns"] = "1"
+    w._load_into_app(rbd, None)
+    w.show()
+    w._live_sim_action.setChecked(True)
+    w._focus_event_action.setChecked(True)
+    qapp.processEvents()
+    yield w
+    w._invalidate_step_session()
+    w._dirty = False
+    w.close()
+    w.deleteLater()
+    qapp.processEvents()
+
+
+def _rows(panel):
+    return [panel.tree.topLevelItem(i)
+            for i in range(panel.tree.topLevelItemCount())]
+
+
+def _visible(panel, item) -> bool:
+    return bool(panel.tree.viewport().rect().intersects(
+        panel.tree.visualItemRect(item)))
+
+
+def test_focus_event_selects_and_reveals_a_middle_row(window, qapp):
+    """The API is not just "scroll to bottom": a specific row wins."""
+    panel = window._live_log_panel
+    for _ in range(25):
+        window._on_step()
+    qapp.processEvents()
+    rows = _rows(panel)
+    assert len(rows) > 5
+
+    panel.tree.scrollToTop()
+    qapp.processEvents()
+    index = len(window._step_session.logs) - 3
+    target = rows[index - panel._cut]
+
+    assert panel.focus_event(index)
+    assert panel.tree.currentItem() is target
+    assert _visible(panel, target), "the selected row was not scrolled into view"
+
+
+def test_focus_event_uses_the_described_row_not_the_last_one(
+        window, qapp):
+    """A trailing System bookkeeping line must not be the selected row."""
+    panel = window._live_log_panel
+    window._on_step()
+    session = window._step_session
+    view = window._diagram_dock.view
+    name = next(iter(view.blocks.values())).name
+    first_new = len(session.logs)
+    session.logs.extend([
+        f"999.000\tBlock\t{name}\tUp\t",
+        "999.000\tSystem\tBookkeeping\t--\t",
+    ])
+    panel.update_session([], session.logs, 1, 999.0)
+    qapp.processEvents()
+
+    window._describe_and_focus_step(session, {}, first_new)
+    qapp.processEvents()
+    rows = _rows(panel)
+    selected = panel.tree.currentItem()
+    assert selected is not None
+    assert selected is not rows[-1], "the trailing System row was selected"
+    assert selected.text(1) == "Block" and selected.text(2) == name
+    assert _visible(panel, selected)
+
+
+def test_a_focus_tint_is_removed_when_that_row_is_no_longer_current(
+        window, qapp):
+    panel = window._live_log_panel
+    for _ in range(4):
+        window._on_step()
+    qapp.processEvents()
+    old = _rows(panel)[0]
+    assert panel.focus_event(0)
+    assert old.font(0).bold()
+    assert old.data(0, Qt.ItemDataRole.BackgroundRole) is not None
+
+    window._on_step()
+    qapp.processEvents()
+    assert not old.font(0).bold()
+    assert old.data(0, Qt.ItemDataRole.BackgroundRole) is None
+
+
+def test_canvas_target_uses_the_log_rows_own_kind(window):
+    from types import SimpleNamespace
+    view = window._diagram_dock.view
+    node_item, hier_item = object(), object()
+    originals = (view.nodes, view._node_items, view.hiers,
+                 view._hier_items, view.blocks, view._block_items,
+                 view.events, view._event_items)
+    try:
+        view.nodes = {1: SimpleNamespace(node_name="Shared")}
+        view._node_items = {1: node_item}
+        view.hiers = {2: SimpleNamespace(name="Shared")}
+        view._hier_items = {2: hier_item}
+        view.blocks = {}
+        view._block_items = {}
+        view.events = {}
+        view._event_items = {}
+
+        assert window._canvas_item_for_log("Node", "Shared") is node_item
+        assert window._canvas_item_for_log("Hier", "Shared") is hier_item
+        assert window._canvas_item_for_log("Trigger", "Shared") is None
+        assert window._canvas_item_for_log("Pool", "Shared") is None
+        assert window._canvas_item_for_log("System", "Shared") is None
+    finally:
+        (view.nodes, view._node_items, view.hiers, view._hier_items,
+         view.blocks, view._block_items, view.events,
+         view._event_items) = originals
+
+
+def test_focus_off_jump_keeps_selection_and_scroll(window, qapp):
+    panel = window._live_log_panel
+    window._focus_event_action.setChecked(False)
+    window.resize(900, 240)
+    for _ in range(25):
+        window._on_step()
+    qapp.processEvents()
+    rows = _rows(panel)
+    assert len(rows) > 4
+    target = rows[2]
+    panel.tree.setCurrentItem(target)
+    bar = panel.tree.verticalScrollBar()
+    bar.setValue(max(1, bar.maximum() // 2))
+    before = bar.value()
+
+    window._on_step_jump()
+    qapp.processEvents()
+    session = window._step_session
+    assert session.run_index == 1
+    assert panel.shown_index == 0 and not panel.following
+    assert panel.tree.currentItem() is target
+    assert bar.value() == before, "Jump moved the user's scroll position"
+    assert len(_rows(panel)) == len(session.completed[0][0])
+
+
+def test_focus_event_returns_to_the_run_being_stepped(window, qapp):
+    panel = window._live_log_panel
+    window._on_step()
+    window._on_step_jump()
+    window._on_step()
+    qapp.processEvents()
+
+    panel.prev_button.click()
+    qapp.processEvents()
+    assert not panel.following, "test needs an earlier run on screen"
+
+    window._on_step()
+    qapp.processEvents()
+    assert panel.following
+    assert panel.run_combo.currentIndex() == window._step_session.run_index
+    selected = panel.tree.currentItem()
+    assert selected is not None
+    assert panel.tree.indexOfTopLevelItem(selected) >= 0
+    assert _visible(panel, selected)
+
+
+def test_focus_event_updates_the_log_with_animate_off(window, qapp):
+    """Focus Event is a live-log feature: stepping must feed the panel
+    even when the canvas animation is off, or the selected row is stale."""
+    panel = window._live_log_panel
+    window._live_sim_action.setChecked(False)
+    window._focus_event_action.setChecked(True)
+    window._on_step()
+    qapp.processEvents()
+    session = window._step_session
+    assert panel.tree.topLevelItemCount() == len(session.logs)
+    selected = panel.tree.currentItem()
+    assert selected is not None
+    selected_fields = tuple(selected.text(i) for i in range(5))
+    assert any(tuple(parse_event_log_line(line)) == selected_fields
+               for line in session.logs)
+    assert _visible(panel, selected)
+
+
+def test_focus_event_selects_the_row_after_an_automatic_rollover(
+        window, qapp):
+    """Stepping off the end of run 1 jumps to run 2 itself; Focus Event
+    must use the NEW run's line count, not the replaced log's length."""
+    panel = window._live_log_panel
+    window._focus_event_action.setChecked(True)
+    window._on_step()
+    session = window._step_session
+    assert session.has_next_run
+
+    window._end_of_stepped_run(session)
+    qapp.processEvents()
+    assert session.run_index == 1
+    assert panel.following
+    assert panel.tree.topLevelItemCount() == len(session.logs)
+    selected = panel.tree.currentItem()
+    assert selected is not None, "rollover did not focus the new run's event"
+    assert _visible(panel, selected)
+
+
+def test_focus_off_keeps_the_previous_run_at_a_rollover(window, qapp):
+    panel = window._live_log_panel
+    window._focus_event_action.setChecked(False)
+    window._on_step()
+    session = window._step_session
+    assert session.has_next_run
+    first = _rows(panel)[0]
+    panel.tree.setCurrentItem(first)
+    bar = panel.tree.verticalScrollBar()
+    before = bar.value()
+
+    window._end_of_stepped_run(session)
+    qapp.processEvents()
+    assert session.run_index == 1
+    assert panel.shown_index == 0 and not panel.following
+    assert panel.tree.currentItem() is first
+    assert bar.value() == before
+    assert len(_rows(panel)) == len(session.completed[0][0])
+
+
+def test_focus_off_leaves_selection_and_scroll_alone(window, qapp):
+    panel = window._live_log_panel
+    for _ in range(20):
+        window._on_step()
+    qapp.processEvents()
+    panel.tree.scrollToTop()
+    qapp.processEvents()
+    first = _rows(panel)[0]
+    panel.tree.setCurrentItem(first)
+    bar = panel.tree.verticalScrollBar()
+    before = bar.value()
+
+    window._focus_event_action.setChecked(False)
+    window._on_step()
+    qapp.processEvents()
+
+    assert panel.tree.currentItem() is first
+    assert bar.value() == before
+
+
+def _focus_log_line(w, session, kind, name, qapp, status="Up"):
+    """Inject one log line and run the same focus path a real step uses."""
+    first_new = len(session.logs)
+    session.logs.append(f"999.000\t{kind}\t{name}\t{status}\t")
+    w._live_log_panel.update_session([], session.logs, 1, session.time)
+    w._describe_and_focus_step(session, {}, first_new)
+    qapp.processEvents()
+
+
+def test_focus_event_enters_and_leaves_a_hierarchy(hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.go_home()
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "Block", "SolarP_500W", qapp)
+    assert view._current_parent == 23
+    block = view._block_items[1]  # SolarP_500W
+    assert block.isSelected()
+
+    _focus_log_line(w, session, "Block", "Thermal", qapp)
+    assert view._current_parent == 0
+    assert view._block_items[4].isSelected()  # Thermal
+
+
+def test_focus_event_moves_between_sibling_hierarchies(
+        hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.go_home()
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "Block", "SolarP_500W", qapp)
+    assert view._current_parent == 23
+    _focus_log_line(w, session, "Block", "SolarP_650W", qapp)
+    assert view._current_parent == 26
+    selected = [item for item in view._block_items.values()
+                if item.isSelected()]
+    assert len(selected) == 1
+    assert view.blocks[selected[0]._block_id].name == "SolarP_650W"
+
+
+def test_focus_event_hierarchy_row_selects_oval_without_entering(
+        hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.go_home()
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "Hier", "500path", qapp)
+    assert view._current_parent == 0
+    assert view._hier_items[23].isSelected()
+
+
+def test_focus_event_trigger_and_system_rows_keep_the_level(
+        hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.enter_level(23)
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "System", "State_change", qapp)
+    assert view._current_parent == 23
+    _focus_log_line(w, session, "Trigger", "SomeTrigger", qapp)
+    assert view._current_parent == 23
+
+
+def test_focus_off_does_not_navigate_into_a_hierarchy(
+        hierarchy_window, qapp):
+    w = hierarchy_window
+    w._on_step()
+    session = w._step_session
+    view = w._diagram_dock.view
+    view.go_home()
+    w._focus_event_action.setChecked(False)
+    qapp.processEvents()
+
+    _focus_log_line(w, session, "Block", "SolarP_500W", qapp)
+    assert view._current_parent == 0

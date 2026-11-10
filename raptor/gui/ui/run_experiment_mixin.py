@@ -312,7 +312,7 @@ class RunExperimentMixin:
             settings.remove(f"reports/{key}")
         settings.set_value("experiments/recording_migrated", True)
 
-    def _build_run_manifest(self) -> dict:
+    def _build_run_manifest(self, rbd=None, isolation=None) -> dict:
         """Freeze what this run is, for the results to carry.
 
         Built on the calling thread, once, before the engine starts. It
@@ -320,15 +320,25 @@ class RunExperimentMixin:
         excludes the trial count, run length and analysis flags), so
         changing a run setting does not retroactively invalidate results
         already produced, while an actual change to the reliability model
-        does. See `core/run_manifest.py` for why the ordering matters."""
-        if self._rbd is None:
+        does. See `core/run_manifest.py` for why the ordering matters.
+
+        A hierarchy run passes its in-memory extract and isolation record:
+        the manifest then describes the model that actually ran, and the
+        results can never be read as whole-model figures."""
+        model = rbd if rbd is not None else self._rbd
+        if model is None:
             return {}
         try:
             m = run_manifest.build_manifest(
-                self._rbd, self._current_experiment(),
+                model, self._current_experiment(),
                 profile=self._run_panel_profile()
                 if getattr(self, "_run_panel", None) else "",
                 engine_version=_engine_version())
+            if isolation is not None:
+                m["isolation"] = isolation.to_dict()
+                m["model_name"] = (
+                    f"{getattr(self._rbd, 'file_name', '') or '(unnamed)'}"
+                    f" / {isolation.hierarchy} (isolated)")
             m["digest"] = run_manifest.manifest_digest(m)
             return m
         except Exception as exc:      # a manifest must never block a run

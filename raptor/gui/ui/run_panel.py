@@ -38,9 +38,10 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QDockWidget, QDoubleSpinBox, QFormLayout,
-    QGridLayout, QGroupBox, QHBoxLayout, QLabel, QMainWindow, QScrollArea,
-    QSpinBox, QTabBar, QVBoxLayout, QWidget,
+    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDockWidget,
+    QDoubleSpinBox, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
+    QLabel, QMainWindow, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
+    QTabBar, QVBoxLayout, QWidget,
 )
 
 from raptor.core import run_experiment as rx
@@ -57,6 +58,8 @@ class RunPanel(QWidget):
     column mirror all stay in one place)."""
 
     experiment_changed = Signal(dict)
+    #: The run scope changed: 0 = whole model, otherwise a hierarchy id.
+    scope_changed = Signal(int)
     #: A model-level system value edited here (flowGenerated/systemRedCost/
     #: sysLostCost). Kept separate from `experiment_changed`: these are
     #: SYSTEM_DATA columns, not experiment fields, even though the panel
@@ -78,6 +81,8 @@ class RunPanel(QWidget):
         self._exp = rx.defaults()
         self._loading = False
         self._enabled = True
+        self._hierarchies: list[tuple[int, str]] = []
+        self._scope_hid = 0
         # Mirrors of the SYSTEM_DATA cells shown in this panel. Kept here
         # (not in `_exp`) so the experiment stays a run-settings object;
         # MainWindow remains the writer of the row.
@@ -211,10 +216,117 @@ class RunPanel(QWidget):
 
     # -- construction --------------------------------------------------
 
+    def _build_scope_rows(self, form: QFormLayout) -> None:
+        """One row: the model-scope selector and, for a hierarchy, Options.
+
+        The bottom dock is short, so a hierarchy run adds NO height here:
+        the explanation and boundary treatments live in a small dialog
+        behind the Options button, and the choice is flagged by the
+        selector's amber outline and the box title instead of extra rows
+        that would push Trials below the fold.
+        """
+        self._scope = QComboBox()
+        self._scope.setToolTip(
+            "Run the whole model, or one hierarchy on its own. A hierarchy "
+            "run is isolated: its input is assumed always available and "
+            "the results describe that hierarchy only.")
+        self._scope.currentIndexChanged.connect(self._on_scope_changed)
+        self._scope.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                  QSizePolicy.Policy.Fixed)
+
+        self._scope_button = QPushButton("Options…")
+        self._scope_button.setToolTip(
+            "How the hierarchy's connections to the rest of the model are "
+            "treated for this isolated run.")
+        self._scope_button.clicked.connect(self._open_scope_options)
+        self._scope_button.setVisible(False)
+
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(self._scope, 1)
+        row.addWidget(self._scope_button)
+        form.addRow("Model scope:", row)
+
+        # The explanation and treatments, shown on demand.
+        self._scope_dialog = QDialog(self)
+        self._scope_dialog.setWindowTitle("Isolated hierarchy run")
+        dlg = QVBoxLayout(self._scope_dialog)
+        self._scope_warning = QLabel()
+        self._scope_warning.setObjectName("RunScopeWarning")
+        self._scope_warning.setWordWrap(True)
+        self._scope_warning.setTextFormat(Qt.TextFormat.RichText)
+        self._scope_warning.setMinimumWidth(420)
+        self._scope_warning.setStyleSheet(
+            "QLabel#RunScopeWarning { background: rgba(245, 158, 11, 36); "
+            "border: 1px solid #b45309; border-radius: 3px; padding: 6px; }")
+        dlg.addWidget(self._scope_warning)
+
+        self._scope_options = QWidget()
+        opt = QFormLayout(self._scope_options)
+        opt.setContentsMargins(0, 0, 0, 0)
+        self._scope_deps = QComboBox()
+        self._scope_deps.addItem("Assume outside elements are always up", "up")
+        self._scope_deps.addItem("Follow the extract's own end", "system")
+        self._scope_deps.addItem("Refuse (stop if any)", "refuse")
+        self._scope_pools = QComboBox()
+        self._scope_pools.addItem("Give it the whole pool", "full")
+        self._scope_pools.addItem("Share by the fraction of users inside",
+                                  "share")
+        self._scope_pools.addItem("Refuse (stop if any)", "refuse")
+        self._scope_streams = QComboBox()
+        self._scope_streams.addItem("Keep the random streams", "keep")
+        self._scope_streams.addItem("Give shared draws their own streams",
+                                    "separate")
+        opt.addRow("Outside dependencies:", self._scope_deps)
+        opt.addRow("Shared spare / resource pools:", self._scope_pools)
+        opt.addRow("Shared random streams:", self._scope_streams)
+        dlg.addWidget(self._scope_options)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(self._scope_dialog.close)
+        dlg.addWidget(buttons)
+
+    def _open_scope_options(self) -> None:
+        self._scope_dialog.show()
+        self._scope_dialog.raise_()
+        self._scope_dialog.activateWindow()
+
+    def _build_trials_cores_row(self, form: QFormLayout) -> None:
+        from raptor.gui import cores
+        self._cores = QSpinBox()
+        self._cores.setRange(1, cores.available())
+        self._cores.setSuffix(f" of {cores.available()}")
+        self._cores.setAccessibleName("Cores for full-speed runs")
+        self._cores.setMinimumWidth(96)
+        # The Run panel is the one editor for Cores. The ribbon box is a
+        # read-only readout; Preferences shows the same value without a
+        # second write path.
+        self._cores.editingFinished.connect(
+            lambda: self.cores_changed.emit(self._cores.value()))
+        # Trials and Cores share a row: the bottom dock is short, and every
+        # row saved here keeps the last fields above the fold.
+        trials_row = QHBoxLayout()
+        trials_row.setContentsMargins(0, 0, 0, 0)
+        trials_row.addWidget(self._trials, 1)
+        cores_label = QLabel("Cores:")
+        cores_label.setBuddy(self._cores)
+        trials_row.addWidget(cores_label)
+        trials_row.addWidget(self._cores, 1)
+        form.addRow("Trials:", trials_row)
+        # Why Cores is greyed, in words (a tooltip alone went unseen). Its
+        # own row, shown only when there is something to say.
+        self._cores_note = QLabel()
+        self._cores_note.setObjectName("SectionNote")
+        self._cores_note.setWordWrap(True)
+        self._cores_note.setVisible(False)
+        form.addRow(self._cores_note)
+
     def _build_experiment_box(self) -> QGroupBox:
         box = QGroupBox("Experiment")
+        self._experiment_box = box
         form = QFormLayout(box)
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+
+        self._build_scope_rows(form)
 
         self._profile = QComboBox()
         for key, spec in rx.PROFILES.items():
@@ -234,28 +346,7 @@ class RunPanel(QWidget):
         # keystroke would push an undo entry per digit.
         self._trials.editingFinished.connect(
             lambda: self._emit_change("trials", self._trials.value()))
-        form.addRow("Trials:", self._trials)
-
-        from raptor.gui import cores
-        self._cores = QSpinBox()
-        self._cores.setRange(1, cores.available())
-        self._cores.setSuffix(f" of {cores.available()}")
-        self._cores.setAccessibleName("Cores for full-speed runs")
-        self._cores.setMinimumWidth(96)
-        # The Run panel is the one editor for Cores. The ribbon box is a
-        # read-only readout; Preferences shows the same value without a
-        # second write path.
-        self._cores.editingFinished.connect(
-            lambda: self.cores_changed.emit(self._cores.value()))
-        # Why it is greyed, in words beside it (a tooltip alone went unseen).
-        self._cores_note = QLabel()
-        self._cores_note.setObjectName("SectionNote")
-        self._cores_note.setWordWrap(True)
-        cores_row = QHBoxLayout()
-        cores_row.setContentsMargins(0, 0, 0, 0)
-        cores_row.addWidget(self._cores)
-        cores_row.addWidget(self._cores_note, 1)
-        form.addRow("Cores:", cores_row)
+        self._build_trials_cores_row(form)
 
         self._term_type = QComboBox()
         for code, words in (("TimeSim", "Time"),
@@ -295,9 +386,13 @@ class RunPanel(QWidget):
                 "start_stats", self._start_stats, "TimeSim"))
         form.addRow("Statistics from:", self._start_stats)
 
+        # Shown only when the start time is invalid; the rest of what it
+        # used to say is in the field tooltips, so it costs no height.
         self._unit_note = QLabel()
         self._unit_note.setObjectName("SectionNote")
-        form.addRow("", self._unit_note)
+        self._unit_note.setWordWrap(True)
+        self._unit_note.setVisible(False)
+        form.addRow(self._unit_note)
         return box
 
     def _build_analysis_box(self) -> QGroupBox:
@@ -329,11 +424,10 @@ class RunPanel(QWidget):
             "IEC 61078 Annex D importance factors, estimated by re-simulation: "
             "one extra batch per block, two with Birnbaum.")
         self._importance_check.toggled.connect(self._on_importance_toggled)
-        # The cost note goes in the SAME grid column as every other
-        # analysis note: a free-standing label started at the group's left
-        # margin and broke the one-column alignment the panel guarantees.
-        self._importance_note = self._add_check_row(
-            grid, 3, self._importance_check, "")
+        # The cost note is a tooltip (on the box and the mode picker), not
+        # a five-line label: it was the tallest thing in the bottom dock.
+        grid.addWidget(self._importance_check, 3, 0,
+                       Qt.AlignmentFlag.AlignTop)
         self._importance_mode = QComboBox()
         for mode, label in (("improvement", "Improvement (RRW, Vesely-Fussell)"),
                             ("risk", "Risk (RAW)"),
@@ -347,8 +441,9 @@ class RunPanel(QWidget):
             self._importance_mode.setCurrentIndex(_default)
         self._importance_mode.currentIndexChanged.connect(
             self._on_importance_mode)
-        grid.addWidget(self._importance_mode, 4, 1,
-                       Qt.AlignmentFlag.AlignLeft)
+        # Beside its checkbox, in the note column, so it costs no row.
+        grid.addWidget(self._importance_mode, 3, 1,
+                       Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self._importance_blocks = 0
         self._sync_importance_rows()
 
@@ -359,7 +454,8 @@ class RunPanel(QWidget):
         # red cost prices failed time, and the lost-flow cost only means
         # anything when capacity is tracked too.
         self._system_form = QFormLayout()
-        self._system_form.setContentsMargins(0, 4, 0, 0)
+        self._system_form.setContentsMargins(0, 2, 0, 0)
+        self._system_form.setVerticalSpacing(2)
         self._flow_gen = QSpinBox()
         self._flow_gen.setRange(0, 1_000_000_000)
         self._flow_gen.setValue(int(self._flow_generated))
@@ -408,11 +504,10 @@ class RunPanel(QWidget):
         self._importance_check.setChecked(on)
         self._importance_check.blockSignals(False)
         self._importance_mode.setVisible(on)
-        # The note stays visible either way: the cost is what a user needs
-        # BEFORE ticking the box, and an empty hidden label laid out at the
-        # group margin broke the one-column alignment.
+        # The cost is what a user needs BEFORE ticking the box, so it is the
+        # box's tooltip either way.
         if not on:
-            self._importance_note.setText(
+            self._set_importance_note(
                 "One extra batch per block (two for Both), on top of the "
                 "ordinary run. Set Cores above 1.")
             return
@@ -426,18 +521,34 @@ class RunPanel(QWidget):
         if blocks:
             batches = imp.batch_count(blocks, mode)
             runs = imp.estimate_runs(blocks, mode, trials)
-            self._importance_note.setText(
+            self._set_importance_note(
                 f"{blocks} block(s) → {batches} batches, about "
-                f"{runs:,} simulated runs. Set Cores above 1; each batch is a "
-                f"small share of the total. Variant batches record no logs or "
-                f"plots.")
+                f"{runs:,} simulated runs. Set Cores above 1; each batch is "
+                f"a small share of the total. Variant batches record no "
+                f"logs or plots.")
         else:
-            self._importance_note.setText(
+            self._set_importance_note(
                 "One extra batch per block (two for Both), on top of the "
                 "ordinary run. Set Cores above 1.")
         # The mode picker and the second note line appear/disappear here, so
         # the content height changed.
         self.size_changed.emit()
+
+    def unit_hint(self) -> str:
+        """Units and when Statistics-from applies (shown as tooltips, so
+        it costs the short bottom dock no height)."""
+        return getattr(self, "_unit_hint_text", "")
+
+    def _set_importance_note(self, text: str) -> None:
+        """The importance cost estimate, as a tooltip on its controls."""
+        self._importance_note_text = text
+        self._importance_check.setToolTip(
+            "IEC 61078 Annex D importance factors, estimated by "
+            "re-simulation.\n\n" + text)
+        self._importance_mode.setToolTip(text)
+
+    def importance_note(self) -> str:
+        return getattr(self, "_importance_note_text", "")
 
     def set_importance_blocks(self, count: int) -> None:
         """How many blocks the open model has, for the cost estimate."""
@@ -731,6 +842,75 @@ class RunPanel(QWidget):
     def experiment(self) -> dict:
         return rx.normalise(self._exp)
 
+    def set_hierarchies(self, rows: list[tuple[int, str]]) -> None:
+        """Fill the model-scope selector without changing the user's pick.
+
+        `rows` is (hierarchy id, indented display path), already ordered by
+        the owner. A hierarchy that disappeared (undo, delete, another
+        model) falls back to Whole model.
+        """
+        rows = [(int(h), str(label)) for h, label in rows]
+        if rows == self._hierarchies:
+            return
+        self._hierarchies = rows
+        keep = self._scope_hid
+        self._scope.blockSignals(True)
+        try:
+            self._scope.clear()
+            self._scope.addItem("Whole model", 0)
+            for hid, label in rows:
+                self._scope.addItem(label, hid)
+            index = self._scope.findData(keep)
+            self._scope.setCurrentIndex(max(0, index))
+            self._scope_hid = int(self._scope.currentData() or 0)
+        finally:
+            self._scope.blockSignals(False)
+        self._refresh_scope()
+        if self._scope_hid != keep:
+            self.scope_changed.emit(self._scope_hid)
+
+    def hierarchy_scope(self) -> int:
+        """0 for the whole model, otherwise the selected hierarchy id."""
+        return int(self._scope_hid)
+
+    def scope_treatments(self) -> dict:
+        """Boundary treatments for the selected hierarchy, in the shape
+        `raptor.api.isolate.extract` expects."""
+        return {"deps": self._scope_deps.currentData() or "up",
+                "pools": self._scope_pools.currentData() or "full",
+                "streams": self._scope_streams.currentData() or "keep",
+                "items": {}}
+
+    def _on_scope_changed(self, _index: int = 0) -> None:
+        hid = int(self._scope.currentData() or 0)
+        if hid == self._scope_hid:
+            return
+        self._scope_hid = hid
+        self._refresh_scope()
+        self.scope_changed.emit(hid)
+
+    def _refresh_scope(self) -> None:
+        hierarchy = bool(self._scope_hid)
+        self._scope_button.setVisible(hierarchy)
+        self._scope.setStyleSheet(
+            "QComboBox { border: 2px solid #b45309; }" if hierarchy else "")
+        box = self._experiment_box
+        box.setTitle("Experiment — one hierarchy, isolated"
+                     if hierarchy else "Experiment")
+        if hierarchy:
+            from html import escape
+            name = escape(self._scope.currentText().strip())
+            self._scope_warning.setText(
+                "<b>Isolated hierarchy run.</b> Results describe "
+                f"<b>{name}</b> alone, not the whole model. Its input is "
+                "assumed always available. Node status changes do not cross "
+                "the hierarchy boundary, and phase Cut/Linked behaviour "
+                "inside the hierarchy is ignored. Importance measures, when "
+                "enabled, rank blocks within this hierarchy only.")
+        else:
+            self._scope_dialog.close()
+        self.size_changed.emit()
+
     def set_units(self, units: str, display_unit: str | None) -> None:
         """Show the time unit on the run-length and statistics rows, and
         convert the time-valued fields into it.
@@ -861,8 +1041,9 @@ class RunPanel(QWidget):
         NEXT step press, and a session in progress is stepped by hand, so
         locking them would prevent the very use they exist for."""
         self._enabled = enabled
-        for w in (self._profile, self._trials, self._term_type,
-                  self._term_value, self._start_stats,
+        for w in (self._scope, self._scope_deps, self._scope_pools,
+                  self._scope_streams, self._profile, self._trials,
+                  self._term_type, self._term_value, self._start_stats,
                   self._ao_interval, self._cost_interval,
                   self._flow_gen, self._system_red_cost_field,
                   self._lost_flow_cost_field,
@@ -1040,19 +1221,24 @@ class RunPanel(QWidget):
         shown = getattr(self, "_shown_units", "")
         t = experiment["termination_type"]
         if t == "TimeSim" and shown:
-            self._unit_note.setText(
+            self._unit_hint_text = (
                 f"Times in {shown}. Statistics must start before the run "
                 f"ends.")
         else:
-            self._unit_note.setText(
+            self._unit_hint_text = (
                 "Statistics start is only meaningful for a time-terminated "
                 "run.")
+        self._term_value.setToolTip(self._unit_hint_text)
         # Warn inline rather than blocking with a modal: the spec asks
         # for a field-level message plus a fix, not an interruption
         # (the internal UI blueprint).
         # DELEGATED (review E-15): same predicate, same wording, one owner.
         bad = rx.stats_start_after_run_length(experiment)
-        self._start_stats.setToolTip(rx.stats_start_tooltip(experiment))
+        self._start_stats.setToolTip(
+            self._unit_hint_text + "\n" + rx.stats_start_tooltip(experiment))
+        self._unit_note.setText(rx.stats_start_tooltip(experiment) if bad
+                                else "")
+        self._unit_note.setVisible(bool(bad))
         self._start_stats.setStyleSheet(
             f"QDoubleSpinBox {{ border: 2px solid {active_colour()['failed']}; }}"
             if bad else "")
@@ -1158,6 +1344,12 @@ class RunPanelDock(QDockWidget):
             return
         if win.dockWidgetArea(self) == Qt.DockWidgetArea.NoDockWidgetArea:
             return          # not in the layout: resizeDocks would only warn
+        active = getattr(win, "_bottom_active_dock", None)
+        if active is not None and active is not self:
+            # Results/Data Tables are the front tab: the Run panel is
+            # behind them and must not size the shared strip from its
+            # hidden content.
+            return
         self._growing = True
         try:
             # `resizeDocks` size is the dock area's, which includes the
@@ -1171,7 +1363,16 @@ class RunPanelDock(QDockWidget):
                     if tb.parentWidget() is win and tb.isVisible():
                         strip = tb.height()
                         break
-            win.resizeDocks([self], [want + strip], Qt.Orientation.Vertical)
+            # Never ask for more than the window can spare above the
+            # ribbon, status bar and canvas minimum: an oversized Run
+            # strip pushes the status bar off-screen and stops the window
+            # shrinking (#231).
+            limit = getattr(win, "_max_bottom_dock_height", None)
+            request = want + strip
+            if callable(limit):
+                request = min(request, max(120, int(limit())))
+            resize = getattr(win, "_resize_docks", win.resizeDocks)
+            resize([self], [request], Qt.Orientation.Vertical)
         except Exception:                                  # noqa: BLE001
             pass
         finally:

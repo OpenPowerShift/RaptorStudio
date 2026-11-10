@@ -230,7 +230,7 @@ live in the Run panel, beside the Capacity and Cost analyses they feed.</p>
 <p>Open from <strong>View → Panels → Data Tables</strong>. It edits the model as
 spreadsheets, one tab per element type or per section of the <code>.rbds</code>
 file. Only some cells are editable; invalid values revert on entry.
-Blocks, Nodes, Events, Sparing and Preventive Maintenance show the
+Blocks, Costs, Nodes, Events, Sparing and Preventive Maintenance show the
 hierarchy level currently on the canvas; the header says “current level:
 8 of 17 blocks…” when the model has nested levels. Tick <strong>Whole model</strong>
 to see every level at once (see below), or use Model Explorer to reach
@@ -256,6 +256,14 @@ are inside) and the window title ends with its name and id, for example
 <td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Failure Dist, Failure Param 1–3, # Failure Params, Repair
 Dist, Repair Param 1–3, # Repair Params, PM Frequency, plus read-only
 Failure/Repair Mean and Std Dev computed from the current parameters</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Costs</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, initial, Running, standby, idle, repFixed, repPerTime,
+repHold, pmFixedCost, pmCost, pmHoldCost, doneFixed, donePerTime,
+perSpare, emerShipping — one row per block. A Pooled block&#8217;s spare and
+emergency-shipping cells are read-only: its pool owns those costs. A
+cell edit changes that one cost on every selected row in one undo step</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Nodes</p></td>
@@ -301,9 +309,10 @@ above</p></td>
 <div class="sect2">
 <h3 id="data-tables-whole-model">Whole model</h3>
 <div class="paragraph">
-<p>The <strong>Whole model</strong> box in the bar above the tabs shows the blocks, nodes
-and events of <strong>every</strong> level in the same grids, with an extra <strong>Level</strong>
-column (<code>Home</code>, <code>Pump Bank</code>, <code>Pump Bank / Stage 2</code>). The header reads
+<p>The <strong>Whole model</strong> box in the bar above the tabs shows the blocks,
+their costs, nodes and events of <strong>every</strong> level in the same grids, with an
+extra <strong>Level</strong> column (<code>Home</code>, <code>Pump Bank</code>, <code>Pump Bank / Stage 2</code>). The
+header reads
 “Whole model (14 blocks across 4 levels)”. Nothing is drawn on the canvas
 for the other levels, so it stays quick on large models. Rows on the level
 that is open on the canvas stay editable; rows of other levels are
@@ -322,9 +331,9 @@ is shown.</p>
 It is hidden until you ask for it: press <strong>Ctrl+F</strong> while the table has the
 focus, or right-click the column headings and choose <strong>Filter</strong>. The
 Results tables (Capacity, Weak link, Cost, Importance, the per-element
-table of the analytical results) and the Data Tables (Blocks, Nodes,
-Events, Sparing, Preventive Maintenance) have it. Short tables and the
-event log (which has its own filter box) do not.</p>
+table of the analytical results) and the Data Tables (Blocks, Costs,
+Nodes, Events, Sparing, Preventive Maintenance) have it. Short tables and
+the event log (which has its own filter box) do not.</p>
 </div>
 <div class="paragraph">
 <p>Type in the box above a column to keep only the rows that match that
@@ -393,12 +402,12 @@ a <code>%</code>, a leading <code>&gt;</code> (a censored result) and a trailing
 </div>
 <div class="paragraph">
 <p>In the Data Tables the filter reads the model&#8217;s own values (names,
-distribution names, parameters, means), not the cell editors, so rows that
-are filtered out never build their editors. In the Sparing table only
-Name, ID and Sparing Type can be filtered. Export CSV writes only the rows
-the filter shows (the dialog says “only N of M rows”). Editing a cell so
-that its row stops matching does not hide the row from under your cursor;
-it goes at the next filter pass.</p>
+distribution names, parameters, means, full-precision costs), not the
+cell editors, so rows that are filtered out never build their editors. In
+the Sparing table only Name, ID and Sparing Type can be filtered. Export
+CSV writes only the rows the filter shows (the dialog says “only N of M
+rows”). Editing a cell so that its row stops matching does not hide the
+row from under your cursor; it goes at the next filter pass.</p>
 </div>
 </div>
 <div class="sect2">
@@ -803,6 +812,8 @@ tooltip/empty state says exactly what to tick under Run panel ▸
 Recording (<a href="../new_docs/book.html#ch-trials">Many Trials</a>).
 <strong>Multi-run Ao</strong> auto-fits its Y axis to the observed min/max, so a
 narrow availability band is readable instead of a flat line at 1.0.
+<strong>Y-axis min</strong> is <strong>Auto</strong> at 0; a saved non-zero value is a manual floor
+used by every availability plot. Capacity and Convergence do not use it.
 The single-run <strong>Capacity (Flow)</strong> plot shows the run&#8217;s average flow
 and capacity as horizontal reference lines; <strong>Multi-run Capacity
 (Flow)</strong> shows min/average/max flow and capacity across every run.</p>
@@ -820,7 +831,7 @@ state when its analysis was not enabled.</p>
 <div class="sect2">
 <h3 id="_analytical_analysis">Analytical analysis</h3>
 <div class="paragraph">
-<p><strong>Results ▸ Analytical…</strong> opens the exact static solver. It does not sample
+<p><strong>Model ▸ Analytical…</strong> opens the exact static solver. It does not sample
 and does not change the model. Choose <strong>Reliability</strong> for a non-repairable
 <code>R(t)</code> (PDF, hazard, MTTF, BX life, conditional reliability, exact importance)
 or <strong>Availability</strong> for steady-state availability with independent, perfectly
@@ -1351,9 +1362,12 @@ the Help tab) opens this page. Step-by-step setup for Claude Code, Claude
 Desktop, OpenCode and any other MCP client, with worked examples, is in
 the User Guide:
 <a href="../new_docs/book.html#ch-mcp">RAPTOR from an AI Assistant</a>. The
-generated reference for every tool, option and transport is
+standalone guide, with concepts and task recipes, is
 <a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md">the
-MCP server reference</a>.</p>
+MCP server guide</a>; the generated catalogue of every tool, parameter and
+return field is
+<a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md">the
+MCP tool reference</a>.</p>
 </div>
 <div class="paragraph">
 <p>Over stdio the client starts the server itself:</p>
@@ -1552,15 +1566,16 @@ is in the User Guide&#8217;s <a href="../new_docs/book.html#ch-debugger">debugge
 <h2 id="extract-hierarchy">Checking part of a model: Extract Hierarchy</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Select one hierarchy oval and press <strong>Extract Hierarchy…</strong> on the <strong>Simulate</strong>
+<p>Select one hierarchy oval and press <strong>Extract Hierarchy…</strong> on the <strong>Model</strong>
 tab. The hierarchy becomes a standalone model: its input node is the start
 and its output node the end, so its input is always available. The dialog
 lists what crosses the hierarchy&#8217;s boundary and how each kind is treated:
 elements that follow something outside (assumed always up, or following the
 extract&#8217;s own end), spare and resource pools shared with outside blocks (the
 whole pool, or scaled by the share of users inside), and random streams shared
-with outside elements (kept, or each given its own). Save the extract as an
-<code>.rbd</code> or <code>.rbds</code>; it can be opened in this window and run like any model, and
+with outside elements (kept, or each given its own). Save the extract as
+<code>.rbds</code> (the default) or <code>.rbd</code>; it can be opened in this window and run like
+any model, and
 <code>raptor run --hierarchy NAME</code> and
 <code>raptor extract</code> do the same from the command line, and the MCP <code>simulate</code> tool
 takes a <code>hierarchy</code> argument.</p>
@@ -1571,15 +1586,22 @@ labelled as an isolated run. No treatment can make an isolated run reproduce the
 hierarchy would have had inside the whole model, so compare averages, not
 individual runs.</p>
 </div>
+<div class="paragraph">
+<p>To run the part without saving an extract, use the Run panel&#8217;s <strong>Model
+scope</strong> selector: choose the hierarchy, review the warning and boundary
+treatments there, then Run. The canvas follows the scope, the source model
+and file are not changed, and the Results dock carries an isolated-hierarchy
+banner. Importance measures in that run rank blocks within the hierarchy
+only.</p>
+</div>
 </div>
 </div>
 <div class="sect1">
 <h2 id="export-tables">Exporting tables</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p><strong>File ▸ Print and Export ▸ Export Tables…</strong> (also a button on the Data Tables and
-Results docks) writes the model&#8217;s tables, and a run&#8217;s result tables, to
-files.</p>
+<p><strong>File ▸ Print and Export ▸ Export Tables…</strong> (also a button on the Data Tables
+dock) writes the model&#8217;s tables, and a run&#8217;s result tables, to files.</p>
 </div>
 <div class="paragraph">
 <p>Pick the tables in two groups:</p>
@@ -2117,6 +2139,11 @@ current value).</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">No problems stop a run. Click for the list (F7)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">F7</p></td>
 </tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Analytical…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -2187,8 +2214,8 @@ current value).</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Up</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Ascend one hierarchy level (or double-click an Out marker) (Alt+Up)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Alt+Up</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ascend one hierarchy level (or double-click an Out marker)</p></td>
+<td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Home</p></td>
@@ -2756,11 +2783,6 @@ current value).</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Domain of each node — which elements' failures can propagate to it</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Analytical…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes.</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
 </tbody>
 </table>
 </div>
@@ -2938,6 +2960,11 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Run Panel</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Show the Run panel — trials, termination, analyses and recording for the next run</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Live Log</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show the Live Log — the stepped simulation&#8217;s event list, tabbed beside the Inspector</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -3237,6 +3264,10 @@ documentation.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Blocks</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Failure Dist, Failure Param 1, Failure Param 2, Failure Param 3, # Failure Params, Repair Dist, Repair Param 1, Repair Param 2, Repair Param 3, # Repair Params, PM Frequency, Failure Mean, Failure Std Dev, Repair Mean, Repair Std Dev, Level</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Costs</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name, ID, Initial cost, Running cost, Standby cost, Idle cost, Repair fixed cost, Repair cost per time, Repair hold cost per time, PM fixed cost, PM cost per time, PM hold cost per time, Done fixed cost, Done cost per time, Spare cost, Emergency shipping cost, Level</p></td>
 </tr>
 </tbody>
 </table>

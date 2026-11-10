@@ -15,8 +15,10 @@ This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
 The server exposes *68 tools* (including the `ping` health check), a set of
-resources, and three prompts. A standalone reference to every tool,
-option and transport is in `docs/MCP.md` in the repository.
+resources, and three prompts. A standalone guide to installing, connecting,
+concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
+catalogue of every tool, parameter, return field and example is
+`docs/MCP-reference.md`, both in the repository.
 
 === Prerequisites
 
@@ -293,7 +295,8 @@ inspect its inputs and outputs.
 | `--no-render`
 | off
 | Do not expose `render_diagram`. Use on machines without Qt/PySide6, or
-  when you do not want image output. Everything else still works.
+  when you do not want PNG output. `render_diagram_svg` needs no Qt and
+  stays available; everything else still works.
 
 | `--allow-write PATH`
 | (none)
@@ -399,6 +402,12 @@ If the server does not appear, see <<mcp-troubleshooting>>.
 
 [[mcp-tools]]
 === Available tools
+
+The tables below are the task tour. The generated
+`docs/MCP-reference.md` is the authoritative catalogue for every parameter,
+default, return field and example; it is built from the live server and
+checked in CI. Use this chapter to choose a workflow, and the reference when
+you need the exact argument shape.
 
 ==== Workspace and lifecycle
 
@@ -884,7 +893,9 @@ or `results.summary`.
 
 | `read_doc`
 | Read a documentation source as paginated text: `rbds` (the format guide),
-  `mcp-guide` (this chapter), or a chapter such as `ch11-capacity`.
+  `mcp-docs` (the standalone human guide), `mcp-reference` (the generated
+  tool catalogue), `mcp-guide` (this chapter), or a chapter such as
+  `ch11-capacity`.
 
 | `ping`
 | Health check. Returns `"pong"`.

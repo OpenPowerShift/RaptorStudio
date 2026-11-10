@@ -318,3 +318,28 @@ def test_removing_an_anchor_survives_a_save_and_reload():
     assert "anchor" not in (loaded.annotations[0].get("_extra") or {})
     loaded.annotations[0].pop("anchor")
     assert "anchor" not in rbds.parse_rbds(rbds.render_rbds(loaded)).annotations[0]
+
+
+def test_the_schema_accepts_a_comment_link_and_round_trips_it():
+    doc = _doc()
+    note = _annotation(None)
+    note.pop("anchor")
+    note["comment_of"] = {"type": "block", "id": 3}
+    doc["annotations"] = [note]
+    assert check_document(doc) == []
+    import json
+    from raptor.core.fileio import rbds
+    loaded = rbds.parse_rbds(
+        rbds.render_rbds(rbds.parse_rbds(json.dumps(doc))))
+    assert loaded.annotations[0]["comment_of"] == {"type": "block", "id": 3}
+    assert "comment_of" not in (loaded.annotations[0].get("_extra") or {})
+
+
+def test_the_schema_rejects_a_bad_comment_link():
+    doc = _doc()
+    for bad in ({"type": "link", "id": 1}, {"type": "block", "id": "3"},
+                {"type": "block"}):
+        note = _annotation(None)
+        note["comment_of"] = bad
+        doc["annotations"] = [note]
+        assert check_document(doc), bad

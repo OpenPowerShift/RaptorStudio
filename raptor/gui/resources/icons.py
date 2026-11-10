@@ -908,6 +908,24 @@ def copy_icon(colour: str) -> QIcon:
     return _icon("copy", colour, draw)
 
 
+def csv_icon(colour: str) -> QIcon:
+    """A table with a downward arrow: save this table as CSV."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(9, 6, 30, 36)
+        p.drawLine(9, 15, 39, 15)
+        p.drawLine(20, 6, 20, 42)
+        p.setPen(QPen(c, 3))
+        p.drawLine(24, 25, 24, 36)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawPolygon(QPolygonF([
+            QPointF(18, 33), QPointF(30, 33), QPointF(24, 42),
+        ]))
+    return _icon("csv", colour, draw)
+
+
 def cut_icon(colour: str) -> QIcon:
     def draw(p: QPainter, c: QColor):
         pen = QPen(c, 3)

@@ -9,7 +9,7 @@ Words an engineer uses, in plain form.
 
 |Analytical solver
 |The tool that calculates an exact answer from the diagram and the
-failure distributions, with no trials (*Results ▸ Analytical…*). It
+failure distributions, with no trials (*Model ▸ Analytical…*). It
 handles a simpler set of models than simulation. Use it to check a
 simulation. See <<ch-exact>>.
 

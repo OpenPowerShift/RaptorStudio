@@ -184,19 +184,78 @@ def capacity_values(rd: RunReportData) -> dict[str, float | None] | None:
     }
 
 
+#: Cost-analysis metrics, present only when the model runs cost analysis:
+#: ``(key in cost_values, aggregate name)``. The labels are the
+#: ``Cost_Summary``/``Grand_Total`` report rows, so a summary reads the
+#: same as the report.
+COST_FIELDS: list[tuple[str, str]] = [
+    ("grand_total", "Grand_Total"),
+    ("system_down_cost", "System_Down_Cost"),
+    ("system_lost_flow_cost", "System_Lost_Flow_Cost"),
+]
+
+
+def cost_values(rd: RunReportData) -> dict[str, float | None] | None:
+    """One run's cost figures, or None without cost analysis.
+
+    Mirrors :func:`capacity_values`: the keys are the ``CostRunReport``
+    fields, so callers can append them to a per-run row or aggregate them
+    without knowing where the run report keeps its cost picture.
+
+    A field the report did not really compute is omitted, not written as
+    zero: ``SystemLostFlowCost`` is zero when capacity analysis is off, and
+    the report itself suppresses ``SystemDownCost`` unless red cost was
+    configured. A partial cost snapshot (a field missing) is tolerated.
+    """
+    cost = rd.cost
+    if cost is None:
+        return None
+    values: dict[str, float | None] = {}
+    grand_total = getattr(cost, "grand_total", None)
+    if grand_total is not None:
+        values["grand_total"] = grand_total
+    if getattr(cost, "red_cost_configured", True):
+        system_down = getattr(cost, "system_down_cost", None)
+        if system_down is not None:
+            values["system_down_cost"] = system_down
+    if rd.capacity is not None:
+        lost_flow_cost = getattr(cost, "system_lost_flow_cost", None)
+        if lost_flow_cost is not None:
+            values["system_lost_flow_cost"] = lost_flow_cost
+    return values
+
+
+def analysis_flags(report_data: list[RunReportData]) -> dict[str, bool]:
+    """Which optional analyses produced data in this run batch."""
+    return {
+        "capacity": any(getattr(rd, "capacity", None) is not None
+                        for rd in report_data),
+        "cost": any(getattr(rd, "cost", None) is not None
+                    for rd in report_data),
+    }
+
+
 def aggregate_metrics(report_data: list[RunReportData]) -> list[Metric]:
     """Compute per-metric ``{min, mean, max, stdev, sem}`` across all runs,
-    with the capacity metrics appended when the model has capacity analysis."""
+    with the capacity and cost metrics appended when the model has those
+    analyses.
+
+    Each optional metric is aggregated field by field from the runs that
+    actually have it. A field with no sample at all is omitted, so consumers
+    can tell "analysis off" from a computed zero."""
     result: list[Metric] = []
     for attr, label in _METRIC_FIELDS:
         vals = [getattr(rd, attr, None) for rd in report_data]
         metric = _aggregate(vals, label)
         _mark_censored(metric, label, report_data)
         result.append(metric)
-    caps = [capacity_values(rd) for rd in report_data]
-    if caps and all(c is not None for c in caps):
-        for key, label in CAPACITY_FIELDS:
-            result.append(_aggregate([c[key] for c in caps if c is not None], label))
+    for values_fn, fields in ((capacity_values, CAPACITY_FIELDS),
+                              (cost_values, COST_FIELDS)):
+        rows = [values_fn(rd) for rd in report_data]
+        for key, label in fields:
+            vals = [row.get(key) for row in rows if row is not None]
+            if any(value is not None for value in vals):
+                result.append(_aggregate(vals, label))
     return result
 
 

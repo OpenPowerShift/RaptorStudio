@@ -354,8 +354,15 @@ class _AnnotationBase(_ItemBase):
                 doc.setDefaultFont(f)
             except Exception:
                 pass
-        self.setToolTip("Annotation — double-click to edit text, "
-                        "right-click for colours/font")
+        link = self.props.get("comment_of")
+        if isinstance(link, dict) and link.get("id") is not None:
+            kind = str(link.get("type") or "element").capitalize()
+            self.setToolTip(
+                f"Comment description for {kind} {link.get('id')} — "
+                "double-click to edit; changes update the element comment.")
+        else:
+            self.setToolTip("Annotation — double-click to edit text, "
+                            "right-click for colours/font")
 
     def ensure_handle(self):
         if self._handle is None and hasattr(self, "resize_to"):
@@ -480,6 +487,17 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
     def __init__(self, anno_id, parent_level, props, view,
                  x=0.0, y=0.0, text="Text", w=120.0, h=40.0):
         super().__init__(text)
+        #: Raw Markdown source. The QTextDocument holds the RENDERED
+        #: form most of the time (document().setMarkdown), and the plain
+        #: source only while the note is being edited. Never read
+        #: `toPlainText()` for persistence/undo/labels -- it is the
+        #: visible text, with the markup stripped.
+        self._source_text = str(text or "")
+        #: Guard around our own `document().setMarkdown`: its contents
+        #: change is not a user edit and must not replace the source with
+        #: the rendered plain text.
+        self._rendering_source = False
+        self.document().contentsChanged.connect(self._document_changed)
         self._box_w = max(20.0, float(w))
         self._box_h = max(12.0, float(h))
         #: True only between an explicit edit request (double-click, F2,
@@ -495,15 +513,80 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
         self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         self.apply_props()
+        self._render_source()
         self.setPos(x, y)
         self.ensure_handle()
 
     # ---------------------------------------------------------- edit mode
+    def _document_changed(self) -> None:
+        """Track a plain-text change made outside `enter_edit` as source.
+
+        Normal editing is captured on commit; this covers callers that
+        call `setPlainText` directly on a committed note. Our own
+        Markdown render is skipped by the `_rendering_source` guard.
+        """
+        if (not self._rendering_source
+                and not getattr(self, "_text_editing", False)):
+            self._source_text = self.toPlainText()
+
+    def text_source(self) -> str:
+        """The stored raw Markdown source (what save/undo/labels use).
+
+        While editing, the document holds the plain SOURCE already, so
+        the live text is the source (including anything typed since the
+        edit began). Save/undo must not capture the rendered form.
+        """
+        return self.toPlainText() if self._text_editing else self._source_text
+
+    def set_source_text(self, text: str) -> None:
+        """Replace the source and re-render it.
+
+        Undo/restore uses this. If an edit session is open and the model
+        source actually changed (an undo/redo or an external refresh),
+        the external value wins: cancel the edit WITHOUT committing the
+        pending keystrokes, then render the restored source. Otherwise a
+        later `_finish_edit` would write the stale draft back over the
+        undo. An unchanged source leaves the live editor alone.
+        """
+        incoming = str(text or "")
+        changed = incoming != self._source_text
+        self._source_text = incoming
+        if not self._text_editing:
+            self._render_source()
+        elif changed:
+            self._cancel_edit()
+            self._render_source()
+
+    def _cancel_edit(self) -> None:
+        """Leave edit mode without committing the document as source."""
+        self._text_editing = False
+        self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self._announce_edit_state()
+        c = self.textCursor()
+        c.clearSelection()
+        self.setTextCursor(c)
+        self.clearFocus()
+
+    def _render_source(self) -> None:
+        """Show the source as Markdown (the normal, non-editing view)."""
+        self.prepareGeometryChange()
+        self._rendering_source = True
+        try:
+            self.document().setMarkdown(self._source_text)
+        finally:
+            self._rendering_source = False
+        self.update()
+
     def enter_edit(self):
         """Enter explicit in-place text editing. The ONLY way in: a
         double-click, F2, the context menu, or a fresh placement (which
         should be immediately typeable). A single click or drag on the
         body never calls this."""
+        if not self._text_editing:
+            # Edit the SOURCE, not the rendered text: a user who typed
+            # `**bold**` must see the asterisks again while changing it.
+            self.document().setPlainText(self._source_text)
         self._text_editing = True
         self.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextEditorInteraction)
@@ -529,18 +612,25 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
             & Qt.TextInteractionFlag.TextEditorInteraction)
         if not editing:
             return
+        # Capture the plain source before rendering replaces the document
+        # contents with Markdown's visible text. If only stale interaction
+        # flags were set (no real `enter_edit`), the document holds the
+        # RENDERED form, so keep the source we already have instead of
+        # stripping the markup out of it.
+        source = self.toPlainText() if self._text_editing else self._source_text
         self._text_editing = False
         self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         self._announce_edit_state()
-        self.prepareGeometryChange()   # re-measure after edits
+        self._source_text = source
+        self._render_source()          # re-measure after edits too
         # don't leave a lingering selection inside the box
         c = self.textCursor()
         c.clearSelection()
         self.setTextCursor(c)
         view = getattr(self, "_view", None)
         if view is not None:
-            view.set_annotation_text(self, self.toPlainText())
+            view.set_annotation_text(self, source)
 
     def end_edit(self):
         self._finish_edit()
@@ -594,8 +684,15 @@ class _AnnoText(_AnnotationBase, QGraphicsTextItem):
                 "fill_colour") else None
         self._frame_pen, _brush = _anno_pen_brush(self.props)
         self.update()
-        self.setToolTip("Text annotation — double-click to edit, "
-                        "drag the corner to resize")
+        link = self.props.get("comment_of")
+        if isinstance(link, dict) and link.get("id") is not None:
+            kind = str(link.get("type") or "element").capitalize()
+            self.setToolTip(
+                f"Comment description for {kind} {link.get('id')} — "
+                "double-click to edit; changes update the element comment.")
+        else:
+            self.setToolTip("Text annotation — double-click to edit, "
+                            "drag the corner to resize")
 
     def _border_width(self) -> float:
         return float(self.props.get("border_width",
@@ -854,15 +951,62 @@ class CommentCmd(_ViewCmd):
         super().__init__(view, "Edit comment")
         self.etype, self.oid = etype, oid
         self.old, self.new = old, new
+        # Canvas notes linked to this comment follow its text. Capture
+        # their current text so undo restores both sides.
+        self.links: list[tuple[int, str]] = []
+        for a in getattr(view, "annotations", []):
+            link = a.get("comment_of")
+            try:
+                matches = (isinstance(link, dict)
+                           and link.get("type") == etype
+                           and int(link.get("id", -1)) == int(oid))
+            except (TypeError, ValueError):
+                matches = False
+            if matches:
+                self.links.append((int(a.get("id", 0)),
+                                   str(a.get("text") or "")))
+
+    def _sync_annotations(self, stored: str) -> None:
+        text = stored.replace("~", "\n")
+        for aid, _old_text in self.links:
+            entry = next((a for a in getattr(self._v, "annotations", [])
+                          if int(a.get("id", 0)) == aid), None)
+            if entry is None:
+                continue
+            state = dict(entry)
+            state["text"] = text
+            apply_anno_state(self._v, aid, state)
+
+    def _announce(self, stored: str) -> None:
+        """Tell the Inspector which comment this command now holds.
+
+        Emitted BEFORE model_changed's deferred Inspector refresh, so
+        MainWindow can update the live editor in place and suppress the
+        rebuild for this one target. `_loading` guards programmatic
+        rebuilds, same as `_done`.
+        """
+        if not self._v._loading:
+            self._v.comment_changed.emit(self.etype, self.oid, stored)
 
     def redo(self):
         self._v._apply_element_comment_stored(self.etype, self.oid,
                                               self.new)
+        self._sync_annotations(self.new)
+        self._announce(self.new)
         self._done()
 
     def undo(self):
         self._v._apply_element_comment_stored(self.etype, self.oid,
                                               self.old)
+        for aid, old_text in self.links:
+            entry = next((a for a in getattr(self._v, "annotations", [])
+                          if int(a.get("id", 0)) == aid), None)
+            if entry is None:
+                continue
+            state = dict(entry)
+            state["text"] = old_text
+            apply_anno_state(self._v, aid, state)
+        self._announce(self.old)
         self._done()
 
 class AnnoCmd(_ViewCmd):
@@ -921,6 +1065,28 @@ class AnnoCmd(_ViewCmd):
                 v._anno_items[int(self.entry["id"])] = item
         self._done()
 
+def _item_text(item) -> str:
+    """The item's source text, or "" for kinds that carry none."""
+    source = getattr(item, "text_source", None)
+    if callable(source):
+        return source()
+    plain = getattr(item, "toPlainText", None)
+    return plain() if callable(plain) else ""
+
+
+def _apply_item_text(item, text: str) -> None:
+    """Restore an annotation item's text without confusing source/rendered.
+
+    Text notes keep raw Markdown separately from the rendered document,
+    so they expose `set_source_text`; every other kind (if it ever grows
+    text) keeps the plain Qt setter.
+    """
+    if hasattr(item, "set_source_text"):
+        item.set_source_text(text)
+    elif hasattr(item, "setPlainText"):
+        item.setPlainText(text)
+
+
 def apply_anno_state(v, aid: int, state: dict) -> None:
     """Put annotation `aid` (its model entry and canvas item) into `state`:
     what `AnnoEditCmd` does, shared with the anchor-following code."""
@@ -936,11 +1102,9 @@ def apply_anno_state(v, aid: int, state: dict) -> None:
     item = getattr(v, "_anno_items", {}).get(aid)
     if item is not None:
         item.props = {k: v for k, v in state.items()
-                      if k in ANNO_DEFAULTS}
+                      if k in ANNO_DEFAULTS or k == "comment_of"}
         item.apply_props()
-        if hasattr(item, "setPlainText"):
-            item.setPlainText(state.get("text",
-                                        item.toPlainText()))
+        _apply_item_text(item, state.get("text", _item_text(item)))
         if hasattr(item, "setRect"):
             r0 = item.rect()
             item.setRect(r0.left(), r0.top(),
@@ -981,24 +1145,35 @@ class AnnoEditCmd(_ViewCmd):
     own (the z-order moves) doesn't show up as a generic edit."""
 
     def __init__(self, view, anno_id: int, old: dict, new: dict,
-                 label: str = "Edit annotation", layout_only: bool = False):
+                 label: str = "Edit annotation", layout_only: bool = False,
+                 *, comment_target: tuple[str, int] | None = None,
+                 comment_old: str | None = None,
+                 comment_new: str | None = None):
         super().__init__(view, label)
         self.aid = anno_id
         self.old, self.new = dict(old), dict(new)
+        self.comment_target = comment_target
+        self.comment_old = comment_old
+        self.comment_new = comment_new
         # A drag/resize changes only drawn geometry, which no simulation
         # reads -- send it down the light path (see `_ViewCmd`).
         if layout_only:
             self.changed_signal = "layout_changed"
             self.needs_rule_check = False
 
-    def _apply(self, state: dict):
+    def _apply(self, state: dict, comment: str | None):
         apply_anno_state(self._v, self.aid, state)
+        if self.comment_target is not None and comment is not None:
+            etype, oid = self.comment_target
+            self._v._apply_element_comment_stored(etype, oid, comment)
+            if not self._v._loading:
+                self._v.comment_changed.emit(etype, oid, comment)
 
     def redo(self):
-        self._apply(self.new); self._done()
+        self._apply(self.new, self.comment_new); self._done()
 
     def undo(self):
-        self._apply(self.old); self._done()
+        self._apply(self.old, self.comment_old); self._done()
 
 #: annotation item types
 _ANNO_TYPES = (_AnnoRect, _AnnoEllipse, _AnnoText, _AnnoLine)

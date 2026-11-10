@@ -67,13 +67,13 @@ RUN_DEFAULTS: dict[str, Any] = {
 #: turns the event log off is memory/disk.
 RECORDING_FIELDS = (
     ("event_log", "Detailed event log",
-     "Every event of every run. Needed for the Event Log tab."),
+     "Every event, for the Event Log tab."),
     ("ao_plot", "Availability plot",
-     "Availability samples over time, for the Graphs tab."),
+     "Availability over time, for Graphs."),
     ("capacity_plot", "Capacity plot",
-     "Flow vs capacity samples. Requires the Capacity analysis."),
+     "Flow vs capacity over time."),
     ("cost_plot", "Interim cost",
-     "Cost totals over time. Requires the Cost analysis."),
+     "Cost totals over time."),
 )
 
 #: Which analysis each dependent plot needs, so the run panel can grey

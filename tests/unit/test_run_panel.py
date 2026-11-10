@@ -225,13 +225,13 @@ class TestTerminationRelabelling:
     def test_units_are_shown_for_a_time_terminated_run(self, panel):
         panel.set_units("hours", None)
         panel.set_experiment(rx.normalise({"termination_type": "TimeSim"}))
-        assert "hours" in panel._unit_note.text()
+        assert "hours" in panel.unit_hint()
 
     def test_start_stats_note_admits_it_is_meaningless_for_counts(
             self, panel):
         panel.set_units("hours", None)
         panel.set_experiment(rx.normalise({"termination_type": "FailSim"}))
-        assert "only meaningful" in panel._unit_note.text()
+        assert "only meaningful" in panel.unit_hint()
 
 
 class TestValidation:

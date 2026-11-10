@@ -19,7 +19,9 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Callable
 
-from raptor.api.results import aggregate_metrics, capacity_values, metrics_to_dict, Metric
+from raptor.api.results import (aggregate_metrics, analysis_flags,
+                                capacity_values, cost_values,
+                                metrics_to_dict, Metric)
 from raptor.api.workspace import Workspace
 from raptor.core.fileio.rbd import RbdFile
 from raptor.core.engine.report_rows import tags_of
@@ -51,6 +53,11 @@ class RunNotFoundError(RunError):
 #: as the short run it is gating; the run's own `timeout_s` still protects
 #: the caller if the model turns out to be pathological.
 _SHORT_RUN_SKIP_ESTIMATE_S = 8_760.0
+
+#: Bumped when ``summary.json`` gains fields readers must understand. v2
+#: records the optional analyses so a comparison can tell a capacity-off
+#: Grand Total from a capacity-on one.
+SUMMARY_VERSION = 2
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +93,8 @@ class RunResult:
     estimate_seconds: float = 0.0
     #: The pre-run predicted batch wall time, when one was computed.
     estimated_wall_seconds: float | None = None
+    #: Which optional analyses ran: ``{"capacity": bool, "cost": bool}``.
+    analyses: dict[str, bool] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         d = self._base_dict()
@@ -103,6 +112,7 @@ class RunResult:
             "num_runs": self.num_runs,
             "model_hash": self.model_hash,
             "metrics": metrics_to_dict(self.metrics),
+            "analyses": self.analyses,
             "per_run": self.per_run,
             "wall_seconds": round(self.wall_seconds, 3),
             "estimate_seconds": round(self.estimate_seconds, 3),
@@ -147,11 +157,14 @@ def model_hash(rbd: RbdFile) -> str:
 
 def _rd_to_dict(rd: RunReportData) -> dict[str, object]:
     """Single RunReportData → flat dict (one per run), with the capacity
-    figures when the model has capacity analysis."""
+    and cost figures when the model has those analyses."""
     row = _rd_base_dict(rd)
     caps = capacity_values(rd)
     if caps is not None:
         row.update(caps)
+    costs = cost_values(rd)
+    if costs is not None:
+        row.update(costs)
     row["criticality"] = rd.criticality
     row["color_timeline"] = [[float(t), color] for t, color in rd.color_timeline]
     return row
@@ -559,18 +572,21 @@ def run(
 
     metrics = aggregate_metrics(report_data)
     per_run = [_rd_to_dict(rd) for rd in report_data]
+    analyses = analysis_flags(report_data)
     mhash = model_hash(sim_rbd)
 
     # The per-run figures and the time units travel with the run so its
     # result tables can be rebuilt later (`raptor.api.run_tables`).
     (runs_dir / "per_run.json").write_text(json.dumps(per_run))
     summary = {
+        "summary_version": SUMMARY_VERSION,
         "run_id": run_id,
         "model_id": model_id,
         "model_name": handle.name,
         "model_hash": mhash,
         "num_runs": len(report_data),
         "units": model_units(sim_rbd),
+        "analyses": analyses,
         "metrics": metrics_to_dict(metrics),
         "wall_seconds": round(wall, 3),
         "negative_draws": sum(run_metadata.get("negative_draws", [])),
@@ -624,6 +640,7 @@ def run(
         importance=importance_data,
         estimate_seconds=estimate_seconds,
         estimated_wall_seconds=est_wall,
+        analyses=analyses,
     )
 
 

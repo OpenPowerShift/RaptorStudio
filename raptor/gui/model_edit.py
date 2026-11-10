@@ -27,6 +27,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from raptor.core.fileio.comments import find_comment_row
 from raptor.core.fileio.rbd import store_distribution_values
 from raptor.core.fileio.typed import SPARING_TYPE_TO_FILE_STRING
 from raptor.core.model import SparingType
@@ -135,6 +136,26 @@ BLOCK_COST_FIELDS: tuple[tuple[str, str], ...] = (
     ("spare_cost", "perSpare"),
     ("emergency_shipping_cost", "emerShipping"),
 )
+
+#: The Costs editors (Inspector and Data Tables) share one range and
+#: precision, so the same value is accepted and shown in both places.
+BLOCK_COST_LIMIT = 1e12
+BLOCK_COST_DECIMALS = 3
+
+#: A Pooled block's spare and emergency-shipping costs belong to the pool,
+#: not the block: the engine reads the pool's fields instead.
+POOLED_COST_ATTRS = ("spare_cost", "emergency_shipping_cost")
+
+POOLED_COST_TIP = (
+    "This block draws from a spare pool -- its cost comes from the "
+    "POOL's own fields (Spares tab -> Manage Spare Pools…), not this "
+    "one.")
+
+
+def cost_field_readonly(block, attr: str) -> bool:
+    """Whether `attr` is read-only for this block (a Pooled spare cost)."""
+    return (attr in POOLED_COST_ATTRS
+            and block.sparing_type == SparingType.SPARE_POOL)
 
 #: The five PM option checkboxes: dialog key -> attribute on the block.
 PM_OPTION_ATTRS = {
@@ -348,12 +369,10 @@ class ModelEditor:
         sec = rbd.sections.get("COMMENTS") if rbd is not None else None
         if sec is None or old == new:
             return
-        for row in sec.rows:
-            if (row.get("Type", "").lower() == etype
-                    and row.get("Name", "") == old):
-                row["Name"] = new
-                row["ID"] = str(oid)
-                return
+        row = find_comment_row(sec, etype, oid, old, stamp=True)
+        if row is not None:
+            row["Name"] = new
+            row["ID"] = str(oid)
 
     def apply_dist(self, bid: int, which: str,
                    dist_npar: tuple[int, int]) -> None:

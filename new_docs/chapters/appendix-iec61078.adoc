@@ -29,7 +29,7 @@ the standard's simple closed-form formulae do not.
 The simulator does not calculate minimal cut/tie sets, qualitative Boolean/BDD
 expressions, PFD~avg~ or the standard's analytical failure intensities. It
 does _estimate_ the Annex D importance measures by re-simulation (see below).
-The separate **Results ▸ Analytical…** solver computes exact reliability,
+The separate **Model ▸ Analytical…** solver computes exact reliability,
 steady-state availability and importance on its static subset. Neither
 represents repeated/common blocks, multi-port transfer gates, non-coherent
 (inverted) blocks, PAND/SEQ gates or a common-cause beta factor.

@@ -21,6 +21,8 @@ to QDesktopServices.
 """
 from __future__ import annotations
 
+import json
+import weakref
 from pathlib import Path
 from typing import Any, cast
 
@@ -34,8 +36,9 @@ try:                                    # heavy optional dependency
     # Availability check only -- the names are re-imported locally at
     # their use sites (F401 is intentional here).
     from PySide6.QtWebEngineCore import (  # noqa: F401
-        QWebEnginePage, QWebEngineProfile, QWebEngineSettings,
-        QWebEngineUrlScheme, QWebEngineUrlSchemeHandler)
+        QWebEngineLoadingInfo, QWebEnginePage, QWebEngineProfile,
+        QWebEngineScript, QWebEngineSettings, QWebEngineUrlScheme,
+        QWebEngineUrlSchemeHandler)
     from PySide6.QtWebEngineWidgets import QWebEngineView
     WEBENGINE_OK = True
 except ImportError:                     # pragma: no cover - env dependent
@@ -116,6 +119,266 @@ def _is_relative_to(path: Path, root: Path) -> bool:
         return False
 
 
+def _same_document(current: QUrl, target: QUrl) -> bool:
+    """True when both URLs point at the same local help file (fragments
+    ignored). Used to avoid a full reload when Help is invoked again."""
+    if not current.isValid() or not current.isLocalFile():
+        return False
+    if not target.isValid() or not target.isLocalFile():
+        return False
+    try:
+        return Path(current.toLocalFile()).resolve() == \
+            Path(target.toLocalFile()).resolve()
+    except OSError:                         # pragma: no cover - exotic paths
+        return current.toLocalFile() == target.toLocalFile()
+
+
+class _HelpDocumentNavigation:
+    """Document loading/scroll policy for the help viewer.
+
+    Kept separate from the QtWebEngine widget so a unit test can drive it
+    with a fake `_view`: the rules below are what the lifecycle and
+    same-document tests care about, and they do not need Chromium.
+    """
+
+    #: Filled in by HelpViewer; the fake in tests provides the same API.
+    _view: Any
+    #: Anchor requested while the page was still loading, and the document
+    #: it belongs to. A result only applies when that document is current,
+    #: no other navigation is in flight, and the request is still the
+    #: newest generation. (`_load_serial` is an ordering marker for tests
+    #: and diagnostics; an anchor is not rejected because it moved.)
+    _pending_anchor: str | None = None
+    _pending_document: QUrl | None = None
+    _pending_generation: int = 0
+    _navigation_generation: int = 0
+    _load_serial: int = 0
+
+    def show_doc(self, name: str, anchor: str | None = None) -> None:
+        """Load one of our bundled docs (book.html / manual.html),
+        optionally scrolled to an anchor (F1 context help).
+
+        Re-invoking Help for the document already on screen must not
+        reload it: a reload resets the scroll position (and, before #207,
+        the TOC reflow moved it to a different section anyway). A new
+        anchor in the same document scrolls in place instead.
+        """
+        path = _resolve_doc(name)
+        if path is None:
+            return
+        url = QUrl.fromLocalFile(str(path))
+        if anchor:
+            url.setFragment(anchor)
+        self._navigation_generation += 1
+        generation = self._navigation_generation
+        current = self._view.url()
+        if _same_document(current, url):
+            if anchor:
+                if self._document_loading():
+                    # A second Help action while the first load is still
+                    # running: the DOM is not ready, so scroll on load.
+                    self._queue_anchor(anchor, url, generation)
+                else:
+                    self._clear_pending_anchor()
+                    self._scroll_to_anchor(anchor)
+            else:
+                # Re-opening the same document at no particular section
+                # keeps the reading position, and cancels an older queued
+                # anchor so it cannot fire later.
+                self._clear_pending_anchor()
+        else:
+            self._clear_pending_anchor()
+            if anchor:
+                self._queue_anchor(anchor, url, generation)
+            self._view.load(url)
+        self._present()
+
+    def _queue_anchor(self, anchor: str, url: QUrl,
+                      generation: int) -> None:
+        self._pending_anchor = anchor
+        self._pending_document = QUrl(url)
+        self._pending_generation = generation
+
+    def _clear_pending_anchor(self) -> None:
+        self._pending_anchor = None
+        self._pending_document = None
+        self._pending_generation = 0
+
+    def _document_loading(self) -> bool:
+        try:
+            page = self._view.page()
+            check = getattr(page, "isLoading", None)
+            return bool(check()) if callable(check) else False
+        except RuntimeError:                 # page already gone
+            return False
+
+    def _load_started(self) -> None:
+        """Record that a navigation started.
+
+        The serial is an ordering marker for tests/diagnostics; correlation
+        uses the requested document plus `_document_loading()` because Qt
+        may omit fragments from loading events and can defer/skip starts
+        for superseded navigations."""
+        self._load_serial += 1
+
+    def _document_loaded(self, ok: bool, url: QUrl | None = None) -> None:
+        """A page navigation reported its result.
+
+        `url` is the event's own URL (QWebEngineLoadingInfo), not the
+        view's current one. A queued anchor applies only while its
+        requested document is the one finishing and no newer navigation is
+        in flight. Failure/stop keeps it only in that same in-flight case;
+        in particular, a late start for a superseded navigation cannot
+        strand it. Any completed navigation for an unrelated document
+        cancels the anchor so it cannot replay later."""
+        anchor = self._pending_anchor
+        if anchor is None:
+            return
+        if self._document_loading():
+            # A newer navigation is in flight: this result is from an
+            # older load (possibly the same file with a different
+            # fragment), so it must not consume the newest anchor.
+            return
+        if url is not None and self._pending_document is not None \
+                and not _same_document(url, self._pending_document):
+            # Navigated away (or an older navigation completed): the
+            # queued anchor belongs to a document no longer being loaded.
+            self._clear_pending_anchor()
+            return
+        if self._pending_generation != self._navigation_generation:
+            # A newer Help request superseded this queued anchor.
+            return
+        if not ok:
+            # The requested document itself stopped/failed. There is no
+            # newer navigation in flight (checked above), so waiting could
+            # only strand the anchor.
+            self._clear_pending_anchor()
+            return
+        self._clear_pending_anchor()
+        self._scroll_to_anchor(anchor)
+
+    def _flush_pending_anchor(self, ok: bool = True) -> None:
+        """Apply the queued anchor using the view's current URL (tests)."""
+        self._document_loaded(ok, self._view.url())
+
+    def _scroll_to_anchor(self, anchor: str) -> None:
+        """Scroll within the loaded document (no reload, no history entry)."""
+        script = f"""
+(function() {{
+  const el = document.getElementById({json.dumps(anchor)});
+  if (!el) return false;
+  const root = document.documentElement;
+  const previous = root.style.scrollBehavior;
+  root.style.scrollBehavior = 'auto';
+  el.scrollIntoView({{block: 'start'}});
+  root.style.scrollBehavior = previous;
+  try {{ history.replaceState(null, '', '#' + {json.dumps(anchor)}); }}
+  catch (e) {{ /* file:// may forbid it on some builds */ }}
+  return true;
+}})();
+"""
+        self._view.page().runJavaScript(script)
+
+    def _present(self) -> None:
+        window = cast(Any, self)
+        window.show()
+        window.raise_()
+        window.activateWindow()
+
+
+#: Injected at DocumentReady into every help page (QWebEngineScript, below).
+#:
+#: 1. Adds `raptor-viewer`, which ops_asciidoctor.css uses to keep the TOC
+#:    as a fixed sidebar at every window width. The viewer starts at 1100px
+#:    (below the 80rem breakpoint); maximising used to move the inline TOC
+#:    out of flow and change the document height under a fixed scrollTop.
+#: 2. Tracks the nearest heading at the top of the viewport and its offset,
+#:    and restores that pair after a resize. Width changes still re-wrap
+#:    prose (so a numeric scrollTop lands on a different section); keeping
+#:    heading+offset makes maximise/restore read the same place.
+_VIEWER_PAGE_JS = r"""
+(function () {
+  const body = document.body;
+  if (body) body.classList.add('raptor-viewer');
+
+  const state = {
+    id: '',
+    index: 0,
+    offset: 0,
+    saved: false
+  };
+  window.__raptorReading = state;
+
+  function headings() {
+    return Array.from(document.querySelectorAll(
+      '#content h1, #content h2, #content h3, #content h4, ' +
+      '#content h5, #content h6'));
+  }
+
+  function capture() {
+    const hs = headings();
+    if (!hs.length) return null;
+    // The last heading at or above the viewport's top edge is the section
+    // being read: the same "nearest visible heading" a person would name.
+    let current = hs[0];
+    for (const h of hs) {
+      if (h.getBoundingClientRect().top <= 8) current = h;
+      else break;
+    }
+    state.id = current.id || '';
+    state.index = hs.indexOf(current);
+    state.offset = current.getBoundingClientRect().top;
+    state.saved = true;
+    return state;
+  }
+
+  function restore() {
+    if (!state.saved) return;
+    const hs = headings();
+    const heading = (state.id && document.getElementById(state.id)) ||
+                    hs[state.index];
+    if (!heading) return;
+    const delta = heading.getBoundingClientRect().top - state.offset;
+    if (Math.abs(delta) <= 0.5) return;
+    // The stylesheet asks for smooth scrolling; that would still be
+    // animating when the user lets go of the maximise button.
+    const root = document.documentElement;
+    const previous = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    window.scrollBy(0, delta);
+    root.style.scrollBehavior = previous;
+  }
+
+  window.__raptorCaptureReading = capture;
+  window.__raptorRestoreReading = restore;
+
+  let pending = false;
+  window.addEventListener('scroll', function () {
+    if (window.__raptorRestoring || pending) return;
+    pending = true;
+    requestAnimationFrame(function () {
+      pending = false;
+      capture();
+    });
+  }, {passive: true});
+
+  window.addEventListener('resize', function () {
+    window.__raptorRestoring = true;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        restore();
+        window.__raptorRestoreCount =
+          (window.__raptorRestoreCount || 0) + 1;
+        window.__raptorRestoring = false;
+      });
+    });
+  });
+
+  capture();
+})();
+"""
+
+
 if WEBENGINE_OK:
 
     #: Process-wide opsmodel:// handler reference (a profile keeps only
@@ -160,24 +423,31 @@ if WEBENGINE_OK:
         hands every request for the registered scheme to this handler
         (installed on the default profile), so a click always reaches
         us regardless of renderer navigation quirks. acceptNavigation-
-        Request's opsmodel branch stays as a second net."""
+        Request's opsmodel branch stays as a second net.
 
-        def __init__(self, on_open, parent=None):
-            super().__init__(parent)
-            self._on_open = on_open
+        The handler is process-wide and stores no viewer reference: it
+        routes through `help_service.route_ops_model`, so closing Help
+        can destroy the WebEngine viewer without leaving this handler
+        (and the profile) pinning it."""
 
         def requestReceived(self, job, request):
             from PySide6.QtWebEngineCore import (
                 QWebEngineUrlRequestJob as J)
+            from raptor.gui.ui.help_service import route_ops_model
             url = request.url()
             rel = (url.host() + url.path()).lstrip("/")
             resolved = _resolve_model_rel(rel)
             QTimer.singleShot(
-                0, lambda: self._on_open(str(resolved or rel)))
+                0, lambda: route_ops_model(str(resolved or rel)))
             job.fail(J.Error.RequestDenied)
 
-    class HelpViewer(QDialog):
-        """Modeless dialog hosting one help document with find + nav."""
+    class HelpViewer(_HelpDocumentNavigation, QDialog):
+        """Modeless dialog hosting one help document with find + nav.
+
+        The process-wide `HelpService` owns the single instance; a window
+        only borrows it, and `set_owner` decides which window a click in
+        the page acts on.
+        """
 
         def __init__(self, parent=None, open_model=None, switch_to_app=None):
             super().__init__(parent)
@@ -187,15 +457,16 @@ if WEBENGINE_OK:
             self._view: QWebEngineView
             self._open_model = open_model   # callable(str) or None
             self._switch_to_app = switch_to_app   # callable() or None
+            self._owner_ref: weakref.ref | None = None
 
             # opsmodel:// dispatch (process-wide profile; the handler
-            # object must outlive this dialog, hence the module ref).
+            # object must outlive every viewer, hence the module ref).
+            # It carries nothing viewer-specific after construction.
             global _OPS_HANDLER
             if _OPS_HANDLER is None:
                 from PySide6.QtWebEngineCore import QWebEngineProfile
                 profile = QWebEngineProfile.defaultProfile()
-                _OPS_HANDLER = _OpsModelSchemeHandler(
-                    self._dispatch_model, profile)
+                _OPS_HANDLER = _OpsModelSchemeHandler(profile)
                 profile.installUrlSchemeHandler(
                     OPS_MODEL_SCHEME.encode(), _OPS_HANDLER)
 
@@ -244,11 +515,10 @@ if WEBENGINE_OK:
 
             # Switch to App: bring the main application window forward without
             # closing the help browser.
-            if self._switch_to_app is not None:
-                self._switch_btn = act(
-                    "Switch to App",
-                    "Bring the main application window forward",
-                    self._switch_to_app)
+            self._switch_btn = act(
+                "Switch to App",
+                "Bring the main application window forward",
+                self._switch_to_app_clicked)
 
             self._browser_btn = act(
                 "Open in browser", "Show this page in the system browser",
@@ -287,7 +557,9 @@ if WEBENGINE_OK:
             self._view = QWebEngineView(self)
             self._view.setPage(self._page)
             self._view.titleChanged.connect(self._on_title)
+            self._page.loadingChanged.connect(self._on_loading_changed)
             lay.addWidget(self._view, 1)
+            self._install_page_scripts()
 
             cast(Any, self._page).view = self._view   # toolbar home target
 
@@ -296,22 +568,57 @@ if WEBENGINE_OK:
             QShortcut(QKeySequence("Escape"), self).activated.connect(self._escape)
             QShortcut(QKeySequence("Shift+Return"), self._find_edit).activated.connect(self._find_prev)
 
-        # ------------------------------------------------------------ doc
-        def show_doc(self, name: str, anchor: str | None = None) -> None:
-            """Load one of our bundled docs (book.html / manual.html),
-            optionally scrolled to an anchor (F1 context help)."""
-            path = _resolve_doc(name)
-            if path is None:
-                return
-            url = QUrl.fromLocalFile(str(path))
-            if anchor:
-                url.setFragment(anchor)
-            self._view.load(url)
-            self.show()
-            self.raise_()
-            self.activateWindow()
+        def _install_page_scripts(self) -> None:
+            """Add the stable-layout + reading-position script to every
+            page this viewer loads (in-app cross-links included)."""
+            script = QWebEngineScript()
+            script.setName("raptor-help-viewer")
+            script.setSourceCode(_VIEWER_PAGE_JS)
+            script.setInjectionPoint(
+                QWebEngineScript.InjectionPoint.DocumentReady)
+            script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+            script.setRunsOnSubFrames(False)
+            self._page.scripts().insert(script)
+
+        # ----------------------------------------------------------- owner
+        def set_owner(self, owner: Any | None) -> None:
+            """Remember which MainWindow Help actions and callbacks act on."""
+            self._owner_ref = weakref.ref(owner) if owner is not None else None
+
+        @property
+        def owner(self) -> Any | None:
+            ref = self._owner_ref
+            owner = ref() if ref is not None else None
+            if owner is None:
+                return None
+            try:
+                from shiboken6 import isValid
+                return owner if isValid(owner) else None
+            except (ImportError, RuntimeError, TypeError):
+                return owner
+
+        def _target_owner(self) -> Any | None:
+            """Current owner, else the newest live window (direct use)."""
+            owner = self.owner
+            if owner is not None:
+                return owner
+            from raptor.gui import open_models
+            live = open_models.windows()
+            return live[-1] if live else None
 
         # ------------------------------------------------------------ nav
+        def _on_loading_changed(self, info: QWebEngineLoadingInfo) -> None:
+            """Feed per-navigation start/result to the pending-anchor queue."""
+            status = info.status()
+            if status == QWebEngineLoadingInfo.LoadStatus.LoadStartedStatus:
+                self._load_started()
+            elif status == QWebEngineLoadingInfo.LoadStatus.LoadSucceededStatus:
+                self._document_loaded(True, info.url())
+            elif status in (
+                    QWebEngineLoadingInfo.LoadStatus.LoadFailedStatus,
+                    QWebEngineLoadingInfo.LoadStatus.LoadStoppedStatus):
+                self._document_loaded(False, info.url())
+
         def _on_title(self, title: str) -> None:
             self.setWindowTitle(f"{title} — RAPTOR Studio Help")
 
@@ -321,12 +628,20 @@ if WEBENGINE_OK:
                 QDesktopServices.openUrl(url)
 
         def _on_open_model(self, path: str) -> None:
-            if self._open_model:
+            if self._open_model is not None:
                 self._open_model(path)
+                return
+            owner = self._target_owner()
+            if owner is not None:
+                owner.open_model_from_help(path)
 
-        def _dispatch_model(self, path: str) -> None:
-            """Scheme-handler callback (also used by the page signal)."""
-            self._on_open_model(path)
+        def _switch_to_app_clicked(self) -> None:
+            if self._switch_to_app is not None:
+                self._switch_to_app()
+                return
+            owner = self._target_owner()
+            if owner is not None:
+                owner._switch_from_help()
 
         # ------------------------------------------------------------ find
         def _focus_find(self) -> None:
@@ -368,6 +683,29 @@ if WEBENGINE_OK:
                 self._view.setFocus()
                 return
             self.close()
+
+        def shutdown(self) -> None:
+            """Stop the page and schedule deletion before the app goes away.
+
+            `HelpService.close` calls this for the last window and on
+            aboutToQuit. Stopping first avoids a load completing while the
+            view is being destroyed; `deleteLater` lets Qt free the page in
+            its own order (a Python `del` here is the #75 crash shape).
+            """
+            try:
+                self._view.stop()
+            except RuntimeError:             # C++ side already gone
+                pass
+            try:
+                self._page.triggerAction(
+                    QWebEnginePage.WebAction.Stop)
+            except RuntimeError:
+                pass
+            try:
+                self.close()
+                self.deleteLater()
+            except RuntimeError:
+                pass
 
         # ------------------------------------------------------------ theme
         #: Mirrors the @media (prefers-color-scheme: dark) block in

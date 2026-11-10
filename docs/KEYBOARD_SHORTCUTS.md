@@ -23,13 +23,23 @@
 | Del / Backspace | Delete selection (nothing selected: arms click-to-delete) |
 | Arrow keys | Nudge the selection one grid step |
 | Shift+Arrow keys | Nudge the selection 1 px, off the grid |
+| Alt+Arrow keys | Fine-nudge the selection one tenth of a snap step |
+| Alt+drag | Move/drag at one tenth of the snap step (finer sub-grid positions) |
 | F2 | Edit the text of the selected text annotation |
 | Ctrl+F | Find item: the cursor goes to the Find box (from the canvas or the Explorer) |
 | Esc | Cancel armed tool / delete mode / connect / Failure Effects fail-repair targeting; cancels a running batch |
 
-Nudging with the arrow keys (one grid step; Shift: 1 px) also moves selected
-routing points, and the routing points of a link whose two ends both move go
-with them. One undo step.
+Nudging with the arrow keys (one grid step; Shift: 1 px; Alt: one tenth of a
+step) also moves selected routing points, and the routing points of a link
+whose two ends both move go with them. One undo step. Alt applies to drags
+too, so a block/node/event/oval can be placed between the normal grid lines.
+
+Alt+Up does double duty. With a nudgeable canvas selection on the focused
+canvas (blocks, nodes, events, hierarchy ovals, annotations including
+arrows, and routing points) it fine-nudges that selection. With nothing
+selected, or with focus outside the canvas, it is **Up one hierarchy
+level**; a double-click on an Out marker always ascends. The ribbon's Up
+button always ascends, whatever is selected.
 
 ## Tables
 | Shortcut | Action |
@@ -59,7 +69,7 @@ Front* and *Bring Forward* disabled.
 | Ctrl+5 | Add Hierarchy tool |
 | Ctrl+6 | Connect tool |
 | Ctrl+G | Collapse the selection into a hierarchy |
-| Alt+Up | Up one hierarchy level |
+| Alt+Up | Fine-nudge the focused canvas selection; with none selected, up one hierarchy level |
 | Ctrl+L | Auto Layout (columns by flow; selection alone if selected) |
 | Ctrl+= / Ctrl+- | Zoom in / out (also Ctrl+wheel) |
 | Ctrl+0 | Zoom to fit |

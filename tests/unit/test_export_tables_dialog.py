@@ -239,22 +239,27 @@ def test_there_is_no_bundle_before_a_run(win):
 
 # -- the buttons on the docks --------------------------------------------------------
 
-def test_the_results_and_data_tables_docks_open_the_same_dialog(win,
-                                                                monkeypatch):
+def test_the_data_tables_dock_opens_the_export_tables_dialog(win,
+                                                             monkeypatch):
     from raptor.gui.ui import tables_dialog
     opened = []
     monkeypatch.setattr(tables_dialog, "open_export_tables_dialog",
                         lambda w: opened.append(w))
-    win._results.export_tables_requested.emit()
     win._data_tables.export_tables_requested.emit()
-    assert opened == [win, win]
+    assert opened == [win]
 
 
-def test_the_docks_have_an_export_tables_button(win):
+def test_the_docks_open_the_export_tables_command(win):
+    # Results no longer carries a bulky "Export Tables..." header button
+    # (#205); the command lives in File > Export. Data Tables keeps its
+    # own direct button.
     from PySide6.QtWidgets import QPushButton
-    for dock in (win._results, win._data_tables):
-        texts = [b.text() for b in dock.findChildren(QPushButton)]
-        assert "Export Tables…" in texts, type(dock).__name__
+    assert win._export_tables_action.text().startswith("Export Tables")
+    result_texts = [b.text() for b in win._results.findChildren(QPushButton)]
+    assert "Export Tables…" not in result_texts
+    data_texts = [b.text()
+                  for b in win._data_tables.findChildren(QPushButton)]
+    assert "Export Tables…" in data_texts
 
 
 # -- File > Export Excel Workbook / Export OpenDocument Spreadsheet ------------

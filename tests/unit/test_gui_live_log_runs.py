@@ -92,13 +92,18 @@ def test_an_earlier_run_can_be_looked_at_while_stepping_on(window, qapp):
     assert len(_rows(panel)) == len(finished)
     assert _rows(panel)[0].text(0) == finished[0].split("\t")[0].strip()
     assert not _highlighted(panel), "a finished run has no current event"
-    # Stepping on leaves the run on screen alone...
+    # Focus Event off: stepping on leaves the run on screen alone. With it
+    # on, the panel returns to the stepped run (see
+    # test_gui_live_log_focus.py) -- the point here is the earlier run
+    # staying readable when the user has taken over the view.
+    window._focus_event_action.setChecked(False)
     before = [r.text(0) for r in _rows(panel)]
     window._on_step()
     qapp.processEvents()
     assert [r.text(0) for r in _rows(panel)] == before
     assert panel.run_combo.currentIndex() == 0
     # ...and going back to the current run shows the newest rows again.
+    window._focus_event_action.setChecked(True)
     panel.next_button.click()
     qapp.processEvents()
     assert panel.following
@@ -161,3 +166,126 @@ def test_closing_the_session_clears_the_panel(window, qapp):
     window._invalidate_step_session()
     panel = window._live_log_panel
     assert panel.tree.topLevelItemCount() == 0 and panel.run_combo.count() == 0
+
+
+def test_the_live_log_action_is_disabled_and_hidden_before_a_run(window, qapp):
+    action = window._live_log_toggle_action
+    assert not action.isEnabled()
+    assert "Unavailable" in action.toolTip()
+    assert not window._live_log_dock.isVisible()
+
+
+def test_starting_a_step_shows_the_live_log_and_checks_its_action(window, qapp):
+    action = window._live_log_toggle_action
+    window._on_step()
+    qapp.processEvents()
+    assert action.isEnabled()
+    assert action.isChecked()
+    assert window._live_log_dock.isVisible()
+    assert window._live_log_dock in \
+        window.tabifiedDockWidgets(window._inspector_dock)
+
+
+def test_toggling_the_live_log_action_hides_and_restores_it(window, qapp):
+    action = window._live_log_toggle_action
+    dock = window._live_log_dock
+    window._on_step()
+    qapp.processEvents()
+    assert dock.isVisible()
+
+    action.setChecked(False)
+    qapp.processEvents()
+    assert not dock.isVisible()
+    assert window._inspector_dock.isVisible()
+
+    action.setChecked(True)
+    qapp.processEvents()
+    assert dock.isVisible()
+    assert dock in window.tabifiedDockWidgets(window._inspector_dock)
+
+
+def test_new_model_returns_to_the_inspector_and_hides_the_live_log(
+        window, qapp, monkeypatch):
+    window._on_step()
+    qapp.processEvents()
+    assert window._live_log_dock.isVisible()
+    monkeypatch.setattr(window, "_confirm_discard_unsaved",
+                        lambda **kwargs: True)
+    window._new_file()
+    for _ in range(6):
+        qapp.processEvents()
+    assert not window._live_log_dock.isVisible()
+    assert window._inspector_dock.isVisible()
+    assert not window._live_log_toggle_action.isChecked()
+    assert not window._live_log_toggle_action.isEnabled()
+    assert window._live_log_panel.tree.topLevelItemCount() == 0
+
+
+def test_reset_layout_keeps_the_live_log_hidden(window, qapp):
+    window._on_step()
+    qapp.processEvents()
+    assert window._live_log_dock.isVisible()
+    window.reset_layout()
+    for _ in range(8):
+        qapp.processEvents()
+    assert not window._live_log_dock.isVisible()
+    assert window._inspector_dock.isVisible()
+    assert not window._live_log_toggle_action.isChecked()
+
+
+def test_a_failed_step_hides_and_disables_the_live_log(window, qapp,
+                                                       monkeypatch):
+    from raptor.gui.ui import main_window as mw
+
+    window._on_step()
+    qapp.processEvents()
+    assert window._live_log_dock.isVisible()
+    assert window._live_log_toggle_action.isEnabled()
+    monkeypatch.setattr(mw.msgbox, "critical", lambda *args, **kwargs: None)
+
+    def boom():
+        raise RuntimeError("step failed")
+
+    monkeypatch.setattr(window._step_session, "step", boom)
+    window._on_step()
+    qapp.processEvents()
+    assert not window._live_log_dock.isVisible()
+    assert not window._live_log_toggle_action.isChecked()
+    assert not window._live_log_toggle_action.isEnabled()
+    assert window._step_session is None
+
+
+def test_repeated_steps_do_not_retabify_or_reraise_the_live_log(
+        window, qapp, monkeypatch):
+    from PySide6.QtWidgets import QTabBar
+
+    window._live_sim_action.setChecked(False)
+    calls = []
+    original = window.tabifyDockWidget
+
+    def spy(first, second):
+        calls.append((first, second))
+        return original(first, second)
+
+    monkeypatch.setattr(window, "tabifyDockWidget", spy)
+    window._on_step()
+    qapp.processEvents()
+    assert len(calls) <= 1
+
+    bar = None
+    for candidate in window.findChildren(QTabBar):
+        texts = [candidate.tabText(i) for i in range(candidate.count())]
+        if any(t.startswith("Live Log") for t in texts) and \
+                "Inspector" in texts:
+            bar = candidate
+            break
+    assert bar is not None
+    inspector_index = next(i for i in range(bar.count())
+                           if bar.tabText(i) == "Inspector")
+    bar.setCurrentIndex(inspector_index)
+    qapp.processEvents()
+
+    window._on_step()
+    qapp.processEvents()
+    assert len(calls) <= 1
+    assert bar.currentIndex() == inspector_index

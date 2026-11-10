@@ -1,4 +1,4 @@
-"""Results ▸ Analytical: exact static reliability/availability.
+"""Model ▸ Analytical: exact static reliability/availability.
 
 A thin front end over `raptor.api.analytical.analyse_rbd`, which also backs
 the CLI and the MCP tool. It does not sample and it never changes the model.
@@ -1948,6 +1948,16 @@ class AnalyticDialog(QDialog):
 
     # -- lifecycle ------------------------------------------------------------
 
+    def follow_run_scope(self, hierarchy_id: int) -> None:
+        """Preselect the hierarchy the Run panel is scoped to, so Run, Step
+        and the exact solver agree on what "this hierarchy" means. Whole
+        model (0) leaves the dialog's own choice alone."""
+        if not hierarchy_id or not getattr(self, "_has_hierarchies", False):
+            return
+        index = self._hierarchy.findData(hierarchy_id)
+        if index >= 0 and index != self._hierarchy.currentIndex():
+            self._hierarchy.setCurrentIndex(index)
+
     def refresh_for_model(self) -> None:
         """Start over when the window's model is a different one; for the
         same model keep what is shown (an edit since is flagged by the model
@@ -1966,6 +1976,9 @@ def open_analytic_dialog(win) -> AnalyticDialog:
         win._analytic_dialog = dialog
     else:
         dialog.refresh_for_model()
+    panel = getattr(win, "_run_panel", None)
+    if panel is not None:
+        dialog.follow_run_scope(panel.hierarchy_scope())
     dialog.show()
     dialog.raise_()
     dialog.activateWindow()

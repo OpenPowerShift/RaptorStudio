@@ -16,17 +16,18 @@ from PySide6.QtWidgets import QAbstractItemView
 import os
 from typing import Any, cast
 from collections.abc import Callable
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QDoubleValidator, QIntValidator, QUndoCommand
 from PySide6.QtWidgets import (
     QWidget, QLayout, QVBoxLayout, QScrollArea, QLabel, QGroupBox, QFormLayout, QHBoxLayout, QTabWidget, QLineEdit,
     QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QPushButton,
-    QRadioButton, QButtonGroup, QTableWidget, QTableWidgetItem, QFrame,
-    QToolButton, QSizePolicy,
+    QPlainTextEdit, QRadioButton, QButtonGroup, QTableWidget,
+    QTableWidgetItem, QFrame, QToolButton, QSizePolicy,
 )
 from raptor.core.engine.diststats import compute_stats
 from raptor.core.annotations import ANNO_DEFAULT_LOCATION, ANNO_LOCATIONS
 
+from raptor.core.fileio.comments import comment_text
 from raptor.core.fileio.rbd import RbdFile
 from raptor.core.fileio.typed import system_config_from_row
 # The distribution rules are `raptor.core.distro_rules`'s, not this
@@ -51,6 +52,83 @@ RAPTOR7_UNITS = (
     "kilometers", "PPM", "PPB",
 )
 
+
+
+#: Inspector Comment editor: type, pause this long, and the draft is
+#: committed as one undo command. Focus-out commits immediately, so
+#: clicking away never loses the tail of a sentence. This is what keeps
+#: a typing burst (and its undo history) from becoming one command and
+#: one full Inspector rebuild per character.
+COMMENT_COMMIT_DELAY_MS = 400
+
+
+class _CommentEdit(QPlainTextEdit):
+    """A Comment box that holds a local draft instead of writing per key.
+
+    The old box emitted on every `textChanged`; MainWindow pushed a
+    `CommentCmd`, `model_changed` rebuilt the Inspector, and the focused
+    editor (with its caret and scroll position) was deleted and recreated
+    -- visibly jumping the pane to the bottom. The draft fixes that: the
+    model is only touched on debounce/focus-out, and the commit is one
+    command. `MainWindow` additionally suppresses the Inspector half of
+    its deferred refresh for those self-originated commits, so even a
+    debounced commit leaves this widget, its caret and the pane's scroll
+    position in place.
+    """
+
+    def __init__(self, text: str, on_commit: Callable[[str], None],
+                 parent=None):
+        super().__init__(parent)
+        self._on_commit = on_commit
+        self._committed = str(text or "")
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.setInterval(COMMENT_COMMIT_DELAY_MS)
+        self._timer.timeout.connect(self.commit)
+        self.setPlainText(self._committed)
+        self.textChanged.connect(lambda: self._timer.start())
+        # Tab leaves the Comment box (and its focus-out commits the
+        # draft) instead of inserting a tab character into free text.
+        self.setTabChangesFocus(True)
+
+    def commit(self) -> None:
+        """Flush the draft if it differs from the last committed text."""
+        self._timer.stop()
+        text = self.toPlainText()
+        if text == self._committed:
+            return
+        self._committed = text
+        self._on_commit(text)
+
+    def set_source(self, text: str) -> None:
+        """Adopt externally-changed text without disturbing a matching draft.
+
+        Undo/redo of a comment command rebuilds this editor; if the text
+        already matches the draft, leave the caret where it is. A real
+        external change (undo) replaces the contents and puts the caret at
+        the end, which is the least surprising place for a programmatic
+        update.
+        """
+        text = str(text or "")
+        if self.toPlainText() == text:
+            self._committed = text
+            self._timer.stop()
+            return
+        self._timer.stop()
+        cursor = self.textCursor()
+        pos = min(cursor.position(), len(text))
+        self.setPlainText(text)
+        cursor = self.textCursor()
+        cursor.setPosition(pos)
+        self.setTextCursor(cursor)
+        self._committed = text
+
+    def has_pending(self) -> bool:
+        return self.toPlainText() != self._committed
+
+    def focusOutEvent(self, event):
+        self.commit()
+        super().focusOutEvent(event)
 
 
 _SIM_START = {
@@ -327,6 +405,10 @@ class InspectorDock(QWidget):
     #: more per-type ones, matching `DiagramView.set_element_comment`'s
     #: own `(etype, oid, text)` signature.
     element_comment_changed = Signal(str, int, str)
+    #: (etype, id) -- General > Identity's "Convert comment to annotation"
+    #: button. MainWindow forwards it to `DiagramView.comment_to_annotation`
+    #: (same split as `block_comment_changed` -> `set_element_comment`).
+    comment_to_annotation_requested = Signal(str, int)
     #: suppress comment echo while populating
     _populating_comment = False
     #: (column, value) — SYSTEM_DATA threshold edits from the General
@@ -665,7 +747,48 @@ class InspectorDock(QWidget):
         for index in sorted(getattr(self, "_deferred_tabs", {})):
             self._run_deferred(index)
 
+    def flush_pending_comment(self) -> bool:
+        """Commit an un-debounced Comment draft now, if there is one.
+
+        Save/autosave/close call this so a sentence typed in the last
+        few hundred milliseconds is not lost to the debounce. Returns
+        whether a draft was actually pending.
+        """
+        edit = getattr(self, "_comment_edit", None)
+        if edit is None:
+            return False
+        try:
+            pending = edit.has_pending()
+            edit.commit()
+        except RuntimeError:          # widget already deleted by a rebuild
+            return False
+        return pending
+
+    def set_comment_source(self, etype: str, oid: int, stored: str) -> bool:
+        """Update the live Comment editor for a model-side comment change.
+
+        Called by MainWindow from `DiagramView.comment_changed` (undo/redo
+        included) when this pane still shows that element. Changing the
+        editor's contents in place keeps the widget, caret and pane scroll
+        stable instead of rebuilding General and jumping to the bottom.
+        """
+        if getattr(self, "_current_target", None) != (etype, oid):
+            return False
+        edit = getattr(self, "_comment_edit", None)
+        if edit is None:
+            return False
+        try:
+            edit.set_source(str(stored or "").replace("~", "\n"))
+        except RuntimeError:          # widget already deleted by a rebuild
+            return False
+        return True
+
     def _begin_populate(self):
+        # A draft belongs to the element being replaced; flush it before
+        # the old editor is deleted. The commit callbacks are not gated on
+        # `_populating`, so a timer/focus-out that lands during a rebuild
+        # cannot silently discard a real user edit either.
+        self.flush_pending_comment()
         self._populating = True
 
     def _restore_tab(self):
@@ -714,19 +837,19 @@ class InspectorDock(QWidget):
                 return row.get("Comment", "") or ""
         return ""
 
-    def _comment_for(self, etype: str, name: str) -> str:
+    def _comment_for(self, etype: str, oid: int, name: str) -> str:
         """Legacy COMMENTS section entry for this element ('~' separates
-        lines, e.g. 'Part # 178830-SP5~Failure data from Skylab')."""
+        lines, e.g. 'Part # 178830-SP5~Failure data from Skylab').
+
+        Uses the same authoritative Type+ID resolver as the canvas: an
+        ID-bearing row belonging to a different same-named element is
+        never adopted; only a legacy row with no ID falls back to name.
+        """
         if self._rbd is None:
             return ""
-        sec = self._rbd.sections.get("COMMENTS")
-        if sec is None:
-            return ""
-        for row in sec.rows:
-            if row.get("Type", "").lower() == etype.lower() \
-                    and row.get("Name", "") == name:
-                return (row.get("Comment", "") or "").replace("~", "\n")
-        return ""
+        return comment_text(
+            self._rbd.sections.get("COMMENTS"), etype, oid, name
+        ).replace("~", "\n")
 
     def set_undo_stack(self, stack):
         """Adopt the application-level undo stack so formula-record
@@ -787,6 +910,10 @@ class InspectorDock(QWidget):
 
     def clear_selection(self):
         """Show the empty-state header and clear every tab."""
+        # Centralised here: every "target gone" path (delete, collapse,
+        # level change, file close) destroys the Comment editor, and a
+        # pending draft must reach the model first.
+        self.flush_pending_comment()
         self._header.setText("No selection")
         self._show_tabs(False)
         self._current_block_id = None
@@ -864,6 +991,9 @@ class InspectorDock(QWidget):
 
     def show_system_config(self):
         """Populate the system-level Analysis group."""
+        # Replacing General with the system page deletes the element's
+        # Comment editor; flush its draft first.
+        self.flush_pending_comment()
         self._current_target = ("system", None)
         if self._rbd is None:
             return
@@ -1544,27 +1674,83 @@ class InspectorDock(QWidget):
         form.addRow("Name:", edit)
         return edit
 
-    def _comment_row(self, form: QFormLayout, etype: str, oid: int, name: str) -> None:
-        """Legacy Raptor 7 comment box (Part #, data provenance…), same
-        widget/behaviour as the block General tab's own (which stays on
-        its bespoke `block_comment_changed` path rather than being
-        rewired through here). Used for node/event/hier, whose Raptor 7
-       Node/Event/Hierarchy Properties General tabs all have this
-        box too. Emits the generic `element_comment_changed(etype, oid,
-        text)`, which `DiagramView.set_element_comment` accepts.
-        """
-        from PySide6.QtWidgets import QPlainTextEdit as _PTE
-        edit = _PTE()
+    def _comment_editor(self, etype: str, oid: int, name: str,
+                        on_commit: Callable[[str], None]) -> _CommentEdit:
+        """Build the debounced Comment box for one element kind."""
+        edit = _CommentEdit(
+            self._comment_for(etype, oid, name).replace("~", "\n"),
+            on_commit)
         edit.setFixedHeight(56)
-        edit.setPlainText(self._comment_for(etype, name).replace("~", "\n"))
+        edit.setPlaceholderText(
+            "Markdown supported: **bold**, *italic*, lists, links…")
         edit.setToolTip(
             "Free-text comment stored with the model (Part #, data "
-            "source, etc.)")
+            "source, etc.). Markdown is supported and is rendered when "
+            "the comment is shown as a canvas annotation. Committed when "
+            "you pause or leave the box.")
+        return edit
+
+    def _comment_markdown_hint(self, form: QFormLayout,
+                               edit: QWidget) -> QLabel:
+        """A visible reminder that comment text is rendered as Markdown."""
+        hint = QLabel(
+            "Markdown supported: **bold**, *italic*, lists, links and "
+            "headings are rendered on linked canvas annotations.")
+        hint.setObjectName("SectionNote")
+        hint.setWordWrap(True)
+        hint.setToolTip(edit.toolTip())
+        form.addRow("", hint)
+        return hint
+
+    def _convert_comment_button(self, form: QFormLayout, etype: str,
+                                oid: int, edit: _CommentEdit) -> QPushButton:
+        """General > Identity's comment -> canvas annotation action.
+
+        It flushes any debounced draft first, so clicking it immediately
+        after typing converts exactly what is in the box. Disabled while
+        the comment is empty: an empty annotation conveys nothing.
+        """
+        button = QPushButton("Convert comment to annotation")
+        button.setToolTip(
+            "Create a Markdown text annotation on the canvas from this "
+            "comment, next to the element")
+
+        def has_convertible_text() -> bool:
+            # The stored format uses `~` for newlines, so a comment of
+            # only tildes/newlines is blank and must not enable the
+            # button (conversion would refuse it after the click).
+            return bool(edit.toPlainText()
+                        .replace("~", "\n").strip())
+
+        button.setEnabled(has_convertible_text())
         edit.textChanged.connect(
-            lambda: None if getattr(self, "_populating", False)
-            else self.element_comment_changed.emit(
-                etype, oid, edit.toPlainText()))
+            lambda: button.setEnabled(has_convertible_text()))
+
+        def convert() -> None:
+            edit.commit()
+            self.comment_to_annotation_requested.emit(etype, oid)
+
+        button.clicked.connect(convert)
+        form.addRow(button)
+        return button
+
+    def _comment_row(self, form: QFormLayout, etype: str, oid: int, name: str) -> None:
+        """Legacy Raptor 7 comment box (Part #, data provenance…), same
+        debounced widget/behaviour as the block General tab's own (which
+        stays on its bespoke `block_comment_changed` path rather than
+        being rewired through here). Used for node/event/hier, whose
+        Raptor 7 Node/Event/Hierarchy Properties General tabs all have
+        this box too. Commits via the generic
+        `element_comment_changed(etype, oid, text)`, which
+        `DiagramView.set_element_comment` accepts.
+        """
+        edit = self._comment_editor(
+            etype, oid, name,
+            lambda txt: self.element_comment_changed.emit(etype, oid, txt))
+        self._comment_edit = edit
         form.addRow("Comment:", edit)
+        self._comment_markdown_hint(form, edit)
+        self._convert_comment_button(form, etype, oid, edit)
 
     def _phasing_group(self, layout: QLayout | None, kind: str, oid: int,
                        phased_now: bool,
@@ -1709,22 +1895,18 @@ class InspectorDock(QWidget):
         self._row(fl, "ID", block.id)
         self._row(fl, "Parent ID", block.parent_id)
         # Legacy Raptor 7 comment (Part #, data provenance…) — editable,
-        # multi-line; '~' separators from the file become line breaks
-        from PySide6.QtWidgets import QPlainTextEdit as _PTE
-        self._comment_edit = _PTE()
-        self._comment_edit.setFixedHeight(56)
-        self._comment_edit.setPlainText(
-            self._comment_for("block", block.name).replace("~", "\n"))
-        self._comment_edit.setToolTip(
-            "Free-text comment stored with the model (Part #, data "
-            "source, etc.)")
+        # multi-line; '~' separators from the file become line breaks.
+        # Debounced like every other kind's `_comment_row`: per-key
+        # commits rebuilt the Inspector and reset the caret/scroll.
         self._comment_setter = lambda txt: self.block_comment_changed.emit(
             block_id, txt)
-        self._comment_edit.textChanged.connect(
-            lambda: None if getattr(self, "_populating_comment", False)
-            else self._comment_setter(
-                self._comment_edit.toPlainText()))
+        self._comment_edit = self._comment_editor(
+            "block", block.id, block.name,
+            lambda txt: self._comment_setter(txt))
         fl.addRow("Comment:", self._comment_edit)
+        self._comment_markdown_hint(fl, self._comment_edit)
+        self._convert_comment_button(fl, "block", block.id,
+                                     self._comment_edit)
 
         _gb, fl = self._group("Position", layout)
         self._position_source = block
@@ -2383,8 +2565,10 @@ class InspectorDock(QWidget):
         layout = req(w).layout()
         self._clear_tab(self._scroll_costs)
 
-        from raptor.gui.ui.diagram import DiagramView
-        fields = DiagramView.BLOCK_COST_FIELDS
+        from raptor.gui.model_edit import (
+            BLOCK_COST_DECIMALS, BLOCK_COST_FIELDS, BLOCK_COST_LIMIT,
+            POOLED_COST_TIP, cost_field_readonly)
+        fields = BLOCK_COST_FIELDS
         # Wording matches Raptor 7's own Costs tab rather than generic
         # column-name-derived labels -- e.g. "Rebate or disposal" not
         # "Done Fixed", "Recurring spare" not "Per spare".
@@ -2406,13 +2590,12 @@ class InspectorDock(QWidget):
         def form_add(w2, label):
             fl.addRow(label + ":", w2)
 
-        pool_sparing = block.sparing_type == SparingType.SPARE_POOL
         for label, (attr, _col) in zip(labels, fields):
             sp = QDoubleSpinBox()
-            sp.setRange(-1e12, 1e12)
-            sp.setDecimals(3)
+            sp.setRange(-BLOCK_COST_LIMIT, BLOCK_COST_LIMIT)
+            sp.setDecimals(BLOCK_COST_DECIMALS)
             sp.setValue(float(getattr(block, attr)))
-            if pool_sparing and attr in ("spare_cost", "emergency_shipping_cost"):
+            if cost_field_readonly(block, attr):
                 # The engine reads these two only for
                 # SparingType.INFINITE (block_lifecycle.py); a Pooled
                 # block's spare/emergency cost is the pool's own field
@@ -2420,10 +2603,7 @@ class InspectorDock(QWidget):
                 # do nothing. Raptor 7 greys these out for the same
                 # reason.
                 sp.setEnabled(False)
-                sp.setToolTip(
-                    "This block draws from a spare pool -- its cost "
-                    "comes from the POOL's own fields (Spares tab -> "
-                    "Manage Spare Pools…), not this one.")
+                sp.setToolTip(POOLED_COST_TIP)
             spins.append(sp)
             form_add(sp, label)
         always_cb = QCheckBox("Always add Done cost at run end")
