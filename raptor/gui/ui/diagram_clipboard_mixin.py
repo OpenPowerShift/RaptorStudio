@@ -49,12 +49,39 @@ class ClipboardMixin(_Base):
     """Cut, copy, paste and delete on the canvas."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _block_items: Any
+        _clear_route_caches: Any
+        _current_parent: Any
+        _dissolve_hierarchies: Any
+        _event_items: Any
         _links: Any
-        _paste_buffer: Any
+        _loading: Any
+        def _model_to_scene(self, model_xy: tuple[float, float]) -> tuple[float, float]: ...
+        _model_token: Any
+        _n_deletable_selected: Any
+        _name_index: Any
+        _node_items: Any
+        _paste_buffer: list
+        _rbd_ref: Any
+        _recount_link_ends: Any
+        def _resolve_link_endpoint(self, ref: str, oid: int) -> Any: ...
+        _scale: float
+        _scene: Any
+        _stack: Any
+        def _tx(self, x: float) -> float: ...
+        def _ty(self, y: float) -> float: ...
+        annotations: Any
+        blocks: Any
+        events: dict[int, Any]
+        hiers: Any
         links: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        model_changed: Any
+        nodes: Any
+        paste_state_changed: Any
+        def selected_element_count(self) -> int: ...
+        structural_about_to_change: Any
 
     def copyable_count(self) -> int:
         """Selected things Copy/Cut take: elements and annotations."""

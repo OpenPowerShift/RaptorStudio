@@ -31,15 +31,21 @@ class ResultsGraphsMixin(_Base):
     """Results graphs tab: plots, y-axis control and graph data export."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _MAX_PARSE_ROWS: Any
+        _ao_lines: list[str]
         _ao_plot: Any
         _graph_mode: Any
         _graph_note: Any
         _graph_run: Any
         _graphs_page: Any
+        _report_data: Any
+        _source_file_name: str
+        _status_hint_f: Any
+        _weak_anal_type: str
         _y_axis_btn: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        y_axis_min_changed: Any
 
     def _build_graphs_tab(self):
         """Ao availability graphs: Per-Trial, Interval, and Multi-run plots fed by the

@@ -40,10 +40,12 @@ class PhaseKeyedMixin(_Base):
     """Phase assignment and keyed-row editing (pools and triggers) on the canvas."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _PHASE_SECTION: Any
+        _rbd_ref: Any
+        _stack: Any
         links: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
 
     def set_link_flow_field(self, link_id: int, col: str, old: str,
                             new: str) -> bool:

@@ -58,16 +58,44 @@ class ElementEditMixin(_Base):
     """Undoable per-element edits on the canvas: names, comments, block and node parameters."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        BLOCK_COST_FIELDS: Any
         STREAM_SYSTEM_MAX: Any
         STREAM_SYSTEM_MIN: Any
+        _KIND_REF: Any
+        _PM_OPTION_ATTRS: Any
+        _anchor_element_name: Any
+        _anchor_geometry: Any
+        _anchored_geometry: Any
+        _anno_default_props: Any
+        _anno_items: dict[int, Any]
+        _block_items: Any
+        _clear_route_caches: Any
         _current_parent: Any
         _deferred_sublabels: Any
-        _label_mode_cache: Any
+        def _dependency_visual(self, dependency_num: int, dep_type: str) -> dict | None: ...
+        _edited: Any
+        _editor: Any
+        _event_items: Any
+        _hier_items: Any
+        _label_mode_cache: str | None
         _label_phase: Any
+        _label_units: Any
         _layout_generation: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _next_anno_id: Any
+        _node_items: Any
+        _rbd_ref: Any
+        _refresh_node_badges: Any
+        _scene: Any
+        _stack: Any
+        annotations: Any
+        blocks: Any
+        events: dict[int, Any]
+        hiers: Any
+        new_annotation_z: Any
+        nodes: Any
+        def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
 
     def _element_name(self, etype: str, oid: int) -> str:
         # `RBDNode` has its own `node_name` field, separate from the

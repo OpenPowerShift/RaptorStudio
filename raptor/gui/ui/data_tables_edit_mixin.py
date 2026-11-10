@@ -35,9 +35,16 @@ class DataTablesEditMixin(_Base):
     """Data Tables: multi-row edits, fill-down, paste and parameter setters."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        def _apply_rows(self, oid: int, what: str, value: str, fn: Any, applicable: Any = ...) -> bool: ...
+        _costs_table: Any
+        def _edit_table(self) -> Any: ...
+        _on_cost_cell_changed: Any
+        def _src(self) -> Any: ...
+        _view: Any
+        model_edited: Any
+        validation_failed: Any
 
     def fill_down(self) -> bool:
         """Ctrl+D: the first editable selected row's value in the current

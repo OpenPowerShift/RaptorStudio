@@ -31,17 +31,82 @@ class InspectorBlockMixin(_Base):
     """Inspector block tabs: general, failure, repair, spares, maintenance, dependency and costs."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        def _clear_tab(self, scroll: Any) -> Any: ...
         _comment_edit: Any
+        _comment_editor: Any
+        _comment_markdown_hint: Any
         _comment_setter: Any
-        _current_block_id: Any
-        _current_node_id: Any
-        _deferred_tabs: Any
+        def _configure_tabs(self, kind: str) -> Any: ...
+        _convert_comment_button: Any
+        _current_block_id: int | None
+        _current_node_id: int | None
+        _deferred_tabs: dict[int, object]
+        _dependency_group: Any
+        _distribution_params_row: Any
+        _distro_type_row: Any
+        _float_row: Any
+        _group: Any
+        _header: Any
+        _name_edit: Any
+        _phasing_group: Any
         _populating_comment: Any
         _position_labels: Any
         _position_source: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _rbd: Any
+        def _restore_tab(self) -> Any: ...
+        _row: Any
+        def _run_deferred(self, index: int) -> None: ...
+        _scroll_costs: Any
+        _scroll_deps: Any
+        _scroll_failure: Any
+        _scroll_general: Any
+        _scroll_pm: Any
+        _scroll_repair: Any
+        _scroll_spares: Any
+        _stream_editor_row: Any
+        _tabs: Any
+        block_always_done_changed: Any
+        block_comment_changed: Any
+        block_costs_changed: Any
+        block_dep_changed: Any
+        block_dep_default_idle_changed: Any
+        block_dep_master_changed: Any
+        block_duty_cycle_changed: Any
+        block_fail_params_changed: Any
+        block_fail_type_changed: Any
+        block_gd_enabled_changed: Any
+        block_gd_rate_limit_changed: Any
+        block_gd_type_changed: Any
+        block_init_stock_changed: Any
+        block_new_spares_changed: Any
+        block_pm_dist_changed: Any
+        block_pm_enabled_changed: Any
+        block_pm_freq_changed: Any
+        block_pm_option_changed: Any
+        block_pm_params_changed: Any
+        block_pm_stagger_changed: Any
+        block_pm_trig_changed: Any
+        block_post_ldt_dist_changed: Any
+        block_post_ldt_params_changed: Any
+        block_pre_ldt_dist_changed: Any
+        block_pre_ldt_params_changed: Any
+        block_renamed: Any
+        block_repair_params_changed: Any
+        block_repair_type_changed: Any
+        block_resource_counts_changed: Any
+        block_resource_pool_changed: Any
+        block_restoration_factor_changed: Any
+        block_restoration_type_changed: Any
+        block_standby_stress_changed: Any
+        block_start_age_changed: Any
+        def ensure_all_tabs_built(self) -> None: ...
+        lazy_tabs: Any
+        manage_pool_requested: Any
+        pool_name_changed: Any
+        sparing_type_changed: Any
+        validation_failed: Any
 
     def _populate_block(self, block: RBDBlock):
         self._populating_comment = True

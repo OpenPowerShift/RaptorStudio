@@ -27,17 +27,30 @@ class EditGuardMixin(_Base):
     """Guards for editing while a run is active or results are on screen."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _EDIT_GUARD_MAX_PROMPTS: Any
+        _EDIT_GUARD_WINDOW: Any
         _diagram_dock: Any
+        def _discard_step_finalize(self, message: str | None = ...) -> bool: ...
         _edit_during_run_guard: Any
-        _edit_guard_prompt_times: Any
+        _edit_guard_prompt_times: list[float]
         _edit_guard_reentrancy: Any
         _edit_run_abandoned: Any
+        def _invalidate_step_session(self) -> Any: ...
+        _rbd: Any
+        def _reset_status_summary(self) -> Any: ...
+        _results: Any
         _results_basis: Any
         _results_guard_pending: Any
         _results_guard_reentrancy: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        def _run_or_step_active(self) -> bool: ...
+        _statusbar: Any
+        _step_finalize_state: Any
+        def _stop_bg_run(self) -> Any: ...
+        def _sync_overlay_actions(self, report_data: Any) -> None: ...
+        def _sync_run_settings_lock(self) -> None: ...
+        def _update_system_swatch(self, colour: Any, force: bool = ...) -> None: ...
 
     def _results_basis_hash(self) -> str | None:
         """Hash of the model as the DIAGRAM currently holds it."""

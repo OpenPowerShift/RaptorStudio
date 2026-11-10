@@ -62,18 +62,40 @@ class AnnotationMixin(_Base):
     """Annotations on the canvas: creation, anchors, text, ordering and style defaults."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _KIND_REF: Any
+        _REF_KIND: Any
         _anchor_leader: Any
-        _anchor_pick_end: Any
-        _anchor_pick_for: Any
+        _anchor_pick_end: str | None
+        _anchor_pick_for: int | None
+        _anno_items: dict[int, Any]
+        _anno_state: Any
+        def _apply_tool_cursor(self) -> Any: ...
         _arrow_ghost: Any
-        _hidden_following: Any
+        _block_items: Any
+        _current_parent: Any
+        def _element_at(self, scene_pos: Any) -> Any: ...
+        _event_items: Any
+        _hidden_following: list[int]
+        _node_items: Any
         _rbd_ref: Any
+        _scene: Any
         _shape_anno_ghost: Any
+        _stack: Any
+        annotation_style_default_changed: Any
         annotations: Any
-        default_annotation_props: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        blocks: Any
+        copy_selection: Any
+        current_comment_stored: Any
+        default_annotation_props: dict[str, dict]
+        events: dict[int, Any]
+        hiers: Any
+        layout_changed: Any
+        model_changed: Any
+        nodes: Any
+        paste: Any
+        set_annotation_props: Any
 
     # -------------------------------------------------- annotations --
     def _next_anno_id(self) -> int:

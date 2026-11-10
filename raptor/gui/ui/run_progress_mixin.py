@@ -27,10 +27,20 @@ class RunProgressMixin(_Base):
     """Run progress: the ETA, importance-analysis progress and the off-thread importance pass."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _bg_last_paused: Any
+        def _current_experiment(self) -> dict: ...
+        _imp_eta: Any
         _imp_last_key: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by `MainWindow`; typed loosely here."""
-            ...
+        _importance_running: bool
+        _last_run_profile: Any
+        _pause_action: Any
+        _rbd: Any
+        _run_eta: Any
+        _run_progress: Any
+        _run_progress_label: Any
+        _statusbar: Any
 
     def _start_run_eta(self) -> None:
         """Begin timing a batch for the "approximately N left" readout."""

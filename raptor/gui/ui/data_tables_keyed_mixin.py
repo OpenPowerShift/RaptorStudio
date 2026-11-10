@@ -34,9 +34,21 @@ class DataTablesKeyedMixin(_Base):
     """Data Tables: pool and trigger tables edited by key."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _KEYED_TEMPLATES: Any
+        _KEYED_TIME_FIELDS: Any
+        @staticmethod
+        def _cell_tip(t: Any, row: int, col: int, *, header: bool = ...) -> str: ...
+        _keyed: Any
+        def _param_cell(self, table: Any, row: Any, col: Any, value: float, on_commit: Any, is_time: bool = ..., *, shown_value: float | None = ..., on_commit_entry: Any = ...) -> Any: ...
+        @staticmethod
+        def _set_cell_tip(t: Any, row: int, col: int, text: str) -> None: ...
+        _tabs: Any
+        _view: Any
+        model_edited: Any
+        def refresh(self, force: bool = ...) -> Any: ...
+        validation_failed: Any
 
     def _populate_keyed(self, table):
         section_name, key_col, kinds = self._keyed[table]

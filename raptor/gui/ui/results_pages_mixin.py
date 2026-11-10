@@ -46,22 +46,39 @@ class ResultsPagesMixin(_Base):
     """Results pages: capacity, weak links, cost and importance tables, with level filtering."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        _allowed_names: Any
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _CAP_HEADERS: Any
+        _COST_HEADERS: Any
+        _WEAK_COLOUR_TIPS: Any
+        _allowed_names: set[str] | None
+        def _apply_sort(self, table: Any, key: str, default: Any = ...) -> None: ...
         _cap_table: Any
         _cost_blocks_label: Any
         _cost_blocks_title: Any
         _cost_tables: Any
         _detail_tables: Any
-        _importance_metric: Any
+        _details_tabs: Any
+        _importance: Any
+        _importance_metric: str
+        def _make_table(self, headers: list[str], rows: list[list[Any]], first_col_label: str = ...) -> Any: ...
+        def _populate_details(self, lines: list[str]) -> Any: ...
+        _report_data: Any
+        @staticmethod
+        def _scroll_wrap(widget: Any) -> Any: ...
+        def _section_widget(self, title: str, columns: list[str], rows: Any, *, sort_key: str | None = ..., default_sort: Any = ..., keep_report_order: bool | None = ...) -> Any: ...
         _selected_block_names_fn: Any
-        _weak_anal_type: Any
-        _weak_gy: Any
+        @staticmethod
+        def _stat_col_tip(name: str) -> str: ...
+        _status_hint_f: Any
+        _units: str
+        _weak_anal_type: str
+        _weak_gy: float
         _weak_rebuilding: Any
         _weak_sel_only: Any
-        _weak_yr: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _weak_yr: float
+        element_clicked: Any
+        importance_metric_changed: Any
 
     @staticmethod
     def _capacity_node_ids(caps, sys_nid: int) -> list[int]:

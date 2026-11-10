@@ -21,12 +21,27 @@ class DockFloatMixin(_Base):
     """Floating, redocking and dragging docks, and the floating Results window."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
         _bottom_active_dock: Any
+        def _clamp_dock_height(self, target: int) -> int: ...
+        _compact_minimized: set[str]
+        _data_tables_dock: Any
+        _dock_chrome: dict
+        _dock_resize_generation: Any
+        _dock_stubs: dict
+        _inspector_dock: Any
+        def _release_bottom_strip_ceiling(self) -> None: ...
+        def _resize_docks(self, docks: Any, sizes: Any, orientation: Any) -> None: ...
+        def _restore_results_chrome(self) -> None: ...
+        _results_dock: Any
         _results_dock_height_before_float: Any
         _results_float_geom: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        @staticmethod
+        def _set_dock_min_width(dock: Any, width: int) -> None: ...
+        def _sync_dock_tab_bars(self) -> Any: ...
+        def _update_dock_max_heights(self) -> None: ...
+        def _vertical_chrome_reserve(self) -> int: ...
 
     def _results_full_target(self) -> int:
         """Height for the near-full Results stretch: everything except

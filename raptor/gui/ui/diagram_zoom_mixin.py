@@ -31,14 +31,19 @@ class ZoomMixin(_Base):
     """Zoom, fit and level-of-detail on the canvas."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _LOD_LABEL_ATTRS: Any
+        _content_rect: Any
+        _current_parent: Any
         _deferred_sublabels: Any
         _lod_enabled: Any
-        _lod_labels_visible: Any
-        _lod_mode: Any
+        _lod_labels_visible: bool | None
+        _lod_mode: str | None
+        _refresh_block_sublabels: Any
+        _scene: Any
         _user_zoomed: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        enter_level: Any
 
     def zoom_by(self, factor: float):
         """Multiplicative zoom, clamped only at the extreme ends."""

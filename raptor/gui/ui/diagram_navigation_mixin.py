@@ -38,12 +38,26 @@ class NavigationMixin(_Base):
     """Hierarchy levels and finding elements: enter, go up, locate and reveal."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _DEP_TARGET_KINDS: Any
+        _LOCATE: Any
+        _LOG_ELEMENT_KINDS: Any
+        _block_items: Any
         _current_parent: Any
-        _global_name_index: Any
+        _event_items: Any
+        _global_name_index: dict[tuple[str, int], str] | None
+        _links: Any
         _loading: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _node_items: Any
+        _rbd_ref: Any
+        def _reapply_live_states(self) -> None: ...
+        def _reapply_result_visuals(self) -> None: ...
+        def _rebuild_scene(self) -> Any: ...
+        _scene: Any
+        hiers: Any
+        level_about_to_change: Any
+        level_changed: Any
 
     def _current_depth(self) -> int:
         """How many hierarchy levels deep `self._current_parent` is,

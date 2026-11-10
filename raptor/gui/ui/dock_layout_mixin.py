@@ -168,19 +168,42 @@ class DockLayoutMixin(DockFloatMixin, DockLayoutPersistenceMixin, _Base):
     """Dock chrome and window layout: minimise/float/redock, saved layout, canvas room."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        _dock_state_sync: Any
-        _compact_minimized: Any
-        _dock_stubs: Any
-        _dock_chrome: Any
-        _dock_titlebar_rethemers: Any
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        DATA_TABLES_OPEN_HEIGHT: Any
+        _DOCK_ICONS: Any
+        _bottom_active_dock: Any
+        _canvas_room_defaults_done: Any
+        _canvas_room_shown: Any
+        _canvas_room_stage: Any
+        _canvas_room_timer: Any
+        _compact_forced: Any
+        _compact_minimized: set[str]
+        def _current_dock_edge(self, dock: Any, fallback: Any = ...) -> Any: ...
+        _data_tables_dock: Any
+        _diagram_dock: Any
+        _dock_chrome: dict
+        _dock_chrome_entries: Any
+        @staticmethod
+        def _dock_min_dimension(entry: dict, edge: str) -> int: ...
+        _dock_rebase_pending: Any
         _dock_resize_generation: Any
+        _dock_splitter_moved: Any
+        _dock_startup_extents: Any
         _dock_startup_snapshot_done: Any
         _dock_startup_window_size: Any
-        _results_float_geom: Any
-        _results_dock_height_before_float: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by `MainWindow`; typed loosely here."""
-            ...
+        _dock_state_sync: dict
+        _dock_stubs: dict
+        _dock_titlebar_rethemers: list | None
+        _dock_user_sized: Any
+        def _float_results_properly(self, dock: Any, floating: bool) -> Any: ...
+        _internal_dock_resize: Any
+        _rbd: Any
+        _results_dock: Any
+        _results_float_action: Any
+        _ribbon: Any
+        _run_dock: Any
+        _statusbar: Any
 
     def _can_stub_dock(self, dock) -> bool:
         """True only while the dock is on a side edge and not floating.

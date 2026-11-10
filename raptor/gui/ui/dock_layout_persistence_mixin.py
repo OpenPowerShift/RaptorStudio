@@ -19,14 +19,32 @@ class DockLayoutPersistenceMixin(_Base):
     """Saving, restoring and resetting the window and dock layout."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _DEFAULT_WINDOW_SIZE: Any
+        _LAYOUT_VERSION: Any
         _canvas_room_defaults_done: Any
+        _compact_minimized: set[str]
+        _data_tables_dock: Any
+        _dock_chrome: dict
         _dock_resize_generation: Any
+        _dock_state_sync: dict
         _dock_user_sized: Any
+        def _ensure_status_bar_visible(self) -> Any: ...
+        _explorer_dock: Any
+        def _give_canvas_room(self, *, force: bool = ...) -> Any: ...
+        _inspector_dock: Any
+        _live_log_dock: Any
         _persist_layout: Any
+        def _reset_right_docks(self) -> Any: ...
         _restoring_dock_chrome: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _results_dock: Any
+        _run_dock: Any
+        @staticmethod
+        def _set_dock_min_width(dock: Any, width: int) -> None: ...
+        _statusbar: Any
+        def _sync_dock_tab_bars(self) -> Any: ...
+        def _update_dock_max_heights(self) -> None: ...
 
     def _initial_window_size(self):
         """1600x1000, unless the screen cannot hold that.

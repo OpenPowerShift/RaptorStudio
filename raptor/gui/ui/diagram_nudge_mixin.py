@@ -61,11 +61,36 @@ class NudgeMixin(_Base):
     """Moving the selection: align, flip, distribute and arrow-key nudging, as undoable commands."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        _pos_overrides: Any
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        def _apply_scene_layout(self) -> Any: ...
+        _block_items: Any
+        def _compute_model_transform(self, rbd: Any, spacing: float = ..., band_aware: bool = ...) -> Any: ...
+        _current_parent: Any
+        _detach_if_moved_alone: Any
+        _event_items: Any
+        _hier_items: Any
+        def _keys_of_items(self, items: Any) -> set[tuple[str, int]] | None: ...
+        _links: Any
+        @staticmethod
+        def _move_by(item: Any, dx: Any, dy: Any) -> Any: ...
+        _node_items: Any
+        _pos_overrides: dict[tuple[str, int], tuple[float, float]]
+        _rbd_ref: Any
+        def _rebuild_scene(self) -> Any: ...
+        _scene: Any
+        def _selected_items(self) -> Any: ...
         _snap_state: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _stack: Any
+        def _sync_items(self, items: Any) -> None: ...
+        blocks: Any
+        events: dict[int, Any]
+        follow_anchors: Any
+        hiers: Any
+        layout_changed: Any
+        nodes: Any
+        route_grip_by_entry: Any
+        def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
 
     def _layout_state(self) -> tuple[dict, dict | None, tuple[str, str | None]]:
         """This level's element positions in model units (from the typed

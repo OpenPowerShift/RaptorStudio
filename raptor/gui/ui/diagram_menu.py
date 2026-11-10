@@ -191,9 +191,10 @@ class ContextMenuMixin:
         # enabled only when it would do something.
         for it in self._scene.items(scene_pos):
             if isinstance(it, tuple(_ANNO_TYPES)):
-                if not it.isSelected():
+                anno: Any = it     # one of _ANNO_TYPES, all QGraphicsItems
+                if not anno.isSelected():
                     self._scene.clearSelection()
-                    it.setSelected(True)
+                    anno.setSelected(True)
                 mx, my = self.scene_to_model(scene_pos)
                 n_annos = len(self._selected_annotation_ids())
                 menu2 = QMenu(self)

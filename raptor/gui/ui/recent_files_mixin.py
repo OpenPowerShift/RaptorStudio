@@ -31,10 +31,21 @@ class RecentFilesMixin(_Base):
     """Start page, examples, new windows and the recent-files list."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _RECENT_KEY: Any
+        _RECENT_MAX: Any
         _backstage: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        def _confirm_discard_unsaved(self, *, closing: bool = ...) -> bool: ...
+        _current_file: str | None
+        _dirty: Any
+        def _doc_candidates(self, name: str) -> Any: ...
+        _inspector: Any
+        def _load_into_app(self, rbd: Any, path: str | None) -> Any: ...
+        def _open_model_any(self, path: str) -> Any: ...
+        _rbd: Any
+        def _refuse_during_run(self, what: str) -> bool: ...
+        _statusbar: Any
 
     def _show_backstage(self, page: str = "Home") -> None:
         """The full-page File view (`ui/backstage.py`), on `page`."""

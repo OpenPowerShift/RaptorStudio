@@ -32,6 +32,9 @@ class ResultsRawMixin(_Base):
     """Results raw-report tab and the Appendix C file exports."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _ao_lines: list[str]
         _appendix_c_checks: Any
         _appendix_c_dialog: Any
         _interim_cost_view: Any
@@ -39,9 +42,7 @@ class ResultsRawMixin(_Base):
         _raw_sources: Any
         _raw_tabs: Any
         _raw_views: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _report_data: Any
 
     def _build_raw_tab(self):
         page = QWidget()

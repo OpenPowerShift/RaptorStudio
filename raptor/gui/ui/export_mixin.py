@@ -30,10 +30,15 @@ class ExportMixin(_Base):
     """Exports from the main window: PDF, workbook, SVG and bitmap, clipboard copy."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _BITMAP_SCALE: Any
+        _current_file: str | None
+        _diagram_dock: Any
         _export_in_progress: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _rbd: Any
+        _results: Any
+        _statusbar: Any
 
     def _export_pdf(self):
         if self._rbd is None:

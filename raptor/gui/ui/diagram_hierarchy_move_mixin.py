@@ -42,10 +42,20 @@ class HierarchyMoveMixin(_Base):
     """Moving elements into, out of and between hierarchies."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _block_items: Any
+        _current_parent: Any
+        _event_items: Any
+        _hier_items: Any
+        _node_items: Any
+        _rbd_ref: Any
+        def _row_for(self, section_name: str, oid: int) -> dict | None: ...
+        _stack: Any
         _statusbar_msg: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        hiers: Any
+        nodes: Any
+        structural_about_to_change: Any
 
     def _drop_target_hier(self, moves) -> int | None:
         """The hierarchy oval the drag gesture ended on (primary moved

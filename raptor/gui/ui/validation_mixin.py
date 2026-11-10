@@ -33,9 +33,19 @@ class ValidationMixin(_Base):
     """Model validation: preflight checks, the issues dialog and the status-bar badge."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        def __getattr__(self, name: str) -> Any:
-            """State owned by `MainWindow`; typed loosely here."""
-            ...
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _commands: Any
+        _diagram_dock: Any
+        _rbd: Any
+        _statusbar: Any
+        def _sync_simulate_enabled_state(self) -> Any: ...
+        def _update_readiness(self) -> None: ...
+        _validation_badge: Any
+        _validation_cache: Any
+        _validation_timer: Any
+        _validity_cache: Any
+        _validity_dirty_since_check: Any
 
     def _preflight_issues(self, rbd: RbdFile | None = None) -> list[str]:
         """Model features the engine will reject, found before Run is

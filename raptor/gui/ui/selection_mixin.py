@@ -20,11 +20,15 @@ class SelectionMixin(_Base):
     """Selection and edit signals from the canvas, explorer and inspector."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        _pending_block_selection: Any
-        _pending_inspector_selection: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _diagram_dock: Any
+        _explorer: Any
+        _inspector: Any
+        _inspector_select_timer: Any
+        _pending_block_selection: int | None
+        _pending_inspector_selection: tuple[str, int] | None
+        _statusbar: Any
 
     def _queue_inspector_selection(self, kind: str, oid: int) -> None:
         """Queue one Inspector rebuild on the debounce timer (see

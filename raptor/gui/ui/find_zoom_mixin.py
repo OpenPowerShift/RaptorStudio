@@ -21,9 +21,13 @@ class FindZoomMixin(_Base):
     """The ribbon's find box and zoom controls."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _FIND_PREFIXES: Any
+        _diagram_dock: Any
+        _find_edit: Any
+        _find_model: Any
+        _statusbar: Any
 
     def _find_combo_refresh(self, _filter_text: str = ""):
         """Rebuild the Find Item backing list: every block, node, event

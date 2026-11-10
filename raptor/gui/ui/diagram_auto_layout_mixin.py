@@ -41,15 +41,37 @@ class AutoLayoutMixin(_Base):
     """Auto Layout of the current level."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _apply_route_grip: Any
+        def _apply_scene_layout(self) -> Any: ...
+        _auto_layout_selection: Any
+        _block_items: Any
+        def _compute_model_transform(self, rbd: Any, spacing: float = ..., band_aware: bool = ...) -> Any: ...
+        _current_parent: Any
+        _layout_graph: Any
+        _layout_state: Any
+        _links: Any
         _loading: Any
         _model_dx_min: Any
         _model_dy_min: Any
-        _pos_overrides: Any
+        _node_items: Any
+        _pos_overrides: dict[tuple[str, int], tuple[float, float]]
+        _push_handover_grips: Any
+        _rbd_ref: Any
+        def _rebuild_scene(self) -> Any: ...
+        _remember_flow_direction: Any
+        _scene: Any
         _snap_state: Any
         _user_arranged: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _vt: Any
+        blocks: Any
+        events: dict[int, Any]
+        hiers: Any
+        layout_changed: Any
+        nodes: Any
+        def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
+        def write_back_to_rbd(self, rbd: Any) -> Any: ...
 
     def auto_layout(self, direction: str | None = None,
                     max_columns: int | None = None,

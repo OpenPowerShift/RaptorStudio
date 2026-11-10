@@ -68,21 +68,59 @@ class StructureMixin(_Base):
     """Structural edits: adding, connecting, inserting on links, hierarchies and events."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _anno_items: dict[int, Any]
+        _apply_block_labels: Any
         _block_items: Any
+        _clear_link_insert_hover: Any
+        _current_depth: Any
+        _current_parent: Any
+        _defer_block_refresh: Any
+        def _dependency_visual(self, dependency_num: int, dep_type: str) -> dict | None: ...
+        _element_shape_rect: Any
+        _endpoint_text: Any
         _event_items: Any
         _hier_items: Any
+        def _item_moved(self, obj_id: int, item: Any = ...) -> Any: ...
+        _layout_state: Any
+        _link_endpoint_label: Any
+        _link_flow_axis: Any
+        _link_insert_refusal: Any
+        _links: Any
         _loading: Any
+        _next_anno_id: Any
         _node_items: Any
+        def _on_dep_hover(self, item: Any, entering: bool) -> Any: ...
+        _page_flow: Any
+        _rbd_ref: Any
+        _refresh_lod: Any
+        def _resolve_link_endpoint(self, ref: str, oid: int) -> Any: ...
+        _route_grips: dict[int, list]
+        _scene: Any
         _snap_state: Any
+        _span_of: Any
+        _stack: Any
+        _standard_insert_gap: Any
+        def _tx(self, x: float) -> float: ...
+        def _ty(self, y: float) -> float: ...
         _user_arranged: Any
+        _vt: Any
         blocks: Any
-        events: Any
+        default_block_fdist: Any
+        default_block_fparams: Any
+        default_block_rdist: Any
+        default_block_rparams: Any
+        default_block_sparing: Any
+        element_created: Any
+        events: dict[int, Any]
         hiers: Any
+        layout_changed: Any
         links: Any
         nodes: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        def scene_to_model(self, scene_pos: Any) -> tuple[float, float]: ...
+        structural_about_to_change: Any
+        def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
 
     def _template_row(self, section_name: str, id_col: str):
         return row_ops.template_row(self._rbd_ref, section_name, id_col)

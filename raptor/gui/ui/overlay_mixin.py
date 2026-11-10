@@ -33,9 +33,25 @@ class OverlayMixin(_Base):
     """Canvas overlays: weak-link, spread, importance, capacity, cost and spares."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        def __getattr__(self, name: str) -> Any:
-            """State owned by `MainWindow`; typed loosely here."""
-            ...
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _analysis_actions: Any
+        def _apply_threshold_edits(self, edits: Any, macro_label: str) -> bool: ...
+        _capacity_overlay_action: Any
+        _cost_overlay_action: Any
+        _cost_spread: Any
+        _diagram_dock: Any
+        _gy_spin: Any
+        _importance_overlay_action: Any
+        _rbd: Any
+        _results: Any
+        _spares_overlay_action: Any
+        _statusbar: Any
+        def _uncheck_overlay(self, attr: str) -> None: ...
+        _weak_color_action: Any
+        _weak_metric_cache: Any
+        _weak_type_combo: Any
+        _yr_spin: Any
 
     def _sync_analysis_checkboxes(self):
         """Reflect SYSTEM_DATA flags onto the Simulate ribbon checks +

@@ -20,11 +20,12 @@ class ReportStreamsMixin(_Base):
     """Report output streams: which reports a run writes, and their lifetime."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
         _active_report_streams: Any
+        _rbd: Any
         _run_own_change: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _statusbar: Any
 
     def _report_choices(self) -> dict[str, bool]:
         """Snapshot the Files & Reports checkboxes on the GUI thread.

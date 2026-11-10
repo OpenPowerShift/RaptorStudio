@@ -96,8 +96,16 @@ class IsolateMixin:
     """The "Extract Hierarchy…" command."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        def __getattr__(self, name: str) -> Any:
-            """The window's own attributes, which this mixin reaches through `self`."""
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        def _confirm_discard_unsaved(self, *, closing: bool = ...) -> bool: ...
+        _current_file: str | None
+        _diagram_dock: Any
+        _isolate_dialog: Any
+        def _load_into_app(self, rbd: Any, path: str | None) -> Any: ...
+        _rbd: Any
+        def _remember_recent(self, path: str) -> Any: ...
+        _statusbar: Any
 
     def _selected_hierarchy(self):
         v = self._diagram_dock.view

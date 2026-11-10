@@ -32,9 +32,20 @@ class StatusSummaryMixin(_Base):
     """The status-bar readouts: run summary, phase labels and the system swatch."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        def __getattr__(self, name: str) -> Any:
-            """State owned by `MainWindow`; typed loosely here."""
-            ...
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _SUMMARY_SAMPLES: Any
+        def _clear_run_eta(self) -> None: ...
+        _cycles_label: Any
+        _live_sim_action: Any
+        _mission_label: Any
+        _phase_label: Any
+        _rbd: Any
+        _readouts: Any
+        _statusbar: Any
+        _summary_labels: Any
+        _summary_units_cache: Any
+        _system_swatch: Any
 
     def _ensure_summary_labels(self):
         """Create the permanent status-bar stat readouts once."""

@@ -25,9 +25,18 @@ class AutosaveMixin(_Base):
     """Autosave and crash recovery for the open model."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        def __getattr__(self, name: str) -> Any:
-            """State owned by `MainWindow`; typed loosely here."""
-            ...
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _autosave_timer: Any
+        _diagram_dock: Any
+        _dirty: Any
+        _inspector: Any
+        def _load_into_app(self, rbd: Any, path: Any) -> Any: ...
+        def _open_model_any(self, path: str) -> Any: ...
+        def _prefs(self) -> dict: ...
+        _rbd: Any
+        def _spawn_window(self) -> Any: ...
+        _statusbar: Any
 
     def _apply_autosave_timer(self):
         prefs = self._prefs()

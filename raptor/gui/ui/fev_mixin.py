@@ -39,8 +39,20 @@ class FevMixin:
     _fev_log: Any = None
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        def __getattr__(self, name: str) -> Any:
-            """The window's own attributes, which this mixin reaches through `self`."""
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _diagram_dock: Any
+        _fev_log_close_action: Any
+        _fev_log_write_action: Any
+        _fev_status_write_btn: Any
+        def _invalidate_step_session(self) -> Any: ...
+        def _model_for_engine(self, copy: bool = ...) -> Any: ...
+        def _note_whole_model_tool(self, tool: str) -> None: ...
+        _rbd: Any
+        def _refresh_commands(self, state: Any = ..., only: set[str] | None = ...) -> None: ...
+        _statusbar: Any
+        def _update_system_swatch(self, colour: Any, force: bool = ...) -> None: ...
+        def _zoom_to_selection(self) -> Any: ...
 
     # ---- entering and leaving ------------------------------------------------
 

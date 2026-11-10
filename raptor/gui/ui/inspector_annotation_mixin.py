@@ -32,12 +32,24 @@ class InspectorAnnotationMixin(_Base):
     """Inspector annotation tab: anchors, colours and fonts."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
-        _current_block_id: Any
-        _current_node_id: Any
-        _current_target: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _ANCHOR_LOCATIONS: Any
+        def _begin_populate(self) -> Any: ...
+        def _clear_tab(self, scroll: Any) -> Any: ...
+        def _configure_tabs(self, kind: str) -> Any: ...
+        _current_block_id: int | None
+        _current_node_id: int | None
+        _current_target: tuple[str, object] | None
+        _group: Any
+        _header: Any
+        def _restore_tab(self) -> Any: ...
+        _scroll_general: Any
+        _tabs: Any
+        anchor_source: Any
+        annotation_anchor_pick_requested: Any
+        annotation_arrow_pick_requested: Any
+        annotation_prop_changed: Any
 
     def show_annotation(self, item):
         """Colours & Font for one canvas annotation (rect/ellipse/text

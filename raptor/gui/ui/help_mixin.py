@@ -32,11 +32,16 @@ class HelpMixin(_Base):
     """Help: shortcuts, the manual viewer, context help, About and issue reporting."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        GITHUB_REPO_URL: Any
+        _HELP_ANCHORS: Any
+        _current_file: str | None
         _help_viewer: Any
+        def _open_path(self, path: str) -> Any: ...
+        _ribbon: Any
         _shortcuts_window: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _statusbar: Any
 
     def _open_shortcuts(self):
         """Help > Keyboard Shortcuts: the shortcut list in a themed window

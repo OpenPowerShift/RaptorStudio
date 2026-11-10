@@ -44,15 +44,33 @@ class LinkInsertMixin(_Base):
     """Hover feedback and target resolution for inserting an element on a link."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _INSERT_GAP_SCALE: Any
+        _INSERT_TOOL_KINDS: dict[str, tuple[str, str, str]]
+        _LINK_AMBIGUITY_PX: Any
+        _LINK_PICK_RADIUS_PX: Any
+        _between: Any
+        _current_depth: Any
+        _current_parent: Any
+        def _endpoint_name(self, kind: str, oid: int) -> str: ...
         _insert_halo: Any
-        _insert_halos: Any
+        _insert_halos: list
         _insert_hover_link: Any
-        _insert_hover_state: Any
+        _insert_hover_state: str | None
         _insert_hover_status: Any
-        _page_flow_cache: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _is_regular_node: Any
+        _item_key: Any
+        _item_links: Any
+        _layout_generation: Any
+        _layout_graph: Any
+        _links: Any
+        _page_flow_cache: tuple[tuple, str] | None
+        _parallel_refusal: Any
+        _rbd_ref: Any
+        _scene: Any
+        nodes: Any
+        tool_mode: Any
 
     # ------------------------------------------------------ insert on link
     #

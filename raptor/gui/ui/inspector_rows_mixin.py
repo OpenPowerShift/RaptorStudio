@@ -40,11 +40,20 @@ class InspectorRowsMixin(_Base):
     """Inspector row builders: distribution, stream, number, name and comment editors."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
         _comment_edit: Any
+        def _comment_for(self, etype: str, oid: int, name: str) -> str: ...
         _rbd: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by the view; typed loosely here."""
-            ...
+        _stack: Any
+        block_fail_stream_changed: Any
+        block_repair_stream_changed: Any
+        comment_to_annotation_requested: Any
+        element_comment_changed: Any
+        manage_pool_requested: Any
+        phasing_changed: Any
+        rates_changed: Any
+        validation_failed: Any
 
     def _group(self, title: str, layout: QLayout | None) -> tuple[QGroupBox, QFormLayout]:
         layout = _vbox(layout)

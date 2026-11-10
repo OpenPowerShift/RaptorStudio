@@ -35,11 +35,51 @@ class StepMixin(_Base):
     """The stepping debugger: step, run-to, breakpoints, jump, finish and terminate."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        # What this mixin needs from the host (checked by mypy, so a typo or a removed
+        # member is an error here rather than an AttributeError at run time).
+        _NO_BREAKPOINT: Any
+        _breakpoint_combo: Any
+        def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ...) -> dict: ...
+        def _clear_run_eta(self) -> None: ...
+        def _command_state(self, *, reuse_validity: bool = ...) -> Any: ...
+        _compact_minimized: set[str]
+        def _current_experiment(self) -> dict: ...
+        _diagram_dock: Any
+        def _disable_run_panel_for_run(self) -> None: ...
+        _dock_chrome: dict
+        _dock_stubs: dict
+        _edit_run_abandoned: Any
+        def _end_step_session(self, *, clear_sink: bool = ...) -> bool: ...
+        _focus_event_action: Any
+        _inspector_dock: Any
+        _last_run_model: Any
+        _live_log_dock: Any
+        _live_log_panel: Any
+        _live_log_session_shown: Any
+        _live_log_tree: Any
+        _live_sim_action: Any
+        def _on_fev_log_close(self) -> None: ...
+        def _prepare_run_model(self, copy: bool = ...) -> Any: ...
+        def _present_run_results(self, event_logs: Any, eor_lines: Any, final_lines: Any, report_data: Any, ao_lines: list[str] | None = ..., cap_lines: list[str] | None = ..., manifest: Any = ...) -> Any: ...
+        _rbd: Any
+        def _refresh_commands(self, state: Any = ..., only: set[str] | None = ...) -> None: ...
+        def _reset_live_log(self) -> Any: ...
+        _results: Any
+        _results_dock: Any
+        _run_panel: Any
+        _run_progress: Any
+        _run_progress_label: Any
+        _run_to_time_spin: Any
+        _statusbar: Any
+        _step_ao: list[str]
+        _step_count_spin: Any
+        _step_finalize_state: Any
+        _step_isolation: Any
         _step_session: Any
-        _step_sink: Any
-        def __getattr__(self, name: str) -> Any:
-            """State owned by `MainWindow`; typed loosely here."""
-            ...
+        _step_sink: list
+        def _sync_dock_tab_bars(self) -> Any: ...
+        def _sync_run_settings_lock(self) -> None: ...
+        def _update_system_swatch(self, colour: Any, force: bool = ...) -> None: ...
 
     def _ensure_step_session(self):
         """Lazily build the interactive single-run session. Full kickoff
