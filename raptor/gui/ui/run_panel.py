@@ -225,11 +225,13 @@ class RunPanel(QWidget):
         selector's amber outline and the box title instead of extra rows
         that would push Trials below the fold.
         """
-        self._scope = QComboBox()
+        from raptor.gui.widgets.hierarchy_picker import HierarchyPicker
+        self._scope = HierarchyPicker()
         self._scope.setToolTip(
             "Run the whole model, or one hierarchy on its own. A hierarchy "
             "run is isolated: its input is assumed always available and "
-            "the results describe that hierarchy only.")
+            "the results describe that hierarchy only. Type to search by "
+            "name.")
         self._scope.currentIndexChanged.connect(self._on_scope_changed)
         self._scope.setSizePolicy(QSizePolicy.Policy.Expanding,
                                   QSizePolicy.Policy.Fixed)
@@ -239,11 +241,16 @@ class RunPanel(QWidget):
             "How the hierarchy's connections to the rest of the model are "
             "treated for this isolated run.")
         self._scope_button.clicked.connect(self._open_scope_options)
-        self._scope_button.setVisible(False)
+        # Its place is kept while it is hidden, so the home button beside it
+        # does not jump when a hierarchy is chosen and Options appears.
+        self._keep_place_when_hidden(self._scope_button)
+
+        self._scope_home = self._build_scope_home()
 
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         row.addWidget(self._scope, 1)
+        row.addWidget(self._scope_home)
         row.addWidget(self._scope_button)
         form.addRow("Model scope:", row)
 
@@ -284,6 +291,18 @@ class RunPanel(QWidget):
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self._scope_dialog.close)
         dlg.addWidget(buttons)
+
+    @staticmethod
+    def _keep_place_when_hidden(widget) -> None:
+        policy = widget.sizePolicy()
+        policy.setRetainSizeWhenHidden(True)
+        widget.setSizePolicy(policy)
+        widget.setVisible(False)
+
+    def _build_scope_home(self):
+        """One click back to the whole model, from wherever the list is."""
+        from raptor.gui.widgets.hierarchy_picker import home_button
+        return home_button(self._scope)
 
     def _open_scope_options(self) -> None:
         self._scope_dialog.show()
@@ -856,10 +875,7 @@ class RunPanel(QWidget):
         keep = self._scope_hid
         self._scope.blockSignals(True)
         try:
-            self._scope.clear()
-            self._scope.addItem("Whole model", 0)
-            for hid, label in rows:
-                self._scope.addItem(label, hid)
+            self._scope.set_hierarchies(rows)
             index = self._scope.findData(keep)
             self._scope.setCurrentIndex(max(0, index))
             self._scope_hid = int(self._scope.currentData() or 0)
@@ -892,8 +908,10 @@ class RunPanel(QWidget):
     def _refresh_scope(self) -> None:
         hierarchy = bool(self._scope_hid)
         self._scope_button.setVisible(hierarchy)
+        self._scope_home.setEnabled(hierarchy and self._enabled)
+        from raptor.gui.widgets.hierarchy_picker import picker_style
         self._scope.setStyleSheet(
-            "QComboBox { border: 2px solid #b45309; }" if hierarchy else "")
+            picker_style("border: 2px solid #b45309;" if hierarchy else ""))
         box = self._experiment_box
         box.setTitle("Experiment — one hierarchy, isolated"
                      if hierarchy else "Experiment")

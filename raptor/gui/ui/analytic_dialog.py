@@ -617,15 +617,22 @@ class AnalyticDialog(QDialog):
         self._dependencies.addItem("Treat as down", "down")
         form.addRow("Dependencies:", self._dependencies)
 
-        self._hierarchy = QComboBox()
+        from raptor.gui.widgets.hierarchy_picker import HierarchyPicker
+        self._hierarchy = HierarchyPicker(home_data=None)
         self._hierarchy.setAccessibleName("Hierarchy to analyse")
         self._hierarchy.setToolTip(
             "Analyse the whole model, or one hierarchy on its own. The "
             "hierarchy's In node is treated as the system Start and its Out "
             "node as the End, so its input is assumed always available; "
             "everything outside the hierarchy is left out.")
-        self._hierarchy.addItem("Whole model", None)
-        form.addRow("Hierarchy:", self._hierarchy)
+        from raptor.gui.widgets.hierarchy_picker import home_button
+        self._hierarchy_home = home_button(self._hierarchy)
+        self._hierarchy_row = QWidget()
+        hierarchy_row = QHBoxLayout(self._hierarchy_row)
+        hierarchy_row.setContentsMargins(0, 0, 0, 0)
+        hierarchy_row.addWidget(self._hierarchy, 1)
+        hierarchy_row.addWidget(self._hierarchy_home)
+        form.addRow("Hierarchy:", self._hierarchy_row)
 
         limits = QHBoxLayout()
         limits.setSpacing(SPACING["sm"])
@@ -1110,10 +1117,9 @@ class AnalyticDialog(QDialog):
             if len(phases) > 1:
                 self._phase.addItem("All phases, one at a time", "all")
         self._standby.setCurrentIndex(0)
-        self._hierarchy.clear()
-        self._hierarchy.addItem("Whole model", None)
-        for h in offered.get("hierarchies") or []:
-            self._hierarchy.addItem(f"{h['name']} ({h['id']})", h["id"])
+        self._hierarchy.set_hierarchies(
+            [(h["id"], f"{h['name']} ({h['id']})")
+             for h in offered.get("hierarchies") or []])
         # A choice made for the previous model must not leak into this one.
         for widget in (self._phase, self._standby, self._dependencies,
                        self._hierarchy):
@@ -1127,7 +1133,8 @@ class AnalyticDialog(QDialog):
         self._has_dependencies = bool(offered.get("has_dependencies"))
         self._form.setRowVisible(self._dependencies, self._has_dependencies)
         self._has_hierarchies = bool(offered.get("hierarchies"))
-        self._form.setRowVisible(self._hierarchy, self._has_hierarchies)
+        self._form.setRowVisible(self._hierarchy_row, self._has_hierarchies)
+        self._hierarchy_home.setEnabled(not self._hierarchy.is_home())
 
     def _model_name(self) -> str:
         path = getattr(self._win, "_current_file", None)
