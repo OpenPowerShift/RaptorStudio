@@ -59,9 +59,11 @@ def require_runnable(ws: Any, model_id: str, strict: bool = False) -> list[str]:
 
     A shape the engine refuses on purpose (`UnrunnableModel`) is exit 4;
     ordinary validation errors are exit 3."""
-    errors = [i for i in issues_for(ws, model_id) if i.severity == "error"]
-    warns = [str(i) for i in issues_for(ws, model_id)
-             if i.severity == "warning"]
+    # One validation, read twice: it loads the model into the engine, which
+    # is seconds on a large model.
+    found = issues_for(ws, model_id)
+    errors = [i for i in found if i.severity == "error"]
+    warns = [str(i) for i in found if i.severity == "warning"]
     if errors:
         refused = [e for e in errors if _is_refusal(e)]
         text = "\n".join(str(e) for e in errors)

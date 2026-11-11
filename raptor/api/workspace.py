@@ -194,6 +194,10 @@ class ModelHandle:
     defer_depth: int = 0
     #: True when edits happened while deferred and have not been written yet.
     dirty: bool = False
+    #: The input-rule violations of the model as last saved or loaded (their
+    #: keys), so the next save can tell which ones an edit added without
+    #: reading the saved file back. None until the first check.
+    saved_rule_keys: set | None = None
 
     @property
     def effective_path(self) -> Path:
@@ -506,9 +510,20 @@ class Workspace:
             rbd=rbd,
             source=str(src),
         )
-        # Index only: no save_rbds, so the source's layout survives intact.
+        # No save_rbds, so the source's layout survives intact. The model
+        # just parsed is kept in the cache: indexing it without that made the
+        # first use read and schema-check the same bytes a second time.
         self._save_meta(handle)
-        self._adopt(handle, index_only=True)
+        with self._lock_for(model_id):
+            _sync_counts(rbd)
+        # What this file already breaks, so the first edit is compared with
+        # it without reading the file a second time (`save`).
+        try:
+            from raptor.core.input_rules import check
+            handle.saved_rule_keys = {v.key for v in check(rbd)}
+        except Exception:  # noqa: BLE001 - the first save then reads the file
+            handle.saved_rule_keys = None
+        self._adopt(handle)
         return {"model_id": model_id, "summary": summary}
 
     @staticmethod
@@ -674,28 +689,41 @@ class Workspace:
                 # exit performs the single save (and the rule check) once.
                 handle.dirty = True
                 return
-            if check_rules:
-                self._refuse_rule_violations(handle)
+            # Known only when this save checked them; a save that did not
+            # (a copy of a whole model) leaves the next one to read the file.
+            rule_keys = (self._refuse_rule_violations(handle)
+                         if check_rules else None)
             try:
                 existing = handle.path.stat().st_size
             except OSError:
                 existing = 0
-            size = self._model_bytes(handle.rbd)
+            # Rendered once: the same text is measured here and written
+            # below.
+            from raptor.core.fileio.rbds import render_for_save
+            _sync_counts(handle.rbd)
+            text = render_for_save(handle.rbd,
+                                   meta={"file_name": handle.rbd.file_name})
+            size = len(text.encode("utf-8"))
             self._check_model_size(size)
             self._check_quota(max(0, size - existing))
             if not handle.path.exists() and handle.source:
                 # First write of a model that was only referenced. The
                 # backup must be a readable .rbds, not the source .rbd:
                 # undo used to load the legacy text as JSON and fail.
+                # A `.rbds` snapshot taken at open time already is one, so
+                # it is copied as it stands rather than parsed and rewritten
+                # (seconds on a large model, for the same model).
+                snapshot = handle.path.parent / "source.rbds"
                 src = Path(handle.source)
-                if src.is_file():
+                if snapshot.is_file():
+                    shutil.copyfile(snapshot, handle.path)
+                elif src.is_file():
                     baseline = self._load_any(str(src))
                     save_rbds(baseline, str(handle.path),
                               meta={"file_name": baseline.file_name})
             self._backup(handle)
-            _sync_counts(handle.rbd)
-            save_rbds(handle.rbd, str(handle.path),
-                      meta={"file_name": handle.rbd.file_name})
+            handle.path.write_text(text, encoding="utf-8")
+            handle.saved_rule_keys = rule_keys
             handle.version += 1
             handle.layout_notice = None
             handle.last_modified = time.time()
@@ -737,20 +765,40 @@ class Workspace:
         if pending:
             self.save(model_id)
 
-    def _refuse_rule_violations(self, handle: ModelHandle) -> None:
+    def _refuse_rule_violations(self, handle: ModelHandle) -> set:
         """Raise `InputRuleViolation`, restoring *handle*'s last saved state,
-        when the pending edit adds an input-rule violation."""
-        from raptor.core.input_rules import InputRuleViolation, new_violations
-        before: RbdFile | None = None
-        for path in (handle.path, Path(handle.source) if handle.source else None):
-            if path is not None and path.is_file():
-                before = self._load_any(str(path))
-                break
-        added = new_violations(before, handle.rbd)
+        when the pending edit adds an input-rule violation. Otherwise return
+        the keys of the violations the model has now, for `save` to remember
+        once the model is on disk."""
+        from raptor.core.input_rules import (InputRuleViolation, check,
+                                             new_violations)
+
+        def saved() -> RbdFile | None:
+            for path in (handle.path,
+                         Path(handle.source) if handle.source else None):
+                if path is not None and path.is_file():
+                    return self._load_any(str(path))
+            return None
+
+        # What the saved model already broke is remembered from the last
+        # save, so an edit costs one rule pass over the model in memory.
+        # Reading the saved file back for every edit was a whole parse and
+        # schema check: over 5 s per edit on a 5,000-block model.
+        if handle.saved_rule_keys is None:
+            added = new_violations(saved(), handle.rbd)
+            found_keys = None
+        else:
+            found = check(handle.rbd)
+            found_keys = {v.key for v in found}
+            added = [v for v in found if v.kind != "run"
+                     and v.key not in handle.saved_rule_keys]
         if not added:
-            return
+            return (found_keys if found_keys is not None
+                    else {v.key for v in check(handle.rbd)})
+        before = saved()
         if before is not None:
             handle.rbd = before
+            handle.saved_rule_keys = None
         raise InputRuleViolation(added)
 
     def list_models(self) -> list[dict[str, Any]]:
@@ -1079,6 +1127,7 @@ class Workspace:
     def _restore_from_chain(self, handle: ModelHandle, path: Path) -> RbdFile:
         rbd = load_rbds(str(path))
         handle.rbd = rbd
+        handle.saved_rule_keys = None      # a different model is on disk now
         save_rbds(rbd, str(handle.path), meta={"file_name": rbd.file_name})
         handle.version += 1
         handle.last_modified = time.time()

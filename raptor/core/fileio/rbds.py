@@ -662,7 +662,9 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
     return json.dumps(doc, indent=1, ensure_ascii=False)
 
 
-def save_rbds(rbd: RbdFile, path: str, meta: dict | None = None) -> None:
+def render_for_save(rbd: RbdFile, meta: dict | None = None) -> str:
+    """The text `save_rbds` writes, for a caller that needs its size before
+    deciding to write it (rendering a large model twice costs seconds)."""
     # Keep LINK_DATA's owning-window column (pID) consistent with the
     # endpoints' shared parent on every save — Raptor 7 trusts pID
     # for which window draws a link, our GUI draws by topology, so a
@@ -676,8 +678,12 @@ def save_rbds(rbd: RbdFile, path: str, meta: dict | None = None) -> None:
     # figures and left scene-positioned annotations behind; a crowded
     # layout is now a validation warning, and only an explicit Auto Layout
     # changes positions (`raptor.api.validate.layout_warning`).
+    return render_rbds(rbd, meta)
+
+
+def save_rbds(rbd: RbdFile, path: str, meta: dict | None = None) -> None:
     with open(path, "w", encoding="utf-8") as f:
-        f.write(render_rbds(rbd, meta))
+        f.write(render_for_save(rbd, meta))
 
 
 # ---------------------------------------------------------------------------

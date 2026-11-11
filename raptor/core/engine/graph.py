@@ -39,7 +39,7 @@ Checked against `tests/golden/Cascade` and `tests/golden/HierarchyExample`.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 
 from raptor.core.engine.errors import UnrunnableModel
 from raptor.core.engine.model_checks import ModelProblem
@@ -260,20 +260,42 @@ def _node_forward_targets(
     return [t[0] for t in targets], [t[1] for t in targets]
 
 
-def _run_test_fail(
+def _origin_level(origin: RBDNode, hiers_by_id: dict[int, RBDHier]) -> int:
+    """The hierarchy level a TestFail walk from `origin` is confined to
+    (the source's `mama`): a hierarchy Out node belongs to the level its
+    hierarchy sits on, every other node to the level inside its parent."""
+    if origin.parent_id != 0:
+        origin_hier = hiers_by_id[origin.parent_id]
+        return origin_hier.level if origin.type_node == 5 else origin_hier.level + 1
+    return 0
+
+
+class _WalkBudgetExceeded(Exception):
+    """A look-ahead walk took more steps than it was allowed."""
+
+
+def _test_fail_walk(
     origin: RBDNode,
     nodes_by_id: dict[int, RBDNode],
     hiers_by_id: dict[int, RBDHier],
     links_by_id: dict[int, Link],
     efpa_tested: set[int],
-) -> None:
+    ahead: dict[int, tuple[list[int], list[int]]] | None = None,
+    level_of: dict[int, int] | None = None,
+    budget: list[int] | None = None,
+) -> tuple[list[int], list[int], bool]:
     """Port of Raptor 7 driving `RBDNodeObj.TestFail`
    for one origin node -- see module
-    docstring for what this computes and why it's needed. Mutates
-    `origin.propagates_to_node_ids`/`propagates_to_link_ids` and adds `origin.id` to
-    `efpa_tested` (so LATER origins whose own walk passes through this
-    node reuse its pruned result instead of raw NRBD values -- order-
-    sensitive, matching the source's own single top-to-bottom pass).
+    docstring for what this computes and why it's needed. Returns the
+    origin's `(propagates_to_node_ids, propagates_to_link_ids)` and whether
+    the walk was *uniform* (see `_look_ahead`); mutates nothing.
+
+    A node in `efpa_tested` contributes its already-pruned result instead of
+    its raw NRBD values (order-sensitive, matching the source's own single
+    top-to-bottom pass). `ahead` holds pruned results worked out early for
+    nodes that are NOT yet tested; one is used only for a node on the
+    origin's own level, where it is provably what walking that node's raw
+    values would give (see `_look_ahead`).
     """
     # Raptor 7: GoodPathsRequired is uniformly 1 for EVERY
     # node during this ENTIRE pass (reachability-only, NOT the node's own
@@ -286,21 +308,22 @@ def _run_test_fail(
     # origin made set-up quadratic in the node count.
     paths_left: dict[int, int] = {origin.id: 1}
 
-    if origin.parent_id != 0:
-        origin_hier = hiers_by_id[origin.parent_id]
-        mama = origin_hier.level if origin.type_node == 5 else origin_hier.level + 1
-    else:
-        mama = 0
+    mama = _origin_level(origin, hiers_by_id)
 
     downstream_group: list[int] = []  # link ids, accumulation order
     propagated_group: set[int] = set()  # node ids
     loop_hits = 0
+    uniform = True
 
     def test_fail(node_id: int) -> list[tuple[int | None, int]]:
         """Visit one node; returns the `(link id, target node id)` steps to
         walk next, in order (a hierarchy In node steps to its Out node over
         no link)."""
-        nonlocal loop_hits
+        nonlocal loop_hits, uniform
+        if budget is not None:
+            budget[0] -= 1
+            if budget[0] < 0:
+                raise _WalkBudgetExceeded
         node = nodes_by_id[node_id]
         if node_id == origin.id:
             loop_hits += 1
@@ -322,8 +345,13 @@ def _run_test_fail(
         )
         if node.type_node == 2 or qualifies_hier_out:
             propagated_group.add(node_id)
+            same_level = level_of is not None and level_of.get(node_id) == mama
+            if not same_level:
+                uniform = False
             if node_id in efpa_tested:
                 targets, paths = node.propagates_to_node_ids, node.propagates_to_link_ids
+            elif same_level and ahead is not None and node_id in ahead:
+                targets, paths = ahead[node_id]
             else:
                 targets, paths = node.next_node_ids, node.next_node_link_ids
             return [(link_id, target_id) for target_id, link_id in zip(targets, paths)]
@@ -361,16 +389,131 @@ def _run_test_fail(
     # way `_node_forward_targets` does. `propagated_group` (built from the
     # walk's already-redirected `target_id`s) is compared against the same
     # resolved ids.
-    def _resolved_target_node_id(lid: int) -> int:
+    kept: list[int] = []
+    kept_targets: list[int] = []
+    for lid in downstream_group:
         link = links_by_id[lid]
-        if link.connect_t_ref == "RBDHier":
-            return hiers_by_id[link.connect_to_id].in_id
-        return link.connect_to_id
+        target = (hiers_by_id[link.connect_to_id].in_id
+                  if link.connect_t_ref == "RBDHier" else link.connect_to_id)
+        if target not in propagated_group:
+            kept.append(lid)
+            kept_targets.append(target)
+    return kept_targets, kept, uniform
 
-    kept = [lid for lid in downstream_group if _resolved_target_node_id(lid) not in propagated_group]
-    origin.propagates_to_node_ids = [_resolved_target_node_id(lid) for lid in kept]
+
+def _run_test_fail(
+    origin: RBDNode,
+    nodes_by_id: dict[int, RBDNode],
+    hiers_by_id: dict[int, RBDHier],
+    links_by_id: dict[int, Link],
+    efpa_tested: set[int],
+    ahead: dict[int, tuple[list[int], list[int]]] | None = None,
+    level_of: dict[int, int] | None = None,
+) -> None:
+    """One origin's turn in the TestFail pass: sets
+    `origin.propagates_to_node_ids`/`propagates_to_link_ids` and adds
+    `origin.id` to `efpa_tested` (so LATER origins whose own walk passes
+    through this node reuse its pruned result instead of raw NRBD values).
+    """
+    known = ahead.get(origin.id) if ahead is not None else None
+    if known is not None:
+        targets, kept = list(known[0]), list(known[1])
+    else:
+        targets, kept, _uniform = _test_fail_walk(
+            origin, nodes_by_id, hiers_by_id, links_by_id, efpa_tested,
+            ahead, level_of)
+    origin.propagates_to_node_ids = targets
     origin.propagates_to_link_ids = kept
     efpa_tested.add(origin.id)
+
+
+def _look_ahead(
+    origins: list[RBDNode],
+    nodes_by_id: dict[int, RBDNode],
+    hiers_by_id: dict[int, RBDHier],
+    links_by_id: dict[int, Link],
+) -> tuple[dict[int, tuple[list[int], list[int]]], dict[int, int]]:
+    """Pruned TestFail results worked out downstream-first, for the origins
+    where the order of the pass cannot change the answer.
+
+    The pass itself is order-sensitive in general and runs top to bottom, so
+    on a long series of nodes every origin walks all the way to the end: the
+    nodes below it have not had their turn, so nothing is pruned yet. That is
+    quadratic, and was 17 s of a 5,000-block model's set-up.
+
+    Why a result may be worked out early. A walk passes a node only once
+    every one of that node's incoming paths has been taken, so the nodes a
+    walk from T passes (T's region) are exactly those fed only from inside
+    the region, and nothing from outside enters it. Walking T's raw values
+    inside a larger walk from O therefore passes the same nodes in the same
+    order and leaves by the same links as T's own walk did, which is what
+    T's pruned result records: using it is the same walk with the interior
+    skipped. The one thing that differs between walks is which hierarchy Out
+    nodes they pass, and that depends only on the origin's level
+    (`_origin_level`). So for a walk in which every passed node is on the
+    origin's own level (a *uniform* walk), pruned and raw are interchangeable
+    wherever they are used, and the answer does not depend on which nodes
+    happened to be tested first. Only uniform results are kept here, and one
+    is only used by a walk on the same level.
+
+    Returns `(results, level_of)`. A model whose walks are not uniform (or
+    has a loop) simply gets fewer early results; the pass itself is
+    unchanged and remains the authority. The step budget bounds the cost of
+    looking ahead on such a model to a fraction of the pass.
+    """
+    level_of: dict[int, int] = {}
+    for node in origins:
+        try:
+            level_of[node.id] = _origin_level(node, hiers_by_id)
+        except KeyError:
+            continue      # a missing hierarchy: the pass reports it
+
+    def forward(node: RBDNode) -> list[int]:
+        if node.type_node in (2, 5):
+            return node.next_node_ids
+        if node.type_node == 4:
+            hier = hiers_by_id.get(node.parent_id)
+            return [hier.out_id] if hier is not None else []
+        return []
+
+    # Downstream first: depth-first post-order over the forward graph.
+    order: list[RBDNode] = []
+    seen: set[int] = set()
+    for root in origins:
+        if root.id in seen:
+            continue
+        seen.add(root.id)
+        stack: list[tuple[RBDNode, Iterator[int]]] = [(root, iter(forward(root)))]
+        while stack:
+            node, children = stack[-1]
+            child_id = next(children, None)
+            if child_id is None:
+                stack.pop()
+                if node.id in level_of:
+                    order.append(node)
+                continue
+            if child_id in seen:
+                continue
+            seen.add(child_id)
+            child = nodes_by_id.get(child_id)
+            if child is not None:
+                stack.append((child, iter(forward(child))))
+
+    ahead: dict[int, tuple[list[int], list[int]]] = {}
+    budget = [20 * (len(nodes_by_id) + len(links_by_id)) + 1000]
+    nothing_tested: set[int] = set()
+    for node in order:
+        try:
+            targets, kept, uniform = _test_fail_walk(
+                node, nodes_by_id, hiers_by_id, links_by_id, nothing_tested,
+                ahead, level_of, budget)
+        except _WalkBudgetExceeded:
+            break
+        except (NotImplementedError, KeyError):
+            continue      # a loop or a broken reference: left to the pass
+        if uniform:
+            ahead[node.id] = (targets, kept)
+    return ahead, level_of
 
 
 def build_efpa_graph(
@@ -380,9 +523,14 @@ def build_efpa_graph(
     hiers_by_id: dict[int, RBDHier],
     links_by_id: dict[int, Link],
     progress: Callable[[str, int, int], None] | None = None,
+    look_ahead: bool = True,
 ) -> None:
     """`progress(stage, done, total)`, when given, is called about a hundred
     times while the path pass runs (the slow part of set-up on a big model).
+
+    `look_ahead=False` runs the TestFail pass exactly as the source does,
+    one top-to-bottom walk per origin with no early results (`_look_ahead`);
+    the tests compare the two.
 
     Mutates `nodes_by_id`/`blocks_by_id`/`events_by_id`'s objects in
     place: populates each node's `in_paths_array` (types 2/3/5) and
@@ -512,11 +660,16 @@ def build_efpa_graph(
     # its PRUNED result reused by later origins passing through it.
     efpa_tested: set[int] = set()
     origins = [n for n in nodes_by_id.values() if n.type_node in (2, 5)]
+    ahead: dict[int, tuple[list[int], list[int]]] | None = None
+    level_of: dict[int, int] | None = None
+    if look_ahead:
+        ahead, level_of = _look_ahead(origins, nodes_by_id, hiers_by_id, links_by_id)
     every = max(1, len(origins) // 100)
     for i, node in enumerate(origins):
         if progress is not None and i % every == 0:
             progress("Analysing paths", i, len(origins))
-        _run_test_fail(node, nodes_by_id, hiers_by_id, links_by_id, efpa_tested)
+        _run_test_fail(node, nodes_by_id, hiers_by_id, links_by_id, efpa_tested,
+                       ahead, level_of)
     if progress is not None:
         progress("Analysing paths", len(origins), len(origins))
 
