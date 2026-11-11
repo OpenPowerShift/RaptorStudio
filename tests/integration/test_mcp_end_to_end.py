@@ -391,6 +391,8 @@ class TestScriptedConversation:
             run_id = srv.structured("simulate", {
                 "model_id": mid, "num_runs": 2,
                 "timeout_s": 60, "confirm_long_run": True,
+                # The plot is recorded only when asked for, as in the GUI.
+                "availability_plot": True,
             })["run_id"]
             data = srv.structured("get_timeseries",
                                   {"run_id": run_id, "series": "availability"})
