@@ -100,8 +100,8 @@ checks the current version; the release PR only changes the version number.
 
    ```bash
    git fetch origin && git checkout release-please--branches--main--components--raptor-studio
-   # in uv.lock, under  name = "raptor-studio",  set  version = "X.Y.Z"
-   git diff uv.lock          # exactly one changed line
+   python tools/sync_uv_lock_version.py     # edits the one raptor-studio version line
+   git diff uv.lock                         # exactly one changed line
    git commit -S -am "chore: record X.Y.Z in uv.lock" && git push
    ```
 
