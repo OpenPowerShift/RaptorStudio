@@ -7,6 +7,7 @@ name: Release Please
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,7 +17,8 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - id: rp
+        uses: googleapis/release-please-action@v4
         with:
           # A release made with the default GITHUB_TOKEN does not trigger
           # release.yml, so set RELEASE_PLEASE_TOKEN (a fine-grained PAT or
@@ -24,3 +26,37 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # release-please cannot edit uv.lock (its TOML updater has no filter
+      # support), and every push to main makes it rewrite the release
+      # branch, so re-apply the version here each time. The commit goes
+      # through the contents API so GitHub signs it, and with the same token
+      # so the release PR's checks run again.
+      - name: Keep uv.lock in step with the release PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          BRANCH: release-please--branches--main--components--raptor-studio
+        run: |
+          set -euo pipefail
+          if ! gh api "repos/$GITHUB_REPOSITORY/branches/$BRANCH" --silent 2>/dev/null; then
+            echo "no release PR branch; nothing to do"; exit 0
+          fi
+          git clone --quiet --depth 1 --branch "$BRANCH" \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" release
+          cd release
+          python3 tools/sync_uv_lock_version.py
+          if git diff --quiet -- uv.lock; then exit 0; fi
+          python3 - <<'PY' > payload.json
+          import base64, json, subprocess
+          version = subprocess.check_output(
+              ["python3", "-c", "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"],
+              text=True).strip()
+          sha = subprocess.check_output(["git", "rev-parse", "HEAD:uv.lock"], text=True).strip()
+          print(json.dumps({
+              "message": f"chore: record {version} in uv.lock",
+              "branch": "release-please--branches--main--components--raptor-studio",
+              "sha": sha,
+              "content": base64.b64encode(open("uv.lock", "rb").read()).decode(),
+          }))
+          PY
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/uv.lock" --input payload.json --silent

@@ -66,8 +66,9 @@ def test_uv_lock_records_the_same_version():
     assert own == [_pyproject()], (
         "uv.lock records a different raptor-studio version. release-please cannot "
         "edit uv.lock (its TOML updater has no filter support), so on the "
-        "release PR's branch run `python tools/sync_uv_lock_version.py` and push; "
-        "see RELEASING.md, "
+        "release PR's branch .github/workflows/release-please.yml runs "
+        "`python tools/sync_uv_lock_version.py` and commits it; run that by hand "
+        "if it did not. See RELEASING.md, "
         "\"Merge the release PR\"")
 
 
