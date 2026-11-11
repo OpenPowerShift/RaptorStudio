@@ -307,10 +307,47 @@ def sweep_command(args: Any) -> int:
                 print(",".join(b))
         else:
             print(_table_text(header, body))
-        for r in rows:
-            if r["error"]:
-                eprint(f"error in {r['values']}: {r['error']}")
+    _report_sweep_errors(rows)
+    note = _no_effect_note(names, metrics, rows)
+    if note:
+        eprint(note)
     return X.INVALID if any(r["error"] for r in rows) else X.OK
+
+
+def _report_sweep_errors(rows: list[dict[str, Any]]) -> None:
+    """One line per distinct error, not one per value: a mistyped field
+    fails every value the same way."""
+    by_error: dict[str, list[dict]] = {}
+    for r in rows:
+        if r["error"]:
+            by_error.setdefault(str(r["error"]), []).append(r["values"])
+    for error, where in by_error.items():
+        if len(where) == len(rows) and len(rows) > 1:
+            eprint(f"error in every row: {error}")
+        elif len(where) == 1:
+            eprint(f"error in {where[0]}: {error}")
+        else:
+            eprint(f"error in {len(where)} rows (first: {where[0]}): {error}")
+
+
+def _no_effect_note(names: list[str], metrics: list[str],
+                    rows: list[dict[str, Any]]) -> str | None:
+    """Say so when a sweep changed nothing: every row has the same metrics.
+
+    With the default fixed seed that means the swept field never reached the
+    simulation (a parameter of a distribution the element does not use, for
+    instance), which otherwise reads as "this setting does not matter"."""
+    good = [r for r in rows if not r["error"]]
+    if len(good) < 2 or len({str(r["values"]) for r in good}) < 2:
+        return None
+    first = good[0]["metrics"]
+    if any(r["metrics"] != first for r in good[1:]):
+        return None
+    return (f"note: every row has the same results, so {', '.join(names)} "
+            f"had no effect on this model. Check that the element uses the "
+            f"field (raptor get shows its distributions): a parameter of a "
+            f"distribution that is set to None, or an index past the "
+            f"distribution's parameters, changes nothing.")
 
 
 def compare_command(args: Any) -> int:
