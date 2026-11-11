@@ -956,9 +956,10 @@ failure distribution does.
 == Debug tab: stepping debugger
 
 The **Debug** tab's **Step** group carries the verbs you press in a
-loop: **Step** (F6), **Next Time** (Shift+F6), **Finish**, **Terminate**
-and **Restart**, plus a **More Steps** menu for the less common ways to
-advance. The *parameters* those need — multi-step count, run-to time,
+loop: **Step** (F6), **Next Time** (Shift+F6), **Finish** (F8),
+**Terminate** (Shift+F5) and **Restart** (Ctrl+Shift+F5), plus a **More
+Steps** menu for the less common ways to advance (**Step to next change**
+is F10). Starting a stepped run from any tab opens the Debug tab. The *parameters* those need — multi-step count, run-to time,
 breakpoint block — are in the Run panel's **Stepping** section, where
 there is room to label and explain them.
 

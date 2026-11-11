@@ -608,8 +608,10 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_step_finish_action",
         text="Finish",
         icon="finish_flag_icon:go",
-        tooltip="Run the stepped simulation to completion and produce reports",
+        tooltip=("Run the stepped simulation to completion and produce "
+                 "reports (F8)"),
         handler="_on_step_finish",
+        shortcut="F8",
         enabled_when="stepping"),
     CommandSpec(
         id="sim.run_to",
@@ -628,8 +630,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
         icon="terminate_icon:stop",
         tooltip=(
             "Early Terminate: finalize the stepped run at the "
-            "CURRENT sim time — partial results are kept"),
+            "CURRENT sim time — partial results are kept (Shift+F5)"),
         handler="_on_step_terminate",
+        shortcut="Shift+F5",
         enabled_when="stepping"),
     CommandSpec(
         id="sim.restart_step",
@@ -637,9 +640,10 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Restart",
         icon="restart_icon:text",
         tooltip=(
-            "Restart (B-11): discard this stepped run and begin a fresh one — all"
-            " state reset to kickoff values"),
+            "Restart: discard this stepped run and begin a fresh one — all"
+            " state reset to kickoff values (Ctrl+Shift+F5)"),
         handler="_on_step_restart",
+        shortcut="Ctrl+Shift+F5",
         enabled_when="stepping"),
     CommandSpec(
         id="sim.run_settings",
@@ -691,7 +695,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_pause_action",
         text="Pause",
         icon="_bars:text",
+        tooltip="Pause or resume the run (F9; Esc also pauses, Esc again stops)",
         handler="_toggle_bg_pause",
+        shortcut="F9",
         enabled_when="background_run"),
     CommandSpec(
         id="sim.stop_run",

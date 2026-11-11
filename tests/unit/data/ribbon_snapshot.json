@@ -884,9 +884,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "F9"
+   ],
    "text": "Pause",
-   "tooltip": "Pause\n\nUnavailable: no run is in progress \u2014 press Run (with Animate off it runs in the background, where it can be paused)"
+   "tooltip": "Pause or resume the run (F9; Esc also pauses, Esc again stops)\n\nUnavailable: no run is in progress \u2014 press Run (with Animate off it runs in the background, where it can be paused)"
   },
   "_phases_action": {
    "checkable": false,
@@ -1055,9 +1057,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Ctrl+Shift+F5"
+   ],
    "text": "Restart",
-   "tooltip": "Restart (B-11): discard this stepped run and begin a fresh one \u2014 all state reset to kickoff values\n\nUnavailable: nothing is being stepped \u2014 press Step (Debug tab) first"
+   "tooltip": "Restart: discard this stepped run and begin a fresh one \u2014 all state reset to kickoff values (Ctrl+Shift+F5)\n\nUnavailable: nothing is being stepped \u2014 press Step (Debug tab) first"
   },
   "_results_float_action": {
    "checkable": true,
@@ -1290,9 +1294,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "F10"
+   ],
    "text": "Step to next change",
-   "tooltip": "Step to the next change: run on until an instant in which something changed state has been analysed, then pause (Step itself advances one calendar entry)\n\nUnavailable: open or create a model first"
+   "tooltip": "Step to the next change (F10): run on until an instant in which something changed state has been analysed, then pause (Step itself advances one calendar entry)\n\nUnavailable: open or create a model first"
   },
   "_step_finish_action": {
    "checkable": false,
@@ -1300,9 +1306,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "F8"
+   ],
    "text": "Finish",
-   "tooltip": "Run the stepped simulation to completion and produce reports\n\nUnavailable: nothing is being stepped \u2014 press Step (Debug tab) first"
+   "tooltip": "Run the stepped simulation to completion and produce reports (F8)\n\nUnavailable: nothing is being stepped \u2014 press Step (Debug tab) first"
   },
   "_step_menu_action": {
    "checkable": false,
@@ -1372,9 +1380,11 @@
    "context": 1,
    "has_icon": true,
    "has_menu": false,
-   "shortcuts": [],
+   "shortcuts": [
+    "Shift+F5"
+   ],
    "text": "Terminate",
-   "tooltip": "Early Terminate: finalize the stepped run at the CURRENT sim time \u2014 partial results are kept\n\nUnavailable: nothing is being stepped \u2014 press Step (Debug tab) first"
+   "tooltip": "Early Terminate: finalize the stepped run at the CURRENT sim time \u2014 partial results are kept (Shift+F5)\n\nUnavailable: nothing is being stepped \u2014 press Step (Debug tab) first"
   },
   "_theme_action": {
    "checkable": true,

@@ -1476,9 +1476,10 @@ failure distribution does.</p>
 <div class="sectionbody">
 <div class="paragraph">
 <p>The <strong>Debug</strong> tab&#8217;s <strong>Step</strong> group carries the verbs you press in a
-loop: <strong>Step</strong> (F6), <strong>Next Time</strong> (Shift+F6), <strong>Finish</strong>, <strong>Terminate</strong>
-and <strong>Restart</strong>, plus a <strong>More Steps</strong> menu for the less common ways to
-advance. The <strong>parameters</strong> those need — multi-step count, run-to time,
+loop: <strong>Step</strong> (F6), <strong>Next Time</strong> (Shift+F6), <strong>Finish</strong> (F8),
+<strong>Terminate</strong> (Shift+F5) and <strong>Restart</strong> (Ctrl+Shift+F5), plus a <strong>More
+Steps</strong> menu for the less common ways to advance (<strong>Step to next change</strong>
+is F10). Starting a stepped run from any tab opens the Debug tab. The <strong>parameters</strong> those need — multi-step count, run-to time,
 breakpoint block — are in the Run panel&#8217;s <strong>Stepping</strong> section, where
 there is room to label and explain them.</p>
 </div>
@@ -2525,8 +2526,8 @@ current value).</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Pause</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Pause</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Pause or resume the run (F9; Esc also pauses, Esc again stops)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">F9</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Stop</p></td>
@@ -2625,8 +2626,8 @@ current value).</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Finish</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Run the stepped simulation to completion and produce reports</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run the stepped simulation to completion and produce reports (F8)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">F8</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">More Steps</p></td>
@@ -2635,13 +2636,13 @@ current value).</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Restart</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Restart (B-11): discard this stepped run and begin a fresh one — all state reset to kickoff values</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Restart: discard this stepped run and begin a fresh one — all state reset to kickoff values (Ctrl+Shift+F5)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+F5</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Terminate</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Early Terminate: finalize the stepped run at the CURRENT sim time — partial results are kept</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Early Terminate: finalize the stepped run at the CURRENT sim time — partial results are kept (Shift+F5)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shift+F5</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Focus Event</p></td>

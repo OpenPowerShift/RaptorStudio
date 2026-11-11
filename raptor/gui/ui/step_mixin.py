@@ -71,6 +71,7 @@ class StepMixin(_Base):
         def _prepare_run_model(self, copy: bool = ...) -> Any: ...
         def _present_run_results(self, event_logs: Any, eor_lines: Any, final_lines: Any, report_data: Any, ao_lines: list[str] | None = ..., cap_lines: list[str] | None = ..., manifest: Any = ...) -> Any: ...
         _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
+        _ribbon: Any  # really raptor.gui.widgets.ribbon.Ribbon
         def _refresh_commands(self, state: Any = ..., only: set[str] | None = ...) -> None: ...
         def _reset_live_log(self) -> Any: ...
         _results: raptor.gui.ui.results.ResultsDock
@@ -120,6 +121,14 @@ class StepMixin(_Base):
             # writes the model and so trips the edit-during-run guard's
             # modal.
             self._disable_run_panel_for_run()
+            # A stepped run can be started from any tab (F6), and what it
+            # needs next -- Finish, Restart, Terminate, the other steps --
+            # is on Debug. Starting one used to leave the ribbon where it
+            # was, with nothing on screen to end the session by.
+            try:
+                self._ribbon.select_page("Debug")
+            except (AttributeError, KeyError):
+                pass
         return self._step_session
 
     def _bp_name(self):
