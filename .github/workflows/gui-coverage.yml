@@ -21,7 +21,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-python-qt
         with:
           python-version: "3.13"
@@ -34,7 +34,7 @@ jobs:
         run: >-
           pytest -q -n auto -p no:cacheprovider -m "gui and not slow and not fidelity and not long"
           --cov=raptor.gui --cov-branch --cov-report=
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: gui-cov-${{ matrix.shard }}
@@ -46,12 +46,12 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-python-qt
         with:
           python-version: "3.13"
           extras: "dev"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: gui-cov-*
           merge-multiple: true
@@ -61,7 +61,7 @@ jobs:
           coverage report --include='raptor/gui/*' --sort=cover | tee gui-coverage.txt
           coverage json --include='raptor/gui/*' -o gui-coverage.json
           coverage html --include='raptor/gui/*' -d gui-coverage-html
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: gui-coverage
           path: |

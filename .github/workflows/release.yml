@@ -51,7 +51,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Same Python/Qt/extras setup as every push job.
       - uses: ./.github/actions/setup-python-qt
         with:
@@ -82,8 +82,8 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       # Two distributions: the application, and the code-free
@@ -107,7 +107,7 @@ jobs:
           subject-path: "dist/*"
       # TestPyPI and PyPI get these exact files, so what was smoke-tested
       # is what is published.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
@@ -134,7 +134,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -157,8 +157,8 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install Qt runtime libraries
@@ -170,7 +170,7 @@ jobs:
             libxi6 libsm6 libice6 libharfbuzz-subset0 \
             libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
             libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: built/
@@ -211,7 +211,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -234,7 +234,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -254,7 +254,7 @@ jobs:
       id-token: write      # GitHub OIDC login to the registry (no secret)
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # release-please bumps server.json and the companion package with
       # pyproject.toml; fail loudly if they ever disagree rather than
       # publish a mismatched listing.
@@ -313,7 +313,7 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -322,7 +322,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: git checkout ${{ github.sha }} -- installer THIRD_PARTY_NOTICES.md
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
