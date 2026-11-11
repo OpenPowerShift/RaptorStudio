@@ -241,7 +241,9 @@ class RunPanel(QWidget):
             "How the hierarchy's connections to the rest of the model are "
             "treated for this isolated run.")
         self._scope_button.clicked.connect(self._open_scope_options)
-        self._scope_button.setVisible(False)
+        # Its place is kept while it is hidden, so the home button beside it
+        # does not jump when a hierarchy is chosen and Options appears.
+        self._keep_place_when_hidden(self._scope_button)
 
         self._scope_home = self._build_scope_home()
 
@@ -290,18 +292,17 @@ class RunPanel(QWidget):
         buttons.rejected.connect(self._scope_dialog.close)
         dlg.addWidget(buttons)
 
+    @staticmethod
+    def _keep_place_when_hidden(widget) -> None:
+        policy = widget.sizePolicy()
+        policy.setRetainSizeWhenHidden(True)
+        widget.setSizePolicy(policy)
+        widget.setVisible(False)
+
     def _build_scope_home(self):
         """One click back to the whole model, from wherever the list is."""
-        from PySide6.QtWidgets import QToolButton
-        from raptor.gui.resources import icons
-        home = QToolButton()
-        home.setIcon(icons.home_icon(active_colour()["text"]))
-        home.setToolTip("Back to the whole model")
-        home.setAccessibleName("Run the whole model")
-        home.setAutoRaise(True)
-        home.clicked.connect(self._scope.go_home)
-        home.setEnabled(False)
-        return home
+        from raptor.gui.widgets.hierarchy_picker import home_button
+        return home_button(self._scope)
 
     def _open_scope_options(self) -> None:
         self._scope_dialog.show()

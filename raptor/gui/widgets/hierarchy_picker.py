@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QCompleter
+from PySide6.QtWidgets import QComboBox, QCompleter, QToolButton
 
 #: Rows shown before the list scrolls.
 MAX_VISIBLE = 12
@@ -61,6 +61,13 @@ class HierarchyPicker(QComboBox):
             # entry's name back when the user leaves the box.
             edit.editingFinished.connect(self._restore_text)
         self.set_hierarchies([])
+        from raptor.gui.resources.design_tokens import ThemeManager
+        ThemeManager.instance().on_changed(self._retheme)
+
+    def _retheme(self, _dark: bool = False) -> None:
+        """Redraw the home entry's icon in the new theme's text colour."""
+        if self.count():
+            self.setItemIcon(0, self._home_icon())
 
     def set_hierarchies(self, rows: list[tuple[Any, str]]) -> None:
         """Refill: the home entry, a divider, then `rows` as (data, label).
@@ -100,3 +107,36 @@ class HierarchyPicker(QComboBox):
         from raptor.gui.resources import icons
         from raptor.gui.resources.design_tokens import active_colour
         return icons.home_icon(active_colour()["text"])
+
+
+class HomeButton(QToolButton):
+    """A small button that returns a picker to its whole-model entry, to sit
+    beside it. Enabled only while a hierarchy is chosen. Its icon is drawn
+    in the theme's text colour, so it is redrawn when the theme changes:
+    drawn once, it was dark on dark after switching to the dark theme."""
+
+    def __init__(self, picker: HierarchyPicker,
+                 tooltip: str = "Back to the whole model") -> None:
+        super().__init__()
+        self._picker = picker
+        self.setToolTip(tooltip)
+        self.setAccessibleName(tooltip)
+        self.setAutoRaise(True)
+        self.clicked.connect(picker.go_home)
+        picker.currentIndexChanged.connect(self._sync)
+        self._retheme()
+        self._sync()
+        from raptor.gui.resources.design_tokens import ThemeManager
+        ThemeManager.instance().on_changed(self._retheme)
+
+    def _sync(self, _index: int = 0) -> None:
+        self.setEnabled(self._picker.isEnabled()
+                        and not self._picker.is_home())
+
+    def _retheme(self, _dark: bool = False) -> None:
+        self.setIcon(HierarchyPicker._home_icon())
+
+
+def home_button(picker: HierarchyPicker,
+                tooltip: str = "Back to the whole model") -> HomeButton:
+    return HomeButton(picker, tooltip)

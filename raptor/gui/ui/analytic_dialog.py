@@ -625,7 +625,14 @@ class AnalyticDialog(QDialog):
             "hierarchy's In node is treated as the system Start and its Out "
             "node as the End, so its input is assumed always available; "
             "everything outside the hierarchy is left out.")
-        form.addRow("Hierarchy:", self._hierarchy)
+        from raptor.gui.widgets.hierarchy_picker import home_button
+        self._hierarchy_home = home_button(self._hierarchy)
+        self._hierarchy_row = QWidget()
+        hierarchy_row = QHBoxLayout(self._hierarchy_row)
+        hierarchy_row.setContentsMargins(0, 0, 0, 0)
+        hierarchy_row.addWidget(self._hierarchy, 1)
+        hierarchy_row.addWidget(self._hierarchy_home)
+        form.addRow("Hierarchy:", self._hierarchy_row)
 
         limits = QHBoxLayout()
         limits.setSpacing(SPACING["sm"])
@@ -1126,7 +1133,8 @@ class AnalyticDialog(QDialog):
         self._has_dependencies = bool(offered.get("has_dependencies"))
         self._form.setRowVisible(self._dependencies, self._has_dependencies)
         self._has_hierarchies = bool(offered.get("hierarchies"))
-        self._form.setRowVisible(self._hierarchy, self._has_hierarchies)
+        self._form.setRowVisible(self._hierarchy_row, self._has_hierarchies)
+        self._hierarchy_home.setEnabled(not self._hierarchy.is_home())
 
     def _model_name(self) -> str:
         path = getattr(self._win, "_current_file", None)

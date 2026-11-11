@@ -95,3 +95,59 @@ def test_the_run_panel_scope_has_a_home_button(qapp):
     panel._scope_home.click()
     assert panel.hierarchy_scope() == 0 and seen == [6, 0]
     assert not panel._scope_home.isEnabled()
+
+
+def test_the_home_button_keeps_its_place_when_options_appears(qapp):
+    from raptor.gui.ui.run_panel import RunPanel
+    panel = RunPanel()
+    panel.resize(1400, 300)
+    panel.show()
+    panel.set_hierarchies([(5, "Pumps")])
+    qapp.processEvents()
+    at_home = panel._scope_home.geometry()
+    panel._scope.setCurrentIndex(panel._scope.findData(5))
+    qapp.processEvents()
+    assert panel._scope_button.isVisible() and panel._scope_home.isVisible()
+    assert panel._scope_home.geometry() == at_home
+    # Left of Options, right of the picker.
+    assert (panel._scope.geometry().right() < at_home.left()
+            < panel._scope_button.geometry().left())
+
+
+def test_the_home_button_follows_the_picker(qapp):
+    from raptor.gui.widgets.hierarchy_picker import home_button
+    picker = _picker(home_data=None)
+    button = home_button(picker)
+    assert not button.isEnabled()
+    picker.setCurrentIndex(picker.findData(9))
+    assert button.isEnabled()
+    button.click()
+    assert picker.is_home() and not button.isEnabled()
+
+
+def test_the_home_icon_is_redrawn_when_the_theme_changes(qapp):
+    """Drawn once in the light theme's text colour, it was dark on dark
+    after switching to the dark theme."""
+    from raptor.gui.resources.design_tokens import ThemeManager
+    from raptor.gui.widgets.hierarchy_picker import home_button
+    theme = ThemeManager.instance()
+    was_dark = theme.is_dark
+    picker = _picker()
+    button = home_button(picker)
+
+    def ink(icon):
+        image = icon.pixmap(16, 16).toImage()
+        colours = [image.pixelColor(x, y) for x in range(16) for y in range(16)]
+        opaque = [c for c in colours if c.alpha() > 128]
+        return sum(c.lightness() for c in opaque) / max(1, len(opaque))
+
+    try:
+        theme.set_dark(False)
+        light = (ink(button.icon()), ink(picker.itemIcon(0)))
+        theme.set_dark(True)
+        dark = (ink(button.icon()), ink(picker.itemIcon(0)))
+    finally:
+        theme.set_dark(was_dark)
+    # Dark ink on the light theme, light ink on the dark one.
+    assert light[0] < 128 < dark[0]
+    assert light[1] < 128 < dark[1]
