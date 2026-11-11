@@ -43,7 +43,7 @@ def _serialised(fn):
 # ---------------------------------------------------------------------------
 
 def single_point_failures(workspace: Workspace, model_id: str, *,
-                          workers: int = 1,
+                          workers: int | None = None,
                           use_cache: bool = True) -> list[dict]:
     """The Single Point Failure rows, found as Raptor 7 does: each Running or
     Standby block is failed in Failure Effects View and the system tested
@@ -54,7 +54,8 @@ def single_point_failures(workspace: Workspace, model_id: str, *,
 
     The result is content-addressed by the model hash, so asking again after
     no edit returns without re-testing 3,000+ candidates.  `workers > 1`
-    parallelises the independent candidate tests on an unphased model.
+    parallelises the independent candidate tests on an unphased model;
+    left out, a large model is split across several cores automatically.
     """
     import json
 

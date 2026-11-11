@@ -115,6 +115,14 @@ def reference_run_test_fail(
     efpa_tested.add(origin.id)
 
 
+def _use_reference(monkeypatch) -> None:
+    """Run the pass with the reference walk and no look-ahead results."""
+    monkeypatch.setattr(
+        graph, "_run_test_fail",
+        lambda origin, nodes, hiers, links, tested, *_ahead:
+        reference_run_test_fail(origin, nodes, hiers, links, tested))
+
+
 def _propagation(model) -> dict[int, tuple[list[int], list[int]]]:
     return {nid: (list(n.propagates_to_node_ids), list(n.propagates_to_link_ids))
             for nid, n in model.nodes_by_id.items()}
@@ -124,7 +132,7 @@ def _propagation(model) -> dict[int, tuple[list[int], list[int]]]:
 def test_the_walk_prunes_exactly_as_the_routine_it_replaced(fixture, monkeypatch):
     path = str(GOLD / fixture / "input.rbd")
     new = _propagation(load_model(load_rbd(path)))
-    monkeypatch.setattr(graph, "_run_test_fail", reference_run_test_fail)
+    _use_reference(monkeypatch)
     old = _propagation(load_model(load_rbd(path)))
     assert new == old
 
@@ -136,3 +144,110 @@ def test_a_chain_of_a_thousand_nodes_loads(tmp_path):
     mid = ws.create_model("chain", template="series", n=1000)["model_id"]
     model = load_model(ws.get(mid).rbd)
     assert len(model.nodes_by_id) >= 1000
+
+
+# --- the downstream-first look-ahead (`graph._look_ahead`) -------------------
+#
+# The look-ahead works a result out before the pass reaches that node, on the
+# argument that for a walk confined to one hierarchy level the order cannot
+# matter. These tests hold it to the reference on everything there is: every
+# shipped and fixture `.rbds` (the hierarchical ones are the hard case) and
+# randomly wired graphs with re-converging paths.
+
+REPO = pathlib.Path(__file__).resolve().parents[2]
+RBDS_MODELS = sorted(
+    {p for pattern in ("new_docs/models/*.rbds", "tests/fixtures/**/*.rbds",
+                       "raptor/**/*.rbds")
+     for p in glob.glob(str(REPO / pattern), recursive=True)})
+
+
+@pytest.mark.parametrize("path", RBDS_MODELS,
+                         ids=[os.path.relpath(p, REPO) for p in RBDS_MODELS])
+def test_look_ahead_agrees_with_the_reference_on_rbds_models(path, monkeypatch):
+    from raptor.core.engine.errors import UnrunnableModel
+    from raptor.core.fileio.rbds import load_rbds
+    try:
+        new = _propagation(load_model(load_rbds(path)))
+    except (UnrunnableModel, NotImplementedError) as exc:
+        new = repr(exc)
+    _use_reference(monkeypatch)
+    try:
+        old = _propagation(load_model(load_rbds(path)))
+    except (UnrunnableModel, NotImplementedError) as exc:
+        old = repr(exc)
+    assert new == old
+
+
+def _random_spec(seed: int) -> dict:
+    """A randomly wired flat model: series blocks, parallel groups, and
+    extra block paths that skip ahead, so paths re-converge on nodes that
+    need several of them."""
+    import random
+    rng = random.Random(seed)
+    blocks, links = [], []
+    nodes = [{"name": "Start", "type": "start"}, {"name": "End", "type": "end"}]
+    regular: list[str] = []
+
+    def block() -> str:
+        name = f"B{len(blocks) + 1}"
+        blocks.append({"name": name, "fail_dist": "Exponential",
+                       "fail_params": [1000], "repair_dist": "Lognormal",
+                       "repair_params": [8, 2]})
+        return name
+
+    def node() -> str:
+        name = f"N{len(regular) + 1}"
+        nodes.append({"name": name, "type": "regular"})
+        regular.append(name)
+        return name
+
+    prev = "Start"
+    for _ in range(rng.randint(4, 14)):
+        nxt = node()
+        for _ in range(rng.choice((1, 1, 2, 3, 4))):
+            b = block()
+            links.append({"from": prev, "to": b})
+            links.append({"from": b, "to": nxt})
+        prev = nxt
+    links.append({"from": prev, "to": "End"})
+    # Skip-ahead paths between regular nodes (never backwards: no loops).
+    for _ in range(rng.randint(0, 6)):
+        if len(regular) < 3:
+            break
+        i = rng.randrange(0, len(regular) - 1)
+        j = rng.randrange(i + 1, len(regular))
+        b = block()
+        links.append({"from": regular[i], "to": b})
+        links.append({"from": b, "to": regular[j]})
+    rng.shuffle(nodes)          # the pass runs in node order: vary it
+    return {"blocks": blocks, "nodes": nodes, "links": links}
+
+
+@pytest.mark.parametrize("seed", range(60))
+def test_look_ahead_agrees_with_the_reference_on_random_graphs(seed, monkeypatch):
+    from raptor.api import build
+    from raptor.core.engine.errors import UnrunnableModel
+    rbd = build.build_from_spec(_random_spec(seed))
+    try:
+        new = _propagation(load_model(rbd))
+    except (UnrunnableModel, NotImplementedError) as exc:
+        new = repr(exc)
+    _use_reference(monkeypatch)
+    try:
+        old = _propagation(load_model(rbd))
+    except (UnrunnableModel, NotImplementedError) as exc:
+        old = repr(exc)
+    assert new == old
+
+
+def test_look_ahead_is_used_on_a_long_series(tmp_path):
+    """The point of it: a long chain no longer walks to the end from every
+    node. Counted in steps, not seconds, so the test is not a stopwatch."""
+    from raptor.api.workspace import Workspace
+    ws = Workspace(str(tmp_path))
+    mid = ws.create_model("chain", template="series", n=400)["model_id"]
+    model = load_model(ws.get(mid).rbd)
+    origins = [n for n in model.nodes_by_id.values() if n.type_node in (2, 5)]
+    ahead, _levels = graph._look_ahead(origins, model.nodes_by_id,
+                                       model.hiers_by_id, model.links_by_id)
+    assert len(ahead) == len(origins)

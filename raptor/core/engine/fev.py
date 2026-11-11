@@ -163,6 +163,8 @@ class FevSession:
         #: action). Several UI reads of one state -- the status bar and the
         #: System Status window -- must not run `analyze_capacity` twice.
         self._capacity_cache: dict[str, Any] | None = None
+        #: Each block's state-change callable, built once (`_start_state`).
+        self._transitions: dict[int, Any] = {}
         if progress is not None:
             progress("Preparing the view", 0, 1)
         self._build()
@@ -208,7 +210,12 @@ class FevSession:
             block.ignore_dep = False
             block.op_status = BlockStatus.RUNNING
             block.active_status = ActiveStatus.ACTIVE
-            cascade.transitions[block.id] = self._transition_for(block)
+            # One closure per block for the session, not one per reset: the
+            # single-point-failure scan resets once per candidate.
+            transition = self._transitions.get(block.id)
+            if transition is None:
+                transition = self._transitions[block.id] = self._transition_for(block)
+            cascade.transitions[block.id] = transition
         for event in model.events_by_id.values():
             event.op_status = EventStatus.SUCCESS
             event.active_status = ActiveStatus.ACTIVE

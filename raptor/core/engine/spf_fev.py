@@ -158,14 +158,29 @@ def phased_sections(fev: FevSession) -> list[tuple[str, list[dict]]]:
     return sections
 
 
-def compute(rbd: RbdFile, *, workers: int = 1):
+def auto_workers(candidates: int) -> int:
+    """How many processes to test `candidates` elements on when the caller
+    did not say. Each test resets the whole model, as Raptor 7's does, so the
+    analysis is quadratic in the model's size: 1,000 blocks take about 9 s on
+    one core and 5,000 take minutes. The tests are independent, so a large
+    model is split across half the machine's cores (at most 8); the rows are
+    the same either way."""
+    if candidates < _PARALLEL_MIN_CANDIDATES:
+        return 1
+    return min(8, max(2, (_os.cpu_count() or 1) // 2))
+
+
+def compute(rbd: RbdFile, *, workers: int | None = None):
     """(unphased rows, phased sections) -- one of the two is meaningful: phased
-    sections for a model with phases, rows otherwise."""
+    sections for a model with phases, rows otherwise. `workers=None` picks a
+    count from the model's size (`auto_workers`)."""
     fev = FevSession(rbd)
     if fev.phased:
         return [], phased_sections(fev)
     block_ids = list(fev.model.blocks_by_id)
     event_ids = list(fev.model.events_by_id)
+    if workers is None:
+        workers = auto_workers(len(block_ids) + len(event_ids))
     if (workers and int(workers) > 1
             and len(block_ids) + len(event_ids) >= _PARALLEL_MIN_CANDIDATES):
         rows = _run_unphased_chunks(rbd, "block", block_ids, workers)
@@ -175,7 +190,7 @@ def compute(rbd: RbdFile, *, workers: int = 1):
     return unphased_rows(fev), None
 
 
-def single_point_failures(rbd: RbdFile, *, workers: int = 1) -> list[dict]:
+def single_point_failures(rbd: RbdFile, *, workers: int | None = None) -> list[dict]:
     """Rows `{"kind","id","name","crit"}` for an unphased model; for a phased one
     the rows of every phase, each with its `phase` name."""
     rows, sections = compute(rbd, workers=workers)

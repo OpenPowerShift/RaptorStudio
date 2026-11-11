@@ -78,6 +78,11 @@ class Violation:
 _CONTROL_RE = re.compile("[\x00-\x1f\x7f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]")
 
 
+#: `_CONTROL_RE` plus the surrogates `control_problem` also refuses: the
+#: quick whole-row test that decides whether any cell needs a closer look.
+_ROW_SCAN_RE = re.compile(_CONTROL_RE.pattern[:-1] + "\ud800-\udfff]")
+
+
 def has_blank(text: str) -> bool:
     """True when *text* holds a space of any kind (plain, no-break, a line or
     tab) or a control/invisible character: a name Raptor 7 would call "blank
@@ -1015,8 +1020,12 @@ def _check_numbers(rbd, out: list[Violation]) -> None:
 def _check_control_chars(rbd, out: list[Violation]) -> None:
     for section, sec in rbd.sections.items():
         for row in sec.rows:
-            text = "\x01".join(map(str, row.values()))      # one scan per row, not per cell
-            if _CONTROL_RE.search(text) is None:
+            # One scan per row, not per cell. The cells are joined with a
+            # space, which is not one of the characters looked for: the
+            # joiner used to be U+0001, itself a control character, so every
+            # row "matched" and every cell was scanned after all.
+            text = " ".join(map(str, row.values()))
+            if _ROW_SCAN_RE.search(text) is None:
                 continue
             for col, val in row.items():
                 why = control_problem(str(val))

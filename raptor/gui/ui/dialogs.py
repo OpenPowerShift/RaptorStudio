@@ -243,13 +243,25 @@ def show_spof_dialog(win):
         return
     from raptor.core.engine.spf_fev import single_point_failures
     _v = win._diagram_dock.view
+    # Every block is failed in turn against the whole model, so a large
+    # model takes seconds even split across cores: say so and show the wait
+    # cursor rather than appearing to hang.
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QApplication
+    QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+    win._statusbar.showMessage("Finding single point failures…")
+    QApplication.processEvents()
     try:
         rows = single_point_failures(win._rbd)
     except Exception as e:  # structural surprises shouldn't crash UI
         rows = []
+        QApplication.restoreOverrideCursor()
+        win._statusbar.clearMessage()
         msgbox.warning(win, "Single-Point Failures",
                             f"Analysis failed: {e}")
         return
+    QApplication.restoreOverrideCursor()
+    win._statusbar.clearMessage()
     dlg = QDialog(win)
     dlg.setWindowTitle("Single Point Failure File")
     lay = QVBoxLayout(dlg)
