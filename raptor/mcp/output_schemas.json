@@ -255,6 +255,9 @@
    "model_id": {
     "type": "string"
    },
+   "notes": {
+    "type": "array"
+   },
    "summary": {
     "type": "string"
    },
@@ -264,6 +267,7 @@
   },
   "required": [
    "model_id",
+   "notes",
    "summary"
   ],
   "type": "object"

@@ -177,8 +177,40 @@ def _print_info(data: dict, markdown: bool) -> None:
             print(f"{pad}{k}: {v}")
     if markdown:
         print(f"# {data.get('name', 'model')}\n")
-    for k, v in data.items():
+    for k, v in _for_reading(data).items():
         show(k, v)
+
+
+#: Node kinds by their stored code.
+_NODE_KINDS = {1: "start", 2: "regular", 3: "end", 4: "hierarchy in",
+               5: "hierarchy out"}
+#: Fields that only mean something with capacity analysis on.
+_CAPACITY_FIELDS = ("nom_flow", "max_flow", "cap_pri", "full_flow", "div_flow")
+
+
+def _for_reading(data: dict) -> dict:
+    """The description as text output shows it (`--format json` is the
+    whole record, unchanged): the node list once rather than twice, node
+    kinds by name, and the capacity fields only when capacity analysis is
+    on, since otherwise they are defaults nothing reads."""
+    out = dict(data)
+    if out.get("nodes_detail") == out.get("node_names"):
+        out.pop("nodes_detail", None)
+    capacity = bool((out.get("system") or {}).get("capacity_analysis"))
+
+    def tidy(item: Any) -> Any:
+        if not isinstance(item, dict):
+            return item
+        row = {k: v for k, v in item.items()
+               if capacity or k not in _CAPACITY_FIELDS}
+        if "type" in row and row["type"] in _NODE_KINDS:
+            row["type"] = _NODE_KINDS[row["type"]]
+        return row
+
+    for key in ("links", "node_names", "nodes_detail"):
+        if isinstance(out.get(key), list):
+            out[key] = [tidy(item) for item in out[key]]
+    return out
 
 
 def get_command(args: Any) -> int:

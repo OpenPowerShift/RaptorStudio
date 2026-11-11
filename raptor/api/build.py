@@ -457,10 +457,18 @@ def _column_targets(section: str, row: dict, field: str) -> list[str]:
         if idx is not None:
             raise BuildError(f"{base!r} is not an indexed field")
         return [target]
-    known = ", ".join(sorted(set(field_map) | set(row)))
+    # Name the nearest fields, then the friendly ones. This used to list
+    # every friendly name AND every raw column of the row (about 200), which
+    # buried the one line the caller needed.
+    import difflib
+    friendly = sorted(field_map)
+    near = difflib.get_close_matches(base, sorted(set(field_map) | set(row)),
+                                     n=3, cutoff=0.6)
+    hint = (f"  Did you mean {', '.join(repr(n) for n in near)}?"
+            if near else "")
     raise BuildError(
-        f"Unknown field {field!r} for {section}.  Known friendly fields: "
-        f"{known}")
+        f"Unknown field {field!r} for {section}.{hint}  Known friendly "
+        f"fields: {', '.join(friendly)}")
 
 
 def _record_formula(rbd: RbdFile, kind: str, elem_id: Any, col: str,
@@ -716,6 +724,72 @@ def _require_dist_params_on_new_block(patch: dict[str, Any]) -> None:
                 f"new distribution's meaning (e.g. a Gamma with "
                 f"scale=0, which fails validation)"
             )
+
+
+_FAILURE_KEYS = ("fail_dist", "fdist", "FDist", "fail_params", "fparams")
+_REPAIR_KEYS = ("repair_dist", "rdist", "RDist", "repair_params", "rparams")
+
+
+def default_data_notes(spec: Any, rbd: RbdFile | None = None) -> list[str]:
+    """What a spec left to the built-in defaults, in words.
+
+    A block given no failure distribution is built with a new block's
+    default one (Exponential, mean life 100; repair Lognormal, mean 10), and
+    the model then runs and reports an availability as if those were data.
+    Nothing in the result said so. These notes name the blocks; `rbd`, when
+    given, supplies the actual default figures."""
+    blocks = spec.get("blocks") if isinstance(spec, dict) else None
+    if not isinstance(blocks, list):
+        return []
+
+    def named(keys: tuple[str, ...]) -> list[str]:
+        return [str(b.get("name", f"block {i + 1}"))
+                for i, b in enumerate(blocks)
+                if isinstance(b, dict) and not any(k in b for k in keys)]
+
+    def default_text(which: str, names: list[str]) -> str:
+        if rbd is None or not names:
+            return ""
+        from raptor.api.distributions import describe_dist
+        for row in rbd.section("BLOCK_DATA").rows:
+            if str(row.get("blockName")) != names[0]:
+                continue
+            try:
+                code = int(float(row.get(f"{which}Dist", "0")))
+                count = int(float(row.get(f"#{which}Param", "0")))
+                params = [float(row.get(f"{which}Param{i}", "0"))
+                          for i in range(1, count + 1)]
+                info = describe_dist(code, params)
+            except Exception:  # noqa: BLE001 - the note is still worth giving
+                return ""
+            mean = info.get("mean")
+            text = str(info.get("name") or "")
+            if isinstance(mean, (int, float)):
+                text += f", mean {mean:g}"
+            return f" ({text})" if text else ""
+        return ""
+
+    def listed(names: list[str]) -> str:
+        shown = ", ".join(names[:8])
+        return shown + (f" and {len(names) - 8} more" if len(names) > 8 else "")
+
+    notes: list[str] = []
+    no_failure = named(_FAILURE_KEYS)
+    if no_failure:
+        notes.append(
+            f"{len(no_failure)} block(s) were given no failure distribution "
+            f"and use the default{default_text('F', no_failure)}, which is a "
+            f"placeholder, not data: {listed(no_failure)}. Give each "
+            f"`fail_dist` and `fail_params`.")
+    no_repair = named(_REPAIR_KEYS)
+    if no_repair:
+        notes.append(
+            f"{len(no_repair)} block(s) were given no repair distribution "
+            f"and use the default{default_text('R', no_repair)}: "
+            f"{listed(no_repair)}. Give each `repair_dist` and "
+            f"`repair_params`, or `repair_dist: \"None\"` for a block that "
+            f"is not repaired.")
+    return notes
 
 
 def _fix_dist_param_counts(row: dict, provided: dict[str, Any]) -> None:

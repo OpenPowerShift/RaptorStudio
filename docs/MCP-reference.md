@@ -769,7 +769,10 @@ through an intermediate node first, e.g. for A and B in parallel:
 {"from":"Join","to":"End"}]` (`create_model(template="parallel")`
 builds exactly this shape for a plain A||B case).
 
-Returns {model_id, summary, validation}.  A successful build is **not**
+Returns {model_id, summary, validation, notes}.  `notes`, when present,
+names the blocks the spec gave no failure or repair distribution: they
+are built with placeholder defaults, so results for them are not based
+on data.  A successful build is **not**
 the same as a runnable model: check `validation.runnable` -- the build
 can succeed structurally while `issues()` still reports engine-gate
 errors (e.g. `k > n`).
@@ -790,6 +793,7 @@ errors (e.g. `k > n`).
 | Field | Type | Always present |
 | --- | --- | --- |
 | `model_id` | string | yes |
+| `notes` | array<any> | yes |
 | `summary` | string | yes |
 | `validation` | object | no |
 

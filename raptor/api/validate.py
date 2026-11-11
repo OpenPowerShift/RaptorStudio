@@ -111,6 +111,7 @@ def issues(rbd: RbdFile) -> list[Issue]:
     _check_fail_mean_undefined(rbd, result)
 
     result.extend(_check_duplicate_names(rbd))
+    result.extend(_check_life_against_repair(rbd))
 
     # --- 4. Raptor 7's own input rules: what it refuses to run, to draw, or
     # to accept in a dialog (raptor/core/input_rules.py; it replaced this
@@ -129,6 +130,64 @@ def issues(rbd: RbdFile) -> list[Issue]:
     result.extend(_check_stacked_blocks(rbd))
 
     return result
+
+
+def _check_life_against_repair(rbd: RbdFile) -> list[Issue]:
+    """Warn about a block that fails faster than it can be repaired.
+
+    Nothing is wrong with the numbers as numbers, so no rule refuses them,
+    but a mean life shorter than the mean repair time means the block is
+    down most of the time, and the usual cause is a failure RATE typed where
+    the mean life goes (Exponential 0.001 for "one failure per 1,000 hours"
+    gives an availability near zero, with nothing said). At most ten blocks
+    are named, then a count: a model built from a bad table has it on every
+    row."""
+    from raptor.api.distributions import describe_dist
+
+    sec = rbd.sections.get("BLOCK_DATA")
+    if not sec:
+        return []
+    units = _units(rbd) or "time units"
+    found: list[Issue] = []
+    more = 0
+    for row in sec.rows:
+        try:
+            bid = int(float(row.get("ID", "0")))
+            if bid == 0:
+                continue
+            f_code = int(float(row.get("FDist", "0")))
+            r_code = int(float(row.get("RDist", "0")))
+            f_params = [float(row.get(f"FParam{i}", "0"))
+                        for i in range(1, int(float(row.get("#FParam", "0"))) + 1)]
+            r_params = [float(row.get(f"RParam{i}", "0"))
+                        for i in range(1, int(float(row.get("#RParam", "0"))) + 1)]
+            life = describe_dist(f_code, f_params).get("mean")
+            repair = describe_dist(r_code, r_params).get("mean")
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(life, (int, float)) or not isinstance(repair, (int, float)):
+            continue
+        if not (0.0 < life < repair):
+            continue
+        if len(found) >= 10:
+            more += 1
+            continue
+        name = row.get("blockName") or f"Block {bid}"
+        hint = (" Exponential takes the mean life, not a failure rate: for "
+                f"one failure per 1,000 {units} enter 1000."
+                if describe_dist(f_code, f_params).get("name") == "Exponential"
+                else "")
+        found.append(Issue(
+            "warning", f"Block {bid} '{name}'",
+            f"mean life ({life:g} {units}) is shorter than mean repair time "
+            f"({repair:g} {units}), so it will be down most of the time. "
+            f"Check the failure parameters.{hint}"))
+    if more:
+        found.append(Issue(
+            "warning", "model",
+            f"{more} more block(s) have a mean life shorter than their mean "
+            f"repair time."))
+    return found
 
 
 #: The canvas draws a level's hierarchies at z=-1 and its blocks, nodes and

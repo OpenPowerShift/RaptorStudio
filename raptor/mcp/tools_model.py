@@ -428,7 +428,10 @@ def build_model(name: str, spec: dict[str, Any] | None = None,
     {"from":"Join","to":"End"}]` (`create_model(template="parallel")`
     builds exactly this shape for a plain A||B case).
 
-    Returns {model_id, summary, validation}.  A successful build is **not**
+    Returns {model_id, summary, validation, notes}.  `notes`, when present,
+    names the blocks the spec gave no failure or repair distribution: they
+    are built with placeholder defaults, so results for them are not based
+    on data.  A successful build is **not**
     the same as a runnable model: check `validation.runnable` -- the build
     can succeed structurally while `issues()` still reports engine-gate
     errors (e.g. `k > n`).
@@ -474,12 +477,21 @@ def build_model(name: str, spec: dict[str, Any] | None = None,
         }
         result["validation"] = validation
 
+    # What the spec left to the defaults: the model runs either way, so
+    # this is the only place a caller learns its numbers are placeholders.
+    from raptor.api.build import default_data_notes
+    notes = default_data_notes(spec, rbd)
+    if notes:
+        result["notes"] = notes
+
     md = f"Built **{result['summary']}** (`{result['model_id']}`)."
     if validation:
         md += (f"\n\nValidation: {len(validation['errors'])} error(s), "
                f"{len(validation['warnings'])} warning(s).")
         for e in validation["errors"][:10]:
             md += f"\n- {e}"
+    for note in notes:
+        md += f"\n\nNote: {note}"
     return ok(result, markdown=md)
 
 
