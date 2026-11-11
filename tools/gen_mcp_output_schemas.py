@@ -126,7 +126,8 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     rec.call("diff_models", model_a=m1, model_b=m3)
     rec.call("diff_models", model_a=m1, model_b=m1, detail="full", ignore=[])
     rec.call("estimate_runtime", model_id=m1)
-    sim =rec.call("simulate", model_id=m1, num_runs=2) or {}
+    sim =rec.call("simulate", model_id=m1, num_runs=2,
+                  availability_plot=True) or {}
     rec.call("simulate", model_id=m2, num_runs=2)
     run = sim.get("run_id")
     if run:

@@ -138,6 +138,14 @@ class Estimate:
     estimate_seconds: float = 0.0
     #: True when the fit came from the on-disk cache (no pilot re-ran).
     cached: bool = False
+    #: Bytes the run will write for the recordings the API always makes
+    #: (the availability plot, and the interim cost report when cost
+    #: analysis is on). None when the run does not stop at a fixed time.
+    storage_bytes_est: float | None = None
+    #: The event log's size if it is collected (rough; None as above).
+    event_log_bytes_est: float | None = None
+    #: One line of plain English for the two figures above.
+    storage_note: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -158,6 +166,11 @@ class Estimate:
             "rough": self.rough,
             "estimate_seconds": round(self.estimate_seconds, 3),
             "cached": self.cached,
+            "storage_bytes_est": (None if self.storage_bytes_est is None
+                                  else round(self.storage_bytes_est)),
+            "event_log_bytes_est": (None if self.event_log_bytes_est is None
+                                    else round(self.event_log_bytes_est)),
+            "storage_note": self.storage_note,
         }
 
 
@@ -290,12 +303,18 @@ class _TimedSink(list):
 
 
 def _run_like_a_batch(rbd: RbdFile, **kwargs: Any) -> None:
-    """`run_simulation_with_reports` with the outputs a real batch always
-    asks for (`raptor.api.run`): the availability plot, capacity and cost
-    files. Each samples or records during every replication, so a pilot
-    without them under-estimated a run by about 3x on FactoryDemo."""
+    """`run_simulation_with_reports` with the outputs a real batch of this
+    model asks for (`raptor.api.run`): the capacity file always, and the
+    availability plot and interim cost report when the model's Recording
+    settings tick them. Each samples or records during every replication,
+    so the pilot must do what the run will do: no more, and no less."""
+    from raptor.core.storage_estimate import experiment_of
+    record = experiment_of(rbd).get("recording") or {}
     run_simulation_with_reports(
-        rbd, collect_logs=False, ao_sink=[], capacity_sink=[], cost_sink=[],
+        rbd, collect_logs=False,
+        ao_sink=[] if record.get("ao_plot") else None,
+        capacity_sink=[],
+        cost_sink=[] if record.get("cost_plot") else None,
         **kwargs)
 
 
@@ -469,7 +488,73 @@ def _finalize(
 # Public API
 # ---------------------------------------------------------------------------
 
-def estimate(  # noqa: C901, PLR0912, PLR0915
+def storage_for(rbd: RbdFile, num_runs: int,
+                run_length: float | None = None) -> tuple[
+                    float | None, float | None, str]:
+    """(bytes always written, event-log bytes if collected, a sentence).
+
+    A run records the availability plot and the interim cost report when
+    the model's Recording settings ask for them, so those are what it is
+    certain to write."""
+    from raptor.core.storage_estimate import (estimate_storage,
+                                              experiment_of, format_bytes)
+
+    experiment = experiment_of(rbd)
+    experiment["trials"] = int(num_runs)
+    if run_length is not None:
+        experiment["termination_type"] = "TimeSim"
+        experiment["term_condition"] = float(run_length)
+    est = estimate_storage(
+        experiment, rbd,
+        recording={"event_log": True, "capacity_plot": False})
+    always = [i for i in est.items if i.key != "event_log"]
+    log = est.item("event_log")
+    if any(i.bytes is None for i in always):
+        return None, None, ("Size on disk depends on how long each run "
+                            "lasts (the run does not stop at a fixed time).")
+    total = sum(i.bytes or 0.0 for i in always)
+    ao = est.item("ao_plot")
+    note = (f"Writes about {format_bytes(total)} to disk" if always
+            else "Records no plots (none are ticked in the model's "
+                 "Recording settings)")
+    if ao is not None and ao.note:
+        interval = experiment["recording"]["ao_interval"]
+        note += (f" (availability plot: {ao.note} at the model's sample "
+                 f"interval of {interval:g})")
+    log_bytes = log.bytes if log is not None else None
+    if log_bytes is not None:
+        note += (f"; the event log, when collected, adds roughly "
+                 f"{format_bytes(log_bytes)}")
+    if ao is not None and (ao.bytes or 0.0) >= 1e9:
+        note += (". Lengthen the availability sample interval "
+                 "(experiment.recording.ao_interval) to reduce it")
+    return total, log_bytes, note + "."
+
+
+def estimate(
+    workspace: Workspace,
+    model_id: str,
+    *,
+    num_runs: int = 10,
+    run_length: float | None = None,
+    workers: int = 1,
+    importance: str | None = None,
+) -> Estimate:
+    """Estimate wall-clock time and disk for *num_runs* simulations (see
+    `_estimate_timing` for the timing method)."""
+    est = _estimate_timing(workspace, model_id, num_runs=num_runs,
+                           run_length=run_length, workers=workers,
+                           importance=importance)
+    try:
+        (est.storage_bytes_est, est.event_log_bytes_est,
+         est.storage_note) = storage_for(
+            workspace.get(model_id).rbd, num_runs, run_length)
+    except Exception:  # noqa: BLE001 - the size figure is best-effort
+        pass
+    return est
+
+
+def _estimate_timing(  # noqa: C901, PLR0912, PLR0915
     workspace: Workspace,
     model_id: str,
     *,

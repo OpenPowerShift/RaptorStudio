@@ -665,6 +665,17 @@ class RunPanel(QWidget):
         iv.addRow("Cost every:", self._cost_interval)
         outer.addLayout(iv)
 
+        # What the ticked recordings will take on disk for this many trials
+        # of this length. A plot sampled every 10 hours over a 20-year run
+        # is 17,520 rows a trial; nobody can see that from the tick box.
+        self._storage_note = QLabel("")
+        # Not "SectionNote": that name marks the per-checkbox notes, which
+        # sit in the grid's second column; this line spans the box.
+        self._storage_note.setObjectName("StorageNote")
+        self._storage_note.setWordWrap(True)
+        self._storage_note.setAccessibleName("Estimated size on disk")
+        outer.addWidget(self._storage_note)
+
         # The two intervals are useless unless their plot is ticked, so
         # they follow it rather than sitting permanently enabled.
         self._interval_rows = (self._ao_interval, self._cost_interval)
@@ -1221,6 +1232,7 @@ class RunPanel(QWidget):
         experiment = self.experiment()
         experiment["recording"]["ao_interval"] = self._ao_interval.value()
         self._exp = experiment
+        self._refresh_storage()
         self.experiment_changed.emit(experiment)
 
     def _on_cost_interval(self) -> None:
@@ -1229,13 +1241,64 @@ class RunPanel(QWidget):
         experiment = self.experiment()
         experiment["recording"]["cost_interval"] = self._cost_interval.value()
         self._exp = experiment
+        self._refresh_storage()
         self.experiment_changed.emit(experiment)
 
     # -- derived display -------------------------------------------------
 
+    def set_storage_model(self, cycle_rate: float | None,
+                          elements: int, blocks: int = 0) -> None:
+        """What the open model contributes to the size estimate: expected
+        block failures per unit time and the number of elements
+        (`raptor.core.storage_estimate`). None when no model is open."""
+        self._storage_cycle_rate = cycle_rate
+        self._storage_elements = int(elements)
+        self._storage_blocks = int(blocks)
+        self._refresh_storage()
+
+    def storage_estimate(self):
+        """The current `StorageEstimate` for the panel's settings."""
+        from raptor.core.storage_estimate import estimate_storage
+        return estimate_storage(
+            getattr(self, "_exp", None) or rx.defaults(),
+            cycle_rate=getattr(self, "_storage_cycle_rate", None),
+            elements=getattr(self, "_storage_elements", 0),
+            blocks=getattr(self, "_storage_blocks", 0))
+
+    def _refresh_storage(self) -> None:
+        note = getattr(self, "_storage_note", None)
+        if note is None:
+            return
+        from raptor.core.storage_estimate import format_bytes
+        est = self.storage_estimate()
+        text = est.summary()
+        if est.total_bytes >= 1e9:
+            text += (". Lengthen a sample interval or untick a recording "
+                     "to reduce it.")
+        lines = []
+        for item in est.items:
+            size = ("no figure" if item.bytes is None
+                    else ("about " if item.approximate else "")
+                    + format_bytes(item.bytes))
+            lines.append(f"{item.label}: {size}"
+                         + (f" ({item.note})" if item.note else ""))
+        if any(i.key == "event_log" for i in est.items):
+            lines.append("The event log figure is rough: it assumes every "
+                         "block runs all the time.")
+        if lines:
+            lines.append("Recordings are written to disk as the run goes, "
+                         "not held in memory.")
+        note.setToolTip("\n".join(lines))
+        if text != note.text():
+            wrapped_before = note.heightForWidth(max(note.width(), 1))
+            note.setText(text)
+            if note.heightForWidth(max(note.width(), 1)) != wrapped_before:
+                self.size_changed.emit()
+
     def _refresh(self) -> None:
         """Re-derive everything that depends on the current values."""
         experiment = self._exp
+        self._refresh_storage()
         shown = getattr(self, "_shown_units", "")
         t = experiment["termination_type"]
         if t == "TimeSim" and shown:

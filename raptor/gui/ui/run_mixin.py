@@ -333,15 +333,20 @@ class RunMixin(_Base):
             manifest=(state.get("run_metadata") or {}).get("manifest"),
             importance_total=total)
 
-    def _confirm_long_batch(self, num_runs: int) -> bool:
-        """Ask before a batch that is likely to run for tens of minutes.
+    #: Ask before a run that a MEASURED previous run of this model says
+    #: will take longer than this many seconds.
+    _LONG_RUN_SECONDS = 30.0
+    #: With nothing measured, ask only when the rough guess is this long:
+    #: twenty times the limit above, so a guess that is badly high still
+    #: means a run worth asking about.
+    _LONG_RUN_ROUGH_SECONDS = 600.0
 
-        The default `ProjectX`-class model is 10 trials x 175,200 h; at four
-        cores that is roughly an hour, and the old UI only said "Ready".
-        This is deliberately a coarse run-hours guard, not a pilot: a pilot
-        on such a model costs as much as the short run it would protect.
-        A previous run's measured wall time, when one is known, is shown as
-        a scale reference.
+    def _confirm_long_batch(self, num_runs: int) -> bool:
+        """Ask before a batch that will run for a long time.
+
+        Not a pilot: a pilot on a slow model costs as much as the short run
+        it would protect. The time quoted, when one is, is this model's own
+        last run scaled to the new size.
         """
         from raptor.gui import cores
         try:
@@ -366,43 +371,80 @@ class RunMixin(_Base):
         except (ImportError, KeyError, ValueError, TypeError):
             importance_batches = 0
         batches = 1 + importance_batches
-        run_hours = horizon * max(1, int(num_runs)) * batches
-        if run_hours < 50_000:
-            return True
+        # Asked only when the run is expected to take minutes. The guard
+        # used to be run-hours alone (50,000 and up), which says nothing
+        # about time: it stopped the shipped examples, which finish in
+        # seconds, behind a warning about "tens of minutes".
+        expected: float | None = None
+        try:
+            from raptor.core.storage_estimate import (cycles_per_time,
+                                                     element_count,
+                                                     rough_run_seconds)
+            sized = dict(experiment, trials=max(1, int(num_runs)))
+            full_speed = bool(getattr(self, "_run_full_speed", False))
+            expected = rough_run_seconds(
+                sized, cycle_rate=cycles_per_time(self._rbd)[0],
+                elements=element_count(self._rbd), batches=batches,
+                cores=cores.chosen() if full_speed else 1)
+        except Exception:  # noqa: BLE001 - fall back to the coarse guard
+            expected = None
+        # A figure is only quoted when it was measured: the last run of this
+        # model, scaled to this one's size. Without one there is only the
+        # rough guess from how often the blocks fail, which can be several
+        # times out either way, so it is never shown and has to be very
+        # large before it is worth interrupting for. Asking is a nag; it
+        # must not happen for a run that turns out to take seconds.
+        measured: float | None = None
         previous = getattr(self, "_last_run_profile", None)
-        reference = ""
-        if previous:
+        if previous and getattr(self, "_last_run_profile_rbd", None) == id(self._rbd):
             try:
                 ph, pn, pwall, pworkers, pbatches = previous
             except ValueError:
                 ph, pn, pwall, pworkers = previous
                 pbatches = 1
             if ph and pn and pwall:
-                scale = ((horizon / ph) * (num_runs / pn)
-                         * (batches / max(1, pbatches))
-                         * (max(1, pworkers) / max(1, cores.chosen())))
-                reference = (
-                    f"\n\nA previous {pn} × {ph:g} h run took "
-                    f"~{pwall:.0f} s; at this size expect roughly "
-                    f"{pwall * scale / 60:.0f} min (order of magnitude).")
+                measured = (pwall * (horizon / ph) * (num_runs / pn)
+                            * (batches / max(1, pbatches))
+                            * (max(1, pworkers) / max(1, cores.chosen())))
+        if measured is not None:
+            if measured < self._LONG_RUN_SECONDS:
+                return True
+        elif expected is None or expected < self._LONG_RUN_ROUGH_SECONDS:
+            return True
         extra = (f"\n\nImportance measures are on: {importance_mode}, "
                  f"{importance_batches} extra batch(es), {batches} total. "
                  f"The time until completion includes them."
                  if importance_batches else "")
+        reference = ""
         box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Warning)
+        box.setIcon(QMessageBox.Icon.Information)
         box.setWindowTitle("Long simulation")
+        size = (f"{num_runs:,} trial(s) × {horizon:,.0f} "
+                f"{self._current_units() or 'time units'}")
+        if measured is not None:
+            about = (f"about {measured:.0f} seconds" if measured < 90
+                     else f"about {measured / 60:.0f} minutes"
+                     if measured < 5400
+                     else f"about {measured / 3600:.1f} hours")
+            lead = (f"This run ({size}) should take {about}, going by this "
+                    f"model's last run ({pn:,} trial(s) × {ph:,.0f} took "
+                    f"{pwall:.0f} s).")
+        else:
+            lead = (f"This run ({size}) is likely to take several minutes "
+                    f"or longer. The time left is shown in the status bar "
+                    f"once it is under way.")
         box.setText(
-            f"This run is {num_runs} trial(s) × {horizon:,.0f} hours "
-            f"({run_hours:,.0f} run-hours including every batch)."
-            f"{extra}{reference}\n\n"
-            "For an interactive check, lower Run length or Trials. "
-            "Run the full operation anyway?")
-        run_btn = box.addButton("Run anyway", QMessageBox.ButtonRole.AcceptRole)
-        cancel = box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-        box.setDefaultButton(cancel)
+            f"{lead}{extra}{reference}\n\n"
+            "You can stop it at any time and keep the trials that have "
+            "finished. For a quick check, lower Run length or Trials.")
+        run_btn = box.addButton("Run", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(run_btn)
         box.exec()
-        return box.clickedButton() is run_btn
+        if box.clickedButton() is run_btn:
+            return True
+        self._statusbar.showMessage("Run cancelled — nothing was started", 5000)
+        return False
 
     def _run_may_start(self) -> bool:
         """The early exits shared by every foreground run."""

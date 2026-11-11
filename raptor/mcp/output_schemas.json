@@ -712,6 +712,9 @@
    "estimate_seconds": {
     "type": "number"
    },
+   "event_log_bytes_estimate": {
+    "type": "integer"
+   },
    "importance_batches": {
     "type": "integer"
    },
@@ -739,6 +742,12 @@
    "setup_s": {
     "type": "number"
    },
+   "storage_bytes_estimate": {
+    "type": "integer"
+   },
+   "storage_note": {
+    "type": "string"
+   },
    "total_batches": {
     "type": "integer"
    }
@@ -748,6 +757,7 @@
    "baseline_seconds",
    "cached",
    "estimate_seconds",
+   "event_log_bytes_estimate",
    "importance_batches",
    "importance_blocks",
    "importance_mode",
@@ -757,6 +767,8 @@
    "range",
    "seconds_estimate",
    "setup_s",
+   "storage_bytes_estimate",
+   "storage_note",
    "total_batches"
   ],
   "type": "object"

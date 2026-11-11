@@ -12,6 +12,8 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
@@ -282,8 +284,20 @@ def run(
     importance_progress: Callable[[int, int, str], None] | None = None,
     setup_progress: Callable[[str, int, int], None] | None = None,
     worker_limit: Callable[[], int] | None = None,
+    availability_plot: bool | None = None,
+    interim_cost: bool | None = None,
 ) -> RunResult:
     """Execute a simulation and persist artefacts to ``runs/<run_id>/``.
+
+    ``availability_plot`` and ``interim_cost`` say whether this run records
+    the availability plot and the interim cost report. ``None`` (default)
+    takes the model's own Recording settings, exactly as a run in the GUI
+    does; ``True``/``False`` overrides them for this run only. They are not
+    just outputs: each is a timer inside the simulation, so a run that
+    records one is not event-for-event the run that does not (see
+    `raptor.core.engine.orchestrator`). Recording them unasked made the same
+    model give different same-instant orderings from the command line and
+    from the GUI, and cost every run the sampling time.
 
     ``developer`` (a `raptor.core.dev_options.DeveloperOptions`; default: from
     ``RAPTOR_DEV_FEATURES``, which is what ``--dev-features`` sets) switches on the
@@ -339,6 +353,10 @@ def run(
 
     ao_interval = _interval("ao_interval", 10.0)
     cost_interval = _interval("cost_interval", 720.0)
+    want_ao = (bool(record.get("ao_plot")) if availability_plot is None
+               else bool(availability_plot))
+    want_cost = (bool(record.get("cost_plot")) if interim_cost is None
+                 else bool(interim_cost))
 
     effective_runs = num_runs if num_runs is not None else model_num_runs(sim_rbd)
     importance_mode = (str(experiment.get("importance", "none"))
@@ -379,9 +397,17 @@ def run(
 
     # --- run the simulation ---
     report_data: list[RunReportData] = []
-    ao_lines: list[str] = []
+    # The availability plot is one row per sample interval per run. Held in
+    # a list it reached hundreds of megabytes on a long horizon (100 runs of
+    # 20 years at the default interval of 10 is 1.75 million rows), so it is
+    # spooled to disk as the engine writes it and becomes the run's artefact
+    # file by a rename. Parallel workers spool beside it.
+    from raptor.core.result_streams import ResultStream
+    spool_dir = Path(tempfile.mkdtemp(prefix=".spool-", dir=workspace.root))
+    ao_lines = (ResultStream("ao", directory=str(spool_dir))
+                if want_ao else None)
     cap_lines: list[str] = []
-    cost_lines: list[str] = []
+    cost_lines: list[str] | None = [] if want_cost else None
     t0 = time.monotonic()
     run_started = time.ctime()
     from raptor.core.dev_options import from_environment
@@ -451,6 +477,9 @@ def run(
         for tmp in (sd_tmp, mission_tmp, cumtrial_tmp, cumtime_tmp):
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
+        if ao_lines is not None:
+            ao_lines.close()
+        shutil.rmtree(spool_dir, ignore_errors=True)
         raise
     finally:
         timer.cancel()
@@ -476,6 +505,9 @@ def run(
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
     if abort.is_set() and not report_data:
+        if ao_lines is not None:
+            ao_lines.close()
+        shutil.rmtree(spool_dir, ignore_errors=True)
         if timed_out.is_set():
             raise RunTimeoutError(
                 f"Simulation did not complete within {timeout_s}s")
@@ -503,10 +535,10 @@ def run(
         "end_of_run": eor_text,
         "final_results": final_text,
         "final_results_ids": json.dumps(tags_of(final_lines)),
-        "availability_plot": "\n".join(ao_lines),
         "capacity": "\n".join(cap_lines),
-        "cost": "\n".join(cost_lines),
     }
+    if cost_lines is not None:
+        artefacts["cost"] = "\n".join(cost_lines)
     from raptor.core.engine.data_files import DATA_FILES
     for kind, build in DATA_FILES.items():
         artefacts[kind] = "\n".join(build(report_data))
@@ -559,6 +591,10 @@ def run(
                 domain_tree_lines(sim_rbd, sim_rbd.file_name, today, core=True))
     optional |= {"domain_tree", "core_file"} - set(artefacts)
     undeclared = set(artefacts) - set(SECTION_FILES)
+    # Moved into place from its spool file below, never held as text; and
+    # both of these only when this run recorded them.
+    optional.add("availability_plot")
+    optional.add("cost")
     unwritten = set(SECTION_FILES) - set(artefacts) - optional
     assert not undeclared and not unwritten, (
         f"the artefact layout and its writer disagree: undeclared="
@@ -569,6 +605,11 @@ def run(
         path = section_path(runs_dir, section)
         assert path is not None      # guaranteed by the assertion above
         path.write_text(text)
+    if ao_lines is not None:
+        ao_path = section_path(runs_dir, "availability_plot")
+        assert ao_path is not None
+        ao_lines.move_to(str(ao_path))
+    shutil.rmtree(spool_dir, ignore_errors=True)
 
     metrics = aggregate_metrics(report_data)
     per_run = [_rd_to_dict(rd) for rd in report_data]
@@ -651,9 +692,9 @@ def _run_simulation(
     workers: int,
     collect_events: bool,
     abort: threading.Event,
-    ao_lines: list[str],
+    ao_lines: Any,       # list[str] or a disk-backed ResultStream
     cap_lines: list[str],
-    cost_lines: list[str],
+    cost_lines: list[str] | None,
     date: str | None = None,
     ao_plot_interval: float = 10.0,
     cost_plot_interval: float = 720.0,
@@ -689,11 +730,11 @@ def _run_simulation(
         collect_logs=collect_events,
         ao_sink=ao_lines,
         capacity_sink=cap_lines,
-        # Always requested -- which, for a phased CycleSim/FailSim model with
-        # stream-sharing triggers, CHANGES THE SIMULATION ITSELF, matching
-        # Raptor 7 with its Interim Costs output ticked (see
-        # raptor.core.engine.orchestrator's module docstring, "SURPRISING
-        # REAL-RAPTOR BEHAVIOUR").
+        # Requested only when the run records interim cost. Asking for it,
+        # for a phased CycleSim/FailSim model with stream-sharing triggers,
+        # CHANGES THE SIMULATION ITSELF, matching Raptor 7 with its Interim
+        # Costs output ticked (see raptor.core.engine.orchestrator's module
+        # docstring, "SURPRISING REAL-RAPTOR BEHAVIOUR").
         cost_sink=cost_lines,
         date=date,
         ao_plot_interval=ao_plot_interval,
@@ -1115,7 +1156,9 @@ def get_timeseries(
             from raptor.api.workspace import RunArtefactsError
             raise RunArtefactsError(
                 "availability plot was not recorded for this run; re-run "
-                "with Availability plot enabled")
+                "with it on: availability_plot=true (MCP simulate), "
+                "-r ao-plot (raptor run), or Availability plot ticked in "
+                "the model's Recording settings")
         parser = getattr(series_mod, "parse_ao_runs", None)
         if parser is None:
             raise ValueError("availability series parser unavailable")

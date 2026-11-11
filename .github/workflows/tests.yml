@@ -28,7 +28,7 @@ jobs:
       run: ${{ steps.gate.outputs.run }}
       docs_only: ${{ steps.docs.outputs.docs_only }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: gate
@@ -92,7 +92,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-python-qt
         with:
@@ -157,7 +157,7 @@ jobs:
     # `-m` overrides it), which is how this selects the marked suites.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-python-qt
         with:
@@ -191,7 +191,7 @@ jobs:
     # that expression, as the comment in tests/conftest.py explains.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-python-qt
         with:
@@ -236,7 +236,7 @@ jobs:
         # target it), so the sweeps run on it as well as on the newest we test.
         python: ["3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-python-qt
         with:
@@ -292,7 +292,7 @@ jobs:
       matrix:
         python: ["3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-python-qt
         with:
@@ -319,7 +319,7 @@ jobs:
     # HTML is rendered with (render_docs.sh); bump both together.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -351,7 +351,7 @@ jobs:
     # tools/mypy_gate.py). ruff: the rule set in pyproject.toml.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-python-qt
         with:
@@ -388,7 +388,7 @@ jobs:
     # per-test contexts: "which test covers this line?") is uploaded.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Every job runs 3.13, the version the coverage floors were recorded
       # on (branch arcs can differ between versions).
@@ -402,7 +402,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: engine-coverage-html
           path: coverage-html
@@ -411,7 +411,7 @@ jobs:
       # stack here before it exits the worker.
       - name: Upload watchdog dump
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: engine-coverage-hang-dump
           path: /tmp/pytest_hang*.dump

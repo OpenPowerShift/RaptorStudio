@@ -271,6 +271,8 @@ class RunExperimentMixin:
             panel.set_system_config(None)
             if hasattr(panel, "set_importance_blocks"):
                 panel.set_importance_blocks(0)
+            if hasattr(panel, "set_storage_model"):
+                panel.set_storage_model(None, 0)
             return
         units = self._current_units() or ""
         panel.set_units(units, getattr(self._rbd, "display_unit", None))
@@ -286,6 +288,14 @@ class RunExperimentMixin:
         if hasattr(panel, "set_importance_blocks"):
             from raptor.api.importance import block_rows
             panel.set_importance_blocks(len(block_rows(self._rbd)))
+        # The size-on-disk estimate needs how often the model's blocks fail.
+        if hasattr(panel, "set_storage_model"):
+            from raptor.core.storage_estimate import (block_count,
+                                                     cycles_per_time,
+                                                     element_count)
+            panel.set_storage_model(cycles_per_time(self._rbd)[0],
+                                    element_count(self._rbd),
+                                    block_count(self._rbd))
 
     def _migrate_report_stream_settings(self) -> None:
         """Carry an upgrading user's `reports/*` recording choices onto

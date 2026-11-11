@@ -66,7 +66,8 @@ def _simulate(model_id: str, **kwargs):
 def test_report_run_number_slices_end_marker_sinks(hospital):
     from raptor.mcp.tools_run import get_report
 
-    run = _simulate(hospital, num_runs=3, seed=7)
+    run = _simulate(hospital, num_runs=3, seed=7,
+                    availability_plot=True, interim_cost=True)
     assert not run.is_error, run.content
     run_id = run.structured_content["run_id"]
 
@@ -407,7 +408,7 @@ def test_cost_report_without_samples_is_a_precondition(motor):
     run = _simulate(motor, num_runs=2)
     err = _error(get_report(run.structured_content["run_id"], section="cost"))
     assert err["code"] == "precondition_failed"
-    assert "cost samples" in err["message"]
+    assert "not recorded" in err["message"]
 
 
 def test_describe_full_lists_events(tmp_path):

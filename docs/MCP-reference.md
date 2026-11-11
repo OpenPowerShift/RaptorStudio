@@ -2572,7 +2572,10 @@ per block per variant kind. `baseline_seconds` and
 
 Returns {seconds_estimate, baseline_seconds, importance_seconds,
 total_batches, importance_batches, importance_blocks, range,
-per_run_ms, pilot_runs, estimate_seconds, cached, advice}.
+per_run_ms, pilot_runs, estimate_seconds, cached, advice,
+storage_bytes_estimate, event_log_bytes_estimate, storage_note}: the
+last three say how much the run will write to disk (the availability
+plot is sampled at the model's own interval on every run).
 
 **Parameters**
 
@@ -2592,6 +2595,7 @@ per_run_ms, pilot_runs, estimate_seconds, cached, advice}.
 | `baseline_seconds` | number | yes |
 | `cached` | boolean | yes |
 | `estimate_seconds` | number | yes |
+| `event_log_bytes_estimate` | integer | yes |
 | `importance_batches` | integer | yes |
 | `importance_blocks` | integer | yes |
 | `importance_mode` | string | yes |
@@ -2601,6 +2605,8 @@ per_run_ms, pilot_runs, estimate_seconds, cached, advice}.
 | `range` | object | yes |
 | `seconds_estimate` | number | yes |
 | `setup_s` | number | yes |
+| `storage_bytes_estimate` | integer | yes |
+| `storage_note` | string | yes |
 | `total_batches` | integer | yes |
 
 **Example**
@@ -2661,6 +2667,12 @@ still in the workspace, the job id is not.
 
 Run a simulation and return structured results.
 
+`availability_plot` / `interim_cost`: record the availability-over-time
+plot (needed by `get_timeseries(series="availability")`) or the interim
+cost report for this run. Left out, the model's own Recording settings
+decide, as in the GUI; they are off in a new model, because each one is
+a sampling timer inside the simulation that costs run time.
+
 `hierarchy` (a name or id) runs just that hierarchy on its own, its input
 always available -- useful for checking part of a model. This is a port
 extension, not a Raptor feature: the result carries an `isolation` object
@@ -2706,11 +2718,13 @@ boundary node reports no lost flow.
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `availability_plot` | boolean \| null | no | `null` | — |
 | `collect_events` | boolean | no | `false` | — |
 | `confirm_long_run` | boolean | no | `false` | — |
 | `date` | string \| null | no | `null` | — |
 | `hierarchy` | string \| integer \| null | no | `null` | — |
 | `importance` | string \| null | no | `null` | `none`, `improvement`, `risk`, `both` |
+| `interim_cost` | boolean \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
 | `num_runs` | integer \| null | no | `null` | — |
 | `run_length` | number \| null | no | `null` | — |
@@ -2790,7 +2804,9 @@ shows `phase` (`setting_up` while a big model is being prepared, then
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `availability_plot` | boolean \| null | no | `null` | — |
 | `collect_events` | boolean | no | `false` | — |
+| `interim_cost` | boolean \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
 | `num_runs` | integer \| null | no | `null` | — |
 | `run_length` | number \| null | no | `null` | — |

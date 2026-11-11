@@ -160,7 +160,10 @@ def estimate_runtime(model_id: str, num_runs: int = 10,
 
     Returns {seconds_estimate, baseline_seconds, importance_seconds,
     total_batches, importance_batches, importance_blocks, range,
-    per_run_ms, pilot_runs, estimate_seconds, cached, advice}.
+    per_run_ms, pilot_runs, estimate_seconds, cached, advice,
+    storage_bytes_estimate, event_log_bytes_estimate, storage_note}: the
+    last three say how much the run will write to disk (the availability
+    plot is sampled at the model's own interval on every run).
     """
     ws = context.workspace()
     from raptor.api.estimate import estimate
@@ -185,6 +188,11 @@ def estimate_runtime(model_id: str, num_runs: int = 10,
         "estimate_seconds": round(est.estimate_seconds, 3),
         "cached": est.cached,
         "advice": est.advice,
+        "storage_bytes_estimate": (None if est.storage_bytes_est is None
+                                   else round(est.storage_bytes_est)),
+        "event_log_bytes_estimate": (None if est.event_log_bytes_est is None
+                                     else round(est.event_log_bytes_est)),
+        "storage_note": est.storage_note,
     }
     split = ""
     if est.importance_batches:
@@ -197,7 +205,8 @@ def estimate_runtime(model_id: str, num_runs: int = 10,
           f"completion for {num_runs} runs (range "
           f"{data['range']['low']:.2f}–{data['range']['high']:.2f} s), "
           f"from {data['pilot_runs']} pilot run(s) at "
-          f"{data['per_run_ms']:.1f} ms/replication.{split}\n\n{est.advice}")
+          f"{data['per_run_ms']:.1f} ms/replication.{split}\n\n{est.advice}"
+          + (f"\n\n{est.storage_note}" if est.storage_note else ""))
     return ok(data, markdown=md)
 
 
@@ -216,9 +225,17 @@ async def simulate(  # noqa: PLR0912, PLR0915
     hierarchy: str | int | None = None,
     treatments: dict | None = None,
     importance: Literal["none", "improvement", "risk", "both"] | None = None,
+    availability_plot: bool | None = None,
+    interim_cost: bool | None = None,
     ctx: Context | None = None,
 ) -> CallToolResult:
     """Run a simulation and return structured results.
+
+    `availability_plot` / `interim_cost`: record the availability-over-time
+    plot (needed by `get_timeseries(series="availability")`) or the interim
+    cost report for this run. Left out, the model's own Recording settings
+    decide, as in the GUI; they are off in a new model, because each one is
+    a sampling timer inside the simulation that costs run time.
 
     `hierarchy` (a name or id) runs just that hierarchy on its own, its input
     always available -- useful for checking part of a model. This is a port
@@ -323,7 +340,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
             num_runs=num_runs, run_length=run_length, workers=workers,
             timeout_s=timeout_s, collect_events=collect_events,
             confirm_long_run=confirm_long_run, date=date, abort=abort,
-            progress=progress, seed=seed)
+            progress=progress, seed=seed,
+            availability_plot=availability_plot, interim_cost=interim_cost)
         if hierarchy is not None:
             from raptor.api import isolate
             try:
@@ -418,6 +436,8 @@ def start_run(
     timeout_s: float = 1800.0,
     collect_events: bool = False,
     seed: int | None = None,
+    availability_plot: bool | None = None,
+    interim_cost: bool | None = None,
 ) -> CallToolResult:
     """Start a simulation in the background and return a job id immediately.
 
@@ -472,7 +492,9 @@ def start_run(
                        run_length=run_length, workers=workers,
                        timeout_s=timeout_s, collect_events=collect_events,
                        confirm_long_run=True, abort=abort, progress=progress,
-                       setup_progress=setup_progress, seed=seed)
+                       setup_progress=setup_progress, seed=seed,
+                       availability_plot=availability_plot,
+                       interim_cost=interim_cost)
 
     job = async_runs.start(work, model_id=model_id, total=effective_runs)
     data = job.snapshot()

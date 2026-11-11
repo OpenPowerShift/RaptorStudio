@@ -189,8 +189,23 @@ def write_real(val: float, dec: int) -> str:
     rounded half AWAY from zero to `dec` places (Python's format rounds an
     exact half to even: 0.1640625 -> "0.164062", Raptor 7 prints "0.164063" --
     ReleaseProbe25's availability plot). Width padding is the caller's."""
+    # Python's own format rounds the exact binary value too, and differs from
+    # half-away only on an exact half. A binary float sits exactly half way
+    # between two `dec`-place decimals only when it is an odd multiple of
+    # 2**-(dec+1) (the 5**dec in the denominator must cancel), and scaling by
+    # a power of two is exact, so that test costs one multiply. Everything
+    # else takes the fast path: the availability plot calls this five times
+    # per sample, and the Decimal route was over half the cost of sampling.
+    scaled = val * _TIE_SCALE[dec] if dec < len(_TIE_SCALE) else None
+    if scaled is not None and (scaled != scaled or scaled in (math.inf, -math.inf)
+                               or scaled != int(scaled) or not int(scaled) & 1):
+        return f"{val:.{dec}f}"
     q = decimal.Decimal(val).quantize(decimal.Decimal(1).scaleb(-dec), rounding=decimal.ROUND_HALF_UP)
     return f"{q:.{dec}f}"
+
+
+#: 2**(dec+1) for each `dec`: see `write_real`.
+_TIE_SCALE = tuple(float(2 ** (d + 1)) for d in range(16))
 
 
 def real_to_str(val: float) -> str:

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os as _os
 import time
+from typing import Any
 
 from raptor.core.engine.load import load_model, resolve_defer_trigger
 from raptor.core.engine.driver import (
@@ -36,6 +37,9 @@ MP_CONTEXT = _os.environ.get("RAPTOR_MP_CONTEXT", "spawn")
 #: (one worker still runs the sequential path, which matches Raptor 7).
 #: More chunks also mean steadier progress and load balancing, at the cost
 #: of one engine-context rebuild (parse the .rbd, build the model) each.
+#: The availability plot's column header, written once per file.
+AO_HEADER = "SimulationTime        Ao        Green     Yellow    Red       Interval"
+
 _PARALLEL_CHUNKS = max(1, int(
     _os.environ.get("RAPTOR_PARALLEL_CHUNKS", "64")))
 
@@ -271,12 +275,22 @@ def _run_chunk_worker(payload):
     to corrupt any phased/annotated model under `num_workers > 1`.
     """
     (rbd_text, chunk_runs, stream_jump, ao_interval, cost_interval,
-     collect_logs, stream_seed, defer_trigger) = payload
+     collect_logs, stream_seed, defer_trigger) = payload[:8]
+    # Optional ninth field: where to spool this chunk's availability rows.
+    ao_spool_dir = payload[8] if len(payload) > 8 else None
     from raptor.core.fileio.rbds import parse_rbds
     rbd = parse_rbds(rbd_text)
     template = _model_template(rbd, rbd_text, defer_trigger)
     report_rows: list[RunReportData] = []
-    ao_lines: list[str] = []
+    # The availability plot is one row per sample interval per run, which
+    # on a long horizon is far more than fits in memory (and far more than
+    # is sensible to pickle back): when the parent's sink is on disk, this
+    # chunk's rows go to a file beside it and only the path travels.
+    ao_stream = None
+    ao_lines: Any = []
+    if ao_spool_dir is not None:
+        from raptor.core.result_streams import ResultStream
+        ao_stream = ao_lines = ResultStream("ao_part", directory=ao_spool_dir)
     cost_lines: list[str] = []
     _model, ctx = build_engine_ctx(
         rbd, num_runs=chunk_runs, report_sink=report_rows,
@@ -316,7 +330,9 @@ def _run_chunk_worker(payload):
             if _RUNAWAY_FLAG is not None:
                 _RUNAWAY_FLAG.set()      # the parent asks now, not at the end
         done += 1
-    return {"logs": logs_list, "reports": report_rows, "ao": ao_lines,
+    return {"logs": logs_list, "reports": report_rows,
+            "ao": [] if ao_stream is not None else ao_lines,
+            "ao_path": ao_stream.detach() if ao_stream is not None else None,
             "cost": cost_lines, "cap": cap_lines, "runaway": runaway,
             "done": done, "max_draws": max((c.draws for c in counting), default=0),
             "negative_draws": neg_runs}
@@ -432,6 +448,14 @@ def run_simulation(
         # updates regularly instead of only once or twice per batch. Smaller
         # chunks also load-balance better. Each chunk gets its own disjoint
         # RNG stream segment, so results stay statistically independent.
+        if _ao_sink is not None and not _ao_sink:
+            _ao_sink.append(AO_HEADER)
+        ao_spool_dir = None
+        # A disk-backed sink (`raptor.core.result_streams.ResultStream`).
+        ao_stream_sink: Any = (_ao_sink if hasattr(_ao_sink, "extend_from_file")
+                               else None)
+        if ao_stream_sink is not None:
+            ao_spool_dir = _os.path.dirname(ao_stream_sink.path)
         n_chunks = min(runs, _PARALLEL_CHUNKS)
         stride = max(RNG_M - 1, 1) // max(n_chunks, 1)
         base, extra = divmod(runs, n_chunks)
@@ -442,7 +466,7 @@ def run_simulation(
                 payloads.append((rbd_text, chunk,
                                  (w + 1) * stride, ao_plot_interval,
                                  cost_plot_interval, collect_logs,
-                                 stream_seed, defer_trigger))
+                                 stream_seed, defer_trigger, ao_spool_dir))
         all_logs_p: list[list[str]] = []
         neg_all: list[int] = []
         done_runs = 0
@@ -460,8 +484,21 @@ def run_simulation(
                 _report_sink.extend(res["reports"])
             if _capacity_sink is not None:
                 _capacity_sink.extend(res["cap"])
-            if _ao_sink is not None and res["ao"]:
-                _ao_sink.extend(res["ao"][1:])   # skip dup header
+            if res.get("ao_path"):
+                try:
+                    if ao_stream_sink is not None:
+                        ao_stream_sink.extend_from_file(res["ao_path"])
+                finally:
+                    try:
+                        _os.remove(res["ao_path"])
+                    except OSError:
+                        pass
+            elif _ao_sink is not None and res["ao"]:
+                # A chunk's rows carry no header (only this function writes
+                # one, below), so every row is data. This used to drop
+                # `[0]` as a "duplicate header", which lost the first
+                # sample of every chunk and left the file with no header.
+                _ao_sink.extend(res["ao"])
             if _cost_sink is not None and res["cost"]:
                 _cost_sink.extend(res["cost"])
             done_runs += res["done"]
@@ -564,7 +601,7 @@ def run_simulation(
     all_capacity_lines: list[str] = []
     if _ao_sink is not None and not _ao_sink:
         # -- file header, once.
-        _ao_sink.append("SimulationTime        Ao        Green     Yellow    Red       Interval")
+        _ao_sink.append(AO_HEADER)
     # Cost-analysis accumulators, one per RESOURCE pool (spare pools keep a
     # zeroed entry too so lookups always succeed). Reset every run below;
     # source resets PoolAddCost/PoolESCost per run.
