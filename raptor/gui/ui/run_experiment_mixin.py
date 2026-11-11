@@ -552,7 +552,19 @@ class RunExperimentMixin:
             if refresh_inspector and \
                     self._inspector.current_target() == ("system", None):
                 self._inspector.show_system_config()
-            self._update_readiness()
+            # This resync runs one event-loop turn after every edit, when
+            # the model's validity is not known yet, and the debounced
+            # validation pass that is about to run ends by updating the
+            # readiness line itself. Updating it here as well ran the
+            # whole-model validation (an engine load) synchronously after
+            # every edit: over a second per edit on a 1,000-block model.
+            cached = getattr(self, "_validity_cache", None)
+            timer = getattr(self, "_validation_timer", None)
+            pending = (timer is not None and timer.isActive()
+                       and (cached is None
+                            or cached[0] != getattr(self, "_model_revision", 0)))
+            if not pending:
+                self._update_readiness()
         except RuntimeError:
             # The deferred singleShot can fire after the window's C++
             # widgets were deleted (tests close windows aggressively).
@@ -617,17 +629,6 @@ class RunExperimentMixin:
         # model is actually invalid: readiness needs the count, not the
         # list, and rebuilding the list on every Simulate-tab click is
         # what made opening the tab pause on a large model.
-        #
-        # After an edit the answer is not known yet, and the debounced
-        # validation pass that is about to run ends by calling this method.
-        # Asking here instead ran the whole-model validation (an engine
-        # load) synchronously after every edit: over a second per edit on a
-        # 1,000-block model. Leave the line as it is for that moment.
-        cached = getattr(self, "_validity_cache", None)
-        timer = getattr(self, "_validation_timer", None)
-        if (cached is None or cached[0] != getattr(self, "_model_revision", 0)) \
-                and timer is not None and timer.isActive():
-            return
         valid = self._model_is_valid()
         issues = [] if valid else self._validation_issues()
         experiment = self._current_experiment()
