@@ -54,8 +54,8 @@ release-please, so it is the one version-adjacent thing you edit by hand.
 
 - It lives in `raptor/gui/ui/splash.py` as `RELEASE_CODENAME`.
 - Change it on `main` *before* merging the release PR, so the tag, the wheels and the installers all carry it.
-- Use the byline for the version being released, not the one in development: when 0.9 ships with "The Diagram Lives",
-  bump it to 0.10's byline immediately afterwards.
+- Use the byline for the version being released, not the one in development: when 0.9 shipped with "Nine Nines and a Dream",
+  it was bumped to 0.10's byline immediately afterwards.
 - Keep it short (it is drawn over the logo, in one line) and prefer something that names a feature of that release
   over a generic slogan.
 
@@ -63,6 +63,7 @@ Recent bylines:
 
 | Version | Byline |
 |---|---|
+| 0.10 | Flawlessly Failing Faster |
 | 0.9 | Nine Nines and a Dream |
 | 0.8 | Living in the Experiment |
 

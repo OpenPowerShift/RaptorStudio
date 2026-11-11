@@ -38,7 +38,7 @@ ICON_PATH = _RESOURCES / "raptor_icon.png"
 #: This release's codename. release-please bumps the version, but not
 #: this: set it by hand at the start of a release cycle (see
 #: RELEASING.md, "Release codename") so it ships in the same tag.
-RELEASE_CODENAME = "Nine Nines and a Dream"
+RELEASE_CODENAME = "Flawlessly Failing Faster"
 
 #: How long the splash sits before fading, and how long the fade takes.
 #: Module-level (not just default args) so `app.main()` can read the
