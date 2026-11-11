@@ -1,7 +1,7 @@
 """Rate definitions and expression resolution.
 
 Provides list_rates, add_rate, update_rate, delete_rate, and
-resolve_value, which wraps ``raptor.gui.ui.expr_eval.resolve`` (which
+resolve_value, which wraps ``raptor.core.expr_eval.resolve`` (which
 has no Qt imports).
 
 ``RbdFile.rates`` entries use the documented schema (see
@@ -237,7 +237,7 @@ def delete_rate(workspace: Workspace, model_id: str, name: str) -> dict:
 def resolve_value(text: Any, rates: list[dict] | None = None) -> float:
     """Resolve a numeric expression string to a float.
 
-    Wraps ``raptor.gui.ui.expr_eval.resolve`` (which has no Qt imports).
+    Wraps ``raptor.core.expr_eval.resolve`` (which has no Qt imports).
     *rates* is ``RbdFile.rates`` (list of dicts with documented
     ``name``/``value`` keys); ``@RateName`` references — including
     chained ones — resolve against those values.  A plain number passes
@@ -247,7 +247,7 @@ def resolve_value(text: Any, rates: list[dict] | None = None) -> float:
         raise BuildError(f"cannot resolve boolean {text!r} as a value")
     if isinstance(text, (int, float)):
         return float(text)
-    from raptor.gui.ui.expr_eval import resolve
+    from raptor.core.expr_eval import resolve
     return resolve(str(text), rates)
 
 
@@ -255,7 +255,7 @@ def is_expression(text: Any) -> bool:
     """Return True if *text* is an expression (not a plain number)."""
     if not isinstance(text, str):
         return False
-    from raptor.gui.ui.expr_eval import is_plain_number
+    from raptor.core.expr_eval import is_plain_number
     return not is_plain_number(text)
 
 

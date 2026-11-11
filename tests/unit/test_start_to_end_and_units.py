@@ -236,7 +236,7 @@ class TestDistroEditorUnitConversion:
 
     def test_the_parameter_fields_and_the_stats_agree(self, qapp):
         """The bug in one line: the form disagreed with itself."""
-        from raptor.gui.ui.units_conv import native_to_display
+        from raptor.core.units_conv import native_to_display
         e = self._editor(4, [8760.0, 0.0, 0.0], "hours", "years")
         field = e._param_edits[0].text()          # the Mean/scale field
         expected = native_to_display(8760.0, "hours", "years")

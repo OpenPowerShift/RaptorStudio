@@ -191,8 +191,8 @@ def test_top_to_bottom_layout_routes_ports_vertically():
     from PySide6.QtWidgets import QApplication
     from raptor.api.build import build_from_spec
     from raptor.gui.ui.diagram import DiagramView
-    from raptor.gui.ui.diagram_items import (
-        BLOCK_H, BLOCK_W, flow_direction, set_flow_direction)
+    from raptor.gui.ui.diagram_common import BLOCK_H, BLOCK_W
+    from raptor.gui.ui.diagram_items import flow_direction, set_flow_direction
     QApplication.instance() or QApplication([])
     rbd = build_from_spec({
         "name": "TB", "blocks": [{"name": "A"}, {"name": "B"}],
@@ -226,8 +226,8 @@ def test_left_to_right_layout_routes_ports_horizontally():
     from PySide6.QtWidgets import QApplication
     from raptor.api.build import build_from_spec
     from raptor.gui.ui.diagram import DiagramView
-    from raptor.gui.ui.diagram_items import (
-        BLOCK_H, BLOCK_W, set_flow_direction)
+    from raptor.gui.ui.diagram_common import BLOCK_H, BLOCK_W
+    from raptor.gui.ui.diagram_items import set_flow_direction
     QApplication.instance() or QApplication([])
     rbd = build_from_spec({
         "name": "LR", "blocks": [{"name": "A"}, {"name": "B"}],
@@ -308,7 +308,7 @@ def test_lr_band_handover_is_pinned_bottom_to_top_by_saved_points():
     """A wrapped LR band returns to the next band as one straight run,
     leaving the bottom of the last block and entering the top of the first.
     Two routing points, stored in the file, pin it."""
-    from raptor.gui.ui.diagram_items import BLOCK_H, BLOCK_W
+    from raptor.gui.ui.diagram_common import BLOCK_H, BLOCK_W
     view = _chain_view("LRBand", 8, "LR", 4)
     try:
         handovers = _handover_links(view, "LR")
@@ -339,7 +339,7 @@ def test_lr_band_handover_is_pinned_bottom_to_top_by_saved_points():
 def test_vertical_band_handover_is_pinned_beside_the_bands():
     """A wrapped TB band leaves by the right side and enters the next
     band's first block by its left side."""
-    from raptor.gui.ui.diagram_items import BLOCK_H, BLOCK_W
+    from raptor.gui.ui.diagram_common import BLOCK_H, BLOCK_W
     view = _chain_view("TBBand", 6, "TB", 3)
     try:
         handovers = _handover_links(view, "TB")

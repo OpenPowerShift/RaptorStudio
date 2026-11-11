@@ -20,7 +20,7 @@ from PySide6.QtWidgets import QApplication
 
 from raptor.core.fileio.rbd import load_rbd
 from raptor.gui.ui import msgbox
-from raptor.gui.ui import main_window as main_window_module
+from raptor.gui.ui import step_terminate_mixin as terminate_module
 from raptor.gui.ui.main_window import MainWindow
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -90,13 +90,13 @@ def test_terminate_keeps_the_event_loop_alive(window, qapp, monkeypatch):
         return original()
 
     monkeypatch.setattr(session, "early_terminate", slow_early_terminate)
-    original_final_report = main_window_module.build_final_results_report
+    original_final_report = terminate_module.build_final_results_report
 
     def slow_final_report(*args, **kwargs):
         time.sleep(0.2)
         return original_final_report(*args, **kwargs)
 
-    monkeypatch.setattr(main_window_module, "build_final_results_report",
+    monkeypatch.setattr(terminate_module, "build_final_results_report",
                         slow_final_report)
 
     entered = []

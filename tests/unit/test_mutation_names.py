@@ -7,7 +7,7 @@ fall off the end of a 257-line if-chain and silently discard the user's
 edit; the editor now raises `UnknownEditKey`, and this test catches the
 mismatch at test time instead of at a user's keyboard.
 
-It parses `diagram.py`'s AST for the pushed strings and checks them against
+It parses the canvas modules' AST for the pushed strings and checks them against
 the editor's own table, so nothing here is a hand-kept copy that can rot.
 """
 from __future__ import annotations
@@ -18,9 +18,13 @@ import pathlib
 from raptor.gui.model_edit import PM_OPTION_ATTRS, ModelEditor
 
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
-SRC = (REPO / "raptor" / "gui" / "ui" / "diagram.py").read_text(
-    encoding="utf-8")
-TREE = ast.parse(SRC)
+UI = REPO / "raptor" / "gui" / "ui"
+#: The canvas is `diagram.py` plus the mixins its `DiagramView` is built from.
+CANVAS_FILES = [UI / "diagram.py", *sorted(UI.glob("diagram_*_mixin.py"))]
+TREE = ast.Module(
+    body=[node for f in CANVAS_FILES
+          for node in ast.parse(f.read_text(encoding="utf-8")).body],
+    type_ignores=[])
 
 #: Pushed through f-strings, so the AST scan cannot see them:
 #:   f"event {field}"      -> event dist / param / stream

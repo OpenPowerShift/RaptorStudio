@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from raptor.gui.ui.expr_eval import (
+from raptor.core.expr_eval import (
     ExpressionError, eval_expression, is_bare_rate_ref, is_plain_number,
     resolve,
 )

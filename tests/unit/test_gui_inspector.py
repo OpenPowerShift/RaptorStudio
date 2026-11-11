@@ -24,10 +24,8 @@ from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QLineEdit
 from raptor.core.fileio.rbd import load_rbd
 from raptor.gui.resources.design_tokens import ThemeManager
 from raptor.core.distro_rules import DISTRO_NAMES
-from raptor.gui.ui.inspector import (
-    validate_distro_params,
-    InspectorDock,
-)
+from raptor.core.distro_rules import validate_distro_params
+from raptor.gui.ui.inspector import InspectorDock
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

@@ -68,7 +68,17 @@ class TestNoSecondCopy:
     @pytest.mark.parametrize("path", [
         "raptor/api/validate.py",
         "raptor/gui/ui/inspector.py",
+        "raptor/gui/ui/inspector_common.py",
+        "raptor/gui/ui/inspector_rows_mixin.py",
+        "raptor/gui/ui/inspector_block_mixin.py",
+        "raptor/gui/ui/inspector_node_mixin.py",
+        "raptor/gui/ui/inspector_annotation_mixin.py",
         "raptor/gui/ui/data_tables.py",
+        "raptor/gui/ui/data_tables_common.py",
+        "raptor/gui/ui/data_tables_keyed_mixin.py",
+        "raptor/gui/ui/data_tables_costs_mixin.py",
+        "raptor/gui/ui/data_tables_sparing_mixin.py",
+        "raptor/gui/ui/data_tables_edit_mixin.py",
         "raptor/gui/ui/distro_editor.py",
         "raptor/gui/ui/dialogs.py",
         "raptor/gui/ui/phasing_dialog.py",
@@ -83,7 +93,17 @@ class TestNoSecondCopy:
     @pytest.mark.parametrize("path", [
         "raptor/api/validate.py",
         "raptor/gui/ui/inspector.py",
+        "raptor/gui/ui/inspector_common.py",
+        "raptor/gui/ui/inspector_rows_mixin.py",
+        "raptor/gui/ui/inspector_block_mixin.py",
+        "raptor/gui/ui/inspector_node_mixin.py",
+        "raptor/gui/ui/inspector_annotation_mixin.py",
         "raptor/gui/ui/data_tables.py",
+        "raptor/gui/ui/data_tables_common.py",
+        "raptor/gui/ui/data_tables_keyed_mixin.py",
+        "raptor/gui/ui/data_tables_costs_mixin.py",
+        "raptor/gui/ui/data_tables_sparing_mixin.py",
+        "raptor/gui/ui/data_tables_edit_mixin.py",
         "raptor/gui/ui/distro_editor.py",
         "raptor/gui/ui/dialogs.py",
         "raptor/gui/ui/phasing_dialog.py",
@@ -188,7 +208,7 @@ class TestBothDoorsGetTheSameRule:
 
     def test_the_inspector_imports_the_canonical_function(self):
         from raptor.core import distro_rules
-        from raptor.gui.ui import inspector
+        from raptor.gui.ui import inspector_rows_mixin as inspector
         assert inspector.validate_distro_params \
             is distro_rules.validate_distro_params
 
@@ -196,7 +216,7 @@ class TestBothDoorsGetTheSameRule:
         """A cross-check that would have caught the original drift, and
         that the old "three golden fixtures" claim could not support."""
         from raptor.api.validate import validate_distro_params as api_v
-        from raptor.gui.ui.inspector import (
+        from raptor.gui.ui.inspector_rows_mixin import (
             validate_distro_params as gui_v,
         )
         import itertools

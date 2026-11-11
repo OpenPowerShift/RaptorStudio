@@ -21,7 +21,7 @@ from raptor.api.results import COST_FIELDS, Metric
 # never drag Qt into a headless MCP process; fall back to a no-op when
 # the GUI package is unavailable.
 try:  # pragma: no cover - exercised via the fallback only off-tree
-    from raptor.gui.ui.units_conv import (
+    from raptor.core.units_conv import (
         native_to_display as _native_to_display,
     )
 except Exception:  # pragma: no cover
@@ -839,3 +839,26 @@ def diff_markdown(result: dict) -> str:
     for w in result.get("warnings") or []:
         lines += ["", f"*Warning: {w}*"]
     return "\n".join(lines)
+
+
+def markdown_table(headers: list[str], rows: list[list[Any]]) -> str:
+    """Render a simple Markdown table."""
+    lines = [
+        "| " + " | ".join(str(h) for h in headers) + " |",
+        "| " + " | ".join("---" for _ in headers) + " |",
+    ]
+    for row in rows:
+        lines.append("| " + " | ".join(_table_cell(v) for v in row) + " |")
+    return "\n".join(lines)
+
+
+def _table_cell(value: Any) -> str:
+    if value is None:
+        return "N/A"
+    if isinstance(value, float):
+        return f"{value:.6g}"
+    # Model-controlled text: keep it inside one table cell and don't let a
+    # pipe create a fake column.  This is containment, not a substitute for
+    # treating the content as untrusted data.
+    return (str(value).replace("\\", "\\\\").replace("|", "\\|")
+            .replace("\r", " ").replace("\n", " "))

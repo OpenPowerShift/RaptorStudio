@@ -48,7 +48,7 @@ def test_the_first_run_after_an_edit_uses_the_edit(win, monkeypatch):
     def fake_run(rbd, *a, **k):
         seen["value"] = float(_row(rbd, bid)["FParam1"])
         raise RuntimeError("stop here")
-    import raptor.gui.ui.main_window as mw
+    import raptor.gui.ui.run_mixin as mw
     monkeypatch.setattr(mw, "run_simulation_with_reports", fake_run)
     monkeypatch.setattr(win, "_maybe_save_before_run", lambda: True)
     monkeypatch.setattr(mw.msgbox, "critical", lambda *a, **k: None)

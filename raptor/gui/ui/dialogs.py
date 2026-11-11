@@ -722,8 +722,8 @@ def show_preferences(win):
     model_page = QWidget()
     model_form = QFormLayout(model_page)
     model_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-    from raptor.gui.ui.units_conv import DISPLAY_UNIT_CHOICES
-    from raptor.gui.ui.units_conv import parse_display_unit
+    from raptor.core.units_conv import DISPLAY_UNIT_CHOICES
+    from raptor.core.units_conv import parse_display_unit
     display_unit_combo = QComboBox()
     display_unit_combo.setEditable(True)
     for choice in DISPLAY_UNIT_CHOICES:
@@ -923,7 +923,7 @@ def show_system_config(win):
     # same call the (now removed) Simulation Options form resolved via
     # its dynamic per-mode
     # label/value switch).
-    from raptor.gui.ui.units_conv import native_to_display, display_to_native
+    from raptor.core.units_conv import native_to_display, display_to_native
     native_units = cfg.units
     display_unit = getattr(win._rbd, "display_unit", None)
     shown_units = display_unit or native_units
@@ -1165,7 +1165,7 @@ def _dist_message() -> QLabel:
 def _add_stats_rows(form, win, combo, spins, *, to_canonical=None):
     """Mean and Std Dev rows under a distribution + parameters, as every other distribution entry shows them;
     returns the function that recomputes them. Parameters not offered (a one-parameter dialog) count as 0."""
-    from raptor.gui.ui.inspector import compute_stats
+    from raptor.core.engine.diststats import compute_stats
     units = (win._current_units() if hasattr(win, "_current_units") else "") or ""
     suffix = f" ({units})" if units else ""
     mean_l, sd_l = QLabel("—"), QLabel("—")

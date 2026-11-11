@@ -520,7 +520,7 @@ def test_the_blank_model_template_names_a_real_status_image() -> None:
     """`.rbds` does not store `imageString`; a file built from a blank model
     inherits this template value, so it must be one legacy can load."""
     from raptor.core.fileio.rbd import _LEGACY_IMAGE_FAMILIES, parse_rbd
-    from raptor.gui.new_model import NEW_MODEL_TEXT
+    from raptor.core.edit.new_model import NEW_MODEL_TEXT
 
     image = parse_rbd(NEW_MODEL_TEXT).section("SYSTEM_DATA").rows[0]["imageString"]
     assert image[:4] in _LEGACY_IMAGE_FAMILIES, image

@@ -22,8 +22,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from raptor.api.build import build_from_spec
+from raptor.core.edit.hierarchy_plan import plan_collapse
 from raptor.core.input_rules import check
-from raptor.gui.ui import diagram
+from tests.unit.diagram_patch import swap
 from raptor.gui.ui.diagram import DiagramView
 
 
@@ -231,7 +232,7 @@ def test_collapse_at_the_start_of_the_chain_keeps_working(qapp):
 # ---------------------------------------------------------------------------
 
 def test_collapse_refuses_atomically_when_the_outgoing_half_is_lost(
-        qapp, monkeypatch):
+        qapp, monkeypatch, request):
     """If the plan cannot rebuild a boundary half, the model must be left
     EXACTLY as it was and the user told why -- issue #72's invalid model
     must never be committed."""
@@ -245,7 +246,7 @@ def test_collapse_refuses_atomically_when_the_outgoing_half_is_lost(
     assert "HIERARCHY_DATA" not in rbd.sections or not \
         rbd.sections["HIERARCHY_DATA"].rows
 
-    real = diagram.plan_collapse
+    real = plan_collapse
 
     def broken(*args, **kwargs):
         plan = real(*args, **kwargs)
@@ -256,7 +257,8 @@ def test_collapse_refuses_atomically_when_the_outgoing_half_is_lost(
             if not (op[0] == "add" and op[1].get("FromType") == "Hier")]
         return plan
 
-    monkeypatch.setattr(diagram, "plan_collapse", broken)
+    restore_plan = swap("plan_collapse", broken)
+    request.addfinalizer(restore_plan)
 
     shown: list[str] = []
     from raptor.gui.ui import msgbox

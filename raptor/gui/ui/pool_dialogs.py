@@ -405,7 +405,7 @@ class _EntityDialog(QDialog):
                 self.form.addRow(label, e)
                 self._editors[col] = e
             elif kind == "float":
-                from raptor.gui.ui.units_conv import native_to_display
+                from raptor.core.units_conv import native_to_display
                 e = QDoubleSpinBox()
                 e.setRange(-1e12, 1e12)
                 e.setDecimals(4)
@@ -530,7 +530,7 @@ class _EntityDialog(QDialog):
         -> the model's own native unit here -- the row (and everything
         downstream: RowCellCmd, the saved file) only ever sees native
         values, matching every other field in this app."""
-        from raptor.gui.ui.units_conv import display_to_native
+        from raptor.core.units_conv import display_to_native
         for _label, col, kind in self.spec["fields"]:
             w = self._editors.get(col)
             if w is None:

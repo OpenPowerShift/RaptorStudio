@@ -18,7 +18,7 @@ import pytest
 from raptor.api.build import BuildError
 from raptor.api.annotations import place_annotation
 from raptor.core.fileio.rbd import parse_rbd
-from raptor.gui.new_model import NEW_MODEL_TEXT
+from raptor.core.edit.new_model import NEW_MODEL_TEXT
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ The golden records every `AddCmd` the method pushes (kind and rows) and the
 returned id, for several host/imported model pairs at the top level and
 inside a hierarchy, plus the error for an import without exactly one
 Start/End. Captured from the ORIGINAL implementation before the id
-remapping moved into the Qt-free `raptor.gui.hierarchy_plan`. Regenerate on
+remapping moved into the Qt-free `raptor.core.edit.hierarchy_plan`. Regenerate on
 purpose with `python tests/unit/test_import_hierarchy_characterization.py
 --write`.
 """
@@ -23,6 +23,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from tests.unit.diagram_patch import swap
 from tests.unit.golden_support import (
     assert_matches_golden, plain, regenerate)
 
@@ -47,8 +48,7 @@ def observe() -> dict:
             super().__init__("rec")
             captured.append([kind, plain(rows)])
 
-    real = diagram.AddCmd
-    diagram.AddCmd = RecCmd
+    restore_cmd = swap("AddCmd", RecCmd)
     out: dict = {}
     try:
         for host in HOSTS:
@@ -101,7 +101,7 @@ def observe() -> dict:
             finally:
                 rbd_mod.load_rbd = real_load
     finally:
-        diagram.AddCmd = real
+        restore_cmd()
     return out
 
 

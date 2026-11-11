@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
 
 from raptor.api.rates import find_rate, prune_formulas, rate_name_conflict
 from raptor.gui.resources.design_tokens import SPACING, active_colour
-from raptor.gui.ui.expr_eval import resolve, ExpressionError
+from raptor.core.expr_eval import resolve, ExpressionError
 
 
 class RatesCmd(QUndoCommand):

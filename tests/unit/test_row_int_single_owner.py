@@ -40,11 +40,11 @@ REPO = Path(__file__).resolve().parent.parent.parent
 #: its sentinel decision was lost rather than consolidated.
 CONSOLIDATED = {
     "raptor/gui/ui/diagram_common.py": "-1",
-    "raptor/gui/hierarchy_plan.py": "-1",
+    "raptor/core/edit/hierarchy_plan.py": "-1",
     "raptor/gui/clipboard_plan.py": "-1",
     "raptor/gui/model_edit.py": "None",
     "raptor/gui/ui/phasing_dialog.py": "0",
-    "raptor/gui/ui/inspector.py": "0",   # _i_raw's own default
+    "raptor/gui/ui/inspector_common.py": "0",   # _i_raw's own default
 }
 
 
@@ -101,10 +101,10 @@ class TestTheSixthCopyIsGone:
         """Structural: AST-based, since these functions may legitimately
         mention the coercion in prose."""
         for rel in ("raptor/gui/model_edit.py",
-                    "raptor/gui/hierarchy_plan.py",
+                    "raptor/core/edit/hierarchy_plan.py",
                     "raptor/gui/clipboard_plan.py",
                     "raptor/gui/ui/diagram_common.py",
-                    "raptor/gui/ui/inspector.py"):
+                    "raptor/gui/ui/inspector_common.py"):
             tree = ast.parse((REPO / rel).read_text())
             for fn in ast.walk(tree):
                 if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -156,7 +156,7 @@ class TestEachSentinelSurvived:
     def test_the_lookup_modules_still_reject_garbage_ids(self):
         """The `-1` sentinel's job: a garbage id must not collide with a
         real one."""
-        for rel in ("raptor/gui/hierarchy_plan.py",
+        for rel in ("raptor/core/edit/hierarchy_plan.py",
                     "raptor/gui/clipboard_plan.py",
                     "raptor/gui/ui/diagram_common.py"):
             src = (REPO / rel).read_text()

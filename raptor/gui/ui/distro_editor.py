@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from raptor.core.distro_rules import (
     DISTRO_PARAM_LABELS, validate_distro_params, param_error,
     params_after_change)
-from raptor.gui.ui.inspector import compute_stats
+from raptor.core.engine.diststats import compute_stats
 from raptor.gui.ui import param_entry
 
 
@@ -94,7 +94,7 @@ class DistroEditor(QWidget):
         when there is no native unit to convert from, which is also the
         case for a probability-valued distribution whose mean is a
         probability rather than a duration."""
-        from raptor.gui.ui.units_conv import native_to_display
+        from raptor.core.units_conv import native_to_display
         if not self._units:
             return v
         return native_to_display(v, self._units, self._display_unit)
@@ -106,7 +106,7 @@ class DistroEditor(QWidget):
 
     def _entry_values(self) -> list[float]:
         """Current canonical values in shown units, then entry space."""
-        from raptor.gui.ui.units_conv import native_to_display
+        from raptor.core.units_conv import native_to_display
         shown = [
             native_to_display(v, self._units, self._display_unit)
             if self._is_time_param(j) else v
@@ -119,7 +119,7 @@ class DistroEditor(QWidget):
         return f"{self._entry_values()[idx]:.6g}"
 
     def _display_to_native(self, v: float) -> float:
-        from raptor.gui.ui.units_conv import display_to_native
+        from raptor.core.units_conv import display_to_native
         if not self._units:
             return v
         return display_to_native(v, self._units, self._display_unit)
@@ -231,7 +231,7 @@ class DistroEditor(QWidget):
             edit.setText(self._display_text(idx))
             self.validation_failed.emit("not a number")
             return
-        from raptor.gui.ui.units_conv import native_to_display, display_to_native
+        from raptor.core.units_conv import native_to_display, display_to_native
         shown_old = [
             native_to_display(val, self._units, self._display_unit)
             if self._is_time_param(j) else val

@@ -10,7 +10,8 @@ from PySide6.QtWidgets import QApplication
 from raptor.api.build import build_from_spec
 from raptor.gui.ui import diagram as diagram_mod
 from raptor.gui.ui.diagram import DiagramView
-from raptor.gui.ui.diagram_items import BLOCK_W, _LinkItem
+from raptor.gui.ui.diagram_common import BLOCK_W
+from raptor.gui.ui.diagram_items import _LinkItem
 
 
 @pytest.fixture(scope="module")

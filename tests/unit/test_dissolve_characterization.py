@@ -4,7 +4,7 @@ The golden records what the method hands `DissolveCmd` (rows to remove,
 parent and link rewrites, boundary rewiring) plus the status message, for
 every hierarchy of every golden fixture that has one, captured from the
 ORIGINAL inline implementation before the planning moved into the Qt-free
-`raptor.gui.hierarchy_plan`. Regenerate on purpose with
+`raptor.core.edit.hierarchy_plan`. Regenerate on purpose with
 `python tests/unit/test_dissolve_characterization.py --write`.
 """
 from __future__ import annotations
@@ -22,6 +22,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from tests.unit.diagram_patch import swap
 from tests.unit.golden_support import (
     assert_matches_golden, plain, regenerate)
 
@@ -46,8 +47,7 @@ def observe() -> dict:
             super().__init__("rec")
             captured.append(plain(list(args)))
 
-    real = diagram.DissolveCmd
-    diagram.DissolveCmd = RecCmd
+    restore_cmd = swap("DissolveCmd", RecCmd)
     out: dict = {}
     try:
         for p in sorted((REPO / "tests" / "golden").glob("*/input.rbd")):
@@ -69,7 +69,7 @@ def observe() -> dict:
                 out[f"{p.parent.name}:{case}"] = {
                     "args": list(captured), "status": list(msgs)}
     finally:
-        diagram.DissolveCmd = real
+        restore_cmd()
     return out
 
 

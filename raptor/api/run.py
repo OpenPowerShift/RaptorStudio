@@ -1229,7 +1229,7 @@ def get_timeseries(
 
     preview = list(zip(t[:15], values[:15])) if runs != "all" else []
     if preview:
-        from raptor.mcp.result import markdown_table
+        from raptor.api.markdown import markdown_table
         markdown = markdown_table(["t", label], [list(p) for p in preview])
     else:
         markdown = f"{n_runs} run(s) included; {len(t)} sample(s)."

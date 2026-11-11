@@ -1297,7 +1297,7 @@ class CollapseCmd(_ViewCmd):
         self.link_ops = [(op, dict(r), i) for op, r, i in link_ops]
 
     def _apply(self, forward: bool):
-        from raptor.gui.hierarchy_plan import (apply_collapse_plan,
+        from raptor.core.edit.hierarchy_plan import (apply_collapse_plan,
                                                revert_collapse_plan)
         v = self._v
         rbd = v._rbd_ref

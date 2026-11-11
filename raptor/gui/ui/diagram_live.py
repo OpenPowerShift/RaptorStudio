@@ -48,6 +48,9 @@ def _flow_label(flow: int) -> str:
 class LiveOverlayMixin:
     """Colours the canvas items from live engine state and run results."""
 
+    #: True while `load_rbd` places items (owned by `DiagramView`).
+    _loading: bool = False
+
     #: Live-view block colours: Raptor's own outerColor CASE
     #: Sourced from APPENDIX_D_STATE_COLOURS
     #: (single source of truth). The extra "Done flips to LimeGreen once

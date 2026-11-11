@@ -269,7 +269,7 @@ def test_save_as_moves_the_models_name_with_the_file(qapp, tmp_path,
     """A model built as NewModel.rbd must report (and manifest) itself
     under the file it was actually saved to, without a reopen."""
     from raptor.core.run_manifest import build_manifest
-    from raptor.gui.new_model import build_new_model
+    from raptor.core.edit.new_model import build_new_model
 
     win = MainWindow()
     win._load_into_app(build_new_model("NewModel"), None)

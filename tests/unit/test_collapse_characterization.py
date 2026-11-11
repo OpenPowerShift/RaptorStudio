@@ -5,7 +5,7 @@ For several selections on several fixtures -- with and without an existing
 HIERARCHY_DATA section -- the golden records what `CollapseCmd` receives,
 the returned id, and the file's section order afterwards. Captured from the
 ORIGINAL implementation before the planning moved into the Qt-free
-`raptor.gui.hierarchy_plan` / `raptor.gui.row_ops`. Regenerate on purpose
+`raptor.core.edit.hierarchy_plan` / `raptor.core.edit.row_ops`. Regenerate on purpose
 with `python tests/unit/test_collapse_characterization.py --write`.
 """
 from __future__ import annotations
@@ -23,6 +23,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from tests.unit.diagram_patch import swap
 from tests.unit.golden_support import (
     assert_matches_golden, plain, regenerate)
 
@@ -61,8 +62,7 @@ def observe() -> dict:
             super().__init__("rec")
             captured.append(plain([list(args), kw]))
 
-    real = diagram.CollapseCmd
-    diagram.CollapseCmd = RecCmd
+    restore_cmd = swap("CollapseCmd", RecCmd)
     # A selection a hierarchy cannot hold (entered or left by more than one
     # link, Raptor 7's CheckValidLink) is refused with a message box. This
     # runs in a module fixture, before the per-test modal guard exists, so
@@ -105,7 +105,7 @@ def observe() -> dict:
                             v._rbd_ref.sections["HIERARCHY_DATA"].rows)
                         if "HIERARCHY_DATA" in v._rbd_ref.sections else None}
     finally:
-        diagram.CollapseCmd = real
+        restore_cmd()
         msgbox.warning = real_warning
     return out
 

@@ -3,7 +3,7 @@ than the model's native one. Pure conversion-math tests -- no PySide6
 needed."""
 from __future__ import annotations
 
-from raptor.gui.ui.units_conv import (
+from raptor.core.units_conv import (
     HOURS_PER_UNIT, convertible, native_to_display, display_to_native,
 )
 

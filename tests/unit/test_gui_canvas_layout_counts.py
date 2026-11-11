@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 from raptor.api.build import build_from_spec  # noqa: E402
 from raptor.core.fileio.rbd import load_rbd  # noqa: E402
 from raptor.gui.ui import settings  # noqa: E402
-from raptor.gui.ui.diagram_items import BLOCK_W  # noqa: E402
+from raptor.gui.ui.diagram_common import BLOCK_W  # noqa: E402
 from raptor.gui.ui.main_window import MainWindow  # noqa: E402
 
 pytestmark = pytest.mark.gui

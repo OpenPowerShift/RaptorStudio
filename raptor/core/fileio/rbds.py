@@ -686,7 +686,7 @@ def save_rbds(rbd: RbdFile, path: str, meta: dict | None = None) -> None:
 
 def _base_model() -> RbdFile:
     from raptor.core.fileio.rbd import parse_rbd
-    from raptor.gui.new_model import NEW_MODEL_TEXT  # template source
+    from raptor.core.edit.new_model import NEW_MODEL_TEXT  # template source
     return parse_rbd(NEW_MODEL_TEXT.replace(
         "NewModel.rbd        Thu Jan 01 00:00:00 2026",
         "model.rbds         Thu Jan 01 00:00:00 2026"))
