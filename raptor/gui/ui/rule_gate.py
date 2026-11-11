@@ -79,6 +79,7 @@ class RuleGatedStack:
         # it twice per edit was most of an edit's cost on a large model.
         self._moves = 0
         self._known: tuple[int, set] | None = None
+        self._found_keys: set | None = None
         stack.indexChanged.connect(self._on_stack_moved)
 
     def _on_stack_moved(self, _index: int) -> None:
@@ -125,9 +126,14 @@ class RuleGatedStack:
         return None if found is None else {v.key for v in found}
 
     def _added(self, before: set | None) -> list[Violation]:
-        if before is None:
+        """The violations the model has now that it did not have `before`.
+        Leaves what it found in `_found_keys` for the caller to remember
+        (None when the model could not be read)."""
+        found = self._current()
+        self._found_keys = (None if found is None or self._off
+                            else {v.key for v in found})
+        if before is None or found is None:
             return []
-        found = self._current() or []
         return [v for v in found if v.key not in before]
 
     def _refuse(self, added: list[Violation]) -> None:
@@ -154,13 +160,12 @@ class RuleGatedStack:
             before = self._keys()
         self._known = None
         self._stack.push(cmd)
-        found = self._current()
-        added = ([] if before is None or found is None
-                 else [v for v in found if v.key not in before])
+        self._found_keys = None
+        added = self._added(before)
         if added:
             self._refuse(added)
-        elif found is not None and not self._off:
-            self._known = (self._moves, {v.key for v in found})
+        elif self._found_keys is not None:
+            self._known = (self._moves, self._found_keys)
 
     def beginMacro(self, text: str) -> None:
         if self._depth == 0:
@@ -178,10 +183,9 @@ class RuleGatedStack:
         self._depth = max(0, self._depth - 1)
         if self._depth == 0:
             before, self._before = self._before, None
-            found = self._current()
-            added = ([] if before is None or found is None
-                     else [v for v in found if v.key not in before])
+            self._found_keys = None
+            added = self._added(before)
             if added:
                 self._refuse(added)
-            elif found is not None and not self._off:
-                self._known = (self._moves, {v.key for v in found})
+            elif self._found_keys is not None:
+                self._known = (self._moves, self._found_keys)
