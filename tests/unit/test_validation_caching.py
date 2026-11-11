@@ -243,3 +243,124 @@ def test_a_move_command_skips_the_rule_gate(qapp):
     assert item.pos() == new
     assert win._dirty
 
+
+
+def test_an_edit_does_not_validate_before_the_debounced_pass(qapp):
+    """The pass after an edit is debounced so typing stays responsive. Two
+    callers asked for validity synchronously one event-loop turn after every
+    edit (the view refresh and the Run panel's readiness line), which ran
+    the whole-model validation ahead of the timer: over a second per edit
+    on a 1,000-block model."""
+    from raptor.core.fileio.rbd import load_rbd
+
+    win = _window(qapp)
+    win._load_into_app(load_rbd(MODEL), MODEL)
+    view = _level_with_blocks(win)
+    qapp.processEvents()
+    calls = _count_passes(win)
+    bid = next(iter(view._block_items))
+    view.rename_block(bid, "RenamedForTest")
+    qapp.processEvents()            # the deferred view refresh and resync
+    qapp.processEvents()
+    assert calls == [], "an edit validated the model before the debounce"
+    assert win._validation_timer.isActive()
+    # The debounced pass still runs, and leaves validity known again.
+    win._validation_timer.stop()
+    win._validate_model(quiet=True)
+    assert len(calls) >= 1
+    assert win._model_is_valid() in (True, False)
+    assert win._validity_cache[0] == win._model_revision
+
+
+def test_the_rule_gate_checks_the_model_once_per_edit(qapp):
+    """The gate compares the model's rule violations before and after a
+    push. The model before a push is the model after the last one, so its
+    violations are remembered instead of being worked out again."""
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.gui.ui import rule_gate
+
+    win = _window(qapp)
+    win._load_into_app(load_rbd(MODEL), MODEL)
+    view = _level_with_blocks(win)
+    ids = list(view._block_items)[:2]
+    calls: list[int] = []
+    real = rule_gate.check
+    rule_gate.check = lambda model: (calls.append(1), real(model))[1]
+    try:
+        view.rename_block(ids[0], "GateFirst")
+        first = len(calls)
+        view.rename_block(ids[1], "GateSecond")
+        second = len(calls) - first
+        # An undo moves the stack, so what was remembered no longer
+        # describes the model: the next edit checks both sides again.
+        view._stack.undo()
+        before_third = len(calls)
+        view.rename_block(ids[1], "GateThird")
+        third = len(calls) - before_third
+    finally:
+        rule_gate.check = real
+    assert first == 2 and second == 1 and third == 2
+
+
+def test_the_rule_gate_still_refuses_after_a_remembered_check(qapp, monkeypatch):
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.gui.ui import msgbox
+
+    win = _window(qapp)
+    win._load_into_app(load_rbd(MODEL), MODEL)
+    view = _level_with_blocks(win)
+    ids = list(view._block_items)[:2]
+    shown: list[str] = []
+    monkeypatch.setattr(msgbox, "warning",
+                        lambda _parent, _title, text, *a, **k: shown.append(text))
+    view.rename_block(ids[0], "GateOk")           # remembered baseline
+    old = view.blocks[ids[1]].name
+    view.rename_block(ids[1], "has a space")      # Raptor 7 refuses blanks
+    assert shown, "a rule-breaking edit after a remembered check was accepted"
+    assert view.blocks[ids[1]].name == old
+
+
+def test_the_gate_snapshot_is_independent_of_the_model(qapp):
+    import copy
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.gui.ui.rule_gate import _snapshot
+
+    rbd = load_rbd(MODEL)
+    snap = _snapshot(rbd)
+    assert snap is not rbd and snap.sections is not rbd.sections
+    for name, sec in rbd.sections.items():
+        assert snap.sections[name].rows == sec.rows
+        assert all(a is not b for a, b in zip(snap.sections[name].rows, sec.rows))
+    reference = copy.deepcopy(rbd)
+    # Writing the snapshot leaves the model as it was.
+    for sec in snap.sections.values():
+        for row in sec.rows:
+            for key in row:
+                row[key] = "changed"
+    snap.counts["x"] = 1
+    assert all(rbd.sections[n].rows == reference.sections[n].rows
+               for n in rbd.sections)
+    assert "x" not in rbd.counts
+
+
+def test_a_macro_reuses_and_leaves_the_remembered_check(qapp):
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.gui.ui import rule_gate
+
+    win = _window(qapp)
+    win._load_into_app(load_rbd(MODEL), MODEL)
+    view = _level_with_blocks(win)
+    ids = list(view._block_items)[:3]
+    calls: list[int] = []
+    real = rule_gate.check
+    rule_gate.check = lambda model: (calls.append(1), real(model))[1]
+    try:
+        view.rename_block(ids[0], "MacroFirst")           # 2: before and after
+        view._stack.beginMacro("two renames")
+        view.rename_block(ids[1], "MacroSecond")
+        view.rename_block(ids[2], "MacroThird")
+        view._stack.endMacro()                            # 1: after only
+        view.rename_block(ids[0], "MacroFourth")          # 1: after only
+    finally:
+        rule_gate.check = real
+    assert len(calls) == 4

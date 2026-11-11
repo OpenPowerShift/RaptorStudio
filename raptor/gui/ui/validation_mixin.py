@@ -200,6 +200,8 @@ class ValidationMixin(_Base):
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             self._statusbar.showMessage("Checking the model…")
             QApplication.processEvents()
+        import time as _time
+        started = _time.perf_counter()
         try:
             issues = self._validation_issues()
             # This is the one place the whole model is validated anyway, so
@@ -212,6 +214,14 @@ class ValidationMixin(_Base):
         finally:
             if announce:
                 QApplication.restoreOverrideCursor()
+        # The pass runs on the GUI thread, so on a large model it is a pause
+        # (about 2 s at 5,000 blocks). Wait longer before the next one in
+        # proportion: someone making several edits in a row then gets one
+        # pause after the last of them, not one between each pair. A small
+        # model keeps the 600 ms it always had.
+        if timer is not None:
+            took = _time.perf_counter() - started
+            timer.setInterval(int(min(5000, max(600, 3000 * took))))
         self._set_validation_badge(not issues, issues, warnings)
         # The Run panel's "Not ready — N problem(s)" line is computed
         # from the same issue list, so it is refreshed from here -- the

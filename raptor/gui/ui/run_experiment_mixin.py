@@ -552,7 +552,19 @@ class RunExperimentMixin:
             if refresh_inspector and \
                     self._inspector.current_target() == ("system", None):
                 self._inspector.show_system_config()
-            self._update_readiness()
+            # This resync runs one event-loop turn after every edit, when
+            # the model's validity is not known yet, and the debounced
+            # validation pass that is about to run ends by updating the
+            # readiness line itself. Updating it here as well ran the
+            # whole-model validation (an engine load) synchronously after
+            # every edit: over a second per edit on a 1,000-block model.
+            cached = getattr(self, "_validity_cache", None)
+            timer = getattr(self, "_validation_timer", None)
+            pending = (timer is not None and timer.isActive()
+                       and (cached is None
+                            or cached[0] != getattr(self, "_model_revision", 0)))
+            if not pending:
+                self._update_readiness()
         except RuntimeError:
             # The deferred singleShot can fire after the window's C++
             # widgets were deleted (tests close windows aggressively).

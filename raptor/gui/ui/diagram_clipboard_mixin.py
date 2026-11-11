@@ -643,24 +643,73 @@ class ClipboardMixin(_Base):
             existing_link for existing_link in self.links
             if alive(existing_link.connect_f_ref, existing_link.connect_from_id)
             and alive(existing_link.connect_t_ref, existing_link.connect_to_id)]
+        # Keep every link item whose two ends are still the same canvas
+        # items, and only add or remove the ones that changed. Deleting one
+        # block used to throw away and rebuild every link on the level, and
+        # each new link routed itself in its constructor, which rescanned the
+        # whole scene for the link index: about 24 s on a 1,000-block level
+        # for a change that touches a handful of links.
+        existing: dict[int, _LinkItem] = {}
+        for li in self._links:
+            num = li._link_num
+            if num is None or num in existing or not isValid(li):
+                continue
+            existing[num] = li
+        owned = {id(li) for li in existing.values()}
+        # Anything else link-shaped on the scene (an item this list lost
+        # track of) goes, as the full rebuild always did.
         for item in list(self._scene.items()):
-            if isinstance(item, _LinkItem):
+            if isinstance(item, _LinkItem) and id(item) not in owned:
                 self._scene.removeItem(item)
-        self._links[:] = []
+        kept: list[_LinkItem] = []
+        added: list[_LinkItem] = []
+        touched: dict[int, Any] = {}
+
+        def touch(li: _LinkItem) -> None:
+            for end in (li._from, li._to):
+                if end is not None and isValid(end):
+                    touched[id(end)] = end
+
         for link in self.links:
             src = self._resolve_link_endpoint(
                 link.connect_f_ref, link.connect_from_id)
             dst = self._resolve_link_endpoint(
                 link.connect_t_ref, link.connect_to_id)
-            if src is not None and dst is not None:
-                li = _LinkItem(src, dst, link_num=link.object_num)
-                self._links.append(li)
-                self._scene.addItem(li)
+            if src is None or dst is None:
+                continue
+            link_item: _LinkItem | None = existing.pop(link.object_num, None)
+            if link_item is not None and (link_item._from is not src or link_item._to is not dst):
+                touch(link_item)
+                self._scene.removeItem(link_item)
+                link_item = None
+            if link_item is None:
+                link_item = _LinkItem(src, dst, link_num=link.object_num,
+                               defer_route=True)
+                self._scene.addItem(link_item)
+                added.append(link_item)
+                touch(link_item)
+            kept.append(link_item)
+        for li in existing.values():        # their link is gone
+            touch(li)
+            self._scene.removeItem(li)
+        changed = len(added) + len(existing)
+        self._links[:] = kept
         # Ports depend on an element's other links (its incoming side
-        # fixes its outgoing side), so recompute every route once they
-        # all exist rather than leaving the earlier ones with a partial
-        # picture of the topology.
+        # fixes its outgoing side), so re-route once every link exists
+        # rather than leaving the earlier ones with a partial picture of
+        # the topology. A small change re-routes only the links that meet
+        # an element whose links changed; a large one re-routes them all.
         self._clear_route_caches()
+        if changed * 4 >= max(len(kept), 1):
+            reroute = list(kept)
+        else:
+            from raptor.gui.ui.diagram_link_items import _links_at
+            seen: dict[int, _LinkItem] = {id(li): li for li in added}
+            for end in touched.values():
+                incoming, outgoing = _links_at(end)
+                for li in (*incoming, *outgoing):
+                    seen[id(li)] = li
+            reroute = list(seen.values())
         with routing_batch(self._scene):
-            for li in self._links:
+            for li in reroute:
                 li._update_route()

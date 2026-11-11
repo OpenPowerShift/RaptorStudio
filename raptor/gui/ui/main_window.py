@@ -2610,10 +2610,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             # Whatever the change was -- a hierarchy added, deleted,
             # dissolved, collapsed, or any of those undone -- the commands
             # that depend on what is on the canvas may have changed too.
+            # None of these four reads validity, so the state is built
+            # without it: asking for it here ran the whole-model validation
+            # (an engine load) synchronously after every single edit, ahead
+            # of the debounced pass that exists to keep typing responsive.
             try:
-                self._refresh_commands(only={"can_zoom_hierarchy",
-                                             "can_align", "can_mass_edit",
-                                             "can_extract_hierarchy"})
+                self._refresh_commands(
+                    self._command_state(reuse_validity=True),
+                    only={"can_zoom_hierarchy", "can_align",
+                          "can_mass_edit", "can_extract_hierarchy"})
             except Exception:
                 pass
         finally:
