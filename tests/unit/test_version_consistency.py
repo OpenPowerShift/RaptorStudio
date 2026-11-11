@@ -64,8 +64,11 @@ def test_uv_lock_records_the_same_version():
     own = [package["version"] for package in lock["package"]
            if package["name"] == "raptor-studio"]
     assert own == [_pyproject()], (
-        "uv.lock records a different raptor-studio version; run `uv lock` "
-        "(release-please updates it through release-please-config.json)")
+        "uv.lock records a different raptor-studio version. release-please cannot "
+        "edit uv.lock (its TOML updater has no filter support), so on the "
+        "release PR's branch set the raptor-studio entry's version line in "
+        "uv.lock to the new version and push it; see RELEASING.md, "
+        "\"Merge the release PR\"")
 
 
 def test_release_please_updates_every_versioned_file():
