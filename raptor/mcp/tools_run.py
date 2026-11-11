@@ -225,9 +225,17 @@ async def simulate(  # noqa: PLR0912, PLR0915
     hierarchy: str | int | None = None,
     treatments: dict | None = None,
     importance: Literal["none", "improvement", "risk", "both"] | None = None,
+    availability_plot: bool | None = None,
+    interim_cost: bool | None = None,
     ctx: Context | None = None,
 ) -> CallToolResult:
     """Run a simulation and return structured results.
+
+    `availability_plot` / `interim_cost`: record the availability-over-time
+    plot (needed by `get_timeseries(series="availability")`) or the interim
+    cost report for this run. Left out, the model's own Recording settings
+    decide, as in the GUI; they are off in a new model, because each one is
+    a sampling timer inside the simulation that costs run time.
 
     `hierarchy` (a name or id) runs just that hierarchy on its own, its input
     always available -- useful for checking part of a model. This is a port
@@ -332,7 +340,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
             num_runs=num_runs, run_length=run_length, workers=workers,
             timeout_s=timeout_s, collect_events=collect_events,
             confirm_long_run=confirm_long_run, date=date, abort=abort,
-            progress=progress, seed=seed)
+            progress=progress, seed=seed,
+            availability_plot=availability_plot, interim_cost=interim_cost)
         if hierarchy is not None:
             from raptor.api import isolate
             try:
@@ -427,6 +436,8 @@ def start_run(
     timeout_s: float = 1800.0,
     collect_events: bool = False,
     seed: int | None = None,
+    availability_plot: bool | None = None,
+    interim_cost: bool | None = None,
 ) -> CallToolResult:
     """Start a simulation in the background and return a job id immediately.
 
@@ -481,7 +492,9 @@ def start_run(
                        run_length=run_length, workers=workers,
                        timeout_s=timeout_s, collect_events=collect_events,
                        confirm_long_run=True, abort=abort, progress=progress,
-                       setup_progress=setup_progress, seed=seed)
+                       setup_progress=setup_progress, seed=seed,
+                       availability_plot=availability_plot,
+                       interim_cost=interim_cost)
 
     job = async_runs.start(work, model_id=model_id, total=effective_runs)
     data = job.snapshot()

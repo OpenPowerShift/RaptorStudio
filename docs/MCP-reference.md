@@ -2663,6 +2663,12 @@ still in the workspace, the job id is not.
 
 Run a simulation and return structured results.
 
+`availability_plot` / `interim_cost`: record the availability-over-time
+plot (needed by `get_timeseries(series="availability")`) or the interim
+cost report for this run. Left out, the model's own Recording settings
+decide, as in the GUI; they are off in a new model, because each one is
+a sampling timer inside the simulation that costs run time.
+
 `hierarchy` (a name or id) runs just that hierarchy on its own, its input
 always available -- useful for checking part of a model. This is a port
 extension, not a Raptor feature: the result carries an `isolation` object
@@ -2708,11 +2714,13 @@ boundary node reports no lost flow.
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `availability_plot` | boolean \| null | no | `null` | — |
 | `collect_events` | boolean | no | `false` | — |
 | `confirm_long_run` | boolean | no | `false` | — |
 | `date` | string \| null | no | `null` | — |
 | `hierarchy` | string \| integer \| null | no | `null` | — |
 | `importance` | string \| null | no | `null` | `none`, `improvement`, `risk`, `both` |
+| `interim_cost` | boolean \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
 | `num_runs` | integer \| null | no | `null` | — |
 | `run_length` | number \| null | no | `null` | — |
@@ -2792,7 +2800,9 @@ shows `phase` (`setting_up` while a big model is being prepared, then
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `availability_plot` | boolean \| null | no | `null` | — |
 | `collect_events` | boolean | no | `false` | — |
+| `interim_cost` | boolean \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
 | `num_runs` | integer \| null | no | `null` | — |
 | `run_length` | number \| null | no | `null` | — |

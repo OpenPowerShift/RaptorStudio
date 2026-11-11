@@ -162,6 +162,10 @@ def run_model(ws: Any, model_id: str, args: Any, *,
         num_runs=None, run_length=None,
         workers=max(1, getattr(args, "jobs", 1) or 1), timeout_s=timeout,
         collect_events="events" in (wanted or ()),
+        # A plot asked for by name is recorded for this run; otherwise the
+        # model's own Recording settings decide, as they do in the GUI.
+        availability_plot=True if "ao-plot" in (wanted or ()) else None,
+        interim_cost=True if "interim-cost" in (wanted or ()) else None,
         confirm_long_run=True, seed=getattr(args, "seed", None),
         progress=progress,
         setup_progress=_setup_callback(getattr(args, "progress", "auto")))

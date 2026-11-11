@@ -87,7 +87,8 @@ def test_format_bytes():
 def test_estimate_matches_what_a_run_writes(tmp_path):
     ws = Workspace(tmp_path)
     mid = ws.open_model(GOLDEN / "MotorDemo" / "input.rbd")["model_id"]
-    result = api_run(ws, mid, num_runs=3, confirm_long_run=True)
+    result = api_run(ws, mid, num_runs=3, confirm_long_run=True,
+                     availability_plot=True)
     ao = section_path(ws.root / "runs" / result.run_id, "availability_plot")
     assert ao is not None and ao.is_file()
     experiment = experiment_of(ws.get(mid).rbd)
@@ -106,7 +107,8 @@ def test_estimate_matches_what_a_run_writes(tmp_path):
 def test_parallel_run_spools_worker_rows_to_disk(tmp_path):
     ws = Workspace(tmp_path)
     mid = ws.open_model(GOLDEN / "MotorDemo" / "input.rbd")["model_id"]
-    result = api_run(ws, mid, num_runs=4, workers=2, confirm_long_run=True)
+    result = api_run(ws, mid, num_runs=4, workers=2, confirm_long_run=True,
+                     availability_plot=True)
     ao = section_path(ws.root / "runs" / result.run_id, "availability_plot")
     lines = ao.read_text().splitlines()
     assert lines[0].startswith("SimulationTime")
@@ -114,7 +116,8 @@ def test_parallel_run_spools_worker_rows_to_disk(tmp_path):
     assert sum("End_of_Run_" in line for line in lines) == 4
     assert not list(ws.root.glob(".spool-*"))
     # Same rows as a one-core batch: a chunk used to lose its first sample.
-    single = api_run(ws, mid, num_runs=4, workers=1, confirm_long_run=True)
+    single = api_run(ws, mid, num_runs=4, workers=1, confirm_long_run=True,
+                     availability_plot=True)
     one = section_path(ws.root / "runs" / single.run_id, "availability_plot")
     assert len(one.read_text().splitlines()) == len(lines)
 
@@ -190,3 +193,47 @@ def test_rough_run_time_follows_failures_not_run_hours():
     assert rough_run_seconds(year, cycle_rate=None) is None
     assert rough_run_seconds(dict(year, termination_type="FailSim"),
                              cycle_rate=1.0) is None
+
+
+def test_a_run_records_plots_only_when_the_model_or_the_caller_asks(tmp_path):
+    """The command line and MCP used to sample the availability plot and the
+    interim cost report on every run; the GUI only when they were ticked.
+    Each is a timer inside the simulation, so the two could order
+    same-instant events differently, and every run paid for the sampling."""
+    ws = Workspace(tmp_path)
+    mid = ws.open_model(GOLDEN / "MotorDemo" / "input.rbd")["model_id"]
+    plain = api_run(ws, mid, num_runs=2, confirm_long_run=True)
+    run_dir = ws.root / "runs" / plain.run_id
+    assert not section_path(run_dir, "availability_plot").exists()
+    assert not section_path(run_dir, "cost").exists()
+    asked = api_run(ws, mid, num_runs=2, confirm_long_run=True,
+                    availability_plot=True, interim_cost=True)
+    run_dir = ws.root / "runs" / asked.run_id
+    assert section_path(run_dir, "availability_plot").is_file()
+    assert section_path(run_dir, "cost").is_file()
+    # The model's own Recording setting is what a plain run follows.
+    rbd = ws.get(mid).rbd
+    experiment = experiment_of(rbd)
+    experiment["recording"]["ao_plot"] = True
+    rbd.experiment = experiment
+    ticked = api_run(ws, mid, num_runs=2, confirm_long_run=True)
+    assert section_path(ws.root / "runs" / ticked.run_id,
+                        "availability_plot").is_file()
+    off = api_run(ws, mid, num_runs=2, confirm_long_run=True,
+                  availability_plot=False)
+    assert not section_path(ws.root / "runs" / off.run_id,
+                            "availability_plot").exists()
+
+
+def test_the_engine_run_is_the_same_from_the_api_as_without_sinks(tmp_path):
+    """Parity: a plain API run is the engine run with no plot sinks, which
+    is what the GUI does with nothing ticked."""
+    from raptor.core.engine.runner import run_simulation_with_reports
+    from raptor.core.fileio.rbd import load_rbd
+    ws = Workspace(tmp_path)
+    mid = ws.open_model(GOLDEN / "MotorDemo" / "input.rbd")["model_id"]
+    api = api_run(ws, mid, num_runs=3, confirm_long_run=True)
+    _logs, eor, _final = run_simulation_with_reports(
+        load_rbd(str(GOLDEN / "MotorDemo" / "input.rbd")), num_runs=3,
+        report_sink=[], collect_logs=False)
+    assert api.end_of_run.splitlines()[2:] == "\n".join(eor).splitlines()[2:]

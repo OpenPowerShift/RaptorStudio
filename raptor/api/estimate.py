@@ -303,12 +303,18 @@ class _TimedSink(list):
 
 
 def _run_like_a_batch(rbd: RbdFile, **kwargs: Any) -> None:
-    """`run_simulation_with_reports` with the outputs a real batch always
-    asks for (`raptor.api.run`): the availability plot, capacity and cost
-    files. Each samples or records during every replication, so a pilot
-    without them under-estimated a run by about 3x on FactoryDemo."""
+    """`run_simulation_with_reports` with the outputs a real batch of this
+    model asks for (`raptor.api.run`): the capacity file always, and the
+    availability plot and interim cost report when the model's Recording
+    settings tick them. Each samples or records during every replication,
+    so the pilot must do what the run will do: no more, and no less."""
+    from raptor.core.storage_estimate import experiment_of
+    record = experiment_of(rbd).get("recording") or {}
     run_simulation_with_reports(
-        rbd, collect_logs=False, ao_sink=[], capacity_sink=[], cost_sink=[],
+        rbd, collect_logs=False,
+        ao_sink=[] if record.get("ao_plot") else None,
+        capacity_sink=[],
+        cost_sink=[] if record.get("cost_plot") else None,
         **kwargs)
 
 
@@ -487,9 +493,9 @@ def storage_for(rbd: RbdFile, num_runs: int,
                     float | None, float | None, str]:
     """(bytes always written, event-log bytes if collected, a sentence).
 
-    The API always records the availability plot at the model's own sample
-    interval, and the interim cost report when cost analysis is on, so
-    those two are what a run is certain to write."""
+    A run records the availability plot and the interim cost report when
+    the model's Recording settings ask for them, so those are what it is
+    certain to write."""
     from raptor.core.storage_estimate import (estimate_storage,
                                               experiment_of, format_bytes)
 
@@ -500,8 +506,7 @@ def storage_for(rbd: RbdFile, num_runs: int,
         experiment["term_condition"] = float(run_length)
     est = estimate_storage(
         experiment, rbd,
-        recording={"ao_plot": True, "cost_plot": True, "event_log": True,
-                   "capacity_plot": False})
+        recording={"event_log": True, "capacity_plot": False})
     always = [i for i in est.items if i.key != "event_log"]
     log = est.item("event_log")
     if any(i.bytes is None for i in always):
@@ -509,7 +514,9 @@ def storage_for(rbd: RbdFile, num_runs: int,
                             "lasts (the run does not stop at a fixed time).")
     total = sum(i.bytes or 0.0 for i in always)
     ao = est.item("ao_plot")
-    note = f"Writes about {format_bytes(total)} to disk"
+    note = (f"Writes about {format_bytes(total)} to disk" if always
+            else "Records no plots (none are ticked in the model's "
+                 "Recording settings)")
     if ao is not None and ao.note:
         interval = experiment["recording"]["ao_interval"]
         note += (f" (availability plot: {ao.note} at the model's sample "

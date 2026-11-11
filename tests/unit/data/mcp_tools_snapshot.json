@@ -702,11 +702,13 @@
  },
  "simulate": {
   "params": [
+   "availability_plot",
    "collect_events",
    "confirm_long_run",
    "date",
    "hierarchy",
    "importance",
+   "interim_cost",
    "model_id",
    "num_runs",
    "run_length",
@@ -732,7 +734,9 @@
  },
  "start_run": {
   "params": [
+   "availability_plot",
    "collect_events",
+   "interim_cost",
    "model_id",
    "num_runs",
    "run_length",

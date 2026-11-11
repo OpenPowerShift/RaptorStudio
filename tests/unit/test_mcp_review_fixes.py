@@ -396,7 +396,8 @@ def test_round_two_mcp_guards(tmp_path):
     assert bad.is_error and "Unknown element kind" in _text(bad)
 
     run_id = sc(call("simulate", {"model_id": mid, "num_runs": 2,
-                                  "run_length": 10}))["run_id"]
+                                  "run_length": 10,
+                                  "availability_plot": True}))["run_id"]
     other = sc(call("create_model", {"name": "other"}))["model_id"]
     crossed = call("get_table", {"model_id": other, "run_id": run_id,
                                  "table": "results.summary"})
