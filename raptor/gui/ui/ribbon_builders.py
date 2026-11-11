@@ -326,9 +326,14 @@ class RibbonBuilders(_Base):
 
         self._step_change_action = QAction("Step to next change", self)
         self._step_change_action.setToolTip(
-            "Step to the next change: run on until an instant in which something changed state "
+            "Step to the next change (F10): run on until an instant in which something changed state "
             "has been analysed, then pause (Step itself advances one calendar entry)")
         self._step_change_action.triggered.connect(self._on_step_change)
+        # It lives in the More Steps menu, which is not a child of the
+        # window while closed: a menu-only action's shortcut would work
+        # only with the menu open. Added to the window so F10 always does.
+        self._step_change_action.setShortcut("F10")
+        self.addAction(self._step_change_action)
         self._step_change_action.setEnabled(False)
         self._commands.track(self._step_change_action, "can_simulate")
 

@@ -120,6 +120,14 @@ class StepMixin(_Base):
             # writes the model and so trips the edit-during-run guard's
             # modal.
             self._disable_run_panel_for_run()
+            # A stepped run can be started from any tab (F6), and what it
+            # needs next -- Finish, Restart, Terminate, the other steps --
+            # is on Debug. Starting one used to leave the ribbon where it
+            # was, with nothing on screen to end the session by.
+            try:
+                self._ribbon.select_page("Debug")
+            except (AttributeError, KeyError):
+                pass
         return self._step_session
 
     def _bp_name(self):

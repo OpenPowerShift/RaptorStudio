@@ -132,9 +132,14 @@ sessions.
 | F5 | Run batch |
 | F6 | Step one event |
 | Shift+F6 | Next Time — step through every event at the current sim time in one click, stop when time advances |
+| F10 | Step to next change — run on until something changes state, then pause |
+| F8 | Finish — run the stepped simulation to completion and produce reports |
+| Shift+F5 | Terminate — end the stepped run at the current sim time, keeping partial results |
+| Ctrl+Shift+F5 | Restart — discard the stepped run and begin a fresh one |
+| F9 | Pause or resume a running batch |
 | Ctrl+Shift+R | Show the Results panel full height |
 | F7 | Validate model |
-| Esc | Stop a running batch |
+| Esc | Pause a running batch; Esc again stops it |
 
 ## Key tips
 Press **Alt** (and release) to put a letter over **File** and each ribbon

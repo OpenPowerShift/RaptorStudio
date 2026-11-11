@@ -160,7 +160,7 @@ current value).
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
-|Pause |Pause |
+|Pause |Pause or resume the run (F9; Esc also pauses, Esc again stops) |F9
 |Stop |Stop |
 |Jump |While stepping: let this run finish and stop at the next run's first change. In a background batch: abandon the current run and start the next one |
 |===
@@ -191,10 +191,10 @@ current value).
 |Control |What it does |Shortcut / value
 |Step |Advance the simulation ONE event (F6) — watch states change event-by-event |F6
 |Next Time |Advance to the next DISTINCT simulation time (Shift+F6) — steps through every event at the current time in one click |Shift+F6
-|Finish |Run the stepped simulation to completion and produce reports |
+|Finish |Run the stepped simulation to completion and produce reports (F8) |F8
 |More Steps |Other ways to advance: to the next change, several events at once, or run to a target time |
-|Restart |Restart (B-11): discard this stepped run and begin a fresh one — all state reset to kickoff values |
-|Terminate |Early Terminate: finalize the stepped run at the CURRENT sim time — partial results are kept |
+|Restart |Restart: discard this stepped run and begin a fresh one — all state reset to kickoff values (Ctrl+Shift+F5) |Ctrl+Shift+F5
+|Terminate |Early Terminate: finalize the stepped run at the CURRENT sim time — partial results are kept (Shift+F5) |Shift+F5
 |Focus Event |Centre the view on the element that changed at each step |
 |===
 
