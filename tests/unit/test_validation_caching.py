@@ -318,3 +318,49 @@ def test_the_rule_gate_still_refuses_after_a_remembered_check(qapp, monkeypatch)
     view.rename_block(ids[1], "has a space")      # Raptor 7 refuses blanks
     assert shown, "a rule-breaking edit after a remembered check was accepted"
     assert view.blocks[ids[1]].name == old
+
+
+def test_the_gate_snapshot_is_independent_of_the_model(qapp):
+    import copy
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.gui.ui.rule_gate import _snapshot
+
+    rbd = load_rbd(MODEL)
+    snap = _snapshot(rbd)
+    assert snap is not rbd and snap.sections is not rbd.sections
+    for name, sec in rbd.sections.items():
+        assert snap.sections[name].rows == sec.rows
+        assert all(a is not b for a, b in zip(snap.sections[name].rows, sec.rows))
+    reference = copy.deepcopy(rbd)
+    # Writing the snapshot leaves the model as it was.
+    for sec in snap.sections.values():
+        for row in sec.rows:
+            for key in row:
+                row[key] = "changed"
+    snap.counts["x"] = 1
+    assert all(rbd.sections[n].rows == reference.sections[n].rows
+               for n in rbd.sections)
+    assert "x" not in rbd.counts
+
+
+def test_a_macro_reuses_and_leaves_the_remembered_check(qapp):
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.gui.ui import rule_gate
+
+    win = _window(qapp)
+    win._load_into_app(load_rbd(MODEL), MODEL)
+    view = _level_with_blocks(win)
+    ids = list(view._block_items)[:3]
+    calls: list[int] = []
+    real = rule_gate.check
+    rule_gate.check = lambda model: (calls.append(1), real(model))[1]
+    try:
+        view.rename_block(ids[0], "MacroFirst")           # 2: before and after
+        view._stack.beginMacro("two renames")
+        view.rename_block(ids[1], "MacroSecond")
+        view.rename_block(ids[2], "MacroThird")
+        view._stack.endMacro()                            # 1: after only
+        view.rename_block(ids[0], "MacroFourth")          # 1: after only
+    finally:
+        rule_gate.check = real
+    assert len(calls) == 4

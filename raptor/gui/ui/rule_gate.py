@@ -29,6 +29,31 @@ from raptor.core.input_rules import (
     Violation, check, hierarchy_depth_violations, refusal_text)
 
 
+def _snapshot(rbd: Any) -> Any:
+    """A copy of the model whose rows can be written without touching the
+    original's.
+
+    The rows are flat dicts of strings, which is nearly all of a model, so
+    they are copied as such; `copy.deepcopy` walked every cell through its
+    memo and took a second on a 5,000-block model, twice per edit. Anything
+    that is not a row (the experiment, annotations, rates...) is small and
+    is deep-copied as before."""
+    from raptor.core.fileio.rbd import RbdSection
+    snap = copy.copy(rbd)
+    for name, value in vars(rbd).items():
+        if name == "sections":
+            continue
+        if isinstance(value, (list, dict, set)):
+            setattr(snap, name, copy.deepcopy(value))
+    snap.sections = {
+        key: RbdSection(
+            sec.name, list(sec.columns),
+            [{k: (v if isinstance(v, str) else copy.deepcopy(v))
+              for k, v in row.items()} for row in sec.rows])
+        for key, sec in rbd.sections.items()}
+    return snap
+
+
 class _Discard(QUndoCommand):
     """Pushed after a refused edit is undone: it deletes the redo tail (any
     push does) and then itself (it is obsolete)."""
@@ -91,7 +116,7 @@ class RuleGatedStack:
             # nest hierarchies deeper than can be opened. The rows hold the
             # hierarchy structure already, so no copy is needed.
             return hierarchy_depth_violations(rbd)
-        snapshot = copy.deepcopy(rbd)
+        snapshot = _snapshot(rbd)
         editor.write_back(snapshot, hier_ids=set(getattr(view, "_hier_items", {})))
         return [v for v in check(snapshot) if v.kind != "run"]
 
@@ -139,7 +164,12 @@ class RuleGatedStack:
 
     def beginMacro(self, text: str) -> None:
         if self._depth == 0:
-            self._before = self._keys()
+            known = self._known
+            if known is not None and known[0] == self._moves and not self._off:
+                self._before = known[1]
+            else:
+                self._before = self._keys()
+            self._known = None
         self._depth += 1
         self._stack.beginMacro(text)
 
@@ -147,7 +177,11 @@ class RuleGatedStack:
         self._stack.endMacro()
         self._depth = max(0, self._depth - 1)
         if self._depth == 0:
-            added = self._added(self._before)
-            self._before = None
+            before, self._before = self._before, None
+            found = self._current()
+            added = ([] if before is None or found is None
+                     else [v for v in found if v.key not in before])
             if added:
                 self._refuse(added)
+            elif found is not None and not self._off:
+                self._known = (self._moves, {v.key for v in found})
