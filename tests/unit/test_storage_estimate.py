@@ -71,6 +71,36 @@ def test_cost_plot_needs_the_cost_analysis():
     assert estimate_storage(experiment, elements=10).item("cost_plot")
 
 
+def test_interim_cost_grows_with_the_number_of_blocks():
+    """Every sample writes a row for every block in several tables, which is
+    why this recording is the large one on a big model (measured: 6.4 MB for
+    2 runs x 12 samples of 1,000 blocks)."""
+    experiment = _experiment(event_log=False, cost_plot=True)
+    experiment.update({"analyses": ["cost"], "trials": 2,
+                       "term_condition": 8760.0})
+    big = estimate_storage(experiment, blocks=1000).item("cost_plot")
+    assert big.bytes == pytest.approx(6.4e6, rel=0.1)
+    small = estimate_storage(experiment, blocks=17).item("cost_plot")
+    assert small.bytes == pytest.approx(145_000, rel=0.15)
+
+
+def test_capacity_plot_is_counted_and_small():
+    experiment = _experiment(event_log=False, capacity_plot=True)
+    experiment["analyses"] = []
+    assert estimate_storage(experiment, cycle_rate=0.01).items == []
+    experiment["analyses"] = ["capacity"]
+    item = estimate_storage(experiment, cycle_rate=0.01).item("capacity_plot")
+    assert item is not None and item.approximate and 0 < item.bytes < 5e6
+
+
+def test_the_summary_says_what_each_recording_adds():
+    experiment = _experiment(ao_plot=True, cost_plot=True, event_log=True)
+    experiment["analyses"] = ["cost"]
+    text = estimate_storage(experiment, cycle_rate=0.01, blocks=50).summary()
+    assert "interim cost" in text and "availability plot" in text
+    assert "detailed event log" in text
+
+
 def test_cycle_rate_reads_block_rows_without_loading_the_engine():
     from raptor.core.fileio.rbd import load_rbd
     rbd = load_rbd(str(GOLDEN / "MotorDemo" / "input.rbd"))

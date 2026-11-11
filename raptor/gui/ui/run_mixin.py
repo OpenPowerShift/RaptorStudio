@@ -333,18 +333,20 @@ class RunMixin(_Base):
             manifest=(state.get("run_metadata") or {}).get("manifest"),
             importance_total=total)
 
-    #: Ask before a run expected to take longer than this many seconds.
-    _LONG_RUN_SECONDS = 120.0
+    #: Ask before a run that a MEASURED previous run of this model says
+    #: will take longer than this many seconds.
+    _LONG_RUN_SECONDS = 30.0
+    #: With nothing measured, ask only when the rough guess is this long:
+    #: twenty times the limit above, so a guess that is badly high still
+    #: means a run worth asking about.
+    _LONG_RUN_ROUGH_SECONDS = 600.0
 
     def _confirm_long_batch(self, num_runs: int) -> bool:
-        """Ask before a batch that is likely to run for minutes.
+        """Ask before a batch that will run for a long time.
 
-        The default `ProjectX`-class model is 10 trials x 175,200 h; at four
-        cores that is roughly an hour, and the old UI only said "Ready".
-        This is deliberately a coarse run-hours guard, not a pilot: a pilot
-        on such a model costs as much as the short run it would protect.
-        A previous run's measured wall time, when one is known, is shown as
-        a scale reference.
+        Not a pilot: a pilot on a slow model costs as much as the short run
+        it would protect. The time quoted, when one is, is this model's own
+        last run scaled to the new size.
         """
         from raptor.gui import cores
         try:
@@ -369,7 +371,6 @@ class RunMixin(_Base):
         except (ImportError, KeyError, ValueError, TypeError):
             importance_batches = 0
         batches = 1 + importance_batches
-        run_hours = horizon * max(1, int(num_runs)) * batches
         # Asked only when the run is expected to take minutes. The guard
         # used to be run-hours alone (50,000 and up), which says nothing
         # about time: it stopped the shipped examples, which finish in
@@ -387,46 +388,51 @@ class RunMixin(_Base):
                 cores=cores.chosen() if full_speed else 1)
         except Exception:  # noqa: BLE001 - fall back to the coarse guard
             expected = None
-        if expected is not None:
-            if expected < self._LONG_RUN_SECONDS:
-                return True
-        elif run_hours < 50_000:
-            return True
+        # A figure is only quoted when it was measured: the last run of this
+        # model, scaled to this one's size. Without one there is only the
+        # rough guess from how often the blocks fail, which can be several
+        # times out either way, so it is never shown and has to be very
+        # large before it is worth interrupting for. Asking is a nag; it
+        # must not happen for a run that turns out to take seconds.
+        measured: float | None = None
         previous = getattr(self, "_last_run_profile", None)
-        reference = ""
-        if previous:
+        if previous and getattr(self, "_last_run_profile_rbd", None) == id(self._rbd):
             try:
                 ph, pn, pwall, pworkers, pbatches = previous
             except ValueError:
                 ph, pn, pwall, pworkers = previous
                 pbatches = 1
             if ph and pn and pwall:
-                scale = ((horizon / ph) * (num_runs / pn)
-                         * (batches / max(1, pbatches))
-                         * (max(1, pworkers) / max(1, cores.chosen())))
-                reference = (
-                    f"\n\nA previous {pn} × {ph:g} h run took "
-                    f"~{pwall:.0f} s; at this size expect roughly "
-                    f"{pwall * scale / 60:.0f} min (order of magnitude).")
+                measured = (pwall * (horizon / ph) * (num_runs / pn)
+                            * (batches / max(1, pbatches))
+                            * (max(1, pworkers) / max(1, cores.chosen())))
+        if measured is not None:
+            if measured < self._LONG_RUN_SECONDS:
+                return True
+        elif expected is None or expected < self._LONG_RUN_ROUGH_SECONDS:
+            return True
         extra = (f"\n\nImportance measures are on: {importance_mode}, "
                  f"{importance_batches} extra batch(es), {batches} total. "
                  f"The time until completion includes them."
                  if importance_batches else "")
+        reference = ""
         box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Warning)
+        box.setIcon(QMessageBox.Icon.Information)
         box.setWindowTitle("Long simulation")
-        if expected is not None:
-            minutes = expected / 60.0
-            about = (f"about {minutes:.0f} minutes" if minutes < 90
-                     else f"about {minutes / 60:.1f} hours")
-            lead = (f"This run is expected to take {about} "
-                    f"({num_runs} trial(s) × {horizon:,.0f} "
-                    f"{self._current_units() or 'time units'}). That is a "
-                    f"rough figure from how often the blocks fail.")
+        size = (f"{num_runs:,} trial(s) × {horizon:,.0f} "
+                f"{self._current_units() or 'time units'}")
+        if measured is not None:
+            about = (f"about {measured:.0f} seconds" if measured < 90
+                     else f"about {measured / 60:.0f} minutes"
+                     if measured < 5400
+                     else f"about {measured / 3600:.1f} hours")
+            lead = (f"This run ({size}) should take {about}, going by this "
+                    f"model's last run ({pn:,} trial(s) × {ph:,.0f} took "
+                    f"{pwall:.0f} s).")
         else:
-            lead = (f"This run is {num_runs} trial(s) × {horizon:,.0f} "
-                    f"({run_hours:,.0f} in total, including every batch), "
-                    f"which may take a long time.")
+            lead = (f"This run ({size}) is likely to take several minutes "
+                    f"or longer. The time left is shown in the status bar "
+                    f"once it is under way.")
         box.setText(
             f"{lead}{extra}{reference}\n\n"
             "You can stop it at any time and keep the trials that have "

@@ -45,10 +45,17 @@ EVENT_BYTES_PER_CYCLE = 350.0
 #: Fixed lines at the head and foot of each run's event log.
 EVENT_RUN_OVERHEAD_BYTES = 400.0
 
-#: Bytes per element per interim cost sample (one table row), plus the
-#: fixed frame of each sample's table.
-COST_ROW_BYTES = 130.0
-COST_SAMPLE_OVERHEAD_BYTES = 900.0
+#: Interim cost: every sample writes several tables with a row for every
+#: block, which is why this recording is large on a big model. Measured:
+#: 6.4 MB for 2 runs x 12 samples of a 1,000-block model, 145 KB for the
+#: same of a 17-block one.
+COST_BYTES_PER_BLOCK = 262.0
+COST_SAMPLE_OVERHEAD_BYTES = 1600.0
+
+#: Capacity plot: a row only when the flow changes, which a few per cent of
+#: block failures and repairs do. Small beside the others.
+CAPACITY_BYTES_PER_CYCLE = 2.0
+CAPACITY_RUN_OVERHEAD_BYTES = 150.0
 
 
 @dataclass
@@ -84,7 +91,8 @@ class StorageEstimate:
         return self.unknown or any(i.approximate for i in self.items)
 
     def summary(self) -> str:
-        """One line for the Run panel: `About 1.2 GB on disk for this run`."""
+        """For the Run panel: the total, then what each recording adds,
+        largest first (`About 1.2 GB on disk: interim cost 900 MB, ...`)."""
         if not self.items:
             return "No recordings ticked: nothing extra is written."
         if self.unknown and self.total_bytes <= 0.0:
@@ -92,8 +100,14 @@ class StorageEstimate:
                     "(the run does not stop at a fixed time).")
         lead = "At least" if self.unknown else (
             "About" if self.approximate else "")
-        text = f"{lead} {format_bytes(self.total_bytes)}".strip()
-        return f"{text} on disk for these recordings"
+        text = f"{lead} {format_bytes(self.total_bytes)} on disk".strip()
+        sized = sorted((i for i in self.items if i.bytes is not None),
+                       key=lambda i: -(i.bytes or 0.0))
+        if len(sized) > 1:
+            text += ": " + ", ".join(
+                f"{i.label.lower()} {format_bytes(i.bytes or 0.0)}"
+                for i in sized)
+        return text
 
 
 def format_bytes(n: float) -> str:
@@ -154,6 +168,11 @@ def cycles_per_time(rbd: Any) -> tuple[float, int]:
     return rate, len(rows)
 
 
+def block_count(rbd: Any) -> int:
+    sections = getattr(rbd, "sections", None) or {}
+    return len(getattr(sections.get("BLOCK_DATA"), "rows", None) or [])
+
+
 def element_count(rbd: Any) -> int:
     sections = getattr(rbd, "sections", None) or {}
     return sum(len(getattr(sections.get(name), "rows", None) or [])
@@ -173,73 +192,87 @@ def experiment_of(rbd: Any) -> dict:
     return rx.normalise(rx.from_system_row(rows[0] if rows else {}))
 
 
+_NO_LENGTH = "depends on how long each run lasts"
+
+
+def _clocked(key: str, label: str, runs: float, length: float | None,
+             interval: float, row_bytes: float, tail_bytes: float,
+             note: str, approximate: bool) -> StorageItem:
+    """A recording sampled every `interval`: `row_bytes` a sample."""
+    if length is None:
+        return StorageItem(key, label, bytes=None, approximate=approximate,
+                           note=_NO_LENGTH)
+    samples = float(int(length / interval + 1e-9))
+    return StorageItem(
+        key, label, bytes=runs * (samples * row_bytes + tail_bytes),
+        rows=runs * samples, approximate=approximate,
+        note=f"{samples:,.0f} samples a run{note}")
+
+
+def _by_failures(key: str, label: str, runs: float, length: float | None,
+                 cycle_rate: float | None, cycle_bytes: float,
+                 run_bytes: float, note: str | None) -> StorageItem:
+    """A recording that grows with how often the blocks fail."""
+    if length is None or cycle_rate is None:
+        return StorageItem(key, label, bytes=None, approximate=True,
+                           note=_NO_LENGTH)
+    cycles = cycle_rate * length
+    return StorageItem(
+        key, label, bytes=runs * (cycles * cycle_bytes + run_bytes),
+        rows=runs * cycles, approximate=True,
+        note=note if note is not None
+        else f"about {cycles:,.0f} failures a run")
+
+
 def estimate_storage(experiment: dict, rbd: Any = None, *,
                      recording: dict | None = None,
                      cycle_rate: float | None = None,
-                     elements: int | None = None) -> StorageEstimate:
+                     elements: int | None = None,
+                     blocks: int | None = None) -> StorageEstimate:
     """The disk each ticked recording will take for `experiment`.
 
-    `recording` overrides the experiment's own recording flags (the API
-    always collects the availability plot, whatever the model's own tick
-    says). `cycle_rate` and `elements` are `cycles_per_time(rbd)[0]` and
-    `element_count(rbd)` when the caller has them cached; otherwise they
-    are read from `rbd`.
+    `recording` overrides the experiment's own recording flags.
+    `cycle_rate`, `elements` and `blocks` are `cycles_per_time(rbd)[0]`,
+    `element_count(rbd)` and `block_count(rbd)` when the caller has them
+    cached; otherwise they are read from `rbd`.
     """
-    rec = dict((experiment or {}).get("recording") or {})
+    experiment = experiment or {}
+    rec = dict(experiment.get("recording") or {})
     if recording:
         rec.update(recording)
-    runs = max(0.0, _number((experiment or {}).get("trials"), 1.0))
-    timed = (experiment or {}).get("termination_type") == "TimeSim"
-    length = _number((experiment or {}).get("term_condition"), 0.0)
+    runs = max(0.0, _number(experiment.get("trials"), 1.0))
+    length: float | None = _number(experiment.get("term_condition"), 0.0)
+    if experiment.get("termination_type") != "TimeSim" or not length or length <= 0.0:
+        length = None       # no fixed length: the clocked figures are unknown
+    analyses = experiment.get("analyses") or ()
+    if cycle_rate is None and rbd is not None and (
+            rec.get("event_log") or rec.get("capacity_plot")):
+        cycle_rate = cycles_per_time(rbd)[0]
     out = StorageEstimate()
 
     if rec.get("ao_plot"):
-        interval = max(1e-6, _number(rec.get("ao_interval"), 10.0))
-        if timed and length > 0.0:
-            samples = float(int(length / interval + 1e-9))
-            out.items.append(StorageItem(
-                "ao_plot", "Availability plot",
-                bytes=runs * (samples * AO_ROW_BYTES + AO_RUN_TAIL_BYTES),
-                rows=runs * (samples + 1),
-                note=f"{samples:,.0f} samples a run"))
-        else:
-            out.items.append(StorageItem(
-                "ao_plot", "Availability plot", bytes=None,
-                note="depends on how long each run lasts"))
-
+        out.items.append(_clocked(
+            "ao_plot", "Availability plot", runs, length,
+            max(1e-6, _number(rec.get("ao_interval"), 10.0)),
+            AO_ROW_BYTES, AO_RUN_TAIL_BYTES, "", approximate=False))
     if rec.get("event_log"):
-        if cycle_rate is None:
-            cycle_rate = cycles_per_time(rbd)[0] if rbd is not None else None
-        if timed and length > 0.0 and cycle_rate is not None:
-            cycles = cycle_rate * length
-            out.items.append(StorageItem(
-                "event_log", "Detailed event log",
-                bytes=runs * (cycles * EVENT_BYTES_PER_CYCLE
-                              + EVENT_RUN_OVERHEAD_BYTES),
-                rows=runs * cycles, approximate=True,
-                note=f"about {cycles:,.0f} failures a run"))
-        else:
-            out.items.append(StorageItem(
-                "event_log", "Detailed event log", bytes=None,
-                approximate=True,
-                note="depends on how long each run lasts"))
-
-    if rec.get("cost_plot") and "cost" in ((experiment or {}).get("analyses") or ()):
-        interval = max(1e-6, _number(rec.get("cost_interval"), 720.0))
-        if elements is None:
-            elements = element_count(rbd) if rbd is not None else 0
-        if timed and length > 0.0:
-            samples = float(int(length / interval + 1e-9))
-            out.items.append(StorageItem(
-                "cost_plot", "Interim cost",
-                bytes=runs * samples * (COST_SAMPLE_OVERHEAD_BYTES
-                                        + COST_ROW_BYTES * max(elements, 1)),
-                rows=runs * samples, approximate=True,
-                note=f"{samples:,.0f} samples a run"))
-        else:
-            out.items.append(StorageItem(
-                "cost_plot", "Interim cost", bytes=None, approximate=True,
-                note="depends on how long each run lasts"))
+        out.items.append(_by_failures(
+            "event_log", "Detailed event log", runs, length, cycle_rate,
+            EVENT_BYTES_PER_CYCLE, EVENT_RUN_OVERHEAD_BYTES, None))
+    if rec.get("capacity_plot") and "capacity" in analyses:
+        out.items.append(_by_failures(
+            "capacity_plot", "Capacity plot", runs, length, cycle_rate,
+            CAPACITY_BYTES_PER_CYCLE, CAPACITY_RUN_OVERHEAD_BYTES,
+            "a row only when the flow changes"))
+    if rec.get("cost_plot") and "cost" in analyses:
+        if blocks is None:
+            blocks = block_count(rbd) if rbd is not None else (elements or 0)
+        out.items.append(_clocked(
+            "cost_plot", "Interim cost", runs, length,
+            max(1e-6, _number(rec.get("cost_interval"), 720.0)),
+            COST_SAMPLE_OVERHEAD_BYTES + COST_BYTES_PER_BLOCK * max(blocks, 1),
+            0.0, ", each with a row for every block in several tables",
+            approximate=True))
     return out
 
 

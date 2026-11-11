@@ -39,6 +39,7 @@ class RunProgressMixin(_Base):
         _imp_last_key: Any
         _importance_running: bool
         _last_run_profile: tuple[float, int, float, int, int]
+        _last_run_profile_rbd: int
         _pause_action: Any
         _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         _run_eta: Any  # really raptor.gui.ui.run_eta.RunEstimate | None
@@ -99,6 +100,8 @@ class RunProgressMixin(_Base):
                     len(_imp.block_rows(self._rbd)), mode)
         except (ImportError, KeyError, ValueError, TypeError):
             batches = 1
+        # Which model it was timed on: another model's time says nothing.
+        self._last_run_profile_rbd = id(self._rbd)
         self._last_run_profile = (horizon, int(done_runs),
                                   float(est.active_seconds()),
                                   int(cores.chosen()), int(batches))

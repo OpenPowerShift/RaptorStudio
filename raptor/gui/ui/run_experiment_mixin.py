@@ -290,10 +290,12 @@ class RunExperimentMixin:
             panel.set_importance_blocks(len(block_rows(self._rbd)))
         # The size-on-disk estimate needs how often the model's blocks fail.
         if hasattr(panel, "set_storage_model"):
-            from raptor.core.storage_estimate import (cycles_per_time,
+            from raptor.core.storage_estimate import (block_count,
+                                                     cycles_per_time,
                                                      element_count)
             panel.set_storage_model(cycles_per_time(self._rbd)[0],
-                                    element_count(self._rbd))
+                                    element_count(self._rbd),
+                                    block_count(self._rbd))
 
     def _migrate_report_stream_settings(self) -> None:
         """Carry an upgrading user's `reports/*` recording choices onto

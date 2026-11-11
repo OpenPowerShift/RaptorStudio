@@ -650,7 +650,9 @@ class RunPanel(QWidget):
         # of this length. A plot sampled every 10 hours over a 20-year run
         # is 17,520 rows a trial; nobody can see that from the tick box.
         self._storage_note = QLabel("")
-        self._storage_note.setObjectName("SectionNote")
+        # Not "SectionNote": that name marks the per-checkbox notes, which
+        # sit in the grid's second column; this line spans the box.
+        self._storage_note.setObjectName("StorageNote")
         self._storage_note.setWordWrap(True)
         self._storage_note.setAccessibleName("Estimated size on disk")
         outer.addWidget(self._storage_note)
@@ -1227,12 +1229,13 @@ class RunPanel(QWidget):
     # -- derived display -------------------------------------------------
 
     def set_storage_model(self, cycle_rate: float | None,
-                          elements: int) -> None:
+                          elements: int, blocks: int = 0) -> None:
         """What the open model contributes to the size estimate: expected
         block failures per unit time and the number of elements
         (`raptor.core.storage_estimate`). None when no model is open."""
         self._storage_cycle_rate = cycle_rate
         self._storage_elements = int(elements)
+        self._storage_blocks = int(blocks)
         self._refresh_storage()
 
     def storage_estimate(self):
@@ -1241,7 +1244,8 @@ class RunPanel(QWidget):
         return estimate_storage(
             getattr(self, "_exp", None) or rx.defaults(),
             cycle_rate=getattr(self, "_storage_cycle_rate", None),
-            elements=getattr(self, "_storage_elements", 0))
+            elements=getattr(self, "_storage_elements", 0),
+            blocks=getattr(self, "_storage_blocks", 0))
 
     def _refresh_storage(self) -> None:
         note = getattr(self, "_storage_note", None)
