@@ -12,6 +12,8 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
@@ -379,7 +381,14 @@ def run(
 
     # --- run the simulation ---
     report_data: list[RunReportData] = []
-    ao_lines: list[str] = []
+    # The availability plot is one row per sample interval per run. Held in
+    # a list it reached hundreds of megabytes on a long horizon (100 runs of
+    # 20 years at the default interval of 10 is 1.75 million rows), so it is
+    # spooled to disk as the engine writes it and becomes the run's artefact
+    # file by a rename. Parallel workers spool beside it.
+    from raptor.core.result_streams import ResultStream
+    spool_dir = Path(tempfile.mkdtemp(prefix=".spool-", dir=workspace.root))
+    ao_lines = ResultStream("ao", directory=str(spool_dir))
     cap_lines: list[str] = []
     cost_lines: list[str] = []
     t0 = time.monotonic()
@@ -451,6 +460,8 @@ def run(
         for tmp in (sd_tmp, mission_tmp, cumtrial_tmp, cumtime_tmp):
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
+        ao_lines.close()
+        shutil.rmtree(spool_dir, ignore_errors=True)
         raise
     finally:
         timer.cancel()
@@ -476,6 +487,8 @@ def run(
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
     if abort.is_set() and not report_data:
+        ao_lines.close()
+        shutil.rmtree(spool_dir, ignore_errors=True)
         if timed_out.is_set():
             raise RunTimeoutError(
                 f"Simulation did not complete within {timeout_s}s")
@@ -503,7 +516,6 @@ def run(
         "end_of_run": eor_text,
         "final_results": final_text,
         "final_results_ids": json.dumps(tags_of(final_lines)),
-        "availability_plot": "\n".join(ao_lines),
         "capacity": "\n".join(cap_lines),
         "cost": "\n".join(cost_lines),
     }
@@ -559,6 +571,8 @@ def run(
                 domain_tree_lines(sim_rbd, sim_rbd.file_name, today, core=True))
     optional |= {"domain_tree", "core_file"} - set(artefacts)
     undeclared = set(artefacts) - set(SECTION_FILES)
+    # Moved into place from its spool file below, never held as text.
+    optional.add("availability_plot")
     unwritten = set(SECTION_FILES) - set(artefacts) - optional
     assert not undeclared and not unwritten, (
         f"the artefact layout and its writer disagree: undeclared="
@@ -569,6 +583,10 @@ def run(
         path = section_path(runs_dir, section)
         assert path is not None      # guaranteed by the assertion above
         path.write_text(text)
+    ao_path = section_path(runs_dir, "availability_plot")
+    assert ao_path is not None
+    ao_lines.move_to(str(ao_path))
+    shutil.rmtree(spool_dir, ignore_errors=True)
 
     metrics = aggregate_metrics(report_data)
     per_run = [_rd_to_dict(rd) for rd in report_data]
@@ -651,7 +669,7 @@ def _run_simulation(
     workers: int,
     collect_events: bool,
     abort: threading.Event,
-    ao_lines: list[str],
+    ao_lines: Any,       # list[str] or a disk-backed ResultStream
     cap_lines: list[str],
     cost_lines: list[str],
     date: str | None = None,

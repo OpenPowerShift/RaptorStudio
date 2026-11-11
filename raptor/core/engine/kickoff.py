@@ -870,38 +870,38 @@ def _start_system_processes(self: SingleRunDriver, _phase_first):
     # the .rbd file.
     if _ao_sink is not None:
         def ao_plot_process() -> Process:
-            cum = [0.0, 0.0, 0.0]
+            # One row per sample interval per run: on a long horizon this is
+            # the busiest loop in the engine, so it reads the three sums and
+            # formats, and nothing else.
+            GREEN, YELLOW, RED = SystemColor.GREEN, SystemColor.YELLOW, SystemColor.RED
+            append = _ao_sink.append
+            int_g = int_y = int_r = 0.0
             while True:
                 yield ao_plot_interval
                 t = scheduler.time
-                int_g, int_y, int_r = cum
                 st = cascade.system_state
                 g, y, r = st.green_stat.sum, st.yellow_stat.sum, st.red_stat.sum
-                leftover = {
-                    SystemColor.GREEN: t - st.last_color_change,
-                    SystemColor.YELLOW: t - st.last_color_change,
-                    SystemColor.RED: t - st.last_color_change,
-                    SystemColor.DONE: 0.0,
-                }[st.color]
-                if st.color == SystemColor.GREEN: g += leftover
-                elif st.color == SystemColor.YELLOW: y += leftover
-                elif st.color == SystemColor.RED: r += leftover
+                # Time in the current colour since its last change is not in
+                # the sums yet (DONE adds nothing).
+                color = st.color
+                if color is GREEN: g += t - st.last_color_change
+                elif color is YELLOW: y += t - st.last_color_change
+                elif color is RED: r += t - st.last_color_change
                 # Source's `cumGreen` etc. persist WITH the leftover
                 # added, so the next interval is
                 # measured from these totals.
-                cum = [g, y, r]
-                int_g, int_y, int_r = g - int_g, y - int_y, r - int_r
+                d_g, d_y, d_r = g - int_g, y - int_y, r - int_r
+                int_g, int_y, int_r = g, y, r
                 total = g + y + r
                 if total > 0.0:
                     # `ao_time_column` already ends with its own two-space
                     # column separator.
-                    row = (ao_time_column(t)
+                    append(ao_time_column(t)
                            + f"{ao_value((g + y) / total)}  {ao_value(g / total)}  "
                            + f"{ao_value(y / total)}  {ao_value(r / total)}  "
-                           + f"{ao_value((int_g + int_y) / (int_g + int_y + int_r))}")
+                           + f"{ao_value((d_g + d_y) / (d_g + d_y + d_r))}")
                 else:
-                    row = ao_time_column(t) + "1.000000  " * 4 + "1.000000"
-                _ao_sink.append(row)
+                    append(ao_time_column(t) + "1.000000  " * 4 + "1.000000")
         scheduler.schedule_process(ao_plot_process(), owner_key=_SYS)
 
     cum_time = self.ctx.cum_time

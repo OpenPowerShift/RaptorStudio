@@ -160,7 +160,10 @@ def estimate_runtime(model_id: str, num_runs: int = 10,
 
     Returns {seconds_estimate, baseline_seconds, importance_seconds,
     total_batches, importance_batches, importance_blocks, range,
-    per_run_ms, pilot_runs, estimate_seconds, cached, advice}.
+    per_run_ms, pilot_runs, estimate_seconds, cached, advice,
+    storage_bytes_estimate, event_log_bytes_estimate, storage_note}: the
+    last three say how much the run will write to disk (the availability
+    plot is sampled at the model's own interval on every run).
     """
     ws = context.workspace()
     from raptor.api.estimate import estimate
@@ -185,6 +188,11 @@ def estimate_runtime(model_id: str, num_runs: int = 10,
         "estimate_seconds": round(est.estimate_seconds, 3),
         "cached": est.cached,
         "advice": est.advice,
+        "storage_bytes_estimate": (None if est.storage_bytes_est is None
+                                   else round(est.storage_bytes_est)),
+        "event_log_bytes_estimate": (None if est.event_log_bytes_est is None
+                                     else round(est.event_log_bytes_est)),
+        "storage_note": est.storage_note,
     }
     split = ""
     if est.importance_batches:
@@ -197,7 +205,8 @@ def estimate_runtime(model_id: str, num_runs: int = 10,
           f"completion for {num_runs} runs (range "
           f"{data['range']['low']:.2f}–{data['range']['high']:.2f} s), "
           f"from {data['pilot_runs']} pilot run(s) at "
-          f"{data['per_run_ms']:.1f} ms/replication.{split}\n\n{est.advice}")
+          f"{data['per_run_ms']:.1f} ms/replication.{split}\n\n{est.advice}"
+          + (f"\n\n{est.storage_note}" if est.storage_note else ""))
     return ok(data, markdown=md)
 
 

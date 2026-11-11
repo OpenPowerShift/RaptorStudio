@@ -333,8 +333,11 @@ class RunMixin(_Base):
             manifest=(state.get("run_metadata") or {}).get("manifest"),
             importance_total=total)
 
+    #: Ask before a run expected to take longer than this many seconds.
+    _LONG_RUN_SECONDS = 120.0
+
     def _confirm_long_batch(self, num_runs: int) -> bool:
-        """Ask before a batch that is likely to run for tens of minutes.
+        """Ask before a batch that is likely to run for minutes.
 
         The default `ProjectX`-class model is 10 trials x 175,200 h; at four
         cores that is roughly an hour, and the old UI only said "Ready".
@@ -367,7 +370,27 @@ class RunMixin(_Base):
             importance_batches = 0
         batches = 1 + importance_batches
         run_hours = horizon * max(1, int(num_runs)) * batches
-        if run_hours < 50_000:
+        # Asked only when the run is expected to take minutes. The guard
+        # used to be run-hours alone (50,000 and up), which says nothing
+        # about time: it stopped the shipped examples, which finish in
+        # seconds, behind a warning about "tens of minutes".
+        expected: float | None = None
+        try:
+            from raptor.core.storage_estimate import (cycles_per_time,
+                                                     element_count,
+                                                     rough_run_seconds)
+            sized = dict(experiment, trials=max(1, int(num_runs)))
+            full_speed = bool(getattr(self, "_run_full_speed", False))
+            expected = rough_run_seconds(
+                sized, cycle_rate=cycles_per_time(self._rbd)[0],
+                elements=element_count(self._rbd), batches=batches,
+                cores=cores.chosen() if full_speed else 1)
+        except Exception:  # noqa: BLE001 - fall back to the coarse guard
+            expected = None
+        if expected is not None:
+            if expected < self._LONG_RUN_SECONDS:
+                return True
+        elif run_hours < 50_000:
             return True
         previous = getattr(self, "_last_run_profile", None)
         reference = ""
@@ -392,17 +415,30 @@ class RunMixin(_Base):
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Warning)
         box.setWindowTitle("Long simulation")
+        if expected is not None:
+            minutes = expected / 60.0
+            about = (f"about {minutes:.0f} minutes" if minutes < 90
+                     else f"about {minutes / 60:.1f} hours")
+            lead = (f"This run is expected to take {about} "
+                    f"({num_runs} trial(s) × {horizon:,.0f} "
+                    f"{self._current_units() or 'time units'}). That is a "
+                    f"rough figure from how often the blocks fail.")
+        else:
+            lead = (f"This run is {num_runs} trial(s) × {horizon:,.0f} "
+                    f"({run_hours:,.0f} in total, including every batch), "
+                    f"which may take a long time.")
         box.setText(
-            f"This run is {num_runs} trial(s) × {horizon:,.0f} hours "
-            f"({run_hours:,.0f} run-hours including every batch)."
-            f"{extra}{reference}\n\n"
-            "For an interactive check, lower Run length or Trials. "
-            "Run the full operation anyway?")
-        run_btn = box.addButton("Run anyway", QMessageBox.ButtonRole.AcceptRole)
-        cancel = box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-        box.setDefaultButton(cancel)
+            f"{lead}{extra}{reference}\n\n"
+            "You can stop it at any time and keep the trials that have "
+            "finished. For a quick check, lower Run length or Trials.")
+        run_btn = box.addButton("Run", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(run_btn)
         box.exec()
-        return box.clickedButton() is run_btn
+        if box.clickedButton() is run_btn:
+            return True
+        self._statusbar.showMessage("Run cancelled — nothing was started", 5000)
+        return False
 
     def _run_may_start(self) -> bool:
         """The early exits shared by every foreground run."""

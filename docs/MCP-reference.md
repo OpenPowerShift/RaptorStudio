@@ -2568,7 +2568,10 @@ per block per variant kind. `baseline_seconds` and
 
 Returns {seconds_estimate, baseline_seconds, importance_seconds,
 total_batches, importance_batches, importance_blocks, range,
-per_run_ms, pilot_runs, estimate_seconds, cached, advice}.
+per_run_ms, pilot_runs, estimate_seconds, cached, advice,
+storage_bytes_estimate, event_log_bytes_estimate, storage_note}: the
+last three say how much the run will write to disk (the availability
+plot is sampled at the model's own interval on every run).
 
 **Parameters**
 
@@ -2588,6 +2591,7 @@ per_run_ms, pilot_runs, estimate_seconds, cached, advice}.
 | `baseline_seconds` | number | yes |
 | `cached` | boolean | yes |
 | `estimate_seconds` | number | yes |
+| `event_log_bytes_estimate` | integer | yes |
 | `importance_batches` | integer | yes |
 | `importance_blocks` | integer | yes |
 | `importance_mode` | string | yes |
@@ -2597,6 +2601,8 @@ per_run_ms, pilot_runs, estimate_seconds, cached, advice}.
 | `range` | object | yes |
 | `seconds_estimate` | number | yes |
 | `setup_s` | number | yes |
+| `storage_bytes_estimate` | integer | yes |
+| `storage_note` | string | yes |
 | `total_batches` | integer | yes |
 
 **Example**

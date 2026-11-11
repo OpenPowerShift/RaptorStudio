@@ -432,9 +432,37 @@ def estimate_command(args: Any) -> int:
     if args.format == "json":
         emit_json({"schema": ESTIMATE_SCHEMA, **data}, None)
     else:
-        for k, v in data.items():
-            print(f"{k}: {v}")
+        print(_estimate_text(est))
     return X.OK
+
+
+def _seconds(value: float) -> str:
+    """`0.4 s`, `12 s`, `3.5 min`, `2.1 h`: a duration a person reads."""
+    if value < 10:
+        return f"{value:.1f} s"
+    if value < 120:
+        return f"{value:.0f} s"
+    if value < 7200:
+        return f"{value / 60:.1f} min"
+    return f"{value / 3600:.1f} h"
+
+
+def _estimate_text(est: Any) -> str:
+    lines = [f"Estimated run time: {_seconds(est.wall_seconds_est)} for "
+             f"{est.num_runs} runs (likely {_seconds(est.low)} to "
+             f"{_seconds(est.high)})"]
+    lines.append(f"  set-up {_seconds(est.setup)}, then "
+                 f"{est.per_run * 1000:.1f} ms a run"
+                 + (" (rough: one pilot run)" if est.rough else ""))
+    if est.importance_batches:
+        lines.append(f"  importance measures: {_seconds(est.importance_wall_seconds)} "
+                     f"of that ({est.importance_blocks} blocks, "
+                     f"{est.importance_batches} extra batches)")
+    if est.storage_note:
+        lines.append(est.storage_note)
+    if est.advice:
+        lines.append(est.advice)
+    return "\n".join(lines)
 
 
 def report_command(args: Any) -> int:
