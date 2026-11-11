@@ -1336,12 +1336,22 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         annotations even though Align & Distribute advertises working on
         them, so "select everything then tidy up" quietly left the notes
         behind."""
-        for items in (self._block_items, self._node_items,
-                      self._event_items,
-                      getattr(self, "_hier_items", {}),
-                      getattr(self, "_anno_items", {})):
-            for it in items.values():
-                it.setSelected(True)
+        # One `selectionChanged` for the whole lot. Qt emits it per
+        # `setSelected`, and every emission refreshes the Inspector and the
+        # command states against the selection so far: selecting 1,500 items
+        # one signal at a time took 16 s on a 1,000-block level.
+        scene = self._scene
+        was_blocked = scene.blockSignals(True)
+        try:
+            for items in (self._block_items, self._node_items,
+                          self._event_items,
+                          getattr(self, "_hier_items", {}),
+                          getattr(self, "_anno_items", {})):
+                for it in items.values():
+                    it.setSelected(True)
+        finally:
+            scene.blockSignals(was_blocked)
+        scene.selectionChanged.emit()
 
     def _keys_of_items(self, items) -> set[tuple[str, int]] | None:
         """(kind, id) keys for `items`, or None when any item is not a

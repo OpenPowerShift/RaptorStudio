@@ -548,8 +548,25 @@ class LiveOverlayMixin:
         # stale end-state on the next level traversal.
         self._live_state_cache = None
 
+        def _painted() -> bool:
+            """True when any item on this level carries a live colour."""
+            for items in (self._block_items, self._node_items,
+                          self._event_items, self._hier_items):
+                for it in items.values():
+                    if (getattr(it, "_live_colour", None) is not None
+                            or getattr(it, "_live_active", False)):
+                        return True
+            return any(getattr(li, "_live_colour", None) is not None
+                       or getattr(li, "_live_active", False)
+                       for li in self._links)
+
         def _restore():
-            self.retheme()
+            # Every model edit calls this (an edit discards a stepped
+            # session and its colours). Re-theming every item when none of
+            # them is painted cost a quarter of a second per edit on a
+            # 1,000-block level, for no visible change.
+            if _painted():
+                self.retheme()
             # Result-overlay badges ($/!/capacity gauge) are separate,
             # explicit item-level state (not touched by `retheme()`) --
             # clear them first so a turned-off overlay doesn't leave

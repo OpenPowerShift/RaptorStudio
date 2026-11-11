@@ -617,6 +617,17 @@ class RunExperimentMixin:
         # model is actually invalid: readiness needs the count, not the
         # list, and rebuilding the list on every Simulate-tab click is
         # what made opening the tab pause on a large model.
+        #
+        # After an edit the answer is not known yet, and the debounced
+        # validation pass that is about to run ends by calling this method.
+        # Asking here instead ran the whole-model validation (an engine
+        # load) synchronously after every edit: over a second per edit on a
+        # 1,000-block model. Leave the line as it is for that moment.
+        cached = getattr(self, "_validity_cache", None)
+        timer = getattr(self, "_validation_timer", None)
+        if (cached is None or cached[0] != getattr(self, "_model_revision", 0)) \
+                and timer is not None and timer.isActive():
+            return
         valid = self._model_is_valid()
         issues = [] if valid else self._validation_issues()
         experiment = self._current_experiment()

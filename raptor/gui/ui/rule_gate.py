@@ -47,6 +47,17 @@ class RuleGatedStack:
         self._depth = 0
         self._before: set | None = None
         self._off = 0
+        # The violations found after the last checked push, valid until the
+        # stack moves again (a push, an undo, a redo). The next push's
+        # "before" is that same model, so it need not be walked a second
+        # time: the check is a whole-model copy and rule pass, and running
+        # it twice per edit was most of an edit's cost on a large model.
+        self._moves = 0
+        self._known: tuple[int, set] | None = None
+        stack.indexChanged.connect(self._on_stack_moved)
+
+    def _on_stack_moved(self, _index: int) -> None:
+        self._moves += 1
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._stack, name)
@@ -111,11 +122,20 @@ class RuleGatedStack:
         if self._depth:
             self._stack.push(cmd)
             return
-        before = self._keys()
+        known = self._known
+        if known is not None and known[0] == self._moves and not self._off:
+            before: set | None = known[1]
+        else:
+            before = self._keys()
+        self._known = None
         self._stack.push(cmd)
-        added = self._added(before)
+        found = self._current()
+        added = ([] if before is None or found is None
+                 else [v for v in found if v.key not in before])
         if added:
             self._refuse(added)
+        elif found is not None and not self._off:
+            self._known = (self._moves, {v.key for v in found})
 
     def beginMacro(self, text: str) -> None:
         if self._depth == 0:

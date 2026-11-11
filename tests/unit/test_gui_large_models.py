@@ -342,3 +342,71 @@ def test_a_drag_on_a_ten_thousand_element_level_is_not_proportional(
     assert 0 < len(set(map(id, calls))) < 40, len(calls)
     # Generous (a slow CI machine): the O(n) paths took many seconds here.
     assert elapsed < 2.0, f"a one-block drag took {elapsed:.2f}s"
+
+
+# -- selecting and deleting are not proportional to the level squared --------
+
+def test_select_all_announces_the_selection_once(small_view):
+    view = small_view
+    seen = []
+    view.selection_changed.connect(lambda: seen.append(1))
+    view.select_all()
+    assert len(seen) == 1
+    assert len(view._scene.selectedItems()) >= 120
+
+
+def test_select_all_on_a_large_level_is_quick(qapp):
+    view = DiagramView()            # its own level: nothing left selected
+    view.load_rbd(_model(2_000))
+    started = time.perf_counter()
+    view.select_all()
+    elapsed = time.perf_counter() - started
+    view._scene.clearSelection()
+    # One signal instead of 2,000: well under a second.
+    assert elapsed < 5.0
+
+
+def test_deleting_a_block_keeps_the_other_link_items(small_view):
+    view = small_view
+    before = {li._link_num: li for li in view._links}
+    victim = sorted(view._block_items)[60]
+    touching = {link.object_num for link in view.links
+                if (link.connect_from_id == victim and "Block" in link.connect_f_ref)
+                or (link.connect_to_id == victim and "Block" in link.connect_t_ref)}
+    assert touching
+    view._remove_ids({victim}, set(), set(), set())
+    after = {li._link_num: li for li in view._links}
+    assert set(after) == set(before) - touching
+    # Every surviving link is the same canvas item, not a rebuilt one.
+    assert all(after[num] is before[num] for num in after)
+    assert all(li.scene() is view._scene for li in view._links)
+    scene_links = [it for it in view._scene.items() if isinstance(it, _LinkItem)]
+    assert len(scene_links) == len(view._links)
+
+
+def test_link_rebuild_adds_missing_and_drops_stale_items(small_view):
+    view = small_view
+    kept = list(view._links)
+    stale = kept.pop(5)
+    view._scene.removeItem(stale)
+    view._links[:] = kept                 # one link item missing
+    view._rebuild_link_items()
+    nums = sorted(li._link_num for li in view._links)
+    assert nums == sorted(link.object_num for link in view.links)
+    scene_links = [it for it in view._scene.items() if isinstance(it, _LinkItem)]
+    assert len(scene_links) == len(view.links)
+
+
+def test_deleting_one_block_on_a_large_level_is_quick(large_view, monkeypatch):
+    view = large_view
+    routed = []
+    real = _LinkItem._update_route
+    monkeypatch.setattr(_LinkItem, "_update_route",
+                        lambda self: routed.append(self) or real(self))
+    victim = sorted(view._block_items)[2500]
+    started = time.perf_counter()
+    view._remove_ids({victim}, set(), set(), set())
+    elapsed = time.perf_counter() - started
+    # A handful of links re-routed, not all 5,000.
+    assert len(routed) < 50
+    assert elapsed < 5.0
