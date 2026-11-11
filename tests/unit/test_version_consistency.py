@@ -64,14 +64,40 @@ def test_uv_lock_records_the_same_version():
     own = [package["version"] for package in lock["package"]
            if package["name"] == "raptor-studio"]
     assert own == [_pyproject()], (
-        "uv.lock records a different raptor-studio version; run `uv lock` "
-        "(release-please updates it through release-please-config.json)")
+        "uv.lock records a different raptor-studio version. release-please cannot "
+        "edit uv.lock (its TOML updater has no filter support), so on the "
+        "release PR's branch .github/workflows/release-please.yml runs "
+        "`python tools/sync_uv_lock_version.py` and commits it; run that by hand "
+        "if it did not. See RELEASING.md, "
+        "\"Merge the release PR\"")
 
 
 def test_release_please_updates_every_versioned_file():
     """Each file this module checks, other than pyproject.toml and the
-    manifest (release-please's own), is in release-please's extra-files."""
+    manifest (release-please's own), is in release-please's extra-files.
+    uv.lock is the exception: release-please cannot edit it, so
+    tools/sync_uv_lock_version.py does (RELEASING.md)."""
     config = json.loads((REPO / "release-please-config.json").read_text())
     paths = {entry["path"] for entry in config["packages"]["."]["extra-files"]}
-    assert {"server.json", "raptor/__init__.py", "uv.lock",
+    assert {"server.json", "raptor/__init__.py",
             "packaging/raptor-studio-mcp/pyproject.toml"} <= paths
+    assert "uv.lock" not in paths, "a no-op entry would look like coverage"
+    assert (REPO / "tools" / "sync_uv_lock_version.py").is_file()
+
+
+def test_the_uv_lock_sync_script_rewrites_only_the_own_version(tmp_path):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "sync_uv_lock_version", REPO / "tools" / "sync_uv_lock_version.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.10.0"\n')
+    lock = ('version = 1\n\n[[package]]\nname = "other"\nversion = "0.9.0"\n\n'
+            '[[package]]\nname = "raptor-studio"\nversion = "0.9.0"\n')
+    (tmp_path / "uv.lock").write_text(lock)
+    assert mod.sync(tmp_path, write=False) == ("0.9.0", "0.10.0")
+    assert (tmp_path / "uv.lock").read_text() == lock
+    assert mod.sync(tmp_path) == ("0.9.0", "0.10.0")
+    assert (tmp_path / "uv.lock").read_text() == lock.replace(
+        'raptor-studio"\nversion = "0.9.0"', 'raptor-studio"\nversion = "0.10.0"')
+    assert mod.sync(tmp_path) == ("0.10.0", "0.10.0")

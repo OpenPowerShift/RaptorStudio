@@ -94,7 +94,11 @@ checks the current version; the release PR only changes the version number.
 3. Check the PR changes the version in all five places: `pyproject.toml`, `raptor/__init__.py`, `server.json` (twice)
    and `packaging/raptor-studio-mcp/pyproject.toml` (the version **and** the `raptor-studio[mcp]==` pin). It does not
    touch `RELEASE_CODENAME`; check that by hand at the same time.
-4. Merge it. release-please then creates the `vX.Y.Z` tag and a published GitHub Release, which starts **Release** in
+4. `uv.lock` is fixed for you. release-please cannot edit it, so the **Release Please** workflow runs
+   `tools/sync_uv_lock_version.py` after every update of the release PR and commits the one-line change to its branch
+   (as `chore: record X.Y.Z in uv.lock`). Check that commit is there and the PR's checks are green before merging; if it is missing,
+   run the workflow again (Actions → Release Please → Run workflow) or run the script on the branch yourself.
+5. Merge it. release-please then creates the `vX.Y.Z` tag and a published GitHub Release, which starts **Release** in
    the Actions tab.
 
 ### 4. Watch the run up to the approval
