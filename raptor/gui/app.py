@@ -35,7 +35,10 @@ def _configure_debug_tracing() -> None:
     and the DEBUG-level trace calls along diagram.py's model-loading
     path record which element was being built.
     """
-    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stderr)]
+    # A windowless launch (the `raptor-studio` gui-script on Windows, pythonw)
+    # has no stderr at all: `sys.stderr` is None.
+    handlers: list[logging.Handler] = (
+        [logging.StreamHandler(sys.stderr)] if sys.stderr is not None else [])
     try:
         handlers.append(logging.FileHandler(DEBUG_LOG_PATH, mode="w"))
     except OSError:
@@ -54,6 +57,28 @@ def _configure_debug_tracing() -> None:
     faulthandler.enable(file=fault_fd, all_threads=True)
     log = logging.getLogger("raptor.gui")
     log.debug("debug tracing enabled -- log file: %s", DEBUG_LOG_PATH)
+
+
+def _enable_crash_backtrace() -> None:
+    """Turn on `faulthandler` for the normal (non-`--debug`) launch.
+
+    It writes to stderr, but a windowless launch has none (`sys.stderr` is
+    None) and `faulthandler.enable()` then raises "RuntimeError: sys.stderr is
+    None" -- which stopped `raptor-studio.exe` from starting at all. There the
+    backtrace goes to the debug log file instead, and a failure to set it up
+    is never fatal: a crash backtrace is a nicety, not a reason to not start.
+    """
+    if faulthandler.is_enabled():
+        return
+    try:
+        if sys.stderr is not None:
+            faulthandler.enable(all_threads=True)
+        else:
+            fault_fd = open(DEBUG_LOG_PATH, "a")  # noqa: SIM115 -- faulthandler keeps writing to it until exit
+            faulthandler.enable(file=fault_fd, all_threads=True)
+    except (RuntimeError, OSError, ValueError):
+        logging.getLogger("raptor.gui").warning(
+            "crash backtraces are not available", exc_info=True)
 
 
 def _install_excepthook() -> None:
@@ -192,8 +217,7 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
     # A native crash (segfault) prints the Python stack of every thread
     # to the terminal, always -- not only under --debug -- so a report of
     # "core dumped" comes with where it happened.
-    if not faulthandler.is_enabled():
-        faulthandler.enable(all_threads=True)
+    _enable_crash_backtrace()
 
     # Qt's C++ event loop never lets the Python interpreter run while
     # blocked in `app.exec()`, so Python's usual SIGINT check never
