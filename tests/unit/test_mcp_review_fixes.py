@@ -296,6 +296,32 @@ class TestEngineAbort:
         with pytest.raises(RunCancelledError):
             run(ws, mid, num_runs=50, confirm_long_run=True, abort=aborted)
 
+    def test_api_run_hands_progress_to_the_engine(self, tmp_path, monkeypatch):
+        """Progress used to be read from the merged-report list inside the
+        stop check, so it only moved when a chunk merged (in chunk order) and
+        a slow parallel model showed "0 of N" for most of the run. The engine
+        counts finished runs live; the API must hand its callback to it."""
+        _use_workspace(tmp_path)
+        from raptor.mcp import context
+        from raptor.api.run import run
+        from raptor.core.engine import runner
+        ws = context.workspace()
+        mid = _open_motor()
+
+        real = runner.run_simulation_with_reports
+        got = {}
+
+        def spy(*args, **kwargs):
+            got["progress"] = kwargs.get("progress")
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(runner, "run_simulation_with_reports", spy)
+        seen = []
+        run(ws, mid, num_runs=3, confirm_long_run=True,
+            progress=lambda d, t: seen.append(d))
+        assert got["progress"] is not None
+        assert seen == sorted(seen) and seen[-1] == 3
+
     def test_sweep_cancelled_between_values(self, tmp_path):
         _use_workspace(tmp_path)
         from raptor.mcp import context
