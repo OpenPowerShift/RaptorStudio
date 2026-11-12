@@ -717,8 +717,6 @@ def _run_simulation(
     from raptor.core.engine.runner import run_simulation_with_reports as _run
 
     def _stop_check() -> bool:
-        if progress is not None:
-            progress(len(report_data), total)
         return abort.is_set()
 
     all_logs, eor_lines, final_lines = _run(
@@ -727,6 +725,10 @@ def _run_simulation(
         report_sink=report_data,
         num_workers=workers,
         stop_check=_stop_check,
+        # The engine counts runs as workers finish them. Reading
+        # `len(report_data)` instead only moved when a chunk was merged (in
+        # chunk order), so a slow model sat at 0 for most of a run.
+        progress=progress,
         collect_logs=collect_events,
         ao_sink=ao_lines,
         capacity_sink=cap_lines,
