@@ -26,7 +26,9 @@ def _pct(x: float | None) -> str:
 
 
 def top(attribution: dict[str, Any], n: int = 10) -> list[dict[str, Any]]:
-    return [e for e in attribution["elements"] if (e["red_time"]["mean"] or 0) > 0][:n]
+    rows = [e for e in attribution["elements"] if (e["red_time"]["mean"] or 0) > 0]
+    rows.sort(key=lambda e: (-(e["dtci"]["mean"] or 0.0), e["name"]))
+    return rows[:n]
 
 
 def caption(attribution: dict[str, Any]) -> str:

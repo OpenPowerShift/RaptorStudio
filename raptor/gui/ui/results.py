@@ -132,6 +132,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._build_graphs_tab()
         self._build_raw_tab()
         self._tabs.addTab(self._overview_page, "Overview")
+        from raptor.gui.ui.drivers_page import DriversPage
+        self._drivers_page = DriversPage()
+        self._drivers_page.element_clicked.connect(
+            lambda kind, _id, name: self.element_clicked.emit(kind, name))
+        self._drivers_stale = False
+        self._tabs.addTab(self._drivers_page, "Drivers")
+        self._tabs.currentChanged.connect(self._on_tab_shown_for_drivers)
         self._tabs.addTab(self._details_holder, "Final Results")
         self._tabs.addTab(self._event_page, "Event Log")
         self._tabs.addTab(self._graphs_page, "Graphs")
@@ -1146,10 +1153,49 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                         run_at=getattr(self, "_run_at", None),
                         manifest=getattr(self, "_manifest", None))
 
+    # ---- Drivers (downtime attribution) -----------------------------------
+    #: Above this many event-log lines the attribution waits until the tab
+    #: is opened, so a large run's results appear without the extra pass.
+    DRIVERS_EAGER_LINES = 200_000
+
+    def _on_tab_shown_for_drivers(self, index: int) -> None:
+        if self._drivers_stale and self._tabs.widget(index) is self._drivers_page:
+            self._refresh_drivers()
+
+    def _refresh_drivers(self) -> None:
+        """Work out what caused the downtime from this result set's event logs."""
+        self._drivers_stale = False
+        logs = [log for log in (self._event_logs or []) if log]
+        if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
+            self._drivers_page.set_attribution(None)
+            return
+        from raptor.api.insight.attribution import attribute_logs
+        experiment = (self._manifest or {}).get("experiment") or {}
+        try:
+            start = float(experiment.get("start_stats") or 0.0)
+            attribution = attribute_logs(logs, start)
+        except Exception:  # noqa: BLE001 - a view must never break showing results
+            import logging
+            logging.getLogger(__name__).exception("downtime attribution failed")
+            self._drivers_page.set_attribution(None)
+            return
+        attribution["units"] = self._units
+        self._drivers_page.set_attribution(attribution)
+
+    def _schedule_drivers(self) -> None:
+        lines = sum(len(log) for log in (self._event_logs or []))
+        showing = self._tabs.currentWidget() is self._drivers_page
+        if showing or lines <= self.DRIVERS_EAGER_LINES:
+            self._refresh_drivers()
+        else:
+            self._drivers_stale = True
+
     def clear(self):
         """Reset every result surface to the pre-run placeholder state."""
         self._manifest = None
         self._event_logs = []
+        self._drivers_stale = False
+        self._drivers_page.set_attribution(None)
         self._report_data = []
         self._importance = None
         self._importance_metric = "Availability"
@@ -1264,6 +1310,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # The model's own time unit (SYSTEM_DATA "Units" column) -- appended
         # to every TIME quantity shown; percentages and counts never get it.
         self._units = (units or "").strip()
+        self._schedule_drivers()
 
         def stage(label: str, done: int, total: int) -> None:
             if progress is not None:
