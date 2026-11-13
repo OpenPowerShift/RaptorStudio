@@ -1097,6 +1097,15 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled=False,
         enabled_when="live_session"),
     CommandSpec(
+        id="view.advisor_toggle",
+        attr="_advisor_toggle_action",
+        text="Advisor",
+        icon="check_badge_icon:text",
+        tooltip=(
+            "Show the Advisor — what looks wrong or unwise in the model, why, "
+            "and what to do about it"),
+        checkable=True),
+    CommandSpec(
         id="view.reset_layout",
         attr="_reset_layout_action",
         text="Reset Layout",
@@ -1319,6 +1328,7 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.fev_inspector_toggle"),
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
                         Btn("view.live_log_toggle"),
+                        Btn("view.advisor_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        Group("Appearance", (Btn("view.theme", True), Btn("view.prefs", True),

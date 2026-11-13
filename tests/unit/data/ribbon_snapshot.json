@@ -58,6 +58,16 @@
    "text": "Add Node",
    "tooltip": "Click the canvas to place a new Regular node, or click a link to insert it in series (Ctrl+3)\n\nUnavailable: open or create a model first"
   },
+  "_advisor_toggle_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Advisor",
+   "tooltip": "Show the Advisor \u2014 what looks wrong or unwise in the model, why, and what to do about it"
+  },
   "_align_action": {
    "checkable": false,
    "checked": false,
@@ -1506,6 +1516,7 @@
    "_add_event_tool": false,
    "_add_hier_tool": false,
    "_add_node_tool": false,
+   "_advisor_toggle_action": true,
    "_align_action": false,
    "_analysis_actions[capacityAnalysis]": true,
    "_analysis_actions[costAnalysis]": true,
@@ -1648,6 +1659,7 @@
    "_add_event_tool": true,
    "_add_hier_tool": true,
    "_add_node_tool": true,
+   "_advisor_toggle_action": true,
    "_align_action": false,
    "_analysis_actions[capacityAnalysis]": true,
    "_analysis_actions[costAnalysis]": true,
@@ -1790,6 +1802,7 @@
    "_add_event_tool": false,
    "_add_hier_tool": false,
    "_add_node_tool": false,
+   "_advisor_toggle_action": true,
    "_align_action": false,
    "_analysis_actions[capacityAnalysis]": true,
    "_analysis_actions[costAnalysis]": true,
@@ -2644,6 +2657,11 @@
        "kind": "action",
        "large": false,
        "text": "Live Log"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Advisor"
       },
       {
        "kind": "action",

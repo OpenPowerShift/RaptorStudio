@@ -231,6 +231,10 @@ class ValidationMixin(_Base):
         # saying "Not ready" until you happened to switch tabs.
         # No-ops when the panel has not been built yet.
         self._update_readiness()
+        # The Advisor reads the same model state, so it follows the same pass.
+        refresh_advisor = getattr(self, "_refresh_advisor", None)
+        if refresh_advisor is not None:
+            refresh_advisor()
         if not issues and not warnings:
             if announce:
                 # Replace the "Checking the model…" message: it has no

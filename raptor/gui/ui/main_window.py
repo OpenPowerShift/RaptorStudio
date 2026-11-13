@@ -28,6 +28,7 @@ from raptor.gui.ui.background_run_mixin import BackgroundRunMixin
 from raptor.gui.ui.overlay_mixin import OverlayMixin
 from raptor.gui.ui.status_summary_mixin import StatusSummaryMixin
 from raptor.gui.ui.autosave_mixin import AutosaveMixin
+from raptor.gui.ui.advisor_mixin import AdvisorMixin
 from raptor.gui.ui.run_progress_mixin import RunProgressMixin
 from raptor.gui.ui.file_io_mixin import FileIoMixin
 from raptor.gui.ui.step_mixin import StepMixin
@@ -182,7 +183,7 @@ _TERMINATION_CHOICES = [
 class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixin, SelectionMixin, FindZoomMixin, RecentFilesMixin, ExportMixin, HelpMixin, RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin,
                  ValidationMixin, DockLayoutMixin, StepMixin, FileIoMixin,
                  RunProgressMixin, AutosaveMixin, StatusSummaryMixin, OverlayMixin,
-                 BackgroundRunMixin, QMainWindow):
+                 BackgroundRunMixin, AdvisorMixin, QMainWindow):
     """The application shell.
 
     `RunExperimentMixin` supplies every read and write of the run
@@ -1073,6 +1074,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._build_inspector_dock()
         self._build_fev_inspector_dock()
         self._build_live_log_dock()
+        self._build_advisor_dock()
         self._build_results_dock()
         self._build_data_tables_dock()
         self._build_run_dock_and_arrange()
@@ -1290,11 +1292,14 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             manage_enabled=False,
             on_show=lambda: self._show_live_log_dock(True),
             on_hide=self._show_inspector_dock)
+        self._setup_dock_toggle(self._advisor_toggle_action, self._advisor_dock,
+                                on_show=self._refresh_advisor)
         self._sync_dock_tab_bars()
         # Floating/re-docking can create a fresh QTabBar whose default
         # elide mode is ElideRight, so tabs show "Data Tab...". Re-apply
         # the no-elide rule whenever the dock placement changes.
         for d in (self._explorer_dock, self._inspector_dock, self._fev_inspector_dock, self._live_log_dock,
+                  self._advisor_dock,
                   self._results_dock, self._data_tables_dock, self._run_dock):
             d.dockLocationChanged.connect(
                 lambda area, dock=d:
@@ -1318,6 +1323,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         for dock, name in ((self._explorer_dock, "ExplorerDock"), (self._inspector_dock, "InspectorDock"),
                            (self._fev_inspector_dock, "FevInspectorDock"),
                            (self._live_log_dock, "LiveLogDock"), (self._results_dock, "ResultsDock"),
+                           (self._advisor_dock, "AdvisorDock"),
                            (self._data_tables_dock, "DataTablesDock"), (self._run_dock, "RunPanelDock")):
             dock.setObjectName(name)
 
@@ -1349,6 +1355,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         ("_inspector_dock", "inspector_dock_icon", "text"),
         ("_fev_inspector_dock", "fev_panel_icon", "accent"),
         ("_live_log_dock", "log_icon", "text"),
+        ("_advisor_dock", "check_badge_icon", "text"),
         ("_results_dock", "results_dock_icon", "text"),
         ("_data_tables_dock", "table_grid_icon", "text"),
         ("_run_dock", "run_panel_icon", "text"),
