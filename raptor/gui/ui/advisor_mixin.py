@@ -66,14 +66,26 @@ class AdvisorMixin:
             panel.set_findings(None)
             self._set_advisor_title(None)
             return
-        from raptor.api.advisor import advise_model
+        from raptor.api.advisor import advise_model, sort_findings
         try:
-            findings = advise_model(self._rbd)
+            findings = sort_findings(advise_model(self._rbd) + self._run_findings())
         except Exception:  # noqa: BLE001 - the Advisor must never break an edit
             log.exception("advisor refresh failed")
             findings = []
         panel.set_findings(findings)
         self._set_advisor_title(findings)
+
+    def _run_findings(self) -> list[Finding]:
+        """What the results on screen say: precision, and what drives the downtime."""
+        results = getattr(self, "_results", None)
+        if results is None or not results.has_results():
+            return []
+        from raptor.api.advisor import advise_run
+        from raptor.api.run import _rd_to_dict
+        per_run = [_rd_to_dict(rd) for rd in getattr(results, "_report_data", [])]
+        page = getattr(results, "_drivers_page", None)
+        attribution = page.attribution() if page is not None else None
+        return advise_run(self._rbd, {}, per_run, attribution=attribution)
 
     def _set_advisor_title(self, findings: list[Finding] | None) -> None:
         dock = getattr(self, "_advisor_dock", None)

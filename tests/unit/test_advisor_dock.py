@@ -186,3 +186,21 @@ def test_an_edit_refreshes_the_findings(window, qapp):
     view._stack.push(ParamsCmd(view, "initial stock", 1, 1, 50))
     window._validate_model(quiet=True)
     assert "M-SPR-002" not in rules(window)
+
+
+def test_results_add_what_the_run_says(window, qapp, monkeypatch):
+    from raptor.core.engine.runner import run_simulation
+    reports = []
+    logs = run_simulation(window._rbd, 30, _report_sink=reports)
+    results = window._results
+    results._event_logs, results._report_data, results._units = logs, reports, "hours"
+    results._schedule_drivers()
+    monkeypatch.setattr(results, "has_results", lambda: True)
+    results.contents_changed.emit()
+    qapp.processEvents()
+    found = set(rules(window))
+    assert "R-DRV-001" in found and "R-DRV-002" in found
+    assert "M-SPR-002" in found                       # the model findings are still there
+    monkeypatch.setattr(results, "has_results", lambda: False)
+    results.contents_changed.emit()
+    assert not any(r.startswith("R-") for r in rules(window))

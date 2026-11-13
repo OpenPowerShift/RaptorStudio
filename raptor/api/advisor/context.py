@@ -285,11 +285,15 @@ class RunContext(ModelContext):
     """A model plus one finished batch: what the run rules read."""
 
     def __init__(self, rbd: Any, summary: dict, per_run: list[dict],
-                 requirements: list[dict] | None = None) -> None:
+                 requirements: list[dict] | None = None,
+                 attribution: dict | None = None) -> None:
         super().__init__(rbd)
         self.summary = summary or {}
         self.per_run = list(per_run or [])
         self.requirements = list(requirements or [])
+        #: `raptor.api.insight.attribution.aggregate` output, or None when
+        #: the run was made without downtime attribution.
+        self.attribution = attribution
 
     @property
     def n(self) -> int:

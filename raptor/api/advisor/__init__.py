@@ -29,10 +29,13 @@ def advise_model(rbd: Any, *, only: Iterable[str] | None = None,
 
 def advise_run(rbd: Any, summary: dict, per_run: list[dict], *,
                requirements: list[dict] | None = None,
+               attribution: dict | None = None,
                only: Iterable[str] | None = None,
                skip: Iterable[str] | None = None) -> list[Finding]:
-    """Every run finding for one finished batch of `rbd`, most important first."""
-    ctx = RunContext(rbd, summary, per_run, requirements)
+    """Every run finding for one finished batch of `rbd`, most important first.
+    `attribution` (see `raptor.api.insight.attribution`) adds the findings
+    about what drives the downtime."""
+    ctx = RunContext(rbd, summary, per_run, requirements, attribution)
     return run_rules(ctx, phase="run", only=only, skip=skip)
 
 
@@ -45,7 +48,13 @@ def advise_stored_run(workspace: Any, run_id: str, *,
     summary = read_summary(runs_dir, run_id, required=True)
     per_run = read_per_run(runs_dir, run_id) or []
     rbd = workspace.get(summary["model_id"]).rbd
-    return advise_run(rbd, summary, per_run, requirements=requirements)
+    from raptor.api.insight import drivers
+    try:
+        attribution = drivers.read(workspace, run_id)
+    except drivers.NoAttribution:
+        attribution = None
+    return advise_run(rbd, summary, per_run, requirements=requirements,
+                      attribution=attribution)
 
 
 def counts(findings: Iterable[Finding]) -> dict[str, int]:
