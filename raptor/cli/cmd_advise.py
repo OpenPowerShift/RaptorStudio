@@ -45,6 +45,27 @@ def add_parser(sub: Any) -> None:
                    help="list every rule and exit")
     a.set_defaults(func=advise_command)
 
+    e = sub.add_parser(
+        "explain", help="run a model and say what causes its downtime",
+        description="Run MODEL and attribute every system outage to the element "
+                    "that started it and to a cause: hands-on repair, waiting for "
+                    "a spare, waiting for people or equipment, logistics delay, "
+                    "planned maintenance, or being held by another element. Shows "
+                    "each element's share of system downtime (with its sampling "
+                    "error), of outages and of failures, and what typical outages "
+                    "look like. The engine's results are unchanged: this replays "
+                    "the event log.")
+    e.add_argument("model", metavar="MODEL")
+    e.add_argument("-n", "--runs", type=int, metavar="N",
+                   help="number of runs (default: the model's own)")
+    e.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+                   help="worker processes (default 1)")
+    e.add_argument("--seed", type=int, metavar="N")
+    e.add_argument("--top", type=int, default=10, metavar="N",
+                   help="how many elements to list (default 10)")
+    e.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    e.set_defaults(func=explain_command)
+
 
 def _ids(text: str | None) -> list[str] | None:
     if not text:
@@ -163,3 +184,22 @@ def _emit(docs: list[dict], fmt: str, why: bool) -> None:
             _markdown(d)
         else:
             _text(d, why)
+
+
+def explain_command(args: Any) -> int:
+    from raptor.api import run as run_api
+    from raptor.api.insight import drivers
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        try:
+            result = run_api.run(ws, mid, num_runs=args.runs, workers=max(1, args.jobs),
+                                 seed=args.seed, attribution=True, confirm_long_run=True)
+        except run_api.RunError as exc:
+            raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
+        attribution = drivers.read(ws, result.run_id)
+    if args.format == "json":
+        attribution["elements"] = attribution["elements"][:max(0, args.top)]
+        emit_json(attribution, None)
+    else:
+        print("\n".join(drivers.text_lines(attribution, args.top)))
+    return X.OK

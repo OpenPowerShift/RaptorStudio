@@ -286,8 +286,15 @@ def run(
     worker_limit: Callable[[], int] | None = None,
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
+    attribution: bool = False,
 ) -> RunResult:
     """Execute a simulation and persist artefacts to ``runs/<run_id>/``.
+
+    ``attribution`` also works out which element caused each system outage
+    and what kind of waiting it was (`raptor.api.insight.attribution`), and
+    stores it as ``attribution.json``. It replays the event log the engine
+    writes anyway, so it cannot change a result; the log is kept in memory
+    for the batch whether or not ``collect_events`` stores it.
 
     ``availability_plot`` and ``interim_cost`` say whether this run records
     the availability plot and the interim cost report. ``None`` (default)
@@ -457,7 +464,7 @@ def run(
     run_metadata: dict = {}
     try:
         event_logs, eor_lines, final_lines = _run_simulation(
-            sim_rbd, num_runs, report_data, workers, collect_events,
+            sim_rbd, num_runs, report_data, workers, collect_events or attribution,
             abort, ao_lines, cap_lines, cost_lines, date=date,
             ao_plot_interval=ao_interval,
             cost_plot_interval=cost_interval,
@@ -619,6 +626,15 @@ def run(
     # The per-run figures and the time units travel with the run so its
     # result tables can be rebuilt later (`raptor.api.run_tables`).
     (runs_dir / "per_run.json").write_text(json.dumps(per_run))
+    if attribution:
+        from raptor.api.insight.attribution import attribute_logs
+        from raptor.core import run_experiment
+        experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
+        attributed = attribute_logs(
+            (log if isinstance(log, list) else [log] for log in event_logs),
+            float(experiment.get("start_stats") or 0.0))
+        attributed["units"] = model_units(sim_rbd)
+        (runs_dir / "attribution.json").write_text(json.dumps(attributed))
     summary = {
         "summary_version": SUMMARY_VERSION,
         "run_id": run_id,
@@ -634,6 +650,8 @@ def run(
     }
     if importance_data is not None:
         summary["importance"] = importance_data
+    if attribution:
+        summary["attribution"] = True
     (runs_dir / "summary.json").write_text(
         json.dumps(summary, indent=2, default=str)
     )

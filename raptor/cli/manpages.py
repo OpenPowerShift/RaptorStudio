@@ -69,6 +69,13 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
          "Run the model and say whether the target is met, missed or too close to call."),
         ("raptor advise --list-rules", "Every rule, its level and its method."),
     ],
+    "explain": [
+        ("raptor explain plant.rbds", "Run the model and list what causes its "
+         "downtime, by element and by cause."),
+        ("raptor explain plant.rbds -n 500 -j 4 --top 5",
+         "500 runs on four cores; the five largest contributors."),
+        ("raptor explain plant.rbds -f json", "The full attribution, machine-readable."),
+    ],
     "validate": [
         ("raptor validate *.rbd", "Check several models."),
         ("raptor validate pump.rbd --strict -f json",
