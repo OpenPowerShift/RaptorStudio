@@ -65,6 +65,8 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
          "Leave out the notes and print the reasoning under each finding."),
         ("raptor advise plant.rbds --only M-SPR,M-RES -f json",
          "Only the spares and resource checks, machine-readable."),
+        ("raptor advise plant.rbds --target 'system.ao>=0.995'",
+         "Run the model and say whether the target is met, missed or too close to call."),
         ("raptor advise --list-rules", "Every rule, its level and its method."),
     ],
     "validate": [

@@ -61,6 +61,12 @@ def supplies(ctx: ModelContext) -> Iterator[Supply]:
                              b, rate, int(b["id"]))
 
 
+def _certain_shortfall(demand: float, supply: float) -> bool:
+    """More spares expected to be needed than can arrive, and at least one
+    needed: below one expected demand it is a risk (M-SPR-003), not a certainty."""
+    return demand > supply and demand >= 1.0
+
+
 @rule("M-SPR-001", title="Spares are unlimited everywhere",
       category="spares", basis="exact", severity="info")
 def all_infinite(ctx: ModelContext) -> Iterable[Finding]:
@@ -86,7 +92,7 @@ def supply_below_demand(ctx: ModelContext) -> Iterable[Finding]:
         deliveries = math.floor(run / every) if q and every > 0 else 0
         supply = s.stock + q * deliveries
         demand = s.rate * run
-        if demand <= supply:
+        if not _certain_shortfall(demand, supply):
             continue
         need = math.ceil(demand) - q * deliveries
         yield Finding(
@@ -114,7 +120,7 @@ def stockout_risk(ctx: ModelContext) -> Iterable[Finding]:
         q, every = s.restock
         restocked = bool(q and every > 0)
         deliveries = math.floor(run / every) if restocked else 0
-        if s.rate * run > s.stock + q * deliveries:
+        if _certain_shortfall(s.rate * run, s.stock + q * deliveries):
             continue                                   # M-SPR-002 says it
         horizon = min(every, run) if restocked else run
         mean = s.rate * horizon

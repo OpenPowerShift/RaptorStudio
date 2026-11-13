@@ -100,4 +100,4 @@ def _load_rule_modules() -> None:
     if _loaded:
         return
     _loaded = True
-    from raptor.api.advisor import rules_model  # noqa: F401 - registers on import
+    from raptor.api.advisor import rules_model, rules_run  # noqa: F401 - register on import

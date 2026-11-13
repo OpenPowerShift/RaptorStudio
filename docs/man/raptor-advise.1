@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-advise \- Check each MODEL for things a reliability engineer would question: redundancy that cannot work, placeholder data, spares or crews that cannot meet demand, maintenance that cannot pay off, too few runs. Nothing is run and nothing is changed. Each finding has a stable rule id and says whether it is exact or an estimate.
 .SH SYNOPSIS
-\fBraptor advise\fR [\-h] [\-f {text,json,md}] [\-\-min\-severity {error,warning,advice,info}] [\-\-only IDS] [\-\-skip IDS] [\-\-why] [\-\-strict] [\-\-list\-rules] [MODEL ...]
+\fBraptor advise\fR [\-h] [\-f {text,json,md}] [\-\-min\-severity {error,warning,advice,info}] [\-\-only IDS] [\-\-skip IDS] [\-\-why] [\-\-strict] [\-\-simulate] [\-\-target EXPR] [\-\-list\-rules] [MODEL ...]
 .SH DESCRIPTION
 Check each MODEL for things a reliability engineer would question: redundancy that cannot work, placeholder data, spares or crews that cannot meet demand, maintenance that cannot pay off, too few runs. Nothing is run and nothing is changed. Each finding has a stable rule id and says whether it is exact or an estimate.
 .SH OPTIONS
@@ -26,6 +26,12 @@ print the reasoning under each finding (text format)
 \fB\-\-strict\fR
 exit 3 on warnings as well as errors
 .TP
+\fB\-\-simulate\fR
+also run each model with its own settings and say how far to trust the results
+.TP
+\fB\-\-target\fR \fIEXPR\fR
+a requirement to judge the run against, e.g. 'system.ao>=0.995' (implies \-\-simulate; repeatable)
+.TP
 \fB\-\-list\-rules\fR
 list every rule and exit
 .SH EXAMPLES
@@ -48,6 +54,13 @@ Only the spares and resource checks, machine\-readable.
 .RS
 .nf
 \fBraptor advise plant.rbds \-\-only M\-SPR,M\-RES \-f json\fR
+.fi
+.RE
+.PP
+Run the model and say whether the target is met, missed or too close to call.
+.RS
+.nf
+\fBraptor advise plant.rbds \-\-target 'system.ao>=0.995'\fR
 .fi
 .RE
 .PP

@@ -94,3 +94,20 @@ def test_needs_a_model(capsys):
 def test_several_models_and_a_missing_one(capsys, tmp_path):
     code, out, _ = run_cli(capsys, "advise", flawed(tmp_path), str(tmp_path / "none.rbds"))
     assert code == X.USAGE and "no such model file" in out and "M-STR-002" in out
+
+
+def test_target_runs_the_model_and_gives_a_verdict(capsys, tmp_path):
+    spec = series_spec(block("A", fail_params=[500, 0, 0], repair_params=[20, 5, 0]),
+                       experiment={"trials": 40, "termination_type": "TimeSim",
+                                   "term_condition": 2000})
+    path = model(tmp_path, spec, "run.rbds")
+    code, out, _ = run_cli(capsys, "advise", path, "--target", "system.ao>=0.5", "-f", "json")
+    found = {f["rule"]: f for f in json.loads(out)["results"][0]["findings"]}
+    assert code == X.OK and found["R-REQ-001"]["title"] == "Target met"
+    code, out, _ = run_cli(capsys, "advise", path, "--target", "system.ao>=0.9999")
+    assert "R-REQ-001 (statistical): Target missed" in out
+
+
+def test_bad_target_is_a_usage_error(capsys, tmp_path):
+    code, _, err = run_cli(capsys, "advise", flawed(tmp_path), "--target", "system.ao=1")
+    assert code == X.USAGE and "METRIC>=VALUE" in err

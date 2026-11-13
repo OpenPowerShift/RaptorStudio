@@ -5,8 +5,10 @@ complete -c raptor -n '__fish_seen_subcommand_from advise' -l help
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l list-rules
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l min-severity
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l only
+complete -c raptor -n '__fish_seen_subcommand_from advise' -l simulate
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l skip
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l strict
+complete -c raptor -n '__fish_seen_subcommand_from advise' -l target
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l why
 complete -c raptor -n '__fish_use_subcommand' -a analytic
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l at

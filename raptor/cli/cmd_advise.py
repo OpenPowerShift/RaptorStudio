@@ -35,6 +35,12 @@ def add_parser(sub: Any) -> None:
                    help="print the reasoning under each finding (text format)")
     a.add_argument("--strict", action="store_true",
                    help="exit 3 on warnings as well as errors")
+    a.add_argument("--simulate", action="store_true",
+                   help="also run each model with its own settings and say how far "
+                        "to trust the results")
+    a.add_argument("--target", action="append", metavar="EXPR",
+                   help="a requirement to judge the run against, e.g. "
+                        "'system.ao>=0.995' (implies --simulate; repeatable)")
     a.add_argument("--list-rules", action="store_true",
                    help="list every rule and exit")
     a.set_defaults(func=advise_command)
@@ -87,13 +93,41 @@ def _markdown(doc: dict) -> None:
     print()
 
 
+def _targets(texts: list[str] | None) -> list[dict]:
+    out = []
+    for text in texts or []:
+        for op in (">=", "<="):
+            if op in text:
+                metric, value = text.split(op, 1)
+                try:
+                    out.append({"metric": metric.strip(), "op": op, "value": float(value)})
+                except ValueError as exc:
+                    raise CliError(f"--target {text!r}: {value!r} is not a number", X.USAGE) from exc
+                break
+        else:
+            raise CliError(f"--target {text!r} must be METRIC>=VALUE or METRIC<=VALUE", X.USAGE)
+    return out
+
+
+def _run_findings(ws: Any, mid: str, targets: list[dict]) -> list:
+    from raptor.api import run as run_api
+    from raptor.api.advisor import advise_stored_run
+    try:
+        result = run_api.run(ws, mid, confirm_long_run=True)
+    except run_api.RunError as exc:
+        raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
+    return advise_stored_run(ws, result.run_id, requirements=targets)
+
+
 def advise_command(args: Any) -> int:
     if args.list_rules:
         return _list_rules(args.format)
     if not args.models:
         raise CliError("advise needs at least one MODEL (or --list-rules)", X.USAGE)
     from raptor.api.advisor import advise_model, counts
-    from raptor.api.advisor.finding import SEVERITY_RANK
+    from raptor.api.advisor.finding import SEVERITY_RANK, sort_findings
+    targets = _targets(args.target)
+    simulate = args.simulate or bool(targets)
     floor = SEVERITY_RANK[args.min_severity]
     worst = X.OK
     docs: list[dict] = []
@@ -106,20 +140,26 @@ def advise_command(args: Any) -> int:
                 worst = max(worst, exc.code)
                 continue
             found = advise_model(ws.get(mid).rbd, only=_ids(args.only), skip=_ids(args.skip))
+            if simulate and not any(f.severity == "error" for f in found):
+                found = sort_findings(found + _run_findings(ws, mid, targets))
             tally = counts(found)
             shown = [f for f in found if SEVERITY_RANK[f.severity] >= floor]
             docs.append({"model": path, "counts": tally,
                          "findings": [f.to_dict() for f in shown]})
             if tally["error"] or (args.strict and tally["warning"]):
                 worst = max(worst, X.INVALID)
-    if args.format == "json":
+    _emit(docs, args.format, args.why)
+    return worst
+
+
+def _emit(docs: list[dict], fmt: str, why: bool) -> None:
+    if fmt == "json":
         emit_json({"schema": ADVISE_SCHEMA, "results": docs}, None)
-        return worst
+        return
     for d in docs:
         if "error" in d:
             print(f"{d['model']}: {d['error']}")
-        elif args.format == "md":
+        elif fmt == "md":
             _markdown(d)
         else:
-            _text(d, args.why)
-    return worst
+            _text(d, why)

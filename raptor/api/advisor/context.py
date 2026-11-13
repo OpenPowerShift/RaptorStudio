@@ -271,3 +271,49 @@ class ModelContext:
         if kind == "node" and id in self.node_by_id:
             return str(self.node_by_id[id].get("name"))
         return f"{kind} {id}"
+
+
+#: A requirement's metric -> the per-run field that holds it.
+REQUIREMENT_FIELDS = {
+    "system.ao": "availability", "system.availability": "availability",
+    "system.reliability": "reliability", "system.dependability": "dependability",
+    "system.mtbde": "mtbde", "system.mdt": "mdt", "system.mtbm": "mtbm",
+}
+
+
+class RunContext(ModelContext):
+    """A model plus one finished batch: what the run rules read."""
+
+    def __init__(self, rbd: Any, summary: dict, per_run: list[dict],
+                 requirements: list[dict] | None = None) -> None:
+        super().__init__(rbd)
+        self.summary = summary or {}
+        self.per_run = list(per_run or [])
+        self.requirements = list(requirements or [])
+
+    @property
+    def n(self) -> int:
+        return len(self.per_run)
+
+    def values(self, field: str) -> list[float]:
+        """The runs' values of one per-run field, leaving out undefined ones."""
+        out = []
+        for row in self.per_run:
+            v = row.get(field)
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+                out.append(float(v))
+        return out
+
+    @staticmethod
+    def mean_sem(values: list[float]) -> tuple[float, float]:
+        n = len(values)
+        if n == 0:
+            return math.nan, math.nan
+        mean = sum(values) / n
+        if n < 2:
+            return mean, math.nan
+        var = sum((v - mean) ** 2 for v in values) / (n - 1)
+        return mean, math.sqrt(var / n)
+
+    def field_for(self, metric: str) -> str:
+        return REQUIREMENT_FIELDS.get(metric, metric.split(".", 1)[-1])
