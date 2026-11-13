@@ -53,6 +53,10 @@ class AdvisorMixin:
         self._advisor_dock.setWidget(self._advisor_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,  # type: ignore[attr-defined]
                            self._advisor_dock)
+        inspector = getattr(self, "_inspector_dock", None)
+        if inspector is not None:
+            # beside the Inspector, as a tab: both are about "this element"
+            self.tabifyDockWidget(inspector, self._advisor_dock)  # type: ignore[attr-defined]
         self._advisor_dock.hide()
 
     # ---- refresh ---------------------------------------------------------

@@ -26,13 +26,16 @@ _PATTERNS = {
     "repair": Qt.BrushStyle.SolidPattern,
     "wait_spare": Qt.BrushStyle.BDiagPattern,
     "wait_resource": Qt.BrushStyle.FDiagPattern,
-    "logistics": Qt.BrushStyle.Dense4Pattern,
+    "logistics": Qt.BrushStyle.Dense5Pattern,
     "pm": Qt.BrushStyle.HorPattern,
     "pm_wait": Qt.BrushStyle.VerPattern,
     "dependency": Qt.BrushStyle.CrossPattern,
     "done": Qt.BrushStyle.DiagCrossPattern,
     "other": Qt.BrushStyle.Dense6Pattern,
 }
+
+#: How strongly the pattern is drawn over a cause's colour (0-255).
+PATTERN_ALPHA = 120
 
 
 def is_dark() -> bool:
@@ -46,8 +49,9 @@ def cause_colour(cause: str) -> QColor:
 
 def cause_brush(cause: str) -> QBrush:
     """The pattern overlay for a cause (painted over its plain colour)."""
-    return QBrush(QColor(ThemeManager.instance().colour["surface"]),
-                  _PATTERNS.get(cause, Qt.BrushStyle.Dense6Pattern))
+    overlay = QColor(ThemeManager.instance().colour["surface"])
+    overlay.setAlpha(PATTERN_ALPHA)       # the pattern must not wash the colour out
+    return QBrush(overlay, _PATTERNS.get(cause, Qt.BrushStyle.Dense6Pattern))
 
 
 def has_pattern(cause: str) -> bool:
