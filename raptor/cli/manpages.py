@@ -58,6 +58,15 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
         ("raptor schema -o rbds.schema.json",
          "Save the .rbds JSON Schema for an editor or another validator."),
     ],
+    "advise": [
+        ("raptor advise plant.rbds", "List what looks wrong or unwise, most "
+         "important first."),
+        ("raptor advise plant.rbds --why --min-severity advice",
+         "Leave out the notes and print the reasoning under each finding."),
+        ("raptor advise plant.rbds --only M-SPR,M-RES -f json",
+         "Only the spares and resource checks, machine-readable."),
+        ("raptor advise --list-rules", "Every rule, its level and its method."),
+    ],
     "validate": [
         ("raptor validate *.rbd", "Check several models."),
         ("raptor validate pump.rbd --strict -f json",
@@ -245,7 +254,7 @@ def generate() -> dict[str, str]:
             text += _fev_script_section()
         if n == "diff":
             text += _diff_exit_section()
-        if n in ("run", "sweep", "validate", "mcp"):
+        if n in ("run", "sweep", "validate", "advise", "mcp"):
             text += _exit_and_env()
         pages[f"raptor-{n}.1"] = text
     pages["raptor-set-paths.7"] = _set_paths_page()
