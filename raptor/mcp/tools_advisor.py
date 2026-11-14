@@ -235,7 +235,7 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     `convergence` (has the run settled), `availability-ladder`, and, when the
     run was made with `attribution=True`, `downtime-pareto`,
     `downtime-waterfall`, `outage-histogram`, `frequency-duration`, the
-    `downtime-treemap` and the `outage-anatomy`.
+    `downtime-treemap`, the `outage-anatomy` and the `ensemble-ribbon`.
     `lost-capacity-pareto`, `capacity-vs-downtime` and `capacity-waterfall`
     need capacity attribution; `annual-fan` and `annual-dots` need a run long
     enough for whole periods. `importance-quadrant` needs importance

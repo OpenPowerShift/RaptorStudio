@@ -725,7 +725,8 @@ you need the exact argument shape.
   SVG unless `render_svg=False`. Names include `trial-outcome`, `ecdf`,
   `convergence`, `availability-ladder`, and, with `attribution=True`,
   `downtime-pareto`, `downtime-waterfall`, `outage-histogram`,
-  `frequency-duration`, `downtime-treemap` and `outage-anatomy`.
+  `frequency-duration`, `downtime-treemap`, `outage-anatomy` and
+  `ensemble-ribbon`.
 
 | `what_if`
 | Compare a changed model with Base using paired trials: each metric's

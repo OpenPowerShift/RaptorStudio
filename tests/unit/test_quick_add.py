@@ -56,3 +56,15 @@ def test_escape_leaves_the_model_unchanged(win):
     view.show_quick_add()
     QTest.keyClick(view._quick_add.query, Qt.Key.Key_Escape)
     assert _blocks(win) == before
+
+
+def test_focus_mode_dims_only_the_unselected(win):
+    view = win._diagram_dock.view
+    ids = list(view._block_items)
+    assert len(ids) >= 2
+    view._block_items[ids[0]].setSelected(True)
+    view.set_focus_mode(True)
+    assert view._block_items[ids[0]].opacity() == 1.0
+    assert view._block_items[ids[1]].opacity() == 0.25
+    view.set_focus_mode(False)
+    assert view._block_items[ids[1]].opacity() == 1.0

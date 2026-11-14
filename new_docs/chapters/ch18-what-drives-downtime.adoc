@@ -98,8 +98,9 @@ PNG/SVG/CSV export. The set includes:
   maintenance), operational (plus logistics, spares and crews);
 * the outage-duration histogram on a log scale;
 * frequency against duration, one bubble per element;
-* the downtime treemap and the outage anatomy (what an outage *looks* like,
-  step by step);
+* the downtime treemap, the outage anatomy (what an outage *looks* like,
+  step by step) and the run-to-run ribbon (every trial as one row, green up
+  and red down);
 * convergence, and with capacity analysis the lost-capacity Pareto and the
   downtime-against-lost-capacity scatter;
 * year-by-year availability when the run covers whole periods.

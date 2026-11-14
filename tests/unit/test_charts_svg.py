@@ -48,6 +48,9 @@ def _specs() -> dict[str, charts.ChartSpec]:
         "scatter": charts.capacity_vs_downtime(_capacity()),
         "fan": charts.annual_fan(_periods()),
         "treemap": charts.downtime_treemap(_capacity()),
+        "ribbon": charts.ensemble_ribbon({"runs": 2, "outages": {"runs": [
+            {"start": 0, "end": 10, "red": [2, 4]},
+            {"start": 0, "end": 10, "red": []}]}}),
         "icicle": charts.outage_anatomy({
             "runs": 2, "sequences": [
                 {"steps": [{"element": "Pump", "cause": "repair"},

@@ -9625,7 +9625,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>77 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>84 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10152,7 +10152,7 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 77 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+listed below: 84 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
 <code>ping</code>, or 67 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
@@ -10596,7 +10596,8 @@ you need the exact argument shape.</p>
   SVG unless <code>render_svg=False</code>. Names include <code>trial-outcome</code>, <code>ecdf</code>,
   <code>convergence</code>, <code>availability-ladder</code>, and, with <code>attribution=True</code>,
   <code>downtime-pareto</code>, <code>downtime-waterfall</code>, <code>outage-histogram</code>,
-  <code>frequency-duration</code>, <code>downtime-treemap</code> and <code>outage-anatomy</code>.</p></td>
+  <code>frequency-duration</code>, <code>downtime-treemap</code>, <code>outage-anatomy</code> and
+  <code>ensemble-ribbon</code>.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>what_if</code></p></td>
@@ -10604,6 +10605,26 @@ you need the exact argument shape.</p>
   scenario value, the paired difference with its standard error, the chance
   the scenario is better, the variance pairing cut, and requirement
   verdicts. The open model is never modified.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>replace_in_table</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Find and replace in one model table column, with whole-cell and case
+  options. Name columns use the manual-rename rules and a refused set
+  changes nothing.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>duplicate_elements</code>, <code>copy_element_data</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate a selection with fresh ids and names, or copy one block&#8217;s
+  data groups (Failure, Repair, logistics, spares, PM, costs) onto other
+  blocks. One save; name, position, links and dependency are never changed
+  by a data-only copy.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_part_types</code>, <code>apply_part_type</code>, <code>save_part_type</code>, <code>sync_part_types</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Reuse one block&#8217;s data as a named part type: list parts from a <code>.rbdlib</code>
+  file or the model, apply one to blocks (recording the link), save a
+  block as a part, and show or apply the changes a library has made while
+  respecting per-block overrides.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>sensitivity</code></p></td>
@@ -12157,8 +12178,9 @@ maintenance), operational (plus logistics, spares and crews);</p>
 <p>frequency against duration, one bubble per element;</p>
 </li>
 <li>
-<p>the downtime treemap and the outage anatomy (what an outage <strong>looks</strong> like,
-step by step);</p>
+<p>the downtime treemap, the outage anatomy (what an outage <strong>looks</strong> like,
+step by step) and the run-to-run ribbon (every trial as one row, green up
+and red down);</p>
 </li>
 <li>
 <p>convergence, and with capacity analysis the lost-capacity Pareto and the

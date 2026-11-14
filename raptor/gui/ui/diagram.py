@@ -265,6 +265,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setBackgroundBrush(QBrush(QColor(COLOUR["canvas"])))
+        self._focus_mode = False
         self._scene.selectionChanged.connect(self._on_selection_changed)
         self._user_zoomed = False
         #: Current semantic-zoom state: None until first applied, then
@@ -578,6 +579,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             # selection changes on dead items. Non-fatal; ignore.
             return
         self._refresh_anchor_leader()
+        if self._focus_mode:
+            self._apply_focus(items)
         if not items:
             self.selection_cleared.emit()
             self.selection_changed.emit()
@@ -2965,6 +2968,26 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                            "DepNum", "DepType", "DepNothing", "DepIdle",
                            "DepPM", "DepFail", "DepPMThresh",
                            "defDepStateIdle")
+
+    def set_focus_mode(self, enabled: bool) -> None:
+        """Dim everything not selected; keep the topology visible."""
+        self._focus_mode = bool(enabled)
+        try:
+            items = self._scene.selectedItems()
+        except RuntimeError:
+            return
+        self._apply_focus(items)
+
+    def _apply_focus(self, selected: list[Any]) -> None:
+        chosen = set(selected)
+        for items in (self._block_items, self._node_items,
+                      self._event_items, getattr(self, "_hier_items", {})):
+            for item in items.values():
+                try:
+                    item.setOpacity(1.0 if (not self._focus_mode
+                                            or item in chosen) else 0.25)
+                except RuntimeError:
+                    continue
 
     def show_quick_add(self, at_scene: Any = None) -> None:
         """Open the Quick Add popup at the cursor or a scene point."""

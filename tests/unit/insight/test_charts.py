@@ -212,3 +212,15 @@ def test_the_outage_anatomy_builds_one_row_per_path_prefix():
     assert len(first) == 1
     assert first[0]["value"] == pytest.approx(1.0)
     assert [row for row in spec.series if row["column"] == 1][0]["label"] == "Valve"
+
+
+def test_the_ensemble_ribbon_sorts_runs_and_keeps_red_intervals():
+    attribution = {"runs": 3, "outages": {"runs": [
+        {"start": 0, "end": 100, "red": [10, 20, 50, 60]},
+        {"start": 0, "end": 100, "red": []},
+        {"start": 0, "end": 100, "red": [5, 15]}]}}
+    spec = charts.ensemble_ribbon(attribution)
+    assert spec.kind == "ribbon"
+    assert [row["downtime"] for row in spec.series] == [0, 10, 20]
+    assert spec.series[1]["red"] == [[5, 15]]
+    assert "best" in spec.caption and "worst" in spec.caption

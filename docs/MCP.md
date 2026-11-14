@@ -547,7 +547,8 @@ scenario is better. The open model is untouched.
 application paints, with the figure itself as SVG unless `render_svg` is
 false. The base charts (`trial-outcome`, `ecdf`, `convergence`,
 `availability-ladder`) need only the run; the downtime charts need
-`attribution=True` (including the treemap and the outage anatomy), and
+`attribution=True` (including the treemap, the outage anatomy and the
+run-to-run ribbon), and
 `importance-quadrant` and `cost-pareto` need those analyses to have run. `raptor explain --chart NAME` prints the same chart and
 `--chart-svg PATH` writes it.
 

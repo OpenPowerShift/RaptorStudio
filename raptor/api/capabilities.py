@@ -141,6 +141,10 @@ CAPABILITIES: tuple[Capability, ...] = (
         api="raptor.api.tables.replace_in_table", cli="tables",
         mcp="replace_in_table", gui="command:data.find_replace"),
     Capability(
+        "insight.ribbon", "All trials as one state ribbon",
+        api="raptor.api.insight.charts.ensemble_ribbon", cli="explain",
+        mcp="run_chart", gui="widget:raptor.gui.ui.charts_page.ChartsPage"),
+    Capability(
         "library.part_types", "Reuse a block's data as a named part type",
         api="raptor.api.library.links.link_block", cli="library",
         mcp="list_part_types",

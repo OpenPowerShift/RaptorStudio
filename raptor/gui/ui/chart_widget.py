@@ -567,6 +567,27 @@ class ChartWidget(QWidget):
                              Qt.AlignmentFlag.AlignHCenter,
                              f"step {column + 1}")
 
+    def _paint_ribbon(self, painter, spec, palette) -> None:
+        rows = [row for row in spec.series if row.get("span")]
+        if not rows:
+            return self._paint_none(painter, spec, palette)
+        r = self._rect()
+        start = min(float(row["start"]) for row in rows)
+        end = max(float(row["end"]) for row in rows)
+        height = r.height() / len(rows)
+        for i, row in enumerate(rows):
+            y = r.top() + i * height
+            painter.fillRect(QRectF(r.left(), y, r.width(),
+                                    max(1, height - 0.4)),
+                             QColor(34, 197, 94, 140))
+            painter.setBrush(QColor("#C4472F"))
+            painter.setPen(Qt.PenStyle.NoPen)
+            for a, b in row.get("red") or []:
+                x0 = _scale(float(a), start, end, r.left(), r.right())
+                x1 = _scale(float(b), start, end, r.left(), r.right())
+                painter.drawRect(QRectF(x0, y, max(1, x1 - x0),
+                                        max(1, height - 0.4)))
+
     # -- interaction ----------------------------------------------------
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt name
