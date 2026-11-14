@@ -1047,6 +1047,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         view = self._diagram_dock.view
         return bool(view.hasFocus() or view.viewport().hasFocus())
 
+    def _command_search(self) -> None:
+        from raptor.gui.ui.command_search import CommandSearch
+        CommandSearch(self).exec()
+
     def _data_tables_find_replace(self) -> None:
         self._data_tables.find_replace()
 

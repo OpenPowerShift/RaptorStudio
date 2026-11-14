@@ -49,8 +49,9 @@ def test_cli_command_and_flag_exist(cap):
 @pytest.mark.parametrize("cap", [c for c in CAPABILITIES if c.mcp], ids=lambda c: c.id)
 def test_mcp_tool_is_registered(cap):
     pytest.importorskip("mcp")
-    from raptor.mcp import (
-        server, tools_advisor, tools_library, tools_run,  # noqa: F401
+    from raptor.mcp import (  # noqa: F401
+        server, tools_advisor, tools_library, tools_model, tools_run,
+        tools_tables,
     )
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     assert cap.mcp in names

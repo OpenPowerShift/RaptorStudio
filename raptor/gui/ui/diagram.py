@@ -2500,6 +2500,13 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                 focus.textInteractionFlags() & Qt.TextEditorInteraction:
             super().keyPressEvent(event)
             return
+        if event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Slash) and \
+                not (event.modifiers() & (Qt.KeyboardModifier.ControlModifier
+                                          | Qt.KeyboardModifier.AltModifier
+                                          | Qt.KeyboardModifier.ShiftModifier)):
+            self.show_quick_add()
+            event.accept()
+            return
         if event.key() == Qt.Key.Key_F2:
             # Explicit text-edit entry, matching every other text control
             # in the app. Only a single text annotation has an unambiguous
@@ -2958,6 +2965,24 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                            "DepNum", "DepType", "DepNothing", "DepIdle",
                            "DepPM", "DepFail", "DepPMThresh",
                            "defDepStateIdle")
+
+    def show_quick_add(self, at_scene: Any = None) -> None:
+        """Open the Quick Add popup at the cursor or a scene point."""
+        if self._rbd_ref is None:
+            return
+        from PySide6.QtGui import QCursor
+        from raptor.gui.ui.quick_add import QuickAdd
+        local = self.viewport().mapFromGlobal(QCursor.pos())
+        if not self.viewport().rect().contains(local):
+            local = self.viewport().rect().center()
+        scene = (at_scene if at_scene is not None
+                 else self.mapToScene(local))
+        global_pos = self.viewport().mapToGlobal(local)
+        popup = getattr(self, "_quick_add", None)
+        if popup is None or not popup.isVisible():
+            popup = QuickAdd(self)
+            self._quick_add = popup
+        popup.show_at(global_pos, scene)
 
     def add_block_from_template(self, row: dict, at_model=None) -> int:
         """Insert a library template as a new block (fresh id, undoable,

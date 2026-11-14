@@ -122,6 +122,21 @@ CAPABILITIES: tuple[Capability, ...] = (
         api="raptor.api.edit.copy_element_data", cli="edit",
         mcp="copy_element_data", gui="command:home.paste_data"),
     Capability(
+        "view.command_search", "Run any command by name",
+        api="raptor.gui.quick_match.rank",
+        cli=None, mcp=None, gui="command:view.command_search",
+        absent={"cli": "an interactive search is a GUI affordance; the "
+                       "commands themselves have CLI forms",
+                "mcp": "a command by name is not a task an assistant needs; "
+                       "the underlying tools are exposed directly"}),
+    Capability(
+        "model.quick_add", "Add an element at the cursor by name",
+        api="raptor.gui.quick_match.rank",
+        cli=None, mcp=None, gui="command:model.quick_add",
+        absent={"cli": "adding elements is done with the model-building "
+                       "commands (raptor edit, set and build tools)",
+                "mcp": "use add_block/add_node/add_event/add_hierarchy"}),
+    Capability(
         "edit.replace", "Find and replace in a model table column",
         api="raptor.api.tables.replace_in_table", cli="tables",
         mcp="replace_in_table", gui="command:data.find_replace"),

@@ -197,6 +197,20 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_edit_paste",
         enabled_when="can_paste"),
     CommandSpec(
+        id="model.quick_add",
+        attr="_quick_add_action",
+        text="Quick Add",
+        tooltip="Add an element at the cursor (Space or / on the canvas)",
+        handler="_diagram_dock.view.show_quick_add"),
+    CommandSpec(
+        id="view.command_search",
+        attr="_command_search_action",
+        text="Run a Command…",
+        tooltip="Search every command by name (Ctrl+Shift+P)",
+        handler="_command_search",
+        shortcut="Ctrl+Shift+P",
+        more_shortcuts=("Ctrl+K",)),
+    CommandSpec(
         id="data.find_replace",
         attr="_find_replace_action",
         text="Find and Replace…",
@@ -1270,6 +1284,7 @@ LAYOUT: tuple[Page, ...] = (
              priority=2),
        Group("Tools", (Btn("model.select", True), Btn("model.connect", True))),
        Group("Build", (Btn("model.add_block", True),
+                       Btn("model.quick_add"),
                        Btn("model.add_node", True),
                        Btn("model.add_event", True),
                        Btn("model.add_hier", True),
