@@ -633,6 +633,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._commands.create_all()
         self._sync_link_routing()
         self._undo_stack.cleanChanged.connect(self._on_undo_clean_changed)
+        # The Part Library lists the model's own parts and counts the
+        # elements that follow them: keep it current with every edit.
+        self._undo_stack.indexChanged.connect(self._refresh_library_dock)
         # Spread applies to the ACTIVE overlay, and only Weak and Cost
         # have quartile bands. Enable it from the checked state, not from
         # data availability; pressing it with Spares/Capacity showing must
@@ -1043,6 +1046,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             return
         self._diagram_dock.view.paste()
 
+    def _refresh_library_dock(self, *_args) -> None:
+        widget = getattr(self, "_library_dock_widget", None)
+        if widget is not None and widget.isVisible():
+            widget.refresh()
+
     def _canvas_has_focus(self) -> bool:
         view = self._diagram_dock.view
         return bool(view.hasFocus() or view.viewport().hasFocus())
@@ -1190,7 +1198,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._library_dock_widget = LibraryDock()
         dock_library = QDockWidget("Part Library", self)
         dock_library.setObjectName("LibraryDock")
-        self._set_dock_icon(dock_library, "explorer_dock_icon")
+        self._set_dock_icon(dock_library, "library_dock_icon")
         dock_library.setWidget(self._library_dock_widget)
         dock_library.setMinimumSize(260, 0)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock_library)
@@ -1382,7 +1390,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             on_show=lambda: self._show_live_log_dock(True),
             on_hide=self._show_inspector_dock)
         self._setup_dock_toggle(self._advisor_toggle_action, self._advisor_dock,
-                                on_show=self._refresh_advisor)
+                                on_show=self._show_advisor)
         self._sync_dock_tab_bars()
         # Floating/re-docking can create a fresh QTabBar whose default
         # elide mode is ElideRight, so tabs show "Data Tab...". Re-apply
@@ -1424,8 +1432,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Minimize-to-stub: Data Tables + Results collapse together as
         # one bottom stub since they're tabified into one physical slot
         # -- minimizing either one collapses both.
-        self._make_dock_minimizable([self._explorer_dock], "left")
+        # The Part Library shares the Explorer's slot and the Advisor the
+        # Inspector's, so each gets the same title bar and they collapse
+        # together.
+        self._make_dock_minimizable([self._explorer_dock, self._library_dock],
+                                    "left")
         self._make_dock_minimizable([self._inspector_dock], "right")
+        self._make_dock_minimizable([self._advisor_dock], "right")
         self._make_dock_minimizable(
             [self._results_dock, self._data_tables_dock, self._run_dock], "bottom",
             restore_max=lambda: self._max_bottom_dock_height())
@@ -1445,6 +1458,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         ("_fev_inspector_dock", "fev_panel_icon", "accent"),
         ("_live_log_dock", "log_icon", "text"),
         ("_advisor_dock", "check_badge_icon", "text"),
+        ("_library_dock", "library_dock_icon", "text"),
         ("_results_dock", "results_dock_icon", "text"),
         ("_data_tables_dock", "table_grid_icon", "text"),
         ("_run_dock", "run_panel_icon", "text"),

@@ -11,12 +11,16 @@ from raptor.cli.exitcodes import CliError
 
 def add_parser(sub: Any) -> None:
     lib = sub.add_parser(
-        "library", help="part types: list, inspect, apply and sync",
-        description="A part type is a block's data without identity or "
-                    "placement; a library is a plain JSON file of them. "
-                    "Applying one writes ordinary block columns and records "
-                    "a link, so the model stays a normal model. The model "
-                    "file changes only for apply/save/detach.")
+        "library", help="part types and assemblies: list, apply, insert, sync",
+        description="A part type is an element's data without identity or "
+                    "placement; an assembly is a saved group of elements (a "
+                    "hierarchy with its contents, a node with its blocks, "
+                    "events) with its internal links. A library is a plain "
+                    "JSON file of both. Applying a part type writes ordinary "
+                    "columns and records a link; inserting an assembly adds "
+                    "a fresh copy with new ids and free names, so the model "
+                    "stays a normal model. The model file changes only for "
+                    "apply/save/detach/insert.")
     lib.set_defaults(func=_missing)
     s = lib.add_subparsers(dest="library_command", metavar="ACTION")
 
@@ -39,19 +43,7 @@ def add_parser(sub: Any) -> None:
                    help="replace an existing library file")
     p.set_defaults(func=import_command)
 
-    p = s.add_parser("add", help="save a model block as a new part type")
-    p.add_argument("library", metavar="FILE")
-    p.add_argument("model", metavar="MODEL")
-    p.add_argument("--block", required=True, metavar="NAME|ID")
-    p.add_argument("--kind", default="block",
-                   choices=("block", "node", "event", "hierarchy",
-                            "annotation"))
-    p.add_argument("--name", metavar="N")
-    p.add_argument("--category", default="", metavar="TEXT")
-    p.add_argument("--source", default="", metavar="TEXT")
-    p.add_argument("--basis", choices=("data", "handbook", "judgement"),
-                   default="judgement")
-    p.set_defaults(func=add_command)
+    _add_save_and_insert(s)
 
     p = s.add_parser("apply", help="apply a part type to blocks and link them")
     p.add_argument("model", metavar="MODEL")
@@ -83,8 +75,42 @@ def add_parser(sub: Any) -> None:
     p.set_defaults(func=detach_command)
 
 
+
+def _add_save_and_insert(s: Any) -> None:
+    """`library add` (a part type or an assembly) and `library insert`."""
+    p = s.add_parser("add", help="save a model block as a new part type")
+    p.add_argument("library", metavar="FILE")
+    p.add_argument("model", metavar="MODEL")
+    target = p.add_mutually_exclusive_group(required=True)
+    target.add_argument("--block", metavar="NAME|ID",
+                        help="the element whose values become a part type")
+    target.add_argument("--assembly", metavar="NAMES",
+                        help="comma list of elements saved as an assembly "
+                             "(a hierarchy brings everything inside it)")
+    p.add_argument("--kind", default="block",
+                   choices=("block", "node", "event", "hierarchy",
+                            "annotation"))
+    p.add_argument("--name", metavar="N")
+    p.add_argument("--category", default="", metavar="TEXT")
+    p.add_argument("--source", default="", metavar="TEXT")
+    p.add_argument("--basis", choices=("data", "handbook", "judgement"),
+                   default="judgement")
+    p.set_defaults(func=add_command)
+
+    p = s.add_parser("insert", help="insert a copy of an assembly into a model")
+    p.add_argument("model", metavar="MODEL")
+    p.add_argument("--library", required=True, metavar="FILE")
+    p.add_argument("--part", required=True, metavar="PART")
+    p.add_argument("--at", metavar="X,Y",
+                   help="model position of the copy's top-left "
+                        "(default: right of the model)")
+    p.add_argument("--in-place", action="store_true",
+                   help="write the change back to MODEL")
+    p.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    p.set_defaults(func=insert_command)
+
 def _missing(args: Any) -> int:
-    raise CliError("use 'raptor library list|show|import|add|apply|sync'",
+    raise CliError("use 'raptor library list|show|import|add|insert|apply|sync|detach'",
                    X.USAGE)
 
 
@@ -150,6 +176,8 @@ def import_command(args: Any) -> int:
 def add_command(args: Any) -> int:
     from raptor.api.library.model import part_from_element, write_library
     library = _open(args.library, create=True)
+    if args.assembly:
+        return _add_assembly(args, library)
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         rbd = ws.get(mid).rbd
@@ -160,6 +188,56 @@ def add_command(args: Any) -> int:
         library.parts[part.id] = part
         write_library(library, args.library)
     eprint(f"added {part.id} ({part.kind}) to {args.library}")
+    return X.OK
+
+
+def _add_assembly(args: Any, library: Any) -> int:
+    from raptor.api.library.assembly import assembly_from_elements, describe
+    from raptor.api.library.model import write_library
+    names = [name.strip() for name in args.assembly.split(",") if name.strip()]
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        try:
+            part = assembly_from_elements(
+                ws.get(mid).rbd, names, name=args.name or names[0],
+                category=args.category, source=args.source)
+        except (KeyError, ValueError) as exc:
+            raise CliError(str(exc), X.USAGE) from exc
+    library.parts[part.id] = part
+    write_library(library, args.library)
+    eprint(f"added assembly {part.id} ({describe(part)}) to {args.library}")
+    return X.OK
+
+
+def insert_command(args: Any) -> int:
+    from raptor.api.library.assembly import insert_assembly
+    library = _open(args.library)
+    part = library.get(args.part)
+    if part is None:
+        raise CliError(f"no part {args.part!r} in {args.library}", X.USAGE)
+    at = None
+    if args.at:
+        try:
+            x, y = (float(v) for v in args.at.split(","))
+        except ValueError:
+            raise CliError("--at takes X,Y", X.USAGE) from None
+        at = (x, y)
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        try:
+            result = insert_assembly(ws.get(mid).rbd, part, at=at)
+        except ValueError as exc:
+            raise CliError(str(exc), X.USAGE) from exc
+        ws.save(mid)
+        _save_back(ws, mid, args.model, args.in_place)
+    if args.format == "json":
+        emit_json(result, None)
+        return X.OK
+    print(f"inserted {part.name}: {result['count']} element(s)")
+    for note in result["notes"]:
+        print(f"  note: {note}")
+    if not args.in_place:
+        eprint("workspace only; pass --in-place to write MODEL")
     return X.OK
 
 

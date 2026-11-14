@@ -165,3 +165,76 @@ def sync_part_types(model_id: str, library_path: str | None = None,
         lines.append(f"- **{entry['name']}** follows {entry['name_part']} "
                      f"{entry['version']}: {', '.join(entry['changes'])}")
     return ok(result, "\n".join(lines) or "Every linked block matches its part.")
+
+
+@mcp.tool(annotations=ADDITIVE("Save assembly"))
+@guarded
+def save_assembly(model_id: str, elements: list[str], name: str,
+                  library_path: str | None = None, category: str = "",
+                  source: str = "") -> CallToolResult:
+    """Save a group of elements as a reusable assembly.
+
+    An assembly is structure, not values: the named `elements` (blocks,
+    nodes, events, hierarchies), everything inside a named hierarchy, and
+    the links between them.  `insert_assembly` puts a fresh copy into any
+    model.  With `library_path` the assembly is added to that `.rbdlib`
+    file; without it, it is kept in the model's own part list.  The model
+    itself is not changed.
+    """
+    from raptor.api.library.assembly import (
+        add_local_part, assembly_from_elements, describe,
+    )
+    from raptor.api.library.model import Library, read_library, write_library
+
+    ws = context.workspace()
+    rbd = ws.get(model_id).rbd
+    part = assembly_from_elements(rbd, elements, name=name,
+                                  category=category, source=source)
+    if library_path:
+        try:
+            library = read_library(library_path)
+        except FileNotFoundError:
+            library = Library(library_path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+                              or "Library", path=library_path)
+        library.parts[part.id] = part
+        write_library(library, library_path)
+    else:
+        add_local_part(rbd, part)
+        ws.save(model_id)
+    return ok({"part": part.id, "name": part.name, "contents": describe(part),
+               "library_path": library_path},
+              f"Saved assembly **{part.name}** (`{part.id}`): {describe(part)}"
+              + (f" to `{library_path}`." if library_path else " in the model."))
+
+
+@mcp.tool(annotations=ADDITIVE("Insert assembly"))
+@guarded
+def insert_assembly(model_id: str, part: str,
+                    library_path: str | None = None,
+                    x: float | None = None, y: float | None = None
+                    ) -> CallToolResult:
+    """Insert a fresh copy of an assembly into a model.
+
+    `part` is the assembly's id or name, from `library_path` or the model's
+    own part list.  The copy gets new ids and free names (Pump -> Pump_2);
+    a hierarchy keeps everything inside it.  It is placed at (`x`, `y`) or,
+    by default, to the right of the model, and is NOT connected: link it in
+    with `connect`.  Spare pools or resources the model lacks are reset and
+    listed in `notes`.
+    """
+    from raptor.api.library.assembly import insert_assembly as insert
+    from raptor.api.library.links import local_parts
+
+    ws = context.workspace()
+    rbd = ws.get(model_id).rbd
+    found = (_library(library_path).get(part) if library_path
+             else local_parts(rbd).get(part)
+             or next((p for p in local_parts(rbd).values() if p.name == part),
+                     None))
+    if found is None:
+        raise ValueError(f"no assembly {part!r}; list them with list_part_types")
+    at = (x, y) if x is not None and y is not None else None
+    result = insert(rbd, found, at=at)
+    ws.save(model_id)
+    return ok(result, f"Inserted **{found.name}**: {result['count']} "
+                      "element(s), not yet connected.")

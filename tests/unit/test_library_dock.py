@@ -9,7 +9,9 @@ import pytest
 pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QInputDialog
+from PySide6.QtWidgets import QApplication, QDialog
+
+from raptor.gui.ui import library_dock as L
 
 from raptor.api.library.links import (
     apply_part_to_rbd, link_record, local_parts,
@@ -41,68 +43,136 @@ def _first_block(rbd):
 
 def test_the_library_dock_is_tabbed_with_the_explorer(win):
     assert win._library_dock_widget is not None
+    assert win._library_dock_widget is not None
     assert win._library_dock.widget() is win._library_dock_widget
 
 
-def test_a_saved_part_appears_and_applies_to_a_selected_block(win):
+def _entries(dock):
+    """(kind group title, item) for every part in the tree."""
+    out = []
+    for i in range(dock.tree.topLevelItemCount()):
+        head = dock.tree.topLevelItem(i)
+        for j in range(head.childCount()):
+            out.append((head.text(0), head.child(j)))
+    return out
+
+
+def _choose(dock, part_id):
+    item = next(item for _head, item in _entries(dock)
+                if item.data(0, L._ROLE)[1] == part_id)
+    dock.tree.setCurrentItem(item)
+
+
+def _accept(monkeypatch, name, *, as_type=None):
+    def exec_(self):
+        self.name.setText(name)
+        if as_type is not None:
+            self.as_type.setChecked(as_type)
+            self.as_assembly.setChecked(not as_type)
+        return QDialog.DialogCode.Accepted
+    monkeypatch.setattr(L._SaveDialog, "exec", exec_)
+
+
+def test_the_dock_lists_the_open_models_parts_on_load(win):
+    rbd = win._rbd
+    row = _first_block(rbd)
+    apply_part_to_rbd(rbd, row["ID"], part_from_block(row, name="Unit"))
+    dock = win._library_dock_widget
+    dock.refresh()
+    assert [head for head, _item in _entries(dock)] == ["Block types (1)"]
+    assert "1 in use" in _entries(dock)[0][1].text(0)
+    assert "Open or create" not in dock.status.text()
+
+
+def test_a_part_type_applies_to_a_selected_block(win):
     rbd = win._rbd
     row = _first_block(rbd)
     part = part_from_block(row, name="Redundant unit")
     apply_part_to_rbd(rbd, row["ID"], part)
     dock = win._library_dock_widget
     dock.refresh()
-    assert dock.list.count() >= 1
-    assert "follow" in dock.follows.text()
-
     view = win._diagram_dock.view
-    view._block_items[int(row["ID"])].setSelected(True)
-    dock.list.setCurrentRow(0)
-    dock.apply_selected()
-    assert link_record(win._rbd, row["ID"]) is not None
+    other = next(bid for bid in view._block_items if bid != int(row["ID"]))
+    view._block_items[other].setSelected(True)
+    _choose(dock, part.id)
+    assert dock.use_button.text() == "Apply to selection"
+    dock.use_selected()
+    assert link_record(win._rbd, other) is not None
     assert win._dirty is True
 
 
-def test_save_selection_creates_a_local_part_and_one_undo_step(win, monkeypatch):
+def test_one_block_saves_a_linked_part_type_in_one_undo_step(win, monkeypatch):
     rbd = win._rbd
     row = _first_block(rbd)
     view = win._diagram_dock.view
     view._block_items[int(row["ID"])].setSelected(True)
-    monkeypatch.setattr(QInputDialog, "getText",
-                        lambda *args, **kwargs: ("Pump, centrifugal", True))
+    _accept(monkeypatch, "Pump, centrifugal", as_type=True)
     dock = win._library_dock_widget
     before = len(local_parts(rbd))
     depth = win._undo_stack.count()
     dock.save_selection()
     assert len(local_parts(win._rbd)) == before + 1
+    assert link_record(win._rbd, row["ID"]) is not None
     assert win._undo_stack.count() == depth + 1
     win._undo_stack.undo()
     assert len(local_parts(win._rbd)) == before
 
 
-def test_dock_saves_and_applies_a_node_part(win, monkeypatch):
-    from raptor.api.library.links import element_record, local_parts
+def test_a_selection_saves_as_an_assembly_and_inserts_a_copy(win, monkeypatch):
     view = win._diagram_dock.view
-    view.add_node("J2", 50.0, 50.0)
-    node_ids = [nid for nid, node in view.nodes.items()
-                if getattr(node, "type_node", 0) == 2]
-    assert len(node_ids) >= 2
-    view._node_items[node_ids[0]].setSelected(True)
-    monkeypatch.setattr(QInputDialog, "getText",
-                        lambda *args, **kwargs: ("Junction", True))
+    for item in view._block_items.values():
+        item.setSelected(True)
+    _accept(monkeypatch, "Pair")
     dock = win._library_dock_widget
     dock.save_selection()
-    parts = local_parts(win._rbd)
-    node_part = next(part for part in parts.values() if part.kind == "node")
-    assert element_record(win._rbd, "node", node_ids[0]) is not None
-
-    view._scene.clearSelection()
-    view._node_items[node_ids[1]].setSelected(True)
+    parts = [p for p in local_parts(win._rbd).values() if p.kind == "assembly"]
+    assert [p.name for p in parts] == ["Pair"]
     dock.refresh()
-    row = next(i for i in range(dock.list.count())
-               if dock.list.item(i).data(256)[1] == node_part.id)
-    dock.list.setCurrentRow(row)
-    dock.apply_selected()
-    assert element_record(win._rbd, "node", node_ids[1]) is not None
+    assert _entries(dock)[0][0] == "Assemblies (1)"
+    before = [dict(r) for r in win._rbd.section("BLOCK_DATA").rows]
+    blocks_before = len(before)
+    _choose(dock, parts[0].id)
+    assert dock.use_button.text() == "Insert"
+    inserted = dock.use_part("model", parts[0].id, at_model=(500.0, 500.0))
+    rows = win._rbd.section("BLOCK_DATA").rows
+    assert inserted >= 2
+    new = rows[blocks_before:]
+    assert len(new) == sum(1 for k, _r in parts[0].fields["items"] if k == "block")
+    old_names = {r.get("blockName") for r in before}
+    # The copies got names the model did not use, like the command line's
+    # insert (a plain canvas paste keeps the source names).
+    assert not {r.get("blockName") for r in new} & old_names
+    assert len({r.get("blockName") for r in new}) == len(new)
+    win._undo_stack.undo()
+    assert len(win._rbd.section("BLOCK_DATA").rows) == blocks_before
+
+
+def test_a_part_dropped_on_the_canvas_is_inserted_there(win, monkeypatch):
+    import json
+    from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt
+    from PySide6.QtGui import QDropEvent
+    view = win._diagram_dock.view
+    for item in view._block_items.values():
+        item.setSelected(True)
+    _accept(monkeypatch, "Pair")
+    dock = win._library_dock_widget
+    dock.save_selection()
+    part = next(p for p in local_parts(win._rbd).values() if p.kind == "assembly")
+    dock.install_canvas_drop(view)
+    mime = QMimeData()
+    mime.setData(L.PART_MIME, json.dumps({"source": "model", "id": part.id}).encode())
+    before = len(win._rbd.section("BLOCK_DATA").rows)
+    event = QDropEvent(QPointF(QPoint(40, 40)), Qt.DropAction.CopyAction, mime,
+                       Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier)
+    handled = dock._drop_filters[id(view)].eventFilter(view.viewport(), event)
+    assert handled
+    assert len(win._rbd.section("BLOCK_DATA").rows) > before
+
+
+def test_the_dock_does_not_floor_the_left_column(win):
+    assert win._library_dock.minimumSizeHint().height() <= 220
+
+
 
 
 def test_an_annotation_part_creates_a_note_and_undoes(win):

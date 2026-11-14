@@ -1998,6 +1998,23 @@ def explorer_dock_icon(colour: str) -> QIcon:
     return _icon("explorerdock", colour, draw)
 
 
+def library_dock_icon(colour: str) -> QIcon:
+    """Part Library: three volumes on a shelf, the last one leaning."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.drawLine(5, 41, 43, 41)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(QRectF(8, 12, 7, 27))
+        p.drawRect(QRectF(17, 8, 7, 31))
+        p.save()
+        p.translate(30, 39)
+        p.rotate(-18)
+        p.drawRect(QRectF(0, -27, 7, 27))
+        p.restore()
+    return _icon("librarydock", colour, draw)
+
+
 def inspector_dock_icon(colour: str) -> QIcon:
     """Inspector: a property sheet -- label and value rows."""
     def draw(p: QPainter, c: QColor):

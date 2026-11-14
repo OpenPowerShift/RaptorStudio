@@ -257,8 +257,19 @@ class ClipboardMixin(_Base):
         into the paste buffer. Returns the element count. With nothing
         selected it does nothing, so it cannot empty a buffer that holds
         an earlier copy."""
-        if self._rbd_ref is None or not self.copyable_count():
+        buffer = self.selection_buffer()
+        if not buffer:
             return 0
+        self._paste_buffer = buffer
+        self._publish_clip(buffer)
+        self.paste_state_changed.emit()
+        return count_elements(buffer)
+
+    def selection_buffer(self):
+        """The selection as a copy buffer, without touching the clipboard
+        (the Part Library saves an assembly from it)."""
+        if self._rbd_ref is None or not self.copyable_count():
+            return []
         sel_b = [bid for bid, it in self._block_items.items()
                  if it.isSelected() and bid != 0]
         sel_n = [nid for nid, it in self._node_items.items()
@@ -281,11 +292,7 @@ class ClipboardMixin(_Base):
                            parent=self._current_parent)
         for a in sel_annos:
             buffer.append(("annotation", dict(a)))
-        self._paste_buffer = buffer
-        if buffer:
-            self._publish_clip(buffer)
-        self.paste_state_changed.emit()
-        return count_elements(buffer)
+        return buffer
 
     def cut_selection(self) -> int:
         """Copy then delete, in one gesture.

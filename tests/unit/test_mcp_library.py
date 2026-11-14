@@ -77,3 +77,27 @@ def test_duplicate_and_paste_data_through_mcp(server, model):
                        source="Pump", targets=["Pump_2"],
                        groups=["Failure"]))
     assert copied["blocks"] == 1
+
+
+def test_an_assembly_saves_lists_and_inserts_a_fresh_copy(server, model, tmp_path):
+    library = tmp_path / "site.rbdlib"
+    saved = _ok(_call(server, "save_assembly", model_id=model,
+                      elements=["Pump"], name="Pump set",
+                      library_path=str(library)))
+    assert saved["contents"] == "1 block"
+    listed = _ok(_call(server, "list_part_types", library_path=str(library)))
+    assert listed["parts"][0]["kind"] == "assembly"
+    inserted = _ok(_call(server, "insert_assembly", model_id=model,
+                         part=saved["part"], library_path=str(library)))
+    assert inserted["count"] == 1
+    described = _ok(_call(server, "get_element", model_id=model,
+                          selector="Pump_2"))
+    assert described
+
+
+def test_an_assembly_kept_in_the_model_inserts_by_name(server, model):
+    _ok(_call(server, "save_assembly", model_id=model, elements=["Pump"],
+              name="Pump set"))
+    inserted = _ok(_call(server, "insert_assembly", model_id=model,
+                         part="Pump set", x=300.0, y=40.0))
+    assert inserted["count"] == 1
