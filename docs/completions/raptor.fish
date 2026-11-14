@@ -77,6 +77,8 @@ complete -c raptor -n '__fish_seen_subcommand_from diff' -l only
 complete -c raptor -n '__fish_use_subcommand' -a doctor
 complete -c raptor -n '__fish_seen_subcommand_from doctor' -l format
 complete -c raptor -n '__fish_seen_subcommand_from doctor' -l help
+complete -c raptor -n '__fish_use_subcommand' -a edit
+complete -c raptor -n '__fish_seen_subcommand_from edit' -l help
 complete -c raptor -n '__fish_use_subcommand' -a estimate
 complete -c raptor -n '__fish_seen_subcommand_from estimate' -l format
 complete -c raptor -n '__fish_seen_subcommand_from estimate' -l help

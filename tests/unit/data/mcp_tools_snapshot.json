@@ -324,6 +324,19 @@
    "model_id"
   ]
  },
+ "copy_element_data": {
+  "params": [
+   "groups",
+   "model_id",
+   "source",
+   "targets"
+  ],
+  "required": [
+   "model_id",
+   "source",
+   "targets"
+  ]
+ },
  "create_model": {
   "params": [
    "k",
@@ -422,6 +435,17 @@
   ],
   "required": [
    "run_id"
+  ]
+ },
+ "duplicate_elements": {
+  "params": [
+   "copies",
+   "elements",
+   "model_id"
+  ],
+  "required": [
+   "elements",
+   "model_id"
   ]
  },
  "estimate_runtime": {

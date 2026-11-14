@@ -4,7 +4,7 @@ _raptor() {
     case "${COMP_WORDS[i]}" in -*) ;; *) cmd="${COMP_WORDS[i]}"; break;; esac
   done
   if [[ -z "$cmd" ]]; then
-    COMPREPLY=( $(compgen -W "advise analytic compare completion config convert describe diff doctor estimate explain extract fev fit get gui help info library mcp optimise render report run schema sensitivity set simulate spf step sweep tables validate whatif --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
+    COMPREPLY=( $(compgen -W "advise analytic compare completion config convert describe diff doctor edit estimate explain extract fev fit get gui help info library mcp optimise render report run schema sensitivity set simulate spf step sweep tables validate whatif --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
   fi
   case "$cmd" in
     advise) opts="--format --help --list-rules --min-severity --only --simulate --skip --strict --target --why" ;;
@@ -16,6 +16,7 @@ _raptor() {
     describe) opts="--element --format --help" ;;
     diff) opts="--all --exit-code --format --help --ignore --match --only" ;;
     doctor) opts="--format --help" ;;
+    edit) opts="--help" ;;
     estimate) opts="--format --help --length --runs" ;;
     explain) opts="--below --capacity-rule --chart --chart-svg --format --help --jobs --list-charts --runs --seed --story --top --year-length --year-offset --yearly" ;;
     extract) opts="--deps --format --help --hierarchy --output --pools --report-hazards --streams --treat" ;;

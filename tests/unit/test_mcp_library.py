@@ -67,3 +67,13 @@ def test_save_list_apply_and_sync(server, model, tmp_path):
     synced = _ok(_call(server, "sync_part_types", model_id=model,
                        library_path=str(library)))
     assert synced["dry_run"] is True and synced["count"] == 0
+
+
+def test_duplicate_and_paste_data_through_mcp(server, model):
+    duplicated = _ok(_call(server, "duplicate_elements", model_id=model,
+                           elements=["Pump"], copies=1))
+    assert duplicated["count"] == 1
+    copied = _ok(_call(server, "copy_element_data", model_id=model,
+                       source="Pump", targets=["Pump_2"],
+                       groups=["Failure"]))
+    assert copied["blocks"] == 1

@@ -114,6 +114,14 @@ CAPABILITIES: tuple[Capability, ...] = (
                 "gui": "the distribution editor's 'Estimate from judgement' "
                        "dialog is designed but not built; use 'raptor fit'"}),
     Capability(
+        "edit.duplicate", "Duplicate elements with fresh ids and names",
+        api="raptor.api.edit.duplicate_elements", cli="edit",
+        mcp="duplicate_elements", gui="command:home.duplicate"),
+    Capability(
+        "edit.paste_data", "Copy one block's data groups onto others",
+        api="raptor.api.edit.copy_element_data", cli="edit",
+        mcp="copy_element_data", gui="command:home.paste_data"),
+    Capability(
         "library.part_types", "Reuse a block's data as a named part type",
         api="raptor.api.library.links.link_block", cli="library",
         mcp="list_part_types",

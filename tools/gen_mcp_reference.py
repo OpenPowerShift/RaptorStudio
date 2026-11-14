@@ -121,6 +121,8 @@ TOOL_CATEGORY: dict[str, str] = {
     "annual_availability": "analysis",
     "run_story": "analysis",
     "run_chart": "analysis",
+    "duplicate_elements": "build-edit",
+    "copy_element_data": "build-edit",
     "list_part_types": "library",
     "apply_part_type": "library",
     "save_part_type": "library",
@@ -280,6 +282,10 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "run_story": {"run_id": "<run_id>"},
     "run_chart": {"run_id": "<run_id>", "chart": "downtime-pareto"},
     "sensitivity": {"model_id": "<model_id>", "top": 10, "trials": 200},
+    "duplicate_elements": {"model_id": "<model_id>",
+                           "elements": ["Pump_A"], "copies": 2},
+    "copy_element_data": {"model_id": "<model_id>", "source": "Pump_A",
+                          "targets": ["Pump_B"], "groups": ["Failure"]},
     "list_part_types": {"model_id": "<model_id>"},
     "apply_part_type": {"model_id": "<model_id>", "part": "pump",
                         "elements": ["Pump_A", "Pump_B"]},
@@ -557,6 +563,10 @@ RETURN_NOTES: dict[str, str] = {
     "run_story": "`{headline, dots, drivers, findings, numbers, sections, "
                  "provenance, caption}` — the same object the application "
                  "and `raptor explain --story` render.",
+    "duplicate_elements": "`{copies, elements: [{block: [...], node: "
+                          "[...], ...}], count}` with the fresh ids.",
+    "copy_element_data": "`{changes: [{id, column, old, new}], count, "
+                        "blocks}`.",
     "list_part_types": "`{source, parts: [{id, name, category, source, "
                         "basis, version, fields}], count}`.",
     "apply_part_type": "`{part, version, elements: [{block, part, version, "

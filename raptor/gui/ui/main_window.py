@@ -1043,6 +1043,55 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             return
         self._diagram_dock.view.paste()
 
+    def _canvas_has_focus(self) -> bool:
+        view = self._diagram_dock.view
+        return bool(view.hasFocus() or view.viewport().hasFocus())
+
+    def _edit_duplicate(self) -> None:
+        if text_editing.active_editor() is not None:
+            return
+        if not self._canvas_has_focus():
+            return
+        n = self._diagram_dock.view.duplicate_selection()
+        if n:
+            self._statusbar.showMessage(f"Duplicated {n} element(s)", 4000)
+
+    def _edit_array(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        if text_editing.active_editor() is not None:
+            return
+        copies, ok = QInputDialog.getInt(
+            self, "Array", "Copies:", 3, 1, 200)
+        if not ok:
+            return
+        direction, ok = QInputDialog.getItem(
+            self, "Array", "Direction:", ["right", "down"], 0, False)
+        if not ok:
+            return
+        spacing, ok = QInputDialog.getInt(
+            self, "Array", "Spacing (grid steps):", 1, 1, 20)
+        if not ok:
+            return
+        n = self._diagram_dock.view.array_selection(copies, direction, spacing)
+        if n:
+            self._statusbar.showMessage(f"Added {n} element(s)", 4000)
+
+    def _edit_paste_data(self) -> None:
+        from raptor.gui.ui import dialogs
+        if text_editing.active_editor() is not None:
+            return
+        groups = dialogs.choose_data_groups(self)
+        if groups is None:
+            return
+        n = self._diagram_dock.view.paste_data(tuple(groups))
+        if n:
+            self._statusbar.showMessage(
+                f"Pasted {', '.join(groups).lower()} data onto "
+                f"{n} block(s)", 5000)
+        else:
+            self._statusbar.showMessage(
+                "Select blocks and copy a block first", 5000)
+
     def _on_focus_changed(self, _old, new) -> None:
         """Cut/Copy/Paste follow the text editor that has the keyboard,
         including its selection."""
