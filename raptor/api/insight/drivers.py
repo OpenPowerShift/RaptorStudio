@@ -113,10 +113,31 @@ def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
             path = " -> ".join(f"{s['element']} ({CAUSE_LABELS[s['cause']].lower()})"
                                for s in seq["steps"]) or "(unknown)"
             lines.append(f"  {_pct(seq['share']):>7}  {path}")
+    if attribution.get("phases"):
+        lines += [""] + phase_lines(attribution)
     capacity = attribution.get("capacity")
     if capacity:
         from raptor.api.insight.capacity_attribution import text_lines as capacity_lines
         lines += [""] + capacity_lines(capacity, n)
+    return lines
+
+
+def phase_lines(attribution: dict[str, Any]) -> list[str]:
+    """Downtime by mission phase: availability in each phase, its share of
+    the downtime and the element that starts most of it."""
+    units = attribution.get("units") or ""
+    lines = ["Downtime by phase:",
+             f"{'Phase':<24}{'Mission':>8}{'Time':>12}{'Down':>10}{'Avail.':>10}"
+             f"{'Share':>8}  Main driver"]
+    for row in attribution.get("phases") or []:
+        mission = {True: "yes", False: "no"}.get(row.get("mission"), "")
+        driver = row["drivers"][0] if row.get("drivers") else None
+        lead = f"{driver['name']} ({_pct(driver['share'])})" if driver else ""
+        lines.append(
+            f"{row['name'][:23]:<24}{mission:>8}"
+            f"{row['time']['mean'] or 0.0:>12,.4g}{row['red_time']['mean'] or 0.0:>10,.4g}"
+            f"{_avail(row['availability']):>10}{_pct(row['share_of_downtime']):>8}  {lead}")
+    lines.append(f"(time and down time are means per run, in {units or 'model units'})")
     return lines
 
 

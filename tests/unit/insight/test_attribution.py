@@ -158,3 +158,80 @@ def test_conservation_on_golden_fixtures(path):
         assert sum(v.outages for v in t.initiated.values()) == t.outages
         for times in t.own_time.values():
             assert sum(times.values()) == pytest.approx(t.span, rel=1e-9)
+
+
+# ---- downtime by mission phase ----------------------------------------------
+
+def _line(time, kind, name, action, comment="", element=None):
+    from types import SimpleNamespace
+    return SimpleNamespace(time=time, type=kind, name=name, action=action,
+                           comment=comment, element=element)
+
+
+def _phased_log():
+    """Phase Launch from 0 (not logged, as the engine does), Cruise from 10,
+    end at 30.  Pump fails at 5 and is back at 15: down 5 h in Launch and
+    5 h in Cruise; Valve fails at 20 for 2 h, all in Cruise."""
+    pump, valve = ("Block", 1), ("Block", 2)
+    return [
+        _line(5, "Block", "Pump", "Failed", element=pump),
+        _line(5, "Block", "Pump", "Repairing", element=pump),
+        _line(5, "System", "State_change", "Red"),
+        _line(10, "System", "Phase_change", "Phase_change", "Begin_phase_Cruise"),
+        _line(15, "Block", "Pump", "Good", element=pump),
+        _line(15, "System", "State_change", "Green"),
+        _line(20, "Block", "Valve", "Failed", element=valve),
+        _line(20, "Block", "Valve", "Repairing", element=valve),
+        _line(20, "System", "State_change", "Red"),
+        _line(22, "Block", "Valve", "Good", element=valve),
+        _line(22, "System", "State_change", "Green"),
+        _line(30, "System", "Simulation_Terminate", "End"),
+    ]
+
+
+def test_downtime_by_phase_by_hand():
+    phases = [{"name": "Launch", "mission": True}, {"name": "Cruise", "mission": True}]
+    result = attribute_logs([_phased_log(), _phased_log()], phases=phases)
+    rows = {r["name"]: r for r in result["phases"]}
+    assert list(rows) == ["Launch", "Cruise"]
+    launch, cruise = rows["Launch"], rows["Cruise"]
+    assert launch["time"]["mean"] == pytest.approx(10.0)
+    assert cruise["time"]["mean"] == pytest.approx(20.0)
+    assert launch["red_time"]["mean"] == pytest.approx(5.0)
+    assert cruise["red_time"]["mean"] == pytest.approx(7.0)
+    assert launch["availability"] == pytest.approx(0.5)          # 1 - 5/10
+    assert cruise["availability"] == pytest.approx(1 - 7 / 20)
+    assert launch["share_of_downtime"] == pytest.approx(5 / 12)
+    # Pump started the outage that ran into Cruise, so it owns that 5 h too
+    assert [(d["name"], round(d["share"], 6)) for d in cruise["drivers"]] == [
+        ("Pump", round(5 / 7, 6)), ("Valve", round(2 / 7, 6))]
+    assert launch["drivers"] == [{"name": "Pump", "kind": "Block", "id": 1, "share": 1.0}]
+    # the phases add up to the whole run
+    assert launch["red_time"]["mean"] + cruise["red_time"]["mean"] == pytest.approx(
+        result["system"]["red_time"]["mean"])
+
+
+def test_without_the_phase_list_phase_one_is_named_as_such():
+    rows = attribute_logs([_phased_log()])["phases"]
+    assert [r["name"] for r in rows] == ["(first phase)", "Cruise"]
+    assert rows[0]["mission"] is None
+
+
+def test_an_unphased_run_has_no_phase_section():
+    log = [line for line in _phased_log() if line.name != "Phase_change"]
+    assert "phases" not in attribute_logs([log])
+
+
+def test_phases_add_up_on_a_real_phased_run():
+    from raptor.api.insight.attribution import model_phases
+    rbd = load_rbd(glob.glob("tests/golden/Phasing1/input.rbd")[0])
+    logs = run_simulation(rbd, 3)
+    phases = model_phases(rbd)
+    assert phases and phases[0]["name"] == "D000-075_Orbit"
+    result = attribute_logs(logs, phases=phases)
+    rows = result["phases"]
+    assert [r["name"] for r in rows][:len(phases)] == [p["name"] for p in phases]
+    assert sum(r["time"]["mean"] for r in rows) == pytest.approx(
+        result["system"]["span"]["mean"])
+    assert sum(r["red_time"]["mean"] for r in rows) == pytest.approx(
+        result["system"]["red_time"]["mean"])

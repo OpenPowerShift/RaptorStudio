@@ -931,7 +931,31 @@ def _attribution_tables(attribution: dict[str, Any] | None) -> list[Table]:
             [["P50", durations.get("p50")], ["P90", durations.get("p90")],
              ["Maximum", durations.get("max")], ["Outages", durations.get("count")]],
             section="Downtime drivers"))
-    return out + _capacity_tables(attribution.get("capacity"))
+    return (out + _phase_downtime_table(attribution)
+            + _capacity_tables(attribution.get("capacity")))
+
+
+def _phase_downtime_table(attribution: dict[str, Any]) -> list[Table]:
+    """Downtime by mission phase (phased models)."""
+    rows = attribution.get("phases") or []
+    if not rows:
+        return []
+    units = str(attribution.get("units") or "")
+    body = []
+    for row in rows:
+        driver = row["drivers"][0] if row.get("drivers") else {}
+        body.append([row["name"], {True: "yes", False: "no"}.get(row.get("mission"), ""),
+                     row["time"]["mean"], row["red_time"]["mean"], row["red_time"]["sem"],
+                     row["availability"], row["share_of_downtime"],
+                     driver.get("name", ""), driver.get("share")])
+    return [Table(
+        "results.phase_downtime", "Downtime by phase", RESULTS,
+        ["Phase", "Mission", f"Time ({units})", f"Down time ({units})", "±",
+         "Availability", "Share of downtime", "Main driver", "Driver's share"],
+        body, section="Downtime drivers",
+        notes=["Time and down time are means per run; availability is pooled "
+               "over runs (1 - down time / time in the phase)."],
+        text_cols={0, 1, 7})]
 
 
 def _capacity_tables(capacity: dict[str, Any] | None) -> list[Table]:

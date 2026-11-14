@@ -161,6 +161,11 @@ CAPABILITIES: tuple[Capability, ...] = (
         mcp="annual_availability",
         gui="widget:raptor.gui.ui.drivers_page.DriversPage"),
     Capability(
+        "insight.phases", "Downtime by mission phase: availability, share and driver per phase",
+        api="raptor.api.insight.attribution.model_phases", cli="explain",
+        mcp="downtime_drivers",
+        gui="widget:raptor.gui.ui.charts_page.ChartsPage"),
+    Capability(
         "export.result_tables",
         "Export drivers, lost capacity and year-by-year results as tables",
         api="raptor.api.run_tables.bundle_from_run", cli="tables --drivers",

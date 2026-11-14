@@ -106,6 +106,8 @@ class ChartsPage(QWidget):
             specs["Frequency against duration"] = charts.frequency_duration(
                 attribution)
             specs["Downtime treemap"] = charts.downtime_treemap(attribution)
+            if attribution.get("phases"):
+                specs["Downtime by phase"] = charts.phase_downtime(attribution)
             specs["What an outage looks like"] = charts.outage_anatomy(
                 attribution)
             if attribution.get("outages"):

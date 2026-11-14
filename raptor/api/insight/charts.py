@@ -617,6 +617,31 @@ def _treemap(items: list[dict[str, Any]], *, title: str, subtitle: str,
                      series=series, caption=caption, provenance=provenance)
 
 
+def phase_downtime(attribution: dict[str, Any]) -> ChartSpec:
+    """Which mission phase the downtime falls in, with each phase's
+    availability, in the model's phase order."""
+    rows = [r for r in attribution.get("phases") or []]
+    series = [{"name": r["name"], "value": r["share_of_downtime"],
+               "availability": r["availability"],
+               "driver": (r["drivers"][0]["name"] if r.get("drivers") else None)}
+              for r in rows]
+    worst = min((r for r in rows if r["availability"] is not None),
+                key=lambda r: r["availability"], default=None)
+    caption = "The model has no phases."
+    if worst is not None:
+        caption = (f"{worst['name']} is the weakest phase: availability "
+                   f"{100 * worst['availability']:.4g} %, "
+                   f"{100 * worst['share_of_downtime']:.3g} % of all downtime")
+        if worst.get("drivers"):
+            caption += f", mostly started by {worst['drivers'][0]['name']}"
+        caption += "."
+    return ChartSpec(
+        "pareto", "Downtime by phase",
+        "share of all system downtime in each phase, in phase order",
+        "phase", "share of system downtime", series=series, caption=caption,
+        provenance={"runs": attribution.get("runs", 0), "format": "percent"})
+
+
 def downtime_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
                      height: float = 600.0, top: int = 200) -> ChartSpec:
     """The downtime treemap: area = share of downtime, label = element."""
@@ -754,6 +779,7 @@ CHARTS = {
     "annual-capacity-fan": annual_capacity_fan,
     "annual-dots": annual_dots,
     "downtime-treemap": downtime_treemap,
+    "phase-downtime": phase_downtime,
     "lost-capacity-treemap": lost_capacity_treemap,
     "cost-treemap": cost_treemap,
     "outage-anatomy": outage_anatomy,
@@ -818,6 +844,7 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
         "outage-histogram": lambda: outage_histogram(need_attribution()),
         "frequency-duration": lambda: frequency_duration(need_attribution()),
         "downtime-treemap": lambda: downtime_treemap(need_attribution()),
+        "phase-downtime": lambda: phase_downtime(need_attribution()),
         "lost-capacity-treemap": lambda: lost_capacity_treemap(need_attribution()),
         "cost-treemap": lambda: cost_treemap(element_cost_rows()),
         "outage-anatomy": lambda: outage_anatomy(need_attribution()),

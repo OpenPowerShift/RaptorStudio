@@ -12332,6 +12332,17 @@ split. The command line prints the same numbers:</p>
 </div>
 </div>
 <div class="paragraph">
+<p>For a phased model the same replay also splits the downtime by mission
+phase: how long the system spent in each phase, how long it was down there,
+the phase&#8217;s availability (down time over time in the phase, pooled over the
+runs) and the element that started most of that downtime. An outage that
+runs from one phase into the next is split at the phase change, and each
+part is charged to the element that started the outage. <code>raptor explain</code>
+prints a <strong>Downtime by phase</strong> table, the Charts tab has a <strong>Downtime by
+phase</strong> chart (<code>phase-downtime</code> from the command line and MCP) and the
+exported tables include <code>results.phase_downtime</code>.</p>
+</div>
+<div class="paragraph">
 <p>A driver whose DTCI is small is not necessarily harmless: it may be holding
 capacity without taking the system down. That is what the lost-capacity
 columns measure.</p>
@@ -12399,11 +12410,22 @@ stops the system but often throttles it stands out;</p>
 what it did deliver, one step per cause;</p>
 </li>
 <li>
+<p><strong>Lost capacity treemap</strong>: area = share of the lost flow, colour = the
+element&#8217;s main downtime cause;</p>
+</li>
+<li>
 <p><strong>Capacity delivered year by year</strong>: capacity-weighted availability for
 each year, with the spread across runs. A year can be 100 % available and
 still deliver only 96 % of the flow.</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>With cost analysis on, <strong>Where the money goes</strong> ranks the elements by mean
+cost per run, and the <strong>Cost treemap</strong> shows the same money as areas,
+coloured by its largest part (purchase, operating, spares or disposal).
+Spare pools are cells of their own, so the treemap is also the spares
+picture: a large amber cell is an element whose cost is mostly spares.</p>
 </div>
 <div class="paragraph">
 <p>The lost flow is split among the elements down at the time
@@ -12447,7 +12469,8 @@ raptor explain --list-charts</code></pre>
 <div class="paragraph">
 <p>MCP clients call <code>run_chart(run_id, chart="downtime-pareto")</code> and receive the
 same specification plus the SVG. The capacity charts are <code>lost-capacity-pareto</code>,
-<code>capacity-vs-downtime</code>, <code>capacity-waterfall</code> and <code>annual-capacity-fan</code>.</p>
+<code>capacity-vs-downtime</code>, <code>capacity-waterfall</code>, <code>lost-capacity-treemap</code> and
+<code>annual-capacity-fan</code>; the cost charts are <code>cost-pareto</code> and <code>cost-treemap</code>.</p>
 </div>
 <div class="paragraph">
 <p>The numbers behind the charts export as tables. In the GUI they are in
@@ -12461,6 +12484,7 @@ the attribution tables too:</p>
 </div>
 <div class="paragraph">
 <p>That adds <code>results.downtime_drivers</code>, <code>results.downtime_causes</code>,
+<code>results.phase_downtime</code> (phased models),
 <code>results.outage_durations</code>, <code>results.lost_capacity</code> (by element),
 <code>results.lost_capacity_causes</code>, <code>results.period_availability</code>,
 <code>results.period_capacity</code> and <code>results.period_runs</code> (one row per run and

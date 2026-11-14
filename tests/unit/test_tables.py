@@ -946,3 +946,18 @@ def test_no_periods_means_no_period_tables():
     keys = {t.key for t in result_tables(ResultsBundle(per_run=[{"availability": 0.9}]))}
     assert not keys & {"results.period_availability", "results.period_capacity",
                        "results.period_runs"}
+
+
+def test_phase_downtime_table():
+    stat = lambda mean: {"mean": mean, "sem": 0.1, "n": 2}  # noqa: E731
+    attribution = {"runs": 2, "units": "hours", "elements": [], "causes": {},
+                   "system": {"red_time": stat(12.0), "outages": stat(2.0)},
+                   "phases": [{"name": "Launch", "mission": True, "time": stat(10.0),
+                               "red_time": stat(5.0), "availability": 0.5,
+                               "share_of_downtime": 5 / 12,
+                               "drivers": [{"name": "Pump", "share": 1.0}]}]}
+    tables = {t.key: t for t in result_tables(
+        ResultsBundle(per_run=[{"availability": 0.9}], attribution=attribution))}
+    row = tables["results.phase_downtime"].rows[0]
+    assert row[:2] == ["Launch", "yes"]
+    assert row[5] == pytest.approx(0.5) and row[7:] == ["Pump", 1.0]

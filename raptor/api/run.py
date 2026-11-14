@@ -638,7 +638,7 @@ def run(
     # result tables can be rebuilt later (`raptor.api.run_tables`).
     (runs_dir / "per_run.json").write_text(json.dumps(per_run))
     if attribution:
-        from raptor.api.insight.attribution import attribute_logs
+        from raptor.api.insight.attribution import attribute_logs, model_phases
         from raptor.core import run_experiment
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
         capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
@@ -646,7 +646,7 @@ def run(
         attributed = attribute_logs(
             [log if isinstance(log, list) else [log] for log in event_logs],
             float(experiment.get("start_stats") or 0.0), abort=abort,
-            with_outages=True, capacity=capacity_runs)
+            with_outages=True, capacity=capacity_runs, phases=model_phases(sim_rbd))
         attributed["units"] = model_units(sim_rbd)
         # the outage intervals go in their own file: they are large and only
         # the period (yearly) view reads them

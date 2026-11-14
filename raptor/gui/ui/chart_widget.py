@@ -536,7 +536,10 @@ class ChartWidget(QWidget):
             if _number(row.get("share")):
                 text += f" ({100 * float(row['share']):.3g} %)"
             return text
-        return self._value(float(row["value"]), 3)
+        text = self._value(float(row["value"]), 3)
+        if _number(row.get("availability")):
+            text += f" (availability {format_value(float(row['availability']), 'percent', 5)})"
+        return text
 
     def _paint_waterfall(self, painter, spec, palette, area) -> None:
         steps = [s for s in spec.series if _number(s.get("from")) and _number(s.get("to"))]

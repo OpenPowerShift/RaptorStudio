@@ -314,3 +314,17 @@ def test_lost_capacity_treemap_uses_the_capacity_shares():
     assert [c["name"] for c in spec.series] == ["B", "A"]
     assert spec.series[0]["cause"] == "wait_spare"
     assert spec.caption == "B occupies the largest area (75 % of the lost flow)."
+
+
+def test_phase_downtime_keeps_phase_order_and_names_the_weakest():
+    attribution = {"runs": 2, "phases": [
+        {"name": "Launch", "share_of_downtime": 0.25, "availability": 0.5,
+         "drivers": [{"name": "Pump", "share": 1.0}]},
+        {"name": "Cruise", "share_of_downtime": 0.75, "availability": 0.9,
+         "drivers": [{"name": "Valve", "share": 0.6}]}]}
+    spec = charts.phase_downtime(attribution)
+    assert [r["name"] for r in spec.series] == ["Launch", "Cruise"]
+    assert spec.caption == ("Launch is the weakest phase: availability 50 %, "
+                            "25 % of all downtime, mostly started by Pump.")
+    from raptor.render.charts_svg import render
+    assert "availability 50 %" in render(spec)

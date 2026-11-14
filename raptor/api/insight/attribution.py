@@ -122,14 +122,22 @@ class TrialAttribution:
     end: float = 0.0
     #: Lost-capacity attribution, when the run recorded a capacity sink.
     capacity: Any = None
+    #: Phased models: time spent in each phase, the system's down time in
+    #: it, and that down time by the element that started each outage.
+    phase_time: dict[str, float] = field(default_factory=dict)
+    phase_red: dict[str, float] = field(default_factory=dict)
+    phase_initiated: dict[str, dict[Key, float]] = field(default_factory=dict)
 
 
 class _Replay:
     """The state kept while one run's lines are replayed."""
 
     def __init__(self, start_stats: float,
-                 capacity: CapacityRun | None = None) -> None:
+                 capacity: CapacityRun | None = None,
+                 first_phase: str | None = None) -> None:
         self.out = TrialAttribution()
+        #: the phase now running; phase 1 starts at time 0 without a log line
+        self.phase = first_phase
         self.start_stats = start_stats
         self.capacity = (CapacityTracker(capacity, start_stats)
                          if capacity is not None else None)
@@ -162,6 +170,9 @@ class _Replay:
         dt = max(to, self.start_stats) - max(self.now, self.start_stats)
         if dt > 0:
             out.span += dt
+            phase = self.phase
+            if phase is not None:
+                out.phase_time[phase] = out.phase_time.get(phase, 0.0) + dt
             if self.red and self.current is not None:
                 key, cause = self.holder()
                 cause = cause if cause in CAUSES else "other"
@@ -172,6 +183,10 @@ class _Replay:
                 out.cause_time[cause] = out.cause_time.get(cause, 0.0) + dt
                 per = out.initiator_cause.setdefault(initiator, {})
                 per[cause] = per.get(cause, 0.0) + dt
+                if phase is not None:
+                    out.phase_red[phase] = out.phase_red.get(phase, 0.0) + dt
+                    by = out.phase_initiated.setdefault(phase, {})
+                    by[initiator] = by.get(initiator, 0.0) + dt
         self.now = max(self.now, to)
 
     def book_own_time(self, key: Key, until: float) -> None:
@@ -253,6 +268,10 @@ class _Replay:
         t = float(line.time)
         if line.name == "Simulation_Terminate":
             self.close(t)
+        elif line.name == "Phase_change":
+            comment = str(line.comment)
+            if comment.startswith(PHASE_PREFIX):
+                self.phase = comment[len(PHASE_PREFIX):]
         elif line.name != "State_change":
             return
         elif line.action == "Red" and not self.red:
@@ -278,14 +297,41 @@ class _Replay:
             rec.failures += bool(failed)
 
 
+#: The comment of the event-log line that starts a phase: `Begin_phase_<name>`.
+PHASE_PREFIX = "Begin_phase_"
+#: The name used for phase 1 when the model's phase list is not given: the
+#: engine starts phase 1 at time 0 without logging it.
+FIRST_PHASE = "(first phase)"
+
+
+def model_phases(rbd: Any) -> list[dict[str, Any]] | None:
+    """The model's phases in order, `[{name, mission}]`, or None when it is
+    not phased.  Pass it to `attribute_logs` so phase 1 has its name."""
+    section = getattr(rbd, "sections", {}).get("PHASES") if rbd is not None else None
+    rows = getattr(section, "rows", None) or []
+    out = [{"name": str(row.get("PhaseName") or f"Phase {i}"),
+            "mission": str(row.get("Mission", "1")).strip() not in ("0", "FALSE", "False")}
+           for i, row in enumerate(rows, start=1)]
+    return out or None
+
+
 def attribute_trial(lines: Iterable[Any], start_stats: float = 0.0,
-                    capacity: CapacityRun | None = None) -> TrialAttribution:
+                    capacity: CapacityRun | None = None,
+                    phases: list[dict[str, Any]] | None = None) -> TrialAttribution:
     """Replay one run's event-log lines (`LogLine`s; plain strings are skipped).
 
     `capacity` joins a capacity-analysis run's flow track so the lost flow is
     charged to the elements that were down (`raptor.api.insight.capacity_attribution`).
+    `phases` (`model_phases`) names phase 1, which the log does not announce;
+    without it a phased run books phase 1's time as FIRST_PHASE.
     """
-    replay = _Replay(start_stats, capacity)
+    if phases is None and not isinstance(lines, list):
+        lines = list(lines)           # scanned twice: once for a phase line
+    first = phases[0]["name"] if phases else (
+        FIRST_PHASE if any(getattr(line, "name", None) == "Phase_change"
+                           and str(getattr(line, "comment", "")).startswith(PHASE_PREFIX)
+                           for line in lines) else None)
+    replay = _Replay(start_stats, capacity, first)
     for line in lines:
         kind = getattr(line, "type", None)
         if kind is None:
@@ -397,7 +443,8 @@ def _duration_hist(durations: list[float], bins: int = 12) -> list[dict[str, flo
             for i in range(bins)]
 
 
-def aggregate(trials: list[TrialAttribution]) -> dict[str, Any]:
+def aggregate(trials: list[TrialAttribution],
+              phases: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Statistics over runs, JSON-safe. One sample per run for every measure;
     a run with no outage gives no sample to the shares (DTCI, DECI, FCI)."""
     names: dict[Key, str] = {}
@@ -443,7 +490,52 @@ def aggregate(trials: list[TrialAttribution]) -> dict[str, Any]:
     }
     if capacity is not None:
         result["capacity"] = capacity
+    phase_rows = _phase_rows(trials, names, phases)
+    if phase_rows:
+        result["phases"] = phase_rows
     return result
+
+
+#: Elements listed per phase.
+PHASE_TOP = 5
+
+
+def _phase_rows(trials: list[TrialAttribution], names: dict[Key, str],
+                order: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Per phase, over all runs: time in it, the system's down time in it,
+    availability = 1 - down / time (pooled over runs, so long runs weigh
+    more), its share of all down time, and the elements that started the
+    down time in that phase with their shares of it."""
+    seen: list[str] = [p["name"] for p in order or []]
+    for trial in trials:
+        for name in trial.phase_time:
+            if name not in seen:
+                seen.append(name)
+    if not seen:
+        return []
+    mission = {p["name"]: p.get("mission", True) for p in order or []}
+    all_red = sum(sum(t.phase_red.values()) for t in trials)
+    rows = []
+    for name in seen:
+        time = sum(t.phase_time.get(name, 0.0) for t in trials)
+        red = sum(t.phase_red.get(name, 0.0) for t in trials)
+        by: dict[Key, float] = {}
+        for trial in trials:
+            for key, value in trial.phase_initiated.get(name, {}).items():
+                by[key] = by.get(key, 0.0) + value
+        top = sorted(by.items(), key=lambda kv: (-kv[1], _label(kv[0], names)))[:PHASE_TOP]
+        rows.append({
+            "name": name,
+            "mission": mission.get(name),
+            "time": _stat([t.phase_time.get(name, 0.0) for t in trials]),
+            "red_time": _stat([t.phase_red.get(name, 0.0) for t in trials]),
+            "availability": 1.0 - red / time if time > 0 else None,
+            "share_of_downtime": red / all_red if all_red > 0 else 0.0,
+            "drivers": [{"name": _label(key, names), "kind": key[0], "id": key[1],
+                         "share": value / red if red > 0 else 0.0}
+                        for key, value in top],
+        })
+    return rows
 
 
 #: More system-down intervals than this in one batch are not stored.
@@ -465,7 +557,8 @@ ATTRIBUTE_LABEL = "Working out what caused the downtime"
 def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
                    progress: Any = None, abort: Any = None,
                    total: int | None = None, with_outages: bool = False,
-                   capacity: Iterable[CapacityRun | None] | None = None) -> dict[str, Any]:
+                   capacity: Iterable[CapacityRun | None] | None = None,
+                   phases: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Attribution for a whole batch from its per-run event logs.
 
     `progress` (a `raptor.api.progress.ProgressFn`) is told after each run;
@@ -474,6 +567,7 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
     which `raptor.api.insight.periods` computes yearly availability.
     `capacity` gives each run's flow track (the capacity sink), in run order,
     so the lost flow is attributed to the elements that were down.
+    `phases` (`model_phases(rbd)`) adds `phases`: downtime by mission phase.
     """
     from raptor.api.progress import check, report
     if total is None and hasattr(logs, "__len__"):
@@ -483,9 +577,9 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
     for i, lines in enumerate(logs, start=1):
         check(abort)
         cap_run = next(capacity_runs, None) if capacity_runs is not None else None
-        trials.append(attribute_trial(lines, start_stats, cap_run))
+        trials.append(attribute_trial(lines, start_stats, cap_run, phases))
         report(progress, "attribute", ATTRIBUTE_LABEL, i, total)
-    result = aggregate(trials)
+    result = aggregate(trials, phases)
     if with_outages:
         result["outages"] = outage_record(trials)
     return result

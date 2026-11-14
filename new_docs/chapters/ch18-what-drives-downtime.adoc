@@ -80,6 +80,16 @@ split. The command line prints the same numbers:
 raptor explain VanFlat.rbds --top 8
 ----
 
+For a phased model the same replay also splits the downtime by mission
+phase: how long the system spent in each phase, how long it was down there,
+the phase's availability (down time over time in the phase, pooled over the
+runs) and the element that started most of that downtime. An outage that
+runs from one phase into the next is split at the phase change, and each
+part is charged to the element that started the outage. `raptor explain`
+prints a **Downtime by phase** table, the Charts tab has a **Downtime by
+phase** chart (`phase-downtime` from the command line and MCP) and the
+exported tables include `results.phase_downtime`.
+
 A driver whose DTCI is small is not necessarily harmless: it may be holding
 capacity without taking the system down. That is what the lost-capacity
 columns measure.
@@ -176,6 +186,7 @@ raptor tables Water2.rbds --run --drivers --format xlsx -o out/
 ----
 
 That adds `results.downtime_drivers`, `results.downtime_causes`,
+`results.phase_downtime` (phased models),
 `results.outage_durations`, `results.lost_capacity` (by element),
 `results.lost_capacity_causes`, `results.period_availability`,
 `results.period_capacity` and `results.period_runs` (one row per run and

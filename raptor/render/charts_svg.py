@@ -395,7 +395,10 @@ def _pareto(spec: ChartSpec, area: _Box) -> list[str]:
             if _number(row.get("share")):
                 text += f" ({100 * float(row['share']):.3g} %)"
             return text
-        return format_value(float(row["value"]), fmt, 3)
+        text = format_value(float(row["value"]), fmt, 3)
+        if _number(row.get("availability")):
+            text += f" (availability {format_value(float(row['availability']), 'percent', 5)})"
+        return text
 
     peak = max(float(r["value"]) + 2 * float(r.get("sem") or 0) for r in rows)
     peak = nice_range(0.0, peak or 1.0, 4)[1]
