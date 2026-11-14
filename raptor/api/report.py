@@ -37,9 +37,9 @@ def report_content(workspace: Any, run_id: str, *, title: str | None = None,
     `inline_images`, embedded as data URIs (a single-file HTML report).
     """
     from raptor.api.insight import report_section
-    from raptor.api.presentation import run_info
+    from raptor.api.presentation import pooled_outages, run_info
     from raptor.api.run import run_dir
-    from raptor.api.run_tables import bundle_from_run, read_summary
+    from raptor.api.run_tables import bundle_from_run, read_per_run, read_summary
     from raptor.api.tables import report_input_tables, result_tables
 
     unknown = set(sections) - set(SECTIONS)
@@ -59,11 +59,16 @@ def report_content(workspace: Any, run_id: str, *, title: str | None = None,
         content.diagrams = [_diagram(rbd, image_dir, inline_images)]
     if "data_tables" in sections and rbd is not None:
         content.inputs = report_input_tables(rbd)
+    # The cover's key figures come with every report, whether or not the
+    # result tables are printed: the reader's first page answers first.
+    bundle = bundle_from_run(workspace, run_id)
+    tables = result_tables(bundle)
+    content.summary = next((t for t in tables if t.key == "results.summary"), None)
+    content.outage_rate = pooled_outages(read_per_run(run_dir(workspace, run_id), run_id))
     if "results" in sections:
-        bundle = bundle_from_run(workspace, run_id)
-        content.results = [t for t in result_tables(bundle)
+        content.results = [t for t in tables
                            if t.section and t.section != "Weak link"]
-        content.per_run = next((t for t in result_tables(bundle)
+        content.per_run = next((t for t in tables
                                 if t.key == "results.per_run"), None)
     if "story" in sections:
         content.insight = report_section.from_run(workspace, run_id, rbd=rbd)

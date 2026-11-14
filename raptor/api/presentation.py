@@ -466,3 +466,55 @@ def display_rows(table: Any) -> list[list[str]]:
                 cells.append(fmt(v, kind))
         out.append(cells)
     return out
+
+
+# --------------------------------------------------------------------------
+# How often the system goes down, pooled over the runs
+# --------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class OutageRate:
+    """Outages and working time summed over every run.
+
+    Raptor's MTBDE is a mean of per-run values, and a run with no outage
+    gives its whole length, so with rare outages it is only a floor (">").
+    Working time over outages, pooled, is the rate itself."""
+
+    outages: int
+    runs: int
+    up_time: float
+
+    @property
+    def between(self) -> float | None:
+        """Working time per outage, or None when there was no outage."""
+        return self.up_time / self.outages if self.outages and self.up_time > 0 else None
+
+    #: Fewer outages than this and the rate is shown as rough.
+    FEW = 10
+
+    @property
+    def few(self) -> bool:
+        return 0 < self.outages < self.FEW
+
+
+def _field(row: Any, name: str) -> Any:
+    return row.get(name) if isinstance(row, dict) else getattr(row, name, None)
+
+
+def pooled_outages(rows: Any) -> OutageRate | None:
+    """The `OutageRate` of per-run rows (`per_run.json` dicts or the engine's
+    `RunReportData`); None for no rows.  Working time is the run's `uptime`
+    when stored, else its length less its Red share."""
+    rows = list(rows or [])
+    if not rows:
+        return None
+    outages = 0
+    up = 0.0
+    for row in rows:
+        outages += int(_field(row, "num_system_failures") or 0)
+        uptime = _field(row, "uptime")
+        if uptime is None:
+            length = float(_field(row, "ending_sim_time") or 0.0)
+            uptime = length * (1 - float(_field(row, "red_percent") or 0.0) / 100)
+        up += float(uptime)
+    return OutageRate(outages=outages, runs=len(rows), up_time=up)

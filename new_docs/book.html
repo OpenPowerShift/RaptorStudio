@@ -12293,6 +12293,15 @@ one self-contained HTML file. It is the document File › Export PDF makes;
 add <code>results</code> or <code>data_tables</code> to <code>--report-include</code> for the tables. An AI
 assistant uses the MCP tool <code>export_report</code>.</p>
 </div>
+<div class="paragraph">
+<p>The cover always carries the key figures, with or without the tables. Its
+<strong>time between outages</strong> is all the working time divided by all the outages,
+over every run. Raptor&#8217;s MTBDE, kept small under it, is an average of each
+run&#8217;s own value; a run that never went down counts as its whole length, so
+when outages are rare MTBDE is only a floor ("&gt;8,760" for one-year runs)
+and the pooled figure can be a hundred times longer. With fewer than ten
+outages the figure is rounded and marked as too few to be firm.</p>
+</div>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code class="language-bash" data-lang="bash">raptor explain VanFlat.rbds --report VanFlat.pdf

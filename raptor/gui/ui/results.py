@@ -87,12 +87,9 @@ from raptor.gui.ui.results_common import (  # noqa: F401  (names tests and calle
 def _pooled_time_between_downings(data) -> float | None:
     """Working (not fully down) time over all runs / outages over all runs:
     a rate that stays meaningful when most runs never go down."""
-    outages = sum(d.num_system_failures or 0 for d in data)
-    if not outages:
-        return None
-    up = sum((d.ending_sim_time or 0.0) * (1 - (d.red_percent or 0.0) / 100)
-             for d in data)
-    return up / outages if up > 0 else None
+    from raptor.api.presentation import pooled_outages
+    rate = pooled_outages(data)
+    return rate.between if rate is not None else None
 
 
 class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
