@@ -54,6 +54,22 @@ def add_parser(sub: Any) -> None:
     m.add_argument("-f", "--format", choices=("text", "json"), default="text")
     m.set_defaults(func=pm_command)
 
+    r = s.add_parser("resources", help="how many crews or tools are needed")
+    r.add_argument("model", metavar="MODEL")
+    r.add_argument("--resources", metavar="NAMES",
+                   help="comma list of resource names (default: all)")
+    r.add_argument("--target", metavar="EXPR", default="system.ao>=0.995",
+                   help="e.g. system.ao>=0.995 (default)")
+    r.add_argument("--extra", type=int, default=3, metavar="N",
+                   help="sizes above the seed to try (default 3)")
+    r.add_argument("-n", "--trials", type=int, metavar="N")
+    r.add_argument("--seed", type=int, default=1, metavar="N")
+    r.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    r.add_argument("--apply", action="store_true",
+                   help="write the recommended sizes into the model")
+    r.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    r.set_defaults(func=resources_command)
+
 
 def _missing(args: Any) -> int:
     raise CliError("use 'raptor optimise spares MODEL'", X.USAGE)
@@ -189,5 +205,47 @@ def _print_pm(result: dict[str, Any]) -> None:
         print(f"{recommendation['block']}: {recommendation['option']} "
               f"({recommendation['mean']:.6g})"
               + ("" if recommendation["worthwhile"] else "  keep as is"))
+    print(f"\n{result['caption']}")
+    print(result["note"])
+
+
+def resources_command(args: Any) -> int:
+    from raptor.api.optimise.resources import optimise_resources
+
+    _metric_text, target = _target(args.target)
+    names = ([name.strip() for name in args.resources.split(",")
+              if name.strip()] if args.resources else None)
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        try:
+            result = optimise_resources(
+                ws, mid, resources=names, target=target,
+                extra=max(0, args.extra), trials=args.trials, seed=args.seed,
+                workers=max(1, args.jobs),
+                progress=lambda done, total, text:
+                eprint(f"[{done}/{total}] {text}") if text else None)
+        except ValueError as exc:
+            raise CliError(str(exc), X.USAGE) from exc
+        if args.apply:
+            from raptor.api import paths
+            for recommendation in result["recommendations"]:
+                paths.apply_assignment(
+                    ws, mid, f"resource:{recommendation['resource']}.units="
+                             f"{recommendation['units']}")
+            eprint("applied the recommended sizes to the model")
+    if args.format == "json":
+        emit_json({**result, "schema": "raptor-optimise-resources/1"}, None)
+        return X.OK
+    _print_resources(result)
+    return X.OK
+
+
+def _print_resources(result: dict[str, Any]) -> None:
+    for recommendation in result["recommendations"]:
+        print(f"{recommendation['resource']}: {recommendation['units']} "
+              f"({recommendation['mean']:.5g}) — {recommendation['why']}")
+        for row in recommendation["curve"]:
+            print(f"   {row['units']:>3} crews  {row['mean']:.5g} "
+                  f"(lower {row['lower']:.5g})")
     print(f"\n{result['caption']}")
     print(result["note"])
