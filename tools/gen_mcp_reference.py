@@ -118,6 +118,7 @@ TOOL_CATEGORY: dict[str, str] = {
     "annual_availability": "analysis",
     "run_story": "analysis",
     "run_chart": "analysis",
+    "what_if": "what-if",
     "single_point_failures": "analysis",
     "failure_effects": "analysis",
     "failure_effects_batch": "analysis",
@@ -270,6 +271,9 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "annual_availability": {"run_id": "<run_id>", "below": 0.97},
     "run_story": {"run_id": "<run_id>"},
     "run_chart": {"run_id": "<run_id>", "chart": "downtime-pareto"},
+    "what_if": {"model_id": "<model_id>",
+                "changes": ["block:Pump.repair_params=8,0,0"],
+                "name": "Faster repair", "trials": 200},
     "single_point_failures": {"model_id": "<model_id>"},
     "failure_effects": {"model_id": "<model_id>", "fail": ["Pump"]},
     "failure_effects_batch": {
@@ -538,6 +542,10 @@ RETURN_NOTES: dict[str, str] = {
     "run_story": "`{headline, dots, drivers, findings, numbers, sections, "
                  "provenance, caption}` — the same object the application "
                  "and `raptor explain --story` render.",
+    "what_if": "`{trials, seed, base, rows, variance_reduction, "
+               "requirements, caption, note}`; each row's `metrics[key]` has "
+               "the scenario value, paired delta and SEM, p_better and the "
+               "Base value. The open model is never modified.",
     "run_chart": "`{kind, title, subtitle, x_label, y_label, series, marks, "
                  "annotations, caption, provenance, run_id}` and, unless "
                  "`render_svg=False`, `svg` with the same figure as a document.",

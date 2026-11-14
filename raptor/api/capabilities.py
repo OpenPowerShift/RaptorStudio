@@ -69,6 +69,13 @@ CAPABILITIES: tuple[Capability, ...] = (
         api="raptor.api.insight.story.from_run", cli="explain --story",
         mcp="run_story", gui="widget:raptor.gui.ui.story_page.StoryPage"),
     Capability(
+        "whatif.scenario", "Compare a change with Base using paired trials",
+        api="raptor.api.scenarios.runner.compare", cli="whatif",
+        mcp="what_if", long_running=True,
+        absent={"gui": "the Analyse tab's What If bar and Scenarios tab are "
+                       "designed but not built; use 'raptor whatif' or MCP "
+                       "what_if"}),
+    Capability(
         "insight.precision", "Run until the answer is precise enough",
         api="raptor.api.scenarios.stopping.run_to_precision",
         cli="run --precision", mcp="simulate", long_running=True,

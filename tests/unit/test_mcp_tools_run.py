@@ -147,3 +147,26 @@ class TestMarkdownRoundTrip:
         lines = [l.strip() for l in md.splitlines() if l.strip().startswith("|")]
         assert len(lines) >= 3
         assert "Metric" in lines[0]
+
+
+class TestWhatIf:
+    def test_a_null_change_is_exactly_zero_and_paired(self, ws_with_motor):
+        from raptor.mcp.tools_run import what_if
+        data = _sc(_resolve(what_if(
+            ws_with_motor, changes=[], name="Same", trials=3, seed=2,
+            timeout_s=60)))
+        metric = data["rows"][0]["metrics"]["availability"]
+        assert data["rows"][0]["error"] is None
+        assert metric["paired"] is True
+        assert metric["delta"]["mean"] == 0
+        assert data["caption"]
+
+    def test_a_bad_change_is_reported_not_raised(self, ws_with_motor):
+        from raptor.mcp.tools_run import what_if
+        data = _sc(_resolve(what_if(
+            ws_with_motor, changes=["no_such:path=1"], trials=2, seed=1,
+            timeout_s=60)))
+        assert data["rows"][0]["error"]
+        assert "did not run" in _text(_resolve(what_if(
+            ws_with_motor, changes=["no_such:path=1"], trials=2, seed=1,
+            timeout_s=60)))

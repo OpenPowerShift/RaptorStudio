@@ -1075,3 +1075,104 @@ def extract_hierarchy(
                "isolation": record.to_dict()},
               markdown=f"**{record.banner}**\n\nNew model `{info['model_id']}`.\n\n"
                        + record.text())
+
+
+@mcp.tool(annotations=ADDITIVE("What-if"))
+@guarded
+async def what_if(
+    model_id: str,
+    changes: list[str],
+    name: str = "Scenario",
+    trials: int | None = None,
+    seed: int = 1,
+    precision: dict | None = None,
+    requirements: list[dict] | None = None,
+    workers: int | None = None,
+    timeout_s: float = 1800.0,
+    ctx: Context | None = None,
+) -> CallToolResult:
+    """Compare a changed model with Base using paired trials.
+
+    `changes` are PATH=VALUE edits (the grammar of `raptor set`), e.g.
+    `["block:Pump.repair_params=8,0,0"]`. Base and the scenario run with the
+    same seed, so trial *i* is paired; the result reports each metric's
+    scenario value, the paired difference with its standard error, the
+    chance the scenario is better, and how much variance pairing cut. The
+    open model is never modified.
+
+    `trials` sets the fixed count; `precision` (`{relative: 0.1,
+    min_trials: 50, max_trials: 20000}`) sizes Base first with
+    run-to-precision. `requirements` are `{metric, op, value, label}` rows
+    judged for Base and the scenario. Long runs report progress and can be
+    cancelled by the client.
+    """
+    ws = context.workspace()
+    cap = context.max_runs()
+    if trials is not None and trials > cap:
+        raise ValueError(
+            f"trials={trials} exceeds the server cap of {cap}; lower it or "
+            "raise the cap")
+    wanted = None
+    if precision is not None:
+        from raptor.api.scenarios.stopping import Precision
+        try:
+            wanted = Precision(**precision)
+            wanted.field()
+        except TypeError as exc:
+            raise ValueError(f"bad precision object: {exc}") from exc
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+        if wanted.max_trials > cap:
+            raise ValueError(
+                f"precision.max_trials={wanted.max_trials} exceeds the server "
+                f"cap of {cap}")
+    from raptor.api.scenarios import Scenario, compare
+
+    def work(abort, progress):
+        return compare(
+            ws, model_id, [Scenario(name=name, changes=tuple(changes))],
+            trials=trials, precision=wanted, workers=max(1, workers or 1),
+            seed=seed, timeout_s=timeout_s, requirements=requirements,
+            progress=lambda done, total, label: progress(done, total, label),
+            abort=abort)
+
+    comparison = await run_job(ctx, work, label="Comparing scenario")
+    data = comparison.to_dict()
+    data["caption"] = comparison.caption
+    return ok(data, _what_if_markdown(comparison))
+
+
+def _what_if_markdown(comparison: Any) -> str:
+    row = comparison.rows[0] if comparison.rows else {}
+    if row.get("error"):
+        return f"The scenario did not run: {row['error']}"
+    lines = ["| Metric | Base | Scenario | Change | P(better) |",
+             "|---|---|---|---|---|"]
+    for key in ("availability", "reliability", "mtbde", "mdt",
+                "capacity_weighted_availability", "lost_flow"):
+        metric = (row.get("metrics") or {}).get(key)
+        if not metric or (metric.get("value") or {}).get("mean") is None:
+            continue
+        fraction = metric.get("fraction")
+        base = (metric.get("base") or {}).get("mean")
+        value = (metric.get("value") or {}).get("mean")
+        delta = (metric.get("delta") or {}).get("mean")
+        sem = (metric.get("delta") or {}).get("sem")
+        fmt = ((lambda v: f"{100 * v:.5g} %") if fraction
+               else (lambda v: f"{v:,.6g}"))
+        if delta is None:
+            continue
+        change = (f"{100 * delta:+.3g} pts" if fraction
+                  else f"{delta:+,.6g}")
+        if sem:
+            change += (f" ± {100 * sem:.3g}" if fraction else f" ± {sem:.3g}")
+        chance = metric.get("p_better")
+        tail = ("—" if chance is None else f"{100 * chance:.3g} %")
+        lines.append(f"| {metric['label']} | {fmt(base)} | {fmt(value)} | "
+                     f"{change} | {tail} |")
+    lines.append("")
+    lines.append(comparison.caption)
+    cut = (comparison.variance_reduction or {}).get("availability")
+    if cut is not None:
+        lines.append(f"Pairing cut the variance by {100 * cut:.3g} %.")
+    return "\n".join(lines)

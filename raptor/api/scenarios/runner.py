@@ -1,0 +1,276 @@
+"""What-if scenarios compared with common random numbers (WP-3.1).
+
+A scenario is the open model plus a short list of `PATH=VALUE` changes
+(`raptor.api.paths`), never a second file.  Base and every scenario run with
+the same seed, so trial *i* of each draws the same streams where the change
+leaves a block's number of draws alone; the comparison is on paired
+differences, which is much tighter than two independent intervals.
+
+A change that alters how many draws a block makes can desynchronise later
+draws on shared system streams: the comparison stays unbiased, it only
+loses some of the pairing benefit.  `variance_reduction` reports how much
+pairing actually bought.
+"""
+from __future__ import annotations
+
+import math
+from collections.abc import Callable, Sequence
+from dataclasses import asdict, dataclass, field
+from typing import Any
+
+from raptor.api.batch import run_variants
+from raptor.api.run import run_dir
+from raptor.api.run_tables import read_per_run
+
+#: The metrics a comparison reports.
+METRICS: tuple[str, ...] = (
+    "availability", "reliability", "mtbde", "mdt",
+    "capacity_weighted_availability", "lost_flow", "grand_total",
+)
+LABELS = {
+    "availability": "Availability",
+    "reliability": "Reliability",
+    "mtbde": "Time between failures",
+    "mdt": "Time down",
+    "capacity_weighted_availability": "Delivered fraction",
+    "lost_flow": "Lost flow",
+    "grand_total": "Grand total",
+}
+UNITS = {"mtbde": "time", "mdt": "time", "lost_flow": "flow",
+         "grand_total": "cost"}
+FRACTIONS = {"availability", "reliability",
+             "capacity_weighted_availability"}
+
+
+@dataclass(frozen=True)
+class Scenario:
+    name: str
+    changes: tuple[str, ...] = ()
+    note: str = ""
+
+    @classmethod
+    def from_dict(cls, row: dict[str, Any]) -> Scenario:
+        return cls(str(row.get("name") or "Scenario"),
+                   tuple(str(change) for change in row.get("changes") or ()),
+                   str(row.get("note") or ""))
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class Comparison:
+    trials: int
+    seed: int | None
+    base: dict[str, Any]
+    rows: list[dict[str, Any]]
+    variance_reduction: dict[str, float | None] = field(default_factory=dict)
+    requirements: list[dict[str, Any]] = field(default_factory=list)
+    caption: str = ""
+    note: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def _values(rows: list[dict], key: str) -> list[float]:
+    out: list[float] = []
+    for row in rows:
+        value = row.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            number = float(value)
+            if math.isfinite(number):
+                out.append(number)
+    return out
+
+
+def _stat(values: list[float]) -> dict[str, Any]:
+    n = len(values)
+    if n == 0:
+        return {"mean": None, "sem": None, "n": 0}
+    mean = sum(values) / n
+    sem = (math.sqrt(sum((value - mean) ** 2 for value in values)
+                     / (n - 1) / n) if n > 1 else None)
+    return {"mean": mean, "sem": sem, "n": n}
+
+
+def _paired(base: list[float], other: list[float]
+            ) -> tuple[dict[str, Any], float | None]:
+    n = min(len(base), len(other))
+    if n < 2:
+        return _stat([]), None
+    deltas = [other[i] - base[i] for i in range(n)]
+    stat = _stat(deltas)
+    mean, sem = stat["mean"], stat["sem"]
+    if mean is None:
+        return stat, None
+    if not sem:
+        return stat, 1.0 if mean > 0 else 0.0 if mean < 0 else 0.5
+    p_better = 0.5 * (1.0 + math.erf(mean / (sem * math.sqrt(2.0))))
+    return stat, p_better
+
+
+def _variance_reduction(base: list[float], other: list[float]) -> float | None:
+    n = min(len(base), len(other))
+    if n < 2:
+        return None
+    deltas = [other[i] - base[i] for i in range(n)]
+
+    def variance(values: list[float]) -> float:
+        mean = sum(values[:n]) / n
+        return sum((value - mean) ** 2 for value in values[:n]) / (n - 1)
+
+    denominator = variance(base) + variance(other)
+    if denominator <= 0:
+        return None
+    return max(0.0, min(1.0, 1.0 - variance(deltas) / denominator))
+
+
+def _field(requirement: dict[str, Any]) -> str:
+    from raptor.api.advisor.context import REQUIREMENT_FIELDS
+    return REQUIREMENT_FIELDS.get(str(requirement.get("metric") or ""),
+                                  str(requirement.get("metric") or "")
+                                  .split(".", 1)[-1])
+
+
+def _verdict(value: float | None, requirement: dict[str, Any]) -> str:
+    if value is None:
+        return "no data"
+    try:
+        target = float(str(requirement.get("value")))
+    except (TypeError, ValueError):
+        return "not comparable"
+    op = str(requirement.get("op") or ">=")
+    ok = {">=": value >= target, ">": value > target,
+          "<=": value <= target, "<": value < target,
+          "==": abs(value - target) < 1e-12,
+          "!=": abs(value - target) >= 1e-12}.get(op)
+    return "met" if ok else "missed" if ok is False else "unknown"
+
+
+def _per_run(workspace: Any, row: dict[str, Any]) -> list[dict]:
+    run_id = row.get("run_id")
+    if not run_id:
+        return []
+    try:
+        return read_per_run(run_dir(workspace, run_id), run_id) or []
+    except Exception:  # noqa: BLE001 - the variant row already carries an error
+        return []
+
+
+def compare(
+    workspace: Any,
+    model_id: str,
+    scenarios: Sequence[Scenario | dict[str, Any]],
+    *,
+    trials: int | None = None,
+    precision: Any = None,
+    workers: int = 1,
+    seed: int | None = 1,
+    timeout_s: float = 1800.0,
+    requirements: list[dict[str, Any]] | None = None,
+    progress: Callable[[int, int, str], None] | None = None,
+    abort: Any = None,
+) -> Comparison:
+    """Run Base and each scenario with paired seeds and compare the metrics.
+
+    `trials` sets the fixed count. `precision` (a
+    `raptor.api.scenarios.stopping.Precision`) first sizes Base with
+    `run_to_precision`, then runs everyone at that count. `progress` receives
+    `(done, total, label)`.
+    """
+    parsed = [scenario if isinstance(scenario, Scenario)
+              else Scenario.from_dict(scenario) for scenario in scenarios]
+    if precision is not None:
+        from raptor.api.scenarios.stopping import run_to_precision
+        sized = run_to_precision(workspace, model_id, precision,
+                                 workers=workers, seed=seed,
+                                 progress=None, abort=abort,
+                                 timeout_s=timeout_s)
+        trials = sized.trials
+    variants = [{"label": "Base", "assignments": []}]
+    variants += [{"label": scenario.name,
+                  "assignments": list(scenario.changes)}
+                 for scenario in parsed]
+    results = run_variants(
+        workspace, model_id, variants, num_runs=trials, workers=workers,
+        timeout_s=timeout_s, seed=seed, progress=progress, abort=abort)
+    base_row = results[0] if results else {}
+    base_data = _per_run(workspace, base_row)
+    base_metrics = {key: _stat(_values(base_data, key)) for key in METRICS}
+    rows: list[dict[str, Any]] = []
+    variance: dict[str, float | None] = {}
+    for scenario, row in zip(parsed, results[1:], strict=False):
+        entry: dict[str, Any] = {
+            "name": scenario.name, "changes": list(scenario.changes),
+            "note": scenario.note, "run_id": row.get("run_id"),
+            "error": row.get("error"), "metrics": {},
+        }
+        if not entry["error"]:
+            other = _per_run(workspace, row)
+            for key in METRICS:
+                base_values = _values(base_data, key)
+                other_values = _values(other, key)
+                delta, p_better = _paired(base_values, other_values)
+                entry["metrics"][key] = {
+                    "label": LABELS.get(key, key),
+                    "units": UNITS.get(key, ""),
+                    "fraction": key in FRACTIONS,
+                    "base": _stat(base_values),
+                    "value": _stat(other_values),
+                    "delta": delta,
+                    "p_better": p_better,
+                    "paired": len(base_values) == len(other_values)
+                              and bool(base_values),
+                }
+            variance = {key: _variance_reduction(_values(base_data, key),
+                                                 _values(other, key))
+                        for key in METRICS}
+        rows.append(entry)
+    comparison = Comparison(
+        trials=int(trials or len(base_data)), seed=seed,
+        base={"run_id": base_row.get("run_id"), "metrics": base_metrics},
+        rows=rows, variance_reduction=variance,
+        requirements=_requirements(requirements or (), base_metrics, rows),
+        caption=_caption(rows),
+        note=("Each scenario is compared with Base using the same seed and "
+              "paired trials. A change that alters how many random draws a "
+              "block makes can weaken the pairing, never the comparison."))
+    return comparison
+
+
+def _requirements(requirements: Any, base_metrics: dict[str, Any],
+                  rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out = []
+    for requirement in requirements:
+        field_name = _field(requirement)
+        entry = {**requirement, "field": field_name,
+                 "base": _verdict((base_metrics.get(field_name) or {})
+                                  .get("mean"), requirement),
+                 "scenarios": {}}
+        for row in rows:
+            if row.get("error"):
+                continue
+            metric = (row.get("metrics", {}).get(field_name) or {})
+            entry["scenarios"][row["name"]] = _verdict(
+                (metric.get("value") or {}).get("mean"), requirement)
+        out.append(entry)
+    return out
+
+
+def _caption(rows: list[dict[str, Any]]) -> str:
+    usable = [row for row in rows
+              if not row.get("error") and row.get("metrics")]
+    if not usable:
+        return "No scenario ran."
+    best = max(usable, key=lambda row: (
+        (row["metrics"]["availability"]["delta"] or {}).get("mean") or 0.0))
+    delta = (best["metrics"]["availability"]["delta"] or {}).get("mean")
+    if delta is None:
+        return f"{len(usable)} scenario(s) compared with Base."
+    direction = "better" if delta > 0 else "worse"
+    note = (" With several scenarios, each is compared with Base; the "
+            "largest is not a league table of noise."
+            if len(usable) > 1 else "")
+    return (f"{best['name']} is the largest change in availability: "
+            f"{100 * delta:+.3g} points ({direction})." + note)

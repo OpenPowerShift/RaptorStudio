@@ -4,7 +4,7 @@ _raptor() {
     case "${COMP_WORDS[i]}" in -*) ;; *) cmd="${COMP_WORDS[i]}"; break;; esac
   done
   if [[ -z "$cmd" ]]; then
-    COMPREPLY=( $(compgen -W "advise analytic compare completion config convert describe diff doctor estimate explain extract fev get gui help info mcp render report run schema set simulate spf step sweep tables validate --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
+    COMPREPLY=( $(compgen -W "advise analytic compare completion config convert describe diff doctor estimate explain extract fev get gui help info mcp render report run schema set simulate spf step sweep tables validate whatif --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
   fi
   case "$cmd" in
     advise) opts="--format --help --list-rules --min-severity --only --simulate --skip --strict --target --why" ;;
@@ -36,6 +36,7 @@ _raptor() {
     sweep) opts="--analysis --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --vary --weak-type" ;;
     tables) opts="--analysis --format --help --importance --jobs --length --list --max-trials --min-trials --output --precision --precision-batch --precision-metric --run --runs --save-model --seed --set --set-file --stats-start --stop --table --timeout --weak-type" ;;
     validate) opts="--format --help --strict" ;;
+    whatif) opts="--change --change-file --format --help --jobs --name --note --precision --requirement --save --seed --trials" ;;
   esac
   COMPREPLY=( $(compgen -f -W "$opts" -- "$cur") )
 }

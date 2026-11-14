@@ -289,3 +289,16 @@ complete -c raptor -n '__fish_use_subcommand' -a validate
 complete -c raptor -n '__fish_seen_subcommand_from validate' -l format
 complete -c raptor -n '__fish_seen_subcommand_from validate' -l help
 complete -c raptor -n '__fish_seen_subcommand_from validate' -l strict
+complete -c raptor -n '__fish_use_subcommand' -a whatif
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l change
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l change-file
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l format
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l help
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l jobs
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l name
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l note
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l precision
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l requirement
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l save
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l seed
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l trials
