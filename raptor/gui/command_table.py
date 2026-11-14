@@ -1296,9 +1296,10 @@ LAYOUT: tuple[Page, ...] = (
     _p("Model", "_model_page_index",
        Group("Clipboard", (Btn("home.paste", True), Btn("home.cut"),
                            Btn("home.copy"), Btn("home.duplicate"),
-                           Btn("home.duplicate_parallel"), Btn("home.array"),
-                           Btn("home.paste_data"),
                            Btn("home.select_all")),
+             # Duplicate in Parallel, Array and Paste Data Only live in the
+             # canvas menu's Duplicate submenu, their shortcuts and command
+             # search: four more buttons pushed Build off a 1280 px ribbon.
              priority=2),
        Group("Tools", (Btn("model.select", True), Btn("model.connect", True))),
        Group("Build", (Btn("model.add_block", True),

@@ -29,6 +29,9 @@ OFF_RIBBON = {
     "home.undo", "home.redo",
     # Shortcut/dialog first: Ctrl+Shift+P / Ctrl+K and the grid's Ctrl+H.
     "view.command_search", "data.find_replace",
+    # The canvas menu's Duplicate submenu and shortcuts (Ctrl+Alt+D,
+    # Ctrl+Shift+V); on the ribbon they pushed Build off a 1280 px window.
+    "home.duplicate_parallel", "home.array", "home.paste_data",
     # Results overlays, driven by the one "Show on canvas" combo.
     "results.weak_color", "results.capacity_overlay", "results.cost_overlay",
     "results.spares_overlay", "results.importance_overlay",
