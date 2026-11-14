@@ -34,6 +34,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from raptor.api.insight.capacity_attribution import (
+    CapacityRun, CapacityTracker, aggregate_capacity,
+)
+
 CAUSES = ("repair", "wait_spare", "wait_resource", "logistics", "pm", "pm_wait",
           "dependency", "done", "other")
 CAUSE_LABELS = {
@@ -116,14 +120,19 @@ class TrialAttribution:
     red: list[float] = field(default_factory=list)
     start: float = 0.0
     end: float = 0.0
+    #: Lost-capacity attribution, when the run recorded a capacity sink.
+    capacity: Any = None
 
 
 class _Replay:
     """The state kept while one run's lines are replayed."""
 
-    def __init__(self, start_stats: float) -> None:
+    def __init__(self, start_stats: float,
+                 capacity: CapacityRun | None = None) -> None:
         self.out = TrialAttribution()
         self.start_stats = start_stats
+        self.capacity = (CapacityTracker(capacity, start_stats)
+                         if capacity is not None else None)
         self.state: dict[Key, str] = {}
         self.since: dict[Key, float] = {}    # when each element entered its current state
         self.down: dict[Key, int] = {}       # elements down now -> when they went down (a counter)
@@ -148,6 +157,8 @@ class _Replay:
 
     def advance(self, to: float) -> None:
         out = self.out
+        if self.capacity is not None:
+            self.capacity.advance(to, self.down, self.state)
         dt = max(to, self.start_stats) - max(self.now, self.start_stats)
         if dt > 0:
             out.span += dt
@@ -177,6 +188,9 @@ class _Replay:
 
     def finish(self) -> None:
         self.close(self.now)
+        if self.capacity is not None:
+            self.capacity.finish(self.now, self.down, self.state)
+            self.out.capacity = self.capacity.out
         self.out.start = min(self.start_stats, self.now)
         self.out.end = self.now
         for key in self.state:
@@ -264,9 +278,14 @@ class _Replay:
             rec.failures += bool(failed)
 
 
-def attribute_trial(lines: Iterable[Any], start_stats: float = 0.0) -> TrialAttribution:
-    """Replay one run's event-log lines (`LogLine`s; plain strings are skipped)."""
-    replay = _Replay(start_stats)
+def attribute_trial(lines: Iterable[Any], start_stats: float = 0.0,
+                    capacity: CapacityRun | None = None) -> TrialAttribution:
+    """Replay one run's event-log lines (`LogLine`s; plain strings are skipped).
+
+    `capacity` joins a capacity-analysis run's flow track so the lost flow is
+    charged to the elements that were down (`raptor.api.insight.capacity_attribution`).
+    """
+    replay = _Replay(start_stats, capacity)
     for line in lines:
         kind = getattr(line, "type", None)
         if kind is None:
@@ -360,14 +379,29 @@ def aggregate(trials: list[TrialAttribution]) -> dict[str, Any]:
     names: dict[Key, str] = {}
     for trial in trials:
         names.update(trial.names)
+    capacity = aggregate_capacity(trials, names)
+    # An element can lose capacity without starting a system outage (a
+    # parallel unit still within the demand): keep it in the table, where its
+    # lost-capacity columns are the only nonzero ones.
+    capacity_keys = ({(row["kind"], row["id"]) for row in capacity["elements"]}
+                     if capacity else set())
     keys = sorted({k for trial in trials for k in trial.initiated} |
-                  {k for trial in trials for k in trial.holding})
+                  {k for trial in trials for k in trial.holding} |
+                  capacity_keys)
     elements = [_element_row(key, trials, names) for key in keys]
     elements.sort(key=lambda e: (-(e["red_time"]["mean"] or 0.0), e["name"]))
+    if capacity is not None:
+        by_key = {(row["kind"], row["id"]): row for row in capacity["elements"]}
+        for element in elements:
+            row = by_key.get((element["kind"], element["id"]))
+            if row is not None:
+                element["lost_capacity"] = row["lost_energy"]
+                element["lost_capacity_share"] = row["share"]
+                element["lost_capacity_through_dependents"] = row["through_dependents"]
     cause_totals = {c: sum(t.cause_time.get(c, 0.0) for t in trials) for c in CAUSES}
     all_red = sum(cause_totals.values())
     durations = sorted(o.duration for t in trials for o in t.kept)
-    return {
+    result = {
         "schema": "raptor-attribution/1",
         "runs": len(trials),
         "runs_with_outage": sum(1 for t in trials if t.outages),
@@ -382,6 +416,9 @@ def aggregate(trials: list[TrialAttribution]) -> dict[str, Any]:
                              "max": durations[-1] if durations else None},
         "sequences": _sequences(trials, names),
     }
+    if capacity is not None:
+        result["capacity"] = capacity
+    return result
 
 
 #: More system-down intervals than this in one batch are not stored.
@@ -402,21 +439,26 @@ ATTRIBUTE_LABEL = "Working out what caused the downtime"
 
 def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
                    progress: Any = None, abort: Any = None,
-                   total: int | None = None, with_outages: bool = False) -> dict[str, Any]:
+                   total: int | None = None, with_outages: bool = False,
+                   capacity: Iterable[CapacityRun | None] | None = None) -> dict[str, Any]:
     """Attribution for a whole batch from its per-run event logs.
 
     `progress` (a `raptor.api.progress.ProgressFn`) is told after each run;
     `abort` (a `threading.Event`) stops it with `raptor.api.progress.Cancelled`.
     `with_outages` adds `outages`: every run's system-down intervals, from
     which `raptor.api.insight.periods` computes yearly availability.
+    `capacity` gives each run's flow track (the capacity sink), in run order,
+    so the lost flow is attributed to the elements that were down.
     """
     from raptor.api.progress import check, report
     if total is None and hasattr(logs, "__len__"):
         total = len(logs)                                   # type: ignore[arg-type]
+    capacity_runs = iter(capacity) if capacity is not None else None
     trials = []
     for i, lines in enumerate(logs, start=1):
         check(abort)
-        trials.append(attribute_trial(lines, start_stats))
+        cap_run = next(capacity_runs, None) if capacity_runs is not None else None
+        trials.append(attribute_trial(lines, start_stats, cap_run))
         report(progress, "attribute", ATTRIBUTE_LABEL, i, total)
     result = aggregate(trials)
     if with_outages:

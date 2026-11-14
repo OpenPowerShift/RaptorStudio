@@ -73,6 +73,11 @@ def add_parser(sub: Any) -> None:
     e.add_argument("--below", type=float, metavar="A",
                    help="report the share of periods with availability below A, "
                         "e.g. 0.97 (implies --yearly)")
+    e.add_argument("--capacity-rule",
+                   choices=("proportional", "marginal", "first_failed"),
+                   default="proportional",
+                   help="how to share a capacity-analysis run's lost flow among "
+                        "the elements that were down (default proportional)")
     e.add_argument("-f", "--format", choices=("text", "json"), default="text")
     e.set_defaults(func=explain_command)
 
@@ -203,7 +208,9 @@ def explain_command(args: Any) -> int:
         mid = open_model(ws, args.model)
         try:
             result = run_api.run(ws, mid, num_runs=args.runs, workers=max(1, args.jobs),
-                                 seed=args.seed, attribution=True, confirm_long_run=True)
+                                 seed=args.seed, attribution=True,
+                                 capacity_rule=args.capacity_rule,
+                                 confirm_long_run=True)
         except run_api.RunError as exc:
             raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
         attribution = drivers.read(ws, result.run_id)

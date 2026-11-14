@@ -287,6 +287,7 @@ def run(
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
     attribution: bool = False,
+    capacity_rule: str = "proportional",
 ) -> RunResult:
     """Execute a simulation and persist artefacts to ``runs/<run_id>/``.
 
@@ -295,6 +296,11 @@ def run(
     stores it as ``attribution.json``. It replays the event log the engine
     writes anyway, so it cannot change a result; the log is kept in memory
     for the batch whether or not ``collect_events`` stores it.
+
+    ``capacity_rule`` shares the lost flow of a capacity-analysis run among
+    the elements that were down: ``proportional`` (default, sums to the
+    engine's own lost flow), ``marginal`` ("what would fixing this one buy?",
+    shares need not add up) or ``first_failed``. It needs ``attribution``.
 
     ``availability_plot`` and ``interim_cost`` say whether this run records
     the availability plot and the interim cost report. ``None`` (default)
@@ -630,9 +636,12 @@ def run(
         from raptor.api.insight.attribution import attribute_logs
         from raptor.core import run_experiment
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
+        capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
+                                       capacity_rule, abort=abort)
         attributed = attribute_logs(
             [log if isinstance(log, list) else [log] for log in event_logs],
-            float(experiment.get("start_stats") or 0.0), abort=abort, with_outages=True)
+            float(experiment.get("start_stats") or 0.0), abort=abort,
+            with_outages=True, capacity=capacity_runs)
         attributed["units"] = model_units(sim_rbd)
         # the outage intervals go in their own file: they are large and only
         # the period (yearly) view reads them
@@ -706,6 +715,20 @@ def run(
         estimated_wall_seconds=est_wall,
         analyses=analyses,
     )
+
+
+def _capacity_runs(
+    rbd: RbdFile,
+    cap_lines: list[str],
+    model_key: str,
+    rule: str,
+    *,
+    abort: threading.Event | None = None,
+) -> list[Any] | None:
+    """One `CapacityRun` per run from the capacity sink, or None without one."""
+    from raptor.api.insight.capacity_attribution import capacity_runs
+    return capacity_runs(rbd, cap_lines, model_key=model_key, rule=rule,
+                         abort=abort)
 
 
 def _run_simulation(

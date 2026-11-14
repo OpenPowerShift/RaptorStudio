@@ -228,6 +228,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
     attribution: bool = False,
+    capacity_rule: Literal["proportional", "marginal", "first_failed"] = "proportional",
     ctx: Context | None = None,
 ) -> CallToolResult:
     """Run a simulation and return structured results.
@@ -238,6 +239,11 @@ async def simulate(  # noqa: PLR0912, PLR0915
     `advise(model_id, run_id)`. The results themselves are unchanged. It
     keeps the event log in memory for the batch, so leave it off for very
     large runs. Not available with `hierarchy`.
+
+    `capacity_rule` (with attribution on a capacity-analysis model) shares
+    the lost flow among the elements that were down: `proportional` sums to
+    the engine's own lost flow, `marginal` answers "what would fixing this
+    one buy?" (shares need not add up), `first_failed` is for comparison.
 
     `availability_plot` / `interim_cost`: record the availability-over-time
     plot (needed by `get_timeseries(series="availability")`) or the interim
@@ -357,7 +363,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
                                     treatments=treatments, **kwargs)
             except isolate.IsolationError as exc:
                 raise ValueError(str(exc)) from exc
-        return api_run(ws, model_id, attribution=attribution, **kwargs)
+        return api_run(ws, model_id, attribution=attribution,
+                       capacity_rule=capacity_rule, **kwargs)
 
     result = await run_job(ctx, _go, label="Simulating")
     warnings = list(result.warnings) + validation_warnings
@@ -447,11 +454,13 @@ def start_run(
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
     attribution: bool = False,
+    capacity_rule: Literal["proportional", "marginal", "first_failed"] = "proportional",
 ) -> CallToolResult:
     """Start a simulation in the background and return a job id immediately.
 
     `attribution=True` also records what caused the downtime, as in
     `simulate`; read it with `downtime_drivers` once the job is done.
+    `capacity_rule` chooses how the lost flow is shared, as in `simulate`.
 
     Same arguments as `simulate`, minus the hierarchy/isolation and
     importance options. Use this for batches that outlive one tool call (a
@@ -507,6 +516,7 @@ def start_run(
                        setup_progress=setup_progress, seed=seed,
                        availability_plot=availability_plot,
                        attribution=attribution,
+                       capacity_rule=capacity_rule,
                        interim_cost=interim_cost)
 
     job = async_runs.start(work, model_id=model_id, total=effective_runs)

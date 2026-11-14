@@ -190,3 +190,121 @@ def pm_downtime(ctx: RunContext) -> Iterable[Finding]:
       category="drivers", basis="statistical", severity="advice", needs=("model", "run"))
 def logistics_delay(ctx: RunContext) -> Iterable[Finding]:
     return _system_cause(ctx, "logistics")
+
+
+# ---- capacity (issue #256) --------------------------------------------------
+
+def _capacity_rows(ctx: RunContext) -> list[dict]:
+    """Lost-capacity rows with their downtime share attached.
+
+    The capacity block holds the capacity figures; the element rows hold DTCI.
+    They are the same element keys, so join them here once.
+    """
+    attribution = ctx.attribution or {}
+    downtime = {(e["kind"], e["id"]): e
+                for e in attribution.get("elements") or []}
+    rows = []
+    for row in (attribution.get("capacity") or {}).get("elements") or []:
+        if (row.get("share", {}).get("mean") or 0.0) <= 0.0:
+            continue
+        merged = dict(row)
+        merged["dtci"] = (downtime.get((row["kind"], row["id"])) or {}).get(
+            "dtci") or {"mean": 0.0, "sem": None}
+        rows.append(merged)
+    rows.sort(key=lambda r: -(r["share"]["mean"] or 0.0))
+    return rows
+
+
+@rule("R-CAP-101", title="Some demand is not delivered",
+      category="capacity", basis="statistical", severity="info",
+      needs=("model", "run"))
+def delivered_fraction(ctx: RunContext) -> Iterable[Finding]:
+    rows = _capacity_rows(ctx)
+    if not rows:
+        return
+    delivered = ctx.values("capacity_weighted_availability")
+    if not delivered:
+        return
+    mean = sum(delivered) / len(delivered)
+    if mean >= 0.9999:
+        return
+    top = rows[0]
+    yield Finding(
+        rule="R-CAP-101", severity="info", category="capacity",
+        title="Some demand is not delivered",
+        message=(f"The runs delivered {text.fmt_pct(mean)} of the flow asked "
+                 f"for; {top['name']} loses the most capacity "
+                 f"({text.fmt_pct(top['share']['mean'] or 0.0)} of the loss)."),
+        why="Capacity-weighted availability is mean delivered flow divided "
+            "by the flow generated. Availability alone only says whether "
+            "any flow got through.",
+        targets=_target(top),
+        evidence={"delivered_fraction": mean, "top_element": top["name"],
+                  "top_share": top["share"]["mean"]},
+        basis="statistical", confidence=0.9,
+        impact=1.0 - mean, doc="advisor.html#R-CAP-101")
+
+
+@rule("R-CAP-102", title="Downtime share and capacity share disagree",
+      category="capacity", basis="statistical", severity="advice",
+      needs=("model", "run"))
+def capacity_vs_downtime(ctx: RunContext) -> Iterable[Finding]:
+    """The many-parallel-units case from issue #256: an element can be down
+    for a long time and cost little flow, or the other way round."""
+    for row in _capacity_rows(ctx)[:5]:
+        cap = row["share"]["mean"] or 0.0
+        time = row["dtci"]["mean"] or 0.0
+        if cap <= 0 or time <= 0:
+            continue
+        ratio = cap / time
+        if ratio < 2.0 and ratio > 0.5:
+            continue
+        more = cap > time
+        yield Finding(
+            rule="R-CAP-102", severity="advice", category="capacity",
+            title="Downtime share and capacity share disagree",
+            message=(f"{row['name']} causes {text.fmt_pct(cap)} of the lost "
+                     f"capacity but {text.fmt_pct(time)} of the downtime: "
+                     + ("it removes a large share of the flow when it fails."
+                        if more else
+                        "it is down often but removes little flow.")),
+            why="An hour down counts the same in availability whether the "
+                "element is one of a hundred parallel units or the single "
+                "point of connection. Ranking by lost capacity answers the "
+                "energy question; ranking by downtime answers the up/down "
+                "question.",
+            targets=_target(row),
+            evidence={"capacity_share": cap, "downtime_share": time,
+                      "ratio": ratio, "rule": "proportional"},
+            basis="statistical", confidence=0.9,
+            impact=abs(cap - time), doc="advisor.html#R-CAP-102")
+
+
+@rule("R-CAP-103", title="Availability overstates the service delivered",
+      category="capacity", basis="statistical", severity="warning",
+      needs=("model", "run"))
+def availability_overstates(ctx: RunContext) -> Iterable[Finding]:
+    a = ctx.values("availability")
+    c = ctx.values("capacity_weighted_availability")
+    if not a or not c:
+        return
+    mean_a = sum(a) / len(a)
+    mean_c = sum(c) / len(c)
+    if mean_a - mean_c < 0.01:
+        return
+    rows = _capacity_rows(ctx)
+    top = rows[0] if rows else None
+    yield Finding(
+        rule="R-CAP-103", severity="warning", category="capacity",
+        title="Availability overstates the service delivered",
+        message=(f"Availability is {text.fmt_pct(mean_a)} but only "
+                 f"{text.fmt_pct(mean_c)} of the capacity is delivered"
+                 + (f"; {top['name']} loses the most." if top else ".")),
+        why="A system can be 'up' while delivering less than the demand: "
+            "capacity analysis measures the flow that actually arrives, not "
+            "just whether any path is open.",
+        targets=_target(top) if top else (),
+        evidence={"availability": mean_a,
+                  "capacity_weighted_availability": mean_c},
+        basis="statistical", confidence=0.9, impact=mean_a - mean_c,
+        doc="advisor.html#R-CAP-103")

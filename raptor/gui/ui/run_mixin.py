@@ -956,7 +956,7 @@ class RunMixin(_Base):
         self._results.set_results(event_logs, eor_lines, final_lines,
                                   report_data=report_data, units=units,
                                   ao_lines=ao_lines, cap_lines=cap_lines,
-                                  manifest=manifest)
+                                  manifest=manifest, rbd=getattr(self, "_rbd", None))
         self._note_results_basis()
         self._results_show_action.setEnabled(bool(report_data))
         self._results_float_action.setEnabled(bool(report_data))

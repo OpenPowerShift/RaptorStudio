@@ -132,6 +132,13 @@ def bundle_from_run(workspace: Workspace, run_id: str,
     if num_runs < 0:
         raise RunArtefactsError(
             f"Run {run_id!r} has invalid run metadata; re-run it")
+    attribution = None
+    attr_path = runs_dir / "attribution.json"
+    if attr_path.is_file():
+        try:
+            attribution = json.loads(attr_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            attribution = None
     # Filenames come from `api.run` (the writer), not from literals restated
     # here. The `_read_lines(None)` guard covers a run whose artefact is
     # absent -- an incomplete or older run directory.
@@ -148,4 +155,5 @@ def bundle_from_run(workspace: Workspace, run_id: str,
         event_logs=_split_events(
             _tagged(runs_dir, _read_lines(section_path(runs_dir, "events")),
                     "events_ids")),
+        attribution=attribution,
     )

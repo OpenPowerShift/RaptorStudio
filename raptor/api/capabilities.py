@@ -59,6 +59,11 @@ CAPABILITIES: tuple[Capability, ...] = (
         api="raptor.api.insight.drivers.periods", cli="explain --yearly",
         mcp="annual_availability",
         gui="widget:raptor.gui.ui.drivers_page.DriversPage"),
+    Capability(
+        "insight.capacity", "Lost capacity per element and capacity-weighted importance",
+        api="raptor.api.insight.capacity_attribution.capacity_runs",
+        cli="explain --capacity-rule", mcp="simulate",
+        gui="widget:raptor.gui.ui.drivers_page.DriversPage", long_running=True),
 )
 
 SURFACES = ("api", "cli", "mcp", "gui")

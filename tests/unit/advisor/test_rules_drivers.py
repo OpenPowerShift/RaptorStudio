@@ -75,3 +75,60 @@ def test_system_cause_rules_and_their_thresholds():
 
 def test_no_outages_gives_no_driver_findings():
     assert fired(attribution([], {})) == []
+
+
+# ---- capacity (issue #256) -------------------------------------------------
+
+def capacity_element(name, oid, share, dtci, through=0.0):
+    return {"kind": "block", "id": oid, "name": name,
+            "share": stat(share), "lost_energy": stat(100.0 * share),
+            "through_dependents": stat(through), "standalone": 1.0,
+            "dtci": stat(dtci)}
+
+
+def capacity_attribution(rows, delivered=0.9, availability=0.99):
+    attr = attribution([element(r["name"], r["id"], r["dtci"]["mean"],
+                                {"repair": 1.0}) for r in rows], {"repair": 1.0})
+    attr["capacity"] = {
+        "rule": "proportional", "generated": 100.0,
+        "lost_energy": stat(250.0), "elements": rows, "causes": {},
+        "notes": [],
+    }
+    per_run = [{"availability": availability,
+                "capacity_weighted_availability": delivered}] * 5
+    return attr, per_run
+
+
+def test_R_CAP_101_says_how_much_demand_was_not_delivered():
+    attr, per_run = capacity_attribution(
+        [capacity_element("Pump", 1, 0.6, 0.2)], delivered=0.82)
+    out = advise_run(RBD, {}, per_run, attribution=attr)
+    found = {f.rule: f for f in out}
+    assert "82 %" in found["R-CAP-101"].message
+    assert "Pump loses the most capacity (60 % of the loss)" in found["R-CAP-101"].message
+
+
+def test_R_CAP_102_when_the_two_shares_differ_by_a_factor_of_two():
+    attr, per_run = capacity_attribution(
+        [capacity_element("Pump", 1, 0.3, 0.7),     # down long, loses little
+         capacity_element("Grid", 2, 0.7, 0.3)],    # down little, loses much
+        delivered=0.95)
+    out = {f.targets[0].name: f for f in advise_run(RBD, {}, per_run,
+                                                    attribution=attr)
+           if f.rule == "R-CAP-102"}
+    assert set(out) == {"Pump", "Grid"}
+    assert "removes a large share of the flow" in out["Grid"].message
+    assert "removes little flow" in out["Pump"].message
+
+
+def test_R_CAP_103_when_availability_overstates_the_flow():
+    attr, per_run = capacity_attribution(
+        [capacity_element("Pump", 1, 1.0, 1.0)], delivered=0.90,
+        availability=0.99)
+    found = {f.rule: f for f in advise_run(RBD, {}, per_run, attribution=attr)}
+    assert found["R-CAP-103"].severity == "warning"
+    assert "99 %" in found["R-CAP-103"].message and "90 %" in found["R-CAP-103"].message
+
+
+def test_capacity_rules_are_silent_without_capacity_data():
+    assert not [f for f in fired(BASE) if f.rule.startswith("R-CAP")]

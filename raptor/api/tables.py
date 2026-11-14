@@ -103,6 +103,8 @@ class ResultsBundle:
     cost_lines: Sequence[str] = ()
     #: One list of event lines per run.
     event_logs: Sequence[Sequence[str]] = ()
+    #: `attribution.json`, when the run was made with downtime attribution.
+    attribution: dict[str, Any] | None = None
 
 
 # --------------------------------------------------------------------------
@@ -856,16 +858,91 @@ def result_tables(bundle: ResultsBundle) -> list[Table]:
             continue
         seen.add(t.key)
         out.append(t)
-    for extra in (_per_run_table(bundle.per_run),
-                  _capacity_table(bundle.capacity_lines),
-                  _text_table("interim_cost", "Interim Cost Report",
-                              list(bundle.cost_lines)),
-                  _text_table("end_of_run", "End-of-Run Report",
-                              list(bundle.end_of_run_lines)),
-                  _event_log_table([list(x) for x in bundle.event_logs])):
+    extras = [_per_run_table(bundle.per_run),
+              _capacity_table(bundle.capacity_lines),
+              _text_table("interim_cost", "Interim Cost Report",
+                          list(bundle.cost_lines)),
+              _text_table("end_of_run", "End-of-Run Report",
+                          list(bundle.end_of_run_lines)),
+              _event_log_table([list(x) for x in bundle.event_logs])]
+    extras += _attribution_tables(bundle.attribution)
+    for extra in extras:
         if extra is not None and extra.key not in seen:
             seen.add(extra.key)
             out.append(extra)
+    return out
+
+
+def _attribution_tables(attribution: dict[str, Any] | None) -> list[Table]:
+    """Downtime drivers, causes, outage durations and lost capacity, when the
+    run was made with attribution.  One shape for GUI export, CLI and MCP."""
+    if not attribution:
+        return []
+    units = str(attribution.get("units") or "")
+    out: list[Table] = []
+    elements = attribution.get("elements") or []
+    drivers = sorted(elements, key=lambda e: (-(e["dtci"]["mean"] or 0.0),
+                                              str(e.get("name", ""))))
+    rows = []
+    for row in drivers:
+        if not (row["dtci"]["mean"] or row.get("lost_capacity")):
+            continue
+        lost = row.get("lost_capacity") or {}
+        share = row.get("lost_capacity_share") or {}
+        rows.append([
+            row.get("name", ""), row["dtci"]["mean"], row["dtci"]["sem"],
+            row["deci"]["mean"], row["fci"]["mean"],
+            row["red_time"]["mean"], row.get("main_cause", ""),
+            lost.get("mean"), lost.get("sem"), share.get("mean"),
+            (row.get("lost_capacity_through_dependents") or {}).get("mean"),
+        ])
+    if rows:
+        out.append(Table(
+            "results.downtime_drivers", "Downtime drivers", RESULTS,
+            ["Element", "Share of downtime", "±", "Outages started",
+             "Failures", f"Down time ({units})", "Main cause",
+             "Lost capacity (flow x time)", "±", "Share of lost capacity",
+             "Of which via dependants"],
+            rows, section="Downtime drivers",
+            notes=[f"Attribution by {attribution.get('capacity', {}).get('rule', '')} split."
+                   if attribution.get("capacity") else
+                   "Downtime attribution; capacity attribution was not recorded."],
+            text_cols={0, 6}))
+    causes = attribution.get("causes") or {}
+    red = (attribution.get("system") or {}).get("red_time", {}).get("mean") or 0.0
+    cause_rows = [[cause, share, share * red]
+                  for cause, share in sorted(causes.items(), key=lambda kv: -kv[1])]
+    if cause_rows:
+        from raptor.api.insight.attribution import CAUSE_LABELS
+        out.append(Table(
+            "results.downtime_causes", "Downtime causes", RESULTS,
+            ["Cause", "Share of downtime", f"Down time ({units})"],
+            [[CAUSE_LABELS.get(c, c), s, t] for c, s, t in cause_rows],
+            section="Downtime drivers", text_cols={0}))
+    durations = attribution.get("outage_durations") or {}
+    if durations.get("count"):
+        out.append(Table(
+            "results.outage_durations", "Outage durations", RESULTS,
+            ["Statistic", f"Duration ({units})"],
+            [["P50", durations.get("p50")], ["P90", durations.get("p90")],
+             ["Maximum", durations.get("max")], ["Outages", durations.get("count")]],
+            section="Downtime drivers"))
+    capacity = attribution.get("capacity")
+    if capacity:
+        cap_rows = []
+        for row in capacity.get("elements") or []:
+            cap_rows.append([
+                row.get("name", ""), row["lost_energy"]["mean"],
+                row["lost_energy"]["sem"], row["share"]["mean"],
+                row["through_dependents"]["mean"], row.get("standalone"),
+            ])
+        out.append(Table(
+            "results.lost_capacity", "Lost capacity by element", RESULTS,
+            ["Element", "Lost capacity (flow x time)", "±", "Share",
+             "Of which via dependants", "Standalone contribution"],
+            cap_rows, section="Capacity",
+            notes=[f"Lost flow split by {capacity.get('rule', '')}."],
+            text_cols={0}))
     return out
 
 

@@ -753,6 +753,7 @@
   "params": [
    "attribution",
    "availability_plot",
+   "capacity_rule",
    "collect_events",
    "confirm_long_run",
    "date",
@@ -786,6 +787,7 @@
   "params": [
    "attribution",
    "availability_plot",
+   "capacity_rule",
    "collect_events",
    "interim_cost",
    "model_id",

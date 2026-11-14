@@ -2941,6 +2941,11 @@ logistics, maintenance); read it with `downtime_drivers(run_id)` and
 keeps the event log in memory for the batch, so leave it off for very
 large runs. Not available with `hierarchy`.
 
+`capacity_rule` (with attribution on a capacity-analysis model) shares
+the lost flow among the elements that were down: `proportional` sums to
+the engine's own lost flow, `marginal` answers "what would fixing this
+one buy?" (shares need not add up), `first_failed` is for comparison.
+
 `availability_plot` / `interim_cost`: record the availability-over-time
 plot (needed by `get_timeseries(series="availability")`) or the interim
 cost report for this run. Left out, the model's own Recording settings
@@ -2994,6 +2999,7 @@ boundary node reports no lost flow.
 | --- | --- | --- | --- | --- |
 | `attribution` | boolean | no | `false` | — |
 | `availability_plot` | boolean \| null | no | `null` | — |
+| `capacity_rule` | string | no | `proportional` | `proportional`, `marginal`, `first_failed` |
 | `collect_events` | boolean | no | `false` | — |
 | `confirm_long_run` | boolean | no | `false` | — |
 | `date` | string \| null | no | `null` | — |
@@ -3059,6 +3065,7 @@ Start a simulation in the background and return a job id immediately.
 
 `attribution=True` also records what caused the downtime, as in
 `simulate`; read it with `downtime_drivers` once the job is done.
+`capacity_rule` chooses how the lost flow is shared, as in `simulate`.
 
 Same arguments as `simulate`, minus the hierarchy/isolation and
 importance options. Use this for batches that outlive one tool call (a
@@ -3084,6 +3091,7 @@ shows `phase` (`setting_up` while a big model is being prepared, then
 | --- | --- | --- | --- | --- |
 | `attribution` | boolean | no | `false` | — |
 | `availability_plot` | boolean \| null | no | `null` | — |
+| `capacity_rule` | string | no | `proportional` | `proportional`, `marginal`, `first_failed` |
 | `collect_events` | boolean | no | `false` | — |
 | `interim_cost` | boolean \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |

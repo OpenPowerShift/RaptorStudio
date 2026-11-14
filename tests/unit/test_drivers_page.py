@@ -130,3 +130,29 @@ def test_short_runs_show_no_year_chart(page, logs, qapp):
 
 def test_percent_text_never_uses_an_exponent():
     assert drivers_page._pct(1.0, 2) == "100 %" and drivers_page._pct(0.4712, 2) == "47 %"
+
+
+def test_a_capacity_only_run_still_shows_the_lost_capacity(page, qapp):
+    attribution = {
+        "runs": 10, "elements": [], "causes": {}, "sequences": [],
+        "system": {"red_time": {"mean": 0.0}, "outages": {"mean": 0.0}},
+        "capacity": {
+            "rule": "proportional",
+            "elements": [
+                {"kind": "block", "id": 1, "name": "A",
+                 "share": {"mean": 0.6}, "lost_energy": {"mean": 300.0, "sem": 1.0},
+                 "through_dependents": {"mean": 0.0}, "standalone": 50.0},
+                {"kind": "block", "id": 2, "name": "B",
+                 "share": {"mean": 0.4}, "lost_energy": {"mean": 200.0, "sem": 1.0},
+                 "through_dependents": {"mean": 100.0}, "standalone": 30.0},
+            ],
+            "notes": [],
+        },
+    }
+    page.set_attribution(attribution)
+    qapp.processEvents()
+    assert page.chart.isVisible() and page.chart._capacity is not None
+    assert page.caption.text().startswith("The system never went Red")
+    image = page.chart.grab().toImage()
+    assert image.width() > 0 and page.chart._capacity_hit
+    assert [r["name"] for r in page.chart._capacity["elements"]] == ["A", "B"]

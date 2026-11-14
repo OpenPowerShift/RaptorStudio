@@ -30,11 +30,15 @@ EMPTY_TEXT = ("Run the model with the Event Log switched on (Run panel ▸ Recor
               "the time goes on repair, waiting for spares, waiting for a crew or "
               "planned maintenance.")
 NO_OUTAGE_TEXT = "No system outage occurred in {runs:,} runs, so there is no downtime to explain."
+NO_OUTAGE_CAPACITY_TEXT = ("The system never went Red in {runs:,} runs, but some demand was "
+                          "still not delivered: the capacity loss is below.")
 TOP_ELEMENTS = 8
 ROW_H = 22
 ANATOMY_H = 260
 ANATOMY_DEPTH = 4
 YEARS_H = 150
+CAPACITY_ROWS = 6
+CAPACITY_SCATTER_H = 150
 #: The year-by-year chart needs at least this many periods per run to say anything.
 MIN_PERIODS = 2
 
@@ -63,8 +67,10 @@ class DriversChart(QWidget):
         self._rows: list[dict[str, Any]] = []
         self._cells: list[Cell] = []
         self._periods: dict[str, Any] | None = None
+        self._capacity: dict[str, Any] | None = None
         self._hit: list[tuple[QRectF, dict[str, Any]]] = []
         self._cell_hit: list[tuple[QRectF, Cell]] = []
+        self._capacity_hit: list[tuple[QRectF, dict[str, Any]]] = []
         self.setMouseTracking(True)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
@@ -73,6 +79,17 @@ class DriversChart(QWidget):
         self._rows = top(attribution, TOP_ELEMENTS) if attribution else []
         self._cells = (icicle(attribution.get("sequences") or [], ANATOMY_DEPTH, 0.004)
                        if attribution else [])
+        self._capacity = (attribution or {}).get("capacity") or None
+        if self._capacity and (self._capacity.get("elements") or []):
+            downtime = {(e["kind"], e["id"]): e.get("dtci") or {}
+                        for e in (attribution or {}).get("elements") or []}
+            self._capacity = dict(self._capacity)
+            self._capacity["elements"] = [
+                {**row, "dtci": downtime.get((row["kind"], row["id"]),
+                                             {"mean": 0.0, "sem": None})}
+                for row in self._capacity["elements"]]
+        else:
+            self._capacity = None
         self.setFixedHeight(self.sizeHint().height())
         self.update()
 
@@ -100,6 +117,9 @@ class DriversChart(QWidget):
             h += 26 + ANATOMY_H + 8
         if self._periods:
             h += 26 + YEARS_H + 34
+        if self._capacity:
+            rows = min(CAPACITY_ROWS, len(self._capacity.get("elements") or []))
+            h += 26 + 18 + rows * ROW_H + 26 + CAPACITY_SCATTER_H + 20
         return QSize(640, h)
 
     # ---- painting --------------------------------------------------------
@@ -108,7 +128,7 @@ class DriversChart(QWidget):
             return
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-        self._hit, self._cell_hit = [], []
+        self._hit, self._cell_hit, self._capacity_hit = [], [], []
         self._x0, self._w = 8.0, self.width() - 16.0
         colour = active_colour()
         self._text, self._muted = QColor(colour["text"]), QColor(colour["muted"])
@@ -119,7 +139,9 @@ class DriversChart(QWidget):
         if self._cells:
             y = self._paint_anatomy(p, y)
         if self._periods:
-            self._paint_years(p, y)
+            y = self._paint_years(p, y)
+        if self._capacity:
+            self._paint_capacity(p, y)
         p.end()
 
     def _heading(self, p: QPainter, y: float, label: str) -> float:
@@ -192,7 +214,7 @@ class DriversChart(QWidget):
             y += ROW_H
         return y + 16
 
-    def _paint_years(self, p: QPainter, y: float) -> None:
+    def _paint_years(self, p: QPainter, y: float) -> float:
         """Availability period by period: median line, 10-90 % and 5-95 % bands,
         the worst value of each period as a dot, and the threshold line."""
         from PySide6.QtCore import QPointF
@@ -245,6 +267,99 @@ class DriversChart(QWidget):
         p.drawText(QRectF(x0, y + YEARS_H + 2, 80, 16), Qt.AlignmentFlag.AlignLeft, "1")
         p.drawText(QRectF(x0 + w - 80, y + YEARS_H + 2, 80, 16),
                    Qt.AlignmentFlag.AlignRight, str(rows[-1]["index"]))
+        return y + YEARS_H + 34
+
+    def _paint_capacity(self, p: QPainter, y: float) -> float:
+        """Who loses the *energy* (issue #256): a Pareto, then share of
+        downtime against share of lost capacity, with the same-share diagonal."""
+        capacity = self._capacity or {}
+        rule = str(capacity.get("rule") or "").replace("_", " ")
+        rows = list(capacity.get("elements") or [])[:CAPACITY_ROWS]
+        y = self._heading(p, y, "Who loses the capacity, not just the uptime "
+                                + (f"(split by {rule})" if rule else ""))
+        y = self._paint_capacity_rows(p, y, rows)
+        return self._paint_capacity_scatter(p, y, capacity, rows)
+
+    def _paint_capacity_rows(self, p: QPainter, y: float,
+                             rows: list[dict[str, Any]]) -> float:
+        x0, w, fm = self._x0, self._w, self._fm
+        biggest = max((row["share"]["mean"] or 0.0 for row in rows), default=1.0) or 1.0
+        name_w = min(170.0, max((fm.horizontalAdvance(row["name"]) for row in rows),
+                                default=60) + 10)
+        value_w, centre = 120.0, (Qt.AlignmentFlag.AlignLeft
+                                  | Qt.AlignmentFlag.AlignVCenter)
+        bar_w = max(40.0, w - name_w - value_w)
+        for row in rows:
+            share = row["share"]["mean"] or 0.0
+            self._capacity_hit.append((QRectF(x0, y, w, ROW_H), row))
+            p.setPen(self._text)
+            p.drawText(QRectF(x0, y, name_w - 6, ROW_H - 4), centre,
+                       fm.elidedText(row["name"], Qt.TextElideMode.ElideRight, int(name_w - 6)))
+            colour = QColor(active_colour()["accent"])
+            if (row.get("through_dependents") or {}).get("mean"):
+                colour = QColor(active_colour()["warn"])
+            p.fillRect(QRectF(x0 + name_w, y + 3, bar_w * share / biggest,
+                              ROW_H - 8), colour)
+            p.setPen(self._text)
+            p.drawText(QRectF(x0 + name_w + bar_w + 6, y, value_w - 6, ROW_H - 4),
+                       centre, _pct(share, 3))
+            y += ROW_H
+        return y + 18
+
+    def _paint_capacity_scatter(self, p: QPainter, y: float,
+                                capacity: dict[str, Any],
+                                rows: list[dict[str, Any]]) -> float:
+        from PySide6.QtCore import QPointF
+
+        x0, w, fm = self._x0, self._w, self._fm
+        left, size = x0 + 52.0, min(240.0, w - 90.0)
+        top = y
+        p.setPen(QPen(self._border))
+        p.drawLine(int(left), int(top + size), int(left + size), int(top + size))
+        p.drawLine(int(left), int(top), int(left), int(top + size))
+        p.setPen(QPen(self._border, 1, Qt.PenStyle.DashLine))
+        p.drawLine(int(left), int(top + size), int(left + size), int(top))
+        p.setPen(self._muted)
+        p.drawText(QRectF(left, top + size + 2, size, 16), Qt.AlignmentFlag.AlignCenter,
+                   "share of downtime →")
+        p.save()
+        p.translate(left - 6, top + size)
+        p.rotate(-90)
+        p.drawText(QRectF(0, -16, size, 16), Qt.AlignmentFlag.AlignCenter,
+                   "share of lost capacity →")
+        p.restore()
+        small = QFont(self.font())
+        small.setPointSizeF(max(7.0, self.font().pointSizeF() - 1.5))
+        p.setFont(small)
+        biggest = max((row["share"]["mean"] or 0.0 for row in rows), default=1.0) or 1.0
+        time_biggest = max((row["dtci"]["mean"] or 0.0 for row in rows),
+                           default=1.0) or 1.0
+        points = []
+        for row in rows:
+            time = row["dtci"]["mean"] or 0.0
+            lost = row["share"]["mean"] or 0.0
+            if time <= 0 or lost <= 0:
+                continue
+            px = left + size * min(1.0, time / time_biggest)
+            py = top + size * (1.0 - min(1.0, lost / biggest))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(active_colour()["accent"]))
+            p.drawEllipse(QPointF(px, py), 3.2, 3.2)
+            points.append((abs(lost - time), px, py, row["name"]))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setFont(self.font())
+        p.setPen(self._text)
+        for _off, px, py, name in sorted(points, reverse=True)[:3]:
+            p.drawText(QRectF(px + 5, py - 9, 120, 16), Qt.AlignmentFlag.AlignLeft,
+                       fm.elidedText(name, Qt.TextElideMode.ElideRight, 116))
+        note = ("Far from the diagonal: downtime overstates or understates the "
+                "energy it costs.")
+        if capacity.get("notes"):
+            note = str(capacity["notes"][0])
+        p.setPen(self._muted)
+        p.drawText(QRectF(x0, top + size + 18, w, 16), Qt.AlignmentFlag.AlignLeft,
+                   fm.elidedText(note, Qt.TextElideMode.ElideRight, int(w)))
+        return top + size + 36
 
     def _paint_anatomy(self, p: QPainter, y: float) -> float:
         """Every outage as a path: started by, then, then."""
@@ -289,11 +404,27 @@ class DriversChart(QWidget):
                     f"{_pct(cell.height)} of downtime passes through this step "
                     f"({cell.outages:,} outages)")
                 return
+        for rect, row in self._capacity_hit:
+            if rect.contains(pos):
+                lost = row["lost_energy"]["mean"] or 0.0
+                through = (row.get("through_dependents") or {}).get("mean") or 0.0
+                self.setToolTip(
+                    f"{row['name']}\nShare of lost capacity: "
+                    f"{_pct(row['share']['mean'])}\nLost energy: {lost:,.4g} "
+                    f"(flow x time)\n"
+                    + (f"Of which through dependants: {through:,.4g}\n" if through else "")
+                    + f"Share of downtime: {_pct(row['dtci']['mean'])}\n"
+                    f"Click to select it on the diagram")
+                return
         self.setToolTip("")
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt name
         pos = event.position()
         for rect, row in self._hit:
+            if rect.contains(pos):
+                self.element_clicked.emit(row["kind"], int(row["id"]), row["name"])
+                return
+        for rect, row in self._capacity_hit:
             if rect.contains(pos):
                 self.element_clicked.emit(row["kind"], int(row["id"]), row["name"])
                 return
@@ -332,14 +463,17 @@ class DriversPage(QWidget):
     def set_attribution(self, attribution: dict[str, Any] | None) -> None:
         self._attribution = attribution
         has_outages = bool(attribution and top(attribution, 1))
+        has_capacity = bool(attribution and (attribution.get("capacity") or {}).get("elements"))
         if attribution is None:
             self.caption.setText(EMPTY_TEXT)
-        elif not has_outages:
+        elif not has_outages and not has_capacity:
             self.caption.setText(NO_OUTAGE_TEXT.format(runs=attribution["runs"]))
+        elif not has_outages:
+            self.caption.setText(NO_OUTAGE_CAPACITY_TEXT.format(runs=attribution["runs"]))
         else:
             self.caption.setText(caption(attribution))
-        self.chart.set_attribution(attribution if has_outages else None)
-        self.chart.setVisible(has_outages)
+        self.chart.set_attribution(attribution if (has_outages or has_capacity) else None)
+        self.chart.setVisible(has_outages or has_capacity)
         if has_outages and attribution is not None:
             units = attribution.get("units") or ""
             system = attribution["system"]

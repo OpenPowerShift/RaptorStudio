@@ -876,3 +876,40 @@ class TestTextFormatting:
     def test_the_report_names_the_model(self):
         assert "Tables for Plant" in format_report_text(
             _sample_tables(), "Plant")
+
+
+def test_attribution_adds_drivers_and_lost_capacity_tables():
+    stat = lambda mean, sem=0.01: {"mean": mean, "sem": sem, "n": 10}  # noqa: E731
+    attribution = {
+        "runs": 10, "units": "hours",
+        "system": {"red_time": stat(10.0), "outages": stat(4.0)},
+        "elements": [{
+            "kind": "block", "id": 1, "name": "Pump",
+            "dtci": stat(0.7), "deci": stat(0.6), "fci": stat(0.5),
+            "red_time": stat(7.0), "main_cause": "repair",
+            "lost_capacity": stat(300.0), "lost_capacity_share": stat(0.6),
+            "lost_capacity_through_dependents": stat(100.0),
+        }],
+        "causes": {"repair": 0.7, "wait_spare": 0.3},
+        "outage_durations": {"count": 40, "p50": 2.0, "p90": 6.0, "max": 9.0},
+        "capacity": {
+            "rule": "proportional", "generated": 100.0,
+            "lost_energy": stat(500.0), "causes": {},
+            "elements": [{
+                "kind": "block", "id": 1, "name": "Pump",
+                "lost_energy": stat(300.0), "share": stat(0.6),
+                "through_dependents": stat(100.0), "standalone": 50.0,
+            }],
+            "notes": [],
+        },
+    }
+    tables = {t.key: t for t in result_tables(
+        ResultsBundle(per_run=[{"availability": 0.9}], attribution=attribution))}
+    drivers = tables["results.downtime_drivers"]
+    assert drivers.rows[0][0] == "Pump"
+    assert "Lost capacity (flow x time)" in drivers.headers
+    assert tables["results.downtime_causes"].rows[0][0] == "Hands-on repair"
+    assert tables["results.outage_durations"].rows[0][1] == 2.0
+    lost = tables["results.lost_capacity"]
+    assert lost.rows[0][0] == "Pump" and lost.rows[0][3] == pytest.approx(0.6)
+    assert "proportional" in lost.notes[0]

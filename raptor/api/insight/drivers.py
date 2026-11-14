@@ -102,6 +102,10 @@ def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
             path = " -> ".join(f"{s['element']} ({CAUSE_LABELS[s['cause']].lower()})"
                                for s in seq["steps"]) or "(unknown)"
             lines.append(f"  {_pct(seq['share']):>7}  {path}")
+    capacity = attribution.get("capacity")
+    if capacity:
+        from raptor.api.insight.capacity_attribution import text_lines as capacity_lines
+        lines += [""] + capacity_lines(capacity, n)
     return lines
 
 

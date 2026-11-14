@@ -1141,7 +1141,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             cost_lines=list(self._stream_lines(
                 getattr(self, "_cost_lines", None))),
             event_logs=[list(x) if isinstance(x, (list, tuple)) else [str(x)]
-                        for x in self._event_logs])
+                        for x in self._event_logs],
+            attribution=(self._drivers_page.attribution()
+                         if hasattr(self, "_drivers_page") else None))
 
     def run_info(self, rbd, *, model: str = "", file: str = ""):
         """The run information a saved result carries (Run Info sheet,
@@ -1181,11 +1183,20 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 self._drivers_page.caption.setText(p.text() + " runs…")
                 QApplication.processEvents()
 
+        cap_runs = None
+        if getattr(self, "_rbd", None) is not None and self._cap_lines:
+            try:
+                from raptor.api.insight.capacity_attribution import capacity_runs
+                cap_runs = capacity_runs(self._rbd, self._cap_lines)
+            except Exception:  # noqa: BLE001 - capacity is an extra, not the page
+                import logging
+                logging.getLogger(__name__).exception("lost-capacity split failed")
         if big:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             start = float(experiment.get("start_stats") or 0.0)
-            attribution = attribute_logs(logs, start, progress=show, with_outages=True)
+            attribution = attribute_logs(logs, start, progress=show,
+                                         with_outages=True, capacity=cap_runs)
         except Exception:  # noqa: BLE001 - a view must never break showing results
             import logging
             logging.getLogger(__name__).exception("downtime attribution failed")
@@ -1222,6 +1233,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     def clear(self):
         """Reset every result surface to the pre-run placeholder state."""
         self._manifest = None
+        self._rbd = None
         self._event_logs = []
         self._drivers_stale = False
         self._drivers_page.set_attribution(None)
@@ -1283,6 +1295,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     cost_lines: list[str] | None = None,
                     manifest: dict | None = None,
                     importance: dict | None = None,
+                    rbd=None,
                     progress=None):
         # The run manifest travels WITH the results, so a result set can
         # say what it is without trusting a model file that may since
@@ -1291,6 +1304,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
+        #: The model as it was run, for features that need its structure
+        #: (the lost-capacity split asks the Failure Effects machinery).
+        self._rbd = rbd
         self._refresh_scope_banner()
         from datetime import datetime
         self._run_at = datetime.now()
