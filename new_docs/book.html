@@ -260,6 +260,7 @@
 <li><a href="#_exercise_17">18.10. Exercise</a></li>
 <li><a href="#_which_part_would_you_fix_first">18.11. Which part would you fix first?</a></li>
 <li><a href="#_what_you_learned_17">18.12. What you learned</a></li>
+<li><a href="#_three_lenses_one_question">18.13. Three lenses, one question</a></li>
 </ul>
 </li>
 <li><a href="#ch-events">19. Events: The Finale That Fires Once</a>
@@ -334,29 +335,56 @@
 <li><a href="#_configuration_reference">23.14. Configuration reference</a></li>
 </ul>
 </li>
-<li><a href="#ch-capstone-flight">24. Capstone: The Flight, Phase by Phase (An Open-Ended Brief)</a>
+<li><a href="#ch-advisor">24. Is My Model Right? The Advisor</a>
 <ul class="sectlevel2">
 <li><a href="#_you_will_learn_22">24.1. You will learn</a></li>
 <li><a href="#_you_need_22">24.2. You need</a></li>
-<li><a href="#_the_brief">24.3. The brief</a></li>
-<li><a href="#_your_task">24.4. Your task</a></li>
-<li><a href="#_before_you_run_it">24.5. Before you run it</a></li>
-<li><a href="#_check_your_build">24.6. Check your build</a></li>
-<li><a href="#flight-worked-answer">24.7. One worked answer</a></li>
-<li><a href="#_check_yourself_23">24.8. Check yourself</a></li>
-<li><a href="#_exercise_22">24.9. Exercise</a></li>
-<li><a href="#_what_you_learned_22">24.10. What you learned</a></li>
+<li><a href="#_start_with_a_deliberately_flawed_model">24.3. Start with a deliberately flawed model</a></li>
+<li><a href="#_fix_the_redundancy_first">24.4. Fix the redundancy first</a></li>
+<li><a href="#_then_the_data">24.5. Then the data</a></li>
+<li><a href="#_then_the_spares">24.6. Then the spares</a></li>
+<li><a href="#_what_the_advisor_will_not_do">24.7. What the Advisor will not do</a></li>
+<li><a href="#_into_ci_and_an_assistant">24.8. Into CI and an assistant</a></li>
 </ul>
 </li>
-<li><a href="#appendix-glossary">25. Appendix: Glossary</a></li>
-<li><a href="#appendix-iec61078">26. Appendix: Reliability block diagrams and IEC 61078</a>
+<li><a href="#ch-what-if">25. What Drives Downtime, and What Would Help</a>
 <ul class="sectlevel2">
-<li><a href="#_what_raptor_supports">26.1. What RAPTOR supports</a></li>
-<li><a href="#_what_raptor_does_not_do">26.2. What RAPTOR does not do</a></li>
-<li><a href="#_reading_the_numbers">26.3. Reading the numbers</a></li>
+<li><a href="#_you_will_learn_23">25.1. You will learn</a></li>
+<li><a href="#_you_need_23">25.2. You need</a></li>
+<li><a href="#_start_with_the_answer">25.3. Start with the answer</a></li>
+<li><a href="#_what_caused_the_downtime">25.4. What caused the downtime</a></li>
+<li><a href="#_see_it_not_just_read_it">25.5. See it, not just read it</a></li>
+<li><a href="#_stop_when_the_answer_is_precise_enough">25.6. Stop when the answer is precise enough</a></li>
+<li><a href="#_what_if_compare_against_the_model_you_have">25.7. What if: compare against the model you have</a></li>
+<li><a href="#_which_inputs_matter">25.8. Which inputs matter</a></li>
+<li><a href="#_how_many_spares">25.9. How many spares</a></li>
+<li><a href="#_the_rule_that_keeps_this_honest">25.10. The rule that keeps this honest</a></li>
+<li><a href="#_keep_the_parts_you_reuse">25.11. Keep the parts you reuse</a></li>
 </ul>
 </li>
-<li><a href="#appendix-developer-options">27. Appendix: Developer options</a></li>
+<li><a href="#ch-capstone-flight">26. Capstone: The Flight, Phase by Phase (An Open-Ended Brief)</a>
+<ul class="sectlevel2">
+<li><a href="#_you_will_learn_24">26.1. You will learn</a></li>
+<li><a href="#_you_need_24">26.2. You need</a></li>
+<li><a href="#_the_brief">26.3. The brief</a></li>
+<li><a href="#_your_task">26.4. Your task</a></li>
+<li><a href="#_before_you_run_it">26.5. Before you run it</a></li>
+<li><a href="#_check_your_build">26.6. Check your build</a></li>
+<li><a href="#flight-worked-answer">26.7. One worked answer</a></li>
+<li><a href="#_check_yourself_23">26.8. Check yourself</a></li>
+<li><a href="#_exercise_22">26.9. Exercise</a></li>
+<li><a href="#_what_you_learned_22">26.10. What you learned</a></li>
+</ul>
+</li>
+<li><a href="#appendix-glossary">27. Appendix: Glossary</a></li>
+<li><a href="#appendix-iec61078">28. Appendix: Reliability block diagrams and IEC 61078</a>
+<ul class="sectlevel2">
+<li><a href="#_what_raptor_supports">28.1. What RAPTOR supports</a></li>
+<li><a href="#_what_raptor_does_not_do">28.2. What RAPTOR does not do</a></li>
+<li><a href="#_reading_the_numbers">28.3. Reading the numbers</a></li>
+</ul>
+</li>
+<li><a href="#appendix-developer-options">29. Appendix: Developer options</a></li>
 </ul>
 </div>
 </div>
@@ -7915,6 +7943,51 @@ not a destination.</p>
 it doesn&#8217;t, decided once, in an instant.</p>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_three_lenses_one_question">18.13. Three lenses, one question</h3>
+<div class="paragraph">
+<p>Weak-link analysis, importance and downtime attribution all say which part
+matters, and they answer different questions:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 41.6666%;">
+<col style="width: 41.6668%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Lens</th>
+<th class="tableblock halign-left valign-top">Question it answers</th>
+<th class="tableblock halign-left valign-top">What it reads</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Weak link</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Where does each element spend its own time?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The element&#8217;s state times: up, repair, waiting, PM, idle.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Importance (RRW, RAW, Birnbaum, Vesely-Fussell)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What would change if this element were perfect or dead?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Extra re-simulations with that element changed.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Attribution (DTCI, DECI, FCI)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What actually caused the system&#8217;s outages in this run?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The event log, replayed; no extra runs.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>A part can fail often, spend little time down, and still dominate the
+system&#8217;s downtime through the waiting it causes. Read the weak-link table
+for the element&#8217;s own clock, the Importance tab for what a change would
+buy, and the Drivers tab for what happened. <a href="#ch-what-if">Chapter 25, <em>What Drives Downtime, and What Would Help</em></a> shows the Story
+and the charts that put the three side by side.</p>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -9565,7 +9638,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>68 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>86 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10092,8 +10165,8 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 68 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
-<code>ping</code>, or 67 when <code>--no-render</code> hides the PNG diagram tool.</p>
+listed below: 86 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+<code>ping</code>, or 85 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
 <p><strong>Ping the server.</strong> Ask the assistant to "ping RAPTOR" or call the <code>ping</code>
@@ -10492,6 +10565,95 @@ you need the exact argument shape.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">"down"`, `standby="active"</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">"absent"`
   or <code>phase=N</code>. Names the first offender.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>advise</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Say what looks wrong or unwise in a model, most important first: redundancy
+  that cannot work, placeholder data, spares or crews that cannot meet
+  demand, maintenance that cannot pay off, too few runs. With <code>run_id</code>, add
+  what the run says (precision, what drives the downtime) and judge it
+  against <code>targets</code>. Each finding has a rule id, a method (exact,
+  statistical or an estimate) and, where there is one, a fix.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_advisor_rules</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">List every Advisor rule with its level, method and phase.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>apply_fix</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Apply one finding&#8217;s suggested fix as a single undoable edit.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>downtime_drivers</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For a run made with <code>attribution=True</code>: each element&#8217;s share of system
+  downtime, of outages and of failures, split by cause (repair, waiting for
+  a spare, waiting for people or equipment, logistics, maintenance), and the
+  commonest outage paths.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>annual_availability</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For a run made with <code>attribution=True</code>: availability year by year (or for
+  any period length) with percentiles, pooled and by year number, the worst
+  periods, and how often a period falls below a given availability.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>run_story</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The answer-first Story of a finished run: headline against target, the
+  run-to-run dots, the top drivers, the top findings, six key numbers and
+  provenance. The same object the application&#8217;s Story tab paints and
+  <code>raptor explain --story</code> prints.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>run_chart</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One chart of a finished run as a <code>ChartSpec</code>, plus the same figure as
+  SVG unless <code>render_svg=False</code>. Names include <code>trial-outcome</code>, <code>ecdf</code>,
+  <code>convergence</code>, <code>availability-ladder</code>, and, with <code>attribution=True</code>,
+  <code>downtime-pareto</code>, <code>downtime-waterfall</code>, <code>outage-histogram</code>,
+  <code>frequency-duration</code>, <code>downtime-treemap</code>, <code>outage-anatomy</code> and
+  <code>ensemble-ribbon</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>what_if</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compare a changed model with Base using paired trials: each metric&#8217;s
+  scenario value, the paired difference with its standard error, the chance
+  the scenario is better, the variance pairing cut, and requirement
+  verdicts. The open model is never modified.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>replace_in_table</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Find and replace in one model table column, with whole-cell and case
+  options. Name columns use the manual-rename rules and a refused set
+  changes nothing.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>duplicate_elements</code>, <code>copy_element_data</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate a selection with fresh ids and names, or copy one block&#8217;s
+  data groups (Failure, Repair, logistics, spares, PM, costs) onto other
+  blocks. One save; name, position, links and dependency are never changed
+  by a data-only copy.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_part_types</code>, <code>apply_part_type</code>, <code>save_part_type</code>, <code>sync_part_types</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Reuse an element&#8217;s data as a named part type (block, node, event,
+  hierarchy or annotation): list parts from a <code>.rbdlib</code> file or the model,
+  apply one (recording the link), save an element as a part, and show or
+  apply the changes a library has made while respecting overrides.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>save_assembly</code>, <code>insert_assembly</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save a selection (a hierarchy with everything inside it, a node with its
+  blocks, events, a whole redundant group) as an assembly in a <code>.rbdlib</code>
+  file or the model&#8217;s own list, and insert a fresh copy later: new ids,
+  free names, internal links kept, links to elements outside it dropped,
+  and spare pools or resources the target lacks reset as a paste resets
+  them.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sensitivity</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One-at-a-time tornado: up to <code>top</code> inputs varied low and high against
+  Base with the same seed, each effect paired with its standard error, the
+  swing, elasticity and whether it is distinguishable. A screening view; it
+  cannot show interactions.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>describe_metrics</code></p></td>
@@ -11868,7 +12030,612 @@ call them, and inspect raw JSON-RPC messages.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="ch-capstone-flight">24. Capstone: The Flight, Phase by Phase (An Open-Ended Brief)</h2>
+<h2 id="ch-advisor">24. Is My Model Right? The Advisor</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Time: about 25 minutes.</strong>
+<strong>New ideas: findings, rule ids, exact vs statistical advice, fixes, and the
+checks that run before a batch.</strong></p>
+</div>
+<div class="sect2">
+<h3 id="_you_will_learn_22">24.1. You will learn</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>How to read a finding: severity, rule id, basis and fix.</p>
+</li>
+<li>
+<p>The three mistakes new models make most: defeated redundancy, default
+data, and a spare pool that runs out.</p>
+</li>
+<li>
+<p>How to make the Advisor part of a run, a review and CI.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_you_need_22">24.2. You need</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="#ch-first-model">Chapter 2, <em>Your First Model: The Camping Lantern</em></a> and <a href="#ch-redundancy">Chapter 3, <em>Redundancy: Two Pumps Are Better Than One</em></a> finished.</p>
+</li>
+<li>
+<p>A model with one redundant pair and one spare pool.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_start_with_a_deliberately_flawed_model">24.3. Start with a deliberately flawed model</h3>
+<div class="paragraph">
+<p>Open <code>models/VanFlat.rbds</code>, then introduce the three classic flaws:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Make both tires depend on the same node and set that node to <strong>any one
+path</strong> (<code>k = 1</code>). The second tire now does nothing.</p>
+</li>
+<li>
+<p>Leave a block&#8217;s failure and repair distributions at the editor&#8217;s
+defaults.</p>
+</li>
+<li>
+<p>Set a spare pool&#8217;s stock to <code>0</code> with no restock and no emergency order.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Run <strong>Analyse ▸ Advisor</strong> (or <code>raptor advise models/VanFlat.rbds</code>). Read
+each finding like a sentence:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 71.4286%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Part</th>
+<th class="tableblock halign-left valign-top">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>M-STR-002</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A redundancy rule is broken: the model says two paths, the
+  structure allows one.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>M-DAT-001</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A block still carries placeholder data.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>M-SPR-101</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Waiting for a spare is a large share of downtime.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><code>exact</code> means the check follows from the file itself; <code>statistical</code> means
+it comes from a run and has an interval. A fix is a suggestion, not an
+automatic change: review it, then apply it as one undoable edit.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_fix_the_redundancy_first">24.4. Fix the redundancy first</h3>
+<div class="paragraph">
+<p>The defeated pair is an <strong>error</strong>, because the result is not what the canvas
+suggests. Apply the fix (the node&#8217;s <code>k</code> becomes the number of parallel
+paths), or edit the node directly. Run the Advisor again: the error is
+gone, and the availability moves. An error that disappears is not proof the
+model is good; it is proof the model is now runnable.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_then_the_data">24.5. Then the data</h3>
+<div class="paragraph">
+<p>The default-data finding is a warning, not a style note: a placeholder
+repair time can make the answer look precise when it is not. Replace the
+failure and repair law with a source you can name, and record where it came
+from. The Advisor does not know your plant; it only knows which fields are
+still untouched.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_then_the_spares">24.6. Then the spares</h3>
+<div class="paragraph">
+<p>Run the model with <code>attribution=True</code> (the Run panel&#8217;s Analysis box, or
+<code>raptor run &#8230;&#8203; --analysis weak</code> plus attribution) and ask for the
+after-run findings:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor advise models/VanFlat.rbds --simulate --target 'system.ao&gt;=0.995'
+raptor advise models/VanFlat.rbds --simulate --why</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>R-SPR-101</code> says how much of the downtime is waiting for that pool, and how
+often the shelf was empty. Its fix is a what-if: one more spare, simulated
+against the current model with the same seed. Read the paired interval
+before accepting it; a one-unit change on a noisy run can look larger than
+it is.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_what_the_advisor_will_not_do">24.7. What the Advisor will not do</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>It will not invent failure data. A guessed distribution is worse than a
+stated placeholder, because the placeholder is visible.</p>
+</li>
+<li>
+<p>It will not prove a model correct. It checks the rules it knows.</p>
+</li>
+<li>
+<p>It will not apply a fix silently. Every change is one undo step, and the
+finding says which rule it came from.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_into_ci_and_an_assistant">24.8. Into CI and an assistant</h3>
+<div class="paragraph">
+<p><code>--strict</code> exits with status 3 on warnings, so a pipeline can fail a model
+that is merely misleading, not just one that cannot run. <code>--format json</code>
+gives stable rule ids and structured fixes. The MCP <code>advise</code> tool returns
+the same findings, and <code>apply_fix</code> applies one by id.</p>
+</div>
+<div class="paragraph">
+<p>The full catalogue, with every rule and its basis, is in
+<a href="../advisor.html">The Advisor: is my model right?</a>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="ch-what-if">25. What Drives Downtime, and What Would Help</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Time: about 45 minutes.</strong>
+<strong>New ideas: the Story, downtime attribution, the three criticality indices,
+what-if comparison with common random numbers, precision, sensitivity and
+the cheapest spare holding.</strong></p>
+</div>
+<div class="sect2">
+<h3 id="_you_will_learn_23">25.1. You will learn</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>How to read the answer before the tables: the Story&#8217;s headline, dots,
+drivers and findings.</p>
+</li>
+<li>
+<p>The difference between <strong>what happened</strong> (attribution) and <strong>what a change
+would achieve</strong> (importance and what-if).</p>
+</li>
+<li>
+<p>How to stop a batch when the interval is tight enough instead of guessing
+a run count.</p>
+</li>
+<li>
+<p>How to see which inputs move the answer, and how many spares to hold.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_you_need_23">25.2. You need</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="#ch-first-model">Chapter 2, <em>Your First Model: The Camping Lantern</em></a> through <a href="#ch-sparing">Chapter 11, <em>Sparing: The Taco Truck&#8217;s Propane Shelf</em></a> finished.</p>
+</li>
+<li>
+<p>A model with at least one redundant group, so an outage has more than one
+possible cause.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_start_with_the_answer">25.3. Start with the answer</h3>
+<div class="paragraph">
+<p>Open the model, run it, and read the <strong>Overview</strong> tab. Below the key-number
+cards is the Story, which adds only what the cards do not say:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>when a requirement is set, a <strong>headline</strong> against it and a <strong>dot plot</strong> of
+the per-run values: each dot is one run in a hundred, filled when it met the
+target and hollow when it missed;</p>
+</li>
+<li>
+<p>one line naming the top <strong>drivers</strong>, ranked by lost capacity when capacity
+analysis is on and by downtime otherwise, with a link to the <strong>Drivers</strong> tab;</p>
+</li>
+<li>
+<p>the <strong>findings</strong> from the Advisor.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The same object is available without the application:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor explain VanFlat.rbds --story
+raptor explain VanFlat.rbds --story -f json</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The Story never invents a verdict: without a target it says so, and without
+attribution it offers the one action that turns the drivers strip on.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_what_caused_the_downtime">25.4. What caused the downtime</h3>
+<div class="paragraph">
+<p>Attribution replays the event log; it does not change a result. For every
+system outage it records the element whose state change started it and what
+the time was spent on: hands-on repair, waiting for a spare, waiting for
+people or equipment, logistics, planned maintenance, or being held by
+another element.</p>
+</div>
+<div class="paragraph">
+<p>Three indices answer three different questions:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 40%;">
+<col style="width: 40%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Index</th>
+<th class="tableblock halign-left valign-top">Question</th>
+<th class="tableblock halign-left valign-top">Caveat</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">DTCI</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What share of the system&#8217;s <strong>downtime</strong> did this element start?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Describes this design; says nothing about what a change would achieve.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">DECI</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What share of downing <strong>events</strong> did it start?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Counts events, so a very short outage weighs the same as a long one.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FCI</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What share of <strong>failure-started</strong> outages did it start?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Planned maintenance is excluded, as it should be.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Open the <strong>Drivers</strong> tab for the full table with error bars and the cause
+split. The command line prints the same numbers:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor explain VanFlat.rbds --top 8</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>For a phased model the same replay also splits the downtime by mission
+phase: how long the system spent in each phase, how long it was down there,
+the phase&#8217;s availability (down time over time in the phase, pooled over the
+runs) and the element that started most of that downtime. An outage that
+runs from one phase into the next is split at the phase change, and each
+part is charged to the element that started the outage. <code>raptor explain</code>
+prints a <strong>Downtime by phase</strong> table, the Charts tab has a <strong>Downtime by
+phase</strong> chart (<code>phase-downtime</code> from the command line and MCP) and the
+exported tables include <code>results.phase_downtime</code>.</p>
+</div>
+<div class="paragraph">
+<p>A driver whose DTCI is small is not necessarily harmless: it may be holding
+capacity without taking the system down. That is what the lost-capacity
+columns measure.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_see_it_not_just_read_it">25.5. See it, not just read it</h3>
+<div class="paragraph">
+<p>The <strong>Charts</strong> tab paints the same figures the report uses. Each chart has a
+one-sentence caption you can quote, values on hover, click-to-locate, and
+PNG/SVG/CSV export. The set includes:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the run-to-run dot plot and <strong>Chance of reaching a value</strong>: the share of
+runs on the horizontal axis and the value they reached on the vertical, so
+"9 runs in 10 reached at least 99.2 %" reads straight off the curve. Move
+the pointer over it for a cross-hair that says exactly that;</p>
+</li>
+<li>
+<p>the downtime Pareto with cause stacks. Each cause has its own colour and
+pattern so the stack still reads in greyscale; the key above the chart
+names them, and the whisker on each bar is ± 2 standard errors;</p>
+</li>
+<li>
+<p>the availability ladder: inherent (repair only), achieved (plus planned
+maintenance), operational (plus logistics, spares and crews);</p>
+</li>
+<li>
+<p>the outage-duration histogram on a log scale;</p>
+</li>
+<li>
+<p>frequency against duration, one bubble per element;</p>
+</li>
+<li>
+<p>the downtime treemap, the outage anatomy (what an outage <strong>looks</strong> like,
+step by step) and the run-to-run ribbon (every trial as one row, green up
+and red down);</p>
+</li>
+<li>
+<p>convergence: the running mean with its ± 2 standard-error band;</p>
+</li>
+<li>
+<p>year-by-year availability when the run covers whole years (hours models).</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>With capacity analysis on, three more charts answer "who loses the
+capacity", which is not the same question as "who is down":</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Who loses the capacity</strong>: each element&#8217;s share of the lost flow beside
+its share of the downtime, in the same order, so an element that rarely
+stops the system but often throttles it stands out;</p>
+</li>
+<li>
+<p><strong>Downtime against lost capacity</strong>: one point per element, both shares;</p>
+</li>
+<li>
+<p><strong>Where the capacity goes</strong>: from the flow the model could deliver down to
+what it did deliver, one step per cause;</p>
+</li>
+<li>
+<p><strong>Lost capacity treemap</strong>: area = share of the lost flow, colour = the
+element&#8217;s main downtime cause;</p>
+</li>
+<li>
+<p><strong>Capacity delivered year by year</strong>: capacity-weighted availability for
+each year, with the spread across runs. A year can be 100 % available and
+still deliver only 96 % of the flow.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>With cost analysis on, <strong>Where the money goes</strong> ranks the elements by mean
+cost per run, and the <strong>Cost treemap</strong> shows the same money as areas,
+coloured by its largest part (purchase, operating, spares or disposal).
+Spare pools are cells of their own, so the treemap is also the spares
+picture: a large amber cell is an element whose cost is mostly spares.</p>
+</div>
+<div class="paragraph">
+<p>The lost flow is split among the elements down at the time
+(<code>--capacity-rule proportional</code> by default), and the split adds up to the
+engine&#8217;s own lost flow. The engine writes capacity times to six decimals, so
+a flow change can land a millionth of an hour from the event that caused it;
+such a sliver is charged to the elements of the neighbouring outage rather
+than left unexplained.</p>
+</div>
+<div class="paragraph">
+<p>Capacity-weighted availability for one period is the flow delivered in it
+divided by the flow the model could deliver over the same time:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>capacity-weighted availability = flow delivered in the period
+                                 / (flow generated x period length)</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>When the run is a whole number of years, the average of the yearly values
+equals the engine&#8217;s own capacity-weighted availability for the run.</p>
+</div>
+<div class="paragraph">
+<p>Two canvas controls tie the views together. <strong>Show on Canvas</strong> chooses one
+result measure (weak link, capacity, cost, spares or importance) and paints
+it over the diagram; <strong>View ▸ Focus</strong> dims everything except the selection,
+so a large diagram keeps its topology but shows only what matters.
+Selecting a block on the canvas also marks its row in the Drivers view, and
+clicking a chart or driver locates the block on the canvas.</p>
+</div>
+<div class="paragraph">
+<p>The command line writes one chart as SVG, which is what a report embeds:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor explain VanFlat.rbds --chart downtime-pareto --chart-svg downtime.svg
+raptor explain --list-charts</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>MCP clients call <code>run_chart(run_id, chart="downtime-pareto")</code> and receive the
+same specification plus the SVG. The capacity charts are <code>lost-capacity-pareto</code>,
+<code>capacity-vs-downtime</code>, <code>capacity-waterfall</code>, <code>lost-capacity-treemap</code> and
+<code>annual-capacity-fan</code>; the cost charts are <code>cost-pareto</code> and <code>cost-treemap</code>.</p>
+</div>
+<div class="paragraph">
+<p>The numbers behind the charts export as tables. In the GUI they are in
+<strong>File ▸ Export ▸ Export Tables…</strong> (or the Export Tables… button in the data tables); from the command line, run the model and ask for
+the attribution tables too:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor tables Water2.rbds --run --drivers --format xlsx -o out/</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>That adds <code>results.downtime_drivers</code>, <code>results.downtime_causes</code>,
+<code>results.phase_downtime</code> (phased models),
+<code>results.outage_durations</code>, <code>results.lost_capacity</code> (by element),
+<code>results.lost_capacity_causes</code>, <code>results.period_availability</code>,
+<code>results.period_capacity</code> and <code>results.period_runs</code> (one row per run and
+year, for your own statistics). MCP clients get the same tables through
+<code>export_tables</code>, and <code>annual_availability(run_id, include_runs=True)</code> returns
+the year-by-year figures with capacity.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_stop_when_the_answer_is_precise_enough">25.6. Stop when the answer is precise enough</h3>
+<div class="paragraph">
+<p>A fixed run count is a guess. Ask for a relative precision instead:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor run VanFlat.rbds --precision 5%
+raptor run VanFlat.rbds --precision 5% --precision-metric system.mdt --max-trials 5000</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The runner grows the batch, reads the per-run values, and stops when the
+relative half-width of the watched metric meets the target. Batches are
+re-run with the same seed, so the final batch is exactly the first <strong>n</strong>
+trials of a fixed <strong>n</strong>-trial run; the seed table is untouched. The result
+carries the reached interval, the target, the trial count and the pass
+history.</p>
+</div>
+<div class="paragraph">
+<p>In MCP, pass <code>precision={"relative": 0.05}</code> to <code>simulate</code>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_what_if_compare_against_the_model_you_have">25.7. What if: compare against the model you have</h3>
+<div class="paragraph">
+<p>A scenario is this model plus a short list of <code>PATH=VALUE</code> changes. It is
+never a second file, and the open model is never modified:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor whatif VanFlat.rbds \
+  --change 'block:Tire_A.repair_params=2,9,0' \
+  --name 'Faster tire repair' -n 200</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The base and the scenario run with the same seed, so trial <strong>i</strong> is paired;
+the table reports the scenario value, the paired difference with its
+standard error and the chance the scenario is better. Pairing usually cuts
+the variance by an order of magnitude for a small change. A change that
+alters how many random draws a block makes can weaken the pairing; it does
+not bias the comparison, and the <code>variance cut</code> line says what was gained.</p>
+</div>
+<div class="paragraph">
+<p>Use the same seed and the same trial count when you compare two runs by
+hand; otherwise you are reading noise.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_which_inputs_matter">25.8. Which inputs matter</h3>
+<div class="paragraph">
+<p>The tornado varies each candidate input at a low and a high value, with the
+same seed as Base, and ranks the paired swings:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor sensitivity VanFlat.rbds --top 8 -n 100</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Candidates come from block lives and repair means, PM intervals, finite
+spare stock and crew counts. A swing whose interval contains zero is drawn
+as "not distinguishable" rather than promoted. This is a screening view: it
+shows each input alone, so it cannot show interactions.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_how_many_spares">25.9. How many spares</h3>
+<div class="paragraph">
+<p>The spare optimiser starts from a Poisson backorder model, orders one-unit
+increments by backorder reduction per unit cost, and simulates that path
+with common random numbers:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor optimise spares VanFlat.rbds --target 'system.ao&gt;=0.995' --budget 30
+raptor optimise spares VanFlat.rbds --target 'system.ao&gt;=0.995' --apply</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>A point counts as meeting the target only when the cautious end of its
+confidence interval does: the <strong>lower</strong> bound for availability, the <strong>upper</strong>
+bound for a measure where less is better, such as mean downtime. The lead
+time each part&#8217;s demand is counted over comes from the pool: the
+emergency-order time when one is set, the normal order time, the regular
+delivery interval, or else the whole run. The command prints every evaluated point and recommends the cheapest
+one that qualifies; <code>--apply</code> writes the stocks into the model, and leaving
+it out changes nothing. If every spare cost is the default 1, the result
+minimises the number held rather than money, and the caption says so.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_the_rule_that_keeps_this_honest">25.10. The rule that keeps this honest</h3>
+<div class="paragraph">
+<p>Attribution describes the design you simulated. Importance and what-if
+answer what a change would achieve. Never use a DTCI ranking as if it were
+a what-if result: the element that causes the most downtime now is not
+always the one whose fix buys the most.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_keep_the_parts_you_reuse">25.11. Keep the parts you reuse</h3>
+<div class="paragraph">
+<p>The <strong>Part Library</strong> tab beside the Explorer keeps two kinds of entry:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>a <strong>part type</strong> is one element&#8217;s data (failure and repair, logistics,
+spares, maintenance, cost) without its name or place. Apply it to other
+elements of the same kind; a later change to the part can be synced, and
+fields you edited by hand stay as overrides.</p>
+</li>
+<li>
+<p>an <strong>assembly</strong> is a group of elements kept with its links: a hierarchy with
+everything inside it, a node with the blocks around it, a set of events.
+Insert it, or drag it onto the canvas, and you get a fresh copy with new
+names; links to elements outside the group are dropped, and spare pools or
+resources the model does not have are reset, exactly as a paste from
+another model resets them.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Select the elements and press <strong>Save selection…</strong>: the dialog offers an
+assembly, or a part type when the selection is a single element. The command
+line and MCP do the same:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor library add parts.rbdlib VanFlat.rbds --assembly Tire_FL,Tire_FR,Tire_RL,Tire_RR,Tires_vote --name "Tyre set"
+raptor library insert VanFlat.rbds --library parts.rbdlib --part "Tyre set" --in-place</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>MCP clients call <code>save_assembly</code> and <code>insert_assembly</code>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="ch-capstone-flight">26. Capstone: The Flight, Phase by Phase (An Open-Ended Brief)</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p><strong>Time: about 60–90 minutes.</strong>
@@ -11881,7 +12648,7 @@ new is doing it yourself, from a written brief, with nobody telling
 you which tool to reach for.</strong></p>
 </div>
 <div class="sect2">
-<h3 id="_you_will_learn_22">24.1. You will learn</h3>
+<h3 id="_you_will_learn_24">26.1. You will learn</h3>
 <div class="ulist">
 <ul>
 <li>
@@ -11901,7 +12668,7 @@ tell them apart.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_you_need_22">24.2. You need</h3>
+<h3 id="_you_need_24">26.2. You need</h3>
 <div class="ulist">
 <ul>
 <li>
@@ -11914,14 +12681,14 @@ below does not tell you which one applies where.</p>
 <p>A blank model. Start <code>File → New</code> and build from the brief. (A
 reference solution exists — <code>models/Flight1.rbds</code> — but it is
 deliberately not linked here. Build first; the link is in
-<a href="#flight-worked-answer">Section 24.7, &#8220;One worked answer&#8221;</a>, below, once you have numbers of your own
+<a href="#flight-worked-answer">Section 26.7, &#8220;One worked answer&#8221;</a>, below, once you have numbers of your own
 to compare it against.)</p>
 </li>
 </ul>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_the_brief">24.3. The brief</h3>
+<h3 id="_the_brief">26.3. The brief</h3>
 <div class="paragraph">
 <p>You are the reliability engineer for a short regional hop, gate to
 gate. Two hours, four phases: <strong>Taxi</strong> (12 minutes), <strong>Climb</strong> (18
@@ -11965,7 +12732,7 @@ the 150-unit plan, for every hour the shortfall lasts.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_your_task">24.4. Your task</h3>
+<h3 id="_your_task">26.4. Your task</h3>
 <div class="paragraph">
 <p>Build it. Some starting questions, not a checklist to tick in order:</p>
 </div>
@@ -12018,7 +12785,7 @@ sets that as the headline?</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_before_you_run_it">24.5. Before you run it</h3>
+<h3 id="_before_you_run_it">26.5. Before you run it</h3>
 <div class="paragraph">
 <p>Write down two numbers before you press F5 for real:</p>
 </div>
@@ -12039,7 +12806,7 @@ sentence, before you have data.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_check_your_build">24.6. Check your build</h3>
+<h3 id="_check_your_build">26.6. Check your build</h3>
 <div class="paragraph">
 <p>A few low-spoiler sanity numbers, not the full answer:</p>
 </div>
@@ -12071,7 +12838,7 @@ or that safe on its own.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="flight-worked-answer">24.7. One worked answer</h3>
+<h3 id="flight-worked-answer">26.7. One worked answer</h3>
 <div class="paragraph">
 <p>There is no single correct file for an open brief like this one — two
 careful readers can make different, equally defensible choices about
@@ -12245,7 +13012,7 @@ airworthiness process is anywhere in this twelve-element model.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_check_yourself_23">24.8. Check yourself</h3>
+<h3 id="_check_yourself_23">26.8. Check yourself</h3>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
 <col style="width: 20%;">
@@ -12339,7 +13106,7 @@ ran would fail more often than a real cold-stowed unit ever would.</p>
 </details>
 </div>
 <div class="sect2">
-<h3 id="_exercise_22">24.9. Exercise</h3>
+<h3 id="_exercise_22">26.9. Exercise</h3>
 <div class="paragraph">
 <p>The airline wants one more nine of reliability, without adding any new
 redundancy — no third engine, no second APU. You have three honest,
@@ -12371,7 +13138,7 @@ fourteen.</p>
 </details>
 </div>
 <div class="sect2">
-<h3 id="_what_you_learned_22">24.10. What you learned</h3>
+<h3 id="_what_you_learned_22">26.10. What you learned</h3>
 <div class="ulist">
 <ul>
 <li>
@@ -12404,7 +13171,7 @@ holding your hand. Go point it at something that matters to you.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="appendix-glossary">25. Appendix: Glossary</h2>
+<h2 id="appendix-glossary">27. Appendix: Glossary</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Words an engineer uses, in plain form.</p>
@@ -12686,7 +13453,7 @@ Above 1: wear-out.</p></td>
 </div>
 </div>
 <div class="sect1">
-<h2 id="appendix-iec61078">26. Appendix: Reliability block diagrams and IEC 61078</h2>
+<h2 id="appendix-iec61078">28. Appendix: Reliability block diagrams and IEC 61078</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>IEC 61078 is the international standard for reliability block diagrams
@@ -12712,7 +13479,7 @@ handles repair, spares, phases, dependencies and limited resources that
 the standard&#8217;s simple closed-form formulae do not.</p>
 </div>
 <div class="sect2">
-<h3 id="_what_raptor_supports">26.1. What RAPTOR supports</h3>
+<h3 id="_what_raptor_supports">28.1. What RAPTOR supports</h3>
 <div class="ulist">
 <ul>
 <li>
@@ -12735,7 +13502,7 @@ by simulation.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_what_raptor_does_not_do">26.2. What RAPTOR does not do</h3>
+<h3 id="_what_raptor_does_not_do">28.2. What RAPTOR does not do</h3>
 <div class="paragraph">
 <p>The simulator does not calculate minimal cut/tie sets, qualitative Boolean/BDD
 expressions, PFD<sub>avg</sub> or the standard&#8217;s analytical failure intensities. It
@@ -12747,7 +13514,7 @@ represents repeated/common blocks, multi-port transfer gates, non-coherent
 </div>
 </div>
 <div class="sect2">
-<h3 id="_reading_the_numbers">26.3. Reading the numbers</h3>
+<h3 id="_reading_the_numbers">28.3. Reading the numbers</h3>
 <div class="paragraph">
 <p>The standard&#8217;s measures line up with RAPTOR&#8217;s reports where the engine
 actually computes them:</p>
@@ -12814,7 +13581,7 @@ says need simulation or a Markov/Petri model.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="appendix-developer-options">27. Appendix: Developer options</h2>
+<h2 id="appendix-developer-options">29. Appendix: Developer options</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>RAPTOR Studio has a handful of diagnostic features that add a file, a line or a column to the

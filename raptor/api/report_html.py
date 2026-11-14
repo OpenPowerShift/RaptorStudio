@@ -99,6 +99,8 @@ class ReportContent:
     per_run: Table | None = None
     event_log: Table | None = None
     raw: list[TextBlock] = field(default_factory=list)
+    #: The Story, its charts and the model checks (`raptor.api.insight.report_section`).
+    insight: Any = None
 
 
 # --------------------------------------------------------------------------
@@ -304,13 +306,126 @@ def _raw_html(blocks: Sequence[TextBlock]) -> str:
     return "".join(out)
 
 
+def _story_html(insight: Any) -> str:
+    story = insight.story or {}
+    if not story:
+        return ""
+    head = story.get("headline") or {}
+    out = ['<div class="story">']
+    if head:
+        out.append(f'<p class="story-headline">{_e(head.get("value_text", ""))} '
+                   f'<span class="note">{_e(head.get("label", ""))}</span></p>')
+        if head.get("target_text"):
+            out.append(f'<p><b>{_e(head["target_text"])}</b> '
+                       f'{_e(head.get("gap_text", ""))}</p>')
+        if story.get("proportion"):
+            out.append(f'<p>{_e(story["proportion"])}</p>')
+    drivers = story.get("drivers") or []
+    if drivers:
+        out.append("<h3>Where the downtime comes from</h3><ul>")
+        for driver in drivers:
+            out.append(f'<li>{_e(driver.get("name", ""))}: '
+                       f'{100 * float(driver.get("share") or 0):.3g} %</li>')
+        out.append("</ul>")
+    findings = story.get("findings") or []
+    if findings:
+        out.append("<h3>What to look at</h3><ul>")
+        for finding in findings:
+            out.append(f'<li><b>{_e(finding.get("severity", ""))}</b> · '
+                       f'{_e(finding.get("message", ""))}</li>')
+        out.append("</ul>")
+    provenance = story.get("provenance") or {}
+    if provenance:
+        out.append(f'<p class="note">{int(provenance.get("runs") or 0):,} runs · '
+                   f'model {_e(str(provenance.get("model_hash", ""))[:8])} · '
+                   f'run {_e(str(provenance.get("run_id", "")))}</p>')
+    out.append("</div>")
+    return "".join(out)
+
+
+def _charts_html(insight: Any) -> str:
+    from raptor.render.charts_svg import render
+    out = []
+    for spec in insight.charts or ():
+        out.append(f'<div class="chart"><div class="chart-title">'
+                   f'{_e(spec.title)}</div>{render(spec)}'
+                   f'<p class="note">{_e(spec.caption)}</p></div>')
+    return "".join(out)
+
+
+def _measures_html(insight: Any) -> str:
+    from raptor.api.insight import measures
+    if not insight.measure_ids:
+        return ""
+    out = ['<h3>How to read this report</h3><dl class="measures">']
+    for measure_id in insight.measure_ids:
+        measure = measures.get(measure_id)
+        out.append(f'<dt>{_e(measure.name)} ({_e(measure.short)})</dt>'
+                   f'<dd>{_e(measure.long)}. {_e(measure.answers)} '
+                   f'Formula: {_e(measure.formula)}. Clock: {_e(measure.clock)}.'
+                   + (f' Beware: {_e(measure.beware)}' if measure.beware else "")
+                   + "</dd>")
+    out.append("</dl>")
+    return "".join(out)
+
+
+def _checks_html(insight: Any) -> str:
+    findings = insight.findings or []
+    suppressed = insight.suppressed or []
+    if not findings and not suppressed:
+        return ""
+    out = []
+    if findings:
+        out.append("<h3>Model checks</h3>"
+                   "<table class='checks'><thead><tr><th>Level</th>"
+                   "<th>Rule</th><th>Finding</th><th>Why</th></tr></thead><tbody>")
+        for finding in findings:
+            out.append(f'<tr><td>{_e(finding.get("severity", ""))}</td>'
+                       f'<td>{_e(finding.get("rule", ""))}</td>'
+                       f'<td>{_e(finding.get("message", ""))}</td>'
+                       f'<td>{_e(finding.get("why", ""))}</td></tr>')
+        out.append("</tbody></table>")
+    if suppressed:
+        out.append("<h3>Findings set aside</h3><ul>")
+        for finding in suppressed:
+            out.append(f'<li>{_e(finding.get("rule", ""))}: '
+                       f'{_e(finding.get("reason", "no reason recorded"))}</li>')
+        out.append("</ul>")
+    return "".join(out)
+
+
+def _insight_chapters(content: ReportContent
+                      ) -> list[tuple[str, str, str, bool]]:
+    """The Report's front matter: the Story, its figures and the measures."""
+    if content.insight is None:
+        return []
+    ch: list[tuple[str, str, str, bool]] = []
+    story = _story_html(content.insight) + _measures_html(content.insight)
+    charts = _charts_html(content.insight)
+    if story:
+        ch.append(("story", "Story", story, False))
+    if charts:
+        ch.append(("charts", "Charts", charts, True))
+    return ch
+
+
+def _checks_chapter(content: ReportContent
+                    ) -> list[tuple[str, str, str, bool]]:
+    """The checks close the report: what was known, and what was set aside."""
+    if content.insight is None:
+        return []
+    if not (content.insight.findings or content.insight.suppressed):
+        return []
+    return [("checks", "Model checks", _checks_html(content.insight), False)]
+
+
 def _chapters(content: ReportContent
               ) -> list[tuple[str, str, str, bool]]:
     """``[(id, title, html, landscape)]`` for every section that has
     something. A section is landscape as a whole when it holds a figure,
     report text or a table too wide for a portrait page, so the pages of
     one section do not turn back and forth."""
-    ch: list[tuple[str, str, str, bool]] = []
+    ch: list[tuple[str, str, str, bool]] = _insight_chapters(content)
     if content.diagrams:
         ch.append(("diagram", "Diagram", _figures(content.diagrams), True))
     if content.inputs:
@@ -341,6 +456,7 @@ def _chapters(content: ReportContent
                    is_wide(content.event_log)))
     if content.raw:
         ch.append(("raw", "Raw reports", _raw_html(content.raw), True))
+    ch.extend(_checks_chapter(content))
     return ch
 
 
@@ -377,6 +493,15 @@ h3 + p { margin: 0 0 2mm 0; color: #535e68; }
 h4 { font-size: 9.5pt; color: #394046; margin: 4mm 0 1.5mm 0;
      break-after: avoid; }
 p { margin: 1mm 0; }
+.story-headline { font-size: 20pt; font-weight: 600; color: #23282c; }
+.chart { margin: 4mm 0 6mm 0; break-inside: avoid; }
+.chart svg { width: 100%%; height: auto; }
+.chart-title { font-weight: 600; margin-bottom: 1mm; }
+dl.measures dt { font-weight: 600; margin-top: 2mm; }
+dl.measures dd { margin: 0 0 1mm 4mm; }
+table.checks { width: 100%%; border-collapse: collapse; font-size: 8pt; }
+table.checks th, table.checks td { border-bottom: 1px solid #e5e7eb;
+  padding: 1mm; vertical-align: top; text-align: left; }
 .note { font-size: 8pt; color: #6f7c8a; margin: 1mm 0 2mm 0; }
 
 .cover { padding-top: 30mm; }

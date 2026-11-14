@@ -227,9 +227,24 @@ async def simulate(  # noqa: PLR0912, PLR0915
     importance: Literal["none", "improvement", "risk", "both"] | None = None,
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
+    attribution: bool = False,
+    capacity_rule: Literal["proportional", "marginal", "first_failed"] = "proportional",
+    precision: dict | None = None,
     ctx: Context | None = None,
 ) -> CallToolResult:
     """Run a simulation and return structured results.
+
+    `attribution=True` also works out which element caused each system
+    outage and why (repair, waiting for a spare, waiting for a crew,
+    logistics, maintenance); read it with `downtime_drivers(run_id)` and
+    `advise(model_id, run_id)`. The results themselves are unchanged. It
+    keeps the event log in memory for the batch, so leave it off for very
+    large runs. Not available with `hierarchy`.
+
+    `capacity_rule` (with attribution on a capacity-analysis model) shares
+    the lost flow among the elements that were down: `proportional` sums to
+    the engine's own lost flow, `marginal` answers "what would fixing this
+    one buy?" (shares need not add up), `first_failed` is for comparison.
 
     `availability_plot` / `interim_cost`: record the availability-over-time
     plot (needed by `get_timeseries(series="availability")`) or the interim
@@ -272,6 +287,13 @@ async def simulate(  # noqa: PLR0912, PLR0915
     model and run count always return byte-identical numbers.  If a run is
     cut short by `timeout_s`, `runs` is below the requested count and
     `truncated` is true -- do not read a truncated batch as complete.
+
+    `precision` runs in growing batches until the watched metric is
+    precise enough, instead of a fixed count: `{relative: 0.1, metric:
+    "system.ao", on: "unavailability" | "value", confidence: 0.95,
+    min_trials: 50, max_trials: 20000, batch: 50}`. The result carries a
+    `precision` object with the reached interval, the target, the trial
+    count and the pass history; `relative` is a fraction (0.1 = 10 %).
 
     Capacity: delivered flow is limited by link `nom_flow`/`max_flow`
     caps, and those caps only bind on links entering a node whose
@@ -336,6 +358,32 @@ async def simulate(  # noqa: PLR0912, PLR0915
         handle.rbd.experiment = _rx.normalise(experiment)
 
     def _go(abort, progress):
+        if precision is not None:
+            if hierarchy is not None:
+                raise ValueError(
+                    "precision and hierarchy cannot be combined yet")
+            from raptor.api.scenarios import Precision, run_to_precision
+            try:
+                wanted = Precision(**precision)
+                wanted.field()
+            except TypeError as exc:
+                raise ValueError(f"bad precision object: {exc}") from exc
+            except ValueError as exc:
+                raise ValueError(str(exc)) from exc
+            if wanted.max_trials > cap:
+                raise ValueError(
+                    f"precision.max_trials={wanted.max_trials} exceeds the "
+                    f"server cap of {cap}; lower it or raise the cap")
+            outcome = run_to_precision(
+                ws, model_id, wanted, workers=workers, seed=seed,
+                progress=lambda done, _total, _text: progress(done, _total),
+                abort=abort, timeout_s=timeout_s,
+                confirm_long_run=confirm_long_run, collect_events=collect_events,
+                availability_plot=availability_plot, interim_cost=interim_cost,
+                attribution=attribution, capacity_rule=capacity_rule)
+            result = outcome.result
+            result.precision = outcome.to_dict()
+            return result
         kwargs = dict(
             num_runs=num_runs, run_length=run_length, workers=workers,
             timeout_s=timeout_s, collect_events=collect_events,
@@ -349,15 +397,17 @@ async def simulate(  # noqa: PLR0912, PLR0915
                                     treatments=treatments, **kwargs)
             except isolate.IsolationError as exc:
                 raise ValueError(str(exc)) from exc
-        return api_run(ws, model_id, **kwargs)
+        return api_run(ws, model_id, attribution=attribution,
+                       capacity_rule=capacity_rule, **kwargs)
 
     result = await run_job(ctx, _go, label="Simulating")
     warnings = list(result.warnings) + validation_warnings
     # `requested` must come from the caller or the model's own configured
     # run count -- falling back to `result.num_runs` would make the
     # truncation check vacuous whenever `num_runs` is omitted.
-    requested = effective_runs
-    truncated = requested is not None and result.num_runs < requested
+    requested = (result.num_runs if precision is not None else effective_runs)
+    truncated = (False if precision is not None
+                 else requested is not None and result.num_runs < requested)
     data = {
         "run_id": result.run_id,
         "model_id": result.model_id,
@@ -389,6 +439,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
         data["isolation"] = result.isolation
     if getattr(result, "importance", None):
         data["importance"] = result.importance
+    if getattr(result, "precision", None):
+        data["precision"] = result.precision
     md = summary_table(
         result,
         display_unit=getattr(handle.rbd, "display_unit", None),
@@ -438,8 +490,14 @@ def start_run(
     seed: int | None = None,
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
+    attribution: bool = False,
+    capacity_rule: Literal["proportional", "marginal", "first_failed"] = "proportional",
 ) -> CallToolResult:
     """Start a simulation in the background and return a job id immediately.
+
+    `attribution=True` also records what caused the downtime, as in
+    `simulate`; read it with `downtime_drivers` once the job is done.
+    `capacity_rule` chooses how the lost flow is shared, as in `simulate`.
 
     Same arguments as `simulate`, minus the hierarchy/isolation and
     importance options. Use this for batches that outlive one tool call (a
@@ -494,6 +552,8 @@ def start_run(
                        confirm_long_run=True, abort=abort, progress=progress,
                        setup_progress=setup_progress, seed=seed,
                        availability_plot=availability_plot,
+                       attribution=attribution,
+                       capacity_rule=capacity_rule,
                        interim_cost=interim_cost)
 
     job = async_runs.start(work, model_id=model_id, total=effective_runs)
@@ -1015,3 +1075,163 @@ def extract_hierarchy(
                "isolation": record.to_dict()},
               markdown=f"**{record.banner}**\n\nNew model `{info['model_id']}`.\n\n"
                        + record.text())
+
+
+@mcp.tool(annotations=ADDITIVE("What-if"))
+@guarded
+async def what_if(
+    model_id: str,
+    changes: list[str],
+    name: str = "Scenario",
+    trials: int | None = None,
+    seed: int = 1,
+    precision: dict | None = None,
+    requirements: list[dict] | None = None,
+    workers: int | None = None,
+    timeout_s: float = 1800.0,
+    ctx: Context | None = None,
+) -> CallToolResult:
+    """Compare a changed model with Base using paired trials.
+
+    `changes` are PATH=VALUE edits (the grammar of `raptor set`), e.g.
+    `["block:Pump.repair_params=8,0,0"]`. Base and the scenario run with the
+    same seed, so trial *i* is paired; the result reports each metric's
+    scenario value, the paired difference with its standard error, the
+    chance the scenario is better, and how much variance pairing cut. The
+    open model is never modified.
+
+    `trials` sets the fixed count; `precision` (`{relative: 0.1,
+    min_trials: 50, max_trials: 20000}`) sizes Base first with
+    run-to-precision. `requirements` are `{metric, op, value, label}` rows
+    judged for Base and the scenario. Long runs report progress and can be
+    cancelled by the client.
+    """
+    ws = context.workspace()
+    cap = context.max_runs()
+    if trials is not None and trials > cap:
+        raise ValueError(
+            f"trials={trials} exceeds the server cap of {cap}; lower it or "
+            "raise the cap")
+    wanted = None
+    if precision is not None:
+        from raptor.api.scenarios.stopping import Precision
+        try:
+            wanted = Precision(**precision)
+            wanted.field()
+        except TypeError as exc:
+            raise ValueError(f"bad precision object: {exc}") from exc
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+        if wanted.max_trials > cap:
+            raise ValueError(
+                f"precision.max_trials={wanted.max_trials} exceeds the server "
+                f"cap of {cap}")
+    from raptor.api.scenarios import Scenario, compare
+
+    def work(abort, progress):
+        return compare(
+            ws, model_id, [Scenario(name=name, changes=tuple(changes))],
+            trials=trials, precision=wanted, workers=max(1, workers or 1),
+            seed=seed, timeout_s=timeout_s, requirements=requirements,
+            progress=lambda done, total, label: progress(done, total, label),
+            abort=abort)
+
+    comparison = await run_job(ctx, work, label="Comparing scenario")
+    data = comparison.to_dict()
+    data["caption"] = comparison.caption
+    return ok(data, _what_if_markdown(comparison))
+
+
+def _what_if_markdown(comparison: Any) -> str:
+    row = comparison.rows[0] if comparison.rows else {}
+    if row.get("error"):
+        return f"The scenario did not run: {row['error']}"
+    lines = ["| Metric | Base | Scenario | Change | P(better) |",
+             "|---|---|---|---|---|"]
+    for key in ("availability", "reliability", "mtbde", "mdt",
+                "capacity_weighted_availability", "lost_flow"):
+        metric = (row.get("metrics") or {}).get(key)
+        if not metric or (metric.get("value") or {}).get("mean") is None:
+            continue
+        fraction = metric.get("fraction")
+        base = (metric.get("base") or {}).get("mean")
+        value = (metric.get("value") or {}).get("mean")
+        delta = (metric.get("delta") or {}).get("mean")
+        sem = (metric.get("delta") or {}).get("sem")
+        fmt = ((lambda v: f"{100 * v:.5g} %") if fraction
+               else (lambda v: f"{v:,.6g}"))
+        if delta is None:
+            continue
+        change = (f"{100 * delta:+.3g} pts" if fraction
+                  else f"{delta:+,.6g}")
+        if sem:
+            change += (f" ± {100 * sem:.3g}" if fraction else f" ± {sem:.3g}")
+        chance = metric.get("p_better")
+        tail = ("—" if chance is None else f"{100 * chance:.3g} %")
+        lines.append(f"| {metric['label']} | {fmt(base)} | {fmt(value)} | "
+                     f"{change} | {tail} |")
+    lines.append("")
+    lines.append(comparison.caption)
+    cut = (comparison.variance_reduction or {}).get("availability")
+    if cut is not None:
+        lines.append(f"Pairing cut the variance by {100 * cut:.3g} %.")
+    return "\n".join(lines)
+
+
+@mcp.tool(annotations=ADDITIVE("Sensitivity"))
+@guarded
+async def sensitivity(
+    model_id: str,
+    top: int = 10,
+    trials: int | None = None,
+    metric: str = "availability",
+    seed: int = 1,
+    workers: int | None = None,
+    timeout_s: float = 1800.0,
+    ctx: Context | None = None,
+) -> CallToolResult:
+    """One-at-a-time tornado: which inputs the answer is most sensitive to.
+
+    Builds up to `top` candidate inputs from the model (block life and
+    repair means, PM intervals, finite spare stock, crew counts), varies each
+    at a low and a high value, and runs every variant with Base's seed. The
+    result gives each input's paired effect at both ends with its standard
+    error, the swing, a base-point elasticity where the input is continuous,
+    and whether the swing is distinguishable from no effect at this run
+    count. This is a screening view: it shows each input alone and cannot
+    show interactions.
+    """
+    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+
+    ws = context.workspace()
+    cap = context.max_runs()
+    if trials is not None and trials > cap:
+        raise ValueError(
+            f"trials={trials} exceeds the server cap of {cap}")
+    inputs = default_inputs(ws.get(model_id).rbd, limit=max(1, min(top, 60)))
+    if not inputs:
+        raise ValueError("no input could be varied in this model")
+
+    def work(abort, progress):
+        return tornado(
+            ws, model_id, inputs, trials=trials, metric=metric, seed=seed,
+            workers=max(1, workers or 1), timeout_s=timeout_s,
+            progress=lambda done, total, label: progress(done, total, label),
+            abort=abort)
+
+    data = await run_job(ctx, work, label="Screening inputs")
+    lines = ["| Input | Swing | Low | High | Distinguishable |",
+             "|---|---|---|---|---|"]
+    for row in data["inputs"]:
+        swing = ("—" if row["swing"] is None else f"{row['swing']:.4g}")
+        low = ("—" if row["low"]["effect"] is None
+               else f"{row['low']['effect']:+.4g}")
+        high = ("—" if row["high"]["effect"] is None
+                else f"{row['high']['effect']:+.4g}")
+        flag = "yes" if row["distinguishable"] else "no"
+        lines.append(f"| {row['input']['name']} | {swing} | {low} | "
+                     f"{high} | {flag} |")
+    lines.append("")
+    lines.append(data["caption"])
+    lines.append(data["note"])
+    return ok(data, "\n".join(lines))

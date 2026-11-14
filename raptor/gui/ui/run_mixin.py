@@ -272,7 +272,8 @@ class RunMixin(_Base):
 
     def _present_baseline_results(self, *, logs, eor, fin, report_data,
                                   notes, ao_lines, cap_lines, cost_lines,
-                                  units, manifest, importance_total=None):
+                                  units, manifest, importance_total=None,
+                                  rbd=None):
         """Put the finished baseline on screen while importance runs.
 
         Called once per run, on the GUI thread. `follow_up=True` keeps the
@@ -288,7 +289,7 @@ class RunMixin(_Base):
             logs, eor, fin, report_data=report_data, units=units,
             notes=notes, ao_lines=ao_lines, cap_lines=cap_lines,
             cost_lines=cost_lines, manifest=manifest, importance=None,
-            follow_up=True)
+            follow_up=True, rbd=rbd)
         if not ok:
             return False
         self._note_results_basis()
@@ -331,7 +332,7 @@ class RunMixin(_Base):
             notes=report_notes, ao_lines=ao_lines, cap_lines=cap_lines,
             cost_lines=cost_lines, units=units,
             manifest=(state.get("run_metadata") or {}).get("manifest"),
-            importance_total=total)
+            importance_total=total, rbd=getattr(self, "_last_run_model", None))
 
     #: Ask before a run that a MEASURED previous run of this model says
     #: will take longer than this many seconds.
@@ -736,6 +737,7 @@ class RunMixin(_Base):
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
                     units=units, manifest=run_metadata.get("manifest"),
+                    rbd=run_model,
                     importance_total=importance_total)
                 importance = self._importance_for(run_model, report_data)
             overlays = (self._checked_overlay_state()
@@ -758,7 +760,7 @@ class RunMixin(_Base):
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
                     manifest=run_metadata.get("manifest"),
-                    importance=importance)
+                    importance=importance, rbd=run_model)
                 self._note_results_basis()
                 self._remember_report_streams(streams)
                 self._results_show_action.setEnabled(bool(report_data))
@@ -956,7 +958,7 @@ class RunMixin(_Base):
         self._results.set_results(event_logs, eor_lines, final_lines,
                                   report_data=report_data, units=units,
                                   ao_lines=ao_lines, cap_lines=cap_lines,
-                                  manifest=manifest)
+                                  manifest=manifest, rbd=getattr(self, "_rbd", None))
         self._note_results_basis()
         self._results_show_action.setEnabled(bool(report_data))
         self._results_float_action.setEnabled(bool(report_data))

@@ -137,6 +137,35 @@ def test_report_text_uses_an_em_dash_for_undefined():
     assert "—" in text
 
 
-def test_metric_selector_covers_the_three_metrics():
+def test_metric_selector_covers_every_metric_including_capacity():
     assert [label for _attr, label in imp.METRICS] == [
-        "Availability", "Reliability", "Dependability"]
+        "Availability", "Reliability", "Dependability",
+        "Capacity-weighted availability"]
+
+
+def test_capacity_weighted_importance_is_absent_without_capacity_analysis():
+    rbd = _rbd(blocks=("A", "B"), runs=10, length=20.0)
+    base = _baseline(rbd, runs=10)
+    result = imp.analyse(rbd, base, mode="both", runs=10, seed=3)
+    assert "Capacity-weighted availability" not in result["metrics"]
+    assert any("capacity analysis" in note for note in result["notes"])
+
+
+def test_capacity_weighted_importance_is_measured_when_capacity_is_on():
+    from pathlib import Path
+    from raptor.api.results import capacity_values
+    from raptor.core.engine.runner import run_simulation_with_reports
+    from raptor.core.fileio.rbd import load_rbd
+
+    path = (Path(__file__).resolve().parents[1] / "golden" / "Capacity2"
+            / "input.rbd")
+    rbd = load_rbd(str(path))
+    baseline: list = []
+    run_simulation_with_reports(rbd, num_runs=3, report_sink=baseline,
+                                collect_logs=False)
+    result = imp.analyse(rbd, baseline, mode="improvement", runs=3, seed=2)
+    entry = result["metrics"]["Capacity-weighted availability"]
+    expected = sum((capacity_values(rd) or {})["capacity_weighted_availability"]
+                   for rd in baseline) / len(baseline)
+    assert entry["baseline"] == pytest.approx(expected)
+    assert entry["rows"] and any(row["rrw"] is not None for row in entry["rows"])

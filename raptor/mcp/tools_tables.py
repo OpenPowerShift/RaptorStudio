@@ -12,7 +12,9 @@ from typing import Any, Literal
 from mcp.types import CallToolResult
 
 from raptor.mcp import context
-from raptor.mcp.result import ADDITIVE, READ_ONLY, guarded, markdown_table, ok
+from raptor.mcp.result import (
+    ADDITIVE, EDIT, READ_ONLY, guarded, markdown_table, ok,
+)
 from raptor.mcp.server import mcp
 
 Format = Literal["csv", "txt", "txt_report", "xlsx", "ods"]
@@ -205,3 +207,44 @@ def export_tables(model_id: str, run_id: str | None = None,
         md = ("**Isolated hierarchy** — " + isolation.get("hierarchy", "")
               + ". Not a whole-model result.\n\n" + md)
     return ok(data, markdown=md)
+
+
+@mcp.tool(annotations=EDIT("Replace in table"))
+@guarded
+def replace_in_table(model_id: str, table: str, column: str, find: str,
+                     replace: str, whole: bool = False,
+                     case: bool = True) -> CallToolResult:
+    """Find and replace in one model table column.
+
+    `table` is an input table key that edits model rows:
+    `inputs.blocks_all`, `inputs.nodes`, `inputs.events`,
+    `inputs.hierarchies`, `inputs.spare_pools`, `inputs.resources`,
+    `inputs.triggers`, `inputs.phases` or `inputs.comments`. `column` is a
+    file column name or index. `whole` matches the whole cell; `case` is
+    case-sensitive. Name columns are validated as a manual rename is, and a
+    refused set changes nothing. Returns the old and new value of every
+    changed cell.
+    """
+    from raptor.api import build, tables
+
+    ws = context.workspace()
+    rbd = ws.get(model_id).rbd
+    try:
+        changes = tables.replace_in_table(
+            rbd, table, column, find, replace, whole=whole, case=case)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    for change in changes:
+        change["row"][change["column"]] = change["new"]
+    if changes:
+        build.sync_counts(rbd)
+        ws.save(model_id)
+    data: dict[str, Any] = {
+        "changes": [{key: value for key, value in change.items()
+                     if key != "row"} for change in changes],
+            "count": len(changes), "table": table, "column": column}
+    lines = ["| Row | Column | Old | New |", "|---|---|---|---|"]
+    for change in data["changes"][:50]:
+        lines.append(f"| {change['id']} | {change['column']} | "
+                     f"{change['old']} | {change['new']} |")
+    return ok(data, "\n".join(lines) if changes else "No cell matched.")

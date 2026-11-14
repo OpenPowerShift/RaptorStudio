@@ -539,8 +539,197 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         layout.setSpacing(0)
         layout.addLayout(bar)
         layout.addWidget(self._tabs, 1)
+        self._stats = QLabel("")
+        self._stats.setObjectName("SectionNote")
+        layout.addWidget(self._stats)
+        self._tabs.currentChanged.connect(lambda _i: self._update_stats())
+        for _t, _k in self._level_tables():
+            _t.itemSelectionChanged.connect(self._update_stats)
+            _t.currentCellChanged.connect(
+                lambda _r, _c, *_a: self._update_stats())
+        for _t in (self._spares_table, self._resources_table,
+                   self._triggers_table, self._phases_table):
+            _t.itemSelectionChanged.connect(self._update_stats)
+            _t.currentCellChanged.connect(
+                lambda _r, _c, *_a: self._update_stats())
+        find_replace = QShortcut(QKeySequence("Ctrl+H"), self)
+        find_replace.setContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        find_replace.activated.connect(self.find_replace)
 
         ThemeManager.instance().on_changed(self._on_theme_changed)
+
+    def _current_table(self) -> QTableWidget | None:
+        table = self._tabs.currentWidget()
+        return table if isinstance(table, QTableWidget) else None
+
+    def _cell_text(self, table: QTableWidget, row: int, col: int) -> str:
+        """What a cell shows, from its editor widget or its item."""
+        widget = table.cellWidget(row, col)
+        if widget is not None:
+            from PySide6.QtWidgets import QLineEdit
+            edit = widget.findChild(QLineEdit)
+            if edit is not None:
+                return edit.text()
+        item = table.item(row, col)
+        return item.text() if item is not None else ""
+
+    def _update_stats(self) -> None:
+        """Count/sum/mean/min/max of the selected numeric column."""
+        table = self._current_table()
+        if table is None:
+            self._stats.setText("")
+            return
+        col = table.currentColumn()
+        if col < 0:
+            self._stats.setText("")
+            return
+        values = []
+        for row in range(table.rowCount()):
+            if table.isRowHidden(row):
+                continue
+            text = self._cell_text(table, row, col).strip()
+            try:
+                values.append(float(text))
+            except ValueError:
+                continue
+        if not values:
+            self._stats.setText("")
+            return
+        mean = sum(values) / len(values)
+        self._stats.setText(
+            f"{len(values)} value(s) · sum {sum(values):.6g} · "
+            f"mean {mean:.6g} · min {min(values):.6g} · "
+            f"max {max(values):.6g}")
+
+    def find_replace(self) -> None:
+        """Ctrl+H: replace in the visible rows of the current table."""
+        from PySide6.QtWidgets import (
+            QCheckBox, QDialog, QFormLayout, QLineEdit,
+        )
+        table = self._current_table()
+        if table is None:
+            return
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Find and Replace")
+        form = QFormLayout(dlg)
+        find = QLineEdit()
+        replace = QLineEdit()
+        whole = QCheckBox("Whole cell")
+        sensitive = QCheckBox("Match case")
+        form.addRow("Find:", find)
+        form.addRow("Replace with:", replace)
+        form.addRow(whole)
+        form.addRow(sensitive)
+        count = QLabel("")
+        form.addRow(count)
+        run = QPushButton("Replace all")
+        run.setDefault(True)
+        cancel = QPushButton("Cancel")
+        cancel.clicked.connect(dlg.reject)
+        run.clicked.connect(dlg.accept)
+        form.addRow(run, cancel)
+
+        def targets() -> list[tuple[int, int, Any]]:
+            needle = find.text()
+            if not needle:
+                return []
+            found = []
+            for row in range(table.rowCount()):
+                if table.isRowHidden(row):
+                    continue
+                for col in range(table.columnCount()):
+                    widget = table.cellWidget(row, col)
+                    from PySide6.QtWidgets import QLineEdit
+                    edit = (widget.findChild(QLineEdit)
+                            if widget is not None else None)
+                    item = table.item(row, col)
+                    if edit is None and (
+                            item is None or not (
+                                item.flags() & Qt.ItemFlag.ItemIsEditable)):
+                        continue
+                    if edit is not None:
+                        text = edit.text()
+                    elif item is not None:
+                        text = item.text()
+                    else:
+                        continue
+                    hay = text if sensitive.isChecked() else text.lower()
+                    key = needle if sensitive.isChecked() else needle.lower()
+                    if (hay == key if whole.isChecked() else key in hay):
+                        found.append((row, col, edit if edit is not None
+                                      else item))
+            return found
+
+        def update_count() -> None:
+            n = len(targets())
+            count.setText(f"{n} match(es)")
+
+        find.textChanged.connect(update_count)
+        whole.toggled.connect(update_count)
+        sensitive.toggled.connect(update_count)
+        update_count()
+        from raptor.gui.ui.modality import exec_dialog
+        if exec_dialog(dlg) != QDialog.DialogCode.Accepted:
+            return
+        count.setText(f"{self._replace_cells(
+            table, find.text(), replace.text(), whole.isChecked(),
+            sensitive.isChecked())} cell(s) changed")
+
+    def _replace_cells(self, table: QTableWidget, needle: str,
+                       replacement: str, whole: bool, case: bool) -> int:
+        """Replace in the visible editable cells; one undo macro."""
+        if not needle:
+            return 0
+        from PySide6.QtWidgets import QLineEdit
+        targets: list[Any] = []
+        for row in range(table.rowCount()):
+            if table.isRowHidden(row):
+                continue
+            for col in range(table.columnCount()):
+                widget = table.cellWidget(row, col)
+                edit = (widget.findChild(QLineEdit)
+                        if widget is not None else None)
+                item = table.item(row, col)
+                if edit is None and (
+                        item is None or not (
+                            item.flags() & Qt.ItemFlag.ItemIsEditable)):
+                    continue
+                if edit is not None:
+                    text = edit.text()
+                elif item is not None:
+                    text = item.text()
+                else:
+                    continue
+                hay = text if case else text.lower()
+                key = needle if case else needle.lower()
+                if hay == key if whole else key in hay:
+                    target: Any = edit if edit is not None else item
+                    targets.append(target)
+        stack = getattr(getattr(self, "_view", None), "_stack", None)
+        if stack is not None:
+            stack.beginMacro("Replace in table")
+        changed = 0
+        try:
+            for target in targets:
+                text = target.text()
+                if case:
+                    new = (replacement if whole
+                           else text.replace(needle, replacement))
+                else:
+                    import re
+                    new = (replacement if whole else re.sub(
+                        re.escape(needle), replacement, text,
+                        flags=re.IGNORECASE))
+                target.setText(new)
+                if hasattr(target, "editingFinished"):
+                    target.editingFinished.emit()
+                if target.text() == new:
+                    changed += 1
+        finally:
+            if stack is not None:
+                stack.endMacro()
+        return changed
 
     @staticmethod
     def _make_table(headers: list[str], tips: dict[str, str] | None = None,

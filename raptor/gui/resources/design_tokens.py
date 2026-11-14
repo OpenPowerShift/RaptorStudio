@@ -77,7 +77,7 @@ APPENDIX_D_STATE_COLOURS = {
 
 LIGHT_COLOUR = {
     "nav": "#0B2340",
-    "accent": "#1479C9",
+    "accent": "#1371BB",
     "surface": "#FFFFFF",
     "canvas": "#EDF2F7",
     "text": "#132238",
@@ -99,15 +99,15 @@ LIGHT_COLOUR = {
     # deliberate exception to the Appendix D rule: Green/Yellow/Red
     # PERCENT is a traffic-light metric and stays red/orange/green,
     # not the block-state colours.
-    "result_green": "#218B61",
-    "result_yellow": "#D99219",
-    "result_red": "#CC4545",
+    "result_green": "#1E7D57",
+    "result_yellow": "#BB7E16",
+    "result_red": "#C93939",
     # Ribbon icon colours for go / stop / warning. Not the Appendix D
     # state colours: LimeGreen is 2:1 on the light ribbon, under the 3:1 an
     # icon needs, so each theme gets its own shade.
     "go": "#1B873F",
     "stop": "#C62828",
-    "warn": "#B25E00",
+    "warn": "#A85900",
 }
 
 DARK_COLOUR = {
@@ -128,12 +128,16 @@ DARK_COLOUR = {
     "standby": APPENDIX_D_STATE_COLOURS["warm_standby"],
     "maintenance": APPENDIX_D_STATE_COLOURS["maintenance"],
     "idle": APPENDIX_D_STATE_COLOURS["idle"],
-    "relationship": "#7454A6",
+    # Lighter than the light theme's purple: #7454A6 is only 2.7:1 on the
+    # dark surface, and the canvas draws relationship labels in it.
+    # tests/unit/test_theme_audit.py holds every coloured token used as
+    # text to 4.5:1 on each panel background.
+    "relationship": "#9F83CD",
     "failed": APPENDIX_D_STATE_COLOURS["repairing"],
     # Same traffic-light exception in dark.
     "result_green": "#34A873",
     "result_yellow": "#E6A91A",
-    "result_red": "#E05555",
+    "result_red": "#E46B6B",
     "go": "#4CC764",
     "stop": "#F0605D",
     "warn": "#F2A93B",
@@ -152,6 +156,9 @@ class ThemeManager:
 
     def __init__(self):
         self._dark = False
+        #: whether the token palette and stylesheet have been put on the
+        #: application yet: a first `set_dark(False)` must still apply them
+        self._applied = False
 
     @classmethod
     def instance(cls) -> ThemeManager:
@@ -178,6 +185,11 @@ class ThemeManager:
 
     def set_dark(self, dark: bool):
         if self._dark == dark:
+            # Light is the starting state, so a light launch used to skip
+            # `_apply` and run on the platform palette (rich-text links in
+            # #0000FF rather than the accent, for one).
+            if not self._applied:
+                self._apply()
             return
         self._dark = dark
         self._apply()
@@ -222,10 +234,26 @@ class ThemeManager:
         # makes every unstyled widget follow the active theme too.
         app.setPalette(_build_palette(self.colour))
         app.setStyleSheet(global_stylesheet())
+        self._applied = True
+        _relink_labels(app)
 
     @staticmethod
     def _qcolor(hex_str: str) -> QColor:
         return QColor(hex_str)
+
+
+def _relink_labels(app: QApplication) -> None:
+    """A rich-text QLabel takes its link colour from the palette when its
+    text is SET, so a link drawn before a theme switch kept the old
+    theme's blue (dark blue on the dark surface).  Setting the same text
+    again (after a clear: QLabel ignores an unchanged text) lays it out with
+    the new palette."""
+    from PySide6.QtWidgets import QLabel
+    for widget in app.allWidgets():
+        if isinstance(widget, QLabel) and "<a " in widget.text():
+            text = widget.text()
+            widget.clear()
+            widget.setText(text)
 
 
 def _build_palette(c: dict) -> QPalette:
@@ -399,7 +427,7 @@ def _build_stylesheet(c: dict) -> str:
     }}
     #RibbonFileButton:hover {{
         background: {c['accent']};
-        color: #FFFFFF;
+        color: {c['surface']};
     }}
     QLabel#RibbonFieldLabel {{
         color: {c['muted']};
@@ -691,7 +719,7 @@ def _build_stylesheet(c: dict) -> str:
        forcing non-native dialogs; see filedialogs.py. */
     QPushButton:default {{
         background: {c['accent']};
-        color: #ffffff;
+        color: {c['surface']};
         border-color: {c['accent']};
         font-weight: 600;
     }}

@@ -26,6 +26,14 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
         ("raptor run pump.rbd -n 100 -f json | jq .summary.Availability",
          "Simulate 100 runs and read one number."),
     ],
+    "library": [
+        ("raptor library add parts.rbdlib plant.rbds --assembly \"Gen bank\" "
+         "--name \"Generator bank\"",
+         "Save a hierarchy, with everything inside it, as an assembly."),
+        ("raptor library insert plant.rbds --library parts.rbdlib "
+         "--part \"Generator bank\" --at 40,10 --in-place",
+         "Insert a fresh copy of it into a model and save the model."),
+    ],
     "analytic": [
         ("raptor analytic plant.rbds --at 8760",
          "Exact reliability at one year, with MTTF, B10 life and "
@@ -57,6 +65,27 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
     "schema": [
         ("raptor schema -o rbds.schema.json",
          "Save the .rbds JSON Schema for an editor or another validator."),
+    ],
+    "advise": [
+        ("raptor advise plant.rbds", "List what looks wrong or unwise, most "
+         "important first."),
+        ("raptor advise plant.rbds --why --min-severity advice",
+         "Leave out the notes and print the reasoning under each finding."),
+        ("raptor advise plant.rbds --only M-SPR,M-RES -f json",
+         "Only the spares and resource checks, machine-readable."),
+        ("raptor advise plant.rbds --target 'system.ao>=0.995'",
+         "Run the model and say whether the target is met, missed or too close to call."),
+        ("raptor advise --list-rules", "Every rule, its level and its method."),
+    ],
+    "explain": [
+        ("raptor explain plant.rbds", "Run the model and list what causes its "
+         "downtime, by element and by cause."),
+        ("raptor explain plant.rbds -n 500 -j 4 --top 5",
+         "500 runs on four cores; the five largest contributors."),
+        ("raptor explain plant.rbds --yearly --below 0.97",
+         "Also availability year by year with percentiles, and how often a "
+         "year falls below 97 %."),
+        ("raptor explain plant.rbds -f json", "The full attribution, machine-readable."),
     ],
     "validate": [
         ("raptor validate *.rbd", "Check several models."),
@@ -245,7 +274,7 @@ def generate() -> dict[str, str]:
             text += _fev_script_section()
         if n == "diff":
             text += _diff_exit_section()
-        if n in ("run", "sweep", "validate", "mcp"):
+        if n in ("run", "sweep", "validate", "advise", "mcp"):
             text += _exit_and_env()
         pages[f"raptor-{n}.1"] = text
     pages["raptor-set-paths.7"] = _set_paths_page()

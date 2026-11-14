@@ -189,3 +189,34 @@ def test_gui_files_and_reports_wiring(qtbot=None):
         w._close_report_streams()
         w.close() if False else None
     QSettings().clear()
+
+
+def test_capacity_analysis_keeps_the_capacity_sink_without_the_plot():
+    """The lost-capacity split (Drivers, Charts, yearly capacity) reads the
+    capacity sink, so a capacity-analysis run must collect it even with the
+    Capacity plot unticked.  Without this the GUI showed no lost capacity."""
+    from raptor.gui.ui.report_streams_mixin import ReportStreamsMixin
+
+    class Host(ReportStreamsMixin):
+        _report_stream_actions: dict = {}
+
+        def __init__(self, capacity: bool):
+            self._capacity = capacity
+
+        def _analysis_flags(self):
+            return {"capacityAnalysis": self._capacity, "costAnalysis": False}
+
+    on = Host(True)
+    choices = on._report_choices()
+    assert choices["capacity_for_drivers"] is True
+    streams = on._open_report_streams(choices)
+    try:
+        assert "capacity" in streams and "cost" not in streams
+    finally:
+        on._close_report_streams()
+    off = Host(False)
+    streams = off._open_report_streams(off._report_choices())
+    try:
+        assert "capacity" not in streams
+    finally:
+        off._close_report_streams()

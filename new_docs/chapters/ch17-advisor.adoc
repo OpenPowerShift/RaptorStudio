@@ -1,0 +1,97 @@
+[[ch-advisor]]
+== Is My Model Right? The Advisor
+
+*Time: about 25 minutes.*
+*New ideas: findings, rule ids, exact vs statistical advice, fixes, and the
+checks that run before a batch.*
+
+=== You will learn
+
+* How to read a finding: severity, rule id, basis and fix.
+* The three mistakes new models make most: defeated redundancy, default
+  data, and a spare pool that runs out.
+* How to make the Advisor part of a run, a review and CI.
+
+=== You need
+
+* <<ch-first-model>> and <<ch-redundancy>> finished.
+* A model with one redundant pair and one spare pool.
+
+=== Start with a deliberately flawed model
+
+Open `models/VanFlat.rbds`, then introduce the three classic flaws:
+
+. Make both tires depend on the same node and set that node to *any one
+  path* (`k = 1`). The second tire now does nothing.
+. Leave a block's failure and repair distributions at the editor's
+  defaults.
+. Set a spare pool's stock to `0` with no restock and no emergency order.
+
+Run **Analyse ▸ Advisor** (or `raptor advise models/VanFlat.rbds`). Read
+each finding like a sentence:
+
+[cols="2,5",options="header"]
+|===
+| Part | Meaning
+
+| `M-STR-002` | A redundancy rule is broken: the model says two paths, the
+  structure allows one.
+| `M-DAT-001` | A block still carries placeholder data.
+| `M-SPR-101` | Waiting for a spare is a large share of downtime.
+|===
+
+`exact` means the check follows from the file itself; `statistical` means
+it comes from a run and has an interval. A fix is a suggestion, not an
+automatic change: review it, then apply it as one undoable edit.
+
+=== Fix the redundancy first
+
+The defeated pair is an *error*, because the result is not what the canvas
+suggests. Apply the fix (the node's `k` becomes the number of parallel
+paths), or edit the node directly. Run the Advisor again: the error is
+gone, and the availability moves. An error that disappears is not proof the
+model is good; it is proof the model is now runnable.
+
+=== Then the data
+
+The default-data finding is a warning, not a style note: a placeholder
+repair time can make the answer look precise when it is not. Replace the
+failure and repair law with a source you can name, and record where it came
+from. The Advisor does not know your plant; it only knows which fields are
+still untouched.
+
+=== Then the spares
+
+Run the model with `attribution=True` (the Run panel's Analysis box, or
+`raptor run ... --analysis weak` plus attribution) and ask for the
+after-run findings:
+
+[source,bash]
+----
+raptor advise models/VanFlat.rbds --simulate --target 'system.ao>=0.995'
+raptor advise models/VanFlat.rbds --simulate --why
+----
+
+`R-SPR-101` says how much of the downtime is waiting for that pool, and how
+often the shelf was empty. Its fix is a what-if: one more spare, simulated
+against the current model with the same seed. Read the paired interval
+before accepting it; a one-unit change on a noisy run can look larger than
+it is.
+
+=== What the Advisor will not do
+
+* It will not invent failure data. A guessed distribution is worse than a
+  stated placeholder, because the placeholder is visible.
+* It will not prove a model correct. It checks the rules it knows.
+* It will not apply a fix silently. Every change is one undo step, and the
+  finding says which rule it came from.
+
+=== Into CI and an assistant
+
+`--strict` exits with status 3 on warnings, so a pipeline can fail a model
+that is merely misleading, not just one that cannot run. `--format json`
+gives stable rule ids and structured fixes. The MCP `advise` tool returns
+the same findings, and `apply_fix` applies one by id.
+
+The full catalogue, with every rule and its basis, is in
+link:../advisor.html[The Advisor: is my model right?].

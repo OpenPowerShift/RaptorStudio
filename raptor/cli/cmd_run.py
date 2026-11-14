@@ -169,8 +169,14 @@ def run_model(ws: Any, model_id: str, args: Any, *,
         confirm_long_run=True, seed=getattr(args, "seed", None),
         progress=progress,
         setup_progress=_setup_callback(getattr(args, "progress", "auto")))
+    precision = getattr(args, "precision", None)
+    if precision and getattr(args, "hierarchy", None):
+        raise CliError("--precision does not combine with --hierarchy yet",
+                       X.USAGE)
     try:
-        if getattr(args, "hierarchy", None):
+        if precision:
+            result = _run_precision(ws, model_id, args, precision, kwargs)
+        elif getattr(args, "hierarchy", None):
             from raptor.api import isolate
             try:
                 result = api_run.run_isolated(
@@ -187,6 +193,55 @@ def run_model(ws: Any, model_id: str, args: Any, *,
     except NotImplementedError as exc:
         raise CliError(f"the model cannot be run: {exc}", X.REFUSED) from exc
     return result, applied, warns
+
+
+def _run_precision(ws: Any, model_id: str, args: Any, text: str,
+                   kwargs: dict) -> Any:
+    """Run in growing batches until the requested relative precision."""
+    from raptor.api.scenarios import Precision, run_to_precision
+    try:
+        relative = (float(text.rstrip("%")) / 100 if text.endswith("%")
+                    else float(text))
+    except ValueError:
+        raise CliError(f"--precision {text!r} is not a number or percent",
+                       X.USAGE) from None
+    try:
+        precision = Precision(
+            metric=getattr(args, "precision_metric", "system.ao"),
+            relative=relative,
+            min_trials=getattr(args, "min_trials", 50),
+            max_trials=getattr(args, "max_trials", 20_000),
+            batch=getattr(args, "precision_batch", 50))
+        precision.field()
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    inner = kwargs.pop("progress", None)
+
+    def progress(done: int, total: int, note: str) -> None:
+        if inner is not None:
+            inner(done, total)
+
+    try:
+        outcome = run_to_precision(
+            ws, model_id, precision,
+            workers=kwargs.get("workers", 1), seed=kwargs.get("seed"),
+            progress=progress, timeout_s=kwargs.get("timeout_s", 1800.0),
+            confirm_long_run=True,
+            collect_events=kwargs.get("collect_events", False),
+            availability_plot=kwargs.get("availability_plot"),
+            interim_cost=kwargs.get("interim_cost"),
+            setup_progress=kwargs.get("setup_progress"))
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    result = outcome.result
+    result.precision = outcome.to_dict()
+    half = outcome.half_width
+    eprint(f"precision: {outcome.trials} trials, "
+           f"{'unavailability' if precision.on == 'unavailability' else 'value'} "
+           f"{outcome.mean:.6g}"
+           + (f" ± {half:.3g}" if half is not None else "")
+           + f" (target {precision.relative:.3g}; {outcome.stopped})")
+    return result
 
 
 def _progress_callback(mode: str):

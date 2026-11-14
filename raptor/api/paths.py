@@ -42,6 +42,14 @@ _ELEMENT_KINDS = {
     "hier": "Hier", "hierarchy": "Hier", "link": "Link",
 }
 
+#: Pools and crews have their own sections; a path names a row and a column.
+_AUX_KINDS: dict[str, tuple[str, dict[str, str]]] = {
+    "pool": ("SPARE_POOL_DATA", {"stock": "Stock",
+                                  "new_spares": "NewSp",
+                                  "arrive_every": "ArriveEvery"}),
+    "resource": ("RESOURCE_DATA", {"units": "NumIn", "num_in": "NumIn"}),
+}
+
 #: `system.<name>` -> `configure_system` keyword.
 SYSTEM_FIELDS = {
     "runs": "num_runs", "num_runs": "num_runs",
@@ -64,7 +72,20 @@ class ParsedPath:
     field: str           # field name ("" for rate)
 
 
-def parse_path(text: str) -> ParsedPath:
+def _parse_aux(kind: str, rest: str, text: str) -> ParsedPath:
+    """`pool:NAME.stock` / `resource:NAME.units`."""
+    fields = _AUX_KINDS[kind][1]
+    if "." not in rest:
+        raise PathError(
+            f"path {text!r} needs a field after the name, e.g. "
+            f"{kind}:{rest}.{next(iter(fields))}")
+    selector, field = rest.rsplit(".", 1)
+    if not selector or not field:
+        raise PathError(f"path {text!r} has an empty selector or field")
+    return ParsedPath(kind, selector, field)
+
+
+def parse_path(text: str) -> ParsedPath:  # noqa: C901
     """Split ``kind:selector.field`` / ``system.field`` / ``rate:NAME``."""
     text = text.strip()
     if not text:
@@ -84,6 +105,8 @@ def parse_path(text: str) -> ParsedPath:
         if not rest:
             raise PathError("rate: needs a name")
         return ParsedPath("rate", rest, "")
+    if kind in _AUX_KINDS:
+        return _parse_aux(kind, rest, text)
     if kind not in _ELEMENT_KINDS:
         raise PathError(
             f"unknown kind {kind!r} in {text!r}; use one of "
@@ -172,6 +195,9 @@ def apply_assignment(workspace: Workspace, model_id: str, text: str) -> dict:
                                 str(value_text))
         return {"path": path_text, "value": value_text, "applied": ["rate"]}
 
+    if p.kind in _AUX_KINDS:
+        return _apply_aux(workspace, model_id, p, value, path_text)
+
     selector = (f"{_ELEMENT_KINDS[p.kind]}:{p.selector}"
                 if p.selector.isdigit() else p.selector)
     if p.field in _DIST_FIELDS and isinstance(value, str):
@@ -180,6 +206,34 @@ def apply_assignment(workspace: Workspace, model_id: str, text: str) -> dict:
         value = _merge_params(workspace, model_id, selector, p.field, value)
     build.update_element(workspace, model_id, selector, {p.field: value})
     return {"path": path_text, "value": value, "applied": [p.field]}
+
+
+def _apply_aux(workspace: Workspace, model_id: str, p: ParsedPath,
+               value: Any, path_text: str) -> dict:
+    """Change a spare pool's stock or a crew pool's units."""
+    section, columns = _AUX_KINDS[p.kind]
+    column = columns.get(p.field)
+    if column is None:
+        raise PathError(
+            f"unknown {p.kind} field {p.field!r}; use one of "
+            f"{', '.join(sorted(columns))}")
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise PathError(f"{path_text}: {value!r} is not a whole number") from None
+    low = 1 if p.kind == "resource" else 0
+    if number < low:
+        raise PathError(f"{path_text}: must be at least {low}")
+    rbd = workspace.get(model_id).rbd
+    if section not in rbd.sections:
+        raise PathError(f"this model has no {section.lower()} rows")
+    rows = rbd.section(section).rows
+    for row in rows:
+        if str(row.get("PoolName", "")).strip() == p.selector.strip():
+            row[column] = str(number)
+            workspace.save(model_id)
+            return {"path": path_text, "value": number, "applied": [p.field]}
+    raise PathError(f"{p.kind} {p.selector!r} not found")
 
 
 def _merge_params(workspace: Workspace, model_id: str, selector: str,
@@ -210,7 +264,8 @@ def apply_assignments(workspace: Workspace, model_id: str,
     return [apply_assignment(workspace, model_id, t) for t in texts]
 
 
-def get_value(workspace: Workspace, model_id: str, path_text: str) -> Any:
+def get_value(workspace: Workspace, model_id: str,  # noqa: C901, PLR0912
+              path_text: str) -> Any:
     """Read one path's current value."""
     from raptor.api import rates
     from raptor.api.build import combined_map, resolve_element
@@ -240,6 +295,20 @@ def get_value(workspace: Workspace, model_id: str, path_text: str) -> Any:
         if idx is None:
             raise PathError(f"no rate named {p.selector!r}")
         return rbd.rates[idx]
+    if p.kind in _AUX_KINDS:
+        section, columns = _AUX_KINDS[p.kind]
+        column = columns.get(p.field)
+        if column is None:
+            raise PathError(f"unknown {p.kind} field {p.field!r}")
+        if section not in rbd.sections:
+            raise PathError(f"this model has no {section.lower()} rows")
+        for row in rbd.section(section).rows:
+            if str(row.get("PoolName", "")).strip() == p.selector.strip():
+                try:
+                    return int(float(row.get(column) or 0))
+                except (TypeError, ValueError):
+                    return row.get(column)
+        raise PathError(f"{p.kind} {p.selector!r} not found")
     selector = (f"{_ELEMENT_KINDS[p.kind]}:{p.selector}"
                 if p.selector.isdigit() else p.selector)
     section, row = resolve_element(rbd, selector)

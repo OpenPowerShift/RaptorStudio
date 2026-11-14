@@ -1,0 +1,44 @@
+.TH "RAPTOR-WHATIF" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-whatif \- Run the model and each scenario with the same seed and compare them by paired trials: the same change costs far less noise than two independent batches. A scenario is the model plus a short list of PATH=VALUE changes; the model file is never modified.
+.SH SYNOPSIS
+\fBraptor whatif\fR [\-h] [\-\-change PATH=VALUE] [\-\-name N] [\-\-note TEXT] [\-\-change\-file FILE] [\-n N] [\-\-precision P] [\-\-requirement EXPR] [\-\-seed N] [\-j N] [\-\-save FILE] [\-f {text,json}] MODEL
+.SH DESCRIPTION
+Run the model and each scenario with the same seed and compare them by paired trials: the same change costs far less noise than two independent batches. A scenario is the model plus a short list of PATH=VALUE changes; the model file is never modified.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-change\fR \fIPATH=VALUE\fR
+one change for the scenario, repeatable
+.TP
+\fB\-\-name\fR \fIN\fR
+
+.TP
+\fB\-\-note\fR \fITEXT\fR
+
+.TP
+\fB\-\-change\-file\fR \fIFILE\fR
+JSON list of {name, changes, note} scenarios
+.TP
+\fB\-n\fR, \fB\-\-trials\fR \fIN\fR
+runs per scenario (default: the model's own)
+.TP
+\fB\-\-precision\fR \fIP\fR
+size the batch first with run\-to\-precision, e.g. 10%%
+.TP
+\fB\-\-requirement\fR \fIEXPR\fR
+e.g. system.ao>=0.995 (repeatable)
+.TP
+\fB\-\-seed\fR \fIN\fR
+
+.TP
+\fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
+
+.TP
+\fB\-\-save\fR \fIFILE\fR
+write the scenario definition(s) as JSON
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+
+.SH SEE ALSO
+\fBraptor\fR(1)

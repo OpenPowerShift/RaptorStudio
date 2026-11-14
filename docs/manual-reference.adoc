@@ -15,6 +15,10 @@ current value).
 |Paste |Paste previously copied elements with fresh ids |
 |Cut |Copy and delete the selected elements |
 |Copy |Copy the selected elements |
+|Duplicate |Duplicate the selected elements in place (Ctrl+D) |Ctrl+D
+|Duplicate in Parallel |Copy the selected block in parallel between its neighbours (Ctrl+Alt+D) |Ctrl+Alt+D
+|Array… |Duplicate the selection in a row or column |
+|Paste Data Only |Copy the clipboard block's data onto the selected blocks (Ctrl+Shift+V) |Ctrl+Shift+V
 |Select All |Select all blocks/nodes/events/hierarchies (Ctrl+A) |Ctrl+A
 |===
 
@@ -33,6 +37,7 @@ current value).
 |===
 |Control |What it does |Shortcut / value
 |Add Block |Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+2) |Ctrl+2
+|Quick Add |Add an element at the cursor (Space or / on the canvas) |
 |Add Node |Click the canvas to place a new Regular node, or click a link to insert it in series (Ctrl+3) |Ctrl+3
 |Add Event |Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+4) |Ctrl+4
 |Add Hierarchy |Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+5) |Ctrl+5
@@ -241,11 +246,7 @@ current value).
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
-|Weak Links |Colour every block, node, event and hierarchy by its post-simulation availability, dependability or reliability, against the model's G/Y and Y/R thresholds; the value is printed under each element (digits in Preferences ▸ Advanced). Enable Weak Link in the Run panel's Analysis section. |
-|Capacity |Colour each capacity node by its average utilization (Green < 70% · Yellow < 90% · Red ≥ 90%). Needs Capacity analysis and at least one node without unrestricted flow. |
-|Cost |Colour each block by its total life-cycle cost, relative to the most expensive block (Green < 1/3 · Yellow < 2/3 · Red ≥ 2/3); Spread bands it by quartile instead. Needs Cost Analysis. |
-|Spares |Colour each block Red if it ever ran out of spares or reached end of life during the run (% of run time and sparing cost on hover), Green otherwise. Needs Weak Link analysis. |
-|Importance |Colour each block by its importance, using the measure the Importance tab ranks by (Vesely–Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), Yellow ≥ ⅓, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Greyed out until the run has importance measures: switch on Run ▸ Analysis ▸ Importance measures and run again. |
+|Choice | |choice, now No canvas overlay
 |===
 
 ==== Bands
@@ -285,6 +286,7 @@ current value).
 |Results |Results |
 |Run Panel |Show the Run panel — trials, termination, analyses and recording for the next run |
 |Live Log |Show the Live Log — the stepped simulation's event list, tabbed beside the Inspector |
+|Advisor |Show the Advisor — what looks wrong or unwise in the model, why, and what to do about it |
 |Data Tables |Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D) |Ctrl+Shift+D
 |Reset Layout |Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too |
 |===
@@ -295,6 +297,7 @@ current value).
 |===
 |Control |What it does |Shortcut / value
 |Dark Theme |Toggle light/dark theme |
+|Focus |Dim everything except the selection (topology stays) |
 |Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options (Ctrl+,) |Ctrl+,
 |Link style |How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved. |choice, now Straight
 |Block labels |What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing |choice, now Mean

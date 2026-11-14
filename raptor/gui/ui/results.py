@@ -37,6 +37,7 @@ from typing import Any, cast
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QStandardItemModel
 from PySide6.QtWidgets import (
+    QApplication,
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QLabel,
     QPlainTextEdit, QComboBox, QLineEdit, QTreeView, QTreeWidget,
     QTreeWidgetItem,
@@ -87,6 +88,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     #: The log stores names, not IDs; MainWindow resolves the name against
     #: the loaded model to make the canvas selection.
     element_clicked = Signal(str, str)
+    _overview_page: QWidget
+    _cap_lines: Any         # a list of sink lines or a ResultStream
     #: A result set arrived or the dock was cleared (`has_results()` may
     #: have changed). The window uses it to tell the Inspector whether an
     #: edit will cost the user their results.
@@ -132,7 +135,20 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._build_graphs_tab()
         self._build_raw_tab()
         self._tabs.addTab(self._overview_page, "Overview")
+        from raptor.gui.ui.drivers_page import DriversPage
+        self._drivers_page = DriversPage()
+        self._drivers_page.element_clicked.connect(
+            lambda kind, _id, name: self.element_clicked.emit(kind, name))
+        self._drivers_stale = False
+        self._period_summary: dict | None = None
+        self._tabs.addTab(self._drivers_page, "Drivers")
+        self._tabs.currentChanged.connect(self._on_tab_shown_for_drivers)
         self._tabs.addTab(self._details_holder, "Final Results")
+        from raptor.gui.ui.charts_page import ChartsPage
+        self._charts_page = ChartsPage()
+        self._charts_page.locate_requested.connect(
+            lambda _kind, name: self.element_clicked.emit("block", name))
+        self._tabs.addTab(self._charts_page, "Charts")
         self._tabs.addTab(self._event_page, "Event Log")
         self._tabs.addTab(self._graphs_page, "Graphs")
         self._tabs.addTab(self._raw_page, "Report Text")
@@ -162,11 +178,22 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             "padding: 4px 8px; margin: 4px; }")
         self._scope_banner.setVisible(False)
 
+        # The measure explainer sits to the right of the tabs (WP-2.4): it
+        # is non-modal, opens from a metric card or a table row label, and
+        # stays out of the way until asked.
+        from raptor.gui.ui.measure_explainer import MeasureExplainer
+        self._explainer = MeasureExplainer()
+        self._explainer.hide()
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._scope_banner)
         layout.addWidget(self._placeholder)
-        layout.addWidget(self._tabs, 1)
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.addWidget(self._tabs, 1)
+        body.addWidget(self._explainer)
+        layout.addLayout(body, 1)
         self._tabs.hide()
 
         ThemeManager.instance().on_changed(self._refresh_theme)
@@ -242,6 +269,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # designed height when there is room; the page scrolls when
             # there is not.
             card.setMinimumWidth(172)
+            card.clicked.connect(self._explain_measure)
             self._cards[acronym] = card
             cards.addWidget(card, i // 3, i % 3)
         lay.addLayout(cards)
@@ -343,6 +371,19 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
         self._mission_gyr_container.setVisible(False)
         lay.addWidget(self._mission_gyr_container)
+
+        # What the key numbers above do not say: whether a stated target
+        # was met run by run, what drives the downtime (one line, the
+        # Drivers tab has the detail) and the Advisor's findings.  The
+        # Qt-free builder is the one the CLI and MCP use.
+        from raptor.gui.ui.story_page import StoryPage
+        self._story_page = StoryPage()
+        self._story_page.element_clicked.connect(
+            lambda kind, oid, name: self.element_clicked.emit(kind, name))
+        self._story_page.measure_clicked.connect(self._explain_measure)
+        self._story_page.drivers_requested.connect(
+            lambda: self._tabs.setCurrentWidget(self._drivers_page))
+        lay.addWidget(self._story_page)
 
         self._runs_table = QTreeWidget()
         self._runs_table.setHeaderLabels(["Run", "Availability", "MTBDE", "MDT",
@@ -835,6 +876,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             v.addWidget(table)
             if title == "SUMMARY":
                 self._add_summary_notes(v)
+            table.cellDoubleClicked.connect(
+                lambda _row, column, t=table: self._explain_table_cell(t, column))
             self._detail_tables[title] = table
         for group, page in order:
             pages[group].addStretch(1)
@@ -1133,7 +1176,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             cost_lines=list(self._stream_lines(
                 getattr(self, "_cost_lines", None))),
             event_logs=[list(x) if isinstance(x, (list, tuple)) else [str(x)]
-                        for x in self._event_logs])
+                        for x in self._event_logs],
+            attribution=(self._drivers_page.attribution()
+                         if hasattr(self, "_drivers_page") else None),
+            periods=self._period_summary)
 
     def run_info(self, rbd, *, model: str = "", file: str = ""):
         """The run information a saved result carries (Run Info sheet,
@@ -1146,10 +1192,104 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                         run_at=getattr(self, "_run_at", None),
                         manifest=getattr(self, "_manifest", None))
 
+    # ---- Drivers (downtime attribution) -----------------------------------
+    #: Above this many event-log lines the attribution waits until the tab
+    #: is opened, so a large run's results appear without the extra pass.
+    DRIVERS_EAGER_LINES = 200_000
+
+    def _on_tab_shown_for_drivers(self, index: int) -> None:
+        if self._drivers_stale and self._tabs.widget(index) is self._drivers_page:
+            self._refresh_drivers()
+
+    def _refresh_drivers(self) -> None:
+        """Work out what caused the downtime from this result set's event logs."""
+        self._drivers_stale = False
+        # never export a previous result set's periods with this one
+        self._period_summary = None
+        logs = [log for log in (self._event_logs or []) if log]
+        if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
+            self._drivers_page.set_attribution(None)
+            self._drivers_page.set_periods(None)
+            return
+        from raptor.api.insight.attribution import attribute_logs
+        experiment = (self._manifest or {}).get("experiment") or {}
+        big = sum(len(log) for log in logs) > self.DRIVERS_EAGER_LINES
+
+        def show(p) -> None:
+            # a long replay says where it has got to and keeps the window alive
+            if big and (p.done % 10 == 0 or p.done == p.total):
+                self._drivers_page.caption.setText(p.text() + " runs…")
+                QApplication.processEvents()
+
+        cap_runs = None
+        if getattr(self, "_rbd", None) is not None and self._cap_lines:
+            try:
+                from raptor.api.insight.capacity_attribution import capacity_runs
+                cap_runs = capacity_runs(self._rbd, self._cap_lines)
+            except Exception:  # noqa: BLE001 - capacity is an extra, not the page
+                import logging
+                logging.getLogger(__name__).exception("lost-capacity split failed")
+        if big:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            start = float(experiment.get("start_stats") or 0.0)
+            from raptor.api.insight.attribution import model_phases
+            attribution = attribute_logs(logs, start, progress=show,
+                                         with_outages=True, capacity=cap_runs,
+                                         phases=model_phases(getattr(self, "_rbd", None)))
+        except Exception:  # noqa: BLE001 - a view must never break showing results
+            import logging
+            logging.getLogger(__name__).exception("downtime attribution failed")
+            self._drivers_page.set_attribution(None)
+            return
+        finally:
+            if big:
+                QApplication.restoreOverrideCursor()
+        attribution["units"] = self._units
+        outages = attribution.pop("outages", None)
+        self._drivers_page.set_attribution(attribution)
+        self._period_summary = self._yearly(outages)
+        self._drivers_page.set_periods(self._period_summary)
+        self._refresh_story()
+        self._refresh_charts()
+
+    def _yearly(self, outages: dict | None) -> dict | None:
+        """Year-by-year availability (and, with capacity analysis,
+        capacity-weighted availability) when the model's unit is hours;
+        None otherwise.  Built by the same function the API uses."""
+        if not outages or not self._units.lower().startswith("hour"):
+            return None
+        from raptor.api.insight.periods import HOURS_PER_YEAR, PeriodSpec, period_summary
+        from raptor.api.series import parse_capacity_runs
+        attribution = (self._drivers_page.attribution()
+                       if hasattr(self, "_drivers_page") else None) or {}
+        generated = float((attribution.get("capacity") or {}).get("generated") or 0.0)
+        sinks = None
+        if generated > 0:
+            lines = list(self._stream_lines(getattr(self, "_cap_lines", None)))
+            sinks = parse_capacity_runs("\n".join(lines)) if lines else None
+        return period_summary(outages, PeriodSpec(HOURS_PER_YEAR),
+                              capacity_runs=sinks, generated=generated,
+                              rows=True, units=self._units)
+
+    def _schedule_drivers(self) -> None:
+        lines = sum(len(log) for log in (self._event_logs or []))
+        showing = self._tabs.currentWidget() is self._drivers_page
+        if showing or lines <= self.DRIVERS_EAGER_LINES:
+            self._refresh_drivers()
+        else:
+            self._drivers_stale = True
+
     def clear(self):
         """Reset every result surface to the pre-run placeholder state."""
         self._manifest = None
+        self._rbd = None
+        self._period_summary = None
+        if hasattr(self, "_story_page"):
+            self._story_page.set_story(None)
         self._event_logs = []
+        self._drivers_stale = False
+        self._drivers_page.set_attribution(None)
         self._report_data = []
         self._importance = None
         self._importance_metric = "Availability"
@@ -1208,6 +1348,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     cost_lines: list[str] | None = None,
                     manifest: dict | None = None,
                     importance: dict | None = None,
+                    rbd=None,
                     progress=None):
         # The run manifest travels WITH the results, so a result set can
         # say what it is without trusting a model file that may since
@@ -1216,6 +1357,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
+        #: The model as it was run, for features that need its structure
+        #: (the lost-capacity split asks the Failure Effects machinery).
+        self._rbd = rbd
         self._refresh_scope_banner()
         from datetime import datetime
         self._run_at = datetime.now()
@@ -1264,6 +1408,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # The model's own time unit (SYSTEM_DATA "Units" column) -- appended
         # to every TIME quantity shown; percentages and counts never get it.
         self._units = (units or "").strip()
+        self._schedule_drivers()
 
         def stage(label: str, done: int, total: int) -> None:
             if progress is not None:
@@ -1475,10 +1620,115 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             tip.append(f"seeds: {m['seed_strategy']}")
         lbl.setToolTip("\n".join(tip))
 
+    def _refresh_charts(self) -> None:
+        """Rebuild the Charts tab from the held results (WP-2.5)."""
+        page = getattr(self, "_charts_page", None)
+        if page is None:
+            return
+        try:
+            from raptor.api.run import _rd_to_dict
+            per_run = [_rd_to_dict(rd) for rd in self._report_data]
+            attribution = (self._drivers_page.attribution()
+                           if hasattr(self, "_drivers_page") else None)
+            manifest = self._manifest or {}
+            periods = (self._drivers_page.periods()
+                       if hasattr(self, "_drivers_page") else None)
+            page.set_inputs(
+                per_run=per_run, attribution=attribution,
+                importance=getattr(self, "_importance", None),
+                report_data=list(self._report_data), periods=periods,
+                units=self._units,
+                run_id=str(manifest.get("run_id") or ""))
+        except Exception:  # noqa: BLE001 - a view must never break results
+            import logging
+            logging.getLogger(__name__).exception("could not build the charts")
+
+    def highlight_element(self, kind: str, element_id: int) -> None:
+        """Mirror a canvas selection in the Drivers view."""
+        page = getattr(self, "_drivers_page", None)
+        if page is not None:
+            page.highlight(kind, element_id)
+
+    def _explain_table_cell(self, table: QTableWidget, column: int) -> None:
+        """Double-clicking a Final Results row label opens its definition."""
+        if column != 0:
+            return
+        item = table.item(table.currentRow(), 0)
+        if item is not None:
+            self._explain_measure(item.text())
+
+    def _explain_measure(self, label: str) -> None:
+        """Open the non-modal explainer for a card or label (WP-2.4)."""
+        explainer = getattr(self, "_explainer", None)
+        if explainer is None:
+            return
+        ladder = None
+        try:
+            from raptor.api.insight import measures as measure_registry
+            measure = measure_registry.for_label(label)
+        except Exception:  # noqa: BLE001 - an unknown label is not an error
+            measure = None
+        if measure is None:
+            return
+        if measure.id in ("availability", "inherent_availability",
+                          "achieved_availability", "operational_availability",
+                          "mdt", "mmt", "mttr") and self._report_data:
+            try:
+                from raptor.api.insight import measures as measure_registry
+                from raptor.api.run import _rd_to_dict
+                ladder = measure_registry.availability_ladder(
+                    [_rd_to_dict(rd) for rd in self._report_data])
+            except Exception:  # noqa: BLE001 - the definition still shows
+                ladder = None
+        explainer.show_measure(measure.id, ladder=ladder)
+
+    def _refresh_story(self) -> None:
+        """Rebuild the Story from the held results (WP-2.3)."""
+        page = getattr(self, "_story_page", None)
+        if page is None:
+            return
+        data = self._report_data
+        if not data:
+            page.set_story(None)
+            return
+        try:
+            from raptor.api.insight.story import build as build_story
+            from raptor.api.run import _rd_to_dict
+            per_run = [_rd_to_dict(rd) for rd in data]
+            attribution = (self._drivers_page.attribution()
+                           if hasattr(self, "_drivers_page") else None)
+            findings = []
+            if getattr(self, "_rbd", None) is not None:
+                try:
+                    from raptor.api.advisor import advise_run
+                    findings = advise_run(self._rbd, {}, per_run,
+                                          attribution=attribution)
+                except Exception:  # noqa: BLE001 - the Story must still show
+                    findings = []
+            manifest = getattr(self, "_manifest", None) or {}
+            story = build_story(
+                per_run, units=self._units, attribution=attribution,
+                findings=findings,
+                has_phases=any(bool(getattr(rd, "has_phases", False))
+                               for rd in data),
+                cost_on=any(getattr(rd, "cost", None) is not None
+                            for rd in data),
+                model_name=str(manifest.get("model_name") or ""),
+                model_hash=str(manifest.get("model_hash") or ""),
+                run_id=str(manifest.get("run_id")
+                           or manifest.get("digest") or ""))
+            page.set_story(story)
+        except Exception:  # noqa: BLE001 - a view must never break results
+            import logging
+            logging.getLogger(__name__).exception("could not build the Story")
+            page.set_story(None)
+
     def _populate_overview(self):
         self._runs_table.clear()
         self._refresh_manifest_line()
         data = self._report_data
+        self._refresh_story()
+        self._refresh_charts()
         if not data:
             self._summary_sentence.setText(
                 "Run the simulation to see the summary.")

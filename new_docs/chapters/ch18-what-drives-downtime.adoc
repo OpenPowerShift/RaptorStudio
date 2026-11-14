@@ -1,0 +1,308 @@
+[[ch-what-if]]
+== What Drives Downtime, and What Would Help
+
+*Time: about 45 minutes.*
+*New ideas: the Story, downtime attribution, the three criticality indices,
+what-if comparison with common random numbers, precision, sensitivity and
+the cheapest spare holding.*
+
+=== You will learn
+
+* How to read the answer before the tables: the Story's headline, dots,
+  drivers and findings.
+* The difference between *what happened* (attribution) and *what a change
+  would achieve* (importance and what-if).
+* How to stop a batch when the interval is tight enough instead of guessing
+  a run count.
+* How to see which inputs move the answer, and how many spares to hold.
+
+=== You need
+
+* <<ch-first-model>> through <<ch-sparing>> finished.
+* A model with at least one redundant group, so an outage has more than one
+  possible cause.
+
+=== Start with the answer
+
+Open the model, run it, and read the **Overview** tab. Below the key-number
+cards is the Story, which adds only what the cards do not say:
+
+* when a requirement is set, a **headline** against it and a **dot plot** of
+  the per-run values: each dot is one run in a hundred, filled when it met the
+  target and hollow when it missed;
+* one line naming the top **drivers**, ranked by lost capacity when capacity
+  analysis is on and by downtime otherwise, with a link to the **Drivers** tab;
+* the **findings** from the Advisor.
+
+The same object is available without the application:
+
+[source,bash]
+----
+raptor explain VanFlat.rbds --story
+raptor explain VanFlat.rbds --story -f json
+----
+
+The Story never invents a verdict: without a target it says so, and without
+attribution it offers the one action that turns the drivers strip on.
+
+=== What caused the downtime
+
+Attribution replays the event log; it does not change a result. For every
+system outage it records the element whose state change started it and what
+the time was spent on: hands-on repair, waiting for a spare, waiting for
+people or equipment, logistics, planned maintenance, or being held by
+another element.
+
+Three indices answer three different questions:
+
+[cols="2,4,4",options="header"]
+|===
+|Index |Question |Caveat
+
+|DTCI
+|What share of the system's *downtime* did this element start?
+|Describes this design; says nothing about what a change would achieve.
+
+|DECI
+|What share of downing *events* did it start?
+|Counts events, so a very short outage weighs the same as a long one.
+
+|FCI
+|What share of *failure-started* outages did it start?
+|Planned maintenance is excluded, as it should be.
+|===
+
+Open the **Drivers** tab for the full table with error bars and the cause
+split. The command line prints the same numbers:
+
+[source,bash]
+----
+raptor explain VanFlat.rbds --top 8
+----
+
+For a phased model the same replay also splits the downtime by mission
+phase: how long the system spent in each phase, how long it was down there,
+the phase's availability (down time over time in the phase, pooled over the
+runs) and the element that started most of that downtime. An outage that
+runs from one phase into the next is split at the phase change, and each
+part is charged to the element that started the outage. `raptor explain`
+prints a **Downtime by phase** table, the Charts tab has a **Downtime by
+phase** chart (`phase-downtime` from the command line and MCP) and the
+exported tables include `results.phase_downtime`.
+
+A driver whose DTCI is small is not necessarily harmless: it may be holding
+capacity without taking the system down. That is what the lost-capacity
+columns measure.
+
+=== See it, not just read it
+
+The **Charts** tab paints the same figures the report uses. Each chart has a
+one-sentence caption you can quote, values on hover, click-to-locate, and
+PNG/SVG/CSV export. The set includes:
+
+* the run-to-run dot plot and **Chance of reaching a value**: the share of
+  runs on the horizontal axis and the value they reached on the vertical, so
+  "9 runs in 10 reached at least 99.2 %" reads straight off the curve. Move
+  the pointer over it for a cross-hair that says exactly that;
+* the downtime Pareto with cause stacks. Each cause has its own colour and
+  pattern so the stack still reads in greyscale; the key above the chart
+  names them, and the whisker on each bar is ± 2 standard errors;
+* the availability ladder: inherent (repair only), achieved (plus planned
+  maintenance), operational (plus logistics, spares and crews);
+* the outage-duration histogram on a log scale;
+* frequency against duration, one bubble per element;
+* the downtime treemap, the outage anatomy (what an outage *looks* like,
+  step by step) and the run-to-run ribbon (every trial as one row, green up
+  and red down);
+* convergence: the running mean with its ± 2 standard-error band;
+* year-by-year availability when the run covers whole years (hours models).
+
+With capacity analysis on, three more charts answer "who loses the
+capacity", which is not the same question as "who is down":
+
+* **Who loses the capacity**: each element's share of the lost flow beside
+  its share of the downtime, in the same order, so an element that rarely
+  stops the system but often throttles it stands out;
+* **Downtime against lost capacity**: one point per element, both shares;
+* **Where the capacity goes**: from the flow the model could deliver down to
+  what it did deliver, one step per cause;
+* **Lost capacity treemap**: area = share of the lost flow, colour = the
+  element's main downtime cause;
+* **Capacity delivered year by year**: capacity-weighted availability for
+  each year, with the spread across runs. A year can be 100 % available and
+  still deliver only 96 % of the flow.
+
+With cost analysis on, **Where the money goes** ranks the elements by mean
+cost per run, and the **Cost treemap** shows the same money as areas,
+coloured by its largest part (purchase, operating, spares or disposal).
+Spare pools are cells of their own, so the treemap is also the spares
+picture: a large amber cell is an element whose cost is mostly spares.
+
+The lost flow is split among the elements down at the time
+(`--capacity-rule proportional` by default), and the split adds up to the
+engine's own lost flow. The engine writes capacity times to six decimals, so
+a flow change can land a millionth of an hour from the event that caused it;
+such a sliver is charged to the elements of the neighbouring outage rather
+than left unexplained.
+
+Capacity-weighted availability for one period is the flow delivered in it
+divided by the flow the model could deliver over the same time:
+
+....
+capacity-weighted availability = flow delivered in the period
+                                 / (flow generated x period length)
+....
+
+When the run is a whole number of years, the average of the yearly values
+equals the engine's own capacity-weighted availability for the run.
+
+Two canvas controls tie the views together. **Show on Canvas** chooses one
+result measure (weak link, capacity, cost, spares or importance) and paints
+it over the diagram; **View ▸ Focus** dims everything except the selection,
+so a large diagram keeps its topology but shows only what matters.
+Selecting a block on the canvas also marks its row in the Drivers view, and
+clicking a chart or driver locates the block on the canvas.
+
+The command line writes one chart as SVG, which is what a report embeds:
+
+[source,bash]
+----
+raptor explain VanFlat.rbds --chart downtime-pareto --chart-svg downtime.svg
+raptor explain --list-charts
+----
+
+MCP clients call `run_chart(run_id, chart="downtime-pareto")` and receive the
+same specification plus the SVG. The capacity charts are `lost-capacity-pareto`,
+`capacity-vs-downtime`, `capacity-waterfall`, `lost-capacity-treemap` and
+`annual-capacity-fan`; the cost charts are `cost-pareto` and `cost-treemap`.
+
+The numbers behind the charts export as tables. In the GUI they are in
+**File ▸ Export ▸ Export Tables…** (or the Export Tables… button in the data tables); from the command line, run the model and ask for
+the attribution tables too:
+
+[source,bash]
+----
+raptor tables Water2.rbds --run --drivers --format xlsx -o out/
+----
+
+That adds `results.downtime_drivers`, `results.downtime_causes`,
+`results.phase_downtime` (phased models),
+`results.outage_durations`, `results.lost_capacity` (by element),
+`results.lost_capacity_causes`, `results.period_availability`,
+`results.period_capacity` and `results.period_runs` (one row per run and
+year, for your own statistics). MCP clients get the same tables through
+`export_tables`, and `annual_availability(run_id, include_runs=True)` returns
+the year-by-year figures with capacity.
+
+=== Stop when the answer is precise enough
+
+A fixed run count is a guess. Ask for a relative precision instead:
+
+[source,bash]
+----
+raptor run VanFlat.rbds --precision 5%
+raptor run VanFlat.rbds --precision 5% --precision-metric system.mdt --max-trials 5000
+----
+
+The runner grows the batch, reads the per-run values, and stops when the
+relative half-width of the watched metric meets the target. Batches are
+re-run with the same seed, so the final batch is exactly the first *n*
+trials of a fixed *n*-trial run; the seed table is untouched. The result
+carries the reached interval, the target, the trial count and the pass
+history.
+
+In MCP, pass `precision={"relative": 0.05}` to `simulate`.
+
+=== What if: compare against the model you have
+
+A scenario is this model plus a short list of `PATH=VALUE` changes. It is
+never a second file, and the open model is never modified:
+
+[source,bash]
+----
+raptor whatif VanFlat.rbds \
+  --change 'block:Tire_A.repair_params=2,9,0' \
+  --name 'Faster tire repair' -n 200
+----
+
+The base and the scenario run with the same seed, so trial *i* is paired;
+the table reports the scenario value, the paired difference with its
+standard error and the chance the scenario is better. Pairing usually cuts
+the variance by an order of magnitude for a small change. A change that
+alters how many random draws a block makes can weaken the pairing; it does
+not bias the comparison, and the `variance cut` line says what was gained.
+
+Use the same seed and the same trial count when you compare two runs by
+hand; otherwise you are reading noise.
+
+=== Which inputs matter
+
+The tornado varies each candidate input at a low and a high value, with the
+same seed as Base, and ranks the paired swings:
+
+[source,bash]
+----
+raptor sensitivity VanFlat.rbds --top 8 -n 100
+----
+
+Candidates come from block lives and repair means, PM intervals, finite
+spare stock and crew counts. A swing whose interval contains zero is drawn
+as "not distinguishable" rather than promoted. This is a screening view: it
+shows each input alone, so it cannot show interactions.
+
+=== How many spares
+
+The spare optimiser starts from a Poisson backorder model, orders one-unit
+increments by backorder reduction per unit cost, and simulates that path
+with common random numbers:
+
+[source,bash]
+----
+raptor optimise spares VanFlat.rbds --target 'system.ao>=0.995' --budget 30
+raptor optimise spares VanFlat.rbds --target 'system.ao>=0.995' --apply
+----
+
+A point counts as meeting the target only when the cautious end of its
+confidence interval does: the *lower* bound for availability, the *upper*
+bound for a measure where less is better, such as mean downtime. The lead
+time each part's demand is counted over comes from the pool: the
+emergency-order time when one is set, the normal order time, the regular
+delivery interval, or else the whole run. The command prints every evaluated point and recommends the cheapest
+one that qualifies; `--apply` writes the stocks into the model, and leaving
+it out changes nothing. If every spare cost is the default 1, the result
+minimises the number held rather than money, and the caption says so.
+
+=== The rule that keeps this honest
+
+Attribution describes the design you simulated. Importance and what-if
+answer what a change would achieve. Never use a DTCI ranking as if it were
+a what-if result: the element that causes the most downtime now is not
+always the one whose fix buys the most.
+
+=== Keep the parts you reuse
+
+The **Part Library** tab beside the Explorer keeps two kinds of entry:
+
+* a *part type* is one element's data (failure and repair, logistics,
+  spares, maintenance, cost) without its name or place. Apply it to other
+  elements of the same kind; a later change to the part can be synced, and
+  fields you edited by hand stay as overrides.
+* an *assembly* is a group of elements kept with its links: a hierarchy with
+  everything inside it, a node with the blocks around it, a set of events.
+  Insert it, or drag it onto the canvas, and you get a fresh copy with new
+  names; links to elements outside the group are dropped, and spare pools or
+  resources the model does not have are reset, exactly as a paste from
+  another model resets them.
+
+Select the elements and press **Save selection…**: the dialog offers an
+assembly, or a part type when the selection is a single element. The command
+line and MCP do the same:
+
+[source,bash]
+----
+raptor library add parts.rbdlib VanFlat.rbds --assembly Tire_FL,Tire_FR,Tire_RL,Tire_RR,Tires_vote --name "Tyre set"
+raptor library insert VanFlat.rbds --library parts.rbdlib --part "Tyre set" --in-place
+----
+
+MCP clients call `save_assembly` and `insert_assembly`.
+

@@ -473,6 +473,9 @@ class DockLayoutMixin(DockFloatMixin, DockLayoutPersistenceMixin, _Base):
         if not self._dock_startup_snapshot_done:
             self._dock_startup_snapshot_done = True
             QTimer.singleShot(0, self._snapshot_startup_dock_sizes)
+            # The first layout pass places the dock tab bars; any it did
+            # not place are tabify leftovers.
+            QTimer.singleShot(0, self._hide_orphan_dock_tab_bars)
         # The startup clamp is queued when a model loads, which can be
         # BEFORE the window is shown. Qt's first post-show layout pass
         # then gives the tabified Results dock its sizeHint (a tall
@@ -717,6 +720,43 @@ class DockLayoutMixin(DockFloatMixin, DockLayoutPersistenceMixin, _Base):
                 continue
             bar.setElideMode(_Qt.TextElideMode.ElideNone)
             bar.setExpanding(False)
+        self._hide_orphan_dock_tab_bars(bars)
+
+    def _hide_orphan_dock_tab_bars(self, bars=None) -> None:
+        """Hide dock tab bars QMainWindow left behind.
+
+        tabifyDockWidget can leave a second bar for the same group with a
+        stale geometry; it stays visible and peeks out (for example an
+        "Inspector | Failure Effects" strip under the status bar).  A bar
+        in use sits against one of its own visible, docked docks; any
+        other is an orphan.  Qt shows a bar again when it reuses it.
+        """
+        from PySide6.QtWidgets import QDockWidget, QTabBar
+        try:
+            bars = bars if bars is not None else self.findChildren(QTabBar)
+            docks = {d.windowTitle(): d for d in self.findChildren(QDockWidget)
+                     if d.isVisible() and not d.isFloating()}
+        except RuntimeError:
+            return
+        for bar in bars:
+            if (bar.objectName() == "qt_tabwidget_tabbar" or bar.parent() is not self
+                    or not bar.isVisible()):
+                continue
+            g = bar.geometry()
+            in_use = False
+            for i in range(bar.count()):
+                dock = docks.get(bar.tabText(i))
+                if dock is None:
+                    continue
+                d = dock.geometry()
+                beside = (abs(g.top() - d.bottom() - 1) <= 3
+                          or abs(d.top() - g.bottom() - 1) <= 3)
+                overlaps = g.left() < d.right() and d.left() < g.right()
+                if beside and overlaps:
+                    in_use = True
+                    break
+            if not in_use:
+                bar.hide()
 
     def _snapshot_startup_dock_sizes(self) -> None:
         """Remember the first laid-out sizes before any model load.

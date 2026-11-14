@@ -239,3 +239,31 @@ two you want is a question about your van, not about the arithmetic.
 
 Next chapter: a part that doesn't wear out at all — it just works or
 it doesn't, decided once, in an instant.
+
+=== Three lenses, one question
+
+Weak-link analysis, importance and downtime attribution all say which part
+matters, and they answer different questions:
+
+[cols="2,5,5",options="header"]
+|===
+|Lens |Question it answers |What it reads
+
+|Weak link
+|Where does each element spend its own time?
+|The element's state times: up, repair, waiting, PM, idle.
+
+|Importance (RRW, RAW, Birnbaum, Vesely-Fussell)
+|What would change if this element were perfect or dead?
+|Extra re-simulations with that element changed.
+
+|Attribution (DTCI, DECI, FCI)
+|What actually caused the system's outages in this run?
+|The event log, replayed; no extra runs.
+|===
+
+A part can fail often, spend little time down, and still dominate the
+system's downtime through the waiting it causes. Read the weak-link table
+for the element's own clock, the Importance tab for what a change would
+buy, and the Drivers tab for what happened. <<ch-what-if>> shows the Story
+and the charts that put the three side by side.

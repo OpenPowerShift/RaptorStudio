@@ -1,0 +1,24 @@
+.TH "RAPTOR-LIBRARY" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-library \- A part type is an element's data without identity or placement; an assembly is a saved group of elements (a hierarchy with its contents, a node with its blocks, events) with its internal links. A library is a plain JSON file of both. Applying a part type writes ordinary columns and records a link; inserting an assembly adds a fresh copy with new ids and free names, so the model stays a normal model. The model file changes only for apply/save/detach/insert.
+.SH SYNOPSIS
+\fBraptor library\fR [\-h] ACTION ...
+.SH DESCRIPTION
+A part type is an element's data without identity or placement; an assembly is a saved group of elements (a hierarchy with its contents, a node with its blocks, events) with its internal links. A library is a plain JSON file of both. Applying a part type writes ordinary columns and records a link; inserting an assembly adds a fresh copy with new ids and free names, so the model stays a normal model. The model file changes only for apply/save/detach/insert.
+.SH EXAMPLES
+.PP
+Save a hierarchy, with everything inside it, as an assembly.
+.RS
+.nf
+\fBraptor library add parts.rbdlib plant.rbds \-\-assembly "Gen bank" \-\-name "Generator bank"\fR
+.fi
+.RE
+.PP
+Insert a fresh copy of it into a model and save the model.
+.RS
+.nf
+\fBraptor library insert plant.rbds \-\-library parts.rbdlib \-\-part "Generator bank" \-\-at 40,10 \-\-in\-place\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1)

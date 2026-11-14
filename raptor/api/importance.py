@@ -72,10 +72,14 @@ _MODE_VARIANTS: dict[str, tuple[str, ...]] = {
 }
 
 #: Selectable metrics: report-data attribute and the label shown on screen.
+#: Capacity-weighted availability comes from `results.capacity_values`
+#: rather than the report-data attribute of the same name, so it is absent
+#: from a run without capacity analysis -- not zero.
 METRICS: tuple[tuple[str, str], ...] = (
     ("availability", "Availability"),
     ("reliability", "Reliability"),
     ("dependability", "Dependability"),
+    ("capacity_weighted_availability", "Capacity-weighted availability"),
 )
 
 #: The metric the GUI, CLI and MCP rank by unless told otherwise.
@@ -214,6 +218,10 @@ def _sem(values) -> float | None:
 
 
 def _metric_of(report_data, attr: str) -> list[float | None]:
+    if attr == "capacity_weighted_availability":
+        from raptor.api.results import capacity_values
+        return [(capacity_values(r) or {}).get(attr)
+                for r in report_data or ()]
     return [getattr(r, attr, None) for r in report_data or ()]
 
 
@@ -295,9 +303,15 @@ def analyse(rbd, baseline, *, mode: str = "both", runs: int | None = None,
     if stop_check is not None and stop_check():
         raise RuntimeError("importance analysis cancelled")
     metrics = _metric_rows(baseline, variants, names)
+    notes = _sampling_notes(metrics)
+    if "Capacity-weighted availability" not in metrics:
+        notes.append(
+            "Capacity-weighted availability importance needs capacity "
+            "analysis on; a run without it has no delivered-flow figure, so "
+            "the metric is absent rather than zero.")
     return {"mode": mode, "runs": n_runs, "batches": total,
             "blocks": len(names), "metrics": metrics,
-            "notes": _sampling_notes(metrics)}
+            "notes": notes}
 
 
 def _run_variants(rbd, kinds: Sequence[str], names, *, runs: int, length: float,
@@ -335,6 +349,8 @@ def _metric_rows(baseline, variants: dict[str, dict[int, list[Any]]],
     metrics: dict[str, Any] = {}
     for attr, label in METRICS:
         base = _metric_of(baseline, attr)
+        if not any(value is not None for value in base):
+            continue        # capacity analysis off: the metric is absent
         rows = [
             _row(bid, name, base=base,
                  perfect=(_metric_of(variants["perfect"][bid], attr)

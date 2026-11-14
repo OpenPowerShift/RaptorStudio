@@ -92,6 +92,7 @@ def collect_raw_report_sections(win) -> list[tuple[str, list[str], int]]:
 EXPORT_SECTIONS = [
     ("diagram", "Diagram (every hierarchy level)", False, True),
     ("data_tables", "Model data (blocks, nodes, pools, ...)", False, True),
+    ("story", "Story, charts and model checks", True, True),
     ("results", "Results (summary, logistics, sparing, cost, ...)", True,
      True),
     ("weak", "Weak link analysis", True, True),

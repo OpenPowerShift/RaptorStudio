@@ -1,0 +1,20 @@
+.TH "RAPTOR-FIT" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-fit \- Turn plain judgements ('one in ten fail by 100, half by 300') into Weibull, lognormal or exponential parameters. No data needed; the fit is only as good as the answers.
+.SH SYNOPSIS
+\fBraptor fit\fR [\-h] \-\-law {weibull,lognormal,exponential} [\-\-quantile P=T] [\-f {text,json}]
+.SH DESCRIPTION
+Turn plain judgements ('one in ten fail by 100, half by 300') into Weibull, lognormal or exponential parameters. No data needed; the fit is only as good as the answers.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-law\fR \fI{weibull|lognormal|exponential}\fR
+
+.TP
+\fB\-\-quantile\fR \fIP=T\fR
+probability=age, repeatable, e.g. 0.1=100
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+
+.SH SEE ALSO
+\fBraptor\fR(1)

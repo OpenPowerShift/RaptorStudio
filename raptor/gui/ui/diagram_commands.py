@@ -1457,3 +1457,32 @@ class PhaseStructureCmd(_ViewCmd):
     def undo(self):
         self._restore(self._before)
         self._done()
+
+
+class BlockCellsCmd(_ViewCmd):
+    """Replace cells on several BLOCK_DATA rows in one undo step.
+
+    Used by Paste Data Only: the rows are ordinary file rows, so the command
+    copies the old values and reloads the scene (keeping the undo history)
+    rather than teaching every typed object a new field.
+    """
+
+    def __init__(self, view, changes: list[dict], text: str) -> None:
+        super().__init__(view, text)
+        self._changes = [dict(change) for change in changes]
+
+    def _apply(self, new: bool) -> None:
+        for change in self._changes:
+            change["row"][change["column"]] = (
+                change["new"] if new else change["old"])
+        if self._changes:
+            # The model rows changed under the scene; rebuild it without
+            # clearing the stack (this command is on that stack).
+            self._v.load_rbd(self._v.rbd, keep_history=True)
+        self._done()
+
+    def redo(self) -> None:
+        self._apply(True)
+
+    def undo(self) -> None:
+        self._apply(False)

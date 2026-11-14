@@ -28,6 +28,7 @@ from raptor.gui.ui.background_run_mixin import BackgroundRunMixin
 from raptor.gui.ui.overlay_mixin import OverlayMixin
 from raptor.gui.ui.status_summary_mixin import StatusSummaryMixin
 from raptor.gui.ui.autosave_mixin import AutosaveMixin
+from raptor.gui.ui.advisor_mixin import AdvisorMixin
 from raptor.gui.ui.run_progress_mixin import RunProgressMixin
 from raptor.gui.ui.file_io_mixin import FileIoMixin
 from raptor.gui.ui.step_mixin import StepMixin
@@ -182,7 +183,7 @@ _TERMINATION_CHOICES = [
 class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixin, SelectionMixin, FindZoomMixin, RecentFilesMixin, ExportMixin, HelpMixin, RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin,
                  ValidationMixin, DockLayoutMixin, StepMixin, FileIoMixin,
                  RunProgressMixin, AutosaveMixin, StatusSummaryMixin, OverlayMixin,
-                 BackgroundRunMixin, QMainWindow):
+                 BackgroundRunMixin, AdvisorMixin, QMainWindow):
     """The application shell.
 
     `RunExperimentMixin` supplies every read and write of the run
@@ -632,6 +633,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._commands.create_all()
         self._sync_link_routing()
         self._undo_stack.cleanChanged.connect(self._on_undo_clean_changed)
+        # The Part Library lists the model's own parts and counts the
+        # elements that follow them: keep it current with every edit.
+        self._undo_stack.indexChanged.connect(self._refresh_library_dock)
         # Spread applies to the ACTIVE overlay, and only Weak and Cost
         # have quartile bands. Enable it from the checked state, not from
         # data availability; pressing it with Spares/Capacity showing must
@@ -1042,6 +1046,86 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             return
         self._diagram_dock.view.paste()
 
+    def _refresh_library_dock(self, *_args) -> None:
+        widget = getattr(self, "_library_dock_widget", None)
+        if widget is not None and widget.isVisible():
+            widget.refresh()
+
+    def _canvas_has_focus(self) -> bool:
+        view = self._diagram_dock.view
+        return bool(view.hasFocus() or view.viewport().hasFocus())
+
+    def _command_search(self) -> None:
+        from raptor.gui.ui.command_search import CommandSearch
+        CommandSearch(self).exec()
+
+    def _data_tables_find_replace(self) -> None:
+        self._data_tables.find_replace()
+
+    def _edit_duplicate(self) -> None:
+        if text_editing.active_editor() is not None:
+            return
+        if not self._canvas_has_focus():
+            return
+        n = self._diagram_dock.view.duplicate_selection()
+        if n:
+            self._statusbar.showMessage(f"Duplicated {n} element(s)", 4000)
+
+    def _edit_duplicate_parallel(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        if text_editing.active_editor() is not None or \
+                not self._canvas_has_focus():
+            return
+        copies, ok = QInputDialog.getInt(
+            self, "Duplicate in Parallel", "Copies:", 1, 1, 50)
+        if not ok:
+            return
+        k, ok = QInputDialog.getInt(
+            self, "Duplicate in Parallel", "Required (k):", copies + 1,
+            1, copies + 1)
+        if not ok:
+            return
+        n = self._diagram_dock.view.duplicate_parallel(copies, k)
+        if n:
+            self._statusbar.showMessage(
+                f"Added {n} block(s) in parallel", 4000)
+
+    def _edit_array(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        if text_editing.active_editor() is not None:
+            return
+        copies, ok = QInputDialog.getInt(
+            self, "Array", "Copies:", 3, 1, 200)
+        if not ok:
+            return
+        direction, ok = QInputDialog.getItem(
+            self, "Array", "Direction:", ["right", "down"], 0, False)
+        if not ok:
+            return
+        spacing, ok = QInputDialog.getInt(
+            self, "Array", "Spacing (grid steps):", 1, 1, 20)
+        if not ok:
+            return
+        n = self._diagram_dock.view.array_selection(copies, direction, spacing)
+        if n:
+            self._statusbar.showMessage(f"Added {n} element(s)", 4000)
+
+    def _edit_paste_data(self) -> None:
+        from raptor.gui.ui import dialogs
+        if text_editing.active_editor() is not None:
+            return
+        groups = dialogs.choose_data_groups(self)
+        if groups is None:
+            return
+        n = self._diagram_dock.view.paste_data(tuple(groups))
+        if n:
+            self._statusbar.showMessage(
+                f"Pasted {', '.join(groups).lower()} data onto "
+                f"{n} block(s)", 5000)
+        else:
+            self._statusbar.showMessage(
+                "Select blocks and copy a block first", 5000)
+
     def _on_focus_changed(self, _old, new) -> None:
         """Cut/Copy/Paste follow the text editor that has the keyboard,
         including its selection."""
@@ -1073,6 +1157,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._build_inspector_dock()
         self._build_fev_inspector_dock()
         self._build_live_log_dock()
+        self._build_advisor_dock()
         self._build_results_dock()
         self._build_data_tables_dock()
         self._build_run_dock_and_arrange()
@@ -1106,6 +1191,20 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         dock_left.setMinimumSize(260, 0)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock_left)
         self._explorer_dock = dock_left
+
+        # The part library shares the left column with the Explorer, as a
+        # tab, so applying a part is beside the blocks it applies to.
+        from raptor.gui.ui.library_dock import LibraryDock
+        self._library_dock_widget = LibraryDock()
+        dock_library = QDockWidget("Part Library", self)
+        dock_library.setObjectName("LibraryDock")
+        self._set_dock_icon(dock_library, "library_dock_icon")
+        dock_library.setWidget(self._library_dock_widget)
+        dock_library.setMinimumSize(260, 0)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock_library)
+        self.tabifyDockWidget(dock_left, dock_library)
+        dock_left.raise_()
+        self._library_dock = dock_library
 
     def _build_inspector_dock(self):
         self._inspector = InspectorDock()
@@ -1290,11 +1389,14 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             manage_enabled=False,
             on_show=lambda: self._show_live_log_dock(True),
             on_hide=self._show_inspector_dock)
+        self._setup_dock_toggle(self._advisor_toggle_action, self._advisor_dock,
+                                on_show=self._show_advisor)
         self._sync_dock_tab_bars()
         # Floating/re-docking can create a fresh QTabBar whose default
         # elide mode is ElideRight, so tabs show "Data Tab...". Re-apply
         # the no-elide rule whenever the dock placement changes.
         for d in (self._explorer_dock, self._inspector_dock, self._fev_inspector_dock, self._live_log_dock,
+                  self._advisor_dock,
                   self._results_dock, self._data_tables_dock, self._run_dock):
             d.dockLocationChanged.connect(
                 lambda area, dock=d:
@@ -1318,6 +1420,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         for dock, name in ((self._explorer_dock, "ExplorerDock"), (self._inspector_dock, "InspectorDock"),
                            (self._fev_inspector_dock, "FevInspectorDock"),
                            (self._live_log_dock, "LiveLogDock"), (self._results_dock, "ResultsDock"),
+                           (self._advisor_dock, "AdvisorDock"),
                            (self._data_tables_dock, "DataTablesDock"), (self._run_dock, "RunPanelDock")):
             dock.setObjectName(name)
 
@@ -1329,8 +1432,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Minimize-to-stub: Data Tables + Results collapse together as
         # one bottom stub since they're tabified into one physical slot
         # -- minimizing either one collapses both.
-        self._make_dock_minimizable([self._explorer_dock], "left")
+        # The Part Library shares the Explorer's slot and the Advisor the
+        # Inspector's, so each gets the same title bar and they collapse
+        # together.
+        self._make_dock_minimizable([self._explorer_dock, self._library_dock],
+                                    "left")
         self._make_dock_minimizable([self._inspector_dock], "right")
+        self._make_dock_minimizable([self._advisor_dock], "right")
         self._make_dock_minimizable(
             [self._results_dock, self._data_tables_dock, self._run_dock], "bottom",
             restore_max=lambda: self._max_bottom_dock_height())
@@ -1349,6 +1457,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         ("_inspector_dock", "inspector_dock_icon", "text"),
         ("_fev_inspector_dock", "fev_panel_icon", "accent"),
         ("_live_log_dock", "log_icon", "text"),
+        ("_advisor_dock", "check_badge_icon", "text"),
+        ("_library_dock", "library_dock_icon", "text"),
         ("_results_dock", "results_dock_icon", "text"),
         ("_data_tables_dock", "table_grid_icon", "text"),
         ("_run_dock", "run_panel_icon", "text"),
@@ -2147,6 +2257,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Inspector via the normal selection path).
         self._results.element_clicked.connect(self._on_result_element_clicked)
         self._results.contents_changed.connect(self._sync_results_notice)
+        # A run finishing, or its results being cleared, changes what the
+        # Advisor can say (precision, what drives the downtime).
+        self._results.contents_changed.connect(self._refresh_advisor)
         self._results.hierarchy_filter_changed.connect(
             self._on_results_hier_filter)
         self._results.weak_analysis_type_changed.connect(
@@ -2171,6 +2284,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         fev_inspector = getattr(self, "_fev_inspector", None)
         if fev_inspector is not None:
             fev_inspector.refresh_theme()
+        advisor = getattr(self, "_advisor_panel", None)
+        if advisor is not None:
+            advisor.refresh_theme()
 
     #: Contrast prompts waiting their turn, shared by every model window.
     #: A theme change makes each open window ask; nesting one modal
@@ -2665,6 +2781,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # whose Comment box holds a draft.
         self._inspector.flush_pending_comment()
         self._cancel_pending_block_selection()
+        results = getattr(self, "_results", None)
+        if results is not None:
+            results.highlight_element("", -1)
         target = self._inspector.current_target()
         if target and target[0] in ("block", "node", "event", "hier", "annotation"):
             self._inspector.clear_selection()

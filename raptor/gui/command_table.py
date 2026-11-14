@@ -197,6 +197,70 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_edit_paste",
         enabled_when="can_paste"),
     CommandSpec(
+        id="view.focus",
+        attr="_focus_action",
+        text="Focus",
+        tooltip="Dim everything except the selection (topology stays)",
+        handler="_diagram_dock.view.set_focus_mode",
+        on="toggled",
+        checkable=True),
+    CommandSpec(
+        id="model.quick_add",
+        attr="_quick_add_action",
+        text="Quick Add",
+        tooltip="Add an element at the cursor (Space or / on the canvas)",
+        handler="_diagram_dock.view.show_quick_add"),
+    CommandSpec(
+        id="view.command_search",
+        attr="_command_search_action",
+        text="Run a Command…",
+        tooltip="Search every command by name (Ctrl+Shift+P)",
+        handler="_command_search",
+        shortcut="Ctrl+Shift+P",
+        more_shortcuts=("Ctrl+K",)),
+    CommandSpec(
+        id="data.find_replace",
+        attr="_find_replace_action",
+        text="Find and Replace…",
+        tooltip="Find and replace in the Data Tables grid (Ctrl+H there)",
+        handler="_data_tables_find_replace"),
+    CommandSpec(
+        id="home.duplicate",
+        attr="_duplicate_action",
+        text="Duplicate",
+        icon="copy_icon:accent",
+        tooltip="Duplicate the selected elements in place (Ctrl+D)",
+        handler="_edit_duplicate",
+        shortcut="Ctrl+D",
+        enabled_when="can_copy"),
+    CommandSpec(
+        id="home.duplicate_parallel",
+        attr="_duplicate_parallel_action",
+        text="Duplicate in Parallel",
+        tooltip="Copy the selected block in parallel between its "
+                "neighbours (Ctrl+Alt+D)",
+        handler="_edit_duplicate_parallel",
+        shortcut="Ctrl+Alt+D",
+        enabled_when="can_copy"),
+    CommandSpec(
+        id="home.array",
+        attr="_array_action",
+        text="Array…",
+        icon="copy_icon:text",
+        tooltip="Duplicate the selection in a row or column",
+        handler="_edit_array",
+        enabled_when="can_copy"),
+    CommandSpec(
+        id="home.paste_data",
+        attr="_paste_data_action",
+        text="Paste Data Only",
+        icon="paste_icon:text",
+        tooltip="Copy the clipboard block's data onto the selected "
+                "blocks (Ctrl+Shift+V)",
+        handler="_edit_paste_data",
+        shortcut="Ctrl+Shift+V",
+        enabled_when="can_copy"),
+    CommandSpec(
         id="home.syscfg",
         attr="_syscfg_action",
         text="Project Settings",
@@ -1097,6 +1161,15 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled=False,
         enabled_when="live_session"),
     CommandSpec(
+        id="view.advisor_toggle",
+        attr="_advisor_toggle_action",
+        text="Advisor",
+        icon="check_badge_icon:text",
+        tooltip=(
+            "Show the Advisor — what looks wrong or unwise in the model, why, "
+            "and what to do about it"),
+        checkable=True),
+    CommandSpec(
         id="view.reset_layout",
         attr="_reset_layout_action",
         text="Reset Layout",
@@ -1222,10 +1295,15 @@ LAYOUT: tuple[Page, ...] = (
     # the model's by a tab.
     _p("Model", "_model_page_index",
        Group("Clipboard", (Btn("home.paste", True), Btn("home.cut"),
-                           Btn("home.copy"), Btn("home.select_all")),
+                           Btn("home.copy"), Btn("home.duplicate"),
+                           Btn("home.select_all")),
+             # Duplicate in Parallel, Array and Paste Data Only live in the
+             # canvas menu's Duplicate submenu, their shortcuts and command
+             # search: four more buttons pushed Build off a 1280 px ribbon.
              priority=2),
        Group("Tools", (Btn("model.select", True), Btn("model.connect", True))),
        Group("Build", (Btn("model.add_block", True),
+                       Btn("model.quick_add"),
                        Btn("model.add_node", True),
                        Btn("model.add_event", True),
                        Btn("model.add_hier", True),
@@ -1299,11 +1377,7 @@ LAYOUT: tuple[Page, ...] = (
                       Btn("results.results_float", True),
                       Btn("results.clear_results"),
                       Btn("results.spof"), Btn("results.domains"))),
-       Group("Show on Canvas", (Btn("results.weak_color", True),
-                                Btn("results.capacity_overlay"),
-                                Btn("results.cost_overlay"),
-                                Btn("results.spares_overlay"),
-                                Btn("results.importance_overlay"))),
+       Group("Show on Canvas", (Custom("_build_overlay_control"),)),
        # Spread belongs with the band controls: it changes the active
        # overlay's bands (Weak Links or Cost), not the overlay itself.
        Group("Bands", (Custom("_build_weak_link_settings"),
@@ -1319,9 +1393,11 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.fev_inspector_toggle"),
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
                         Btn("view.live_log_toggle"),
+                        Btn("view.advisor_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
-       Group("Appearance", (Btn("view.theme", True), Btn("view.prefs", True),
+       Group("Appearance", (Btn("view.theme", True), Btn("view.focus"),
+                            Btn("view.prefs", True),
                             Custom("_build_link_routing_settings"),
                             Custom("_build_block_labels_settings")),
              priority=2)),

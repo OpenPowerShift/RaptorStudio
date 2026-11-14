@@ -21,9 +21,9 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **68 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **67**.
+- **86 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **85**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
-- The tutorial book has **24 chapters**; the MCP chapter is book chapter 23 of 24 (source `new_docs/chapters/ch16-mcp.adoc`).
+- The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
 
 - **Start small.** Install the optional `[mcp]` extra, connect one client, and
@@ -485,6 +485,85 @@ section; `list_tables` lists the available input and result table keys;
 `get_table` returns typed rows for one of them; `get_timeseries` returns
 points to plot. `describe_metrics` lists the metric names and units if you
 are unsure what a column means.
+
+<a id="advise"></a>
+
+### Ask what is wrong, and what drives the downtime
+
+`advise` checks a model the way a reviewer would, before anything is run: a
+backup that depends on the unit it backs up, parallel paths that are all
+required, placeholder data, spares or crews that cannot meet demand,
+maintenance that cannot pay off, too few runs. Each finding has a stable
+rule id, says whether it is exact or an estimate, carries the numbers it
+used and, where there is one, a fix. `list_advisor_rules` lists every rule.
+`apply_fix` applies one finding's fix as a single undoable edit.
+
+To learn what causes the downtime, run with `attribution=True` (`simulate`
+or `start_run`) and call `downtime_drivers`: each system outage is charged
+to the element that started it and split by cause (hands-on repair, waiting
+for a spare, waiting for people or equipment, logistics delay, planned
+maintenance, held by another element). `advise` with that `run_id` then
+adds the after-run findings: how precisely the downtime is known, which
+few elements cause most of it and which lever fits, and, with `targets`,
+whether each requirement is met, missed or too close to call.
+
+`annual_availability` cuts the same run's outages on year boundaries (or any
+period length) and gives the percentiles of availability per period, pooled
+and by year number, the worst periods, and with `below` how often a period
+falls under a guarantee. An average over a whole life hides a bad year; this
+shows it.
+
+`run_story` returns the short answer-first Story for a finished run: the
+headline against its target, the run-to-run dots and the share that met it,
+the top drivers, the top findings, six key numbers and provenance. It is the
+same object the application's Story tab paints and `raptor explain --story`
+prints.
+
+`replace_in_table` finds and replaces in one model table column
+(`inputs.blocks_all`, nodes, events, pools, ...), with whole-cell and case
+options; a set that would break a name is refused whole.
+
+`duplicate_elements` copies a selection with fresh ids and names, and
+`copy_element_data` copies one block's chosen data groups onto others without
+touching names, positions, links or dependencies.
+
+`list_part_types`, `apply_part_type`, `save_part_type` and `sync_part_types`
+share an element's data as a named part type: blocks, nodes, events,
+hierarchies and annotations all have one. Applying one writes ordinary
+block columns and records a link in the model, so the engine still sees an
+ordinary block; `sync_part_types` reports (or applies) later changes and
+leaves hand-edited fields alone while they are marked as overrides.
+
+`save_assembly` and `insert_assembly` keep structure instead of values: a
+selection (a hierarchy with everything inside it, a node with its blocks,
+events) is saved with its internal links, and inserting it adds a fresh copy
+with new ids and free names. Links to elements outside the copy are dropped,
+and spare pools or resources the target model lacks are reset, as a paste
+from another model resets them; the result's `notes` say what was reset.
+
+`sensitivity` screens the inputs one at a time: it varies block lives,
+repair times, PM intervals, spare stock and crews at a low and a high value,
+pairs each variant with Base, and ranks the swings. It shows each input
+alone; interactions need the global methods.
+
+`what_if` compares one changed model with Base: `changes` are PATH=VALUE
+edits, Base and the scenario run with the same seed, and the result gives
+each metric's paired difference with its standard error and the chance the
+scenario is better. The open model is untouched.
+
+`run_chart` returns one chart of a finished run as the same `ChartSpec` the
+application paints, with the figure itself as SVG unless `render_svg` is
+false. The base charts (`trial-outcome`, `ecdf`, `convergence`,
+`availability-ladder`) need only the run; the downtime charts need
+`attribution=True` (including the treemap, the outage anatomy and the
+run-to-run ribbon), and
+`importance-quadrant` and `cost-pareto` need those analyses to have run. `raptor explain --chart NAME` prints the same chart and
+`--chart-svg PATH` writes it.
+
+Attribution replays the event log, so the results are the same with it on;
+it holds the log in memory for the batch, so leave it off for very large
+runs. It describes the design as simulated. To learn what a change would
+achieve, change the model and compare.
 
 <a id="analyse"></a>
 

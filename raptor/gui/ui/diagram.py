@@ -265,6 +265,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setBackgroundBrush(QBrush(QColor(COLOUR["canvas"])))
+        self._focus_mode = False
         self._scene.selectionChanged.connect(self._on_selection_changed)
         self._user_zoomed = False
         #: Current semantic-zoom state: None until first applied, then
@@ -578,6 +579,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             # selection changes on dead items. Non-fatal; ignore.
             return
         self._refresh_anchor_leader()
+        if self._focus_mode:
+            self._apply_focus(items)
         if not items:
             self.selection_cleared.emit()
             self.selection_changed.emit()
@@ -738,7 +741,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self._model_dy_min = vt.dy_min
         self._scale = vt.scale
 
-    def load_rbd(self, rbd: RbdFile):
+    def load_rbd(self, rbd: RbdFile, *, keep_history: bool = False):
         log.debug("load_rbd: start (%s)", getattr(rbd, "path", "?"))
         # The Inspector may still hold a draft for the model being
         # replaced (Close/New/Open all end here). Flush before the swap.
@@ -771,7 +774,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         # A hand-drawn diagram keeps the neighbour inference; Auto Layout
         # sets an explicit axis on the level it lays out.
         set_flow_direction("auto")
-        self._stack.clear()   # undo history belongs to the previous file
+        if not keep_history:
+            self._stack.clear()   # undo history belongs to the previous file
         # result visuals belong to the previous model too (a new run
         # re-populates them); traversal within a model keeps them
         self._last_result_visuals = None
@@ -2499,6 +2503,13 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                 focus.textInteractionFlags() & Qt.TextEditorInteraction:
             super().keyPressEvent(event)
             return
+        if event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Slash) and \
+                not (event.modifiers() & (Qt.KeyboardModifier.ControlModifier
+                                          | Qt.KeyboardModifier.AltModifier
+                                          | Qt.KeyboardModifier.ShiftModifier)):
+            self.show_quick_add()
+            event.accept()
+            return
         if event.key() == Qt.Key.Key_F2:
             # Explicit text-edit entry, matching every other text control
             # in the app. Only a single text annotation has an unambiguous
@@ -2957,6 +2968,44 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                            "DepNum", "DepType", "DepNothing", "DepIdle",
                            "DepPM", "DepFail", "DepPMThresh",
                            "defDepStateIdle")
+
+    def set_focus_mode(self, enabled: bool) -> None:
+        """Dim everything not selected; keep the topology visible."""
+        self._focus_mode = bool(enabled)
+        try:
+            items = self._scene.selectedItems()
+        except RuntimeError:
+            return
+        self._apply_focus(items)
+
+    def _apply_focus(self, selected: list[Any]) -> None:
+        chosen = set(selected)
+        for items in (self._block_items, self._node_items,
+                      self._event_items, getattr(self, "_hier_items", {})):
+            for item in items.values():
+                try:
+                    item.setOpacity(1.0 if (not self._focus_mode
+                                            or item in chosen) else 0.25)
+                except RuntimeError:
+                    continue
+
+    def show_quick_add(self, at_scene: Any = None) -> None:
+        """Open the Quick Add popup at the cursor or a scene point."""
+        if self._rbd_ref is None:
+            return
+        from PySide6.QtGui import QCursor
+        from raptor.gui.ui.quick_add import QuickAdd
+        local = self.viewport().mapFromGlobal(QCursor.pos())
+        if not self.viewport().rect().contains(local):
+            local = self.viewport().rect().center()
+        scene = (at_scene if at_scene is not None
+                 else self.mapToScene(local))
+        global_pos = self.viewport().mapToGlobal(local)
+        popup = getattr(self, "_quick_add", None)
+        if popup is None or not popup.isVisible():
+            popup = QuickAdd(self)
+            self._quick_add = popup
+        popup.show_at(global_pos, scene)
 
     def add_block_from_template(self, row: dict, at_model=None) -> int:
         """Insert a library template as a new block (fresh id, undoable,

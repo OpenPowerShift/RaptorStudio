@@ -144,3 +144,33 @@ def test_weasyprint_writes_a_pdf(tmp_path):
     out = tmp_path / "r.pdf"
     write_pdf(build_html(_content()), out, tmp_path)
     assert out.read_bytes()[:5] == b"%PDF-"
+
+
+def test_the_report_opens_with_the_story_figures_and_measure_guide():
+    from raptor.api.insight import charts
+    from raptor.api.insight.report_section import InsightSection
+
+    spec = charts.trial_outcome(
+        [{"availability": 0.9}, {"availability": 1.0}], target=0.95)
+    insight = InsightSection(
+        story={"headline": {"value_text": "0.95", "label": "Availability",
+                            "target_text": "Availability >= 95 %",
+                            "gap_text": "met"},
+               "proportion": "2 runs in 2 met the target",
+               "drivers": [{"name": "Pump", "share": 0.6}],
+               "findings": [{"severity": "warning", "message": "Check spare stock"}],
+               "provenance": {"runs": 2, "run_id": "r_1",
+                              "model_hash": "abcdef123456"}},
+        charts=[spec], measure_ids=["availability"],
+        findings=[{"severity": "warning", "rule": "M-SPR-001",
+                   "message": "Shelf likely empty", "why": "stock is 0"}],
+        suppressed=[{"rule": "M-PM-003", "reason": "planned for next outage"}])
+    html = build_html(_content(insight=insight))
+    assert "Availability (Ao)" in html
+    assert "How to read this report" in html
+    assert "<svg" in html and "Run-to-run availability" in html
+    assert "Shelf likely empty" in html and "stock is 0" in html
+    assert "planned for next outage" in html
+    # Story and charts come before the results; checks close the report.
+    assert html.index("id=\"story\"") < html.index("id=\"results\"")
+    assert html.index("id=\"checks\"") > html.index("id=\"results\"")

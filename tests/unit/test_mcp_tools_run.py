@@ -78,6 +78,16 @@ class TestSimulate:
                           timeout_s=60, confirm_long_run=True))
         assert "Availability" in _text(result)
 
+    def test_simulate_precision_reports_its_interval(self, ws_with_motor):
+        from raptor.mcp.tools_run import simulate
+        result = _resolve(simulate(
+            ws_with_motor, num_runs=5, timeout_s=60, confirm_long_run=True,
+            precision={"relative": 0.5, "min_trials": 2, "max_trials": 4}))
+        data = _sc(result)
+        assert data["precision"]["trials"] <= 4
+        assert data["precision"]["target"] == pytest.approx(0.5 / 1.5)
+        assert data["truncated"] is False
+
     def test_simulate_enforces_max_runs(self, ws_with_motor):
         from raptor.mcp.server import mcp
         from raptor.mcp.tools_run import simulate
@@ -137,3 +147,37 @@ class TestMarkdownRoundTrip:
         lines = [l.strip() for l in md.splitlines() if l.strip().startswith("|")]
         assert len(lines) >= 3
         assert "Metric" in lines[0]
+
+
+class TestSensitivity:
+    def test_it_returns_a_ranked_paired_tornado(self, ws_with_motor):
+        from raptor.mcp.tools_run import sensitivity
+        data = _sc(_resolve(sensitivity(
+            ws_with_motor, top=2, trials=2, seed=1, timeout_s=60)))
+        assert data["inputs"]
+        assert data["batches"] == 1 + 2 * len(data["inputs"])
+        assert data["metric"] == "availability"
+        assert "swing" in data["inputs"][0]
+
+
+class TestWhatIf:
+    def test_a_null_change_is_exactly_zero_and_paired(self, ws_with_motor):
+        from raptor.mcp.tools_run import what_if
+        data = _sc(_resolve(what_if(
+            ws_with_motor, changes=[], name="Same", trials=3, seed=2,
+            timeout_s=60)))
+        metric = data["rows"][0]["metrics"]["availability"]
+        assert data["rows"][0]["error"] is None
+        assert metric["paired"] is True
+        assert metric["delta"]["mean"] == 0
+        assert data["caption"]
+
+    def test_a_bad_change_is_reported_not_raised(self, ws_with_motor):
+        from raptor.mcp.tools_run import what_if
+        data = _sc(_resolve(what_if(
+            ws_with_motor, changes=["no_such:path=1"], trials=2, seed=1,
+            timeout_s=60)))
+        assert data["rows"][0]["error"]
+        assert "did not run" in _text(_resolve(what_if(
+            ws_with_motor, changes=["no_such:path=1"], trials=2, seed=1,
+            timeout_s=60)))

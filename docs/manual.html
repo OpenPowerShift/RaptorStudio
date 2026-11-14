@@ -2029,6 +2029,26 @@ current value).</p>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate the selected elements in place (Ctrl+D)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+D</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate in Parallel</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Copy the selected block in parallel between its neighbours (Ctrl+Alt+D)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Alt+D</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Array…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate the selection in a row or column</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Paste Data Only</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Copy the clipboard block&#8217;s data onto the selected blocks (Ctrl+Shift+V)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+V</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Select All</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Select all blocks/nodes/events/hierarchies (Ctrl+A)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+A</p></td>
@@ -2085,6 +2105,11 @@ current value).</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Block</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+2)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+2</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Quick Add</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add an element at the cursor (Space or / on the canvas)</p></td>
+<td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Node</p></td>
@@ -2804,29 +2829,9 @@ current value).</p>
 </thead>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Links</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour every block, node, event and hierarchy by its post-simulation availability, dependability or reliability, against the model&#8217;s G/Y and Y/R thresholds; the value is printed under each element (digits in Preferences ▸ Advanced). Enable Weak Link in the Run panel&#8217;s Analysis section.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Choice</p></td>
 <td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each capacity node by its average utilization (Green &lt; 70% · Yellow &lt; 90% · Red ≥ 90%). Needs Capacity analysis and at least one node without unrestricted flow.</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Cost</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each block by its total life-cycle cost, relative to the most expensive block (Green &lt; 1/3 · Yellow &lt; 2/3 · Red ≥ 2/3); Spread bands it by quartile instead. Needs Cost Analysis.</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Spares</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each block Red if it ever ran out of spares or reached end of life during the run (% of run time and sparing cost on hover), Green otherwise. Needs Weak Link analysis.</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Importance</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each block by its importance, using the measure the Importance tab ranks by (Vesely–Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), Yellow ≥ ⅓, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Greyed out until the run has importance measures: switch on Run ▸ Analysis ▸ Importance measures and run again.</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice, now No canvas overlay</p></td>
 </tr>
 </tbody>
 </table>
@@ -2969,6 +2974,11 @@ current value).</p>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Advisor</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show the Advisor — what looks wrong or unwise in the model, why, and what to do about it</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Data Tables</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+D</p></td>
@@ -3000,6 +3010,11 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Dark Theme</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Toggle light/dark theme</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Focus</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Dim everything except the selection (topology stays)</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

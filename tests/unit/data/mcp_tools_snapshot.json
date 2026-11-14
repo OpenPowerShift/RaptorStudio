@@ -85,6 +85,19 @@
    "model_id"
   ]
  },
+ "advise": {
+  "params": [
+   "limit",
+   "min_severity",
+   "model_id",
+   "only",
+   "run_id",
+   "targets"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "analytical_analysis": {
   "params": [
    "at",
@@ -106,6 +119,44 @@
   ],
   "required": [
    "model_id"
+  ]
+ },
+ "annual_availability": {
+  "params": [
+   "below",
+   "include_runs",
+   "offset",
+   "run_id",
+   "year_length"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
+ "apply_fix": {
+  "params": [
+   "fix_index",
+   "model_id",
+   "rule",
+   "target"
+  ],
+  "required": [
+   "model_id",
+   "rule"
+  ]
+ },
+ "apply_part_type": {
+  "params": [
+   "elements",
+   "library_path",
+   "model_id",
+   "overrides",
+   "part"
+  ],
+  "required": [
+   "elements",
+   "model_id",
+   "part"
   ]
  },
  "auto_layout": {
@@ -274,6 +325,19 @@
    "model_id"
   ]
  },
+ "copy_element_data": {
+  "params": [
+   "groups",
+   "model_id",
+   "source",
+   "targets"
+  ],
+  "required": [
+   "model_id",
+   "source",
+   "targets"
+  ]
+ },
  "create_model": {
   "params": [
    "k",
@@ -363,6 +427,26 @@
   "required": [
    "model_a",
    "model_b"
+  ]
+ },
+ "downtime_drivers": {
+  "params": [
+   "run_id",
+   "top"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
+ "duplicate_elements": {
+  "params": [
+   "copies",
+   "elements",
+   "model_id"
+  ],
+  "required": [
+   "elements",
+   "model_id"
   ]
  },
  "estimate_runtime": {
@@ -506,6 +590,23 @@
    "run_id"
   ]
  },
+ "insert_assembly": {
+  "params": [
+   "library_path",
+   "model_id",
+   "part",
+   "x",
+   "y"
+  ],
+  "required": [
+   "model_id",
+   "part"
+  ]
+ },
+ "list_advisor_rules": {
+  "params": [],
+  "required": []
+ },
  "list_annotations": {
   "params": [
    "model_id",
@@ -524,6 +625,14 @@
    "include_examples",
    "limit",
    "offset"
+  ],
+  "required": []
+ },
+ "list_part_types": {
+  "params": [
+   "library_path",
+   "model_id",
+   "query"
   ],
   "required": []
  },
@@ -672,12 +781,63 @@
    "model_id"
   ]
  },
+ "replace_in_table": {
+  "params": [
+   "case",
+   "column",
+   "find",
+   "model_id",
+   "replace",
+   "table",
+   "whole"
+  ],
+  "required": [
+   "column",
+   "find",
+   "model_id",
+   "replace",
+   "table"
+  ]
+ },
+ "run_chart": {
+  "params": [
+   "chart",
+   "render_svg",
+   "run_id"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
  "run_status": {
   "params": [
    "job_id"
   ],
   "required": [
    "job_id"
+  ]
+ },
+ "run_story": {
+  "params": [
+   "run_id"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
+ "save_assembly": {
+  "params": [
+   "category",
+   "elements",
+   "library_path",
+   "model_id",
+   "name",
+   "source"
+  ],
+  "required": [
+   "elements",
+   "model_id",
+   "name"
   ]
  },
  "save_model_as": {
@@ -691,6 +851,23 @@
    "path"
   ]
  },
+ "save_part_type": {
+  "params": [
+   "basis",
+   "category",
+   "element",
+   "kind",
+   "library_path",
+   "link",
+   "model_id",
+   "name",
+   "source"
+  ],
+  "required": [
+   "element",
+   "model_id"
+  ]
+ },
  "search_docs": {
   "params": [
    "limit",
@@ -700,9 +877,25 @@
    "query"
   ]
  },
+ "sensitivity": {
+  "params": [
+   "metric",
+   "model_id",
+   "seed",
+   "timeout_s",
+   "top",
+   "trials",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "simulate": {
   "params": [
+   "attribution",
    "availability_plot",
+   "capacity_rule",
    "collect_events",
    "confirm_long_run",
    "date",
@@ -711,6 +904,7 @@
    "interim_cost",
    "model_id",
    "num_runs",
+   "precision",
    "run_length",
    "seed",
    "timeout_s",
@@ -734,7 +928,9 @@
  },
  "start_run": {
   "params": [
+   "attribution",
    "availability_plot",
+   "capacity_rule",
    "collect_events",
    "interim_cost",
    "model_id",
@@ -762,6 +958,16 @@
    "model_id",
    "selector",
    "values"
+  ]
+ },
+ "sync_part_types": {
+  "params": [
+   "dry_run",
+   "library_path",
+   "model_id"
+  ],
+  "required": [
+   "model_id"
   ]
  },
  "undo_last_edit": {
@@ -812,6 +1018,23 @@
    "model_id"
   ],
   "required": [
+   "model_id"
+  ]
+ },
+ "what_if": {
+  "params": [
+   "changes",
+   "model_id",
+   "name",
+   "precision",
+   "requirements",
+   "seed",
+   "timeout_s",
+   "trials",
+   "workers"
+  ],
+  "required": [
+   "changes",
    "model_id"
   ]
  },

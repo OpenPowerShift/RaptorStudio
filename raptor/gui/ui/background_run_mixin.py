@@ -717,7 +717,8 @@ class BackgroundRunMixin(_Base):
                     ao_lines=ao_lines, cap_lines=cap_lines,
                     cost_lines=cost_lines,
                     manifest=(state.get("run_metadata") or {}).get("manifest"),
-                    importance=importance)
+                    importance=importance,
+                    rbd=getattr(self, "_last_run_model", None))
                 self._note_results_basis()
                 self._remember_report_streams(state.get("streams") or {})
                 self._results_show_action.setEnabled(bool(report_data))
