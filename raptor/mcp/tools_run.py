@@ -1146,6 +1146,11 @@ async def what_if(
             abort=abort)
 
     comparison = await run_job(ctx, work, label="Comparing scenario")
+    failed = comparison.rows[0].get("error") if comparison.rows else None
+    if failed:
+        # an error, not a success whose text says nothing ran: a pipeline
+        # checking is_error took a bad change for a finished comparison
+        raise ValueError(f"The scenario did not run: {failed}")
     data = comparison.to_dict()
     data["caption"] = comparison.caption
     return ok(data, _what_if_markdown(comparison))
