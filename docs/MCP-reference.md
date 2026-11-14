@@ -789,7 +789,7 @@ through an intermediate node first, e.g. for A and B in parallel:
 {"from":"Join","to":"End"}]` (`create_model(template="parallel")`
 builds exactly this shape for a plain A||B case).
 
-Returns {model_id, summary, validation, notes}.  `notes`, when present,
+Returns {model_id, summary, validation, notes}.  `notes` (may be empty)
 names the blocks the spec gave no failure or repair distribution: they
 are built with placeholder defaults, so results for them are not based
 on data.  A successful build is **not**
@@ -2463,7 +2463,7 @@ period), which shows a year that stays "available" but loses output.
 | `runs` | integer | yes |
 | `schema` | string | yes |
 | `sentence` | string | yes |
-| `threshold` | number | yes |
+| `threshold` | null \| number | yes |
 | `units` | string | yes |
 | `worst` | array<any> | yes |
 

@@ -40,6 +40,15 @@ def test_M_STR_002_fires(tmp_path):
     assert f.targets[0].name == "B" and f.basis == "exact"
     after = apply_first_fix(tmp_path, _backup(), "M-STR-002")
     assert "M-STR-002" not in {x.rule for x in after}
+    # the fixed model must still validate and run (the fix once left
+    # dep_num set, a dependency of type None that validation rejects)
+    from raptor.api.run import run
+    from raptor.api.validate import issues
+    ws = Workspace(tmp_path)
+    model_id = ws.list_models()[0]["model_id"]
+    errors = [i for i in issues(ws.get(model_id).rbd) if i.severity == "error"]
+    assert not errors, errors
+    run(ws, model_id, num_runs=2)
 
 
 def test_M_STR_002_silent():

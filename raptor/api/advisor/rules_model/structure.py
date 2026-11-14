@@ -47,8 +47,11 @@ def defeated_redundancy(ctx: ModelContext) -> Iterable[Finding]:
                 evidence={"dependent": b["name"], "follows": a["name"],
                           "node": node["name"], "reacting_percent": reacting},
                 basis="exact", impact=min(1.0, reacting / 100.0),
+                # dep_type None alone left dep_num pointing at the master, a
+                # dependency validation rejects; the GUI clears both
                 fixes=(Fix("Remove the dependency",
-                           (f"block:{bid}.dep_type=None",)),),
+                           (f"block:{bid}.dep_type=None",
+                            f"block:{bid}.dep_num=0")),),
                 doc="advisor.html#M-STR-002")
 
 

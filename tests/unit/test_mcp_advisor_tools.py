@@ -67,7 +67,7 @@ def test_advise_filters_and_truncates(server, model):
 
 def test_apply_fix_then_undo(server, model):
     done = ok(call(server, "apply_fix", model_id=model, rule="M-STR-002"))
-    assert done["applied"] == ["block:2.dep_type=None"] and done["remaining"] == 0
+    assert done["applied"] == ["block:2.dep_type=None", "block:2.dep_num=0"] and done["remaining"] == 0
     assert "M-STR-002" not in {f["rule"] for f in ok(call(server, "advise", model_id=model))["findings"]}
     ok(call(server, "undo_last_edit", model_id=model))
     assert "M-STR-002" in {f["rule"] for f in ok(call(server, "advise", model_id=model))["findings"]}

@@ -16,4 +16,8 @@ def apply(workspace: Any, model_id: str, fix: Fix) -> list[dict]:
         raise FixNotApplicable(
             f"'{fix.label}' opens a tool in the application; it has no field changes to apply")
     from raptor.api.paths import apply_assignments
-    return apply_assignments(workspace, model_id, list(fix.assignments))
+    # one save, so one undo step, and all or nothing: a fix of two fields
+    # applied one save each was undone halfway, leaving a model that failed
+    # validation
+    with workspace.batch(model_id):
+        return apply_assignments(workspace, model_id, list(fix.assignments))

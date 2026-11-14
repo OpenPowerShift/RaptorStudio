@@ -8,9 +8,45 @@ from raptor.mcp.result import ADDITIVE, READ_ONLY, guarded, ok
 from raptor.mcp.server import mcp
 
 
+def _library_file(path: str) -> str:
+    """An existing library inside the workspace or an `--allow-read`
+    directory.  Same boundary as `open_model`: a relative path, and a file
+    outside the allowed roots answers like one that does not exist."""
+    from pathlib import Path
+    path = context.require_relative_path(path, "library_path")
+    for root in (context.workspace().root, *context.allowed_read_dirs()):
+        try:
+            base = Path(root).resolve()
+            found = (base / path).resolve()
+        except OSError:
+            continue
+        if base in found.parents and found.is_file():
+            return str(found)
+    raise FileNotFoundError(f"No library at {path!r} in the workspace or an "
+                            "--allow-read directory.")
+
+
 def _library(path: str):
     from raptor.api.library.model import read_library
-    return read_library(path)
+    found = _library_file(path)
+    try:
+        return read_library(found)
+    except (ValueError, KeyError, TypeError, UnicodeDecodeError):
+        # never echo the file: a parse error quoting it would read host files
+        raise ValueError(f"{path!r} is not a part library (.rbdlib)") from None
+
+
+def _library_for_writing(path: str, name: str):
+    """(library, resolved path): the existing library at `path`, or a new
+    one, at a path inside the workspace (or an `--allow-write` directory)."""
+    from raptor.api.library.model import Library
+    path = context.require_relative_path(path, "library_path")
+    dest = context.workspace().resolve_output_path(
+        path, allow_extra=context.allowed_write_dirs())
+    if dest.is_file():
+        return _library(path), str(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    return Library(name, path=str(dest)), str(dest)
 
 
 @mcp.tool(annotations=READ_ONLY("Part types"))
@@ -72,6 +108,7 @@ def apply_part_type(model_id: str, part: str, elements: list[str],
     from raptor.api.library.links import link_element, local_parts
     from raptor.api.library.model import PartType
 
+    context.require_write()
     ws = context.workspace()
     if library_path:
         found = _library(library_path).get(part)
@@ -105,10 +142,9 @@ def save_part_type(model_id: str, element: str, name: str | None = None,
     position or id.
     """
     from raptor.api.library.links import apply_part_to_rbd
-    from raptor.api.library.model import (
-        Library, part_from_element, read_library, write_library,
-    )
+    from raptor.api.library.model import part_from_element, write_library
 
+    context.require_write()
     ws = context.workspace()
     rbd = ws.get(model_id).rbd
     if kind == "annotation":
@@ -129,12 +165,10 @@ def save_part_type(model_id: str, element: str, name: str | None = None,
     part = part_from_element(kind, row, name=name, category=category,
                              source=source, basis=basis)
     if library_path:
-        try:
-            library = read_library(library_path)
-        except FileNotFoundError:
-            library = Library(library_path.rsplit("/", 1)[-1][:-7] or "Library")
+        stem = library_path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+        library, dest = _library_for_writing(library_path, stem or "Library")
         library.parts[part.id] = part
-        write_library(library, library_path)
+        write_library(library, dest)
     if link:
         apply_part_to_rbd(rbd, f"{kind}:{row.get('ID')}", part,
                           library=library_path or "")
@@ -157,6 +191,8 @@ def sync_part_types(model_id: str, library_path: str | None = None,
     """
     from raptor.api.library.links import apply_updates
 
+    if not dry_run:
+        context.require_write()
     library = _library(library_path) if library_path else None
     result = apply_updates(context.workspace(), model_id, library=library,
                            dry_run=dry_run)
@@ -184,20 +220,18 @@ def save_assembly(model_id: str, elements: list[str], name: str,
     from raptor.api.library.assembly import (
         add_local_part, assembly_from_elements, describe,
     )
-    from raptor.api.library.model import Library, read_library, write_library
+    from raptor.api.library.model import write_library
 
+    context.require_write()
     ws = context.workspace()
     rbd = ws.get(model_id).rbd
     part = assembly_from_elements(rbd, elements, name=name,
                                   category=category, source=source)
     if library_path:
-        try:
-            library = read_library(library_path)
-        except FileNotFoundError:
-            library = Library(library_path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
-                              or "Library", path=library_path)
+        stem = library_path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+        library, dest = _library_for_writing(library_path, stem or "Library")
         library.parts[part.id] = part
-        write_library(library, library_path)
+        write_library(library, dest)
     else:
         add_local_part(rbd, part)
         ws.save(model_id)
@@ -225,6 +259,7 @@ def insert_assembly(model_id: str, part: str,
     from raptor.api.library.assembly import insert_assembly as insert
     from raptor.api.library.links import local_parts
 
+    context.require_write()
     ws = context.workspace()
     rbd = ws.get(model_id).rbd
     found = (_library(library_path).get(part) if library_path

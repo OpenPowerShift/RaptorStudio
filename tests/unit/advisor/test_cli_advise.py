@@ -34,7 +34,7 @@ def test_text_lists_findings_most_important_first(capsys, tmp_path):
     lines = out.splitlines()
     assert "0 error(s), 1 warning(s)" in lines[0]
     assert "warning: M-STR-002: B backs up A" in lines[1]
-    assert any("fix: Remove the dependency [block:2.dep_type=None]" in line for line in lines)
+    assert any("fix: Remove the dependency [block:2.dep_type=None; block:2.dep_num=0]" in line for line in lines)
     assert "why:" not in out
 
 
@@ -52,7 +52,7 @@ def test_json_is_structured(capsys, tmp_path):
     first = result["findings"][0]
     assert first["rule"] == "M-STR-002" and first["basis"] == "exact"
     assert first["targets"][0]["path"] == "block:2.dep_type"
-    assert first["fixes"][0]["assignments"] == ["block:2.dep_type=None"]
+    assert first["fixes"][0]["assignments"] == ["block:2.dep_type=None", "block:2.dep_num=0"]
 
 
 def test_min_severity_and_only_and_skip(capsys, tmp_path):
