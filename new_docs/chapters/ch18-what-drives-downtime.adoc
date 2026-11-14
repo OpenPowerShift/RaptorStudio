@@ -24,22 +24,15 @@ the cheapest spare holding.*
 
 === Start with the answer
 
-Open the model, run it, and read the **Overview** tab. Above the older
-summary cards is the Story:
+Open the model, run it, and read the **Overview** tab. Below the key-number
+cards is the Story, which adds only what the cards do not say:
 
-* a **headline** against the first requirement, or against availability,
-  mission reliability or delivered capacity when no requirement is set;
-* a **dot plot** of the per-run values, with the target and the share of
-  runs that met it;
-* the top **drivers**, ranked by lost capacity when capacity analysis is on
-  and by downtime otherwise;
-* the top **findings** from the Advisor;
-* the **key numbers** for this model, and the provenance line.
-
-The **Part Library** tab beside the Explorer saves an element's data as a
-reusable part type (blocks, nodes, events, hierarchies and annotations) and
-applies it to other elements of the same kind; a later change to the part can
-be synced while hand-edited fields stay as overrides.
+* when a requirement is set, a **headline** against it and a **dot plot** of
+  the per-run values: each dot is one run in a hundred, filled when it met the
+  target and hollow when it missed;
+* one line naming the top **drivers**, ranked by lost capacity when capacity
+  analysis is on and by downtime otherwise, with a link to the **Drivers** tab;
+* the **findings** from the Advisor.
 
 The same object is available without the application:
 
@@ -97,8 +90,13 @@ The **Charts** tab paints the same figures the report uses. Each chart has a
 one-sentence caption you can quote, values on hover, click-to-locate, and
 PNG/SVG/CSV export. The set includes:
 
-* the run-to-run dot plot and its ECDF;
-* the downtime Pareto with cause stacks;
+* the run-to-run dot plot and **Chance of reaching a value**: the share of
+  runs on the horizontal axis and the value they reached on the vertical, so
+  "9 runs in 10 reached at least 99.2 %" reads straight off the curve. Move
+  the pointer over it for a cross-hair that says exactly that;
+* the downtime Pareto with cause stacks. Each cause has its own colour and
+  pattern so the stack still reads in greyscale; the key above the chart
+  names them, and the whisker on each bar is ± 2 standard errors;
 * the availability ladder: inherent (repair only), achieved (plus planned
   maintenance), operational (plus logistics, spares and crews);
 * the outage-duration histogram on a log scale;
@@ -106,9 +104,39 @@ PNG/SVG/CSV export. The set includes:
 * the downtime treemap, the outage anatomy (what an outage *looks* like,
   step by step) and the run-to-run ribbon (every trial as one row, green up
   and red down);
-* convergence, and with capacity analysis the lost-capacity Pareto and the
-  downtime-against-lost-capacity scatter;
-* year-by-year availability when the run covers whole periods.
+* convergence: the running mean with its ± 2 standard-error band;
+* year-by-year availability when the run covers whole years (hours models).
+
+With capacity analysis on, three more charts answer "who loses the
+capacity", which is not the same question as "who is down":
+
+* **Who loses the capacity**: each element's share of the lost flow beside
+  its share of the downtime, in the same order, so an element that rarely
+  stops the system but often throttles it stands out;
+* **Downtime against lost capacity**: one point per element, both shares;
+* **Where the capacity goes**: from the flow the model could deliver down to
+  what it did deliver, one step per cause;
+* **Capacity delivered year by year**: capacity-weighted availability for
+  each year, with the spread across runs. A year can be 100 % available and
+  still deliver only 96 % of the flow.
+
+The lost flow is split among the elements down at the time
+(`--capacity-rule proportional` by default), and the split adds up to the
+engine's own lost flow. The engine writes capacity times to six decimals, so
+a flow change can land a millionth of an hour from the event that caused it;
+such a sliver is charged to the elements of the neighbouring outage rather
+than left unexplained.
+
+Capacity-weighted availability for one period is the flow delivered in it
+divided by the flow the model could deliver over the same time:
+
+....
+capacity-weighted availability = flow delivered in the period
+                                 / (flow generated x period length)
+....
+
+When the run is a whole number of years, the average of the yearly values
+equals the engine's own capacity-weighted availability for the run.
 
 Two canvas controls tie the views together. **Show on Canvas** chooses one
 result measure (weak link, capacity, cost, spares or importance) and paints
@@ -126,7 +154,25 @@ raptor explain --list-charts
 ----
 
 MCP clients call `run_chart(run_id, chart="downtime-pareto")` and receive the
-same specification plus the SVG.
+same specification plus the SVG. The capacity charts are `lost-capacity-pareto`,
+`capacity-vs-downtime`, `capacity-waterfall` and `annual-capacity-fan`.
+
+The numbers behind the charts export as tables. In the GUI they are in
+**File ▸ Export ▸ Export Tables…** (or the Export Tables… button in the data tables); from the command line, run the model and ask for
+the attribution tables too:
+
+[source,bash]
+----
+raptor tables Water2.rbds --run --drivers --format xlsx -o out/
+----
+
+That adds `results.downtime_drivers`, `results.downtime_causes`,
+`results.outage_durations`, `results.lost_capacity` (by element),
+`results.lost_capacity_causes`, `results.period_availability`,
+`results.period_capacity` and `results.period_runs` (one row per run and
+year, for your own statistics). MCP clients get the same tables through
+`export_tables`, and `annual_availability(run_id, include_runs=True)` returns
+the year-by-year figures with capacity.
 
 === Stop when the answer is precise enough
 
@@ -196,8 +242,12 @@ raptor optimise spares VanFlat.rbds --target 'system.ao>=0.995' --budget 30
 raptor optimise spares VanFlat.rbds --target 'system.ao>=0.995' --apply
 ----
 
-A point counts as meeting the target only when its *lower* confidence bound
-does. The command prints every evaluated point and recommends the cheapest
+A point counts as meeting the target only when the cautious end of its
+confidence interval does: the *lower* bound for availability, the *upper*
+bound for a measure where less is better, such as mean downtime. The lead
+time each part's demand is counted over comes from the pool: the
+emergency-order time when one is set, the normal order time, the regular
+delivery interval, or else the whole run. The command prints every evaluated point and recommends the cheapest
 one that qualifies; `--apply` writes the stocks into the model, and leaving
 it out changes nothing. If every spare cost is the default 1, the result
 minimises the number held rather than money, and the caption says so.
@@ -208,3 +258,31 @@ Attribution describes the design you simulated. Importance and what-if
 answer what a change would achieve. Never use a DTCI ranking as if it were
 a what-if result: the element that causes the most downtime now is not
 always the one whose fix buys the most.
+
+=== Keep the parts you reuse
+
+The **Part Library** tab beside the Explorer keeps two kinds of entry:
+
+* a *part type* is one element's data (failure and repair, logistics,
+  spares, maintenance, cost) without its name or place. Apply it to other
+  elements of the same kind; a later change to the part can be synced, and
+  fields you edited by hand stay as overrides.
+* an *assembly* is a group of elements kept with its links: a hierarchy with
+  everything inside it, a node with the blocks around it, a set of events.
+  Insert it, or drag it onto the canvas, and you get a fresh copy with new
+  names; links to elements outside the group are dropped, and spare pools or
+  resources the model does not have are reset, exactly as a paste from
+  another model resets them.
+
+Select the elements and press **Save selection…**: the dialog offers an
+assembly, or a part type when the selection is a single element. The command
+line and MCP do the same:
+
+[source,bash]
+----
+raptor library add parts.rbdlib VanFlat.rbds --assembly Tire_FL,Tire_FR,Tire_RL,Tire_RR,Tires_vote --name "Tyre set"
+raptor library insert VanFlat.rbds --library parts.rbdlib --part "Tyre set" --in-place
+----
+
+MCP clients call `save_assembly` and `insert_assembly`.
+

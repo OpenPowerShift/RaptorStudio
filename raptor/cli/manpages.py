@@ -26,6 +26,14 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
         ("raptor run pump.rbd -n 100 -f json | jq .summary.Availability",
          "Simulate 100 runs and read one number."),
     ],
+    "library": [
+        ("raptor library add parts.rbdlib plant.rbds --assembly \"Gen bank\" "
+         "--name \"Generator bank\"",
+         "Save a hierarchy, with everything inside it, as an assembly."),
+        ("raptor library insert plant.rbds --library parts.rbdlib "
+         "--part \"Generator bank\" --at 40,10 --in-place",
+         "Insert a fresh copy of it into a model and save the model."),
+    ],
     "analytic": [
         ("raptor analytic plant.rbds --at 8760",
          "Exact reliability at one year, with MTTF, B10 life and "

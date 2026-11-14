@@ -359,6 +359,7 @@
 <li><a href="#_which_inputs_matter">25.8. Which inputs matter</a></li>
 <li><a href="#_how_many_spares">25.9. How many spares</a></li>
 <li><a href="#_the_rule_that_keeps_this_honest">25.10. The rule that keeps this honest</a></li>
+<li><a href="#_keep_the_parts_you_reuse">25.11. Keep the parts you reuse</a></li>
 </ul>
 </li>
 <li><a href="#ch-capstone-flight">26. Capstone: The Flight, Phase by Phase (An Open-Ended Brief)</a>
@@ -9637,7 +9638,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>84 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>86 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10164,8 +10165,8 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 84 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
-<code>ping</code>, or 67 when <code>--no-render</code> hides the PNG diagram tool.</p>
+listed below: 86 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+<code>ping</code>, or 85 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
 <p><strong>Ping the server.</strong> Ask the assistant to "ping RAPTOR" or call the <code>ping</code>
@@ -10637,6 +10638,15 @@ you need the exact argument shape.</p>
   hierarchy or annotation): list parts from a <code>.rbdlib</code> file or the model,
   apply one (recording the link), save an element as a part, and show or
   apply the changes a library has made while respecting overrides.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>save_assembly</code>, <code>insert_assembly</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save a selection (a hierarchy with everything inside it, a node with its
+  blocks, events, a whole redundant group) as an assembly in a <code>.rbdlib</code>
+  file or the model&#8217;s own list, and insert a fresh copy later: new ids,
+  free names, internal links kept, links to elements outside it dropped,
+  and spare pools or resources the target lacks reset as a paste resets
+  them.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>sensitivity</code></p></td>
@@ -12236,36 +12246,24 @@ possible cause.</p>
 <div class="sect2">
 <h3 id="_start_with_the_answer">25.3. Start with the answer</h3>
 <div class="paragraph">
-<p>Open the model, run it, and read the <strong>Overview</strong> tab. Above the older
-summary cards is the Story:</p>
+<p>Open the model, run it, and read the <strong>Overview</strong> tab. Below the key-number
+cards is the Story, which adds only what the cards do not say:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p>a <strong>headline</strong> against the first requirement, or against availability,
-mission reliability or delivered capacity when no requirement is set;</p>
+<p>when a requirement is set, a <strong>headline</strong> against it and a <strong>dot plot</strong> of
+the per-run values: each dot is one run in a hundred, filled when it met the
+target and hollow when it missed;</p>
 </li>
 <li>
-<p>a <strong>dot plot</strong> of the per-run values, with the target and the share of
-runs that met it;</p>
+<p>one line naming the top <strong>drivers</strong>, ranked by lost capacity when capacity
+analysis is on and by downtime otherwise, with a link to the <strong>Drivers</strong> tab;</p>
 </li>
 <li>
-<p>the top <strong>drivers</strong>, ranked by lost capacity when capacity analysis is on
-and by downtime otherwise;</p>
-</li>
-<li>
-<p>the top <strong>findings</strong> from the Advisor;</p>
-</li>
-<li>
-<p>the <strong>key numbers</strong> for this model, and the provenance line.</p>
+<p>the <strong>findings</strong> from the Advisor.</p>
 </li>
 </ul>
-</div>
-<div class="paragraph">
-<p>The <strong>Part Library</strong> tab beside the Explorer saves an element&#8217;s data as a
-reusable part type (blocks, nodes, events, hierarchies and annotations) and
-applies it to other elements of the same kind; a later change to the part can
-be synced while hand-edited fields stay as overrides.</p>
 </div>
 <div class="paragraph">
 <p>The same object is available without the application:</p>
@@ -12349,10 +12347,15 @@ PNG/SVG/CSV export. The set includes:</p>
 <div class="ulist">
 <ul>
 <li>
-<p>the run-to-run dot plot and its ECDF;</p>
+<p>the run-to-run dot plot and <strong>Chance of reaching a value</strong>: the share of
+runs on the horizontal axis and the value they reached on the vertical, so
+"9 runs in 10 reached at least 99.2 %" reads straight off the curve. Move
+the pointer over it for a cross-hair that says exactly that;</p>
 </li>
 <li>
-<p>the downtime Pareto with cause stacks;</p>
+<p>the downtime Pareto with cause stacks. Each cause has its own colour and
+pattern so the stack still reads in greyscale; the key above the chart
+names them, and the whisker on each bar is ± 2 standard errors;</p>
 </li>
 <li>
 <p>the availability ladder: inherent (repair only), achieved (plus planned
@@ -12370,13 +12373,59 @@ step by step) and the run-to-run ribbon (every trial as one row, green up
 and red down);</p>
 </li>
 <li>
-<p>convergence, and with capacity analysis the lost-capacity Pareto and the
-downtime-against-lost-capacity scatter;</p>
+<p>convergence: the running mean with its ± 2 standard-error band;</p>
 </li>
 <li>
-<p>year-by-year availability when the run covers whole periods.</p>
+<p>year-by-year availability when the run covers whole years (hours models).</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>With capacity analysis on, three more charts answer "who loses the
+capacity", which is not the same question as "who is down":</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Who loses the capacity</strong>: each element&#8217;s share of the lost flow beside
+its share of the downtime, in the same order, so an element that rarely
+stops the system but often throttles it stands out;</p>
+</li>
+<li>
+<p><strong>Downtime against lost capacity</strong>: one point per element, both shares;</p>
+</li>
+<li>
+<p><strong>Where the capacity goes</strong>: from the flow the model could deliver down to
+what it did deliver, one step per cause;</p>
+</li>
+<li>
+<p><strong>Capacity delivered year by year</strong>: capacity-weighted availability for
+each year, with the spread across runs. A year can be 100 % available and
+still deliver only 96 % of the flow.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The lost flow is split among the elements down at the time
+(<code>--capacity-rule proportional</code> by default), and the split adds up to the
+engine&#8217;s own lost flow. The engine writes capacity times to six decimals, so
+a flow change can land a millionth of an hour from the event that caused it;
+such a sliver is charged to the elements of the neighbouring outage rather
+than left unexplained.</p>
+</div>
+<div class="paragraph">
+<p>Capacity-weighted availability for one period is the flow delivered in it
+divided by the flow the model could deliver over the same time:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>capacity-weighted availability = flow delivered in the period
+                                 / (flow generated x period length)</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>When the run is a whole number of years, the average of the yearly values
+equals the engine&#8217;s own capacity-weighted availability for the run.</p>
 </div>
 <div class="paragraph">
 <p>Two canvas controls tie the views together. <strong>Show on Canvas</strong> chooses one
@@ -12397,7 +12446,27 @@ raptor explain --list-charts</code></pre>
 </div>
 <div class="paragraph">
 <p>MCP clients call <code>run_chart(run_id, chart="downtime-pareto")</code> and receive the
-same specification plus the SVG.</p>
+same specification plus the SVG. The capacity charts are <code>lost-capacity-pareto</code>,
+<code>capacity-vs-downtime</code>, <code>capacity-waterfall</code> and <code>annual-capacity-fan</code>.</p>
+</div>
+<div class="paragraph">
+<p>The numbers behind the charts export as tables. In the GUI they are in
+<strong>File ▸ Export ▸ Export Tables…</strong> (or the Export Tables… button in the data tables); from the command line, run the model and ask for
+the attribution tables too:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor tables Water2.rbds --run --drivers --format xlsx -o out/</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>That adds <code>results.downtime_drivers</code>, <code>results.downtime_causes</code>,
+<code>results.outage_durations</code>, <code>results.lost_capacity</code> (by element),
+<code>results.lost_capacity_causes</code>, <code>results.period_availability</code>,
+<code>results.period_capacity</code> and <code>results.period_runs</code> (one row per run and
+year, for your own statistics). MCP clients get the same tables through
+<code>export_tables</code>, and <code>annual_availability(run_id, include_runs=True)</code> returns
+the year-by-year figures with capacity.</p>
 </div>
 </div>
 <div class="sect2">
@@ -12481,8 +12550,12 @@ raptor optimise spares VanFlat.rbds --target 'system.ao&gt;=0.995' --apply</code
 </div>
 </div>
 <div class="paragraph">
-<p>A point counts as meeting the target only when its <strong>lower</strong> confidence bound
-does. The command prints every evaluated point and recommends the cheapest
+<p>A point counts as meeting the target only when the cautious end of its
+confidence interval does: the <strong>lower</strong> bound for availability, the <strong>upper</strong>
+bound for a measure where less is better, such as mean downtime. The lead
+time each part&#8217;s demand is counted over comes from the pool: the
+emergency-order time when one is set, the normal order time, the regular
+delivery interval, or else the whole run. The command prints every evaluated point and recommends the cheapest
 one that qualifies; <code>--apply</code> writes the stocks into the model, and leaving
 it out changes nothing. If every spare cost is the default 1, the result
 minimises the number held rather than money, and the caption says so.</p>
@@ -12495,6 +12568,44 @@ minimises the number held rather than money, and the caption says so.</p>
 answer what a change would achieve. Never use a DTCI ranking as if it were
 a what-if result: the element that causes the most downtime now is not
 always the one whose fix buys the most.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_keep_the_parts_you_reuse">25.11. Keep the parts you reuse</h3>
+<div class="paragraph">
+<p>The <strong>Part Library</strong> tab beside the Explorer keeps two kinds of entry:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>a <strong>part type</strong> is one element&#8217;s data (failure and repair, logistics,
+spares, maintenance, cost) without its name or place. Apply it to other
+elements of the same kind; a later change to the part can be synced, and
+fields you edited by hand stay as overrides.</p>
+</li>
+<li>
+<p>an <strong>assembly</strong> is a group of elements kept with its links: a hierarchy with
+everything inside it, a node with the blocks around it, a set of events.
+Insert it, or drag it onto the canvas, and you get a fresh copy with new
+names; links to elements outside the group are dropped, and spare pools or
+resources the model does not have are reset, exactly as a paste from
+another model resets them.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Select the elements and press <strong>Save selection…</strong>: the dialog offers an
+assembly, or a part type when the selection is a single element. The command
+line and MCP do the same:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor library add parts.rbdlib VanFlat.rbds --assembly Tire_FL,Tire_FR,Tire_RL,Tire_RR,Tires_vote --name "Tyre set"
+raptor library insert VanFlat.rbds --library parts.rbdlib --part "Tyre set" --in-place</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>MCP clients call <code>save_assembly</code> and <code>insert_assembly</code>.</p>
 </div>
 </div>
 </div>

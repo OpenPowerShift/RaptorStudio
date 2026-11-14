@@ -281,8 +281,10 @@ complete -c raptor -n '__fish_seen_subcommand_from sweep' -l vary
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l weak-type
 complete -c raptor -n '__fish_use_subcommand' -a tables
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l analysis
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l capacity-rule
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l case-sensitive
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l column
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l drivers
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l find
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l format
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l help

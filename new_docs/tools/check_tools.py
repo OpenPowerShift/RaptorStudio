@@ -57,19 +57,17 @@ def live_tool_names() -> set[str]:
     Read from the server's tool manager rather than `list_tools()`: the
     public one is async, and this check is synchronous (and is called from
     a plain pytest test, not the event loop).  Importing the tool modules
-    is what registers them, so import every part first -- the same set
-    `server.py` wires up.
+    is what registers them, so import every ``raptor.mcp.tools_*`` module
+    first.  They are found, not listed: a hand-kept list missed
+    `tools_library` and undercounted the server by six tools.
     """
-    import raptor.mcp.tools_model      # noqa: F401  (registers on import)
-    import raptor.mcp.tools_data       # noqa: F401
-    import raptor.mcp.tools_run        # noqa: F401
-    import raptor.mcp.tools_metrics    # noqa: F401
-    import raptor.mcp.tools_advisor    # noqa: F401
-    import raptor.mcp.tools_tables     # noqa: F401
-    import raptor.mcp.tools_view       # noqa: F401
-    import raptor.mcp.tools_svg        # noqa: F401
-    import raptor.mcp.tools_analytic   # noqa: F401
-    import raptor.mcp.tools_analytic  # noqa: F401
+    import importlib
+    import pkgutil
+
+    import raptor.mcp
+    for info in pkgutil.iter_modules(raptor.mcp.__path__):
+        if info.name.startswith("tools_"):
+            importlib.import_module(f"raptor.mcp.{info.name}")
     from raptor.mcp.server import mcp
     return set(mcp._tool_manager._tools)
 

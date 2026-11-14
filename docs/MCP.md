@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **84 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **83**.
+- **86 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **85**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -533,6 +533,13 @@ hierarchies and annotations all have one. Applying one writes ordinary
 block columns and records a link in the model, so the engine still sees an
 ordinary block; `sync_part_types` reports (or applies) later changes and
 leaves hand-edited fields alone while they are marked as overrides.
+
+`save_assembly` and `insert_assembly` keep structure instead of values: a
+selection (a hierarchy with everything inside it, a node with its blocks,
+events) is saved with its internal links, and inserting it adds a fresh copy
+with new ids and free names. Links to elements outside the copy are dropped,
+and spare pools or resources the target model lacks are reset, as a paste
+from another model resets them; the result's `notes` say what was reset.
 
 `sensitivity` screens the inputs one at a time: it varies block lives,
 repair times, PM intervals, spare stock and crews at a low and a high value,

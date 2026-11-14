@@ -127,6 +127,8 @@ TOOL_CATEGORY: dict[str, str] = {
     "list_part_types": "library",
     "apply_part_type": "library",
     "save_part_type": "library",
+    "save_assembly": "library",
+    "insert_assembly": "library",
     "sync_part_types": "library",
     "what_if": "what-if",
     "sensitivity": "what-if",
@@ -297,6 +299,9 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "save_part_type": {"model_id": "<model_id>", "element": "Pump_A",
                        "name": "Pump, centrifugal"},
     "sync_part_types": {"model_id": "<model_id>", "dry_run": True},
+    "save_assembly": {"model_id": "<model_id>",
+                      "elements": ["Cooling_Loop"], "name": "Cooling loop"},
+    "insert_assembly": {"model_id": "<model_id>", "part": "Cooling loop"},
     "what_if": {"model_id": "<model_id>",
                 "changes": ["block:Pump.repair_params=8,0,0"],
                 "name": "Faster repair", "trials": 200},
@@ -581,6 +586,10 @@ RETURN_NOTES: dict[str, str] = {
                         "overrides, fields}], count}`.",
     "save_part_type": "`{part: {...}, linked}`; the part never includes the "
                       "block's name, position or id.",
+    "save_assembly": "`{part, name, contents, library_path}`; `contents` "
+                     "reads like `1 hierarchy, 4 blocks, 9 links`.",
+    "insert_assembly": "`{part, name, elements: {block: [ids], ...}, count, "
+                       "annotations, notes}`; the copy is not connected.",
     "sync_part_types": "`{dry_run, pending: [{block, name, part, "
                        "name_part, version, recorded_version, changes}], "
                        "applied, count}`.",

@@ -39,7 +39,7 @@ _raptor() {
     spf) opts="--criticality --format --help --output" ;;
     step) opts="--break --events --fine --format --help --run --until" ;;
     sweep) opts="--analysis --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --vary --weak-type" ;;
-    tables) opts="--analysis --case-sensitive --column --find --format --help --importance --in-place --jobs --length --list --max-trials --min-trials --output --precision --precision-batch --precision-metric --replace --run --runs --save-model --seed --set --set-file --stats-start --stop --table --timeout --weak-type --whole" ;;
+    tables) opts="--analysis --capacity-rule --case-sensitive --column --drivers --find --format --help --importance --in-place --jobs --length --list --max-trials --min-trials --output --precision --precision-batch --precision-metric --replace --run --runs --save-model --seed --set --set-file --stats-start --stop --table --timeout --weak-type --whole" ;;
     validate) opts="--format --help --strict" ;;
     whatif) opts="--change --change-file --format --help --jobs --name --note --precision --requirement --save --seed --trials" ;;
   esac
