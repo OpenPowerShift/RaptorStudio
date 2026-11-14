@@ -93,14 +93,32 @@ def test_convergence_widens_then_narrows_the_running_interval():
     assert third["mean"] == pytest.approx(2 / 3)
 
 
-def test_cost_pareto_sums_the_engine_block_rows():
+def test_cost_pareto_is_the_mean_per_run():
+    # Pump costs 60 in each of two runs: 60 a run, not 120 (the Final
+    # Results figure), and its share of 100 a run is 60 %.
     cost = SimpleNamespace(blocks={
         1: SimpleNamespace(name="Pump", total=60.0),
         2: SimpleNamespace(name="Valve", total=40.0)})
     report_data = [SimpleNamespace(cost=cost), SimpleNamespace(cost=cost)]
-    spec = charts.cost_pareto(report_data)
-    assert spec.series[0] == {"name": "Pump", "value": 120.0, "share": 0.6}
-    assert spec.provenance["grand_total"] == 200.0
+    spec = charts.cost_pareto(charts.element_costs(report_data))
+    assert spec.series[0] == {"name": "Pump", "value": 60.0, "share": 0.6}
+    assert spec.provenance["grand_total"] == 100.0
+
+
+def test_element_costs_from_the_stored_tables_match_the_run_reports():
+    from raptor.api.tables import Table
+    life = Table("results.cost_life_cycle_cost", "Life-cycle cost", "results",
+                 ["Block", "ID", "Purchase", "Operating", "Sparing", "Disposal", "Total"],
+                 [["Pump", 1, "100.00", "0.00", "300.00", "0.00", "400.00"],
+                  ["Total", "", "100.00", "0.00", "300.00", "0.00", "400.00"]])
+    pools = Table("results.cost_sparepools", "Spare pools", "results",
+                  ["SparePools", "Initial", "NewSpares", "EmerShip", "Total"],
+                  [["Seals", "50.00", "50.00", "0.00", "100.00"]])
+    rows = {r["name"]: r for r in charts.element_costs_from_tables([life, pools])}
+    assert rows["Pump"]["total"] == pytest.approx(400.0)
+    assert rows["Pump"]["sparing"] == pytest.approx(300.0)
+    assert rows["Seals"] == {"name": "Seals", "spare_pool": 100.0, "total": 100.0}
+    assert "Total" not in rows
 
 
 def test_an_unknown_chart_name_lists_the_choices():
@@ -253,3 +271,46 @@ def test_a_time_unit_does_not_stop_a_fraction_printing_as_a_percentage():
     assert charts.value_format("availability", "hours") == "percent"
     assert charts.value_format("cost", "money") == "money"
     assert charts.value_format("downtime", "hours") == ""
+
+
+def test_cost_treemap_by_hand():
+    # Two runs.  Pump: purchase 100 + sparing 300 per run -> 400 a run,
+    # mostly spares.  Pool "Seals": 200 in run 1 only -> 100 a run.
+    from types import SimpleNamespace as NS
+    from raptor.api.insight.charts import cost_treemap
+
+    def report(pool):
+        block = NS(name="Pump", purchase=100.0, operating=0.0, sparing=300.0,
+                   disposal=0.0)
+        return NS(cost=NS(blocks={1: block},
+                          spare_pools={"Seals": NS(name="Seals", total=pool)}))
+
+    from raptor.api.insight.charts import element_costs
+    spec = cost_treemap(element_costs([report(200.0), report(0.0)]))
+    cells = {c["name"]: c for c in spec.series}
+    assert cells["Pump"]["value"] == pytest.approx(400.0)
+    assert cells["Pump"]["cause"] == "sparing"
+    assert cells["Pump"]["share"] == pytest.approx(0.8)
+    assert cells["Seals"]["value"] == pytest.approx(100.0)
+    assert cells["Seals"]["cause"] == "spare_pool"
+    assert spec.provenance["format"] == "money"
+    assert spec.provenance["group_labels"]["sparing"] == "Spares"
+    # areas are proportional to the values
+    area = {n: c["w"] * c["h"] for n, c in cells.items()}
+    assert area["Pump"] / area["Seals"] == pytest.approx(4.0)
+    assert "Pump occupies the largest area (400, 80 % of the cost)" in spec.caption
+
+
+def test_lost_capacity_treemap_uses_the_capacity_shares():
+    from raptor.api.insight.charts import lost_capacity_treemap
+    attribution = {
+        "runs": 3,
+        "elements": [{"name": "A", "main_cause": "repair"},
+                     {"name": "B", "main_cause": "wait_spare"}],
+        "capacity": {"elements": [{"name": "A", "share": {"mean": 0.25}},
+                                  {"name": "B", "share": {"mean": 0.75}}]},
+    }
+    spec = lost_capacity_treemap(attribution)
+    assert [c["name"] for c in spec.series] == ["B", "A"]
+    assert spec.series[0]["cause"] == "wait_spare"
+    assert spec.caption == "B occupies the largest area (75 % of the lost flow)."

@@ -2804,11 +2804,12 @@ caption and provenance. Names: `trial-outcome` and `ecdf` (the runs),
 run was made with `attribution=True`, `downtime-pareto`,
 `downtime-waterfall`, `outage-histogram`, `frequency-duration`, the
 `downtime-treemap`, the `outage-anatomy` and the `ensemble-ribbon`.
-`lost-capacity-pareto`, `capacity-vs-downtime` and `capacity-waterfall`
-need capacity attribution; `annual-fan` and `annual-dots` need a run long
+`lost-capacity-pareto`, `capacity-vs-downtime`, `capacity-waterfall` and
+`lost-capacity-treemap` need capacity attribution; `annual-fan` and `annual-dots` need a run long
 enough for whole periods, and `annual-capacity-fan` (capacity delivered
 year by year) needs both. `importance-quadrant` needs importance
-measures and `cost-pareto` needs cost analysis; ask for them only when
+measures; `cost-pareto` and `cost-treemap` (spare pools included) need
+cost analysis; ask for them only when
 the run has those.
 
 **Parameters**

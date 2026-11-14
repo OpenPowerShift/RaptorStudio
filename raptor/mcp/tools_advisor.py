@@ -244,11 +244,12 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     run was made with `attribution=True`, `downtime-pareto`,
     `downtime-waterfall`, `outage-histogram`, `frequency-duration`, the
     `downtime-treemap`, the `outage-anatomy` and the `ensemble-ribbon`.
-    `lost-capacity-pareto`, `capacity-vs-downtime` and `capacity-waterfall`
-    need capacity attribution; `annual-fan` and `annual-dots` need a run long
+    `lost-capacity-pareto`, `capacity-vs-downtime`, `capacity-waterfall` and
+    `lost-capacity-treemap` need capacity attribution; `annual-fan` and `annual-dots` need a run long
     enough for whole periods, and `annual-capacity-fan` (capacity delivered
     year by year) needs both. `importance-quadrant` needs importance
-    measures and `cost-pareto` needs cost analysis; ask for them only when
+    measures; `cost-pareto` and `cost-treemap` (spare pools included) need
+    cost analysis; ask for them only when
     the run has those.
     """
     from raptor.api.insight import charts, drivers
@@ -265,8 +266,10 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     periods = None
     if chart in ("annual-fan", "annual-dots", "annual-capacity-fan"):
         periods = drivers.periods(ws, run_id)
+    costs = (charts.stored_element_costs(ws, run_id)
+             if chart in charts.COST_CHARTS else None)
     spec = charts.chart_named(chart, per_run=per_run, attribution=attribution,
-                              periods=periods)
+                              periods=periods, costs=costs)
     data = {**spec.to_dict(), "run_id": run_id}
     if render_svg:
         from raptor.render.charts_svg import render

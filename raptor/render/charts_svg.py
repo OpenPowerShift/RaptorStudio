@@ -46,6 +46,9 @@ CAUSE_COLOURS = {
     "wait_resource": "#2F6FB7", "logistics": "#7A5AA6",
     "pm": "#2A8C82", "pm_wait": "#5E9C3F", "dependency": "#6B7785",
     "done": "#3C4653", "other": "#9AA5B1",
+    # cost components (the cost treemap); spares share wait_spare's colour
+    "purchase": "#2F6FB7", "operating": "#B5651D", "sparing": "#C98A0B",
+    "disposal": "#6B7785", "spare_pool": "#8E5B9E",
 }
 _PATTERN_PATHS = {
     "repair": "",
@@ -57,6 +60,11 @@ _PATTERN_PATHS = {
     "dependency": "M0,0 l4,4 M4,0 l-4,4",
     "done": "M0,0 l4,4 M4,0 l-4,4 M0,2 h4 M2,0 v4",
     "other": "M0,0 h2 v2 h-2 z",
+    "purchase": "",
+    "operating": "M0,2 h4",
+    "sparing": "M0,4 l4,-4 M-1,1 l2,-2 M3,5 l2,-2",
+    "disposal": "M0,0 l4,4 M4,0 l-4,4",
+    "spare_pool": "M0,2 h4 M0,6 h4",
 }
 
 
@@ -340,7 +348,8 @@ def _key(spec: ChartSpec) -> list[tuple[str, str]]:
             cause = row.get("cause")
             if cause and str(cause) not in seen:
                 seen.append(str(cause))
-    entries = [(CAUSE_LABELS.get(c, c), _cause_fill(c)) for c in seen]
+    labels = {**CAUSE_LABELS, **(spec.provenance.get("group_labels") or {})}
+    entries = [(labels.get(c, c), _cause_fill(c)) for c in seen]
     if spec.kind == "capacity_pareto":
         entries = [("lost capacity", ACCENT), ("downtime", MUTED)]
     if spec.kind == "ribbon":
@@ -772,6 +781,15 @@ def _cell_text(out: list[str], x: float, y: float, w: float, h: float,
         top += LINE_H
 
 
+def _treemap_amount(spec: ChartSpec, row: dict) -> str:
+    """A cell's figure: a share as a percent, money with its share."""
+    fmt = _fmt_of(spec)
+    text = format_value(float(row["value"]), fmt, 3)
+    if fmt != "percent" and _number(row.get("share")):
+        text += f" ({100 * float(row['share']):.3g} %)"
+    return text
+
+
 def _treemap(spec: ChartSpec, area: _Box) -> list[str]:
     rows = [row for row in spec.series if float(row.get("w") or 0) > 0]
     if not rows:
@@ -787,8 +805,7 @@ def _treemap(spec: ChartSpec, area: _Box) -> list[str]:
         cause = str(row.get("cause") or "other")
         out.append(_rect(x, y, w, h, _cause_fill(cause),
                          " stroke='#ffffff' stroke-width='1.5'"))
-        _cell_text(out, x, y, w, h, cause,
-                   [str(row["name"]), format_value(float(row["value"]), "percent", 3)])
+        _cell_text(out, x, y, w, h, cause, [str(row["name"]), _treemap_amount(spec, row)])
     return out
 
 

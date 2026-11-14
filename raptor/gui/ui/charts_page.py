@@ -118,6 +118,8 @@ class ChartsPage(QWidget):
                     charts.capacity_vs_downtime(attribution))
                 specs["Where the capacity goes"] = charts.capacity_waterfall(
                     attribution)
+                specs["Lost capacity treemap"] = charts.lost_capacity_treemap(
+                    attribution)
         if importance:
             specs["Importance quadrant"] = charts.importance_quadrant(importance)
         if periods:
@@ -127,7 +129,9 @@ class ChartsPage(QWidget):
                 specs["Capacity delivered year by year"] = (
                     charts.annual_capacity_fan(periods))
         if any(getattr(rd, "cost", None) is not None for rd in report_data):
-            specs["Where the money goes"] = charts.cost_pareto(report_data)
+            costs = charts.element_costs(report_data)
+            specs["Where the money goes"] = charts.cost_pareto(costs)
+            specs["Cost treemap"] = charts.cost_treemap(costs)
         return specs
 
     def _on_selected(self, index: int) -> None:

@@ -326,29 +326,100 @@ def convergence(per_run: list[dict], field_name: str = "availability",
                     "format": fmt})
 
 
-def cost_pareto(report_data: list[Any], top: int = 10) -> ChartSpec:
-    """C12: where the money goes, from the engine's per-block cost rows."""
-    totals: dict[str, float] = {}
+_COST_PARTS = ("purchase", "operating", "sparing", "disposal")
+
+
+def element_costs(report_data: list[Any]) -> list[dict[str, Any]]:
+    """Mean cost per run of each block and spare pool, split into
+    purchase, operating, sparing and disposal (a pool's cost is all
+    `spare_pool`), from the engine's per-run cost reports.  Runs without
+    cost analysis are skipped; [] when none has it."""
+    totals: dict[str, dict[str, float]] = {}
+    runs = 0
     for report in report_data:
         cost = getattr(report, "cost", None)
         if cost is None:
             continue
-        for block_id, row in getattr(cost, "blocks", {}).items():
-            name = str(getattr(row, "name", block_id))
-            totals[name] = totals.get(name, 0.0) + float(row.total or 0.0)
-    rows = sorted(totals.items(), key=lambda kv: -kv[1])[:top]
+        runs += 1
+        for block_id, row in (getattr(cost, "blocks", {}) or {}).items():
+            parts = totals.setdefault(str(getattr(row, "name", block_id)), {})
+            split = {k: float(getattr(row, k, 0.0) or 0.0) for k in _COST_PARTS}
+            if not any(split.values()):          # only a total is known
+                split["other"] = float(getattr(row, "total", 0.0) or 0.0)
+            for key, value in split.items():
+                parts[key] = parts.get(key, 0.0) + value
+        for pool_id, row in (getattr(cost, "spare_pools", {}) or {}).items():
+            parts = totals.setdefault(str(getattr(row, "name", pool_id)), {})
+            parts["spare_pool"] = (parts.get("spare_pool", 0.0)
+                                   + float(getattr(row, "total", 0.0) or 0.0))
+    return [{"name": name, **{k: v / runs for k, v in parts.items()},
+             "total": sum(parts.values()) / runs}
+            for name, parts in totals.items()] if runs else []
+
+
+def _named_rows(table: Any, columns: dict[str, str]) -> dict[str, dict[str, float]]:
+    """{row name: {key: value}} for the columns present (`columns` maps a
+    key to its lower-case header); the report's own "Total" row is left out."""
+    names = [str(h).strip().lower() for h in table.headers]
+    found = {key: names.index(head) for key, head in columns.items() if head in names}
+    return {str(row[0]): {key: _float(row[i]) for key, i in found.items()}
+            for row in table.rows if str(row[0]).lower() != "total"}
+
+
+def element_costs_from_tables(tables: list[Any]) -> list[dict[str, Any]]:
+    """The same rows as `element_costs` from a stored run's Final Results
+    cost tables (`raptor.api.tables.result_tables`), which already hold the
+    mean per run.  This is what the command line and MCP use."""
+    by_key = {t.key: t for t in tables}
+    out: dict[str, dict[str, Any]] = {}
+    life = by_key.get("results.cost_life_cycle_cost")
+    if life is not None:
+        for name, parts in _named_rows(life, {k: k for k in _COST_PARTS}).items():
+            out.setdefault(name, {"name": name}).update(parts)
+    pools = next((t for k, t in by_key.items() if "sparepool" in k.replace("_", "")), None)
+    if pools is not None:
+        for name, parts in _named_rows(pools, {"spare_pool": "total"}).items():
+            out.setdefault(name, {"name": name}).update(parts)
+    for item in out.values():
+        item["total"] = sum(float(item.get(k) or 0.0)
+                            for k in (*_COST_PARTS, "spare_pool"))
+    return list(out.values())
+
+
+def stored_element_costs(workspace: Any, run_id: str) -> list[dict[str, Any]]:
+    """`element_costs_from_tables` for a stored run ([] without cost)."""
+    from raptor.api.run_tables import bundle_from_run
+    from raptor.api.tables import result_tables
+    return element_costs_from_tables(result_tables(bundle_from_run(workspace, run_id)))
+
+
+COST_CHARTS = ("cost-pareto", "cost-treemap")
+
+
+def _float(value: Any) -> float:
+    try:
+        return float(str(value).replace(",", ""))
+    except ValueError:
+        return 0.0
+
+
+def cost_pareto(costs: list[dict[str, Any]], top: int = 10) -> ChartSpec:
+    """C12: where the money goes: mean cost per run by element, from
+    `element_costs` or `element_costs_from_tables`."""
+    totals = {row["name"]: float(row.get("total") or 0.0) for row in costs}
+    rows = sorted(((n, v) for n, v in totals.items() if v > 0),
+                  key=lambda kv: -kv[1])[:top]
     grand = sum(totals.values())
     return ChartSpec(
         "pareto", "Where the money goes",
-        "by element, largest first", "element", "cost",
+        "mean cost per run, by element, largest first", "element", "cost",
         series=[{"name": name, "value": value,
                  "share": value / grand if grand else 0.0}
                 for name, value in rows],
         caption=(f"{rows[0][0]} carries the largest cost "
                  f"({100 * rows[0][1] / grand:.3g} %)."
                  if rows and grand else "No cost analysis in this run."),
-        provenance={"runs": len(report_data), "grand_total": grand,
-                    "format": "money"})
+        provenance={"grand_total": grand, "format": "money"})
 
 
 def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
@@ -498,35 +569,103 @@ def annual_dots(periods: dict[str, Any]) -> ChartSpec:
                     "periods": pooled.get("n", 0), "below": below})
 
 
+#: Colour groups a treemap can use beyond the downtime causes: the cost
+#: components.  "sparing" shares the waiting-for-a-spare colour on purpose.
+COST_GROUPS = {
+    "purchase": "Purchase", "operating": "Operating", "sparing": "Spares",
+    "disposal": "Disposal", "spare_pool": "Spare pools",
+}
+
+
+def _treemap(items: list[dict[str, Any]], *, title: str, subtitle: str,
+             fmt: str, what: str, runs: int, width: float, height: float,
+             top: int, group_labels: dict[str, str] | None = None) -> ChartSpec:
+    """Lay out `items` ({name, value, cause}) largest first; past `top`
+    the rest share one "N others" cell.  `value` is what the area shows;
+    `share` (value / total) is added for the labels."""
+    from raptor.api.insight.axes import format_value
+    from raptor.api.insight.treemap import layout
+
+    rows = sorted((i for i in items if (i.get("value") or 0) > 0),
+                  key=lambda i: -float(i["value"]))
+    total = sum(float(i["value"]) for i in rows)
+    visible = rows[:max(1, top)]
+    rest = rows[max(1, top):]
+    cells = [dict(i) for i in visible]
+    if rest:
+        cells.append({"name": f"{len(rest)} others",
+                      "value": sum(float(i["value"]) for i in rest), "cause": None})
+    for cell in cells:
+        cell["share"] = float(cell["value"]) / total if total else 0.0
+    rects = layout(cells, width, height)
+    series = [{**cell, **rect.to_dict(),
+               "aspect": rect.aspect if rect.area > 0 else None}
+              for cell, rect in zip(cells, rects, strict=True)]
+    caption = "Nothing to show."
+    if series:
+        first = series[0]
+        amount = format_value(float(first["value"]), fmt, 3)
+        caption = (f"{first['name']} occupies the largest area ({amount}"
+                   + (f", {100 * first['share']:.3g} % of {what}" if fmt != "percent" else
+                      f" of {what}")
+                   + ").")
+    provenance: dict[str, Any] = {"runs": runs, "format": fmt, "measure": what,
+                                  "elements": len(rows), "shown": len(cells)}
+    if group_labels:
+        provenance["group_labels"] = group_labels
+    return ChartSpec("treemap", title, subtitle, "width", "height",
+                     series=series, caption=caption, provenance=provenance)
+
+
 def downtime_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
                      height: float = 600.0, top: int = 200) -> ChartSpec:
     """The downtime treemap: area = share of downtime, label = element."""
-    from raptor.api.insight.treemap import layout
-
-    rows = sorted(((row for row in attribution.get("elements") or []
-                    if (row.get("dtci", {}).get("mean") or 0) > 0)),
-                  key=lambda row: -(row["dtci"]["mean"] or 0))
-    visible = rows[:max(1, top)]
-    rest = rows[max(1, top):]
     items = [{"name": row["name"], "value": row["dtci"]["mean"] or 0.0,
-              "cause": row.get("main_cause")} for row in visible]
-    if rest:
-        items.append({"name": f"{len(rest)} others",
-                      "value": sum(row["dtci"]["mean"] or 0.0 for row in rest),
-                      "cause": None})
-    rects = layout(items, width, height)
-    series = [{**item, **rect.to_dict(),
-               "aspect": rect.aspect if rect.area > 0 else None}
-              for item, rect in zip(items, rects, strict=True)]
-    return ChartSpec(
-        "treemap", "Downtime treemap",
-        "area = share of system downtime; click a cell to locate",
-        "width", "height", series=series,
-        caption=(f"{series[0]['name']} occupies the largest area "
-                 f"({100 * float(series[0]['value']):.3g} %)."
-                 if series else "No system outage."),
-        provenance={"runs": attribution.get("runs", 0), "format": "percent",
-                    "elements": len(rows), "shown": len(items)})
+              "cause": row.get("main_cause")}
+             for row in attribution.get("elements") or []]
+    return _treemap(items, title="Downtime treemap",
+                    subtitle="area = share of system downtime; colour = main "
+                             "cause; click a cell to locate",
+                    fmt="percent", what="system downtime",
+                    runs=int(attribution.get("runs", 0) or 0),
+                    width=width, height=height, top=top)
+
+
+def lost_capacity_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
+                          height: float = 600.0, top: int = 200) -> ChartSpec:
+    """Area = share of the lost flow; colour = the element's main downtime cause."""
+    causes = {row["name"]: row.get("main_cause")
+              for row in attribution.get("elements") or []}
+    capacity = attribution.get("capacity") or {}
+    items = [{"name": row["name"], "value": (row.get("share") or {}).get("mean") or 0.0,
+              "cause": causes.get(row["name"])}
+             for row in capacity.get("elements") or []]
+    return _treemap(items, title="Lost capacity treemap",
+                    subtitle="area = share of the lost flow; colour = main "
+                             "cause; click a cell to locate",
+                    fmt="percent", what="the lost flow",
+                    runs=int(attribution.get("runs", 0) or 0),
+                    width=width, height=height, top=top)
+
+
+def cost_treemap(costs: list[dict[str, Any]], *, width: float = 1000.0,
+                 height: float = 600.0, top: int = 200) -> ChartSpec:
+    """Area = mean life-cycle cost per run; colour = its largest component
+    (purchase, operating, spares, disposal).  Spare pools are cells of
+    their own, so the spares picture is complete."""
+    items = []
+    for row in costs:
+        parts = {k: float(row.get(k) or 0.0)
+                 for k in (*_COST_PARTS, "spare_pool", "other")}
+        group = max(parts, key=lambda k: parts[k]) if any(parts.values()) else None
+        items.append({"name": row["name"], "value": float(row.get("total") or 0.0),
+                      "cause": group})
+    return _treemap(items, title="Cost treemap",
+                    subtitle="area = mean life-cycle cost per run; colour = "
+                             "largest part of it",
+                    fmt="money", what="the cost", runs=0,
+                    width=width, height=height, top=top,
+                    group_labels=dict(COST_GROUPS))
 
 
 def outage_anatomy(attribution: dict[str, Any], max_columns: int = 6
@@ -615,6 +754,8 @@ CHARTS = {
     "annual-capacity-fan": annual_capacity_fan,
     "annual-dots": annual_dots,
     "downtime-treemap": downtime_treemap,
+    "lost-capacity-treemap": lost_capacity_treemap,
+    "cost-treemap": cost_treemap,
     "outage-anatomy": outage_anatomy,
     "ensemble-ribbon": ensemble_ribbon,
 }
@@ -624,6 +765,7 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
                 attribution: dict[str, Any] | None = None,
                 importance: dict[str, Any] | None = None,
                 report_data: list[Any] | None = None,
+                costs: list[dict[str, Any]] | None = None,
                 periods: dict[str, Any] | None = None,
                 field_name: str = "availability",
                 label: str = "Availability",
@@ -648,6 +790,9 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
             raise ValueError(f"this chart needs {what}")
         return value
 
+    def element_cost_rows() -> list[dict[str, Any]]:
+        return costs if costs is not None else element_costs(report_data or [])
+
     def need_importance() -> dict[str, Any]:
         if importance is None:
             raise ValueError("this chart needs importance measures")
@@ -662,7 +807,7 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
             units=units),
         "convergence": lambda: convergence(per_run or [], field_name, target),
         "importance-quadrant": lambda: importance_quadrant(need_importance()),
-        "cost-pareto": lambda: cost_pareto(report_data or []),
+        "cost-pareto": lambda: cost_pareto(element_cost_rows()),
         "downtime-waterfall": lambda: downtime_waterfall(
             need_attribution(),
             measures.availability_ladder(per_run or [])["operational"]["value"]
@@ -673,6 +818,8 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
         "outage-histogram": lambda: outage_histogram(need_attribution()),
         "frequency-duration": lambda: frequency_duration(need_attribution()),
         "downtime-treemap": lambda: downtime_treemap(need_attribution()),
+        "lost-capacity-treemap": lambda: lost_capacity_treemap(need_attribution()),
+        "cost-treemap": lambda: cost_treemap(element_cost_rows()),
         "outage-anatomy": lambda: outage_anatomy(need_attribution()),
         "ensemble-ribbon": lambda: ensemble_ribbon(need_attribution()),
         "lost-capacity-pareto": lambda: lost_capacity_pareto(

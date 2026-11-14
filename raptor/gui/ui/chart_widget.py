@@ -232,7 +232,8 @@ class ChartWidget(QWidget):
             painter.drawLine(QPointF(rect.left(), y - 4), QPointF(rect.left(), y + 4))
             painter.drawLine(QPointF(rect.right(), y - 4), QPointF(rect.right(), y + 4))
 
-        entries = [(CAUSE_LABELS.get(c, c), patterned(c)) for c in self._causes(spec)]
+        labels = {**CAUSE_LABELS, **(spec.provenance.get("group_labels") or {})}
+        entries = [(labels.get(c, c), patterned(c)) for c in self._causes(spec)]
         if spec.kind == "pareto" and any(_number(r.get("sem")) for r in spec.series):
             entries.append(("± 2 standard errors", whisker))
         solids = {"capacity_pareto": (("lost capacity", "accent"), ("downtime", "muted")),
@@ -1000,11 +1001,17 @@ class ChartWidget(QWidget):
             painter.setPen(QPen(QColor(palette["surface"]), 1.5))
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(cell)
-            share = format_value(float(row["value"]), "percent", 3)
-            self._cell_text(painter, cell, cause, [str(row["name"]), share])
+            fmt = str(spec.provenance.get("format") or "percent")
+            amount = format_value(float(row["value"]), fmt, 3)
+            if fmt != "percent" and _number(row.get("share")):
+                amount += f" ({100 * float(row['share']):.3g} %)"
+            self._cell_text(painter, cell, cause, [str(row["name"]), amount])
+            what = str(spec.provenance.get("measure") or "system downtime")
+            labels = {**CAUSE_LABELS, **(spec.provenance.get("group_labels") or {})}
             self._hit(cell, "element", str(row["name"]),
-                      f"{row['name']}: {share} of downtime, mostly "
-                      f"{CAUSE_LABELS.get(cause, cause).lower()}")
+                      f"{row['name']}: {amount}"
+                      + (" of " + what if fmt == "percent" else "")
+                      + f", mostly {labels.get(cause, cause).lower()}")
 
     def _paint_icicle(self, painter, spec, palette, area) -> None:
         rows = [row for row in spec.series if float(row.get("value") or 0) > 0]

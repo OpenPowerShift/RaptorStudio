@@ -43,7 +43,7 @@ def _specs() -> dict[str, charts.ChartSpec]:
         "bubble": charts.frequency_duration(attribution),
         "quadrant": charts.importance_quadrant(importance),
         "convergence": charts.convergence(per_run, target=0.95),
-        "cost": charts.cost_pareto([SimpleNamespace(cost=cost)]),
+        "cost": charts.cost_pareto(charts.element_costs([SimpleNamespace(cost=cost)])),
         "capacity": charts.lost_capacity_pareto(_capacity()),
         "scatter": charts.capacity_vs_downtime(_capacity()),
         "fan": charts.annual_fan(_periods()),

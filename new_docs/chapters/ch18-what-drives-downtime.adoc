@@ -116,9 +116,17 @@ capacity", which is not the same question as "who is down":
 * **Downtime against lost capacity**: one point per element, both shares;
 * **Where the capacity goes**: from the flow the model could deliver down to
   what it did deliver, one step per cause;
+* **Lost capacity treemap**: area = share of the lost flow, colour = the
+  element's main downtime cause;
 * **Capacity delivered year by year**: capacity-weighted availability for
   each year, with the spread across runs. A year can be 100 % available and
   still deliver only 96 % of the flow.
+
+With cost analysis on, **Where the money goes** ranks the elements by mean
+cost per run, and the **Cost treemap** shows the same money as areas,
+coloured by its largest part (purchase, operating, spares or disposal).
+Spare pools are cells of their own, so the treemap is also the spares
+picture: a large amber cell is an element whose cost is mostly spares.
 
 The lost flow is split among the elements down at the time
 (`--capacity-rule proportional` by default), and the split adds up to the
@@ -155,7 +163,8 @@ raptor explain --list-charts
 
 MCP clients call `run_chart(run_id, chart="downtime-pareto")` and receive the
 same specification plus the SVG. The capacity charts are `lost-capacity-pareto`,
-`capacity-vs-downtime`, `capacity-waterfall` and `annual-capacity-fan`.
+`capacity-vs-downtime`, `capacity-waterfall`, `lost-capacity-treemap` and
+`annual-capacity-fan`; the cost charts are `cost-pareto` and `cost-treemap`.
 
 The numbers behind the charts export as tables. In the GUI they are in
 **File ▸ Export ▸ Export Tables…** (or the Export Tables… button in the data tables); from the command line, run the model and ask for

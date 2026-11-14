@@ -286,8 +286,10 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
         from raptor.api.insight import drivers
         periods = drivers.periods(ws, run_id)
     try:
-        return charts.chart_named(name, per_run=per_run,
-                                  attribution=attribution, periods=periods)
+        costs = (charts.stored_element_costs(ws, run_id)
+                 if name in charts.COST_CHARTS else None)
+        return charts.chart_named(name, per_run=per_run, attribution=attribution,
+                                  periods=periods, costs=costs)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
 
@@ -298,6 +300,11 @@ def _print_chart(chart: Any, args: Any) -> None:
     for row in chart.series[:args.top]:
         name = row.get("name") or row.get("label") or ""
         value = row.get("value", row.get("count", row.get("mean")))
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            from raptor.api.insight.axes import format_value
+            fmt = str(chart.provenance.get("format") or "")
+            value = (f"{value:,.2f}" if fmt == "money"
+                     else format_value(float(value), fmt, 6))
         print(f"  {name}: {value}")
     if args.chart_svg:
         from raptor.render.charts_svg import write

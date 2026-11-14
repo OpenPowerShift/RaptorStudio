@@ -21,6 +21,12 @@ _COLOURS = {
     "dependency": ("#6B7785", "#A4B0BF"),
     "done": ("#3C4653", "#D0D7E0"),
     "other": ("#9AA5B1", "#75808D"),
+    # cost components (the cost treemap); spares share wait_spare's colour
+    "purchase": ("#2F6FB7", "#6FA8E8"),
+    "operating": ("#B5651D", "#E79A5A"),
+    "sparing": ("#C98A0B", "#F2B84B"),
+    "disposal": ("#6B7785", "#A4B0BF"),
+    "spare_pool": ("#8E5B9E", "#C394D3"),
 }
 _PATTERNS = {
     "repair": Qt.BrushStyle.SolidPattern,
@@ -32,6 +38,11 @@ _PATTERNS = {
     "dependency": Qt.BrushStyle.CrossPattern,
     "done": Qt.BrushStyle.DiagCrossPattern,
     "other": Qt.BrushStyle.Dense6Pattern,
+    "purchase": Qt.BrushStyle.SolidPattern,
+    "operating": Qt.BrushStyle.HorPattern,
+    "sparing": Qt.BrushStyle.BDiagPattern,
+    "disposal": Qt.BrushStyle.CrossPattern,
+    "spare_pool": Qt.BrushStyle.Dense5Pattern,
 }
 
 #: How strongly the pattern is drawn over a cause's colour (0-255).
