@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **73 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **72**.
+- **74 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **73**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **24 chapters**; the MCP chapter is book chapter 23 of 24 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -512,6 +512,12 @@ period length) and gives the percentiles of availability per period, pooled
 and by year number, the worst periods, and with `below` how often a period
 falls under a guarantee. An average over a whole life hides a bad year; this
 shows it.
+
+`run_story` returns the short answer-first Story for a finished run: the
+headline against its target, the run-to-run dots and the share that met it,
+the top drivers, the top findings, six key numbers and provenance. It is the
+same object the application's Story tab paints and `raptor explain --story`
+prints.
 
 Attribution replays the event log, so the results are the same with it on;
 it holds the log in memory for the batch, so leave it off for very large

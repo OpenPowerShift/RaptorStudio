@@ -85,6 +85,7 @@ complete -c raptor -n '__fish_seen_subcommand_from explain' -l help
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l jobs
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l runs
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l seed
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l story
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l top
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l year-length
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l year-offset

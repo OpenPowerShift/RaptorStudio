@@ -116,6 +116,7 @@ TOOL_CATEGORY: dict[str, str] = {
     "apply_fix": "analysis",
     "downtime_drivers": "analysis",
     "annual_availability": "analysis",
+    "run_story": "analysis",
     "single_point_failures": "analysis",
     "failure_effects": "analysis",
     "failure_effects_batch": "analysis",
@@ -266,6 +267,8 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "apply_fix": {"model_id": "<model_id>", "rule": "M-STR-002", "target": "Pump_B"},
     "downtime_drivers": {"run_id": "<run_id>", "top": 5},
     "annual_availability": {"run_id": "<run_id>", "below": 0.97},
+    "run_story": {"run_id": "<run_id>"},
+    "run_story": {"run_id": "<run_id>"},
     "single_point_failures": {"model_id": "<model_id>"},
     "failure_effects": {"model_id": "<model_id>", "fail": ["Pump"]},
     "failure_effects_batch": {
@@ -531,6 +534,9 @@ RETURN_NOTES: dict[str, str] = {
                       "resource_link}`.",
     "export_analytical": "`{path, modes, results: [{mode, phase, "
                          "reliability | availability}], resource_links}`.",
+    "run_story": "`{headline, dots, drivers, findings, numbers, sections, "
+                 "provenance, caption}` — the same object the application "
+                 "and `raptor explain --story` render.",
 }
 
 

@@ -115,3 +115,30 @@ def test_annual_availability_matches_the_api(server, model):
     api = drivers.periods(context.workspace(), run["run_id"], 500.0, below=0.5)
     assert data == api
     assert data["pooled"]["n"] == 30 * 6 and "p_below" in data["pooled"]
+
+
+def test_run_story_returns_the_same_numbers_as_the_api(server, model):
+    from raptor.api.insight.story import from_run
+    from raptor.mcp import context
+    run = ok(call(server, "simulate", model_id=model, seed=4, attribution=True))
+    data = ok(call(server, "run_story", run_id=run["run_id"]))
+    api = from_run(context.workspace(), run["run_id"]).to_dict()
+    assert data["headline"] == api["headline"]
+    assert data["drivers"] == api["drivers"]
+    assert data["numbers"] == api["numbers"]
+    assert data["provenance"]["run_id"] == run["run_id"]
+
+
+def test_run_story_matches_the_api_and_needs_no_attribution(server, model):
+    from raptor.api.insight.story import from_run
+    from raptor.mcp import context
+    plain = ok(call(server, "simulate", model_id=model, seed=4))
+    data = ok(call(server, "run_story", run_id=plain["run_id"]))
+    api = from_run(context.workspace(), plain["run_id"])
+    assert data["headline"]["field"] == "availability"
+    assert data["headline"]["value"] == pytest.approx(api.headline.value)
+    assert data["dots"] == api.dots
+    assert data["provenance"]["runs"] == api.provenance["runs"]
+    with_attr = ok(call(server, "simulate", model_id=model, seed=4, attribution=True))
+    story = ok(call(server, "run_story", run_id=with_attr["run_id"]))
+    assert story["drivers_available"] is True and story["drivers"]

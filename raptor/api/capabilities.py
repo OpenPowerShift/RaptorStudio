@@ -64,6 +64,10 @@ CAPABILITIES: tuple[Capability, ...] = (
         api="raptor.api.insight.capacity_attribution.capacity_runs",
         cli="explain --capacity-rule", mcp="simulate",
         gui="widget:raptor.gui.ui.drivers_page.DriversPage", long_running=True),
+    Capability(
+        "insight.story", "The answer-first Story: headline, dots, drivers, findings",
+        api="raptor.api.insight.story.from_run", cli="explain --story",
+        mcp="run_story", gui="widget:raptor.gui.ui.story_page.StoryPage"),
 )
 
 SURFACES = ("api", "cli", "mcp", "gui")

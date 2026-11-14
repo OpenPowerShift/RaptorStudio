@@ -78,6 +78,9 @@ def add_parser(sub: Any) -> None:
                    default="proportional",
                    help="how to share a capacity-analysis run's lost flow among "
                         "the elements that were down (default proportional)")
+    e.add_argument("--story", action="store_true",
+                   help="print the Story: headline against target, distribution, "
+                        "drivers, findings and key numbers")
     e.add_argument("-f", "--format", choices=("text", "json"), default="text")
     e.set_defaults(func=explain_command)
 
@@ -214,6 +217,10 @@ def explain_command(args: Any) -> int:
         except run_api.RunError as exc:
             raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
         attribution = drivers.read(ws, result.run_id)
+        story = None
+        if args.story:
+            from raptor.api.insight.story import from_run
+            story = from_run(ws, result.run_id)
         yearly = None
         if args.yearly or args.year_length is not None or args.below is not None:
             try:
@@ -225,8 +232,14 @@ def explain_command(args: Any) -> int:
         attribution["elements"] = attribution["elements"][:max(0, args.top)]
         if yearly is not None:
             attribution["periods"] = yearly
+        if story is not None:
+            attribution["story"] = story.to_dict()
         emit_json(attribution, None)
     else:
+        if story is not None:
+            from raptor.api.insight.story import text_lines as story_lines
+            print("\n".join(story_lines(story)))
+            print()
         print("\n".join(drivers.text_lines(attribution, args.top)))
         if yearly is not None:
             print("\n" + "\n".join(drivers.period_lines(yearly)))

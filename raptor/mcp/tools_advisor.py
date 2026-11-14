@@ -198,3 +198,26 @@ def annual_availability(run_id: str, year_length: float | None = None, offset: f
     summary = drivers.periods(context.workspace(), run_id, year_length,
                               offset=offset, below=below)
     return ok(summary, "```\n" + "\n".join(drivers.period_lines(summary)) + "\n```")
+
+
+@mcp.tool(annotations=READ_ONLY("Run story"))
+@guarded
+def run_story(run_id: str) -> CallToolResult:
+    """The Story of a finished run: answer first, evidence second.
+
+    One object the application, command line and report all render: the
+    headline against its target (or capacity/mission reliability/availability
+    when no target is set), the quantile dot plot of the per-run values and
+    the share of runs that met the target, the top three drivers (by lost
+    capacity when capacity analysis is on), the top run findings, up to six
+    key numbers, sections only for features the model uses, and provenance.
+
+    Needs the run's ordinary artefacts. Needs `attribution=True` for the
+    drivers strip and the attribution-based findings; without it the Story
+    still renders and says how to turn it on.
+    """
+    from raptor.api.insight.story import from_run, text_lines
+
+    story = from_run(context.workspace(), run_id)
+    data = {**story.to_dict(), "run_id": run_id}
+    return ok(data, "```\n" + "\n".join(text_lines(story)) + "\n```")

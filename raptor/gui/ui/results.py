@@ -226,6 +226,17 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._manifest_label.setVisible(False)
         lay.addWidget(self._manifest_label)
 
+        # WP-2.3 Story above the old overview details; the Qt-free builder
+        # is the same one the CLI and MCP use.
+        from raptor.gui.ui.story_page import StoryPage
+        self._story_page = StoryPage()
+        self._story_page.element_clicked.connect(
+            lambda kind, oid, name: self.element_clicked.emit(kind, name))
+        lay.addWidget(self._story_page)
+        self._details_heading = QLabel("Details")
+        self._details_heading.setObjectName("SectionTitle")
+        lay.addWidget(self._details_heading)
+
         cards = QGridLayout()
         cards.setHorizontalSpacing(SPACING["sm"])
         cards.setVerticalSpacing(SPACING["sm"])
@@ -1209,6 +1220,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         outages = attribution.pop("outages", None)
         self._drivers_page.set_attribution(attribution)
         self._drivers_page.set_periods(self._yearly(outages))
+        self._refresh_story()
 
     def _yearly(self, outages: dict | None) -> dict | None:
         """Year-by-year availability when the model's unit is hours and the
@@ -1234,6 +1246,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         """Reset every result surface to the pre-run placeholder state."""
         self._manifest = None
         self._rbd = None
+        if hasattr(self, "_story_page"):
+            self._story_page.set_story(None)
         self._event_logs = []
         self._drivers_stale = False
         self._drivers_page.set_attribution(None)
@@ -1567,10 +1581,52 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             tip.append(f"seeds: {m['seed_strategy']}")
         lbl.setToolTip("\n".join(tip))
 
+    def _refresh_story(self) -> None:
+        """Rebuild the Story from the held results (WP-2.3)."""
+        page = getattr(self, "_story_page", None)
+        if page is None:
+            return
+        data = self._report_data
+        if not data:
+            page.set_story(None)
+            return
+        try:
+            from raptor.api.insight.story import build as build_story
+            from raptor.api.run import _rd_to_dict
+            per_run = [_rd_to_dict(rd) for rd in data]
+            attribution = (self._drivers_page.attribution()
+                           if hasattr(self, "_drivers_page") else None)
+            findings = []
+            if getattr(self, "_rbd", None) is not None:
+                try:
+                    from raptor.api.advisor import advise_run
+                    findings = advise_run(self._rbd, {}, per_run,
+                                          attribution=attribution)
+                except Exception:  # noqa: BLE001 - the Story must still show
+                    findings = []
+            manifest = getattr(self, "_manifest", None) or {}
+            story = build_story(
+                per_run, units=self._units, attribution=attribution,
+                findings=findings,
+                has_phases=any(bool(getattr(rd, "has_phases", False))
+                               for rd in data),
+                cost_on=any(getattr(rd, "cost", None) is not None
+                            for rd in data),
+                model_name=str(manifest.get("model_name") or ""),
+                model_hash=str(manifest.get("model_hash") or ""),
+                run_id=str(manifest.get("run_id")
+                           or manifest.get("digest") or ""))
+            page.set_story(story)
+        except Exception:  # noqa: BLE001 - a view must never break results
+            import logging
+            logging.getLogger(__name__).exception("could not build the Story")
+            page.set_story(None)
+
     def _populate_overview(self):
         self._runs_table.clear()
         self._refresh_manifest_line()
         data = self._report_data
+        self._refresh_story()
         if not data:
             self._summary_sentence.setText(
                 "Run the simulation to see the summary.")

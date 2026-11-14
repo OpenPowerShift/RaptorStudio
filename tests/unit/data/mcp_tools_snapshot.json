@@ -729,6 +729,14 @@
    "job_id"
   ]
  },
+ "run_story": {
+  "params": [
+   "run_id"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
  "save_model_as": {
   "params": [
    "format",
