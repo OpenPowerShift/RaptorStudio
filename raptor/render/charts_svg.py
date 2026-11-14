@@ -1,27 +1,46 @@
 """ChartSpec -> SVG, for reports, the command line and MCP.
 
-The same spec the GUI paints, rendered as plain SVG with no dependency.
-Text is escaped, numbers are formatted to six significant digits, and the
-output is deterministic: the same spec always produces the same bytes, so a
-committed snapshot is a meaningful test.
+The same spec the GUI paints (`raptor.gui.ui.chart_widget`), drawn the same
+way: round 1-2-5 ticks with gridlines from `raptor.api.insight.axes`, values
+in the chart's own format (percent, money or plain), element names in a
+gutter beside the bars, and a key for the cause colours and patterns.  Plain
+SVG with no dependency; text is escaped and the output is deterministic (the
+same spec always gives the same bytes), so a committed snapshot is a
+meaningful test.
 """
 from __future__ import annotations
 
 import html
 import math
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any
 
+from raptor.api.insight.attribution import CAUSE_LABELS
+from raptor.api.insight.axes import (
+    format_value, nice_range, nice_ticks, stack_dots, tick_text,
+)
 from raptor.api.insight.charts import ChartSpec
 
-WIDTH = 680
-HEIGHT = 360
-PAD_LEFT = 64
-PAD_RIGHT = 24
-PAD_TOP = 56
-PAD_BOTTOM = 64
+WIDTH = 760
+HEIGHT = 400
+PAD = 16
+TITLE_H = 48
+KEY_H = 18
+CAPTION_H = 26
+CHAR_W = 6.4          # mean advance of an 11 px sans-serif character
+LINE_H = 14
 
-#: Cause fills, matching the GUI palette; every cause also has a pattern so
-#: the chart reads without colour.
+INK = "#132238"
+MUTED = "#5D7080"
+GRID = "#D7E0E8"
+ACCENT = "#1479C9"
+STOP = "#C62828"
+UP = "#218B61"
+DOWN = "#CC4545"
+
+#: Cause fills, matching the GUI palette; every cause but repair also has a
+#: pattern so the chart reads without colour.
 CAUSE_COLOURS = {
     "repair": "#C4472F", "wait_spare": "#C98A0B",
     "wait_resource": "#2F6FB7", "logistics": "#7A5AA6",
@@ -49,10 +68,38 @@ def _esc(text: str) -> str:
     return html.escape(str(text), quote=True)
 
 
-def _scale(value: float, low: float, high: float, a: float, b: float) -> float:
-    if high <= low:
-        return (a + b) / 2
-    return a + (value - low) / (high - low) * (b - a)
+def _number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) \
+        and math.isfinite(float(value))
+
+
+def _width(text: str) -> float:
+    return len(str(text)) * CHAR_W
+
+
+def _fit(text: str, width: float) -> str:
+    text = str(text)
+    room = max(1, int(width / CHAR_W))
+    return text if len(text) <= room else text[:max(1, room - 1)] + "…"
+
+
+def _darker(colour: str) -> str:
+    r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+    return f"#{int(r * 0.6):02x}{int(g * 0.6):02x}{int(b * 0.6):02x}"
+
+
+def _ink_on(colour: str) -> str:
+    def channel(value: int) -> float:
+        c = value / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+    lum = 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+    return "#111111" if (lum + 0.05) / 0.05 > 1.05 / (lum + 0.05) else "#ffffff"
+
+
+def _cause_fill(cause: str) -> str:
+    cause = cause if cause in CAUSE_COLOURS else "other"
+    return f"url(#pat-{cause})" if _PATTERN_PATHS.get(cause) else CAUSE_COLOURS[cause]
 
 
 def _cause_defs() -> list[str]:
@@ -65,494 +112,746 @@ def _cause_defs() -> list[str]:
             f"<pattern id='pat-{cause}' width='4' height='4' "
             "patternUnits='userSpaceOnUse'>"
             f"<rect width='4' height='4' fill='{colour}'/>"
-            f"<path d='{path}' stroke='#ffffff' stroke-opacity='0.55' "
-            "stroke-width='1'/></pattern>")
+            f"<path d='{path}' stroke='{_darker(colour)}' stroke-width='1'/>"
+            "</pattern>")
     out.append("</defs>")
     return out
 
 
-def _text(x: float, y: float, body: str, *, size: int = 12,
+def _text(x: float, y: float, body: str, *, size: int = 11,
           anchor: str = "start", weight: str = "400",
-          colour: str = "#333333") -> str:
+          colour: str = INK) -> str:
     return (f"<text x='{_fmt(x)}' y='{_fmt(y)}' font-size='{size}' "
             f"font-weight='{weight}' text-anchor='{anchor}' "
             f"fill='{colour}' font-family='sans-serif'>{_esc(body)}</text>")
 
 
-def _axes(spec: ChartSpec, *, x_low: float, x_high: float,
-          y_low: float, y_high: float) -> list[str]:
-    left, top, right, bottom = PAD_LEFT, PAD_TOP, WIDTH - PAD_RIGHT, HEIGHT - PAD_BOTTOM
-    out = [
-        f"<line x1='{left}' y1='{bottom}' x2='{right}' y2='{bottom}' "
-        "stroke='#999999' stroke-width='1'/>",
-        f"<line x1='{left}' y1='{top}' x2='{left}' y2='{bottom}' "
-        "stroke='#999999' stroke-width='1'/>",
-        _text((left + right) / 2, HEIGHT - 18, spec.x_label, anchor="middle"),
-        f"<text x='14' y='{(top + bottom) / 2}' font-size='12' "
-        f"text-anchor='middle' fill='#333333' font-family='sans-serif' "
-        f"transform='rotate(-90 14 {(top + bottom) / 2})'>{_esc(spec.y_label)}</text>",
-    ]
-    for value in (x_low, x_high):
-        out.append(_text(_scale(value, x_low, x_high, left, right),
-                         bottom + 16, _fmt(value), size=10, anchor="middle"))
-    for value in (y_low, y_high):
-        out.append(_text(left - 6, _scale(value, y_low, y_high, bottom, top) + 4,
-                         _fmt(value), size=10, anchor="end"))
-    return out
+def _rect(x: float, y: float, w: float, h: float, fill: str, extra: str = "") -> str:
+    return (f"<rect x='{_fmt(x)}' y='{_fmt(y)}' width='{_fmt(max(0.0, w))}' "
+            f"height='{_fmt(max(0.0, h))}' fill='{fill}'{extra}/>")
 
 
-def _dot_plot(spec: ChartSpec) -> list[str]:
-    values = [float(d["value"]) for d in spec.series[0].get("dots", [])
-              if isinstance(d.get("value"), (int, float))]
+def _line(x1: float, y1: float, x2: float, y2: float, colour: str, *,
+          width: float = 1.0, dash: str = "") -> str:
+    style = f" stroke-dasharray='{dash}'" if dash else ""
+    return (f"<line x1='{_fmt(x1)}' y1='{_fmt(y1)}' x2='{_fmt(x2)}' "
+            f"y2='{_fmt(y2)}' stroke='{colour}' stroke-width='{_fmt(width)}'{style}/>")
+
+
+@dataclass
+class _Box:
+    left: float
+    top: float
+    right: float
+    bottom: float
+
+    @property
+    def width(self) -> float:
+        return self.right - self.left
+
+    @property
+    def height(self) -> float:
+        return self.bottom - self.top
+
+
+@dataclass
+class _Frame:
+    box: _Box
+    x_low: float
+    x_high: float
+    y_low: float
+    y_high: float
+    x_log: bool = False
+
+    def x(self, value: float) -> float:
+        low, high, v = self.x_low, self.x_high, value
+        if self.x_log:
+            low, high, v = math.log10(low), math.log10(high), math.log10(max(value, 1e-300))
+        if high <= low:
+            return (self.box.left + self.box.right) / 2
+        return self.box.left + (v - low) / (high - low) * self.box.width
+
+    def y(self, value: float) -> float:
+        if self.y_high <= self.y_low:
+            return (self.box.top + self.box.bottom) / 2
+        return self.box.bottom - (value - self.y_low) / (self.y_high - self.y_low) \
+            * self.box.height
+
+
+def _frame(out: list[str], spec: ChartSpec, area: _Box, *,
+           x_range: tuple[float, float], y_range: tuple[float, float],
+           x_fmt: str = "", y_fmt: str = "", x_log: bool = False,
+           x_ticks: Sequence[float] | None = None,
+           y_ticks: Sequence[float] | None = None,
+           x_label: str | None = None, y_label: str | None = None,
+           y_axis: bool = True) -> _Frame:
+    yt = list(y_ticks) if y_ticks is not None else nice_ticks(*y_range, 5)
+    xt = list(x_ticks) if x_ticks is not None else nice_ticks(*x_range, 6)
+    y_text = [tick_text(t, yt, fmt=y_fmt) for t in yt]
+    x_text = ([_short(t) for t in xt] if x_log
+              else [tick_text(t, xt, fmt=x_fmt) for t in xt])
+    gutter = max([_width(t) for t in y_text] + [10]) + 6
+    y_title = (y_label if y_label is not None else spec.y_label) or ""
+    x_title = (x_label if x_label is not None else spec.x_label) or ""
+    left = area.left + gutter + (LINE_H + 4 if y_title else 0)
+    bottom = area.bottom - LINE_H - 4 - (LINE_H + 2 if x_title else 0)
+    box = _Box(left, area.top + LINE_H / 2, area.right - 8, bottom)
+    frame = _Frame(box, x_range[0], x_range[1], y_range[0], y_range[1], x_log)
+    for t in yt:
+        out.append(_line(box.left, frame.y(t), box.right, frame.y(t), GRID))
+    for t, text in zip(yt, y_text, strict=True):
+        out.append(_text(box.left - 6, frame.y(t) + 4, text, size=10,
+                         anchor="end", colour=MUTED))
+    last_right = -1e9
+    for t, text in zip(xt, x_text, strict=True):
+        x = frame.x(t)
+        out.append(_line(x, box.bottom, x, box.bottom + 4, MUTED))
+        if x - _width(text) / 2 < last_right + 6:
+            continue
+        out.append(_text(x, box.bottom + 15, text, size=10, anchor="middle",
+                         colour=MUTED))
+        last_right = x + _width(text) / 2
+    out.append(_line(box.left, box.bottom, box.right, box.bottom, MUTED))
+    if y_axis:
+        out.append(_line(box.left, box.top, box.left, box.bottom, MUTED))
+    if x_title:
+        out.append(_text((box.left + box.right) / 2, box.bottom + 31, x_title,
+                         anchor="middle"))
+    if y_title:
+        cy = (box.top + box.bottom) / 2
+        cx = area.left + 10
+        out.append(f"<text x='{_fmt(cx)}' y='{_fmt(cy)}' font-size='11' "
+                   f"text-anchor='middle' fill='{INK}' font-family='sans-serif' "
+                   f"transform='rotate(-90 {_fmt(cx)} {_fmt(cy)})'>"
+                   f"{_esc(y_title)}</text>")
+    return frame
+
+
+def _target(spec: ChartSpec) -> float | None:
+    return next((float(m["value"]) for m in spec.marks
+                 if m.get("kind") == "target" and _number(m.get("value"))), None)
+
+
+def _target_line(out: list[str], frame: _Frame, value: float, *,
+                 horizontal: bool, label: str) -> None:
+    box = frame.box
+    w = _width(label) + 8
+    if horizontal:
+        y = frame.y(value)
+        out.append(_line(box.left, y, box.right, y, STOP, width=1.6, dash="5,3"))
+        out.append(_rect(box.right - w, y - LINE_H - 1, w, LINE_H, "#ffffff"))
+        out.append(_text(box.right - 4, y - 4, label, size=10, anchor="end",
+                         colour=STOP))
+    else:
+        x = frame.x(value)
+        out.append(_line(x, box.top, x, box.bottom, STOP, width=1.6, dash="5,3"))
+        left = x + 4 if x + 4 + w <= box.right else x - 4 - w
+        out.append(_rect(left, box.top, w, LINE_H, "#ffffff"))
+        out.append(_text(left + 4, box.top + 11, label, size=10, colour=STOP))
+
+
+def _fmt_of(spec: ChartSpec) -> str:
+    return str(spec.provenance.get("format", ""))
+
+
+# -- the charts ----------------------------------------------------------
+
+
+def _dot_plot(spec: ChartSpec, area: _Box) -> list[str]:
+    values: list[float] = []
+    for dot in (spec.series[0].get("dots", []) if spec.series else []):
+        if _number(dot.get("value")):
+            values.extend([float(dot["value"])] * max(1, int(dot.get("count", 1))))
     if not values:
         return []
-    low, high = min(values), max(values)
-    target = next((m["value"] for m in spec.marks
-                   if m.get("kind") == "target" and m.get("value") is not None),
-                  None)
+    target = _target(spec)
+    fmt = _fmt_of(spec)
+    low, high = nice_range(min(values + ([target] if target is not None else [])),
+                           max(values + ([target] if target is not None else [])), 5)
+    out: list[str] = []
+    frame = _frame(out, spec, area, x_range=(low, high), y_range=(0, 1),
+                   x_fmt=fmt, y_ticks=[], y_label="", y_axis=False)
+    box = frame.box
+    diameter = min(14.0, max(4.0, box.width / max(12, len(values)) * 1.6))
+    levels = stack_dots([frame.x(v) for v in values], diameter)
+    tallest = max(level for _x, level in levels) + 1
+    step = min(diameter, (box.height - diameter) / max(1, tallest - 1)) \
+        if tallest > 1 else diameter
+    radius = diameter / 2 - 0.6
+    for value, (x, level) in zip(values, levels, strict=True):
+        y = box.bottom - diameter / 2 - level * step
+        if target is None or value >= target:
+            out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='{_fmt(radius)}' "
+                       f"fill='{ACCENT}'/>")
+        else:
+            out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='{_fmt(radius)}' "
+                       f"fill='none' stroke='{STOP}' stroke-width='1.4'/>")
     if target is not None:
-        low, high = min(low, target), max(high, target)
-    if high <= low:
-        high = low + 1e-9
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    mid = (PAD_TOP + HEIGHT - PAD_BOTTOM) / 2
-    out = _axes(spec, x_low=low, x_high=high,
-                y_low=0, y_high=1)
-    out.append(f"<line x1='{left}' y1='{mid}' x2='{right}' y2='{mid}' "
-               "stroke='#cccccc'/>")
-    for dot in spec.series[0].get("dots", []):
-        x = _scale(float(dot["value"]), low, high, left, right)
-        out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(mid)}' r='3.2' "
-                   "fill='#2F6FB7' fill-opacity='0.75'/>")
-    if target is not None:
-        x = _scale(float(target), low, high, left, right)
-        out.append(f"<line x1='{_fmt(x)}' y1='{PAD_TOP}' x2='{_fmt(x)}' "
-                   f"y2='{HEIGHT - PAD_BOTTOM}' stroke='#C4472F' "
-                   "stroke-width='2' stroke-dasharray='5,3'/>")
-        out.append(_text(x, PAD_TOP - 8, f"target {_fmt(float(target))}",
-                         size=10, anchor="middle", colour="#C4472F"))
+        _target_line(out, frame, target, horizontal=False,
+                     label=f"target {format_value(target, fmt, 5)}")
     return out
 
 
-def _pareto(spec: ChartSpec) -> list[str]:
-    rows = spec.series
+def _exceedance(spec: ChartSpec, area: _Box) -> list[str]:
+    points = [p for p in (spec.series[0].get("points") or [])
+              if _number(p.get("value")) and _number(p.get("share"))] \
+        if spec.series else []
+    if not points:
+        return []
+    fmt = _fmt_of(spec)
+    target = _target(spec)
+    values = [float(p["value"]) for p in points]
+    low, high = nice_range(min(values + ([target] if target is not None else [])),
+                           max(values + ([target] if target is not None else [])), 5)
+    out: list[str] = []
+    frame = _frame(out, spec, area, x_range=(0.0, 1.0), y_range=(low, high),
+                   x_fmt="percent", y_fmt=fmt,
+                   x_ticks=[i / 10 for i in range(11)])
+    path = [f"M{_fmt(frame.x(0.0))},{_fmt(frame.y(values[0]))}"]
+    previous = 0.0
+    for point in points:
+        share, value = float(point["share"]), float(point["value"])
+        path.append(f"L{_fmt(frame.x(previous))},{_fmt(frame.y(value))}")
+        path.append(f"L{_fmt(frame.x(share))},{_fmt(frame.y(value))}")
+        previous = share
+    out.append(f"<path d='{' '.join(path)}' fill='none' stroke='{ACCENT}' "
+               "stroke-width='2.2'/>")
+    if target is not None:
+        higher = bool(spec.provenance.get("higher_is_better", True))
+        met = max((float(p["share"]) for p in points
+                   if (float(p["value"]) >= target if higher
+                       else float(p["value"]) <= target)), default=0.0)
+        _target_line(out, frame, target, horizontal=True,
+                     label=f"target {format_value(target, fmt, 5)}: "
+                           f"{100 * met:.3g} % of runs reach it")
+    return out
+
+
+def _key(spec: ChartSpec) -> list[tuple[str, str]]:
+    """(label, fill) for every cause the chart shows."""
+    seen: list[str] = []
+    if spec.kind == "pareto":
+        for row in spec.series:
+            for cause in row.get("causes") or {}:
+                if cause not in seen:
+                    seen.append(cause)
+    elif spec.kind in ("waterfall", "treemap", "icicle"):
+        for row in spec.series:
+            cause = row.get("cause")
+            if cause and str(cause) not in seen:
+                seen.append(str(cause))
+    entries = [(CAUSE_LABELS.get(c, c), _cause_fill(c)) for c in seen]
+    if spec.kind == "capacity_pareto":
+        entries = [("lost capacity", ACCENT), ("downtime", MUTED)]
+    if spec.kind == "ribbon":
+        entries = [("system up", UP), ("system down", DOWN)]
+    return entries
+
+
+def _bars(spec: ChartSpec, area: _Box, rows: list[dict], *, fmt: str,
+          labels: list[str], peak: float, x_label: str,
+          draw: Callable[[list[str], _Frame, dict, float, float], float | None],
+          ) -> list[str]:
+    """Horizontal bars with names in a gutter and a value after each bar."""
+    gutter = min(area.width * 0.4, max(_width(r["name"]) for r in rows) + 10)
+    value_w = max(_width(t) for t in labels) + 10
+    plot = _Box(area.left + gutter, area.top,
+                max(area.left + gutter + 40, area.right - value_w), area.bottom)
+    out: list[str] = []
+    frame = _frame(out, spec, plot, x_range=(0.0, peak), y_range=(0, 1),
+                   x_fmt=fmt, y_ticks=[], y_label="", x_label=x_label)
+    box = frame.box
+    band = box.height / len(rows)
+    bar_h = max(2.0, min(26.0, band * 0.64))
+    for i, (row, label) in enumerate(zip(rows, labels, strict=True)):
+        top = box.top + i * band + (band - bar_h) / 2
+        end = draw(out, frame, row, top, bar_h)
+        out.append(_text(area.left + gutter - 8, top + bar_h / 2 + 4,
+                         _fit(row["name"], gutter - 8), anchor="end"))
+        out.append(_text(box.left + (end or 0.0) + 6, top + bar_h / 2 + 4, label,
+                         size=10))
+    return out
+
+
+def _pareto(spec: ChartSpec, area: _Box) -> list[str]:
+    rows = [r for r in spec.series if _number(r.get("value"))]
     if not rows:
         return []
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
-    peak = max(float(row["value"]) for row in rows) or 1.0
-    height = (bottom - top) / len(rows)
-    out = []
-    for i, row in enumerate(rows):
-        y = top + i * height
-        width = (right - left) * float(row["value"]) / peak
-        out.append(f"<rect x='{left}' y='{_fmt(y + 3)}' width='{_fmt(width)}' "
-                   f"height='{_fmt(max(1, height - 6))}' fill='#2F6FB7' "
-                   "fill-opacity='0.35'/>")
+    fmt = _fmt_of(spec)
+    money = fmt == "money"
+
+    def label(row: dict) -> str:
+        if money:
+            text = format_value(float(row["value"]), "money")
+            if _number(row.get("share")):
+                text += f" ({100 * float(row['share']):.3g} %)"
+            return text
+        return format_value(float(row["value"]), fmt, 3)
+
+    peak = max(float(r["value"]) + 2 * float(r.get("sem") or 0) for r in rows)
+    peak = nice_range(0.0, peak or 1.0, 4)[1]
+
+    def draw(out: list[str], frame: _Frame, row: dict, top: float, bar_h: float) -> float:
+        width = frame.x(float(row["value"])) - frame.box.left
         causes = row.get("causes") or {}
-        cursor = float(left)
-        for cause, share in causes.items():
-            part = width * float(share)
-            colour = CAUSE_COLOURS.get(cause, CAUSE_COLOURS["other"])
-            fill = f"url(#pat-{cause})" if _PATTERN_PATHS.get(cause) else colour
-            out.append(f"<rect x='{_fmt(cursor)}' y='{_fmt(y + 3)}' "
-                       f"width='{_fmt(part)}' height='{_fmt(max(1, height - 6))}' "
-                       f"fill='{fill}'/>")
-            cursor += part
-        out.append(_text(left + 4, y + height / 2 + 4, str(row["name"]),
-                         size=11))
-        out.append(_text(left + width + 6, y + height / 2 + 4,
-                         f"{100 * float(row['value']):.3g} %", size=10))
-    return out
+        if causes:
+            cursor = frame.box.left
+            for cause, share in causes.items():
+                part = width * float(share)
+                out.append(_rect(cursor, top, part, bar_h, _cause_fill(cause)))
+                cursor += part
+        else:
+            out.append(_rect(frame.box.left, top, width, bar_h, ACCENT))
+        sem = float(row.get("sem") or 0.0)
+        end = width
+        if sem > 0:
+            lo = frame.x(max(0.0, float(row["value"]) - 2 * sem))
+            hi = frame.x(float(row["value"]) + 2 * sem)
+            mid = top + bar_h / 2
+            out.append(_line(lo, mid, hi, mid, INK, width=1.2))
+            out.append(_line(lo, mid - 4, lo, mid + 4, INK, width=1.2))
+            out.append(_line(hi, mid - 4, hi, mid + 4, INK, width=1.2))
+            end = max(end, hi - frame.box.left)
+        return end
+
+    return _bars(spec, area, rows, fmt=fmt, labels=[label(r) for r in rows],
+                 peak=peak, x_label=spec.y_label, draw=draw)
 
 
-def _waterfall(spec: ChartSpec) -> list[str]:
-    steps = spec.series
+def _points(fraction: float) -> str:
+    value = 100 * abs(fraction)
+    if value == 0:
+        return "0"
+    places = max(0, min(9, 1 - math.floor(math.log10(value))))
+    return f"{value:.{places}f}"
+
+
+def _waterfall(spec: ChartSpec, area: _Box) -> list[str]:
+    steps = [s for s in spec.series if _number(s.get("from")) and _number(s.get("to"))]
     if not steps:
         return []
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
-    high = 1.0
-    width = (right - left) / len(steps)
-    out = []
+    operational = spec.provenance.get("operational")
+    ends = [float(s["to"]) for s in steps] + [float(s["from"]) for s in steps]
+    span = max(ends) - min(ends)
+    low, high = nice_range(min(ends) - 0.35 * span, max(ends), 5)
+    low = max(0.0, low)
+    high = min(1.0, high) if max(ends) <= 1.0 else high
+    columns = len(steps) + (1 if _number(operational) else 0)
+    out: list[str] = []
+    frame = _frame(out, spec, area, x_range=(0, columns), y_range=(low, high),
+                   y_fmt="percent", x_ticks=[], x_label="",
+                   y_label="availability" if _number(operational) else spec.y_label)
+    box = frame.box
+    width = box.width / columns
     for i, step in enumerate(steps):
-        x = left + i * width
-        y0 = _scale(float(step["from"]), 0, high, bottom, top)
-        y1 = _scale(float(step["to"]), 0, high, bottom, top)
-        colour = CAUSE_COLOURS.get(str(step.get("cause")), CAUSE_COLOURS["other"])
-        out.append(f"<rect x='{_fmt(x + 2)}' y='{_fmt(min(y0, y1))}' "
-                   f"width='{_fmt(max(1, width - 4))}' "
-                   f"height='{_fmt(max(1, abs(y0 - y1)))}' fill='{colour}'/>")
-        out.append(_text(x + width / 2, bottom + 16,
-                         str(step["name"]), size=9, anchor="middle"))
-        out.append(_text(x + width / 2, min(y0, y1) - 4,
-                         f"-{100 * float(step['value']):.3g}", size=9,
-                         anchor="middle"))
+        x = box.left + i * width
+        y0, y1 = frame.y(float(step["from"])), frame.y(float(step["to"]))
+        out.append(_rect(x + width * 0.15, min(y0, y1), width * 0.7,
+                         max(1.5, abs(y0 - y1)), _cause_fill(str(step.get("cause")))))
+        drop = (f"−{_points(float(step['value']))} pts" if _number(operational)
+                else f"{100 * float(step['value']):.3g} %")
+        if max(y0, y1) + 16 < box.bottom:
+            out.append(_text(x + width / 2, max(y0, y1) + 14, drop, size=10,
+                             anchor="middle"))
+        else:
+            out.append(_text(x + width / 2, min(y0, y1) + 14, drop, size=10,
+                             anchor="middle",
+                             colour=_ink_on(CAUSE_COLOURS.get(
+                                 str(step.get("cause")), CAUSE_COLOURS["other"]))))
+        out.append(_text(x + width / 2, box.bottom + 15,
+                         _fit(step["name"], width - 4), size=10, anchor="middle"))
+    if not _number(operational):
+        return out
+    end = float(steps[-1]["to"])
+    x = box.left + len(steps) * width
+    out.append(_rect(x + width * 0.15, frame.y(end), width * 0.7,
+                     max(1.5, box.bottom - frame.y(end)), ACCENT))
+    out.append(_text(x + width / 2, frame.y(end) - 4, format_value(end, "percent", 6),
+                     size=10, anchor="middle"))
+    out.append(_text(x + width / 2, box.bottom + 15,
+                     "achieved" if _number(operational) else "rest", size=10,
+                     anchor="middle"))
     return out
 
 
-def _ladder(spec: ChartSpec) -> list[str]:
-    rows = [row for row in spec.series if row.get("value") is not None]
+def _ladder(spec: ChartSpec, area: _Box) -> list[str]:
+    rows = [row for row in spec.series if _number(row.get("value"))]
     if not rows:
         return []
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
-    height = (bottom - top) / (len(rows) + 1)
-    out = []
-    for i, row in enumerate(rows):
-        y = top + i * height
-        width = (right - left) * max(0.0, min(1.0, float(row["value"])))
-        out.append(f"<rect x='{left}' y='{_fmt(y)}' width='{right - left}' "
-                   f"height='{_fmt(height * 0.6)}' fill='#eeeeee'/>")
-        out.append(f"<rect x='{left}' y='{_fmt(y)}' width='{_fmt(width)}' "
-                   f"height='{_fmt(height * 0.6)}' "
-                   "fill='#22c55e' fill-opacity='0.8'/>")
-        out.append(_text(left + 4, y + height * 0.42, str(row["name"]),
-                         size=11))
-        out.append(_text(right, y + height * 0.42,
-                         f"{100 * float(row['value']):.4g} %", size=11,
-                         anchor="end"))
+    values = [float(r["value"]) for r in rows]
+    top_value = 1.0 if max(values) <= 1.0 else max(values)
+    span = max(top_value - min(values), 1e-9)
+    low, high = nice_range(min(values) - 0.6 * span, top_value, 4)
+    low, high = max(0.0, low), (min(1.0, high) if top_value <= 1.0 else high)
+    labels, previous = [], None
+    for value in values:
+        text = format_value(value, "percent", 6)
+        if previous is not None and previous - value > 1e-12:
+            text += f"  (−{_points(previous - value)} pts)"
+        labels.append(text)
+        previous = value
+    return _ladder_zoomed(spec, area, rows, labels, (low, high),
+                          [UP, ACCENT, "#7454A6"])
+
+
+def _ladder_zoomed(spec: ChartSpec, area: _Box, rows: list[dict], labels: list[str],
+                   x_range: tuple[float, float], colours: list[str]) -> list[str]:
+    gutter = min(area.width * 0.45, max(_width(r["name"]) for r in rows) + 10)
+    value_w = max(_width(t) for t in labels) + 10
+    plot = _Box(area.left + gutter, area.top,
+                max(area.left + gutter + 40, area.right - value_w), area.bottom)
+    out: list[str] = []
+    frame = _frame(out, spec, plot, x_range=x_range, y_range=(0, 1),
+                   x_fmt="percent", y_ticks=[], y_label="",
+                   x_label="availability (axis zoomed)")
+    box = frame.box
+    band = box.height / len(rows)
+    bar_h = max(2.0, min(24.0, band * 0.6))
+    for i, (row, label) in enumerate(zip(rows, labels, strict=True)):
+        top = box.top + i * band + (band - bar_h) / 2
+        right = frame.x(float(row["value"]))
+        out.append(_rect(box.left, top, right - box.left, bar_h,
+                         colours[i % len(colours)]))
+        out.append(_text(area.left + gutter - 8, top + bar_h / 2 + 4,
+                         _fit(row["name"], gutter - 8), anchor="end"))
+        out.append(_text(right + 6, top + bar_h / 2 + 4, label, size=10))
     return out
 
 
-def _histogram(spec: ChartSpec) -> list[str]:
-    bins = spec.series
+def _histogram(spec: ChartSpec, area: _Box) -> list[str]:
+    bins = [b for b in spec.series if _number(b.get("lo")) and _number(b.get("hi"))
+            and _number(b.get("count"))]
     if not bins:
         return []
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
+    lo = max(float(bins[0]["lo"]), 1e-12)
+    hi = max(float(bins[-1]["hi"]), lo * 10)
     peak = max(float(b["count"]) for b in bins) or 1.0
-    low = math.log(max(float(bins[0]["lo"]), 1e-12))
-    high = math.log(max(float(bins[-1]["hi"]), 1e-12))
-    if high <= low:
-        high = low + 1e-9
-    width = (right - left) / len(bins)
-    out = []
-    for i, row in enumerate(bins):
-        x = left + i * width
-        height = (bottom - top) * float(row["count"]) / peak
-        out.append(f"<rect x='{_fmt(x + 1)}' y='{_fmt(bottom - height)}' "
-                   f"width='{_fmt(max(1, width - 2))}' height='{_fmt(height)}' "
-                   "fill='#7A5AA6' fill-opacity='0.75'/>")
-        out.append(_text(x + width / 2, bottom + 16, _fmt(float(row["lo"])),
-                         size=8, anchor="middle"))
+    decades = range(math.floor(math.log10(lo)), math.ceil(math.log10(hi)) + 1)
+    steps = (1, 2, 5) if len(decades) <= 4 else (1,)
+    ticks = [m * 10.0 ** k for k in decades for m in steps if lo <= m * 10.0 ** k <= hi]
+    if len(ticks) < 2:
+        ticks = sorted({lo, hi})
+    y_range = nice_range(0.0, peak, 4)
+    counts = nice_ticks(*y_range, 4)
+    if all(float(b["count"]).is_integer() for b in bins):
+        counts = [t for t in counts if float(t).is_integer()]
+    out: list[str] = []
+    frame = _frame(out, spec, area, x_range=(lo, hi), y_range=y_range,
+                   y_ticks=counts, x_log=True, x_ticks=ticks, y_fmt="count",
+                   x_label=f"{spec.x_label} (log scale)")
+    for row in bins:
+        x0, x1 = frame.x(float(row["lo"])), frame.x(float(row["hi"]))
+        y = frame.y(float(row["count"]))
+        out.append(_rect(x0 + 1, y, max(1.0, x1 - x0 - 2), frame.box.bottom - y,
+                         ACCENT))
     for mark in spec.marks:
-        value = mark.get("value")
-        if mark.get("kind") != "quantile" or value is None:
-            continue
-        x = _scale(math.log(max(float(value), 1e-12)), low, high, left, right)
-        out.append(f"<line x1='{_fmt(x)}' y1='{PAD_TOP}' x2='{_fmt(x)}' "
-                   f"y2='{bottom}' stroke='#111111' stroke-dasharray='4,3'/>")
-        out.append(_text(x, PAD_TOP - 6, str(mark.get("label", "")),
-                         size=9, anchor="middle"))
+        if mark.get("kind") == "quantile" and _number(mark.get("value")):
+            _target_line(out, frame, float(mark["value"]), horizontal=False,
+                         label=f"{mark.get('label', '')} {_short(float(mark['value']))}")
     return out
 
 
-def _bubble(spec: ChartSpec) -> list[str]:
-    points = [p for p in spec.series
-              if isinstance(p.get("x"), (int, float))
-              and isinstance(p.get("y"), (int, float))]
+def _scatter_frame(out: list[str], spec: ChartSpec, area: _Box, points: list[dict], *,
+                   square: bool = False, include: Sequence[tuple[float, float]] = (),
+                   x_fmt: str | None = None, y_fmt: str | None = None) -> _Frame:
+    xs = [float(p["x"]) for p in points] + [x for x, _y in include]
+    ys = [float(p["y"]) for p in points] + [y for _x, y in include]
+    x_high = nice_range(0.0, max(xs) * 1.08 or 1.0, 5)[1]
+    y_high = nice_range(0.0, max(ys) * 1.12 or 1.0, 5)[1]
+    if square:
+        x_high = y_high = max(x_high, y_high)
+    fmt = _fmt_of(spec)
+    return _frame(out, spec, area, x_range=(0.0, x_high), y_range=(0.0, y_high),
+                  x_fmt=fmt if x_fmt is None else x_fmt,
+                  y_fmt=fmt if y_fmt is None else y_fmt)
+
+
+def _label_point(out: list[str], frame: _Frame, x: float, y: float, radius: float,
+                 text: str) -> None:
+    w = _width(text)
+    box = frame.box
+    cx = min(max(box.left + w / 2, x), box.right - w / 2)
+    ty = y - radius - 3
+    if ty - 10 < box.top:
+        ty = y + radius + 12
+    out.append(_text(cx, ty, text, size=10, anchor="middle"))
+
+
+def _xy(spec: ChartSpec) -> list[dict]:
+    return [p for p in spec.series if _number(p.get("x")) and _number(p.get("y"))]
+
+
+def _bubble(spec: ChartSpec, area: _Box) -> list[str]:
+    points = _xy(spec)
     if not points:
         return []
-    xs = [float(p["x"]) for p in points]
-    ys = [float(p["y"]) for p in points]
-    x_high = max(xs) or 1.0
-    y_high = max(ys) or 1.0
-    areas = [float(p.get("area") or 0) for p in points]
-    area_peak = max(areas) or 1.0
-    out = _axes(spec, x_low=0, x_high=x_high, y_low=0, y_high=y_high)
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
+    out: list[str] = []
+    frame = _scatter_frame(out, spec, area, points, x_fmt="percent", y_fmt="")
+    area_peak = max(float(p.get("area") or 0) for p in points) or 1.0
+    for point in sorted(points, key=lambda p: -float(p.get("area") or 0)):
+        x, y = frame.x(float(point["x"])), frame.y(float(point["y"]))
+        radius = 4 + 20 * (float(point.get("area") or 0) / area_peak) ** 0.5
+        out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='{_fmt(radius)}' "
+                   f"fill='{ACCENT}' fill-opacity='0.43' stroke='{ACCENT}'/>")
+        _label_point(out, frame, x, y, radius, str(point["name"]))
+    return out
+
+
+def _dots(out: list[str], frame: _Frame, points: list[dict]) -> None:
     for point in points:
-        x = _scale(float(point["x"]), 0, x_high, left, right)
-        y = _scale(float(point["y"]), 0, y_high, bottom, top)
-        radius = 5 + 22 * (float(point.get("area") or 0) / area_peak) ** 0.5
-        out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' "
-                   f"r='{_fmt(radius)}' fill='#C98A0B' fill-opacity='0.55' "
-                   "stroke='#8a5c00'/>")
-        out.append(_text(x, y - radius - 3, str(point["name"]), size=9,
-                         anchor="middle"))
+        x, y = frame.x(float(point["x"])), frame.y(float(point["y"]))
+        out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='4.5' fill='{ACCENT}'/>")
+        _label_point(out, frame, x, y, 5, str(point["name"]))
+
+
+def _quadrant(spec: ChartSpec, area: _Box) -> list[str]:
+    points = _xy(spec)
+    if not points:
+        return []
+    out: list[str] = []
+    frame = _scatter_frame(out, spec, area, points, include=[(1.0, 1.0)])
+    box = frame.box
+    out.append(_line(frame.x(1.0), box.top, frame.x(1.0), box.bottom, MUTED, dash="4,3"))
+    out.append(_line(box.left, frame.y(1.0), box.right, frame.y(1.0), MUTED, dash="4,3"))
+    _dots(out, frame, points)
     return out
 
 
-def _quadrant(spec: ChartSpec) -> list[str]:
-    points = [p for p in spec.series
-              if isinstance(p.get("x"), (int, float))
-              and isinstance(p.get("y"), (int, float))]
+def _scatter(spec: ChartSpec, area: _Box) -> list[str]:
+    points = _xy(spec)
     if not points:
         return []
-    xs = [float(p["x"]) for p in points] + [1.0]
-    ys = [float(p["y"]) for p in points] + [1.0]
-    x_high = max(xs) * 1.1 or 1.0
-    y_high = max(ys) * 1.1 or 1.0
-    out = _axes(spec, x_low=0, x_high=x_high, y_low=0, y_high=y_high)
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
-    x1 = _scale(1.0, 0, x_high, left, right)
-    y1 = _scale(1.0, 0, y_high, bottom, top)
-    out.append(f"<line x1='{_fmt(x1)}' y1='{top}' x2='{_fmt(x1)}' "
-               f"y2='{bottom}' stroke='#999999' stroke-dasharray='4,3'/>")
-    out.append(f"<line x1='{left}' y1='{_fmt(y1)}' x2='{right}' "
-               f"y2='{_fmt(y1)}' stroke='#999999' stroke-dasharray='4,3'/>")
-    for point in points:
-        x = _scale(float(point["x"]), 0, x_high, left, right)
-        y = _scale(float(point["y"]), 0, y_high, bottom, top)
-        out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='4' "
-                   "fill='#2F6FB7'/>")
-        out.append(_text(x + 6, y - 4, str(point["name"]), size=9))
+    out: list[str] = []
+    frame = _scatter_frame(out, spec, area, points, square=True)
+    if any(m.get("kind") == "diagonal" for m in spec.marks):
+        box = frame.box
+        out.append(_line(box.left, box.bottom, box.right, box.top, MUTED, dash="5,3"))
+    _dots(out, frame, points)
     return out
 
 
-def _convergence(spec: ChartSpec) -> list[str]:
-    points = [p for p in spec.series if isinstance(p.get("mean"), (int, float))]
+def _polyline(points: list[tuple[float, float]], colour: str, width: float = 2.0) -> str:
+    text = " ".join(f"{_fmt(x)},{_fmt(y)}" for x, y in points)
+    return (f"<polyline points='{text}' fill='none' stroke='{colour}' "
+            f"stroke-width='{_fmt(width)}'/>")
+
+
+def _polygon(points: list[tuple[float, float]], colour: str, opacity: str) -> str:
+    text = " ".join(f"{_fmt(x)},{_fmt(y)}" for x, y in points)
+    return f"<polygon points='{text}' fill='{colour}' fill-opacity='{opacity}'/>"
+
+
+def _convergence(spec: ChartSpec, area: _Box) -> list[str]:
+    points = [p for p in spec.series if _number(p.get("mean"))]
     if not points:
         return []
+    fmt = _fmt_of(spec)
     means = [float(p["mean"]) for p in points]
-    lows, highs = [], []
-    for point in points:
-        sem = point.get("sem")
-        spread = 2 * float(sem) if isinstance(sem, (int, float)) else 0.0
-        lows.append(float(point["mean"]) - spread)
-        highs.append(float(point["mean"]) + spread)
-    low, high = min(lows), max(highs)
-    if high <= low:
-        high = low + 1e-9
-    out = _axes(spec, x_low=1, x_high=max(2, len(points)),
-                y_low=low, y_high=high)
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
-    band = []
-    for i, _point in enumerate(points):
-        band.append(f"{_fmt(_scale(i + 1, 1, max(2, len(points)), left, right))},"
-                    f"{_fmt(_scale(highs[i], low, high, bottom, top))}")
-    for i in reversed(range(len(points))):
-        band.append(f"{_fmt(_scale(i + 1, 1, max(2, len(points)), left, right))},"
-                    f"{_fmt(_scale(lows[i], low, high, bottom, top))}")
-    out.append(f"<polygon points='{' '.join(band)}' fill='#2F6FB7' "
-               "fill-opacity='0.15'/>")
-    line = " ".join(
-        f"{_fmt(_scale(i + 1, 1, max(2, len(points)), left, right))},"
-        f"{_fmt(_scale(means[i], low, high, bottom, top))}"
-        for i in range(len(points)))
-    out.append(f"<polyline points='{line}' fill='none' stroke='#2F6FB7' "
-               "stroke-width='2'/>")
+    spreads = [2 * float(p["sem"]) if _number(p.get("sem")) else 0.0 for p in points]
+    upper = [m + s for m, s in zip(means, spreads, strict=True)]
+    lower = [m - s for m, s in zip(means, spreads, strict=True)]
+    low, high = nice_range(min(lower), max(upper), 5)
+    if fmt == "percent":
+        low = max(0.0, low)
+        high = min(1.0, high) if max(upper) <= 1.0 else high
+    n = len(points)
+    out: list[str] = []
+    frame = _frame(out, spec, area, x_range=(1.0, max(2.0, float(n))),
+                   y_range=(low, high), x_fmt="count", y_fmt=fmt,
+                   y_label="running mean")
+
+    def pt(i: int, value: float) -> tuple[float, float]:
+        return frame.x(i + 1), frame.y(min(high, max(low, value)))
+
+    out.append(_polygon([pt(i, upper[i]) for i in range(n)]
+                        + [pt(i, lower[i]) for i in reversed(range(n))],
+                        ACCENT, "0.18"))
+    out.append(_polyline([pt(i, means[i]) for i in range(n)], ACCENT))
+    target = _target(spec)
+    if target is not None and low <= target <= high:
+        _target_line(out, frame, target, horizontal=True,
+                     label=f"target {format_value(target, fmt, 5)}")
     return out
 
 
-def _curve(spec: ChartSpec) -> list[str]:
+def _curve(spec: ChartSpec, area: _Box) -> list[str]:
     for series in spec.series:
-        points = series.get("points") or []
+        points = [p for p in series.get("points") or []
+                  if _number(p.get("x")) and _number(p.get("y"))]
         if not points:
             continue
         xs = [float(p["x"]) for p in points]
         ys = [float(p["y"]) for p in points]
-        low, high = min(xs), max(xs)
-        y_low, y_high = min(ys), max(ys)
-        if high <= low:
-            high = low + 1e-9
-        if y_high <= y_low:
-            y_high = y_low + 1e-9
-        out = _axes(spec, x_low=low, x_high=high, y_low=y_low, y_high=y_high)
-        left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-        top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
-        line = " ".join(
-            f"{_fmt(_scale(x, low, high, left, right))},"
-            f"{_fmt(_scale(y, y_low, y_high, bottom, top))}"
-            for x, y in zip(xs, ys, strict=True))
-        out.append(f"<polyline points='{line}' fill='none' stroke='#2F6FB7' "
-                   "stroke-width='2'/>")
-        return out + [f"<text x='{left}' y='{HEIGHT - 18}' font-size='12' "
-                      f"fill='#333333'>{_esc(spec.x_label)}</text>"]
+        out: list[str] = []
+        frame = _frame(out, spec, area, x_range=nice_range(min(xs), max(xs), 6),
+                       y_range=nice_range(min(ys), max(ys), 5))
+        out.append(_polyline([(frame.x(x), frame.y(y))
+                              for x, y in zip(xs, ys, strict=True)], ACCENT))
+        return out
     return []
 
 
-def _capacity_pareto(spec: ChartSpec) -> list[str]:
+def _capacity_pareto(spec: ChartSpec, area: _Box) -> list[str]:
     rows = spec.series
     if not rows:
         return []
-    r_left, r_right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
-    peak = max(max(float(row.get("value") or 0),
-                   float(row.get("downtime") or 0)) for row in rows) or 1.0
-    height = (bottom - top) / len(rows)
-    out = []
+    peak = max(max(float(r.get("value") or 0), float(r.get("downtime") or 0))
+               for r in rows) or 1.0
+    peak = nice_range(0.0, peak, 4)[1]
+    gutter = min(area.width * 0.4, max(_width(r["name"]) for r in rows) + 10)
+    value_w = _width("100 %") + 10
+    plot = _Box(area.left + gutter, area.top,
+                max(area.left + gutter + 40, area.right - value_w), area.bottom)
+    out: list[str] = []
+    frame = _frame(out, spec, plot, x_range=(0.0, peak), y_range=(0, 1),
+                   x_fmt="percent", y_ticks=[], y_label="", x_label="share")
+    box = frame.box
+    band = box.height / len(rows)
+    bar_h = max(2.0, min(12.0, band * 0.32))
     for i, row in enumerate(rows):
-        y = top + i * height
-        for offset, key, colour in ((0.04, "downtime", "#9AA5B1"),
-                                    (0.36, "value", "#2F6FB7")):
-            width = (r_right - r_left) * float(row.get(key) or 0) / peak
-            out.append(f"<rect x='{r_left}' y='{_fmt(y + height * offset)}' "
-                       f"width='{_fmt(width)}' height='{_fmt(height * 0.28)}' "
-                       f"fill='{colour}'/>")
-        out.append(_text(r_left + 4, y + height * 0.55, str(row["name"]),
-                         size=11))
-        out.append(_text(r_right, y + height * 0.55,
-                         f"{100 * float(row.get('value') or 0):.3g} %",
-                         size=10, anchor="end"))
+        top = box.top + i * band + band / 2 - bar_h - 1
+        for j, (key, colour) in enumerate((("value", ACCENT), ("downtime", MUTED))):
+            value = float(row.get(key) or 0)
+            y = top + j * (bar_h + 2)
+            out.append(_rect(box.left, y, frame.x(value) - box.left, bar_h, colour))
+            out.append(_text(frame.x(value) + 4, y + bar_h - 1,
+                             format_value(value, "percent", 3), size=9))
+        out.append(_text(area.left + gutter - 8, top + bar_h + 4,
+                         _fit(row["name"], gutter - 8), anchor="end"))
     return out
 
 
-def _scatter(spec: ChartSpec) -> list[str]:
-    points = [p for p in spec.series
-              if isinstance(p.get("x"), (int, float))
-              and isinstance(p.get("y"), (int, float))]
-    if not points:
-        return []
-    x_high = max(float(p["x"]) for p in points) * 1.1 or 1.0
-    y_high = max(float(p["y"]) for p in points) * 1.1 or 1.0
-    high = max(x_high, y_high)
-    out = _axes(spec, x_low=0, x_high=high, y_low=0, y_high=high)
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
-    if any(m.get("kind") == "diagonal" for m in spec.marks):
-        out.append(f"<line x1='{left}' y1='{bottom}' x2='{right}' "
-                   f"y2='{top}' stroke='#999999' stroke-dasharray='5,3'/>")
-    for point in points:
-        x = _scale(float(point["x"]), 0, high, left, right)
-        y = _scale(float(point["y"]), 0, high, bottom, top)
-        out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='4' "
-                   "fill='#2F6FB7'/>")
-        out.append(_text(x + 6, y - 4, str(point["name"]), size=9))
-    return out
-
-
-def _fan(spec: ChartSpec) -> list[str]:
-    rows = [row for row in spec.series if row.get("p50") is not None]
+def _fan(spec: ChartSpec, area: _Box) -> list[str]:
+    rows = [row for row in spec.series if _number(row.get("p50"))]
     if not rows:
         return []
-    low_values = [float(row["p5"]) for row in rows
-                  if isinstance(row.get("p5"), (int, float))]
-    high_values = [float(row["p95"]) for row in rows
-                   if isinstance(row.get("p95"), (int, float))]
-    target = next((m["value"] for m in spec.marks
-                   if m.get("kind") == "target" and m.get("value") is not None),
-                  None)
-    low = min(low_values + ([target] if target is not None else []))
-    high = max(high_values + ([target] if target is not None else []))
-    if high <= low:
-        high = low + 1e-9
-    count = len(rows)
-    out = _axes(spec, x_low=1, x_high=max(2, count), y_low=low, y_high=high)
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
+    fmt = _fmt_of(spec)
+    target = _target(spec)
+    lows = [float(r["p5"]) for r in rows if _number(r.get("p5"))]
+    highs = [float(r["p95"]) for r in rows if _number(r.get("p95"))]
+    mids = [float(r["p50"]) for r in rows]
+    low = min(lows + mids + ([target] if target is not None else []))
+    high = max(highs + mids + ([target] if target is not None else []))
+    low, high = nice_range(low, high, 5)
+    if fmt == "percent":
+        low, high = max(0.0, low), min(1.0, high)
+    n = len(rows)
+    out: list[str] = []
+    frame = _frame(out, spec, area, x_range=(1.0, max(2.0, float(n))),
+                   y_range=(low, high), x_ticks=nice_ticks(1, max(2, n), min(n, 8)),
+                   x_fmt="count", y_fmt=fmt)
 
-    def x_of(i: int) -> float:
-        return _scale(i + 1, 1, max(2, count), left, right)
+    def pt(i: int, value: float) -> tuple[float, float]:
+        return frame.x(i + 1), frame.y(value)
 
-    def y_of(value: float) -> float:
-        return _scale(value, low, high, bottom, top)
-
-    def band(upper: str, lower: str, colour: str, opacity: str) -> None:
-        points = [f"{_fmt(x_of(i))},{_fmt(y_of(float(rows[i][upper])))}"
-                  for i in range(count)]
-        points += [f"{_fmt(x_of(i))},{_fmt(y_of(float(rows[i][lower])))}"
-                   for i in reversed(range(count))]
-        out.append(f"<polygon points='{' '.join(points)}' fill='{colour}' "
-                   f"fill-opacity='{opacity}'/>")
-
-    if all(isinstance(row.get("p5"), (int, float))
-           and isinstance(row.get("p95"), (int, float)) for row in rows):
-        band("p95", "p5", "#2F6FB7", "0.12")
-    if all(isinstance(row.get("p25"), (int, float))
-           and isinstance(row.get("p75"), (int, float)) for row in rows):
-        band("p75", "p25", "#2F6FB7", "0.22")
-    line = " ".join(f"{_fmt(x_of(i))},{_fmt(y_of(float(row['p50'])))}"
-                    for i, row in enumerate(rows))
-    out.append(f"<polyline points='{line}' fill='none' stroke='#2F6FB7' "
-               "stroke-width='2'/>")
+    for upper, lower, opacity in (("p95", "p5", "0.14"), ("p75", "p25", "0.28")):
+        if all(_number(r.get(upper)) and _number(r.get(lower)) for r in rows):
+            out.append(_polygon([pt(i, float(r[upper])) for i, r in enumerate(rows)]
+                                + [pt(i, float(rows[i][lower]))
+                                   for i in reversed(range(n))], ACCENT, opacity))
+    out.append(_polyline([pt(i, mids[i]) for i in range(n)], ACCENT))
     if target is not None:
-        y = y_of(float(target))
-        out.append(f"<line x1='{left}' y1='{_fmt(y)}' x2='{right}' "
-                   f"y2='{_fmt(y)}' stroke='#C4472F' stroke-width='2' "
-                   "stroke-dasharray='5,3'/>")
+        _target_line(out, frame, target, horizontal=True,
+                     label=f"threshold {format_value(target, fmt, 5)}")
     return out
 
 
-def _treemap(spec: ChartSpec) -> list[str]:
+def _cell_text(out: list[str], x: float, y: float, w: float, h: float,
+               cause: str, lines: Sequence[str]) -> None:
+    if w < 28 or h < LINE_H + 2:
+        return
+    colour = CAUSE_COLOURS.get(cause, CAUSE_COLOURS["other"])
+    ink = _ink_on(colour)
+    top = y + 2
+    for line in lines:
+        if top + LINE_H > y + h - 1:
+            break
+        text = _fit(line, w - 10)
+        out.append(_rect(x + 2, top, _width(text) + 6, LINE_H, colour))
+        out.append(_text(x + 5, top + 11, text, size=10, colour=ink))
+        top += LINE_H
+
+
+def _treemap(spec: ChartSpec, area: _Box) -> list[str]:
     rows = [row for row in spec.series if float(row.get("w") or 0) > 0]
     if not rows:
         return []
-    width = max(float(row["x"]) + float(row["w"]) for row in rows) or 1.0
-    height = max(float(row["y"]) + float(row["h"]) for row in rows) or 1.0
-    left, top = PAD_LEFT, PAD_TOP
-    scale_x = (WIDTH - PAD_LEFT - PAD_RIGHT) / width
-    scale_y = (HEIGHT - PAD_TOP - PAD_BOTTOM) / height
-    out = []
+    width = max(float(r["x"]) + float(r["w"]) for r in rows) or 1.0
+    height = max(float(r["y"]) + float(r["h"]) for r in rows) or 1.0
+    out: list[str] = []
     for row in rows:
-        x = left + float(row["x"]) * scale_x
-        y = top + float(row["y"]) * scale_y
-        w = float(row["w"]) * scale_x
-        h = float(row["h"]) * scale_y
-        colour = CAUSE_COLOURS.get(str(row.get("cause")), "#6B7785")
-        out.append(f"<rect x='{_fmt(x)}' y='{_fmt(y)}' width='{_fmt(w)}' "
-                   f"height='{_fmt(h)}' fill='{colour}' fill-opacity='0.72' "
-                   "stroke='#ffffff' stroke-width='1'/>")
-        if w > 52 and h > 16:
-            out.append(_text(x + 4, y + 14, str(row["name"])[:14], size=9,
-                             colour="#ffffff"))
-            if h > 30:
-                out.append(_text(x + 4, y + 28,
-                                 f"{100 * float(row['value']):.3g} %",
-                                 size=8, colour="#ffffff"))
+        x = area.left + float(row["x"]) / width * area.width
+        y = area.top + float(row["y"]) / height * area.height
+        w = float(row["w"]) / width * area.width
+        h = float(row["h"]) / height * area.height
+        cause = str(row.get("cause") or "other")
+        out.append(_rect(x, y, w, h, _cause_fill(cause),
+                         " stroke='#ffffff' stroke-width='1.5'"))
+        _cell_text(out, x, y, w, h, cause,
+                   [str(row["name"]), format_value(float(row["value"]), "percent", 3)])
     return out
 
 
-def _icicle(spec: ChartSpec) -> list[str]:
+def _icicle(spec: ChartSpec, area: _Box) -> list[str]:
     rows = [row for row in spec.series if float(row.get("value") or 0) > 0]
     if not rows:
         return []
     columns = max(int(row["column"]) for row in rows) + 1
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
-    width = (right - left) / columns
-    out = []
+    body = _Box(area.left, area.top, area.right, area.bottom - LINE_H - 4)
+    width = body.width / columns
+    total = sum(float(r["value"]) for r in rows if int(r["column"]) == 0) or 1.0
+    out: list[str] = []
     for column in range(columns):
-        column_rows = [row for row in rows if int(row["column"]) == column]
-        total = sum(float(row["value"]) for row in column_rows) or 1.0
-        y = float(top)
-        for row in column_rows:
-            height = (bottom - top) * float(row["value"]) / total
-            colour = CAUSE_COLOURS.get(str(row.get("cause")),
-                                       CAUSE_COLOURS["other"])
-            x = left + column * width
-            out.append(f"<rect x='{_fmt(x + 1)}' y='{_fmt(y + 1)}' "
-                       f"width='{_fmt(max(1, width - 2))}' "
-                       f"height='{_fmt(max(1, height - 2))}' fill='{colour}' "
-                       "fill-opacity='0.78' stroke='#ffffff'/>")
-            if height > 18 and width > 70:
-                out.append(_text(x + 4, y + 14, str(row["label"])[:10],
-                                 size=9, colour="#ffffff"))
-            y += height
+        y = body.top
+        for row in (r for r in rows if int(r["column"]) == column):
+            h = body.height * float(row["value"]) / total
+            cause = str(row.get("cause") or "other")
+            x = body.left + column * width
+            out.append(_rect(x + 1, y + 1, max(1.0, width - 2), max(1.0, h - 2),
+                             _cause_fill(cause)))
+            _cell_text(out, x + 1, y + 1, width - 2, h - 2, cause,
+                       [str(row["label"]),
+                        format_value(float(row["value"]), "percent", 3)])
+            y += h
+        out.append(_text(body.left + column * width + width / 2, body.bottom + 14,
+                         "first" if column == 0 else f"then (step {column + 1})",
+                         size=10, anchor="middle", colour=MUTED))
     return out
 
 
-def _ribbon(spec: ChartSpec) -> list[str]:
+def _ribbon(spec: ChartSpec, area: _Box) -> list[str]:
     rows = [row for row in spec.series if row.get("span")]
     if not rows:
         return []
-    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
-    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
     start = min(float(row["start"]) for row in rows)
     end = max(float(row["end"]) for row in rows)
-    height = (bottom - top) / len(rows)
-    out = []
+    out: list[str] = []
+    frame = _frame(out, spec, area, x_range=(start, end),
+                   y_range=(0.0, float(len(rows))), y_ticks=[],
+                   y_label=f"{len(rows)} runs, best at the top")
+    box = frame.box
+    height = box.height / len(rows)
     for i, row in enumerate(rows):
-        y = top + i * height
-        out.append(f"<rect x='{left}' y='{_fmt(y)}' width='{right - left}' "
-                   f"height='{_fmt(max(1, height - 0.4))}' fill='#22c55e' "
-                   "fill-opacity='0.55'/>")
+        y = box.top + i * height
+        out.append(_rect(box.left, y, box.width, max(1.0, height - 0.4), UP))
         for a, b in row.get("red") or []:
-            x0 = _scale(float(a), start, end, left, right)
-            x1 = _scale(float(b), start, end, left, right)
-            out.append(f"<rect x='{_fmt(x0)}' y='{_fmt(y)}' "
-                       f"width='{_fmt(max(1, x1 - x0))}' "
-                       f"height='{_fmt(max(1, height - 0.4))}' fill='#C4472F'/>")
+            x0, x1 = frame.x(float(a)), frame.x(float(b))
+            out.append(_rect(x0, y, max(1.0, x1 - x0), max(1.0, height - 0.4), DOWN))
     return out
 
 
-_RENDERERS = {
+def _short(value: float) -> str:
+    size = abs(value)
+    if size >= 1e4:
+        return format_value(value, "money")
+    if size >= 100:
+        return f"{value:,.0f}"
+    return f"{value:.3g}"
+
+
+_RENDERERS: dict[str, Callable[[ChartSpec, _Box], list[str]]] = {
     "dot_plot": _dot_plot,
-    "ecdf": _curve,
+    "exceedance": _exceedance,
     "pareto": _pareto,
     "waterfall": _waterfall,
     "ladder": _ladder,
@@ -571,23 +870,35 @@ _RENDERERS = {
 
 
 def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
-           background: str = "#ffffff", text_colour: str = "#333333") -> str:
+           background: str = "#ffffff", text_colour: str = INK) -> str:
     """One ChartSpec as a complete SVG document."""
     body: list[str] = [
         f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' "
         f"height='{height}' viewBox='0 0 {width} {height}' "
         f"role='img' aria-label='{_esc(spec.title)}'>",
         f"<rect width='{width}' height='{height}' fill='{background}'/>",
-        _text(width / 2, 24, spec.title, size=16, anchor="middle",
+        _text(width / 2, 22, spec.title, size=15, anchor="middle",
               weight="600", colour=text_colour),
-        _text(width / 2, 42, spec.subtitle, size=11, anchor="middle",
-              colour=text_colour),
+        _text(width / 2, 39, spec.subtitle, size=11, anchor="middle",
+              colour=MUTED),
         *_cause_defs(),
     ]
+    top = float(TITLE_H)
+    x = float(PAD)
+    for label, fill in _key(spec):
+        w = 18 + _width(label) + 14
+        if x + w > width - PAD and x > PAD:
+            x, top = float(PAD), top + KEY_H
+        body.append(_rect(x, top + 3, 14, 11, fill))
+        body.append(_text(x + 18, top + 13, label, size=11, colour=text_colour))
+        x += w
+    if _key(spec):
+        top += KEY_H
+    area = _Box(PAD, top + 4, width - PAD, height - CAPTION_H)
     renderer = _RENDERERS.get(spec.kind)
-    body.extend(renderer(spec) if renderer is not None else [])
+    body.extend(renderer(spec, area) if renderer is not None else [])
     if spec.caption:
-        body.append(_text(PAD_LEFT, height - 8, spec.caption, size=10,
+        body.append(_text(PAD, height - 9, spec.caption, size=11,
                           colour=text_colour))
     body.append("</svg>")
     return "\n".join(body)

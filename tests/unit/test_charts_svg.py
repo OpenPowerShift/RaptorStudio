@@ -112,7 +112,7 @@ def test_a_pareto_names_every_cause_and_draws_its_pattern():
 def test_a_dot_plot_draws_the_target_line():
     svg = charts_svg.render(_specs()["dot"])
     assert "stroke-dasharray='5,3'" in svg
-    assert "target 0.95" in svg
+    assert "target 95 %" in svg
 
 
 def test_a_waterfall_draws_one_step_per_cause():

@@ -123,6 +123,9 @@ class ChartsPage(QWidget):
         if periods:
             specs["Availability year by year"] = charts.annual_fan(periods)
             specs["A bad year, as a frequency"] = charts.annual_dots(periods)
+            if (periods.get("capacity") or {}).get("by_index"):
+                specs["Capacity delivered year by year"] = (
+                    charts.annual_capacity_fan(periods))
         if any(getattr(rd, "cost", None) is not None for rd in report_data):
             specs["Where the money goes"] = charts.cost_pareto(report_data)
         return specs

@@ -286,12 +286,20 @@ class AoPlotWidget(QWidget):
         # 0..1 axis made every run look like a flat line; use the actual
         # envelope plus a little padding.
         self._y_lo, self._y_hi = self._y_bounds()
-        # Axes + gridlines.
-        steps = 4
+        # Axes + gridlines at round values (the data keeps its own scale:
+        # 0..y_max for capacity, the padded envelope for availability).
+        from raptor.api.insight.axes import nice_ticks, tick_text
+        lo, hi = (0.0, y_max) if cap_mode else (self._y_lo, self._y_hi)
+        span = max(1e-12, hi - lo)
+        ticks = [t for t in nice_ticks(lo, hi, 5)
+                 if lo - span * 1e-9 <= t <= hi + span * 1e-9]
+
+        def tick_y(t: float) -> float:
+            return area.bottom() - area.height() * (t - lo) / span
+
         p.setPen(QPen(QColor(c["border"]), 1))
-        for i in range(steps + 1):
-            y = area.bottom() - area.height() * i / steps
-            p.drawLine(QPointF(area.left(), y), QPointF(area.right(), y))
+        for t in ticks:
+            p.drawLine(QPointF(area.left(), tick_y(t)), QPointF(area.right(), tick_y(t)))
         axis_pen = QPen(QColor(c["border"]), 1)
         p.setPen(axis_pen)
         p.drawRect(area)
@@ -299,14 +307,10 @@ class AoPlotWidget(QWidget):
         f.setPointSizeF(8)
         p.setFont(f)
         p.setPen(QColor(c["muted"]))
-        span = max(1e-12, self._y_hi - self._y_lo)
-        dec = (4 if span < 0.02 else 3 if span < 0.2 else 2)
-        for i in range(steps + 1):
-            y = area.bottom() - area.height() * i / steps
-            label = (f"{y_max * i / steps:g}" if cap_mode
-                     else f"{self._y_lo + span * i / 4:.{dec}f}")
-            p.drawText(QRectF(0, y - 7, margin_l - 6, 14),
-                       Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, label)
+        for t in ticks:
+            p.drawText(QRectF(0, tick_y(t) - 7, margin_l - 6, 14),
+                       Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                       tick_text(t, ticks))
 
         runs = self._runs
         if self._mode == self.CAPACITY:
@@ -584,14 +588,19 @@ class AoPlotWidget(QWidget):
 
     def _draw_x_ticks(self, p: QPainter, area: QRectF, t_max: float, c: dict,
                       *, integer: bool = False):
-        # ~9 ticks: enough numbers to read values off without crowding.
-        n = 8
+        # Round 1-2-5 steps (0, 5000, 10000 ...), the same ticks the charts
+        # use, rather than t_max / 8 (5467.94, 10935.9 ...).
+        from raptor.api.insight.axes import nice_ticks, tick_text
+        if t_max <= 0:
+            return
+        ticks = [t for t in nice_ticks(0.0, t_max, 8) if 0.0 <= t <= t_max * (1 + 1e-9)]
+        if integer:
+            ticks = [t for t in ticks if float(t).is_integer()] or [0.0, float(round(t_max))]
         p.setPen(QColor(c["muted"]))
-        for i in range(n + 1):
-            t = t_max * i / n
-            label = f"{round(t)}" if integer else f"{t:g}"
+        for t in ticks:
+            label = f"{round(t):,}" if integer else tick_text(t, ticks)
             p.drawText(
-                QRectF(area.left() + area.width() * i / n - 34,
+                QRectF(area.left() + area.width() * t / t_max - 34,
                        area.bottom() + 4, 68, 14),
                 Qt.AlignmentFlag.AlignHCenter, label)
 

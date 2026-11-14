@@ -56,7 +56,8 @@ def trial_outcome(per_run: list[dict], field_name: str = "availability", *,
     caption = f"{label}: {len(values)} runs"
     mean = _mean(values)
     if mean is not None:
-        caption += f", mean {mean:.6g}"
+        from raptor.api.insight.axes import format_value
+        caption += f", mean {format_value(mean, value_format(field_name, units), 6)}"
     if target is not None:
         caption += (f"; {met} of {len(values)} "
                     f"({100 * met / len(values):.3g} %) met the target.")
@@ -69,24 +70,93 @@ def trial_outcome(per_run: list[dict], field_name: str = "availability", *,
         marks=[{"kind": "target", "value": target}] if target is not None else [],
         caption=caption,
         provenance={"runs": len(values), "units": units,
+                    "format": value_format(field_name, units),
                     "measure": field_name, "met": met, "target": target})
+
+
+#: Per-run fields that are fractions, printed as percentages.
+_FRACTIONS = {"availability", "reliability", "dependability",
+              "mission_availability", "mission_reliability", "ao", "ai", "aa",
+              "green", "yellow", "red"}
+
+
+def value_format(field_name: str, units: str = "") -> str:
+    """How a chart should print this field: ``percent``, ``money`` or ``""``.
+
+    A fraction is a percentage whatever `units` says: callers pass the
+    model's time unit there, which is not the unit of a fraction."""
+    if field_name in _FRACTIONS:
+        return "percent"
+    if units in ("cost", "money"):
+        return "money"
+    return ""
+
+
+def exceedance_points(values: list[float], *, higher_is_better: bool = True
+                      ) -> list[dict[str, float]]:
+    """One point per distinct value: the share of runs that reached it.
+
+    With `higher_is_better` a run reaches `v` when its value is at least
+    `v`; otherwise when it is at most `v` (downtime, cost).  The points run
+    from the share 1/n (the best run) to 1 (every run)."""
+    ordered = sorted(values, reverse=higher_is_better)
+    n = len(ordered)
+    points: list[dict[str, float]] = []
+    for i, value in enumerate(ordered):
+        share = (i + 1) / n
+        if points and points[-1]["value"] == value:
+            points[-1]["share"] = share
+        else:
+            points.append({"value": value, "share": share})
+    return points
+
+
+def _reached(points: list[dict[str, float]], share: float) -> float:
+    """The value at least `share` of the runs reached (`points` not empty)."""
+    for point in points:
+        if point["share"] >= share - 1e-12:
+            return point["value"]
+    return points[-1]["value"]
 
 
 def ecdf(per_run: list[dict], field_name: str = "availability", *,
          label: str = "Availability", target: float | None = None,
-         units: str = "") -> ChartSpec:
-    """C1b: the chance of reaching each value, same runs as the dot plot."""
-    values = sorted(_values(per_run, field_name))
-    points = [{"x": v, "y": (i + 1) / len(values)}
-              for i, v in enumerate(values)] if values else []
+         units: str = "", higher_is_better: bool = True) -> ChartSpec:
+    """C1b: the chance a run reaches each value (an exceedance curve).
+
+    Read across: pick a share of runs on the horizontal axis and the curve
+    gives the value that many runs reached.  The runs are the dot plot's."""
+    values = _values(per_run, field_name)
+    points = exceedance_points(values, higher_is_better=higher_is_better)
+    fmt = value_format(field_name, units)
+    word = "at least" if higher_is_better else "at most"
+
+    def shown(value: float) -> str:
+        from raptor.api.insight.axes import format_value
+        return format_value(value, fmt, 5)
+
+    if points:
+        nine = _reached(points, 0.9)
+        half = _reached(points, 0.5)
+        caption = (f"9 runs in 10 reached {word} {shown(nine)}; half reached "
+                   f"{word} {shown(half)}.")
+        if target is not None:
+            met = sum(1 for v in values
+                      if (v >= target if higher_is_better else v <= target))
+            caption += (f" {100 * met / len(values):.3g} % of runs reached the "
+                        f"target {shown(target)}.")
+    else:
+        caption = "No runs."
     return ChartSpec(
-        "ecdf", f"Chance of at least {label.lower()}", "empirical distribution",
-        label, "chance", series=[{"name": label, "points": points}],
+        "exceedance", f"Chance of reaching {label.lower()}",
+        "read across from a share of runs to the value they reached",
+        "share of runs", label,
+        series=[{"name": label, "points": points}],
         marks=[{"kind": "target", "value": target}] if target is not None else [],
-        caption=(f"Half the runs are at or below "
-                 f"{points[len(points) // 2]['x']:.6g}." if points
-                 else "No runs."),
-        provenance={"runs": len(values), "units": units})
+        caption=caption,
+        provenance={"runs": len(values), "units": units, "format": fmt,
+                    "measure": field_name, "reached": word,
+                    "higher_is_better": higher_is_better})
 
 
 def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
@@ -107,7 +177,7 @@ def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
         caption=(f"{rows[0]['name']} causes the largest share "
                  f"({100 * (rows[0]['dtci']['mean'] or 0):.3g} %)."
                  if rows else "No system outage."),
-        provenance={"runs": attribution.get("runs", 0)})
+        provenance={"runs": attribution.get("runs", 0), "format": "percent"})
 
 
 def downtime_waterfall(attribution: dict[str, Any],
@@ -142,7 +212,7 @@ def downtime_waterfall(attribution: dict[str, Any],
         "share of loss", series=steps,
         marks=[{"kind": "end", "value": running}] if steps else [],
         caption=caption,
-        provenance={"runs": attribution.get("runs", 0),
+        provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "operational": operational})
 
 
@@ -161,9 +231,9 @@ def availability_ladder(ladder: dict[str, Any]) -> ChartSpec:
         "ladder", "What each kind of availability keeps",
         "the gap between rungs is what the next cause takes away",
         "availability", "fraction", series=present,
-        caption="; ".join(f"{s['name']} {100 * s['value']:.4g} %"
+        caption="; ".join(f"{s['name']} {100 * s['value']:.6g} %"
                           for s in present) or "No availability reported.",
-        provenance={"runs": ladder.get("runs")})
+        provenance={"runs": ladder.get("runs"), "format": "percent"})
 
 
 def outage_histogram(attribution: dict[str, Any]) -> ChartSpec:
@@ -226,27 +296,34 @@ def convergence(per_run: list[dict], field_name: str = "availability",
                 target: float | None = None) -> ChartSpec:
     """C11: has the running mean settled; is the run long enough?"""
     values = _values(per_run, field_name)
-    points = []
-    running = 0.0
+    points: list[dict[str, Any]] = []
+    # Welford's running mean and variance: one pass, not one per run
+    mean = m2 = 0.0
     for i, value in enumerate(values, start=1):
-        running += value
-        mean = running / i
-        sem = None
-        if i > 1:
-            var = sum((v - mean) ** 2 for v in values[:i]) / (i - 1)
-            sem = (var / i) ** 0.5
+        delta = value - mean
+        mean += delta / i
+        m2 += delta * (value - mean)
+        sem = (m2 / (i - 1) / i) ** 0.5 if i > 1 else None
         points.append({"n": i, "mean": mean, "sem": sem})
     last = points[-1] if points else None
+    fmt = value_format(field_name)
+
+    def shown(value: float, digits: int) -> str:
+        from raptor.api.insight.axes import format_value
+        return format_value(value, fmt, digits)
+
     return ChartSpec(
         "convergence", "Has the run settled?",
         "the band is +/- 2 standard errors; it should stop moving",
         "runs", field_name, series=points,
         marks=[{"kind": "target", "value": target}] if target is not None else [],
-        caption=(f"After {len(values):,} runs the mean is {last['mean']:.6g}"
-                 f" with +/-2 SEM {2 * last['sem']:.3g}."
+        caption=(f"After {len(values):,} runs the mean is "
+                 f"{shown(float(last['mean']), 6)}, give or take "
+                 f"{shown(2 * float(last['sem']), 2)} (2 standard errors)."
                  if last is not None and last["sem"] is not None
                  else "Not enough runs to estimate the error."),
-        provenance={"runs": len(values), "measure": field_name})
+        provenance={"runs": len(values), "measure": field_name,
+                    "format": fmt})
 
 
 def cost_pareto(report_data: list[Any], top: int = 10) -> ChartSpec:
@@ -270,7 +347,8 @@ def cost_pareto(report_data: list[Any], top: int = 10) -> ChartSpec:
         caption=(f"{rows[0][0]} carries the largest cost "
                  f"({100 * rows[0][1] / grand:.3g} %)."
                  if rows and grand else "No cost analysis in this run."),
-        provenance={"runs": len(report_data), "grand_total": grand})
+        provenance={"runs": len(report_data), "grand_total": grand,
+                    "format": "money"})
 
 
 def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
@@ -297,7 +375,7 @@ def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpe
         caption=(f"{rows[0]['name']} loses the largest share of capacity "
                  f"({100 * (rows[0]['share']['mean'] or 0):.3g} %)."
                  if rows else "No capacity attribution in this run."),
-        provenance={"runs": attribution.get("runs", 0),
+        provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
 
 
@@ -324,7 +402,7 @@ def capacity_vs_downtime(attribution: dict[str, Any],
         marks=[{"kind": "diagonal"}],
         caption=("Points above the diagonal are understated by availability "
                  "alone." if points else "No capacity attribution in this run."),
-        provenance={"runs": attribution.get("runs", 0)})
+        provenance={"runs": attribution.get("runs", 0), "format": "percent"})
 
 
 def capacity_waterfall(attribution: dict[str, Any]) -> ChartSpec:
@@ -350,8 +428,26 @@ def capacity_waterfall(attribution: dict[str, Any]) -> ChartSpec:
         caption=(f"The largest loss is {steps[0]['name'].lower()} "
                  f"({100 * steps[0]['value']:.3g} % of lost energy)."
                  if steps else "No capacity attribution in this run."),
-        provenance={"runs": attribution.get("runs", 0),
+        provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
+
+
+def annual_capacity_fan(periods: dict[str, Any]) -> ChartSpec:
+    """K6b: capacity-weighted availability year by year (energy delivered /
+    flow generated), beside the plain availability fan: with many parallel
+    units a year can look fully available and still lose output."""
+    capacity = periods.get("capacity") or {}
+    spec = annual_fan({**periods, "by_index": capacity.get("by_index") or [],
+                       "threshold": capacity.get("threshold")})
+    spec.title = "Capacity delivered year by year"
+    spec.y_label = "capacity-weighted availability"
+    rows = spec.series
+    spec.caption = (f"{len(rows)} periods; the median share of capacity "
+                    f"delivered moves from {100 * rows[0]['p50']:.4g} % to "
+                    f"{100 * rows[-1]['p50']:.4g} %."
+                    if len(rows) > 1 else
+                    "No capacity analysis in this run, or not enough periods.")
+    return spec
 
 
 def annual_fan(periods: dict[str, Any]) -> ChartSpec:
@@ -375,7 +471,7 @@ def annual_fan(periods: dict[str, Any]) -> ChartSpec:
         marks=[{"kind": "target", "value": threshold}]
         if threshold is not None else [],
         caption=caption,
-        provenance={"runs": periods.get("runs", 0),
+        provenance={"runs": periods.get("runs", 0), "format": "percent",
                     "periods_per_run": periods.get("periods_per_run", 0)})
 
 
@@ -398,7 +494,7 @@ def annual_dots(periods: dict[str, Any]) -> ChartSpec:
         marks=[{"kind": "target", "value": threshold}]
         if threshold is not None else [],
         caption=caption,
-        provenance={"runs": periods.get("runs", 0),
+        provenance={"runs": periods.get("runs", 0), "format": "percent",
                     "periods": pooled.get("n", 0), "below": below})
 
 
@@ -429,7 +525,7 @@ def downtime_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
         caption=(f"{series[0]['name']} occupies the largest area "
                  f"({100 * float(series[0]['value']):.3g} %)."
                  if series else "No system outage."),
-        provenance={"runs": attribution.get("runs", 0),
+        provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "elements": len(rows), "shown": len(items)})
 
 
@@ -516,6 +612,7 @@ CHARTS = {
     "capacity-vs-downtime": capacity_vs_downtime,
     "capacity-waterfall": capacity_waterfall,
     "annual-fan": annual_fan,
+    "annual-capacity-fan": annual_capacity_fan,
     "annual-dots": annual_dots,
     "downtime-treemap": downtime_treemap,
     "outage-anatomy": outage_anatomy,
@@ -587,5 +684,7 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
                                                        "availability")),
         "annual-dots": lambda: annual_dots(_need(periods, "period-by-period "
                                                           "availability")),
+        "annual-capacity-fan": lambda: annual_capacity_fan(
+            _need(periods, "period-by-period availability")),
     }
     return builders[name]()

@@ -38,7 +38,9 @@ ANATOMY_H = 260
 ANATOMY_DEPTH = 4
 YEARS_H = 150
 CAPACITY_ROWS = 6
-CAPACITY_SCATTER_H = 150
+CAPACITY_SCATTER_SIZE = 240.0
+#: the scatter, its axis label and its note
+CAPACITY_SCATTER_H = int(CAPACITY_SCATTER_SIZE) + 36
 #: The year-by-year chart needs at least this many periods per run to say anything.
 MIN_PERIODS = 2
 
@@ -127,7 +129,8 @@ class DriversChart(QWidget):
             h += 26 + YEARS_H + 34
         if self._capacity:
             rows = min(CAPACITY_ROWS, len(self._capacity.get("elements") or []))
-            h += 26 + 18 + rows * ROW_H + 26 + CAPACITY_SCATTER_H + 20
+            # heading, key line, rows, gap, scatter
+            h += 22 + 18 + rows * ROW_H + 18 + CAPACITY_SCATTER_H + 8
         return QSize(640, h)
 
     # ---- painting --------------------------------------------------------
@@ -196,7 +199,9 @@ class DriversChart(QWidget):
                                 default=60) + 10)
         value_w = 110.0
         bar_w = max(40.0, w - name_w - value_w)
-        biggest = max((r["dtci"]["mean"] or 0.0 for r in self._rows), default=1.0) or 1.0
+        # the scale takes in the error bars, or the longest bar's is cut off
+        biggest = max(((r["dtci"]["mean"] or 0.0) + 2 * (r["dtci"]["sem"] or 0.0)
+                       for r in self._rows), default=1.0) or 1.0
         centre = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         for row in self._rows:
             share = row["dtci"]["mean"] or 0.0
@@ -218,7 +223,7 @@ class DriversChart(QWidget):
             if sem:
                 p.setPen(QPen(self._text, 1))
                 lo = int(x0 + name_w + bar_w * max(0.0, share - 2 * sem) / biggest)
-                hi = int(x0 + name_w + bar_w * min(biggest, share + 2 * sem) / biggest)
+                hi = int(x0 + name_w + bar_w * (share + 2 * sem) / biggest)
                 mid = int(y + ROW_H / 2 - 1)
                 p.drawLine(lo, mid, hi, mid)
                 p.drawLine(lo, mid - 3, lo, mid + 3)
@@ -293,7 +298,17 @@ class DriversChart(QWidget):
         rows = list(capacity.get("elements") or [])[:CAPACITY_ROWS]
         y = self._heading(p, y, "Who loses the capacity, not just the uptime "
                                 + (f"(split by {rule})" if rule else ""))
-        y = self._paint_capacity_rows(p, y, rows)
+        via = any((row.get("through_dependents") or {}).get("mean") for row in rows)
+        x = self._x0
+        p.setPen(self._muted)
+        for label, key in (("share of the lost flow", "accent"),
+                           ("some of it lost through blocks that depend on it", "warn")):
+            if key == "warn" and not via:
+                continue
+            p.fillRect(QRectF(x, y + 3, 12, 12), QColor(active_colour()[key]))
+            p.drawText(QRectF(x + 17, y, self._w, 18), Qt.AlignmentFlag.AlignLeft, label)
+            x += 17 + self._fm.horizontalAdvance(label) + 18
+        y = self._paint_capacity_rows(p, y + 18, rows)
         return self._paint_capacity_scatter(p, y, capacity, rows)
 
     def _paint_capacity_rows(self, p: QPainter, y: float,
@@ -328,7 +343,7 @@ class DriversChart(QWidget):
         from PySide6.QtCore import QPointF
 
         x0, w, fm = self._x0, self._w, self._fm
-        left, size = x0 + 52.0, min(240.0, w - 90.0)
+        left, size = x0 + 52.0, min(CAPACITY_SCATTER_SIZE, w - 90.0)
         top = y
         p.setPen(QPen(self._border))
         p.drawLine(int(left), int(top + size), int(left + size), int(top + size))
@@ -347,16 +362,24 @@ class DriversChart(QWidget):
         small = QFont(self.font())
         small.setPointSizeF(max(7.0, self.font().pointSizeF() - 1.5))
         p.setFont(small)
-        biggest = max((row["share"]["mean"] or 0.0 for row in rows), default=1.0) or 1.0
-        time_biggest = max((row["dtci"]["mean"] or 0.0 for row in rows),
-                           default=1.0) or 1.0
+        # one scale for both axes, so the diagonal really is "same share"
+        biggest = max([row["share"]["mean"] or 0.0 for row in rows]
+                      + [row["dtci"]["mean"] or 0.0 for row in rows] + [0.0]) or 1.0
+        p.setPen(self._muted)
+        p.drawText(QRectF(left - 50, top - 8, 46, 16),
+                   Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                   _pct(biggest, 2))
+        p.drawText(QRectF(left + size - 60, top + size + 2, 60, 16),
+                   Qt.AlignmentFlag.AlignRight, _pct(biggest, 2))
+        p.drawText(QRectF(left - 50, top + size - 8, 46, 16),
+                   Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, "0")
         points = []
         for row in rows:
             time = row["dtci"]["mean"] or 0.0
             lost = row["share"]["mean"] or 0.0
             if time <= 0 or lost <= 0:
                 continue
-            px = left + size * min(1.0, time / time_biggest)
+            px = left + size * min(1.0, time / biggest)
             py = top + size * (1.0 - min(1.0, lost / biggest))
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(QColor(active_colour()["accent"]))

@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import QPointF, Qt
-from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from raptor.api.insight.story import build
@@ -32,58 +30,82 @@ def _story(attribution=True):
                                 "value": 0.995, "label": "Contract"}])
 
 
-def test_empty_state_says_what_to_do(qapp):
+def test_empty_state_shows_nothing_extra(qapp):
     page = StoryPage()
     try:
-        assert page.headline.text().startswith("Run the model")
         assert page.story() is None
+        assert page.headline.isHidden() and page.dots.isHidden()
     finally:
         page.deleteLater()
 
 
-def test_story_shows_headline_dots_drivers_and_findings(qapp):
+def test_story_shows_verdict_dots_drivers_and_findings(qapp):
     page = StoryPage()
     try:
-        page.resize(760, 700)
+        page.resize(760, 400)
         page.show()
         page.set_story(_story())
         qapp.processEvents()
         assert "Contract" in page.headline.text()
         assert "missed" in page.target.text().lower()
-        assert page.dots._story is not None
-        assert page.drivers._story is not None
-        assert "Pump" in page.provenance.text() or "10 runs" in page.provenance.text()
-        image = page.grab().toImage()
-        assert image.width() > 100 and image.height() > 100
-        assert len({image.pixel(x, y) for x in range(5, image.width() - 5, 23)
-                    for y in range(5, image.height() - 5, 29)}) > 1
+        assert page.dots.isVisible()
+        assert "Pump" in page.drivers_caption.text()
+        assert "Open Drivers" in page.drivers_caption.text()
     finally:
         page.deleteLater()
 
 
-def test_story_without_attribution_offers_the_one_action(qapp):
+def test_without_a_target_there_is_no_verdict_and_no_dots(qapp):
+    from raptor.api.insight.story import build as build_story
+    page = StoryPage()
+    try:
+        page.show()
+        page.set_story(build_story([{"availability": 0.99}] * 5))
+        assert page.headline.isHidden() and page.dots.isHidden()
+    finally:
+        page.deleteLater()
+
+
+def test_dots_sit_at_their_values_and_stack(qapp):
+    from raptor.api.insight.story import build as build_story
+    rows = ([{"availability": 1.0}] * 30 + [{"availability": 0.98}] * 10)
+    story = build_story(rows, requirements=[
+        {"metric": "system.ao", "op": ">=", "value": 0.99}])
+    page = StoryPage()
+    try:
+        page.resize(600, 300)
+        page.set_story(story)
+        dots, diameter, _range = page.dots.layout_dots(600)
+        assert len(dots) == 40
+        xs_met = {round(x) for x, _y, met in dots if met}
+        xs_missed = {round(x) for x, _y, met in dots if not met}
+        assert len(xs_met) == 1 and len(xs_missed) == 1
+        assert min(xs_met) > max(xs_missed)          # 1.0 is right of 0.98
+        assert min(y for _x, y, _m in dots) >= 0      # the stack fits
+        assert diameter >= 1.5
+    finally:
+        page.deleteLater()
+
+
+def test_without_attribution_says_how_to_get_it(qapp):
     page = StoryPage()
     try:
         page.set_story(_story(attribution=False))
-        assert "Turn on downtime attribution" in page.drivers_caption.text()
+        assert "Event Log" in page.drivers_caption.text()
     finally:
         page.deleteLater()
 
 
-def test_clicking_a_driver_names_the_element(qapp):
+def test_a_driver_link_names_the_element_and_the_drivers_link_asks(qapp):
     page = StoryPage()
     try:
-        page.resize(760, 700)
-        page.show()
         page.set_story(_story())
-        qapp.processEvents()
-        page.drivers.grab()
-        got = []
+        got, asked = [], []
         page.element_clicked.connect(lambda kind, oid, name: got.append((kind, oid, name)))
-        rect, _driver = page.drivers._hits[0]
-        QTest.mouseClick(page.drivers, Qt.MouseButton.LeftButton,
-                         pos=QPointF(rect.x() + 20, rect.center().y()).toPoint())
-        assert got == [("block", 1, "Pump")]
+        page.drivers_requested.connect(lambda: asked.append(True))
+        page._on_link("el:block:1:Pump")
+        page._on_link("drivers")
+        assert got == [("block", 1, "Pump")] and asked == [True]
     finally:
         page.deleteLater()
 

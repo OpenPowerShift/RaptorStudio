@@ -48,10 +48,35 @@ def cause_colour(cause: str) -> QColor:
 
 
 def cause_brush(cause: str) -> QBrush:
-    """The pattern overlay for a cause (painted over its plain colour)."""
-    overlay = QColor(ThemeManager.instance().colour["surface"])
-    overlay.setAlpha(PATTERN_ALPHA)       # the pattern must not wash the colour out
-    return QBrush(overlay, _PATTERNS.get(cause, Qt.BrushStyle.Dense6Pattern))
+    """The pattern overlay for a cause, painted over its plain colour.
+
+    The lines are a darker shade of the cause's own colour (lighter in the
+    dark theme), so the fill keeps its colour and a label on it stays
+    readable; a solid cause gets no overlay at all.  (The overlay used to be
+    the window colour, which washed every fill out to a pale hatch.)"""
+    style = _PATTERNS.get(cause, Qt.BrushStyle.Dense6Pattern)
+    if style == Qt.BrushStyle.SolidPattern:
+        return QBrush(Qt.BrushStyle.NoBrush)
+    base = cause_colour(cause)
+    ink = base.lighter(160) if is_dark() else base.darker(170)
+    return QBrush(ink, style)
+
+
+def cause_ink(cause: str) -> QColor:
+    """Text colour that reads on the cause's fill (pattern included)."""
+    return ink_on(cause_colour(cause))
+
+
+def ink_on(colour: QColor) -> QColor:
+    """Black or white, whichever contrasts more with `colour` (WCAG
+    relative luminance)."""
+    def channel(value: int) -> float:
+        c = value / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    lum = (0.2126 * channel(colour.red()) + 0.7152 * channel(colour.green())
+           + 0.0722 * channel(colour.blue()))
+    return QColor("#111111") if (lum + 0.05) / 0.05 > 1.05 / (lum + 0.05) \
+        else QColor("#ffffff")
 
 
 def has_pattern(cause: str) -> bool:

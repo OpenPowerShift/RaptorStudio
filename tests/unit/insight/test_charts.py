@@ -22,7 +22,7 @@ def test_a_dot_plot_keeps_the_runs_and_counts_the_met_target():
     spec = charts.trial_outcome(per_run, target=0.95)
     assert spec.kind == "dot_plot"
     assert spec.provenance == {"runs": 3, "units": "", "measure": "availability",
-                               "met": 2, "target": 0.95}
+                               "format": "percent", "met": 2, "target": 0.95}
     assert spec.marks == [{"kind": "target", "value": 0.95}]
     assert spec.series[0]["dots"]
     assert "2 of 3" in spec.caption
@@ -224,3 +224,32 @@ def test_the_ensemble_ribbon_sorts_runs_and_keeps_red_intervals():
     assert [row["downtime"] for row in spec.series] == [0, 10, 20]
     assert spec.series[1]["red"] == [[5, 15]]
     assert "best" in spec.caption and "worst" in spec.caption
+
+
+def test_the_exceedance_curve_counts_runs_at_least_each_value():
+    # By hand: of four runs, 1 reached 1.0, 3 reached at least 0.95 and all
+    # 4 reached at least 0.90.
+    per_run = [{"availability": v} for v in (0.95, 0.90, 1.00, 0.95)]
+    spec = charts.ecdf(per_run, target=0.95)
+    assert spec.kind == "exceedance"
+    assert spec.series[0]["points"] == [
+        {"value": 1.00, "share": 0.25}, {"value": 0.95, "share": 0.75},
+        {"value": 0.90, "share": 1.0}]
+    assert spec.provenance["format"] == "percent"
+    assert "75 % of runs reached the target 95 %" in spec.caption
+    assert "half reached at least 95 %" in spec.caption
+
+
+def test_a_lower_is_better_measure_reads_at_most():
+    per_run = [{"downtime": v} for v in (5.0, 1.0, 3.0)]
+    spec = charts.ecdf(per_run, "downtime", label="Downtime",
+                       higher_is_better=False)
+    assert [p["value"] for p in spec.series[0]["points"]] == [1.0, 3.0, 5.0]
+    assert spec.provenance["reached"] == "at most"
+    assert "reached at most" in spec.caption
+
+
+def test_a_time_unit_does_not_stop_a_fraction_printing_as_a_percentage():
+    assert charts.value_format("availability", "hours") == "percent"
+    assert charts.value_format("cost", "money") == "money"
+    assert charts.value_format("downtime", "hours") == ""
