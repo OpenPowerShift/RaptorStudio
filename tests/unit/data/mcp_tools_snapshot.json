@@ -570,6 +570,7 @@
  },
  "get_run_results": {
   "params": [
+   "per_run_detail",
    "run_id",
    "top"
   ],

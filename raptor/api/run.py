@@ -293,8 +293,13 @@ def run(
     interim_cost: bool | None = None,
     attribution: bool = False,
     capacity_rule: str = "proportional",
+    insight_progress: Any = None,
 ) -> RunResult:
     """Execute a simulation and persist artefacts to ``runs/<run_id>/``.
+
+    ``insight_progress`` (a `raptor.api.progress.ProgressFn`) hears the
+    attribution replay after the last replication: on a large model it is
+    minutes with no other sign of life.
 
     ``attribution`` also works out which element caused each system outage
     and what kind of waiting it was (`raptor.api.insight.attribution`), and
@@ -642,11 +647,12 @@ def run(
         from raptor.core import run_experiment
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
         capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
-                                       capacity_rule, abort=abort)
+                                       capacity_rule, abort=abort,
+                                       progress=insight_progress)
         attributed = attribute_logs(
             [log if isinstance(log, list) else [log] for log in event_logs],
             float(experiment.get("start_stats") or 0.0), abort=abort,
-            with_outages=True, capacity=capacity_runs, phases=model_phases(sim_rbd))
+            progress=insight_progress, with_outages=True, capacity=capacity_runs, phases=model_phases(sim_rbd))
         attributed["units"] = model_units(sim_rbd)
         # the outage intervals go in their own file: they are large and only
         # the period (yearly) view reads them
@@ -729,11 +735,12 @@ def _capacity_runs(
     rule: str,
     *,
     abort: threading.Event | None = None,
+    progress: Any = None,
 ) -> list[Any] | None:
     """One `CapacityRun` per run from the capacity sink, or None without one."""
     from raptor.api.insight.capacity_attribution import capacity_runs
     return capacity_runs(rbd, cap_lines, model_key=model_key, rule=rule,
-                         abort=abort)
+                         abort=abort, progress=progress)
 
 
 def _run_simulation(

@@ -685,8 +685,10 @@ replication, and a batch can run for hours. What helps:
 
 - **Run in the background.** `start_run` returns a `job_id` at once. Poll
   `run_status`; its `phase` is `setting_up` while the model is prepared
-  (with `setup`: `stage`, `done`, `total`, `percent`), then `simulating`, so
-  a quiet start is not a hang. `cancel_run` stops a job between replications,
+  (with `setup`: `stage`, `done`, `total`, `percent`), then `simulating`,
+  then, with `attribution=True`, `attributing` while the event log is
+  replayed (with `attributing`: `label`, `done`, `total`), so a quiet start
+  or finish is not a hang. `cancel_run` stops a job between replications,
   or during set-up; completed replications become a truncated run.
 - **Use the cores.** Leave `workers` out and a model of 500+ elements run
   20+ times uses half the machine's cores, at most 8, never fewer than two.

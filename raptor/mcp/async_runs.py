@@ -49,13 +49,19 @@ class Job:
     #: Set-up progress, `(stage, done, total)` as the engine reports it; None
     #: until it does (small models finish set-up without reporting).
     setup: tuple[str, int, int] | None = None
+    #: The work after the last replication (the attribution replay), as
+    #: `(label, done, total)`; None until it reports.
+    insight: tuple[str, int, int | None] | None = None
 
     @property
     def phase(self) -> str:
         """`setting_up` while a running job is still preparing the model,
-        `simulating` once it is running replications, else the state."""
+        `simulating` while it runs replications, `attributing` while it
+        works out what caused the downtime, else the state."""
         if self.state != "running":
             return self.state
+        if self.insight is not None:
+            return "attributing"
         if self.setup is not None and self.setup[1] < self.setup[2]:
             return "setting_up"
         return "simulating"
@@ -74,6 +80,9 @@ class Job:
                 "total": self.setup[2],
                 "percent": round(100.0 * self.setup[1] / self.setup[2], 1)
                            if self.setup[2] else None},
+            "attributing": None if self.insight is None else {
+                "label": self.insight[0], "done": self.insight[1],
+                "total": self.insight[2]},
             "completed_runs": self.done,
             "requested_runs": self.total,
             "percent": None if percent is None else round(percent, 1),
@@ -96,16 +105,32 @@ def _evict_locked() -> None:
         _JOBS.pop(key, None)
 
 
-def _call_work(work, abort, progress, setup_progress):
-    """Run `work`, handing it the set-up progress callback only if it takes
-    a third argument (older two-argument callers keep working)."""
+def _call_work(work, abort, progress, setup_progress, insight_progress=None):
+    """Run `work`, handing it the set-up (third) and insight (fourth)
+    progress callbacks only if it takes them (older two-argument callers
+    keep working)."""
     try:
-        takes_setup = len(inspect.signature(work).parameters) >= 3
+        takes = len(inspect.signature(work).parameters)
     except (TypeError, ValueError):
-        takes_setup = False
-    if takes_setup:
+        takes = 2
+    if takes >= 4:
+        return work(abort, progress, setup_progress, insight_progress)
+    if takes >= 3:
         return work(abort, progress, setup_progress)
     return work(abort, progress)
+
+
+def _summary_of(result: Any) -> dict[str, Any] | None:
+    """Each metric's mean, for `run_status`; None when there is none."""
+    metrics = getattr(result, "to_dict", None)
+    if not callable(metrics):
+        return None
+    try:
+        return {name: value.get("mean")
+                for name, value in (metrics().get("metrics") or {}).items()
+                if isinstance(value, dict) and "mean" in value}
+    except Exception:  # noqa: BLE001 - summary is best-effort
+        return None
 
 
 def start(
@@ -139,6 +164,9 @@ def start(
     def setup_progress(stage: str, done: int, total: int) -> None:
         job.setup = (stage, int(done), int(total))
 
+    def insight_progress(p: Any) -> None:
+        job.insight = (str(p.label), int(p.done), p.total)
+
     def runner() -> None:
         # Take one of the shared CPU slots (the same two that simulate, sweeps
         # and comparisons use), so background jobs cannot multiply the load.
@@ -150,20 +178,12 @@ def start(
                     job.state = "cancelled"
                     return
                 job.state = "running"
-                result = _call_work(work, job.abort, progress, setup_progress)
+                result = _call_work(work, job.abort, progress, setup_progress,
+                                    insight_progress)
                 job.run_id = getattr(result, "run_id", None)
                 job.wall_seconds = getattr(result, "wall_seconds", None)
                 job.done = int(getattr(result, "num_runs", job.done) or job.done)
-                metrics = getattr(result, "to_dict", None)
-                if callable(metrics):
-                    try:
-                        job.summary = {
-                            name: value.get("mean")
-                            for name, value in (metrics().get("metrics") or {}).items()
-                            if isinstance(value, dict) and "mean" in value
-                        }
-                    except Exception:  # noqa: BLE001 - summary is best-effort
-                        job.summary = None
+                job.summary = _summary_of(result)
                 job.state = "cancelled" if job.abort.is_set() else "done"
         except BaseException as exc:  # noqa: BLE001 - reported, not raised
             job.state = "cancelled" if job.abort.is_set() else "failed"

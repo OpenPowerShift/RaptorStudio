@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-explain \- Run MODEL and attribute every system outage to the element that started it and to a cause: hands\-on repair, waiting for a spare, waiting for people or equipment, logistics delay, planned maintenance, or being held by another element. Shows each element's share of system downtime (with its sampling error), of outages and of failures, and what typical outages look like. The engine's results are unchanged: this replays the event log.
 .SH SYNOPSIS
-\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-report PATH] [\-\-report\-include LIST] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-list\-charts] [\-f {text,json}] [MODEL]
+\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-report PATH] [\-\-report\-include LIST] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-list\-charts] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] [MODEL]
 .SH DESCRIPTION
 Run MODEL and attribute every system outage to the element that started it and to a cause: hands\-on repair, waiting for a spare, waiting for people or equipment, logistics delay, planned maintenance, or being held by another element. Shows each element's share of system downtime (with its sampling error), of outages and of failures, and what typical outages look like. The engine's results are unchanged: this replays the event log.
 .SH OPTIONS
@@ -52,6 +52,9 @@ write the chart as SVG (implies \-\-chart when it is missing)
 .TP
 \fB\-\-list\-charts\fR
 list the chart names and exit
+.TP
+\fB\-\-progress\fR \fI{auto|bar|json|none}\fR
+progress on stderr: set\-up, replications and the attribution replay (json: one object per line)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
 

@@ -2,9 +2,11 @@ complete -c raptor -f
 complete -c raptor -n '__fish_use_subcommand' -a advise
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l format
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l help
+complete -c raptor -n '__fish_seen_subcommand_from advise' -l jobs
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l list-rules
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l min-severity
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l only
+complete -c raptor -n '__fish_seen_subcommand_from advise' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l simulate
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l skip
 complete -c raptor -n '__fish_seen_subcommand_from advise' -l strict
@@ -93,6 +95,7 @@ complete -c raptor -n '__fish_seen_subcommand_from explain' -l format
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l help
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l jobs
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l list-charts
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l report
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l report-include
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l runs

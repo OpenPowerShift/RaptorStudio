@@ -3374,7 +3374,8 @@ error}. `state` is queued, running, done, cancelled or failed. `phase`
 adds what a running job is doing: `setting_up` while a large model is
 prepared (`setup` then has `{stage, done, total, percent}`; it can take
 minutes before the first replication, and `completed_runs` stays 0), then
-`simulating`. Small models skip straight to `simulating` and `setup` is
+`simulating`, then with attribution `attributing` (`attributing` has
+`{label, done, total}`). Small models skip straight to `simulating` and `setup` is
 null. `run_id` is set once the
 batch has produced a run, and `summary` then carries the mean of each
 metric. Jobs are in-process only -- after a server restart the run is
