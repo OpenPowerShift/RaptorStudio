@@ -141,9 +141,10 @@ def _fraction_digits(value: float) -> int:
     """Significant digits for a fraction shown as a percentage: enough to
     keep two digits of the shortfall, so 0.99986 reads 99.986 %, not 99.99 %."""
     import math
-    shortfall = 1.0 - value
-    if 0.0 < shortfall < 0.01:
-        return min(9, 3 + math.ceil(-math.log10(shortfall)))
+    shortfall_pct = 100.0 * (1.0 - value)
+    if 0.0 < shortfall_pct < 1.0:
+        decimals = 1 - math.floor(math.log10(shortfall_pct))
+        return min(9, 2 + decimals)
     return 4
 
 

@@ -209,6 +209,53 @@ def export_tables(model_id: str, run_id: str | None = None,
     return ok(data, markdown=md)
 
 
+@mcp.tool(annotations=ADDITIVE("Export report"))
+@guarded
+def export_report(run_id: str, path: str | None = None,
+                  sections: list[Literal["diagram", "story", "results",
+                                         "data_tables"]] | None = None,
+                  title: str | None = None) -> CallToolResult:
+    """Write a run's report as one PDF or one self-contained HTML file: the
+    same document as the GUI's File > Export PDF, for a reader who wants the
+    answer, not the tables.
+
+    `sections` (default ['diagram', 'story']): 'story' is the headline, what
+    drives the downtime, the findings, the charts and how to read each
+    measure; 'results' adds every result table (dozens of pages on a large
+    model); 'data_tables' the model's input tables.  The run needs
+    `attribution=True` for the drivers part of the story.
+
+    `path` is inside the workspace and ends in .pdf or .html; default
+    `Reports/<model>_<run_id>.pdf`.  Returns {path, sections, bytes}.
+    """
+    context.require_write()
+    from raptor.api.report import ReportError, write_report
+    from raptor.api.run import run_dir
+    from raptor.api.run_tables import read_summary
+    from raptor.api.table_export import safe_stem
+    ws = context.workspace()
+    summary = read_summary(run_dir(ws, run_id), run_id, required=True)
+    chosen = tuple(sections or ("diagram", "story"))
+    if path is not None:
+        path = context.require_relative_path(path, "path")
+    stem = safe_stem(str(summary.get("model_name") or "model"))
+    dest = ws.resolve_output_path(path or f"Reports/{stem}_{run_id}.pdf")
+    for label in ("models", "runs", "renders"):
+        root = (ws.root / label).resolve()
+        if root == dest.resolve() or root in dest.resolve().parents:
+            raise ValueError(f"a report cannot go inside the {label} tree; "
+                             "choose a path under Reports/")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        written = write_report(ws, run_id, dest, title=title, sections=chosen)
+    except ReportError as exc:
+        raise ValueError(str(exc)) from exc
+    size = written.stat().st_size
+    return ok({"path": str(written), "sections": list(chosen), "bytes": size,
+               "resource_links": [f"file://{written}"]},
+              markdown=f"Wrote the report to `{written}` ({size:,} bytes).")
+
+
 @mcp.tool(annotations=EDIT("Replace in table"))
 @guarded
 def replace_in_table(model_id: str, table: str, column: str, find: str,

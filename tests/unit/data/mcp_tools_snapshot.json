@@ -486,6 +486,17 @@
    "model_id"
   ]
  },
+ "export_report": {
+  "params": [
+   "path",
+   "run_id",
+   "sections",
+   "title"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
  "export_tables": {
   "params": [
    "folder",

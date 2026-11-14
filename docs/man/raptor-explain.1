@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-explain \- Run MODEL and attribute every system outage to the element that started it and to a cause: hands\-on repair, waiting for a spare, waiting for people or equipment, logistics delay, planned maintenance, or being held by another element. Shows each element's share of system downtime (with its sampling error), of outages and of failures, and what typical outages look like. The engine's results are unchanged: this replays the event log.
 .SH SYNOPSIS
-\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-list\-charts] [\-f {text,json}] [MODEL]
+\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-report PATH] [\-\-report\-include LIST] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-list\-charts] [\-f {text,json}] [MODEL]
 .SH DESCRIPTION
 Run MODEL and attribute every system outage to the element that started it and to a cause: hands\-on repair, waiting for a spare, waiting for people or equipment, logistics delay, planned maintenance, or being held by another element. Shows each element's share of system downtime (with its sampling error), of outages and of failures, and what typical outages look like. The engine's results are unchanged: this replays the event log.
 .SH OPTIONS
@@ -12,7 +12,7 @@ Run MODEL and attribute every system outage to the element that started it and t
 number of runs (default: the model's own)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
-worker processes (default 1)
+worker processes (default 1; more is reproducible but gives different numbers from \-j 1)
 .TP
 \fB\-\-seed\fR \fIN\fR
 
@@ -34,6 +34,12 @@ report the share of periods with availability below A, e.g. 0.97 (implies \-\-ye
 .TP
 \fB\-\-capacity\-rule\fR \fI{proportional|marginal|first_failed}\fR
 how to share a capacity\-analysis run's lost flow among the elements that were down (default proportional)
+.TP
+\fB\-\-report\fR \fIPATH\fR
+also write the report for a reader who wants the answer: PATH.pdf or one self\-contained PATH.html (the GUI's File > Export PDF)
+.TP
+\fB\-\-report\-include\fR \fILIST\fR
+report sections, comma separated, from diagram, story, results (every result table) and data_tables (default diagram,story)
 .TP
 \fB\-\-story\fR
 print the Story: headline against target, distribution, drivers, findings and key numbers

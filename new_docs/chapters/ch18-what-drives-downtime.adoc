@@ -45,6 +45,18 @@ raptor explain VanFlat.rbds --story -f json
 The Story never invents a verdict: without a target it says so, and without
 attribution it offers the one action that turns the drivers strip on.
 
+To hand the answer to someone who will not open the model, write the report:
+the Story, its charts, how to read each measure and the diagram, as a PDF or
+one self-contained HTML file. It is the document File › Export PDF makes;
+add `results` or `data_tables` to `--report-include` for the tables. An AI
+assistant uses the MCP tool `export_report`.
+
+[source,bash]
+----
+raptor explain VanFlat.rbds --report VanFlat.pdf
+raptor explain VanFlat.rbds --report VanFlat.html --report-include diagram,story,results
+----
+
 === What caused the downtime
 
 Attribution replays the event log; it does not change a result. For every

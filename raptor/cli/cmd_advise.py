@@ -1,6 +1,8 @@
 """`raptor advise`: what looks wrong or unwise in a model, with reasons."""
 from __future__ import annotations
 
+import sys
+
 from typing import Any
 
 from raptor.cli import exitcodes as X
@@ -59,7 +61,8 @@ def add_parser(sub: Any) -> None:
     e.add_argument("-n", "--runs", type=int, metavar="N",
                    help="number of runs (default: the model's own)")
     e.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
-                   help="worker processes (default 1)")
+                   help="worker processes (default 1; more is reproducible but "
+                        "gives different numbers from -j 1)")
     e.add_argument("--seed", type=int, metavar="N")
     e.add_argument("--top", type=int, default=10, metavar="N",
                    help="how many elements to list (default 10)")
@@ -78,6 +81,14 @@ def add_parser(sub: Any) -> None:
                    default="proportional",
                    help="how to share a capacity-analysis run's lost flow among "
                         "the elements that were down (default proportional)")
+    e.add_argument("--report", metavar="PATH",
+                   help="also write the report for a reader who wants the "
+                        "answer: PATH.pdf or one self-contained PATH.html "
+                        "(the GUI's File > Export PDF)")
+    e.add_argument("--report-include", metavar="LIST", default="diagram,story",
+                   help="report sections, comma separated, from diagram, "
+                        "story, results (every result table) and data_tables "
+                        "(default diagram,story)")
     e.add_argument("--story", action="store_true",
                    help="print the Story: headline against target, distribution, "
                         "drivers, findings and key numbers")
@@ -246,8 +257,20 @@ def explain_command(args: Any) -> int:
                                          offset=args.year_offset, below=args.below)
             except ValueError as exc:
                 raise CliError(str(exc), X.USAGE) from exc
+        if args.report:
+            _write_report(ws, result.run_id, args)
     _explain_output(attribution, story, yearly, chart, args)
     return X.OK
+
+
+def _write_report(ws: Any, run_id: str, args: Any) -> None:
+    from raptor.api.report import ReportError, write_report
+    sections = tuple(s.strip() for s in args.report_include.split(",") if s.strip())
+    try:
+        path = write_report(ws, run_id, args.report, sections=sections)
+    except ReportError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    print(f"report: {path}", file=sys.stderr)
 
 
 def _explain_output(attribution: dict, story: Any, yearly: Any,

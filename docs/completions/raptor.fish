@@ -93,6 +93,8 @@ complete -c raptor -n '__fish_seen_subcommand_from explain' -l format
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l help
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l jobs
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l list-charts
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l report
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l report-include
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l runs
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l story

@@ -128,7 +128,7 @@ def test_plain_text_reads_cleanly_with_and_without_a_target():
     ran its sections together, showed cost as 1.933e+05 and never gave the
     run length (it read a per-run key that does not exist)."""
     from raptor.api.insight.story import text_lines
-    plain = build(runs(10, availability=0.99986, grand_total=193331.0),
+    plain = build(runs(10, availability=0.9998584, grand_total=193331.0),
                   units="hours", cost_on=True,
                   attribution=attribution({"repair": 1.0}))
     lines = text_lines(plain)
