@@ -738,7 +738,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self._model_dy_min = vt.dy_min
         self._scale = vt.scale
 
-    def load_rbd(self, rbd: RbdFile):
+    def load_rbd(self, rbd: RbdFile, *, keep_history: bool = False):
         log.debug("load_rbd: start (%s)", getattr(rbd, "path", "?"))
         # The Inspector may still hold a draft for the model being
         # replaced (Close/New/Open all end here). Flush before the swap.
@@ -771,7 +771,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         # A hand-drawn diagram keeps the neighbour inference; Auto Layout
         # sets an explicit axis on the level it lays out.
         set_flow_direction("auto")
-        self._stack.clear()   # undo history belongs to the previous file
+        if not keep_history:
+            self._stack.clear()   # undo history belongs to the previous file
         # result visuals belong to the previous model too (a new run
         # re-populates them); traversal within a model keeps them
         self._last_result_visuals = None

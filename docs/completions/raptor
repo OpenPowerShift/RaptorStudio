@@ -4,7 +4,7 @@ _raptor() {
     case "${COMP_WORDS[i]}" in -*) ;; *) cmd="${COMP_WORDS[i]}"; break;; esac
   done
   if [[ -z "$cmd" ]]; then
-    COMPREPLY=( $(compgen -W "advise analytic compare completion config convert describe diff doctor estimate explain extract fev fit get gui help info mcp optimise render report run schema sensitivity set simulate spf step sweep tables validate whatif --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
+    COMPREPLY=( $(compgen -W "advise analytic compare completion config convert describe diff doctor estimate explain extract fev fit get gui help info library mcp optimise render report run schema sensitivity set simulate spf step sweep tables validate whatif --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
   fi
   case "$cmd" in
     advise) opts="--format --help --list-rules --min-severity --only --simulate --skip --strict --target --why" ;;
@@ -25,6 +25,7 @@ _raptor() {
     gui) opts="--help --new --theme" ;;
     help) opts="--help" ;;
     info) opts="--element --format --help" ;;
+    library) opts="--help" ;;
     mcp) opts="" ;;
     optimise) opts="--help" ;;
     render) opts="--help --highlight --level --max-px --no-annotations --output --theme --zoom-to" ;;

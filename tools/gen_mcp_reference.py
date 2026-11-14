@@ -53,6 +53,9 @@ CATEGORIES: list[tuple[str, str, str]] = [
     ("analysis", "Analysis",
      "Check a model, solve its static subset exactly, test failures, and "
      "measure which parts matter."),
+    ("library", "Part types and libraries",
+     "Reuse one block's data across many blocks and models, with links and "
+     "overrides."),
     ("what-if", "Simulation and what-if",
      "Run simulations, estimate or control long batches, sweep a parameter "
      "and compare models or runs."),
@@ -118,6 +121,10 @@ TOOL_CATEGORY: dict[str, str] = {
     "annual_availability": "analysis",
     "run_story": "analysis",
     "run_chart": "analysis",
+    "list_part_types": "library",
+    "apply_part_type": "library",
+    "save_part_type": "library",
+    "sync_part_types": "library",
     "what_if": "what-if",
     "sensitivity": "what-if",
     "single_point_failures": "analysis",
@@ -273,6 +280,12 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "run_story": {"run_id": "<run_id>"},
     "run_chart": {"run_id": "<run_id>", "chart": "downtime-pareto"},
     "sensitivity": {"model_id": "<model_id>", "top": 10, "trials": 200},
+    "list_part_types": {"model_id": "<model_id>"},
+    "apply_part_type": {"model_id": "<model_id>", "part": "pump",
+                        "elements": ["Pump_A", "Pump_B"]},
+    "save_part_type": {"model_id": "<model_id>", "element": "Pump_A",
+                       "name": "Pump, centrifugal"},
+    "sync_part_types": {"model_id": "<model_id>", "dry_run": True},
     "what_if": {"model_id": "<model_id>",
                 "changes": ["block:Pump.repair_params=8,0,0"],
                 "name": "Faster repair", "trials": 200},
@@ -544,6 +557,15 @@ RETURN_NOTES: dict[str, str] = {
     "run_story": "`{headline, dots, drivers, findings, numbers, sections, "
                  "provenance, caption}` — the same object the application "
                  "and `raptor explain --story` render.",
+    "list_part_types": "`{source, parts: [{id, name, category, source, "
+                        "basis, version, fields}], count}`.",
+    "apply_part_type": "`{part, version, elements: [{block, part, version, "
+                        "overrides, fields}], count}`.",
+    "save_part_type": "`{part: {...}, linked}`; the part never includes the "
+                      "block's name, position or id.",
+    "sync_part_types": "`{dry_run, pending: [{block, name, part, "
+                       "name_part, version, recorded_version, changes}], "
+                       "applied, count}`.",
     "sensitivity": "`{metric, trials, seed, base, inputs, batches, caption, "
                    "note}`; each input has its low/high paired effect and SEM, "
                    "swing, elasticity, and whether it is distinguishable.",
@@ -598,7 +620,7 @@ def _live() -> tuple[list[Any], list[Any], list[Any], list[Any]]:
     from raptor.mcp import (  # noqa: F401 -- importing registers every tool
         prompts, resources, server, tools_analytic, tools_data, tools_model,
         tools_run, tools_metrics, tools_tables, tools_view, tools_svg,
-        tools_advisor,
+        tools_advisor, tools_library,
     )
 
     tools = sorted(asyncio.run(server.mcp.list_tools()), key=lambda t: t.name)

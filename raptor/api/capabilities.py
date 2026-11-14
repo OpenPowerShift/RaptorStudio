@@ -114,6 +114,11 @@ CAPABILITIES: tuple[Capability, ...] = (
                 "gui": "the distribution editor's 'Estimate from judgement' "
                        "dialog is designed but not built; use 'raptor fit'"}),
     Capability(
+        "library.part_types", "Reuse a block's data as a named part type",
+        api="raptor.api.library.links.link_block", cli="library",
+        mcp="list_part_types",
+        gui="widget:raptor.gui.ui.library_dock.LibraryDock"),
+    Capability(
         "insight.precision", "Run until the answer is precise enough",
         api="raptor.api.scenarios.stopping.run_to_precision",
         cli="run --precision", mcp="simulate", long_running=True,

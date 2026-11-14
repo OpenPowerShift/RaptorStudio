@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *77 tools* (including the `ping` health check), a set of
+The server exposes *81 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -388,7 +388,7 @@ careful about what it exposes:
 
 . *Check the tool list.* Ask your assistant "What RAPTOR tools do you
   have?" or, in the MCP Inspector, click *Tools*. You should see the tools
-  listed below: 77 including `render_diagram`, `render_diagram_svg` and
+  listed below: 81 including `render_diagram`, `render_diagram_svg` and
   `ping`, or 67 when `--no-render` hides the PNG diagram tool.
 
 . *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
@@ -732,6 +732,12 @@ you need the exact argument shape.
   scenario value, the paired difference with its standard error, the chance
   the scenario is better, the variance pairing cut, and requirement
   verdicts. The open model is never modified.
+
+| `list_part_types`, `apply_part_type`, `save_part_type`, `sync_part_types`
+| Reuse one block's data as a named part type: list parts from a `.rbdlib`
+  file or the model, apply one to blocks (recording the link), save a
+  block as a part, and show or apply the changes a library has made while
+  respecting per-block overrides.
 
 | `sensitivity`
 | One-at-a-time tornado: up to `top` inputs varied low and high against

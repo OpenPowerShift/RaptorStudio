@@ -144,6 +144,20 @@
    "rule"
   ]
  },
+ "apply_part_type": {
+  "params": [
+   "elements",
+   "library_path",
+   "model_id",
+   "overrides",
+   "part"
+  ],
+  "required": [
+   "elements",
+   "model_id",
+   "part"
+  ]
+ },
  "auto_layout": {
   "params": [
    "all_levels",
@@ -576,6 +590,14 @@
   ],
   "required": []
  },
+ "list_part_types": {
+  "params": [
+   "library_path",
+   "model_id",
+   "query"
+  ],
+  "required": []
+ },
  "list_tables": {
   "params": [
    "model_id",
@@ -758,6 +780,22 @@
    "path"
   ]
  },
+ "save_part_type": {
+  "params": [
+   "basis",
+   "category",
+   "element",
+   "library_path",
+   "link",
+   "model_id",
+   "name",
+   "source"
+  ],
+  "required": [
+   "element",
+   "model_id"
+  ]
+ },
  "search_docs": {
   "params": [
    "limit",
@@ -848,6 +886,16 @@
    "model_id",
    "selector",
    "values"
+  ]
+ },
+ "sync_part_types": {
+  "params": [
+   "dry_run",
+   "library_path",
+   "model_id"
+  ],
+  "required": [
+   "model_id"
   ]
  },
  "undo_last_edit": {

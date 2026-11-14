@@ -1109,6 +1109,20 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock_left)
         self._explorer_dock = dock_left
 
+        # The part library shares the left column with the Explorer, as a
+        # tab, so applying a part is beside the blocks it applies to.
+        from raptor.gui.ui.library_dock import LibraryDock
+        self._library_dock_widget = LibraryDock()
+        dock_library = QDockWidget("Part Library", self)
+        dock_library.setObjectName("LibraryDock")
+        self._set_dock_icon(dock_library, "explorer_dock_icon")
+        dock_library.setWidget(self._library_dock_widget)
+        dock_library.setMinimumSize(260, 0)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock_library)
+        self.tabifyDockWidget(dock_left, dock_library)
+        dock_left.raise_()
+        self._library_dock = dock_library
+
     def _build_inspector_dock(self):
         self._inspector = InspectorDock()
         self._inspector.set_undo_stack(self._undo_stack)
