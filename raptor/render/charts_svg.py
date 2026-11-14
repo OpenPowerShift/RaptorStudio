@@ -34,20 +34,20 @@ LINE_H = 14
 INK = "#132238"
 MUTED = "#5D7080"
 GRID = "#D7E0E8"
-ACCENT = "#1479C9"
+ACCENT = "#1371BB"
 STOP = "#C62828"
-UP = "#218B61"
-DOWN = "#CC4545"
+UP = "#1E7D57"
+DOWN = "#C93939"
 
 #: Cause fills, matching the GUI palette; every cause but repair also has a
 #: pattern so the chart reads without colour.
 CAUSE_COLOURS = {
-    "repair": "#C4472F", "wait_spare": "#C98A0B",
+    "repair": "#C4472F", "wait_spare": "#B07806",
     "wait_resource": "#2F6FB7", "logistics": "#7A5AA6",
     "pm": "#2A8C82", "pm_wait": "#5E9C3F", "dependency": "#6B7785",
-    "done": "#3C4653", "other": "#9AA5B1",
+    "done": "#3C4653", "other": "#848F9B",
     # cost components (the cost treemap); spares share wait_spare's colour
-    "purchase": "#2F6FB7", "operating": "#B5651D", "sparing": "#C98A0B",
+    "purchase": "#2F6FB7", "operating": "#A9591A", "sparing": "#B07806",
     "disposal": "#6B7785", "spare_pool": "#8E5B9E",
 }
 _PATTERN_PATHS = {
@@ -96,13 +96,22 @@ def _darker(colour: str) -> str:
     return f"#{int(r * 0.6):02x}{int(g * 0.6):02x}{int(b * 0.6):02x}"
 
 
-def _ink_on(colour: str) -> str:
+def _luminance(colour: str) -> float:
     def channel(value: int) -> float:
         c = value / 255
         return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
     r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
-    lum = 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
-    return "#111111" if (lum + 0.05) / 0.05 > 1.05 / (lum + 0.05) else "#ffffff"
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+
+def _contrast(a: str, b: str) -> float:
+    la, lb = _luminance(a), _luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def _ink_on(colour: str) -> str:
+    """The near-black or white ink with the higher WCAG contrast on `colour`."""
+    return max(("#111111", "#ffffff"), key=lambda ink: _contrast(colour, ink))
 
 
 def _cause_fill(cause: str) -> str:
@@ -466,10 +475,13 @@ def _waterfall(spec: ChartSpec, area: _Box) -> list[str]:
             out.append(_text(x + width / 2, max(y0, y1) + 14, drop, size=10,
                              anchor="middle"))
         else:
+            # inside the bar: on a plate of the bar's colour, so the hatch
+            # never runs through the figure
+            fill = CAUSE_COLOURS.get(str(step.get("cause")), CAUSE_COLOURS["other"])
+            out.append(_rect(x + width / 2 - _width(drop) / 2 - 3, min(y0, y1) + 3,
+                             _width(drop) + 6, LINE_H, fill))
             out.append(_text(x + width / 2, min(y0, y1) + 14, drop, size=10,
-                             anchor="middle",
-                             colour=_ink_on(CAUSE_COLOURS.get(
-                                 str(step.get("cause")), CAUSE_COLOURS["other"]))))
+                             anchor="middle", colour=_ink_on(fill)))
         out.append(_text(x + width / 2, box.bottom + 15,
                          _fit(step["name"], width - 4), size=10, anchor="middle"))
     if not _number(operational):

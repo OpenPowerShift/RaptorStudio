@@ -2284,6 +2284,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         fev_inspector = getattr(self, "_fev_inspector", None)
         if fev_inspector is not None:
             fev_inspector.refresh_theme()
+        advisor = getattr(self, "_advisor_panel", None)
+        if advisor is not None:
+            advisor.refresh_theme()
 
     #: Contrast prompts waiting their turn, shared by every model window.
     #: A theme change makes each open window ask; nesting one modal

@@ -204,3 +204,15 @@ def test_results_add_what_the_run_says(window, qapp, monkeypatch):
     monkeypatch.setattr(results, "has_results", lambda: False)
     results.contents_changed.emit()
     assert not any(r.startswith("R-") for r in rules(window))
+
+
+def test_cards_take_the_new_theme_on_refresh(panel, monkeypatch):
+    """Cards bake their colours in when built, so a theme switch rebuilds
+    them; otherwise the light theme's muted grey stays on a dark panel."""
+    from raptor.gui.resources.design_tokens import DARK_COLOUR, LIGHT_COLOUR
+    monkeypatch.setattr(advisor_dock, "active_colour", lambda: LIGHT_COLOUR)
+    panel.set_findings([finding()])
+    assert LIGHT_COLOUR["muted"] in panel.cards[0].why.styleSheet()
+    monkeypatch.setattr(advisor_dock, "active_colour", lambda: DARK_COLOUR)
+    panel.refresh_theme()
+    assert DARK_COLOUR["muted"] in panel.cards[0].why.styleSheet()

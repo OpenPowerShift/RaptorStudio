@@ -13,18 +13,18 @@ from raptor.gui.resources.design_tokens import ThemeManager
 #: cause -> (light theme, dark theme)
 _COLOURS = {
     "repair": ("#C4472F", "#F0806A"),
-    "wait_spare": ("#C98A0B", "#F2B84B"),
+    "wait_spare": ("#B07806", "#F2B84B"),
     "wait_resource": ("#2F6FB7", "#6FA8E8"),
     "logistics": ("#7A5AA6", "#B095DA"),
     "pm": ("#2A8C82", "#5CC7BB"),
     "pm_wait": ("#5E9C3F", "#93CC72"),
     "dependency": ("#6B7785", "#A4B0BF"),
     "done": ("#3C4653", "#D0D7E0"),
-    "other": ("#9AA5B1", "#75808D"),
+    "other": ("#848F9B", "#75808D"),
     # cost components (the cost treemap); spares share wait_spare's colour
     "purchase": ("#2F6FB7", "#6FA8E8"),
-    "operating": ("#B5651D", "#E79A5A"),
-    "sparing": ("#C98A0B", "#F2B84B"),
+    "operating": ("#A9591A", "#E79A5A"),
+    "sparing": ("#B07806", "#F2B84B"),
     "disposal": ("#6B7785", "#A4B0BF"),
     "spare_pool": ("#8E5B9E", "#C394D3"),
 }
@@ -73,21 +73,22 @@ def cause_brush(cause: str) -> QBrush:
     return QBrush(ink, style)
 
 
+#: The two inks a label on a cause fill can use.
+INKS = ("#111111", "#FFFFFF")
+
+
 def cause_ink(cause: str) -> QColor:
     """Text colour that reads on the cause's fill (pattern included)."""
     return ink_on(cause_colour(cause))
 
 
 def ink_on(colour: QColor) -> QColor:
-    """Black or white, whichever contrasts more with `colour` (WCAG
-    relative luminance)."""
-    def channel(value: int) -> float:
-        c = value / 255
-        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
-    lum = (0.2126 * channel(colour.red()) + 0.7152 * channel(colour.green())
-           + 0.0722 * channel(colour.blue()))
-    return QColor("#111111") if (lum + 0.05) / 0.05 > 1.05 / (lum + 0.05) \
-        else QColor("#ffffff")
+    """The near-black or white ink, whichever has the higher WCAG contrast
+    with `colour`.  (It used to compare against pure black but then draw
+    #111111, which put under 4.5:1 text on mid-tone fills.)"""
+    from raptor.gui.ui.contrast import contrast_ratio
+    fill = colour.name()
+    return QColor(max(INKS, key=lambda ink: contrast_ratio(fill, ink)))
 
 
 def has_pattern(cause: str) -> bool:

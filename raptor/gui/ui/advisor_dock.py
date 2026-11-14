@@ -209,6 +209,10 @@ class AdvisorPanel(QWidget):
             self.summary.setText(summary_text(self._findings))
         self._rebuild()
 
+    def refresh_theme(self) -> None:
+        """Rebuild the cards: each one takes its colours when it is built."""
+        self._rebuild()
+
     def _toggle_more(self) -> None:
         self._expanded = not self._expanded
         self._rebuild()
