@@ -11,6 +11,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
+from pathlib import Path
+
+from raptor.core.fileio.rbd import load_rbd
 from raptor.gui.command_table import COMMANDS
 from raptor.gui.ui.command_search import CommandSearch
 from raptor.gui.ui.main_window import MainWindow
@@ -23,7 +26,11 @@ def qapp():
 
 @pytest.fixture()
 def win(qapp):
-    return MainWindow()
+    window = MainWindow()
+    gold = Path(__file__).resolve().parents[1] / "golden"
+    window._load_into_app(load_rbd(str(gold / "TwoBlockRedundancy/input.rbd")),
+                          "x")
+    return window
 
 
 def test_every_command_with_a_handler_appears_once(win):

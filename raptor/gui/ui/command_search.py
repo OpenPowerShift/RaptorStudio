@@ -76,6 +76,12 @@ class CommandSearch(QDialog):
         self.results.clear()
         for candidate in rank(query, self._candidates()):
             spec = candidate.data
+            if isinstance(spec, tuple):
+                item = QListWidgetItem(
+                    f"{candidate.text}    {candidate.category}")
+                item.setData(Qt.ItemDataRole.UserRole, spec)
+                self.results.addItem(item)
+                continue
             action = self._window.__dict__.get(spec.attr)
             shortcut = ""
             if action is not None:
