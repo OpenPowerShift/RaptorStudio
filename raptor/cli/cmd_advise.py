@@ -282,7 +282,7 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
     from raptor.api.run_tables import read_per_run
     per_run = read_per_run(run_dir(ws, run_id), run_id) or []
     periods = None
-    if name in ("annual-fan", "annual-dots"):
+    if name in ("annual-fan", "annual-dots", "annual-capacity-fan"):
         from raptor.api.insight import drivers
         periods = drivers.periods(ws, run_id)
     try:

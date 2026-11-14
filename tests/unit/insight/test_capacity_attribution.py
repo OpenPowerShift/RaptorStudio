@@ -322,3 +322,33 @@ def test_identical_parallel_units_reuse_one_evaluation_exactly():
         session.refresh_all()
         assert values[("block", block_id)] == pytest.approx(
             _fail_one(session, "block", block_id))
+
+
+def test_a_flow_change_one_sink_step_off_its_event_is_not_an_orphan_loss():
+    # The sink writes times to six decimals, so A's flow drop lands 4e-7
+    # before its failure and the recovery 4e-7 after its repair.  By hand:
+    # A owns 50 flow for 20 h plus both slivers, and nothing is left over
+    # for "(no single element)" (Water2 had 4,491 such slivers).
+    from raptor.api.insight.capacity_attribution import CapacityTracker, SYSTEM_KEY
+    a = ("block", 1)
+    run = CapacityRun(((0.0, 100.0), (10.0 - 4e-7, 50.0), (30.0 + 4e-7, 100.0)),
+                      100.0, {a: 50.0}, {}, "proportional", None)
+    tracker = CapacityTracker(run)
+    tracker.advance(10.0, {}, {})
+    tracker.advance(30.0, {a: 1}, {a: "repair"})
+    tracker.finish(40.0, {}, {})
+    out = tracker.out
+    assert out.lost_energy == pytest.approx(50.0 * (20.0 + 8e-7))
+    assert out.by_element[a] == pytest.approx(out.lost_energy)
+    assert SYSTEM_KEY not in out.by_element
+    assert not out.notes
+
+
+def test_a_long_loss_with_nothing_down_is_still_shown_as_no_single_element():
+    from raptor.api.insight.capacity_attribution import CapacityTracker, SYSTEM_KEY
+    run = CapacityRun(((0.0, 100.0), (10.0, 60.0), (12.0, 100.0)),
+                      100.0, {}, {}, "proportional", None)
+    tracker = CapacityTracker(run)
+    tracker.finish(20.0, {}, {})
+    assert tracker.out.by_element[SYSTEM_KEY] == pytest.approx(80.0)
+    assert tracker.out.notes

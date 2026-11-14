@@ -116,6 +116,16 @@ def add_parser(sub: Any) -> None:
     r.add_argument("model", metavar="MODEL")
     r.add_argument("--run", action="store_true",
                    help="run the model first and include result tables")
+    r.add_argument("--drivers", action="store_true",
+                   help="with --run: also work out what caused each outage and "
+                        "who lost the capacity, adding the downtime-driver, "
+                        "lost-capacity and year-by-year tables (needs the "
+                        "model's event log recording)")
+    r.add_argument("--capacity-rule", default="proportional",
+                   choices=("proportional", "marginal", "first_failed"),
+                   help="with --drivers: how lost flow is shared among the "
+                        "elements down at once (default proportional, which "
+                        "sums to the engine's own lost flow)")
     r.add_argument("--table", action="append", metavar="KEY",
                    help="a table key (see --list); repeatable")
     r.add_argument("--list", action="store_true", dest="list_tables",
@@ -551,7 +561,10 @@ def tables_command(args: Any) -> int:
             require_runnable(ws, mid)
             res = api_run(ws, mid, workers=args.jobs,
                           timeout_s=parse_duration(args.timeout),
-                          confirm_long_run=True, seed=args.seed)
+                          confirm_long_run=True, seed=args.seed,
+                          attribution=bool(getattr(args, "drivers", False)),
+                          capacity_rule=getattr(args, "capacity_rule",
+                                                "proportional"))
             bundle = run_tables.bundle_from_run(ws, res.run_id)
         if args.list_tables:
             for info in tables.catalogue(rbd, bundle):

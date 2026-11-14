@@ -175,7 +175,8 @@ def downtime_drivers(run_id: str, top: int = 10) -> CallToolResult:
 @mcp.tool(annotations=READ_ONLY("Annual availability"))
 @guarded
 def annual_availability(run_id: str, year_length: float | None = None, offset: float = 0.0,
-                        below: float | None = None) -> CallToolResult:
+                        below: float | None = None,
+                        include_runs: bool = False) -> CallToolResult:
     """Availability period by period, with percentiles: what a bad year looks like.
 
     Needs a run made with `attribution=True`. Each run's system outages
@@ -192,11 +193,18 @@ def annual_availability(run_id: str, year_length: float | None = None, offset: f
     differs from early life when equipment ages), `worst` (the ten worst
     periods with their run), and a one-sentence `sentence`. The run's own
     average availability equals the mean of its periods.
+
+    With capacity analysis there is also `capacity`: the same statistics
+    for capacity-weighted availability (energy delivered / flow generated x
+    period), which shows a year that stays "available" but loses output.
+    `include_runs=True` adds `rows`, one entry per (run, period) with
+    `availability` and, with capacity, `capacity_weighted`; it can be long
+    (runs x periods), so ask for it only to export or plot every period.
     """
     from raptor.api.insight import drivers
 
     summary = drivers.periods(context.workspace(), run_id, year_length,
-                              offset=offset, below=below)
+                              offset=offset, below=below, rows=include_runs)
     return ok(summary, "```\n" + "\n".join(drivers.period_lines(summary)) + "\n```")
 
 
@@ -238,7 +246,8 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     `downtime-treemap`, the `outage-anatomy` and the `ensemble-ribbon`.
     `lost-capacity-pareto`, `capacity-vs-downtime` and `capacity-waterfall`
     need capacity attribution; `annual-fan` and `annual-dots` need a run long
-    enough for whole periods. `importance-quadrant` needs importance
+    enough for whole periods, and `annual-capacity-fan` (capacity delivered
+    year by year) needs both. `importance-quadrant` needs importance
     measures and `cost-pareto` needs cost analysis; ask for them only when
     the run has those.
     """
@@ -254,7 +263,7 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     except Exception:  # noqa: BLE001 - the base charts do not need it
         attribution = None
     periods = None
-    if chart in ("annual-fan", "annual-dots"):
+    if chart in ("annual-fan", "annual-dots", "annual-capacity-fan"):
         periods = drivers.periods(ws, run_id)
     spec = charts.chart_named(chart, per_run=per_run, attribution=attribution,
                               periods=periods)

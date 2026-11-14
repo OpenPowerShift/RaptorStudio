@@ -121,3 +121,36 @@ def test_from_outages_record():
                        {"start": 0, "end": 200, "red": []}]}
     s = from_outages(record, PeriodSpec(100))
     assert s["pooled"]["n"] == 4 and s["pooled"]["min"] == pytest.approx(0.70)
+
+
+def test_capacity_weighted_availability_per_period_by_hand():
+    # Generated 100.  Period 1 (0-10): 100 for 4 h, 50 for 6 h -> 700 / 1000.
+    # Period 2 (10-20): 50 until 12, then 100 -> 900 / 1000.  The run ends at
+    # 25, so period 3 is partial and dropped.
+    from raptor.api.insight.periods import PeriodSpec, period_capacity
+    values, dropped = period_capacity([(0.0, 100.0), (4.0, 50.0), (12.0, 100.0)],
+                                      100.0, 0.0, 25.0, PeriodSpec(10.0))
+    assert values == pytest.approx([0.7, 0.9])
+    assert dropped == 1
+
+
+def test_run_rows_pair_each_period_with_its_capacity_value():
+    from raptor.api.insight.periods import run_rows
+    rows = run_rows([[1.0, 0.9]], [[0.8, 0.7]])
+    assert rows == [{"run": 1, "period": 1, "availability": 1.0, "capacity_weighted": 0.8},
+                    {"run": 1, "period": 2, "availability": 0.9, "capacity_weighted": 0.7}]
+
+
+def test_the_sentence_names_capacity_when_it_was_measured():
+    from raptor.api.insight.periods import PeriodSpec, period_summary
+    # three years delivering 90, 80 and 70 % of the flow: the median is 80 %
+    # and the nearest-rank 5th percentile is the worst, 70 %
+    outages = {"runs": [{"start": 0.0, "end": 8760.0 * 3, "red": []}]}
+    sink = {"t": [0.0, 8760.0, 17520.0], "flow": [90.0, 80.0, 70.0]}
+    s = period_summary(outages, PeriodSpec(8760.0), capacity_runs=[sink],
+                       generated=100.0, units="hours")
+    assert "typical year has availability 100 %" in s["sentence"]
+    assert ("Weighted by capacity, a typical year delivers 80 % of the flow, "
+            "one in twenty less than 70 %") in s["sentence"]
+    plain = period_summary(outages, PeriodSpec(8760.0), units="hours")
+    assert "capacity" not in plain["sentence"]

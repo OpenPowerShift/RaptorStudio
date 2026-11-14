@@ -54,6 +54,13 @@ SYSTEM_KEY: Key = ("system", 0)
 RULES = ("proportional", "marginal", "first_failed")
 DEFAULT_RULE = "proportional"
 
+#: The capacity sink writes its times to six decimal places, the event log
+#: to its own rounding, so a flow change and the state change that caused it
+#: can land up to one sink step apart.  A loss interval this short with no
+#: element down is that rounding: it belongs to the elements down just
+#: before it (Water2: 4,491 such slivers, all under 5e-7 h).
+SINK_TIME_RESOLUTION = 1e-6
+
 #: The most multi-element states `marginal` keeps per attribution.
 MAX_MARGINAL_STATES = 50_000
 #: Standalone contributions kept for whole models (about one float per block).
@@ -152,6 +159,10 @@ class CapacityTracker:
             self._index += 1
         self._marginal_cache: dict[frozenset[Key], float | None] = {}
         self._no_element_noted = False
+        self._last_group: tuple[list[Key], dict[Key, list[Key]],
+                                dict[Key, str]] | None = None
+        self._last_keyed_end = -math.inf
+        self._pending = 0.0          # a leading sliver waiting for its owner
         self._zero_weight_noted = False
         self._fallback_noted = False
         self._marginal_failed = False
@@ -175,6 +186,10 @@ class CapacityTracker:
     def finish(self, at: float, down: Mapping[Key, int],
                state: Mapping[Key, str]) -> None:
         self.advance(at, down, state)
+        if self._pending:
+            # Nothing went down after it: no element owns it.
+            self._add(SYSTEM_KEY, self._pending, "other")
+            self._pending = 0.0
 
     def _book(self, start: float, end: float, down: Mapping[Key, int],
               state: Mapping[Key, str]) -> None:
@@ -190,7 +205,7 @@ class CapacityTracker:
             return
         lost = loss_rate * dt
         self.out.lost_energy += lost
-        self._allocate(lost, loss_rate, down, state)
+        self._allocate(lost, loss_rate, down, state, lo, end)
 
     # ---- sharing ---------------------------------------------------------
     def _weight(self, key: Key) -> float:
@@ -225,8 +240,20 @@ class CapacityTracker:
         return [key for key in down if _is_down(state.get(key))]
 
     def _allocate(self, lost: float, loss_rate: float,
-                  down: Mapping[Key, int], state: Mapping[Key, str]) -> None:
+                  down: Mapping[Key, int], state: Mapping[Key, str],
+                  start: float = -math.inf, end: float = math.inf) -> None:
         keys = self._down_keys(down, state)
+        if not keys and end - start <= SINK_TIME_RESOLUTION:
+            # A rounding sliver (see SINK_TIME_RESOLUTION).  Right after a
+            # span with elements down, the flow came back a step late: it is
+            # theirs.  Otherwise the flow fell a step early: it belongs to
+            # whatever goes down next, so hold it until then.
+            if (self._last_group is not None
+                    and start - self._last_keyed_end <= SINK_TIME_RESOLUTION):
+                self._spread(lost, *self._last_group)
+            else:
+                self._pending += lost
+            return
         if not keys:
             self._add(SYSTEM_KEY, lost, "other")
             if not self._no_element_noted:
@@ -237,6 +264,11 @@ class CapacityTracker:
             return
         charges, cause_of = self._groups(keys, state)
         master_keys = sorted(charges)
+        self._last_group = (master_keys, charges, cause_of)
+        self._last_keyed_end = end
+        if self._pending:
+            self._spread(self._pending, master_keys, charges, cause_of)
+            self._pending = 0.0
         if self.out.rule == "first_failed":
             first = self._charge(min(keys, key=lambda k: (down.get(k, 0), k)), state)
             self._add_group(first, lost, cause_of[first], charges[first])
@@ -952,7 +984,7 @@ def text_lines(capacity: Mapping[str, Any], n: int = 10) -> list[str]:
     rule = capacity.get("rule", DEFAULT_RULE)
     lines = [f"Lost capacity, attributed by {rule.replace('_', ' ')} split:", ""]
     lost = capacity["lost_energy"]["mean"]
-    lines.append(f"Lost energy {lost:,.4g} (flow x time) a run, "
+    lines.append(f"Lost energy {_amount(lost)} (flow x time) a run, "
                  f"from {capacity['lost_energy']['n']:,} runs")
     by_cause = sorted(capacity.get("causes", {}).items(),
                       key=lambda kv: -(kv[1]["mean"] or 0.0))
@@ -966,8 +998,17 @@ def text_lines(capacity: Mapping[str, Any], n: int = 10) -> list[str]:
         value = row["lost_energy"]["mean"] or 0.0
         share = row["share"]["mean"] or 0.0
         dependants = row["through_dependents"]["mean"] or 0.0
-        lines.append(f"{row['name'][:21]:<22}{value:>16,.4g}"
-                     f"{100 * share:>9.3g}%{dependants:>26,.4g}")
+        lines.append(f"{row['name'][:21]:<22}{_amount(value):>16}"
+                     f"{100 * share:>9.3g}%{_amount(dependants):>26}")
     for note in capacity.get("notes") or []:
         lines += ["", f"Note: {note}"]
     return lines
+
+
+def _amount(value: float) -> str:
+    """Flow x time without exponents: 62,980 or 0.25."""
+    if value == 0:
+        return "0"
+    if abs(value) >= 100:
+        return f"{value:,.0f}"
+    return f"{value:.3g}"

@@ -894,7 +894,8 @@ def test_attribution_adds_drivers_and_lost_capacity_tables():
         "outage_durations": {"count": 40, "p50": 2.0, "p90": 6.0, "max": 9.0},
         "capacity": {
             "rule": "proportional", "generated": 100.0,
-            "lost_energy": stat(500.0), "causes": {},
+            "lost_energy": stat(500.0),
+            "causes": {"repair": stat(400.0), "wait_spare": stat(100.0)},
             "elements": [{
                 "kind": "block", "id": 1, "name": "Pump",
                 "lost_energy": stat(300.0), "share": stat(0.6),
@@ -913,3 +914,35 @@ def test_attribution_adds_drivers_and_lost_capacity_tables():
     lost = tables["results.lost_capacity"]
     assert lost.rows[0][0] == "Pump" and lost.rows[0][3] == pytest.approx(0.6)
     assert "proportional" in lost.notes[0]
+    causes = tables["results.lost_capacity_causes"]
+    assert [r[0] for r in causes.rows] == ["Hands-on repair", "Waiting for a spare"]
+    assert [r[3] for r in causes.rows] == pytest.approx([0.8, 0.2])
+
+
+def test_period_tables_by_hand():
+    # One run 0..25 h, periods of 10 h, red 2..3 h: availability 0.9 then 1.0
+    # (period 3 is partial and left out).  Capacity generated 100: period 1
+    # delivers 100 x 4 + 50 x 6 = 700 -> 0.7, period 2 delivers 50 x 2 +
+    # 100 x 8 = 900 -> 0.9.
+    from raptor.api.insight.periods import PeriodSpec, period_summary
+    outages = {"runs": [{"start": 0.0, "end": 25.0, "red": [2.0, 3.0]}]}
+    sink = {"t": [0.0, 4.0, 12.0], "flow": [100.0, 50.0, 100.0]}
+    periods = period_summary(outages, PeriodSpec(10.0), capacity_runs=[sink],
+                             generated=100.0, rows=True, units="hours")
+    tables = {t.key: t for t in result_tables(
+        ResultsBundle(per_run=[{"availability": 0.96}], periods=periods))}
+    avail = tables["results.period_availability"]
+    assert [r[0] for r in avail.rows] == [1, 2, "All (pooled)"]
+    assert avail.rows[0][2] == pytest.approx(0.9) and avail.rows[1][2] == pytest.approx(1.0)
+    assert avail.rows[2][2] == pytest.approx(0.95)
+    cap = tables["results.period_capacity"]
+    assert [r[2] for r in cap.rows] == pytest.approx([0.7, 0.9, 0.8])
+    assert tables["results.period_runs"].rows == [
+        [1, 1, pytest.approx(0.9), pytest.approx(0.7)],
+        [1, 2, pytest.approx(1.0), pytest.approx(0.9)]]
+
+
+def test_no_periods_means_no_period_tables():
+    keys = {t.key for t in result_tables(ResultsBundle(per_run=[{"availability": 0.9}]))}
+    assert not keys & {"results.period_availability", "results.period_capacity",
+                       "results.period_runs"}

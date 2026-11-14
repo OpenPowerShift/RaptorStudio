@@ -124,6 +124,7 @@
  "annual_availability": {
   "params": [
    "below",
+   "include_runs",
    "offset",
    "run_id",
    "year_length"
@@ -589,6 +590,19 @@
    "run_id"
   ]
  },
+ "insert_assembly": {
+  "params": [
+   "library_path",
+   "model_id",
+   "part",
+   "x",
+   "y"
+  ],
+  "required": [
+   "model_id",
+   "part"
+  ]
+ },
  "list_advisor_rules": {
   "params": [],
   "required": []
@@ -809,6 +823,21 @@
   ],
   "required": [
    "run_id"
+  ]
+ },
+ "save_assembly": {
+  "params": [
+   "category",
+   "elements",
+   "library_path",
+   "model_id",
+   "name",
+   "source"
+  ],
+  "required": [
+   "elements",
+   "model_id",
+   "name"
   ]
  },
  "save_model_as": {

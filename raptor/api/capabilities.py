@@ -150,6 +150,22 @@ CAPABILITIES: tuple[Capability, ...] = (
         mcp="list_part_types",
         gui="widget:raptor.gui.ui.library_dock.LibraryDock"),
     Capability(
+        "library.assemblies", "Save a group of elements and insert fresh copies",
+        api="raptor.api.library.assembly.insert_assembly", cli="library",
+        mcp="insert_assembly",
+        gui="widget:raptor.gui.ui.library_dock.LibraryDock"),
+    Capability(
+        "insight.capacity_periods",
+        "Capacity-weighted availability year by year (flow delivered / flow possible)",
+        api="raptor.api.insight.periods.period_summary", cli="explain --yearly",
+        mcp="annual_availability",
+        gui="widget:raptor.gui.ui.drivers_page.DriversPage"),
+    Capability(
+        "export.result_tables",
+        "Export drivers, lost capacity and year-by-year results as tables",
+        api="raptor.api.run_tables.bundle_from_run", cli="tables --drivers",
+        mcp="export_tables", gui="command:file.export_tables"),
+    Capability(
         "insight.precision", "Run until the answer is precise enough",
         api="raptor.api.scenarios.stopping.run_to_precision",
         cli="run --precision", mcp="simulate", long_running=True,

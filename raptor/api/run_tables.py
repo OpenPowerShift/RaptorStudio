@@ -156,4 +156,18 @@ def bundle_from_run(workspace: Workspace, run_id: str,
             _tagged(runs_dir, _read_lines(section_path(runs_dir, "events")),
                     "events_ids")),
         attribution=attribution,
+        periods=_periods(workspace, run_id, attribution),
     )
+
+
+def _periods(workspace: Workspace, run_id: str,
+             attribution: dict | None) -> dict | None:
+    """The yearly results for the export, when the run kept its outage
+    record and the model counts in hours (a year needs a known unit)."""
+    if not attribution or not str(attribution.get("units") or "").lower().startswith("hour"):
+        return None
+    from raptor.api.insight import drivers
+    try:
+        return drivers.periods(workspace, run_id, rows=True)
+    except (drivers.NoAttribution, ValueError, OSError):
+        return None

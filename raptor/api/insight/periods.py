@@ -68,6 +68,42 @@ def period_availability(red: Sequence[tuple[float, float]], start: float, end: f
     return values, dropped
 
 
+def period_capacity(points: Sequence[tuple[float, float]], generated: float,
+                    start: float, end: float, spec: PeriodSpec
+                    ) -> tuple[list[float], int]:
+    """One run: capacity-weighted availability of each period, from its
+    capacity sink (`points` = (time, delivered flow), a step function: each
+    value holds until the next point).  The value of a period is the energy
+    delivered / (flow generated x period length).  Returns (values, number
+    of partial periods dropped), cut exactly as `period_availability` cuts."""
+    first = start + spec.offset
+    if end <= first or generated <= 0:
+        return [], 0
+    count = math.ceil((end - first) / spec.length - 1e-12)
+    delivered = [0.0] * count
+    steps = sorted((float(t), float(f)) for t, f in points)
+    for i, (t, flow) in enumerate(steps):
+        a = max(t, first)
+        b = min(steps[i + 1][0] if i + 1 < len(steps) else end, end)
+        if b <= a:
+            continue
+        k = min(count - 1, int((a - first) // spec.length))
+        while a < b and k < count:
+            edge = first + (k + 1) * spec.length
+            piece = min(b, edge) - a
+            delivered[k] += max(0.0, flow) * piece
+            a += piece
+            k += 1
+    values, dropped = [], 0
+    for k in range(count):
+        covered = min(end, first + (k + 1) * spec.length) - (first + k * spec.length)
+        if covered < spec.length * (1 - 1e-9) and spec.partial == "drop":
+            dropped += 1
+            continue
+        values.append(delivered[k] / (generated * covered))
+    return values, dropped
+
+
 def percentile(sorted_values: Sequence[float], p: float) -> float:
     """Nearest-rank percentile (p in 0..100) of an ascending sequence."""
     if not sorted_values:
@@ -131,6 +167,39 @@ def summarise(per_run: list[list[float]], *, threshold: float | None = None,
     }
 
 
+def from_capacity(capacity_runs: Sequence[dict[str, Any]], generated: float,
+                  outages: dict[str, Any], spec: PeriodSpec,
+                  threshold: float | None = None) -> dict[str, Any] | None:
+    """Capacity-weighted availability period by period: one parsed capacity
+    sink per run (`raptor.api.series.parse_capacity_runs`), cut on the same
+    run windows as the outage record.  None when the runs do not match."""
+    windows = outages.get("runs", [])
+    if not capacity_runs or len(capacity_runs) != len(windows):
+        return None
+    per_run, dropped = [], 0
+    for sink, run in zip(capacity_runs, windows, strict=True):
+        points = list(zip(sink["t"], sink["flow"], strict=False))
+        values, lost = period_capacity(points, generated, float(run["start"]),
+                                       float(run["end"]), spec)
+        per_run.append(values)
+        dropped += lost
+    return summarise(per_run, threshold=threshold, dropped=dropped, spec=spec)
+
+
+def run_rows(availability: list[list[float]],
+             capacity: list[list[float]] | None = None) -> list[dict[str, Any]]:
+    """One row per (run, period): what issue #257 asks to export."""
+    rows = []
+    for r, values in enumerate(availability):
+        for i, value in enumerate(values):
+            row: dict[str, Any] = {"run": r + 1, "period": i + 1,
+                                   "availability": value}
+            if capacity is not None and r < len(capacity) and i < len(capacity[r]):
+                row["capacity_weighted"] = capacity[r][i]
+            rows.append(row)
+    return rows
+
+
 def from_outages(outages: dict[str, Any], spec: PeriodSpec,
                  threshold: float | None = None) -> dict[str, Any]:
     """Period statistics from a stored `outages` record
@@ -143,6 +212,44 @@ def from_outages(outages: dict[str, Any], spec: PeriodSpec,
         per_run.append(values)
         dropped += lost
     return summarise(per_run, threshold=threshold, dropped=dropped, spec=spec)
+
+
+def period_summary(outages: dict[str, Any], spec: PeriodSpec, *,
+                   capacity_runs: Sequence[dict[str, Any]] | None = None,
+                   generated: float = 0.0, threshold: float | None = None,
+                   rows: bool = False, units: str = "") -> dict[str, Any]:
+    """Everything the period view shows, from a run's outage record and
+    (with capacity analysis) its parsed capacity sink.  The API, the GUI and
+    the table export all build it here.
+
+    ``capacity`` holds the capacity-weighted availability statistics when
+    the sink matches the runs; `rows` adds one entry per (run, period)."""
+    summary = from_outages(outages, spec, threshold=threshold)
+    sinks = capacity_runs if generated > 0 else None
+    if sinks:
+        capacity = from_capacity(sinks, generated, outages, spec, threshold=threshold)
+        if capacity is not None:
+            summary["capacity"] = capacity
+        else:
+            sinks = None
+    if rows:
+        windows = outages.get("runs", [])
+        availability = []
+        for run in windows:
+            flat = run.get("red", [])
+            red = list(zip(flat[0::2], flat[1::2], strict=False))
+            availability.append(period_availability(
+                red, float(run["start"]), float(run["end"]), spec)[0])
+        weighted = None
+        if sinks:
+            weighted = [period_capacity(list(zip(sink["t"], sink["flow"], strict=False)),
+                                        generated, float(w["start"]), float(w["end"]),
+                                        spec)[0]
+                        for sink, w in zip(sinks, windows, strict=True)]
+        summary["rows"] = run_rows(availability, weighted)
+    summary["units"] = units
+    summary["sentence"] = sentence(summary, units)
+    return summary
 
 
 def sentence(summary: dict[str, Any], units: str = "") -> str:
@@ -160,4 +267,9 @@ def sentence(summary: dict[str, Any], units: str = "") -> str:
     if threshold is not None:
         lead += (f". {100 * pooled['p_below']:.3g} % of them fall below "
                  f"{100 * threshold:.4g} % ({pooled['below']:,} of {pooled['n']:,})")
+    capacity = (summary.get("capacity") or {}).get("pooled") or {}
+    if capacity.get("n"):
+        lead += (f". Weighted by capacity, a typical {period} delivers "
+                 f"{100 * capacity['p50']:.4g} % of the flow, one in twenty less than "
+                 f"{100 * capacity['p5']:.4g} %")
     return lead + "."

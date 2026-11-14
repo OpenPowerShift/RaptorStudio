@@ -88,6 +88,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     #: The log stores names, not IDs; MainWindow resolves the name against
     #: the loaded model to make the canvas selection.
     element_clicked = Signal(str, str)
+    _overview_page: QWidget
+    _cap_lines: Any         # a list of sink lines or a ResultStream
     #: A result set arrived or the dock was cleared (`has_results()` may
     #: have changed). The window uses it to tell the Inspector whether an
     #: edit will cost the user their results.
@@ -138,6 +140,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_page.element_clicked.connect(
             lambda kind, _id, name: self.element_clicked.emit(kind, name))
         self._drivers_stale = False
+        self._period_summary: dict | None = None
         self._tabs.addTab(self._drivers_page, "Drivers")
         self._tabs.currentChanged.connect(self._on_tab_shown_for_drivers)
         self._tabs.addTab(self._details_holder, "Final Results")
@@ -241,18 +244,6 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._manifest_label.setAccessibleName("Run settings for this result set")
         self._manifest_label.setVisible(False)
         lay.addWidget(self._manifest_label)
-
-        # WP-2.3 Story above the old overview details; the Qt-free builder
-        # is the same one the CLI and MCP use.
-        from raptor.gui.ui.story_page import StoryPage
-        self._story_page = StoryPage()
-        self._story_page.element_clicked.connect(
-            lambda kind, oid, name: self.element_clicked.emit(kind, name))
-        self._story_page.measure_clicked.connect(self._explain_measure)
-        lay.addWidget(self._story_page)
-        self._details_heading = QLabel("Details")
-        self._details_heading.setObjectName("SectionTitle")
-        lay.addWidget(self._details_heading)
 
         cards = QGridLayout()
         cards.setHorizontalSpacing(SPACING["sm"])
@@ -380,6 +371,19 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
         self._mission_gyr_container.setVisible(False)
         lay.addWidget(self._mission_gyr_container)
+
+        # What the key numbers above do not say: whether a stated target
+        # was met run by run, what drives the downtime (one line, the
+        # Drivers tab has the detail) and the Advisor's findings.  The
+        # Qt-free builder is the one the CLI and MCP use.
+        from raptor.gui.ui.story_page import StoryPage
+        self._story_page = StoryPage()
+        self._story_page.element_clicked.connect(
+            lambda kind, oid, name: self.element_clicked.emit(kind, name))
+        self._story_page.measure_clicked.connect(self._explain_measure)
+        self._story_page.drivers_requested.connect(
+            lambda: self._tabs.setCurrentWidget(self._drivers_page))
+        lay.addWidget(self._story_page)
 
         self._runs_table = QTreeWidget()
         self._runs_table.setHeaderLabels(["Run", "Availability", "MTBDE", "MDT",
@@ -1174,7 +1178,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             event_logs=[list(x) if isinstance(x, (list, tuple)) else [str(x)]
                         for x in self._event_logs],
             attribution=(self._drivers_page.attribution()
-                         if hasattr(self, "_drivers_page") else None))
+                         if hasattr(self, "_drivers_page") else None),
+            periods=self._period_summary)
 
     def run_info(self, rbd, *, model: str = "", file: str = ""):
         """The run information a saved result carries (Run Info sheet,
@@ -1199,6 +1204,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     def _refresh_drivers(self) -> None:
         """Work out what caused the downtime from this result set's event logs."""
         self._drivers_stale = False
+        # never export a previous result set's periods with this one
+        self._period_summary = None
         logs = [log for log in (self._event_logs or []) if log]
         if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
             self._drivers_page.set_attribution(None)
@@ -1239,21 +1246,29 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         attribution["units"] = self._units
         outages = attribution.pop("outages", None)
         self._drivers_page.set_attribution(attribution)
-        self._drivers_page.set_periods(self._yearly(outages))
+        self._period_summary = self._yearly(outages)
+        self._drivers_page.set_periods(self._period_summary)
         self._refresh_story()
         self._refresh_charts()
 
     def _yearly(self, outages: dict | None) -> dict | None:
-        """Year-by-year availability when the model's unit is hours and the
-        runs cover more than one year; None otherwise."""
+        """Year-by-year availability (and, with capacity analysis,
+        capacity-weighted availability) when the model's unit is hours;
+        None otherwise.  Built by the same function the API uses."""
         if not outages or not self._units.lower().startswith("hour"):
             return None
-        from raptor.api.insight.periods import (
-            HOURS_PER_YEAR, PeriodSpec, from_outages, sentence)
-        summary = from_outages(outages, PeriodSpec(HOURS_PER_YEAR))
-        summary["units"] = self._units
-        summary["sentence"] = sentence(summary, self._units)
-        return summary
+        from raptor.api.insight.periods import HOURS_PER_YEAR, PeriodSpec, period_summary
+        from raptor.api.series import parse_capacity_runs
+        attribution = (self._drivers_page.attribution()
+                       if hasattr(self, "_drivers_page") else None) or {}
+        generated = float((attribution.get("capacity") or {}).get("generated") or 0.0)
+        sinks = None
+        if generated > 0:
+            lines = list(self._stream_lines(getattr(self, "_cap_lines", None)))
+            sinks = parse_capacity_runs("\n".join(lines)) if lines else None
+        return period_summary(outages, PeriodSpec(HOURS_PER_YEAR),
+                              capacity_runs=sinks, generated=generated,
+                              rows=True, units=self._units)
 
     def _schedule_drivers(self) -> None:
         lines = sum(len(log) for log in (self._event_logs or []))
@@ -1267,6 +1282,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         """Reset every result surface to the pre-run placeholder state."""
         self._manifest = None
         self._rbd = None
+        self._period_summary = None
         if hasattr(self, "_story_page"):
             self._story_page.set_story(None)
         self._event_logs = []

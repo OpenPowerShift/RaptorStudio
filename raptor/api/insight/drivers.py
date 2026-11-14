@@ -24,10 +24,15 @@ def read(workspace: Any, run_id: str) -> dict[str, Any]:
 
 def periods(workspace: Any, run_id: str, length: float | None = None, *,
             offset: float = 0.0, below: float | None = None,
-            partial: str = "drop") -> dict[str, Any]:
+            partial: str = "drop", rows: bool = False) -> dict[str, Any]:
     """Availability period by period for a run made with attribution.
-    `length` defaults to a year when the model's unit is hours."""
-    from raptor.api.insight.periods import HOURS_PER_YEAR, PeriodSpec, from_outages, sentence
+    `length` defaults to a year when the model's unit is hours.
+
+    With capacity analysis the summary also has ``capacity``: the same
+    statistics for capacity-weighted availability (energy delivered /
+    flow generated x period), from the run's capacity sink.  `rows` adds
+    ``rows``, one entry per (run, period), for an export."""
+    from raptor.api.insight.periods import HOURS_PER_YEAR, PeriodSpec, period_summary
     from raptor.api.run import run_dir
     attribution = read(workspace, run_id)
     units = str(attribution.get("units") or "")
@@ -40,12 +45,18 @@ def periods(workspace: Any, run_id: str, length: float | None = None, *,
     if not path.is_file():
         raise NoAttribution(
             f"run {run_id!r} kept no outage intervals (too many to store); use fewer runs")
-    summary = from_outages(json.loads(path.read_text()),
-                           PeriodSpec(float(length), float(offset), partial),  # type: ignore[arg-type]
-                           threshold=below)
-    summary["units"] = units
+    generated = float((attribution.get("capacity") or {}).get("generated") or 0.0)
+    sinks = None
+    sink_path = run_dir(workspace, run_id) / "capacity.txt"
+    if generated > 0 and sink_path.is_file():
+        from raptor.api.series import parse_capacity_runs
+        sinks = parse_capacity_runs(sink_path.read_text())
+    summary = period_summary(
+        json.loads(path.read_text()),
+        PeriodSpec(float(length), float(offset), partial),  # type: ignore[arg-type]
+        capacity_runs=sinks, generated=generated, threshold=below, rows=rows,
+        units=units)
     summary["run_id"] = run_id
-    summary["sentence"] = sentence(summary, units)
     return summary
 
 
@@ -120,17 +131,34 @@ def period_lines(summary: dict[str, Any]) -> list[str]:
                  + (f" ({summary['dropped_partial_periods']:,} part periods left out)"
                     if summary["dropped_partial_periods"] else ""))
     lines.append("Pooled:  " + "  ".join(
-        f"P{p} {_pct(pooled[f'p{p}'])}" for p in (1, 5, 10, 50, 90, 95, 99)))
+        f"P{p} {_avail(pooled[f'p{p}'])}" for p in (1, 5, 10, 50, 90, 95, 99)))
     lines += ["", f"{'Period':>6}{'Mean':>10}{'P5':>10}{'P50':>10}{'P95':>10}"
               + (f"{'Below':>10}" if summary.get("threshold") is not None else "")]
     for row in summary["by_index"]:
         if not row.get("n"):
             continue
-        lines.append(f"{row['index']:>6}{_pct(row['mean']):>10}{_pct(row['p5']):>10}"
-                     f"{_pct(row['p50']):>10}{_pct(row['p95']):>10}"
-                     + (f"{_pct(row['p_below']):>10}" if "p_below" in row else ""))
+        lines.append(f"{row['index']:>6}{_avail(row['mean']):>10}{_avail(row['p5']):>10}"
+                     f"{_avail(row['p50']):>10}{_avail(row['p95']):>10}"
+                     + (f"{_avail(row['p_below']):>10}" if "p_below" in row else ""))
     worst = summary["worst"][:3]
     if worst:
         lines += ["", "Worst: " + ", ".join(
-            f"{_pct(w['value'])} (run {w['run']}, period {w['index']})" for w in worst)]
+            f"{_avail(w['value'])} (run {w['run']}, period {w['index']})" for w in worst)]
+    capacity = summary.get("capacity")
+    if capacity and (capacity.get("pooled") or {}).get("n"):
+        cp = capacity["pooled"]
+        lines += ["", "Capacity-weighted availability (energy delivered / flow "
+                      "generated), same periods:",
+                  "Pooled:  " + "  ".join(f"P{p} {_avail(cp[f'p{p}'])}"
+                                          for p in (1, 5, 10, 50, 90, 95, 99))]
+        cw = capacity["worst"][:3]
+        if cw:
+            lines.append("Worst: " + ", ".join(
+                f"{_avail(w['value'])} (run {w['run']}, period {w['index']})"
+                for w in cw))
     return lines
+
+
+def _avail(x: float | None) -> str:
+    """An availability to enough digits to tell 99.991 % from 100 %."""
+    return "" if x is None else f"{100 * x:.5g} %"

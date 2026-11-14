@@ -42,6 +42,13 @@ class ReportStreamsMixin(_Base):
         acts = getattr(self, "_report_stream_actions", {})
         choices = {key: bool(act.isChecked()) for key, act in acts.items()}
         analyses = self._analysis_flags()
+        # The lost-capacity split (Drivers, Charts, the yearly capacity
+        # view) reads the capacity sink, so a capacity-analysis run keeps it
+        # whether or not the plot is ticked.  The sink only copies lines the
+        # engine builds anyway at the end of each run (it is not a sampling
+        # timer like the availability plot), so collecting it cannot change
+        # a result.
+        choices["capacity_for_drivers"] = bool(analyses.get("capacityAnalysis"))
         for key, flag, label in (
                 ("capacity_plot", "capacityAnalysis", "Capacity"),
                 ("cost_plot", "costAnalysis", "Cost")):
@@ -112,6 +119,8 @@ class ReportStreamsMixin(_Base):
                 streams["capacity" if key == "capacity_plot" else "cost"] \
                     = ResultStream(
                         "capacity" if key == "capacity_plot" else "cost")
+        if choices.get("capacity_for_drivers") and "capacity" not in streams:
+            streams["capacity"] = ResultStream("capacity")
         return streams
 
     def _analysis_flags(self) -> dict:

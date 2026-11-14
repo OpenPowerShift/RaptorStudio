@@ -105,6 +105,9 @@ class ResultsBundle:
     event_logs: Sequence[Sequence[str]] = ()
     #: `attribution.json`, when the run was made with downtime attribution.
     attribution: dict[str, Any] | None = None
+    #: `raptor.api.insight.periods.period_summary(..., rows=True)`: the
+    #: period-by-period (yearly) results, when the run covers whole periods.
+    periods: dict[str, Any] | None = None
 
 
 # --------------------------------------------------------------------------
@@ -866,6 +869,7 @@ def result_tables(bundle: ResultsBundle) -> list[Table]:
                           list(bundle.end_of_run_lines)),
               _event_log_table([list(x) for x in bundle.event_logs])]
     extras += _attribution_tables(bundle.attribution)
+    extras += _period_tables(bundle.periods)
     for extra in extras:
         if extra is not None and extra.key not in seen:
             seen.add(extra.key)
@@ -927,22 +931,98 @@ def _attribution_tables(attribution: dict[str, Any] | None) -> list[Table]:
             [["P50", durations.get("p50")], ["P90", durations.get("p90")],
              ["Maximum", durations.get("max")], ["Outages", durations.get("count")]],
             section="Downtime drivers"))
-    capacity = attribution.get("capacity")
-    if capacity:
-        cap_rows = []
-        for row in capacity.get("elements") or []:
-            cap_rows.append([
-                row.get("name", ""), row["lost_energy"]["mean"],
-                row["lost_energy"]["sem"], row["share"]["mean"],
-                row["through_dependents"]["mean"], row.get("standalone"),
-            ])
+    return out + _capacity_tables(attribution.get("capacity"))
+
+
+def _capacity_tables(capacity: dict[str, Any] | None) -> list[Table]:
+    """Lost capacity by element and by cause (capacity attribution)."""
+    if not capacity:
+        return []
+    out: list[Table] = []
+    cap_rows = []
+    for row in capacity.get("elements") or []:
+        cap_rows.append([
+            row.get("name", ""), row["lost_energy"]["mean"],
+            row["lost_energy"]["sem"], row["share"]["mean"],
+            row["through_dependents"]["mean"], row.get("standalone"),
+        ])
+    out.append(Table(
+        "results.lost_capacity", "Lost capacity by element", RESULTS,
+        ["Element", "Lost capacity (flow x time)", "±", "Share",
+         "Of which via dependants", "Standalone contribution"],
+        cap_rows, section="Capacity",
+        notes=[f"Lost flow split by {capacity.get('rule', '')}."],
+        text_cols={0}))
+    from raptor.api.insight.attribution import CAUSE_LABELS
+    lost = (capacity.get("lost_energy") or {}).get("mean") or 0.0
+    cause_rows = []
+    for cause, stat in sorted((capacity.get("causes") or {}).items(),
+                              key=lambda kv: -(kv[1].get("mean") or 0.0)):
+        value = stat.get("mean") or 0.0
+        if value <= 0:
+            continue
+        cause_rows.append([CAUSE_LABELS.get(cause, cause), value, stat.get("sem"),
+                           value / lost if lost else None])
+    if cause_rows:
         out.append(Table(
-            "results.lost_capacity", "Lost capacity by element", RESULTS,
-            ["Element", "Lost capacity (flow x time)", "±", "Share",
-             "Of which via dependants", "Standalone contribution"],
-            cap_rows, section="Capacity",
-            notes=[f"Lost flow split by {capacity.get('rule', '')}."],
+            "results.lost_capacity_causes", "Lost capacity by cause", RESULTS,
+            ["Cause", "Lost capacity (flow x time)", "±", "Share"],
+            cause_rows, section="Capacity", text_cols={0}))
+    return out
+
+
+def _period_tables(periods: dict[str, Any] | None) -> list[Table]:
+    """Issue #257: availability (and capacity-weighted availability) period
+    by period -- the summary by period number and pooled, then one row per
+    (run, period) for anyone who wants to do their own statistics."""
+    if not periods or not (periods.get("pooled") or {}).get("n"):
+        return []
+    units = str(periods.get("units") or "")
+    length = periods.get("length")
+    capacity = periods.get("capacity") or {}
+    by_cap = {row["index"]: row for row in capacity.get("by_index") or []}
+    stats = ("mean", "sd", "p1", "p5", "p10", "p50", "p90", "p95", "p99", "min")
+    headers = ["Period", "Runs", "Mean", "SD", "P1", "P5", "P10", "P50", "P90",
+               "P95", "P99", "Min"]
+    if periods.get("threshold") is not None:
+        headers.append("Share below threshold")
+    rows = []
+
+    def line(label: Any, row: dict[str, Any]) -> list[Any]:
+        out = [label, row.get("n")] + [row.get(s) for s in stats]
+        if periods.get("threshold") is not None:
+            out.append(row.get("p_below"))
+        return out
+
+    for row in periods.get("by_index") or []:
+        if row.get("n"):
+            rows.append(line(row["index"], row))
+    rows.append(line("All (pooled)", periods["pooled"]))
+    note = (f"Periods of {length:,.6g} {units}; the incomplete last period of "
+            "each run is left out." if isinstance(length, (int, float)) else "")
+    out = [Table("results.period_availability", "Availability by period", RESULTS,
+                 headers, rows, section="Periods", notes=[note] if note else [],
+                 text_cols={0})]
+    if capacity.get("pooled", {}).get("n"):
+        cap_rows = [line(index, row) for index, row in sorted(by_cap.items())
+                    if row.get("n")]
+        cap_rows.append(line("All (pooled)", capacity["pooled"]))
+        out.append(Table(
+            "results.period_capacity", "Capacity-weighted availability by period",
+            RESULTS, headers, cap_rows, section="Periods",
+            notes=["Energy delivered / (flow generated x period length)."],
             text_cols={0}))
+    run_rows = periods.get("rows") or []
+    if run_rows:
+        has_cap = any("capacity_weighted" in r for r in run_rows)
+        out.append(Table(
+            "results.period_runs", "Availability by run and period", RESULTS,
+            ["Run", "Period", "Availability"]
+            + (["Capacity-weighted availability"] if has_cap else []),
+            [[r["run"], r["period"], r["availability"]]
+             + ([r.get("capacity_weighted")] if has_cap else [])
+             for r in run_rows],
+            section="Periods"))
     return out
 
 
