@@ -767,6 +767,24 @@
    "model_id"
   ]
  },
+ "replace_in_table": {
+  "params": [
+   "case",
+   "column",
+   "find",
+   "model_id",
+   "replace",
+   "table",
+   "whole"
+  ],
+  "required": [
+   "column",
+   "find",
+   "model_id",
+   "replace",
+   "table"
+  ]
+ },
  "run_chart": {
   "params": [
    "chart",

@@ -281,9 +281,13 @@ complete -c raptor -n '__fish_seen_subcommand_from sweep' -l vary
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l weak-type
 complete -c raptor -n '__fish_use_subcommand' -a tables
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l analysis
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l case-sensitive
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l column
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l find
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l format
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l help
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l importance
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l in-place
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l jobs
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l length
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l list
@@ -293,6 +297,7 @@ complete -c raptor -n '__fish_seen_subcommand_from tables' -l output
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l precision
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l precision-batch
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l precision-metric
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l replace
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l run
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l runs
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l save-model
@@ -304,6 +309,7 @@ complete -c raptor -n '__fish_seen_subcommand_from tables' -l stop
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l table
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l timeout
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l weak-type
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l whole
 complete -c raptor -n '__fish_use_subcommand' -a validate
 complete -c raptor -n '__fish_seen_subcommand_from validate' -l format
 complete -c raptor -n '__fish_seen_subcommand_from validate' -l help

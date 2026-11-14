@@ -1047,6 +1047,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         view = self._diagram_dock.view
         return bool(view.hasFocus() or view.viewport().hasFocus())
 
+    def _data_tables_find_replace(self) -> None:
+        self._data_tables.find_replace()
+
     def _edit_duplicate(self) -> None:
         if text_editing.active_editor() is not None:
             return

@@ -123,6 +123,7 @@ TOOL_CATEGORY: dict[str, str] = {
     "run_chart": "analysis",
     "duplicate_elements": "build-edit",
     "copy_element_data": "build-edit",
+    "replace_in_table": "build-edit",
     "list_part_types": "library",
     "apply_part_type": "library",
     "save_part_type": "library",
@@ -286,6 +287,10 @@ EXAMPLES: dict[str, dict[str, Any]] = {
                            "elements": ["Pump_A"], "copies": 2},
     "copy_element_data": {"model_id": "<model_id>", "source": "Pump_A",
                           "targets": ["Pump_B"], "groups": ["Failure"]},
+    "replace_in_table": {"model_id": "<model_id>",
+                         "table": "inputs.blocks_all",
+                         "column": "blockName", "find": "Pump",
+                         "replace": "Pump_A"},
     "list_part_types": {"model_id": "<model_id>"},
     "apply_part_type": {"model_id": "<model_id>", "part": "pump",
                         "elements": ["Pump_A", "Pump_B"]},
@@ -567,6 +572,9 @@ RETURN_NOTES: dict[str, str] = {
                           "[...], ...}], count}` with the fresh ids.",
     "copy_element_data": "`{changes: [{id, column, old, new}], count, "
                         "blocks}`.",
+    "replace_in_table": "`{changes: [{id, column, old, new}], count, "
+                        "table, column}`; name validation can refuse the "
+                        "whole set with a ValueError.",
     "list_part_types": "`{source, parts: [{id, name, category, source, "
                         "basis, version, fields}], count}`.",
     "apply_part_type": "`{part, version, elements: [{block, part, version, "

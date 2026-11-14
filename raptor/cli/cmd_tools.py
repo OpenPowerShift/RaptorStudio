@@ -126,6 +126,19 @@ def add_parser(sub: Any) -> None:
                    help="output format(s); default csv")
     r.add_argument("-o", "--output", metavar="DIR",
                    help="folder (default ./Tables beside the model)")
+    r.add_argument("--find", metavar="TEXT",
+                   help="with --column/--replace: change matching cells "
+                        "instead of exporting")
+    r.add_argument("--replace", metavar="TEXT", default="",
+                   help="replacement text for --find")
+    r.add_argument("--column", metavar="COLUMN",
+                   help="file column name or index for --find")
+    r.add_argument("--whole", action="store_true",
+                   help="match the whole cell, not a substring")
+    r.add_argument("--case-sensitive", action="store_true",
+                   help="match case (default insensitive)")
+    r.add_argument("--in-place", action="store_true",
+                   help="write replacements back to MODEL")
     add_run_options(r)
     r.set_defaults(func=tables_command)
 
@@ -530,6 +543,8 @@ def tables_command(args: Any) -> int:
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         rbd = ws.get(mid).rbd
+        if args.find is not None:
+            return _replace_command(ws, mid, args)
         bundle = None
         if args.run:
             apply_run_options(ws, mid, args)
@@ -734,4 +749,34 @@ def step_command(args: Any) -> int:
                     print("    | " + " ".join(ln.split()))
         except stepping.StepError as exc:
             raise CliError(str(exc), X.USAGE) from exc
+    return X.OK
+
+
+def _replace_command(ws: Any, model_id: str, args: Any) -> int:
+    """`raptor tables ... --find/--replace`: replace in a model table."""
+    from raptor.api import tables
+    if not args.column:
+        raise CliError("--find needs --column", X.USAGE)
+    if not args.table:
+        raise CliError("--find needs --table (e.g. inputs.blocks_all)",
+                       X.USAGE)
+    try:
+        changes = tables.replace_in_table(
+            ws.get(model_id).rbd, args.table[0], args.column, args.find,
+            args.replace, whole=args.whole, case=args.case_sensitive)
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    for change in changes:
+        change["row"][change["column"]] = change["new"]
+    if changes:
+        from raptor.api import build
+        build.sync_counts(ws.get(model_id).rbd)
+        if args.in_place:
+            source = Path(args.model)
+            fmt = "rbd" if source.suffix.lower() == ".rbd" else "rbds"
+            temp = source.with_name(source.stem + ".raptor-tmp" + source.suffix)
+            res = ws.save_model_as(model_id, str(temp), fmt=fmt)
+            Path(res["path"]).replace(source)
+    print(f"{len(changes)} cell(s) changed"
+          + ("" if args.in_place else " in the workspace; pass --in-place"))
     return X.OK

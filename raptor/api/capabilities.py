@@ -122,6 +122,10 @@ CAPABILITIES: tuple[Capability, ...] = (
         api="raptor.api.edit.copy_element_data", cli="edit",
         mcp="copy_element_data", gui="command:home.paste_data"),
     Capability(
+        "edit.replace", "Find and replace in a model table column",
+        api="raptor.api.tables.replace_in_table", cli="tables",
+        mcp="replace_in_table", gui="command:data.find_replace"),
+    Capability(
         "library.part_types", "Reuse a block's data as a named part type",
         api="raptor.api.library.links.link_block", cli="library",
         mcp="list_part_types",

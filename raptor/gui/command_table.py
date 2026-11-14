@@ -197,6 +197,12 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_edit_paste",
         enabled_when="can_paste"),
     CommandSpec(
+        id="data.find_replace",
+        attr="_find_replace_action",
+        text="Find and Replace…",
+        tooltip="Find and replace in the Data Tables grid (Ctrl+H there)",
+        handler="_data_tables_find_replace"),
+    CommandSpec(
         id="home.duplicate",
         attr="_duplicate_action",
         text="Duplicate",
