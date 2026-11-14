@@ -236,8 +236,15 @@ def _run_precision(ws: Any, model_id: str, args: Any, text: str,
     result = outcome.result
     result.precision = outcome.to_dict()
     half = outcome.half_width
-    eprint(f"precision: {outcome.trials} trials, "
-           f"{'unavailability' if precision.on == 'unavailability' else 'value'} "
+    # the stopping rule watches the complement of a probability metric; it
+    # is only "unavailability" for availability (it printed 1 - R so)
+    if precision.on != "unavailability":
+        watched = precision.metric
+    elif precision.metric == "system.ao":
+        watched = "unavailability"
+    else:
+        watched = f"1 - {precision.metric}"
+    eprint(f"precision: {outcome.trials} trials, {watched} "
            f"{outcome.mean:.6g}"
            + (f" ± {half:.3g}" if half is not None else "")
            + f" (target {precision.relative:.3g}; {outcome.stopped})")

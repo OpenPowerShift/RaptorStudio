@@ -364,8 +364,13 @@ def run_info(rbd: Any, *, model: str = "", file: str = "", runs: int = 0,
     m = manifest or {}
     if m.get("trials") and not runs:
         info.runs = int(m["trials"])
-    if m.get("analyses"):
-        info.analyses = [humanise(a) for a in m["analyses"]]
+    analyses = m.get("analyses")
+    if isinstance(analyses, dict):
+        # a run summary keeps {name: on}; listing its keys named every
+        # analysis on the cover, on or off
+        analyses = [name for name, on in analyses.items() if on]
+    if analyses:
+        info.analyses = [humanise(a) for a in analyses]
     if m.get("seed_strategy"):
         info.seed = str(m["seed_strategy"])
     if m.get("model_hash"):
