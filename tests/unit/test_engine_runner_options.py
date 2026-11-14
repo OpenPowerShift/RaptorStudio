@@ -75,3 +75,23 @@ def test_halving_stops_at_its_cap_next_to_zero(monkeypatch):
     monkeypatch.setattr(survival, "sf", lambda code, p, t: 0.0)
     t = conditional_life._bisect(11, [1.5, 100.0, 0.0], 0.0, 0.25)
     assert t == 2.0 ** -200
+
+
+def test_parallel_capacity_lines_keep_one_block_per_run():
+    """Workers used to hand back their runs' capacity lines without the
+    End_of_Run markers, so every run of a chunk parsed as one: lost
+    capacity under -j 4 read 37 % high. The merged lines must be the file
+    the sequential path writes, run for run (header, rows, marker)."""
+    from raptor.api.series import parse_capacity_runs
+    rbd = load_rbd(os.path.join(GOLD, "Capacity1", "input.rbd"))
+    sequential: list[str] = []
+    run_simulation_with_reports(rbd, 6, collect_logs=False, date="fixed",
+                                capacity_sink=sequential)
+    parallel: list[str] = []
+    run_simulation_with_reports(rbd, 6, collect_logs=False, date="fixed",
+                                capacity_sink=parallel, num_workers=2)
+    assert len(parse_capacity_runs("\n".join(sequential))) == 6
+    assert len(parse_capacity_runs("\n".join(parallel))) == 6
+    assert parallel[0] == sequential[0] == "SimulationTime        Flow       Capacity"
+    markers = [line for line in parallel if "End_of_Run_" in line]
+    assert [m.strip("*") for m in markers] == [f"End_of_Run_{i}" for i in range(1, 7)]

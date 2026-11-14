@@ -201,7 +201,7 @@ def test_time_between_outages_is_pooled_with_mtbde_kept_small():
                                                        up_time=1_751_988.0)))
     assert '<div class="v">about 880,000</div>' in few
     assert "2 outages in 200 runs; too few for a firm figure" in few
-    assert "Raptor MTBDE" in few
+    assert "MTBDE, averaged run by run" in few
     many = _key_figures(_content(outage_rate=OutageRate(outages=40, runs=60,
                                                         up_time=290_000.0)))
     assert "7,250" in many and "too few" not in many
@@ -217,3 +217,21 @@ def test_the_cover_has_key_figures_without_the_result_tables():
     assert '<div class="k">Availability</div>' in html
     assert "<h3>Summary</h3>" not in html
     assert "<h3>Summary</h3>" in build_html(content)  # the check can fail
+
+
+def test_the_cover_lists_only_the_analyses_that_were_on():
+    """A run summary keeps analyses as {name: on}; the cover named every
+    key, so a model with neither said "Analyses: Capacity, Cost"."""
+    import os
+
+    from raptor.api.presentation import run_info
+    from raptor.core.fileio.rbd import load_rbd
+    gold = os.path.join(os.path.dirname(__file__), "..", "golden",
+                        "TwoBlockRedundancy", "input.rbd")
+    info = run_info(load_rbd(gold), model="m", runs=3, units="hours",
+                    manifest={"analyses": {"capacity": False, "cost": True,
+                                           "weak_link": False}})
+    assert info.analyses == ["Cost"]
+    none = run_info(load_rbd(gold), model="m", runs=3, units="hours",
+                    manifest={"analyses": {"capacity": False, "cost": False}})
+    assert none.analyses == []

@@ -34,7 +34,7 @@ def test_text_lists_findings_most_important_first(capsys, tmp_path):
     lines = out.splitlines()
     assert "0 error(s), 1 warning(s)" in lines[0]
     assert "warning: M-STR-002: B backs up A" in lines[1]
-    assert any("fix: Remove the dependency [block:2.dep_type=None]" in line for line in lines)
+    assert any("fix: Remove the dependency [block:2.dep_type=None; block:2.dep_num=0]" in line for line in lines)
     assert "why:" not in out
 
 
@@ -52,7 +52,7 @@ def test_json_is_structured(capsys, tmp_path):
     first = result["findings"][0]
     assert first["rule"] == "M-STR-002" and first["basis"] == "exact"
     assert first["targets"][0]["path"] == "block:2.dep_type"
-    assert first["fixes"][0]["assignments"] == ["block:2.dep_type=None"]
+    assert first["fixes"][0]["assignments"] == ["block:2.dep_type=None", "block:2.dep_num=0"]
 
 
 def test_min_severity_and_only_and_skip(capsys, tmp_path):
@@ -113,3 +113,16 @@ def test_target_runs_the_model_and_gives_a_verdict(capsys, tmp_path):
 def test_bad_target_is_a_usage_error(capsys, tmp_path):
     code, _, err = run_cli(capsys, "advise", flawed(tmp_path), "--target", "system.ao=1")
     assert code == X.USAGE and "METRIC>=VALUE" in err
+
+
+def test_a_target_on_an_unknown_metric_is_refused_and_percent_is_accepted():
+    """"ao>=0.99" used to give no verdict and no word why; "99.5%" was not a
+    number although the output prints percentages."""
+    import pytest
+
+    from raptor.cli.cmd_advise import _targets
+    from raptor.cli.exitcodes import CliError
+    assert _targets(["ao>=0.99"]) == [{"metric": "ao", "op": ">=", "value": 0.99}]
+    assert _targets(["system.ao>=99.5%"])[0]["value"] == pytest.approx(0.995)
+    with pytest.raises(CliError, match="unknown requirement metric 'bogus'"):
+        _targets(["bogus>=1"])

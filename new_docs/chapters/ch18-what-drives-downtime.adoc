@@ -241,16 +241,19 @@ never a second file, and the open model is never modified:
 [source,bash]
 ----
 raptor whatif VanFlat.rbds \
-  --change 'block:Tire_A.repair_params=2,9,0' \
-  --name 'Faster tire repair' -n 200
+  --change 'block:Fuel_Pump.repair_params=2,0.25,0' \
+  --name 'Faster fuel pump repair' -n 200
 ----
 
 The base and the scenario run with the same seed, so trial *i* is paired;
 the table reports the scenario value, the paired difference with its
-standard error and the chance the scenario is better. Pairing usually cuts
-the variance by an order of magnitude for a small change. A change that
-alters how many random draws a block makes can weaken the pairing; it does
-not bias the comparison, and the `variance cut` line says what was gained.
+standard error and `P(better)`, the chance that the scenario really is
+better and the difference is not noise. Halving the fuel pump's repair time
+gains about 0.4 points of availability, with a standard error under 0.05.
+Pairing narrows the difference's uncertainty; by how much depends on the
+change (a change that alters how many random draws a block makes weakens
+it). It never biases the comparison, and the `Pairing cut the variance by`
+line says what was gained.
 
 Use the same seed and the same trial count when you compare two runs by
 hand; otherwise you are reading noise.

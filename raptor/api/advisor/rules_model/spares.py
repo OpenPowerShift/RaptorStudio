@@ -40,6 +40,14 @@ class Supply:
             return 0, 0.0
         return int(self.row.get("new_spares") or 0), float(self.row.get("arrive_every") or 0.0)
 
+    @property
+    def reorders(self) -> bool:
+        """Stock-level or emergency ordering is on: every shortage starts an
+        order, so the supply is not capped at stock plus routine deliveries
+        (counting only those warned "will run out" on models that reorder,
+        and suggested a stock of 12 where the reorder loop already copes)."""
+        return on(self.row.get("slo")) or on(self.row.get("eso"))
+
     def fix_stock(self, value: int) -> tuple[Fix, ...]:
         if self.block_id is None:
             return ()
@@ -88,6 +96,8 @@ def supply_below_demand(ctx: ModelContext) -> Iterable[Finding]:
     if not run:
         return
     for s in supplies(ctx):
+        if s.reorders:
+            continue                     # M-SPR-003 judges the lead time
         q, every = s.restock
         deliveries = math.floor(run / every) if q and every > 0 else 0
         supply = s.stock + q * deliveries
@@ -117,10 +127,13 @@ def stockout_risk(ctx: ModelContext) -> Iterable[Finding]:
     if not run:
         return
     for s in supplies(ctx):
+        if on(s.row.get("slo")):
+            yield from _lead_time_risk(s, ctx)
+            continue
         q, every = s.restock
         restocked = bool(q and every > 0)
         deliveries = math.floor(run / every) if restocked else 0
-        if _certain_shortfall(s.rate * run, s.stock + q * deliveries):
+        if not s.reorders and _certain_shortfall(s.rate * run, s.stock + q * deliveries):
             continue                                   # M-SPR-002 says it
         horizon = min(every, run) if restocked else run
         mean = s.rate * horizon
@@ -144,6 +157,34 @@ def stockout_risk(ctx: ModelContext) -> Iterable[Finding]:
                       "horizon": horizon, "suggested_stock": need},
             basis="heuristic", impact=p_out,
             fixes=s.fix_stock(need), doc="advisor.html#M-SPR-003")
+
+
+def _lead_time_risk(s: Supply, ctx: ModelContext) -> Iterable[Finding]:
+    """With stock-level ordering an order goes out when the shelf falls to
+    the reorder level; the shelf runs dry only if more than that level fail
+    before the order arrives."""
+    level = int(s.row.get("level") or 0)
+    lead = float(s.row.get("slo_time") or 0.0)
+    if lead <= 0:
+        return
+    mean = s.rate * lead
+    p_out = 1.0 - poisson_cdf(level, mean)
+    if p_out <= STOCKOUT_P:
+        return
+    need = smallest_stock(mean, STOCKOUT_P)
+    yield Finding(
+        rule="M-SPR-003", severity="advice", category="spares",
+        title="The shelf may be empty when needed",
+        message=(f"{s.label} has a {text.fmt_pct(p_out)} chance of running out "
+                 f"while an order is on its way ({text.fmt_time(lead, ctx.units)}): "
+                 f"it reorders at {level}, about {text.fmt_num(mean)} needed in that time."),
+        why="A stock-level order is placed when the shelf falls to the reorder "
+            "level, so only that many spares cover the lead time. A reorder "
+            f"level of {need} keeps the chance at or below {text.fmt_pct(STOCKOUT_P)}.",
+        targets=(s.target,),
+        evidence={"p_stockout": p_out, "reorder_level": level, "mean_demand": mean,
+                  "horizon": lead, "suggested_level": need},
+        basis="heuristic", impact=p_out, doc="advisor.html#M-SPR-003")
 
 
 def _ordering_rows(ctx: ModelContext) -> Iterator[tuple[str, Target, dict]]:

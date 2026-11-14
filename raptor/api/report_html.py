@@ -240,7 +240,7 @@ def _between_outages(rate: OutageRate, label: str, unit: str,
     never went down) while the pooled rate is the figure the run found."""
     runs = f"{rate.runs:,} run{'s' if rate.runs != 1 else ''}"
     if not rate.outages:
-        return "No outage", f"in {runs} (Raptor MTBDE {mtbde})"
+        return "No outage", f"in {runs} (Raptor's per-run MTBDE {mtbde})"
     between = rate.between
     if between is None:
         shown = mtbde
@@ -253,8 +253,11 @@ def _between_outages(rate: OutageRate, label: str, unit: str,
         shown = fmt(between, kind_of(label))
     count = f"{rate.outages:,} outage{'s' if rate.outages != 1 else ''} in {runs}"
     rough = "; too few for a firm figure" if rate.few else ""
-    under = (f"{unit + ', ' if unit else ''}{count}{rough} "
-             f"(Raptor MTBDE {mtbde})")
+    # Raptor's MTBDE averages each run's own figure, and a run with no
+    # outage only gives a floor (its length), so it reads ">372.6" beside a
+    # pooled 280: say what it is rather than leave two figures to clash.
+    under = (f"{unit + ', ' if unit else ''}{count}{rough}. Raptor's "
+             f"MTBDE, averaged run by run: {mtbde}")
     return shown, under
 
 
@@ -368,7 +371,8 @@ def _story_html(insight: Any) -> str:
             out.append(f'<p>{_e(story["proportion"])}</p>')
     drivers = story.get("drivers") or []
     if drivers:
-        out.append("<h3>Where the downtime comes from</h3><ul>")
+        measure = story.get("drivers_measure") or "downtime"
+        out.append(f"<h3>Where the {_e(measure)} comes from</h3><ul>")
         for driver in drivers:
             out.append(f'<li>{_e(driver.get("name", ""))}: '
                        f'{100 * float(driver.get("share") or 0):.3g} %</li>')

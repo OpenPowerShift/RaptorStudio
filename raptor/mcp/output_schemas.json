@@ -281,7 +281,10 @@
     "type": "string"
    },
    "threshold": {
-    "type": "number"
+    "type": [
+     "null",
+     "number"
+    ]
    },
    "units": {
     "type": "string"

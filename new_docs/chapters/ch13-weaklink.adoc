@@ -257,7 +257,7 @@ matters, and they answer different questions:
 |What would change if this element were perfect or dead?
 |Extra re-simulations with that element changed.
 
-|Attribution (DTCI, DECI, FCI)
+|Attribution: shares of downtime (DTCI), of outages (DECI) and of failures (FCI)
 |What actually caused the system's outages in this run?
 |The event log, replayed; no extra runs.
 |===

@@ -38,6 +38,8 @@ def advise_run(rbd: Any, summary: dict, per_run: list[dict], *,
     """Every run finding for one finished batch of `rbd`, most important first.
     `attribution` (see `raptor.api.insight.attribution`) adds the findings
     about what drives the downtime."""
+    from raptor.api.advisor.context import check_requirements
+    check_requirements(requirements)
     ctx = RunContext(rbd, summary, per_run, requirements, attribution)
     return run_rules(ctx, phase="run", only=only, skip=skip)
 

@@ -172,12 +172,13 @@ class TestWhatIf:
         assert metric["delta"]["mean"] == 0
         assert data["caption"]
 
-    def test_a_bad_change_is_reported_not_raised(self, ws_with_motor):
+    def test_a_bad_change_is_an_error_result_not_a_crash(self, ws_with_motor):
+        """Reported as an is_error result saying why, never raised, and
+        never a success: a pipeline checking is_error took one for a
+        finished comparison."""
         from raptor.mcp.tools_run import what_if
-        data = _sc(_resolve(what_if(
+        result = _resolve(what_if(
             ws_with_motor, changes=["no_such:path=1"], trials=2, seed=1,
-            timeout_s=60)))
-        assert data["rows"][0]["error"]
-        assert "did not run" in _text(_resolve(what_if(
-            ws_with_motor, changes=["no_such:path=1"], trials=2, seed=1,
-            timeout_s=60)))
+            timeout_s=60))
+        assert result.is_error
+        assert "did not run" in _text(result)

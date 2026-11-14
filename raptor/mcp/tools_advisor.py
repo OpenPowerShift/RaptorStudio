@@ -113,6 +113,7 @@ def apply_fix(model_id: str, rule: str, target: str | None = None,
     Returns {applied: [PATH=VALUE...], label, remaining: findings of that rule
     still present}.
     """
+    context.require_write()
     from raptor.api.advisor import advise_model, fixes
 
     ws = context.workspace()

@@ -428,7 +428,7 @@ def build_model(name: str, spec: dict[str, Any] | None = None,
     {"from":"Join","to":"End"}]` (`create_model(template="parallel")`
     builds exactly this shape for a plain A||B case).
 
-    Returns {model_id, summary, validation, notes}.  `notes`, when present,
+    Returns {model_id, summary, validation, notes}.  `notes` (may be empty)
     names the blocks the spec gave no failure or repair distribution: they
     are built with placeholder defaults, so results for them are not based
     on data.  A successful build is **not**
@@ -480,9 +480,11 @@ def build_model(name: str, spec: dict[str, Any] | None = None,
     # What the spec left to the defaults: the model runs either way, so
     # this is the only place a caller learns its numbers are placeholders.
     from raptor.api.build import default_data_notes
+    # always present (empty when the spec gave every block its data): the
+    # advertised outputSchema lists it, and a validating client rejected a
+    # clean build that left it out
     notes = default_data_notes(spec, rbd)
-    if notes:
-        result["notes"] = notes
+    result["notes"] = notes
 
     md = f"Built **{result['summary']}** (`{result['model_id']}`)."
     if validation:
@@ -2317,6 +2319,7 @@ def duplicate_elements(model_id: str, elements: list[str],
     are remapped to the copies, dependencies on copied elements follow them,
     and block names get the next free suffix. One save.
     """
+    context.require_write()
     from raptor.api import edit
 
     if copies < 1:
@@ -2337,6 +2340,7 @@ def copy_element_data(model_id: str, source: str, targets: list[str],
     Failure and Repair). Name, position, links, id and dependency are never
     changed.
     """
+    context.require_write()
     from raptor.api import edit
 
     result = edit.copy_element_data(

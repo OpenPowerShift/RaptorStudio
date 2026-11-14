@@ -302,7 +302,9 @@ def _run_chunk_worker(payload):
     neg_runs: list[int] = []
     neg_before = 0
     logs_list: list[list[str]] = []
-    cap_lines: list[str] = []
+    # one list per run: the parent writes the header and the End_of_Run
+    # markers (concatenated without them, every run of a chunk read as one)
+    cap_runs: list[list[str]] = []
     done = runaway = 0
     for i in range(chunk_runs):
         if _STOP_FLAG is not None and _STOP_FLAG.is_set():
@@ -321,7 +323,7 @@ def _run_chunk_worker(payload):
         neg_runs.append(neg_total - neg_before)
         neg_before = neg_total
         if driver.capacity_state is not None:
-            cap_lines.extend(driver.capacity_state.cap_file_lines)
+            cap_runs.append(list(driver.capacity_state.cap_file_lines))
         if _RUNS_DONE is not None:
             with _RUNS_DONE.get_lock():
                 _RUNS_DONE.value += 1
@@ -333,7 +335,7 @@ def _run_chunk_worker(payload):
     return {"logs": logs_list, "reports": report_rows,
             "ao": [] if ao_stream is not None else ao_lines,
             "ao_path": ao_stream.detach() if ao_stream is not None else None,
-            "cost": cost_lines, "cap": cap_lines, "runaway": runaway,
+            "cost": cost_lines, "cap": cap_runs, "runaway": runaway,
             "done": done, "max_draws": max((c.draws for c in counting), default=0),
             "negative_draws": neg_runs}
 
@@ -475,6 +477,7 @@ def run_simulation(
         # its threads leaves the children dead on arrival.
         mp_ctx = _mp.get_context(MP_CONTEXT)
         runaway_total = [0]
+        cap_written = [0]
 
         def _merge(res):
             nonlocal done_runs
@@ -483,7 +486,16 @@ def run_simulation(
             if _report_sink is not None:
                 _report_sink.extend(res["reports"])
             if _capacity_sink is not None:
-                _capacity_sink.extend(res["cap"])
+                # the same file the sequential path writes: one header, then
+                # each run followed by its End_of_Run_N marker
+                for run_lines in res["cap"]:
+                    if not cap_written[0]:
+                        _capacity_sink.append(
+                            "SimulationTime        Flow       Capacity")
+                    cap_written[0] += 1
+                    _capacity_sink.extend(run_lines)
+                    _capacity_sink.extend([
+                        "", "*" * 30 + f"End_of_Run_{cap_written[0]}" + "*" * 30, ""])
             if res.get("ao_path"):
                 try:
                     if ao_stream_sink is not None:

@@ -95,6 +95,34 @@ def test_drivers_are_the_top_three_plus_an_others_share():
     assert story.drivers_available
 
 
+def test_the_drivers_say_what_they_are_shares_of():
+    """With capacity analysis the drivers rank lost capacity; the report
+    headed both lists "Where the downtime comes from" and a manager read two
+    rankings that disagreed.  Without capacity attribution the list falls
+    back to downtime and must say so, even when capacity analysis is on."""
+    elems = [element("A", 1, 0.6), element("B", 2, 0.4)]
+    plain = build(runs(5), attribution=attribution({"repair": 1.0}, elems))
+    assert plain.drivers_measure == "downtime"
+    cap = attribution({"repair": 1.0}, elems)
+    cap["capacity"] = {"elements": [
+        {"kind": "block", "id": 2, "name": "B", "share": {"mean": 0.7}},
+        {"kind": "block", "id": 1, "name": "A", "share": {"mean": 0.3}}]}
+    capacity = build(runs(5, capacity_weighted_availability=0.9),
+                     attribution=cap)
+    assert capacity.drivers_measure == "lost capacity"
+    assert [d.name for d in capacity.drivers] == ["B", "A"]
+    no_split = build(runs(5, capacity_weighted_availability=0.9),
+                     attribution=attribution({"repair": 1.0}, elems))
+    assert no_split.drivers_measure == "downtime"
+    from raptor.api.insight.story import text_lines
+    assert "Where the lost capacity comes from:" in text_lines(capacity)
+    from raptor.api.report_html import _story_html
+
+    class _Insight:
+        story = capacity.to_dict()
+    assert "<h3>Where the lost capacity comes from</h3>" in _story_html(_Insight)
+
+
 def test_no_attribution_says_so_rather_than_showing_a_zero():
     story = build(runs(5))
     assert story.drivers == [] and story.drivers_available is False

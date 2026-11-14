@@ -40,6 +40,15 @@ def test_M_STR_002_fires(tmp_path):
     assert f.targets[0].name == "B" and f.basis == "exact"
     after = apply_first_fix(tmp_path, _backup(), "M-STR-002")
     assert "M-STR-002" not in {x.rule for x in after}
+    # the fixed model must still validate and run (the fix once left
+    # dep_num set, a dependency of type None that validation rejects)
+    from raptor.api.run import run
+    from raptor.api.validate import issues
+    ws = Workspace(tmp_path)
+    model_id = ws.list_models()[0]["model_id"]
+    errors = [i for i in issues(ws.get(model_id).rbd) if i.severity == "error"]
+    assert not errors, errors
+    run(ws, model_id, num_runs=2)
 
 
 def test_M_STR_002_silent():
@@ -159,6 +168,22 @@ def test_M_SPR_002_counts_routine_deliveries():
     assert "M-SPR-002" not in rules_fired(_own_stock(4, rso=1, new_spares=1, arrive_every=1000))
     f = one(_own_stock(1, rso=1, new_spares=1, arrive_every=1000), "M-SPR-002")
     assert f.evidence["supply"] == 9 and f.evidence["deliveries"] == 8
+
+
+def test_M_SPR_002_is_silent_when_shortages_are_reordered():
+    """Stock-level or emergency ordering sends an order for every shortage,
+    so "only 4 can arrive" is false: FactoryDemo (availability 100 %) got
+    five such warnings and the fix "Set stock to 12". The lead-time risk is
+    M-SPR-003's, judged against the reorder level, and it suggests a level,
+    never a stock."""
+    reorder = _own_stock(4, slo=1, level=1, quantity=2, slo_time=72)
+    assert "M-SPR-002" not in rules_fired(reorder)
+    assert "M-SPR-002" not in rules_fired(_own_stock(4, eso=1, emer_time=24))
+    risky = one(_own_stock(4, slo=1, level=0, quantity=2, slo_time=500), "M-SPR-003")
+    assert risky.evidence["p_stockout"] == pytest.approx(1 - poisson_cdf(0, 500 / 876))
+    assert risky.fixes == ()
+    assert "M-SPR-003" not in rules_fired(
+        _own_stock(4, slo=1, level=6, quantity=2, slo_time=72))
 
 
 def test_M_SPR_002_silent():

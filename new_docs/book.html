@@ -1330,9 +1330,10 @@ many early deaths. Does reliability go up or down?</p>
 <summary class="title">Answer</summary>
 <div class="content">
 <div class="paragraph">
-<p>Reliability drops. With shape 1.1 the battery produces many
-very early deaths, and the chain has no spare parts. Expect roughly
-0.25–0.30 at 100 trials.</p>
+<p>Reliability drops, but only a little: about 0.35 against 0.38 (with
+100 trials either figure can be off by about 0.05, so run 2,000 to see the
+difference clearly). With shape 1.1 the battery produces more early
+deaths, and the chain has no spare parts.</p>
 </div>
 </div>
 </details>
@@ -1694,7 +1695,8 @@ up or down, and by roughly how much? Then run 100 trials and check.</p>
 <div class="paragraph">
 <p>down. A 150-hour pump is near-dead by hour 500
 (survival ≈ 3.6%), so the second pump almost never rescues a season.
-Expect roughly 0.30 at 100 trials — most of the gain from Pump_A alone.</p>
+Expect roughly 0.23 to 0.24 (against 0.37 with two good pumps): barely
+more than Pump_A would manage on its own.</p>
 </div>
 </div>
 </details>
@@ -7974,7 +7976,7 @@ matters, and they answer different questions:</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Extra re-simulations with that element changed.</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Attribution (DTCI, DECI, FCI)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Attribution: shares of downtime (DTCI), of outages (DECI) and of failures (FCI)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">What actually caused the system&#8217;s outages in this run?</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The event log, replayed; no extra runs.</p></td>
 </tr>
@@ -12155,9 +12157,9 @@ still untouched.</p>
 <div class="sect2">
 <h3 id="_then_the_spares">24.6. Then the spares</h3>
 <div class="paragraph">
-<p>Run the model with <code>attribution=True</code> (the Run panel&#8217;s Analysis box, or
-<code>raptor run &#8230;&#8203; --analysis weak</code> plus attribution) and ask for the
-after-run findings:</p>
+<p>Run the model with attribution on (the Run panel&#8217;s Analysis box in the
+window, <code>attribution=True</code> in MCP; on the command line <code>raptor advise
+--simulate</code> runs it for you) and ask for the after-run findings:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -12555,17 +12557,20 @@ never a second file, and the open model is never modified:</p>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code class="language-bash" data-lang="bash">raptor whatif VanFlat.rbds \
-  --change 'block:Tire_A.repair_params=2,9,0' \
-  --name 'Faster tire repair' -n 200</code></pre>
+  --change 'block:Fuel_Pump.repair_params=2,0.25,0' \
+  --name 'Faster fuel pump repair' -n 200</code></pre>
 </div>
 </div>
 <div class="paragraph">
 <p>The base and the scenario run with the same seed, so trial <strong>i</strong> is paired;
 the table reports the scenario value, the paired difference with its
-standard error and the chance the scenario is better. Pairing usually cuts
-the variance by an order of magnitude for a small change. A change that
-alters how many random draws a block makes can weaken the pairing; it does
-not bias the comparison, and the <code>variance cut</code> line says what was gained.</p>
+standard error and <code>P(better)</code>, the chance that the scenario really is
+better and the difference is not noise. Halving the fuel pump&#8217;s repair time
+gains about 0.4 points of availability, with a standard error under 0.05.
+Pairing narrows the difference&#8217;s uncertainty; by how much depends on the
+change (a change that alters how many random draws a block makes weakens
+it). It never biases the comparison, and the <code>Pairing cut the variance by</code>
+line says what was gained.</p>
 </div>
 <div class="paragraph">
 <p>Use the same seed and the same trial count when you compare two runs by
@@ -13231,6 +13236,20 @@ handles a simpler set of models than simulation. Use it to check a
 simulation. See <a href="#ch-exact">Chapter 9, <em>Exact Answers: Checking a Simulation with the Analytical Solver</em></a>.</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ao (operational availability)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Availability over the whole run, counting every reason for being down:
+failures, waiting for spares or crews, and planned maintenance. It is
+what <code>system.ao</code> and the "Availability (Ao)" row report.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Attribution</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Working out which element caused each hour of system downtime, by
+replaying the run&#8217;s event log. It gives the downtime, outage and failure
+shares (DTCI, DECI, FCI) and the cause of each (hands-on repair, waiting
+for a spare, waiting for a crew, planned maintenance). See
+<a href="#ch-what-if">Chapter 25, <em>What Drives Downtime, and What Would Help</em></a>.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Availability</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Fraction of time a system works. Answers: "is it selling soda right
 now, on average?"</p></td>
@@ -13271,6 +13290,11 @@ system. Preventive maintenance is not counted.</p></td>
 costs, system red hours, and lost flow, rolled into a Grand_Total.</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">DECI (outage share)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Share of system outages an element started: 0.4 means it began 4 of
+every 10 outages.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Degraded</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">System still works, but with less margin. Yellow on the health bar.</p></td>
 </tr>
@@ -13294,6 +13318,11 @@ time. Examples: Exponential (no memory), Weibull (wear-out), Fixed
 (no surprise).</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">DTCI (downtime share)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Share of system downtime an element caused, pooled over all runs: 0.4
+means 40 % of the hours the system was down.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">End node</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The red dot that stands for the whole system. When flow cannot reach
 it, the system is down.</p></td>
@@ -13307,6 +13336,11 @@ of the mission — no operating clock, no wear. Drawn as a hexagon.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Event log</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The minute-by-minute story of one trial: every failure, repair, and
 status change, in order.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FCI (failure share)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Share of the element failures that took the system down which were this
+element&#8217;s.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Hazard function</p></td>
@@ -13409,6 +13443,17 @@ failure.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Nominal / max flow</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The two sizes of a link. Nominal is the soft target filled first;
 max is the hard ceiling that only emergency spill touches.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">P(better)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">In a what-if, the chance that the scenario really is better than the
+model you have, rather than looking better by luck. Near 50 % means "no
+difference you can see at this run count".</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Paired comparison</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Running the base model and a scenario with the same seed, so run <strong>i</strong> of
+each sees the same luck. Differences then show the change, not the noise.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Phase</p></td>

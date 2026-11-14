@@ -272,6 +272,7 @@ def replace_in_table(model_id: str, table: str, column: str, find: str,
     refused set changes nothing. Returns the old and new value of every
     changed cell.
     """
+    context.require_write()
     from raptor.api import build, tables
 
     ws = context.workspace()

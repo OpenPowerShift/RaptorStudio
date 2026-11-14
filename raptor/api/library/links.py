@@ -145,7 +145,8 @@ def apply_part_to_rbd(rbd: Any, element: str | int, part: Any,
         selector = element.split(":", 1)[1]
     row, element_id = _element(rbd, kind, selector)
     overrides = list(overrides or ())
-    patch = {field: value for field, value in part.fields.items()
+    from raptor.api.library.model import applicable_fields
+    patch = {field: value for field, value in applicable_fields(part).items()
              if field not in overrides}
     if patch:
         if kind == "annotation":
@@ -277,7 +278,8 @@ def pending_updates(rbd: Any, library: Any = None) -> list[dict[str, Any]]:
             continue
         overrides = set(record.get("overrides") or ())
         changes = {}
-        for field_name, value in part.fields.items():
+        from raptor.api.library.model import applicable_fields
+        for field_name, value in applicable_fields(part).items():
             if field_name in overrides:
                 continue
             current = _current(row, field_name, kind)
@@ -310,7 +312,8 @@ def apply_updates(workspace: Any, model_id: str, *, library: Any = None,
                     else None)
             if part is None:
                 part = PartType.from_dict(links["parts"].get(entry["part"]) or {})
-            patch = {field: value for field, value in part.fields.items()
+            from raptor.api.library.model import applicable_fields
+            patch = {field: value for field, value in applicable_fields(part).items()
                      if field not in set(
                          (links["blocks"].get(entry["block"]) or {})
                          .get("overrides") or ())}

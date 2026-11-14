@@ -17,6 +17,18 @@ failure distributions, with no trials (*Model ▸ Analytical…*). It
 handles a simpler set of models than simulation. Use it to check a
 simulation. See <<ch-exact>>.
 
+|Ao (operational availability)
+|Availability over the whole run, counting every reason for being down:
+failures, waiting for spares or crews, and planned maintenance. It is
+what `system.ao` and the "Availability (Ao)" row report.
+
+|Attribution
+|Working out which element caused each hour of system downtime, by
+replaying the run's event log. It gives the downtime, outage and failure
+shares (DTCI, DECI, FCI) and the cause of each (hands-on repair, waiting
+for a spare, waiting for a crew, planned maintenance). See
+<<ch-what-if>>.
+
 |Availability
 |Fraction of time a system works. Answers: "is it selling soda right
 now, on average?"
@@ -49,6 +61,10 @@ system. Preventive maintenance is not counted.
 |Simulation that also sums money: per-block purchase and repair
 costs, system red hours, and lost flow, rolled into a Grand_Total.
 
+|DECI (outage share)
+|Share of system outages an element started: 0.4 means it began 4 of
+every 10 outages.
+
 |Degraded
 |System still works, but with less margin. Yellow on the health bar.
 
@@ -68,6 +84,10 @@ paused, not failed, clock stopped — until it comes back. Elemental
 time. Examples: Exponential (no memory), Weibull (wear-out), Fixed
 (no surprise).
 
+|DTCI (downtime share)
+|Share of system downtime an element caused, pooled over all runs: 0.4
+means 40 % of the hours the system was down.
+
 |End node
 |The red dot that stands for the whole system. When flow cannot reach
 it, the system is down.
@@ -79,6 +99,10 @@ of the mission — no operating clock, no wear. Drawn as a hexagon.
 |Event log
 |The minute-by-minute story of one trial: every failure, repair, and
 status change, in order.
+
+|FCI (failure share)
+|Share of the element failures that took the system down which were this
+element's.
 
 |Hazard function
 |The risk of failing *right now*, given survival so far. Falling
@@ -161,6 +185,15 @@ failure.
 |Nominal / max flow
 |The two sizes of a link. Nominal is the soft target filled first;
 max is the hard ceiling that only emergency spill touches.
+
+|P(better)
+|In a what-if, the chance that the scenario really is better than the
+model you have, rather than looking better by luck. Near 50 % means "no
+difference you can see at this run count".
+
+|Paired comparison
+|Running the base model and a scenario with the same seed, so run *i* of
+each sees the same luck. Differences then show the change, not the noise.
 
 |Phase
 |A repeating mission stage with its own duration. A block can be Cut

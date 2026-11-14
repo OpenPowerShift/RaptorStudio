@@ -789,7 +789,7 @@ through an intermediate node first, e.g. for A and B in parallel:
 {"from":"Join","to":"End"}]` (`create_model(template="parallel")`
 builds exactly this shape for a plain A||B case).
 
-Returns {model_id, summary, validation, notes}.  `notes`, when present,
+Returns {model_id, summary, validation, notes}.  `notes` (may be empty)
 names the blocks the spec gave no failure or repair distribution: they
 are built with placeholder defaults, so results for them are not based
 on data.  A successful build is **not**
@@ -2463,7 +2463,7 @@ period), which shows a year that stays "available" but loses output.
 | `runs` | integer | yes |
 | `schema` | string | yes |
 | `sentence` | string | yes |
-| `threshold` | number | yes |
+| `threshold` | null \| number | yes |
 | `units` | string | yes |
 | `worst` | array<any> | yes |
 
@@ -4439,12 +4439,16 @@ judge a run without paging through `get_report`, and `get_table` /
 `export_tables` (with the same `run_id`) when you need a whole table or
 a workbook.
 
-`top` caps the weak-link list (1..100).
+`top` caps the weak-link list (1..100). `per_run` carries each
+replication's system figures; `per_run_detail=True` adds the nested
+per-element data, which on a large model is megabytes (use `get_table`
+with `results.per_run` to page it instead).
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `per_run_detail` | boolean | no | `false` | — |
 | `run_id` | string | yes | — | — |
 | `top` | integer | no | `10` | — |
 
