@@ -206,6 +206,11 @@ def _pct(v: float) -> str:
     return f"{v:.1f}%"
 
 
+def _pct_short(v: float) -> str:
+    """`_pct` for a legend: "<0.1%" / ">99.9%"."""
+    return _pct(v).replace("under ", "<").replace("over ", ">")
+
+
 class _ReadOnlyTable(QTableWidget):
     """Base class for every results grid: selectable, sortable, not editable.
 

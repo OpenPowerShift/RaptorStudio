@@ -1210,3 +1210,22 @@ def test_the_charts_tab_builds_from_a_real_run(real_results):
     assert "Run-to-run outcome" in names
     assert "Availability ladder" in names
     assert page.selected_spec() is not None
+
+
+def test_how_often_it_goes_down_is_pooled_over_the_runs():
+    """8 outages in 200 runs of 8,760 h is once every ~219,000 h, not the
+    censored MTBDE mean (8,760 h, one run) the sentence once quoted."""
+    from types import SimpleNamespace as NS
+
+    from raptor.gui.ui.results import _pooled_time_between_downings
+    runs = [NS(num_system_failures=1 if i < 8 else 0, ending_sim_time=8760.0,
+               red_percent=0.1 if i < 8 else 0.0) for i in range(200)]
+    pooled = _pooled_time_between_downings(runs)
+    assert pooled == pytest.approx((200 * 8760 - 8 * 8.76) / 8)
+    assert _pooled_time_between_downings(runs[8:]) is None
+
+
+def test_a_small_share_is_never_shown_as_zero():
+    from raptor.gui.ui.results_common import _pct_short
+    assert _pct_short(0.0055) == "<0.1%" and _pct_short(0.0) == "0.0%"
+    assert _pct_short(99.99) == ">99.9%" and _pct_short(7.3) == "7.3%"

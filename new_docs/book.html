@@ -9638,7 +9638,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>86 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>87 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10165,8 +10165,8 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 86 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
-<code>ping</code>, or 85 when <code>--no-render</code> hides the PNG diagram tool.</p>
+listed below: 87 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+<code>ping</code>, or 86 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
 <p><strong>Ping the server.</strong> Ask the assistant to "ping RAPTOR" or call the <code>ping</code>
@@ -10904,6 +10904,14 @@ or <code>results.summary</code>.</p>
   fixed-width file per table) and <code>txt_report</code> (one combined report), in
   any combination. Files go to <code>Tables/&lt;model&gt;</code> in the workspace unless a
   workspace-relative <code>folder</code> is given.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>export_report</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Writes the run report a decision maker reads: <code>.pdf</code> or one
+  self-contained <code>.html</code>. By default the diagram and the plain-English
+  story; add <code>results</code> and <code>data_tables</code> in <code>sections</code> for the tables.
+  The file goes to <code>Reports/&lt;model&gt;_&lt;run&gt;.pdf</code> unless a workspace-relative
+  <code>path</code> is given.</p></td>
 </tr>
 </tbody>
 </table>
@@ -12277,6 +12285,19 @@ raptor explain VanFlat.rbds --story -f json</code></pre>
 <div class="paragraph">
 <p>The Story never invents a verdict: without a target it says so, and without
 attribution it offers the one action that turns the drivers strip on.</p>
+</div>
+<div class="paragraph">
+<p>To hand the answer to someone who will not open the model, write the report:
+the Story, its charts, how to read each measure and the diagram, as a PDF or
+one self-contained HTML file. It is the document File › Export PDF makes;
+add <code>results</code> or <code>data_tables</code> to <code>--report-include</code> for the tables. An AI
+assistant uses the MCP tool <code>export_report</code>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor explain VanFlat.rbds --report VanFlat.pdf
+raptor explain VanFlat.rbds --report VanFlat.html --report-include diagram,story,results</code></pre>
+</div>
 </div>
 </div>
 <div class="sect2">
