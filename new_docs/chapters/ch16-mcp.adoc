@@ -746,10 +746,10 @@ you need the exact argument shape.
   by a data-only copy.
 
 | `list_part_types`, `apply_part_type`, `save_part_type`, `sync_part_types`
-| Reuse one block's data as a named part type: list parts from a `.rbdlib`
-  file or the model, apply one to blocks (recording the link), save a
-  block as a part, and show or apply the changes a library has made while
-  respecting per-block overrides.
+| Reuse an element's data as a named part type (block, node, event,
+  hierarchy or annotation): list parts from a `.rbdlib` file or the model,
+  apply one (recording the link), save an element as a part, and show or
+  apply the changes a library has made while respecting overrides.
 
 | `sensitivity`
 | One-at-a-time tornado: up to `top` inputs varied low and high against

@@ -8,8 +8,9 @@ import pytest
 from raptor.api import build
 from raptor.api import run as run_api
 from raptor.api.library import (
-    Library, apply_updates, detach, link_block, link_record, part_from_block,
-    pending_updates, read_library, reset_override, set_override, write_library,
+    Library, apply_part_to_rbd, apply_updates, detach, element_record,
+    link_block, link_record, part_from_block, pending_updates, read_library,
+    reset_override, set_override, write_library,
 )
 from raptor.api.library.model import PartType, import_legacy
 from raptor.api.workspace import Workspace
@@ -134,3 +135,36 @@ def test_a_missing_part_file_does_not_break_the_model(tmp_path):
         read_library(tmp_path / "gone.rbdlib")
     assert pending_updates(ws.get(mid).rbd) == []
     assert run_api.run(ws, mid, num_runs=1, seed=1).run_id
+
+
+def test_node_event_hierarchy_and_annotation_parts_round_trip(tmp_path):
+    from raptor.api.library.model import part_from_element
+    ws, mid = _workspace(tmp_path)
+    rbd = ws.get(mid).rbd
+    nodes = [r for r in rbd.section("NODE_DATA").rows if r.get("ID") != "0"]
+    node_part = part_from_element("node", nodes[1])
+    apply_part_to_rbd(rbd, f"node:{nodes[0]['ID']}", node_part)
+    assert element_record(rbd, "node", nodes[0]["ID"]) is not None
+
+    rbd.annotations = [
+        {"kind": "text", "id": 1, "parent": 0, "x": 1, "y": 2,
+         "w": 120, "h": 40, "text": "First note", "z": 1},
+        {"kind": "text", "id": 2, "parent": 0, "x": 5, "y": 6,
+         "w": 120, "h": 40, "text": "", "z": 2}]
+    note = part_from_element("annotation", rbd.annotations[0])
+    assert note.kind == "annotation" and note.fields["text"] == "First note"
+    apply_part_to_rbd(rbd, "annotation:2", note)
+    assert rbd.annotations[1]["text"] == "First note"
+    assert element_record(rbd, "annotation", 2) is not None
+    pending = pending_updates(rbd)
+    assert all(entry["kind"] != "annotation" for entry in pending)
+
+
+def test_a_hierarchy_part_keeps_the_level_and_phasing(tmp_path):
+    from raptor.api.library.model import part_from_element
+    _ws, _mid = _workspace(tmp_path)
+    row = {"ID": "7", "hierarchyName": "Sub", "level": "2",
+           "uses_phasing": "1", "phs": "1"}
+    part = part_from_element("hierarchy", row)
+    assert part.kind == "hierarchy"
+    assert part.fields["level"] == 2.0

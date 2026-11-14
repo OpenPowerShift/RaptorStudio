@@ -126,3 +126,16 @@ def test_the_api_duplicates_and_copies_data_without_qt(tmp_path):
     assert changed["count"] >= 1
     assert next(row for row in ws.get(mid).rbd.section("BLOCK_DATA").rows
                 if row.get("blockName") == "SolarP_500W")["FParam1"] == "777.0"
+
+
+def test_duplicate_in_parallel_adds_copies_between_the_neighbours(win):
+    view = win._diagram_dock.view
+    bid = next(iter(view._block_items))
+    view._block_items[bid].setSelected(True)
+    before = len(view._block_items)
+    ids = view.duplicate_parallel(2, 3)
+    assert len(ids) == 2
+    assert len(view._block_items) == before + 2
+    assert view.blocks[bid].name != view.blocks[ids[0]].name
+    win._undo_stack.undo()
+    assert len(view._block_items) == before

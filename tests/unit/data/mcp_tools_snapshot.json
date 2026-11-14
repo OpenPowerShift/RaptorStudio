@@ -827,6 +827,7 @@
    "basis",
    "category",
    "element",
+   "kind",
    "library_path",
    "link",
    "model_id",

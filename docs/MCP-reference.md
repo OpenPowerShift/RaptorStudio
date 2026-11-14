@@ -2962,10 +2962,11 @@ Reuse one block's data across many blocks and models, with links and overrides.
 Apply a part type to blocks and record the link.
 
 `part` is an id (or exact name) from `library_path`, or from the parts
-stored inside the model when no path is given. `elements` are block
-names or ids. `overrides` are fields to leave as the block has them.
-The block's columns receive the part's values; the link is bookkeeping,
-so the engine still sees an ordinary block.
+stored inside the model when no path is given. `elements` are names or
+ids of elements of the part's kind (block, node, event, hierarchy or
+annotation). `overrides` are fields to leave as the element has them.
+The element's columns receive the part's values; the link is
+bookkeeping, so the engine still sees an ordinary element.
 
 **Parameters**
 
@@ -3035,11 +3036,12 @@ lists the parts of the current model made available by `save_part_type`.
 - **Kind:** writes
 - **Group:** [Part types and libraries](#tools-library)
 
-Save a block's data as a part type and optionally link the block.
+Save an element's data as a part type and optionally link it.
 
-With `library_path`, adds the part to that `.rbdlib` file. Without it,
-stores the part inside the model (so the model stays self-contained) and
-links the block by default. The part never includes the block's name,
+`kind` is block, node, event, hierarchy or annotation; `element` is the
+name/id (or annotation id). With `library_path`, adds the part to that
+`.rbdlib` file. Without it, stores the part inside the model and links
+the element by default. The part never includes the element's name,
 position or id.
 
 **Parameters**
@@ -3049,6 +3051,7 @@ position or id.
 | `basis` | string | no | `judgement` | — |
 | `category` | string | no | `` | — |
 | `element` | string | yes | — | — |
+| `kind` | string | no | `block` | — |
 | `library_path` | string \| null | no | `null` | — |
 | `link` | boolean | no | `true` | — |
 | `model_id` | string | yes | — | — |

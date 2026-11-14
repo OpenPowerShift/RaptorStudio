@@ -18,10 +18,12 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.api.library.links import (
-    apply_part_to_rbd, detach_rbd, link_record, linked_blocks, local_parts,
-    pending_updates,
+    all_links, apply_part_to_rbd, detach_element_rbd, element_record,
+    local_parts, pending_updates,
 )
-from raptor.api.library.model import Library, part_from_block, read_library
+from raptor.api.library.model import (
+    Library, part_from_element, read_library,
+)
 from raptor.gui.resources.design_tokens import SPACING
 from raptor.gui.ui.diagram_commands import _ViewCmd
 
@@ -115,14 +117,14 @@ class LibraryDock(QWidget):
         if rbd is None:
             self.follows.setText("No model open.")
             return
-        follows = linked_blocks(rbd)
+        follows = all_links(rbd)
         counts: dict[str, int] = {}
-        for record in follows.values():
+        for _kind, _element, record in follows:
             counts[record.get("part", "")] = counts.get(
                 record.get("part", ""), 0) + 1
         needle = self.search.text().strip().lower()
         for source, part in self._parts():
-            text = f"{part.name}  ·  {part.version}"
+            text = f"{part.name}  ·  {part.kind}  ·  {part.version}"
             haystack = " ".join((part.id, part.name, part.category,
                                  part.source)).lower()
             if needle and needle not in haystack:
@@ -139,7 +141,7 @@ class LibraryDock(QWidget):
         for library in self._libraries:
             pending += len(pending_updates(rbd, library))
         self.follows.setText(
-            f"{len(follows)} block(s) follow a part type"
+            f"{len(follows)} element(s) follow a part type"
             + (f"; {pending} change(s) pending" if pending else ""))
 
     def _selected_part(self) -> tuple[str, Any] | None:
@@ -152,9 +154,22 @@ class LibraryDock(QWidget):
                 return source, part
         return None
 
-    def _selected_blocks(self) -> list[int]:
+    def _selected(self, kind: str) -> list[int]:
         view = self._window()._diagram_dock.view
-        return list(view.selected_elements()[0])
+        blocks, nodes, events, hiers = view.selected_elements()
+        return {"block": blocks, "node": nodes, "event": events,
+                "hierarchy": hiers}.get(kind, [])
+
+    def _selected_annotation(self) -> tuple[int, dict[str, Any]] | None:
+        view = self._window()._diagram_dock.view
+        chosen = [aid for aid, item in getattr(view, "_anno_items", {}).items()
+                  if item.isSelected()]
+        if not chosen:
+            return None
+        for entry in getattr(view, "annotations", []) or []:
+            if int(entry.get("id", 0)) in chosen:
+                return int(entry["id"]), entry
+        return None
 
     # -- actions --------------------------------------------------------
 
@@ -176,36 +191,67 @@ class LibraryDock(QWidget):
 
     def apply_selected(self) -> None:
         chosen = self._selected_part()
-        blocks = self._selected_blocks()
-        if chosen is None or not blocks:
-            self.status.setText("Select a part and at least one block.")
+        if chosen is None:
+            self.status.setText("Select a part type first.")
             return
         source, part = chosen
         before = self._snapshot()
         rbd = self._rbd()
-        for block_id in blocks:
-            apply_part_to_rbd(rbd, str(block_id), part,
-                              library=source if source != "model" else "")
+        if part.kind == "annotation":
+            self._window()._diagram_dock.view.add_annotation_from_part(part)
+            self._commit(before, f"Add annotation from {part.name}")
+            self.status.setText(f"Added a note from {part.name}.")
+            return
+        elements = self._selected(part.kind)
+        if not elements:
+            self.status.setText(
+                f"Select at least one {part.kind} to apply {part.name}.")
+            return
+        for element_id in elements:
+            apply_part_to_rbd(
+                rbd, f"{part.kind}:{element_id}", part,
+                library=source if source != "model" else "")
         self._commit(before, f"Apply part type {part.name}")
-        self.status.setText(f"Applied {part.name} to {len(blocks)} block(s).")
+        self.status.setText(
+            f"Applied {part.name} to {len(elements)} {part.kind}(s).")
 
     def save_selection(self) -> None:
-        blocks = self._selected_blocks()
-        if not blocks:
-            self.status.setText("Select a block to save as a part type.")
+        note = self._selected_annotation()
+        found: tuple[str, int, dict[str, Any]] | None = None
+        if note is not None:
+            found = ("annotation", note[0], note[1])
+        else:
+            for kind, section in (("block", "BLOCK_DATA"),
+                                  ("node", "NODE_DATA"),
+                                  ("event", "EVENT_DATA"),
+                                  ("hierarchy", "HIERARCHY_DATA")):
+                ids = self._selected(kind)
+                if not ids:
+                    continue
+                row = next((row for row in
+                            self._rbd().section(section).rows
+                            if str(row.get("ID")) == str(ids[0])), None)
+                if row is not None:
+                    found = (kind, ids[0], row)
+                    break
+        if found is None:
+            self.status.setText(
+                "Select a block, node, event, hierarchy or annotation first.")
             return
-        row = next(row for row in self._rbd().section("BLOCK_DATA").rows
-                   if str(row.get("ID")) == str(blocks[0]))
+        kind, element_id, row = found
+        default = str(row.get("blockName") or row.get("Name")
+                      or row.get("eventName") or row.get("hierarchyName")
+                      or row.get("text") or "Part")
         name, ok = QInputDialog.getText(
-            self, "Save as part type", "Part type name:",
-            text=str(row.get("blockName") or "Part"))
+            self, "Save as part type", "Part type name:", text=default[:40])
         if not ok or not name.strip():
             return
-        part = part_from_block(row, name=name.strip())
+        part = part_from_element(kind, row, name=name.strip())
         before = self._snapshot()
-        apply_part_to_rbd(self._rbd(), str(blocks[0]), part)
+        apply_part_to_rbd(self._rbd(), f"{kind}:{element_id}", part)
         self._commit(before, f"Save part type {part.name}")
-        self.status.setText(f"Saved {part.name} and linked the block to it.")
+        self.status.setText(
+            f"Saved {part.name} ({kind}) and linked the element to it.")
 
     def sync_parts(self) -> None:
         rbd = self._rbd()
@@ -231,28 +277,31 @@ class LibraryDock(QWidget):
                          if part.id == entry["part"]), None)
             if part is None:
                 continue
-            record = link_record(rbd, entry["block"]) or {}
-            apply_part_to_rbd(rbd, entry["block"], part,
+            record = element_record(rbd, entry["kind"],
+                                    entry["element"]) or {}
+            apply_part_to_rbd(rbd, entry["element"], part,
                               overrides=list(record.get("overrides") or ()),
                               library=record.get("library", ""))
         self._commit(before, "Sync part types")
         self.status.setText(f"Applied {len(pending)} part update(s).")
 
     def detach_selected(self) -> None:
-        blocks = self._selected_blocks()
-        if not blocks:
-            self.status.setText("Select a linked block.")
-            return
+        rbd = self._rbd()
         before = self._snapshot()
         changed = 0
-        for block_id in blocks:
-            if detach_rbd(self._rbd(), str(block_id))["detached"]:
-                changed += 1
+        note = self._selected_annotation()
+        if note is not None and detach_element_rbd(
+                rbd, "annotation", note[0])["detached"]:
+            changed += 1
+        for kind in ("block", "node", "event", "hierarchy"):
+            for element_id in self._selected(kind):
+                if detach_element_rbd(rbd, kind, element_id)["detached"]:
+                    changed += 1
         if not changed:
             self.status.setText("The selection has no part links.")
             return
         self._commit(before, "Detach part types")
-        self.status.setText(f"Detached {changed} block(s); values kept.")
+        self.status.setText(f"Detached {changed} element(s); values kept.")
 
     def add_library(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
