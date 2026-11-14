@@ -40,6 +40,7 @@ from raptor.api.library.model import (
     Library, part_from_element, read_library, write_library,
 )
 from raptor.gui.resources.design_tokens import SPACING
+from raptor.gui.ui import msgbox
 from raptor.gui.ui.diagram_commands import _ViewCmd
 
 #: Drag payload: {"source": ..., "id": ...} as JSON.
@@ -569,7 +570,7 @@ class LibraryDock(QWidget):
         try:
             library = read_library(path)
         except (OSError, ValueError) as exc:
-            QMessageBox.warning(self, "Library", str(exc))
+            msgbox.warning(self, "Library", str(exc))
             return None
         self._libraries = [lib for lib in self._libraries if lib.path != path]
         self._libraries.append(library)
