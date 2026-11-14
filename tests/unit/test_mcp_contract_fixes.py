@@ -67,3 +67,26 @@ def test_run_results_stay_small_unless_the_detail_is_asked_for(server):
     full = asyncio.run(server.mcp.call_tool(
         "get_run_results", {"run_id": run_id, "per_run_detail": True}))
     assert len(full.structured_content["per_run"][0]["elements"]) == 500
+
+
+def test_a_background_run_says_when_it_is_attributing(server):
+    """After the last replication an attributed run replays the event log,
+    minutes on a large model; run_status said `simulating` at 100 %."""
+    import time
+
+    from raptor.mcp import async_runs, tools_run  # noqa: F401
+    built = asyncio.run(server.mcp.call_tool(
+        "build_model", {"name": "m", "spec": FULL})).structured_content
+    started = asyncio.run(server.mcp.call_tool(
+        "start_run", {"model_id": built["model_id"], "num_runs": 4,
+                      "attribution": True})).structured_content
+    job = async_runs.get(started["job_id"])
+    deadline = time.time() + 60
+    while job.state in ("queued", "running") and time.time() < deadline:
+        time.sleep(0.05)
+    assert job.state == "done"
+    assert job.insight is not None and job.insight[1] == job.insight[2] == 4
+    snap = job.snapshot()
+    assert snap["attributing"]["done"] == 4 and snap["phase"] == "done"
+    job.state = "running"                    # as a poll mid-replay sees it
+    assert job.phase == "attributing"

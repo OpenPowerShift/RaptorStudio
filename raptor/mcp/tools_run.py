@@ -545,12 +545,13 @@ def start_run(
 
     workers, workers_auto = resolve_workers(workers, handle.rbd, effective_runs)
 
-    def work(abort, progress, setup_progress):
+    def work(abort, progress, setup_progress, insight_progress):
         return api_run(ws, model_id, num_runs=effective_runs,
                        run_length=run_length, workers=workers,
                        timeout_s=timeout_s, collect_events=collect_events,
                        confirm_long_run=True, abort=abort, progress=progress,
                        setup_progress=setup_progress, seed=seed,
+                       insight_progress=insight_progress,
                        availability_plot=availability_plot,
                        attribution=attribution,
                        capacity_rule=capacity_rule,
@@ -578,7 +579,8 @@ def run_status(job_id: str) -> CallToolResult:
     adds what a running job is doing: `setting_up` while a large model is
     prepared (`setup` then has `{stage, done, total, percent}`; it can take
     minutes before the first replication, and `completed_runs` stays 0), then
-    `simulating`. Small models skip straight to `simulating` and `setup` is
+    `simulating`, then with attribution `attributing` (`attributing` has
+    `{label, done, total}`). Small models skip straight to `simulating` and `setup` is
     null. `run_id` is set once the
     batch has produced a run, and `summary` then carries the mean of each
     metric. Jobs are in-process only -- after a server restart the run is
@@ -597,6 +599,9 @@ def run_status(job_id: str) -> CallToolResult:
     if data["phase"] == "setting_up" and data["setup"]:
         s = data["setup"]
         md += f"; setting up: {s['stage']} {s['done']}/{s['total']}"
+    if data["phase"] == "attributing" and data["attributing"]:
+        a = data["attributing"]
+        md += f"; {a['label'].lower()}: {a['done']}/{a['total']}"
     if data["run_id"]:
         md += f", run `{data['run_id']}`"
     if data["error"]:
