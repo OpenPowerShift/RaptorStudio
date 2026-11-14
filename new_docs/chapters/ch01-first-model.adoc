@@ -300,9 +300,10 @@ many early deaths. Does reliability go up or down?
 .Answer
 [%collapsible]
 ====
-Reliability drops. With shape 1.1 the battery produces many
-very early deaths, and the chain has no spare parts. Expect roughly
-0.25–0.30 at 100 trials.
+Reliability drops, but only a little: about 0.35 against 0.38 (with
+100 trials either figure can be off by about 0.05, so run 2,000 to see the
+difference clearly). With shape 1.1 the battery produces more early
+deaths, and the chain has no spare parts.
 ====
 
 === What you learned

@@ -168,7 +168,8 @@ up or down, and by roughly how much? Then run 100 trials and check.
 ====
 down. A 150-hour pump is near-dead by hour 500
 (survival ≈ 3.6%), so the second pump almost never rescues a season.
-Expect roughly 0.30 at 100 trials — most of the gain from Pump_A alone.
+Expect roughly 0.23 to 0.24 (against 0.37 with two good pumps): barely
+more than Pump_A would manage on its own.
 ====
 
 === What you learned
