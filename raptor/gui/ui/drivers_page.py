@@ -71,6 +71,7 @@ class DriversChart(QWidget):
         self._hit: list[tuple[QRectF, dict[str, Any]]] = []
         self._cell_hit: list[tuple[QRectF, Cell]] = []
         self._capacity_hit: list[tuple[QRectF, dict[str, Any]]] = []
+        self._highlight: tuple[str, int] | None = None
         self._cause_hit: list[tuple[QRectF, str]] = []
         self._year_hit: list[tuple[QRectF, dict[str, Any]]] = []
         self.setMouseTracking(True)
@@ -93,6 +94,11 @@ class DriversChart(QWidget):
         else:
             self._capacity = None
         self.setFixedHeight(self.sizeHint().height())
+        self.update()
+
+    def set_highlight(self, kind: str, element_id: int) -> None:
+        """Mark one element row as selected on the canvas."""
+        self._highlight = (kind, int(element_id))
         self.update()
 
     def set_periods(self, summary: dict[str, Any] | None) -> None:
@@ -194,6 +200,10 @@ class DriversChart(QWidget):
         centre = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         for row in self._rows:
             share = row["dtci"]["mean"] or 0.0
+            if self._highlight == (row.get("kind"), int(row.get("id", 0))):
+                wash = QColor(active_colour()["accent"])
+                wash.setAlpha(28)
+                p.fillRect(QRectF(x0 - 4, y - 1, w + 8, ROW_H - 2), wash)
             self._hit.append((QRectF(x0, y, w, ROW_H), row))
             p.setPen(self._text)
             p.drawText(QRectF(x0, y, name_w - 6, ROW_H - 4), centre,
@@ -504,6 +514,14 @@ class DriversPage(QWidget):
                 f"± 2 standard errors".replace("  ", " "))
         else:
             self.footer.setText("")
+
+    def set_highlight(self, kind: str, element_id: int) -> None:
+        """Mark one element row as selected on the canvas."""
+        self._highlight = (kind, int(element_id))
+        self.update()
+
+    def highlight(self, kind: str, element_id: int) -> None:
+        self.chart.set_highlight(kind, element_id)
 
     def set_periods(self, summary: dict[str, Any] | None) -> None:
         """Show the period-by-period (yearly) results under the drivers."""

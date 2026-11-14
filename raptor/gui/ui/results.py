@@ -1625,6 +1625,12 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             import logging
             logging.getLogger(__name__).exception("could not build the charts")
 
+    def highlight_element(self, kind: str, element_id: int) -> None:
+        """Mirror a canvas selection in the Drivers view."""
+        page = getattr(self, "_drivers_page", None)
+        if page is not None:
+            page.highlight(kind, element_id)
+
     def _explain_table_cell(self, table: QTableWidget, column: int) -> None:
         """Double-clicking a Final Results row label opens its definition."""
         if column != 0:

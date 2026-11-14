@@ -2764,6 +2764,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # whose Comment box holds a draft.
         self._inspector.flush_pending_comment()
         self._cancel_pending_block_selection()
+        results = getattr(self, "_results", None)
+        if results is not None:
+            results.highlight_element("", -1)
         target = self._inspector.current_target()
         if target and target[0] in ("block", "node", "event", "hier", "annotation"):
             self._inspector.clear_selection()

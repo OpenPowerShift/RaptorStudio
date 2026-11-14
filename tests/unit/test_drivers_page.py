@@ -169,3 +169,14 @@ def test_small_cause_segments_explain_their_name_on_hover(page, logs, qapp):
     rect, cause = chart._cause_hit[0]
     QTest.mouseMove(chart, rect.center().toPoint())
     assert drivers_page.CAUSE_LABELS[cause] in chart.toolTip()
+
+
+def test_a_canvas_selection_marks_the_matching_driver_row(page, logs, qapp):
+    attribution = attribute_logs(logs)
+    page.set_attribution(attribution)
+    qapp.processEvents()
+    row = page.chart.rows()[0]
+    page.highlight(row["kind"], int(row["id"]))
+    assert page.chart._highlight == (row["kind"], int(row["id"]))
+    page.highlight("", -1)
+    assert page.chart._highlight == ("", -1)
