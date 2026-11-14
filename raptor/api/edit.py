@@ -1,6 +1,6 @@
 """Duplicate elements and copy block data (WP-1.5), without Qt.
 
-The planning lives in `raptor.gui.clipboard_plan` (Qt-free); this module
+The planning lives in `raptor.core.edit.clipboard_plan` (Qt-free); this module
 applies a plan to a workspace model and saves it, so the CLI and MCP share
 exactly the GUI's id allocation, dependency remapping and naming.
 """
@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Any
 
-from raptor.gui.clipboard_plan import (
+from raptor.core.edit.clipboard_plan import (
     next_free_name, plan_copy, plan_paste, plan_paste_data,
     remap_dependencies,
 )

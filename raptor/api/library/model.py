@@ -260,7 +260,7 @@ def write_library(library: Library, path: str | Path) -> str:
 
 def import_legacy(path: str | Path, *, name: str | None = None) -> Library:
     """Import today's `.rbl` or JSON block library into part types."""
-    from raptor.gui.ui.block_library import load_library
+    from raptor.core.fileio.block_library import load_library
     entries = load_library(str(path))
     parts = {}
     for entry in entries:

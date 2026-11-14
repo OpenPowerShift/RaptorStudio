@@ -1644,7 +1644,7 @@ class StructureMixin(_Base):
                     for row in self._rbd_ref.section("BLOCK_DATA").rows}
         if stem not in existing:
             return stem
-        from raptor.gui.clipboard_plan import next_free_name
+        from raptor.core.edit.clipboard_plan import next_free_name
         return next_free_name(existing, stem)
 
     def add_series(self, count: int, x: float, y: float) -> list[int]:

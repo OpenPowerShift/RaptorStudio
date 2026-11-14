@@ -414,7 +414,7 @@ run_check("U15.fev.interactive_log", u15_interactive_log)
 
 # ==================================== 16. block library roundtrip
 def u16_block_library():
-    from raptor.gui.ui.block_library import export_library, load_library
+    from raptor.core.fileio.block_library import export_library, load_library
     w._new_file(); pe()
     v = w._diagram_dock.view
     a = next(x for x in v.blocks if x != 0)
