@@ -311,6 +311,10 @@ class StoryPage(QWidget):
                 shown = f"{chip.value:,.6g}" + (f" {chip.units}" if chip.units else "")
             value.setText(shown)
             label.setText(chip.label)
+            definition = measures.for_metric(chip.field)
+            if definition is not None:
+                value.setToolTip("\n".join(measures.explain_lines(definition.id)))
+                label.setToolTip(value.toolTip())
         for i in range(len(story.numbers), len(self._chips)):
             value, label = self._chips[i]
             value.clear()
