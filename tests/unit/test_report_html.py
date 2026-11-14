@@ -37,6 +37,9 @@ def test_the_cover_has_the_title_block_run_info_and_key_figures():
     # Availability's mean, to six places, as a card.
     assert '<div class="k">Availability</div><div class="v">0.967796</div>' \
         in html
+    # plain words on the cover, the acronym kept small under the value
+    assert '<div class="k">Time between outages</div>' in html
+    assert "(MTBDE)</div>" in html and '<div class="k">MTBDE</div>' not in html
 
 
 def test_colophon_names_only_this_year_and_no_port_or_licence_history():
@@ -174,3 +177,16 @@ def test_the_report_opens_with_the_story_figures_and_measure_guide():
     # Story and charts come before the results; checks close the report.
     assert html.index("id=\"story\"") < html.index("id=\"results\"")
     assert html.index("id=\"checks\"") > html.index("id=\"results\"")
+
+
+def test_a_lower_bound_on_the_cover_is_explained_there():
+    from raptor.api import report_html as rh
+    content = _content()
+    summary = next(t for t in content.results if t.key == "results.summary")
+    col = summary.headers.index("Mean")
+    for row in summary.rows:
+        if str(row[0]).startswith("MTBDE"):
+            row[col] = ">4,999.0"
+    html = rh._key_figures(content)
+    assert '<div class="v">&gt;' in html
+    assert "means at least this" in html
