@@ -1891,9 +1891,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # when runs end with no outage, and quoting it here put "once
             # every 25 runs" beside "once every 8,760 hours" (one run).
             pooled = _pooled_time_between_downings(data)
-            every = f"{pooled:,.0f}" if pooled >= 100 else _fmt(pooled)
-            between = (f" — roughly once every {every}{time_u} of "
-                       f"working time" if pooled else "")
+            between = ""
+            if pooled:
+                every = f"{pooled:,.0f}" if pooled >= 100 else _fmt(pooled)
+                between = f" — roughly once every {every}{time_u} of working time"
             parts.append(f"It went fully down {how_often}{between}.")
         elif fails_m == 0:
             parts.append("It never went fully down in any run.")

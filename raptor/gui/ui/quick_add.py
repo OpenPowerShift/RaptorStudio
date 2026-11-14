@@ -130,17 +130,14 @@ class QuickAdd(QFrame):
             if ok:
                 view.add_series(count, x, y)
         elif key == "pattern:parallel":
-            from PySide6.QtWidgets import QInputDialog
-            count, ok = QInputDialog.getInt(
-                self, "Parallel", "Blocks side by side (n):", 2, 1, 50)
-            if ok:
-                # 1 needed is the redundancy most people mean; k = n would
-                # behave as a series arrangement (the Advisor's M-STR-003)
-                k, ok = QInputDialog.getInt(
-                    self, "Parallel", f"How many of the {count} must work (k):",
-                    1, 1, count)
-                if ok:
-                    view.add_parallel(count, k, x, y)
+            from raptor.gui.ui.count_form import ask_redundancy
+            # 1 needed is the redundancy most people mean; k = n would
+            # behave as a series arrangement (the Advisor's M-STR-003)
+            answer = ask_redundancy(
+                self, "Parallel", count_label="Blocks side by side (n):",
+                count_default=2, count_max=50)
+            if answer is not None:
+                view.add_parallel(answer[0], answer[1], x, y)
         elif key == "kind:block":
             view.add_block("Block", x, y)
         elif key == "kind:node":

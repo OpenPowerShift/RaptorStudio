@@ -1072,41 +1072,30 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._statusbar.showMessage(f"Duplicated {n} element(s)", 4000)
 
     def _edit_duplicate_parallel(self) -> None:
-        from PySide6.QtWidgets import QInputDialog
+        from raptor.gui.ui.count_form import ask_redundancy
         if text_editing.active_editor() is not None or \
                 not self._canvas_has_focus():
             return
-        copies, ok = QInputDialog.getInt(
-            self, "Duplicate in Parallel", "Copies:", 1, 1, 50)
-        if not ok:
+        answer = ask_redundancy(
+            self, "Duplicate in Parallel", count_label="Copies to add:",
+            count_default=1, count_max=50, already=1,
+            intro="Copies of the selected block side by side with it, "
+                  "between the same neighbours.")
+        if answer is None:
             return
-        k, ok = QInputDialog.getInt(
-            self, "Duplicate in Parallel", "Required (k):", copies + 1,
-            1, copies + 1)
-        if not ok:
-            return
-        n = self._diagram_dock.view.duplicate_parallel(copies, k)
+        n = self._diagram_dock.view.duplicate_parallel(*answer)
         if n:
             self._statusbar.showMessage(
                 f"Added {n} block(s) in parallel", 4000)
 
     def _edit_array(self) -> None:
-        from PySide6.QtWidgets import QInputDialog
+        from raptor.gui.ui.count_form import ask_array
         if text_editing.active_editor() is not None:
             return
-        copies, ok = QInputDialog.getInt(
-            self, "Array", "Copies:", 3, 1, 200)
-        if not ok:
+        answer = ask_array(self)
+        if answer is None:
             return
-        direction, ok = QInputDialog.getItem(
-            self, "Array", "Direction:", ["right", "down"], 0, False)
-        if not ok:
-            return
-        spacing, ok = QInputDialog.getInt(
-            self, "Array", "Spacing (grid steps):", 1, 1, 20)
-        if not ok:
-            return
-        n = self._diagram_dock.view.array_selection(copies, direction, spacing)
+        n = self._diagram_dock.view.array_selection(*answer)
         if n:
             self._statusbar.showMessage(f"Added {n} element(s)", 4000)
 
