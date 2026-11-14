@@ -44,3 +44,18 @@ def test_cancel_returns_none(qapp, monkeypatch):
     assert cf.ask_redundancy(None, "x", count_label="n", count_default=2, count_max=5) is None
     monkeypatch.setattr(cf.CountForm, "exec", lambda self: cf.QDialog.DialogCode.Accepted)
     assert cf.ask_redundancy(None, "x", count_label="n", count_default=2, count_max=5) == (2, 1)
+
+
+def test_duplicate_away_from_the_canvas_says_why(qapp):
+    from raptor.api import build
+    from raptor.gui.ui.main_window import MainWindow
+    w = MainWindow()
+    spec = {"blocks": [{"name": "A"}],
+            "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+            "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "End"}]}
+    w._load_into_app(build.build_from_spec(spec), None)
+    w._edit_duplicate()                      # nothing has the focus offscreen
+    assert "click the diagram" in w._statusbar.currentMessage()
+    w._dirty = False
+    w.close()
+    w.deleteLater()

@@ -1062,10 +1062,17 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     def _data_tables_find_replace(self) -> None:
         self._data_tables.find_replace()
 
+    def _say_canvas_first(self, what: str) -> None:
+        """A canvas command run while the focus is elsewhere (the Explorer,
+        a table) did nothing: say so instead of nothing."""
+        self._statusbar.showMessage(
+            f"{what} works on the diagram: click the diagram, then try again", 5000)
+
     def _edit_duplicate(self) -> None:
         if text_editing.active_editor() is not None:
             return
         if not self._canvas_has_focus():
+            self._say_canvas_first("Duplicate")
             return
         n = self._diagram_dock.view.duplicate_selection()
         if n:
@@ -1073,8 +1080,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
 
     def _edit_duplicate_parallel(self) -> None:
         from raptor.gui.ui.count_form import ask_redundancy
-        if text_editing.active_editor() is not None or \
-                not self._canvas_has_focus():
+        if text_editing.active_editor() is not None:
+            return
+        if not self._canvas_has_focus():
+            self._say_canvas_first("Duplicate in Parallel")
             return
         answer = ask_redundancy(
             self, "Duplicate in Parallel", count_label="Copies to add:",
