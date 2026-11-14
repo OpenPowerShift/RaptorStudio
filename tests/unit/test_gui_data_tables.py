@@ -228,8 +228,11 @@ def test_display_unit_controls_headers_and_computed_means(qapp):
     bid = sorted(v.blocks)[0]
     b = v.blocks[bid]
     mean = compute_stats(b.fail_distro, list(b.fail_values))[0]
-    expected = f"{native_to_display(mean, 'minutes', 'days'):.4g}"
-    assert t.item(0, 13).text() == expected
+    from raptor.gui.ui.data_tables_common import _fmt_stat
+    shown = native_to_display(mean, 'minutes', 'days')
+    assert t.item(0, 13).text() == _fmt_stat(shown)
+    from raptor.gui.ui.table_export import RAW_VALUE_ROLE
+    assert t.item(0, 13).data(RAW_VALUE_ROLE) == pytest.approx(shown)
     w._dirty = False
     w.close()
 

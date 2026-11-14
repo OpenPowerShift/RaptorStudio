@@ -613,8 +613,14 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         if table is None:
             return
         dlg = QDialog(self)
-        dlg.setWindowTitle("Find and Replace")
+        tab = self._tabs.tabText(self._tabs.currentIndex())
+        dlg.setWindowTitle(f"Find and Replace — {tab}")
         form = QFormLayout(dlg)
+        hidden = any(table.isRowHidden(r) for r in range(table.rowCount()))
+        scope = QLabel(f"Replaces in the {tab} table"
+                       + (", in the rows the filter shows." if hidden else "."))
+        scope.setWordWrap(True)
+        form.addRow(scope)
         find = QLineEdit()
         replace = QLineEdit()
         whole = QCheckBox("Whole cell")
@@ -1768,7 +1774,13 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
             rmean, rsd = repair_stats if repair_stats is not None \
                 else (None, None)
             for col, val in ((13, fmean), (14, fsd), (15, rmean), (16, rsd)):
-                t.setItem(r, col, self._ro(stat_text(val)))
+                cell = self._ro(stat_text(val))
+                if isinstance(val, (int, float)):
+                    # exports and sorting take the exact value, the grid
+                    # shows four figures
+                    cell.setData(RAW_VALUE_ROLE, native_to_display(
+                        val, native_u, display_u) if display_u else val)
+                t.setItem(r, col, cell)
         self._lazy_pending[t] = set(bids)
         t.setUpdatesEnabled(True)
         self._realize_initial(t)

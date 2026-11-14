@@ -59,3 +59,9 @@ def test_duplicate_away_from_the_canvas_says_why(qapp):
     w._dirty = False
     w.close()
     w.deleteLater()
+
+
+def test_computed_means_are_written_out_not_in_e_notation():
+    from raptor.gui.ui.data_tables_common import _fmt_stat
+    assert _fmt_stat(328500.0) == "328,500" and _fmt_stat(100000) == "100,000"
+    assert _fmt_stat(12.345678) == "12.35" and _fmt_stat(None) == "—"
