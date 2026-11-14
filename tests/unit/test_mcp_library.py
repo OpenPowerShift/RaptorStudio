@@ -169,3 +169,43 @@ def test_read_only_refuses_every_tool_that_edits(server, model):
             assert result.is_error and "read-only" in text, (tool, text)
     finally:
         server.mcp._raptor_args.read_only = False
+
+
+def test_a_part_from_a_dependent_block_applies_to_another_block(server, tmp_path):
+    """A dependency on a particular element names an element of the model
+    the part came from; carried into a part it made apply_part_type fail
+    ("dependency percentages must add up to 100"). Like Raptor's `.rbl`
+    libraries, a part keeps only a dependency on the whole system."""
+    spec = {
+        "experiment": {"trials": 2, "termination_type": "TimeSim",
+                       "term_condition": 100.0},
+        "blocks": [
+            {"name": "A", "fail_dist": "Fixed", "fail_params": [20, 0, 0],
+             "repair_dist": "Fixed", "repair_params": [2, 0, 0]},
+            {"name": "B", "fail_dist": "Fixed", "fail_params": [30, 0, 0],
+             "repair_dist": "Fixed", "repair_params": [3, 0, 0],
+             "dep_type": "RBDBlock", "dep_num": 1, "dep_idle": 60,
+             "dep_nothing": 40},
+            {"name": "C", "fail_dist": "Fixed", "fail_params": [40, 0, 0],
+             "repair_dist": "Fixed", "repair_params": [4, 0, 0]}],
+        "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+        "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "B"},
+                  {"from": "B", "to": "C"}, {"from": "C", "to": "End"}],
+    }
+    model = _ok(_call(server, "build_model", name="dep", spec=spec,
+                      validate_model=False))["model_id"]
+    saved = _ok(_call(server, "save_part_type", model_id=model, element="B",
+                      library_path="dep.rbdlib", link=False))
+    assert not any(k.startswith("dep_") for k in saved["part"]["fields"])
+    _ok(_call(server, "apply_part_type", model_id=model,
+              part=saved["part"]["id"], elements=["C"],
+              library_path="dep.rbdlib"))
+    _ok(_call(server, "validate_model", model_id=model))
+    from raptor.api.library.model import PartType, applicable_fields
+    old = PartType(id="p", name="p", kind="block",
+                   fields={"fail_dist": 4, "dep_num": 1, "dep_type": "RBDBlock",
+                           "dep_idle": 60})
+    assert applicable_fields(old) == {"fail_dist": 4}
+    system = PartType(id="s", name="s", kind="block",
+                      fields={"dep_num": -2, "dep_type": "None", "dep_idle": 100})
+    assert applicable_fields(system)["dep_num"] == -2

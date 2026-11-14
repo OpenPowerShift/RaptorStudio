@@ -34,9 +34,37 @@ PART_FIELDS: tuple[str, ...] = (
     "rep_hold_cost", "rep_per_time_cost", "rep_fixed_cost",
     "done_per_time_cost", "done_fixed_cost", "per_spare_cost",
     "emer_ship_cost",
-    "dep_type", "dep_num", "dep_idle", "dep_pm", "dep_fail",
+    "dep_type", "dep_num", "dep_idle", "dep_pm", "dep_fail", "dep_nothing",
     "dep_pm_thresh", "def_dep_state_idle",
 )
+
+#: A dependency's fields. Only "depends on the whole system" (dep_num -2)
+#: belongs to a part, as in Raptor's `.rbl` libraries: any other dependency
+#: names an element of the model the part came from.
+DEPENDENCY_FIELDS: frozenset[str] = frozenset(
+    f for f in PART_FIELDS if f.startswith("dep_") or f == "def_dep_state_idle")
+
+
+def portable_fields(fields: dict[str, Any]) -> dict[str, Any]:
+    """`fields` without a dependency that only means something in the model
+    the part came from (an element id in another model is a different, or
+    no, element; applying it failed validation)."""
+    try:
+        on_system = int(float(fields.get("dep_num", 0) or 0)) == -2
+    except (TypeError, ValueError):
+        on_system = False
+    if on_system:
+        return dict(fields)
+    return {k: v for k, v in fields.items() if k not in DEPENDENCY_FIELDS}
+
+
+_FIELD_FILTER = {"block": portable_fields, "node": portable_fields}
+
+
+def applicable_fields(part: Any) -> dict[str, Any]:
+    """The fields applying or syncing `part` writes: all of them, less a
+    model-specific dependency (see `portable_fields`)."""
+    return _FIELD_FILTER.get(part.kind, dict)(part.fields)
 
 #: Fields per element kind; identity, placement and names are never here.
 KIND_FIELDS: dict[str, tuple[str, ...]] = {
@@ -191,6 +219,7 @@ def part_from_element(kind: str, row: dict[str, Any], *,
             continue
         if target in row and row.get(target) not in (None, ""):
             fields[field_name] = _number(row.get(target))
+    fields = _FIELD_FILTER.get(kind, dict)(fields)
     display = name or str(row.get(element_name(kind)) or row.get("ID")
                           or "Part")
     return PartType(id=part_id or _slug(display), name=display,
