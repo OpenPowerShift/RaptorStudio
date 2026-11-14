@@ -249,3 +249,16 @@ def test_shares_are_pooled_over_the_runs_not_averaged_per_run():
     assert stat["n"] == 3 and stat["min"] == 0.0 and stat["max"] == 1.0
     assert stat["sem"] is not None and stat["sem"] > 0
     assert _ratio_stat([0.0], [0.0])["mean"] is None
+
+
+def test_elements_that_share_a_name_are_told_apart():
+    """'unnamed', empty and duplicated names get their kind and id; others
+    stay as they are."""
+    from raptor.api.insight.attribution import distinct_names
+    names = {("block", 1): "unnamed", ("block", 2): "unnamed",
+             ("block", 3): "Pump", ("block", 4): "CMD_5000",
+             ("node", 5): "CMD_5000", ("block", 6): ""}
+    assert distinct_names(names) == {
+        ("block", 1): "unnamed (block 1)", ("block", 2): "unnamed (block 2)",
+        ("block", 3): "Pump", ("block", 4): "CMD_5000 (block 4)",
+        ("node", 5): "CMD_5000 (node 5)", ("block", 6): "block 6"}

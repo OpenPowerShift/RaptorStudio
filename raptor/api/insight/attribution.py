@@ -383,6 +383,25 @@ def _ratio_stat(num: list[float], den: list[float]) -> dict[str, Any]:
     return {"mean": ratio, "sem": sem, "min": min(shares), "max": max(shares), "n": n}
 
 
+def distinct_names(names: dict[Key, str]) -> dict[Key, str]:
+    """Names a reader can tell apart: an element whose name is empty,
+    "unnamed" or shared with another gets its kind and id added
+    ("unnamed (block 3)"). Three lines of "unnamed: 66.5 %" in a report
+    left a manager no way to tell which unit to fix."""
+    from collections import Counter
+    counts = Counter(name.strip().lower() for name in names.values())
+    out = {}
+    for key, name in names.items():
+        plain = name.strip()
+        if not plain:
+            out[key] = f"{key[0]} {key[1]}"
+        elif plain.lower() == "unnamed" or counts[plain.lower()] > 1:
+            out[key] = f"{plain} ({key[0]} {key[1]})"
+        else:
+            out[key] = name
+    return out
+
+
 def _label(key: Key, names: dict[Key, str]) -> str:
     if key == SYSTEM_KEY:
         return "(no single element)"
@@ -472,6 +491,7 @@ def aggregate(trials: list[TrialAttribution],
     names: dict[Key, str] = {}
     for trial in trials:
         names.update(trial.names)
+    names = distinct_names(names)
     capacity = aggregate_capacity(trials, names)
     # An element can lose capacity without starting a system outage (a
     # parallel unit still within the demand): keep it in the table, where its
