@@ -18,7 +18,7 @@ COMMANDS = (
     "gui", "run", "simulate", "validate", "advise", "explain", "schema", "info", "describe", "get", "set",
     "convert", "sweep", "compare", "diff", "estimate", "report", "tables", "render",
     "spf", "fev", "step", "extract", "analytic", "whatif", "sensitivity",
-    "optimise", "mcp", "config",
+    "optimise", "fit", "mcp", "config",
     "completion", "doctor", "help",
 )
 

@@ -106,6 +106,14 @@ CAPABILITIES: tuple[Capability, ...] = (
                 "gui": "the Analyse tab's Optimise view is designed but not "
                        "built"}),
     Capability(
+        "dist.judgement", "Fit a life law from judged quantiles",
+        api="raptor.api.distributions.from_quantiles", cli="fit",
+        absent={"mcp": "the judgement wizard is a command-line and editor "
+                       "affordance; an assistant can call the same fit with "
+                       "the API",
+                "gui": "the distribution editor's 'Estimate from judgement' "
+                       "dialog is designed but not built; use 'raptor fit'"}),
+    Capability(
         "insight.precision", "Run until the answer is precise enough",
         api="raptor.api.scenarios.stopping.run_to_precision",
         cli="run --precision", mcp="simulate", long_running=True,

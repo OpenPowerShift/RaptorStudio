@@ -18,6 +18,20 @@ def add_parser(sub: Any) -> None:
                     "lower confidence bound meets the target. The model file "
                     "is only changed when the apply flag is given.")
     o.set_defaults(func=_missing)
+
+    f = sub.add_parser(
+        "fit", help="fit a life law from judged quantiles",
+        description="Turn plain judgements ('one in ten fail by 100, half "
+                    "by 300') into Weibull, lognormal or exponential "
+                    "parameters. No data needed; the fit is only as good as "
+                    "the answers.")
+    f.add_argument("--law", required=True,
+                   choices=("weibull", "lognormal", "exponential"))
+    f.add_argument("--quantile", action="append", default=[],
+                   metavar="P=T", help="probability=age, repeatable, e.g. "
+                                       "0.1=100")
+    f.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    f.set_defaults(func=fit_command)
     s = o.add_subparsers(dest="optimise_command", metavar="WHAT")
     p = s.add_parser("spares", help="spare stock levels")
     p.add_argument("model", metavar="MODEL")
@@ -249,3 +263,33 @@ def _print_resources(result: dict[str, Any]) -> None:
                   f"(lower {row['lower']:.5g})")
     print(f"\n{result['caption']}")
     print(result["note"])
+
+
+def fit_command(args: Any) -> int:
+    from raptor.api.distributions import from_quantiles
+
+    quantiles: dict[float, float] = {}
+    for text in args.quantile:
+        if "=" not in text:
+            raise CliError(f"--quantile {text!r} is not P=T", X.USAGE)
+        probability, age = text.split("=", 1)
+        try:
+            quantiles[float(probability)] = float(age)
+        except ValueError:
+            raise CliError(f"--quantile {text!r}: both sides must be "
+                           "numbers", X.USAGE) from None
+    try:
+        fit = from_quantiles(args.law, quantiles)
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    if args.format == "json":
+        emit_json(fit, None)
+        return X.OK
+    params = ", ".join(f"{name} {value:.6g}"
+                       for name, value in fit["params"].items())
+    print(f"{fit['law']}: {params}")
+    print(f"mean {fit['mean']:.6g}")
+    for probability, age in fit["fitted"].items():
+        print(f"  P{probability:.2f} = {age:.6g}")
+    print(fit["shape_note"])
+    return X.OK

@@ -7,6 +7,8 @@ callers use the correct parameter order (for example Weibull is
 """
 from __future__ import annotations
 
+import math
+from itertools import pairwise
 from typing import Any
 
 #: code -> parameter names (in slot order) and valid-range guidance.
@@ -145,3 +147,116 @@ def scale_mean(code: int, params: list[float], factor: float) -> list[float]:
             continue
         out[slot] *= factor
     return out
+
+
+def from_quantiles(  # noqa: C901, PLR0912, PLR0915
+        law: str, quantiles: dict[float, float]) -> dict[str, Any]:
+    """Fit a two-parameter life law from judged quantiles (WP-4.4).
+
+    `quantiles` maps probability to age, e.g. `{0.1: 100, 0.5: 300}` for
+    "one in ten fail by 100, half by 300".  Two points solve the law in
+    closed form; three or more use a least-squares fit of the linearised
+    quantile function.  Returns the parameters in slot order plus the
+    implied mean, the fitted quantiles and a plain reading of the shape.
+
+    Laws: `weibull`, `lognormal` and `exponential`.  Inconsistent answers
+    (a higher probability at an earlier age) are refused by name.
+    """
+    from statistics import NormalDist
+
+    if law not in ("weibull", "lognormal", "exponential"):
+        raise ValueError(
+            "law must be one of weibull, lognormal or exponential")
+    points = sorted((float(p), float(t)) for p, t in quantiles.items())
+    if len(points) < 2:
+        raise ValueError("give at least two quantiles")
+    for probability, age in points:
+        if not 0 < probability < 1:
+            raise ValueError(f"probability {probability!r} must be in (0, 1)")
+        if age <= 0:
+            raise ValueError(f"age {age!r} must be positive")
+    ages = [age for _p, age in points]
+    if any(after <= before for before, after in pairwise(ages)):
+        raise ValueError(
+            "the answers are inconsistent: a higher probability cannot "
+            "have an earlier age")
+
+    def implied(params: dict[str, float], probability: float) -> float:
+        if law == "weibull":
+            return params["scale"] * (
+                -math.log(1 - probability)) ** (1 / params["shape"])
+        if law == "lognormal":
+            z = NormalDist().inv_cdf(probability)
+            return math.exp(params["mu"] + params["sigma"] * z)
+        return -params["mean"] * math.log(1 - probability)
+
+    if law == "exponential":
+        ys = [-math.log(1 - p) for p, _t in points]
+        ts = [t for _p, t in points]
+        mean = sum(y * t for y, t in zip(ys, ts, strict=True)) / sum(
+            y * y for y in ys)
+        params = {"mean": mean}
+        slots = [mean]
+        note = "random failures: planned maintenance cannot reduce them"
+    elif law == "weibull":
+        xs = [math.log(t) for _p, t in points]
+        ys = [math.log(-math.log(1 - p)) for p, _t in points]
+        if len(points) == 2:
+            beta = (ys[1] - ys[0]) / (xs[1] - xs[0])
+            intercept = ys[0] - beta * xs[0]
+        else:
+            mean_x = sum(xs) / len(xs)
+            mean_y = sum(ys) / len(ys)
+            beta = (sum((x - mean_x) * (y - mean_y)
+                        for x, y in zip(xs, ys, strict=True))
+                    / sum((x - mean_x) ** 2 for x in xs))
+            intercept = mean_y - beta * mean_x
+        if beta <= 0:
+            raise ValueError("the answers imply a decreasing failure rate; "
+                             "use exponential or check the order")
+        scale = math.exp(-intercept / beta)
+        params = {"shape": beta, "scale": scale}
+        slots = [beta, scale, 0.0]
+        note = ("wears out: planned maintenance can help" if beta > 1
+                else "random failures: planned maintenance cannot help")
+    else:
+        zs = [NormalDist().inv_cdf(p) for p, _t in points]
+        xs = [math.log(t) for _p, t in points]
+        if len(points) == 2:
+            sigma = (xs[1] - xs[0]) / (zs[1] - zs[0])
+            mu = xs[0] - sigma * zs[0]
+        else:
+            mean_z = sum(zs) / len(zs)
+            mean_x = sum(xs) / len(xs)
+            sigma = (sum((z - mean_z) * (x - mean_x)
+                         for z, x in zip(zs, xs, strict=True))
+                     / sum((z - mean_z) ** 2 for z in zs))
+            mu = mean_x - sigma * mean_z
+        if sigma <= 0:
+            raise ValueError("the answers imply a negative spread; check "
+                             "the order")
+        params = {"mu": mu, "sigma": sigma}
+        slots = [math.exp(mu + sigma * sigma / 2),
+                 math.sqrt((math.exp(sigma * sigma) - 1)
+                           * math.exp(2 * mu + sigma * sigma))]
+        note = ("repair times: the longer tail is why a mean alone "
+                "understates the wait" if law == "lognormal" else "")
+    if law == "lognormal":
+        params_out = {"mu": params["mu"], "sigma": params["sigma"]}
+        mean = slots[0]
+    elif law == "weibull":
+        params_out = {"shape": params["shape"], "scale": params["scale"]}
+        mean = params["scale"] * math.gamma(1 + 1 / params["shape"])
+    else:
+        params_out = {"mean": params["mean"]}
+        mean = params["mean"]
+    return {
+        "law": law,
+        "params": params_out,
+        "slots": slots,
+        "mean": mean,
+        "fitted": {round(p, 6): implied(params, p) for p in (0.01, 0.1, 0.5,
+                                                              0.9, 0.99)},
+        "stated": {p: t for p, t in points},
+        "shape_note": note,
+    }
