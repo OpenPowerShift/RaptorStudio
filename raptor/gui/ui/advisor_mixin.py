@@ -53,11 +53,27 @@ class AdvisorMixin:
         self._advisor_dock.setWidget(self._advisor_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,  # type: ignore[attr-defined]
                            self._advisor_dock)
-        inspector = getattr(self, "_inspector_dock", None)
-        if inspector is not None:
-            # beside the Inspector, as a tab: both are about "this element"
-            self.tabifyDockWidget(inspector, self._advisor_dock)  # type: ignore[attr-defined]
+        # Tabified beside the Inspector on first show, not here: tabifying
+        # a dock that is then hidden leaves QMainWindow an orphan
+        # "Inspector | Failure Effects" tab bar that peeks out above the
+        # status bar.
+        self._advisor_placed = False
         self._advisor_dock.hide()
+
+    def _show_advisor(self) -> None:
+        """Show and refresh the Advisor.  The first time, it joins the
+        Inspector as a tab (both are about "this element")."""
+        dock = getattr(self, "_advisor_dock", None)
+        if dock is None:
+            return
+        if not getattr(self, "_advisor_placed", False):
+            self._advisor_placed = True
+            inspector = getattr(self, "_inspector_dock", None)
+            if inspector is not None and inspector.isVisible():
+                self.tabifyDockWidget(inspector, dock)  # type: ignore[attr-defined]
+        self._refresh_advisor()
+        dock.show()
+        dock.raise_()
 
     # ---- refresh ---------------------------------------------------------
     def _refresh_advisor(self) -> None:
@@ -101,14 +117,6 @@ class AdvisorMixin:
             return
         n = sum(f.severity in ("error", "warning") for f in findings or [])
         dock.setWindowTitle(f"Advisor ({n})" if n else "Advisor")
-
-    def _show_advisor(self) -> None:
-        dock = getattr(self, "_advisor_dock", None)
-        if dock is None:
-            return
-        self._refresh_advisor()
-        dock.show()
-        dock.raise_()
 
     # ---- actions ---------------------------------------------------------
     def _advisor_locate(self, finding: Finding) -> bool:
