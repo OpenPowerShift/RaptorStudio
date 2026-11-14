@@ -29,7 +29,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from raptor.api.presentation import RunInfo, display_rows, fmt, kind_of
+from raptor.api.presentation import OutageRate, RunInfo, display_rows, fmt, kind_of
 from raptor.api.tables import Table
 
 #: More columns than this and a table goes on a landscape page.
@@ -104,6 +104,12 @@ class ReportContent:
     raw: list[TextBlock] = field(default_factory=list)
     #: The Story, its charts and the model checks (`raptor.api.insight.report_section`).
     insight: Any = None
+    #: The run's Summary table, for the cover's key figures when the result
+    #: tables themselves are not printed.
+    summary: Table | None = None
+    #: Outages and working time over all runs: the cover's "time between
+    #: outages" (Raptor's MTBDE is a floor when outages are rare).
+    outage_rate: OutageRate | None = None
 
 
 # --------------------------------------------------------------------------
@@ -196,7 +202,8 @@ def _summary_means(results: Sequence[Table]) -> dict[str, tuple[str, Any]]:
 
 
 def _key_figures(content: ReportContent) -> str:
-    means = _summary_means(content.results)
+    tables = list(content.results) or ([content.summary] if content.summary else [])
+    means = _summary_means(tables)
     cards = []
     censored = False
     for prefix, title in _KEY_FIGURES:
@@ -211,6 +218,8 @@ def _key_figures(content: ReportContent) -> str:
         under = "mean" + (f", {unit}" if unit else "")
         if title != prefix:
             under += f" ({prefix})"
+        if prefix == "MTBDE" and content.outage_rate is not None:
+            shown, under = _between_outages(content.outage_rate, label, unit, shown)
         cards.append(
             f'<div class="card"><div class="k">{_e(title)}</div>'
             f'<div class="v">{_e(shown)}</div>'
@@ -221,6 +230,32 @@ def _key_figures(content: ReportContent) -> str:
             "outage, so the true average is longer than the figure shown.</p>"
             if censored else "")
     return '<div class="cards">' + "".join(cards) + "</div>" + note
+
+
+def _between_outages(rate: OutageRate, label: str, unit: str,
+                     mtbde: str) -> tuple[str, str]:
+    """The cover's time between outages: working time over outages, pooled
+    over the runs, with Raptor's MTBDE kept small underneath. With rare
+    outages MTBDE is a per-run floor (">8,760" for one-year runs that mostly
+    never went down) while the pooled rate is the figure the run found."""
+    runs = f"{rate.runs:,} run{'s' if rate.runs != 1 else ''}"
+    if not rate.outages:
+        return "No outage", f"in {runs} (Raptor MTBDE {mtbde})"
+    between = rate.between
+    if between is None:
+        shown = mtbde
+    elif rate.few:
+        # two figures: six would claim a precision a handful of outages
+        # cannot give
+        shown = f"about {float(f'{between:.2g}'):,.0f}" if between >= 100 \
+            else f"about {between:.2g}"
+    else:
+        shown = fmt(between, kind_of(label))
+    count = f"{rate.outages:,} outage{'s' if rate.outages != 1 else ''} in {runs}"
+    rough = "; too few for a firm figure" if rate.few else ""
+    under = (f"{unit + ', ' if unit else ''}{count}{rough} "
+             f"(Raptor MTBDE {mtbde})")
+    return shown, under
 
 
 def _cover(content: ReportContent) -> str:

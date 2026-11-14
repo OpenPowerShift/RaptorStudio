@@ -190,3 +190,30 @@ def test_a_lower_bound_on_the_cover_is_explained_there():
     html = rh._key_figures(content)
     assert '<div class="v">&gt;' in html
     assert "means at least this" in html
+
+
+def test_time_between_outages_is_pooled_with_mtbde_kept_small():
+    """Rare outages: Raptor's MTBDE is a per-run floor (>4,999), the pooled
+    rate is what the run found; few outages are rounded and said to be so."""
+    from raptor.api.presentation import OutageRate
+    from raptor.api.report_html import _key_figures
+    few = _key_figures(_content(outage_rate=OutageRate(outages=2, runs=200,
+                                                       up_time=1_751_988.0)))
+    assert '<div class="v">about 880,000</div>' in few
+    assert "2 outages in 200 runs; too few for a firm figure" in few
+    assert "Raptor MTBDE" in few
+    many = _key_figures(_content(outage_rate=OutageRate(outages=40, runs=60,
+                                                        up_time=290_000.0)))
+    assert "7,250" in many and "too few" not in many
+    none = _key_figures(_content(outage_rate=OutageRate(outages=0, runs=60,
+                                                        up_time=300_000.0)))
+    assert '<div class="v">No outage</div>' in none
+
+
+def test_the_cover_has_key_figures_without_the_result_tables():
+    content = _content()
+    summary = next(t for t in content.results if t.key == "results.summary")
+    html = build_html(_content(results=[], summary=summary))
+    assert '<div class="k">Availability</div>' in html
+    assert "<h3>Summary</h3>" not in html
+    assert "<h3>Summary</h3>" in build_html(content)  # the check can fail

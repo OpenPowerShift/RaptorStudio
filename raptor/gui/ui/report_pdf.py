@@ -199,6 +199,10 @@ def _add_results(content: ReportContent, win, opts: dict,
         t for t in tables if t.section and (
             opts.get("weak") if t.section == "Weak link"
             else opts.get("results"))]
+    # The cover's key figures, whether or not the result tables are printed.
+    content.summary = next((t for t in tables if t.key == "results.summary"), None)
+    from raptor.api.presentation import pooled_outages
+    content.outage_rate = pooled_outages(getattr(res, "_report_data", None))
     content.notes = list(getattr(res, "_notes", []) or [])
     if opts.get("story", True):
         content.insight = _insight(win)
