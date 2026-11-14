@@ -1,6 +1,8 @@
 """Attribution through the run API and `raptor explain`."""
 from __future__ import annotations
 
+import re
+
 import json
 
 import pytest
@@ -40,7 +42,11 @@ def test_attribution_does_not_change_the_results(stored):
     plain = run_api.run(ws, mid, seed=5)
     with_attr = run_api.run(ws, mid, seed=5, attribution=True)
     assert plain.per_run == with_attr.per_run
-    assert plain.final_results == with_attr.final_results
+    # the report text carries the run's start time: equal apart from that
+    stamp = re.compile(r"\w{3} \w{3} +\d+ \d\d:\d\d:\d\d \d{4}")
+    assert stamp.search(plain.final_results)
+    assert (stamp.sub("<time>", plain.final_results)
+            == stamp.sub("<time>", with_attr.final_results))
     with pytest.raises(drivers.NoAttribution):
         drivers.read(ws, plain.run_id)
 

@@ -951,6 +951,13 @@ or `results.summary`.
   fixed-width file per table) and `txt_report` (one combined report), in
   any combination. Files go to `Tables/<model>` in the workspace unless a
   workspace-relative `folder` is given.
+
+| `export_report`
+| Writes the run report a decision maker reads: `.pdf` or one
+  self-contained `.html`. By default the diagram and the plain-English
+  story; add `results` and `data_tables` in `sections` for the tables.
+  The file goes to `Reports/<model>_<run>.pdf` unless a workspace-relative
+  `path` is given.
 |===
 
 ==== Reference

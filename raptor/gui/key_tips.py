@@ -34,7 +34,8 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "arrange.anno_rect": "R", "arrange.anno_ellipse": "Y",
         "arrange.anno_arrow": "W", "model.import_rbd": "M",
         "sim.extract_hierarchy": "U", "model.hier_up": "J",
-        "model.hier_home": "F",
+        "model.hier_home": "F", "model.quick_add": "Q",
+        "home.duplicate": "G",
     },
     "Arrange": {
         "model.auto_layout": "L", "view.snap": "G", "arrange.order_front": "F",
@@ -63,10 +64,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     "Results": {
         "results.results_show": "S", "results.results_float": "W",
         "results.clear_results": "C", "results.spof": "P",
-        "results.domains": "D",
-        "results.weak_color": "K", "results.capacity_overlay": "U",
-        "results.cost_overlay": "O", "results.spares_overlay": "R",
-        "results.importance_overlay": "I", "results.weak_spread": "T",
+        "results.domains": "D", "results.weak_spread": "T",
     },
     "View": {
         "arrange.fit": "F", "arrange.zoom_selection": "S",
@@ -77,6 +75,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "view.run_toggle": "U", "view.data_tables": "D",
         "view.live_log_toggle": "G", "view.advisor_toggle": "A",
         "view.reset_layout": "L", "view.theme": "T", "view.prefs": "P",
+        "view.focus": "M",
     },
     "Help": {
         "help.guide": "G", "help.manual": "M", "help.formulas": "O",
