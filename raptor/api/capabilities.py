@@ -90,6 +90,14 @@ CAPABILITIES: tuple[Capability, ...] = (
                 "gui": "the Analyse tab's Optimise view is designed but not "
                        "built"}),
     Capability(
+        "optimise.pm", "Is planned maintenance worthwhile, and at what interval",
+        api="raptor.api.optimise.pm.optimise_pm", cli="optimise",
+        long_running=True,
+        absent={"mcp": "the MCP PM optimiser tool is designed but not built; "
+                       "use 'raptor optimise pm'",
+                "gui": "the Analyse tab's Optimise view is designed but not "
+                       "built"}),
+    Capability(
         "insight.precision", "Run until the answer is precise enough",
         api="raptor.api.scenarios.stopping.run_to_precision",
         cli="run --precision", mcp="simulate", long_running=True,

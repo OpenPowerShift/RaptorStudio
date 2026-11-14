@@ -38,6 +38,22 @@ def add_parser(sub: Any) -> None:
     p.add_argument("-f", "--format", choices=("text", "json"), default="text")
     p.set_defaults(func=optimise_command)
 
+    m = s.add_parser("pm", help="is planned maintenance worthwhile, and when")
+    m.add_argument("model", metavar="MODEL")
+    m.add_argument("--blocks", metavar="NAMES",
+                   help="comma list of block names (default: every block)")
+    m.add_argument("--objective", choices=("availability", "cost"),
+                   default="availability",
+                   help="what to optimise (default availability)")
+    m.add_argument("-n", "--trials", type=int, metavar="N",
+                   help="runs per point (default: the model's own)")
+    m.add_argument("--seed", type=int, default=1, metavar="N")
+    m.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    m.add_argument("--apply", action="store_true",
+                   help="write the recommended intervals into the model")
+    m.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    m.set_defaults(func=pm_command)
+
 
 def _missing(args: Any) -> int:
     raise CliError("use 'raptor optimise spares MODEL'", X.USAGE)
@@ -100,5 +116,78 @@ def _print_optimise(result: dict[str, Any]) -> None:
         mark = "*" if point is result.get("recommended") else " "
         print(f" {mark} {stocks:<32} {point['mean']:.5g} "
               f"(lower {point['lower']:.5g})  cost {point['cost']:.6g}")
+    print(f"\n{result['caption']}")
+    print(result["note"])
+
+
+def pm_command(args: Any) -> int:
+    from raptor.api.optimise.pm import optimise_pm
+
+    blocks = ([name.strip() for name in args.blocks.split(",") if name.strip()]
+              if args.blocks else None)
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        try:
+            result = optimise_pm(
+                ws, mid, blocks=blocks, objective=args.objective,
+                trials=args.trials, seed=args.seed, workers=max(1, args.jobs),
+                progress=lambda done, total, text:
+                eprint(f"[{done}/{total}] {text}") if text else None)
+        except ValueError as exc:
+            raise CliError(str(exc), X.USAGE) from exc
+        if args.apply:
+            _apply_pm(ws, mid, result)
+    if args.format == "json":
+        emit_json({**result, "schema": "raptor-optimise-pm/1"}, None)
+        return X.OK
+    _print_pm(result)
+    return X.OK
+
+
+def _apply_pm(ws: Any, model_id: str, result: dict[str, Any]) -> None:
+    from raptor.api import build, paths
+    applied = 0
+    with build.no_layout_on_save():
+        for recommendation in result["recommendations"]:
+            if not recommendation["worthwhile"]:
+                continue
+            block = recommendation["block"]
+            option = recommendation["option"]
+            if option == "no PM":
+                paths.apply_assignment(ws, model_id,
+                                       f"block:{block}.uses_pm=false")
+            else:
+                advice = next((row for row in result["advice"]
+                               if row["block"] == block), None)
+                base_interval = (advice or {}).get("interval")
+                factor = 1.0
+                try:
+                    factor = float(option.split()[0])
+                except (ValueError, IndexError):
+                    factor = 1.0
+                interval = (base_interval * factor
+                            if base_interval is not None else None)
+                if interval:
+                    paths.apply_assignment(
+                        ws, model_id, f"block:{block}.uses_pm=true")
+                    paths.apply_assignment(
+                        ws, model_id, f"block:{block}.pm_freq={interval:.10g}")
+            applied += 1
+    eprint(f"applied {applied} recommendation(s)")
+
+
+def _print_pm(result: dict[str, Any]) -> None:
+    for advice in result["advice"]:
+        state = ("worthwhile" if advice["worthwhile"]
+                 else "not worthwhile" if advice["worthwhile"] is False
+                 else "screen incomplete")
+        interval = (f", about {advice['interval']:.4g}"
+                    if advice["interval"] else "")
+        print(f"{advice['block']}: {state}{interval} — {advice['reason']}")
+    print()
+    for recommendation in result["recommendations"]:
+        print(f"{recommendation['block']}: {recommendation['option']} "
+              f"({recommendation['mean']:.6g})"
+              + ("" if recommendation["worthwhile"] else "  keep as is"))
     print(f"\n{result['caption']}")
     print(result["note"])
