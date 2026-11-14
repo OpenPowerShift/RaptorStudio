@@ -1,7 +1,6 @@
 """PM advice: the age-replacement screen and a small simulated search."""
 from __future__ import annotations
 
-import pytest
 
 from raptor.api import build
 from raptor.api.optimise.pm import (

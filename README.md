@@ -46,7 +46,7 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **A model file you can read and diff.** `.rbds` is one JSON document with friendly field names, and `raptor diff`
   (or **File ▸ Differences**) says in words what changed between two versions of a model. `.rbd` files open and save
   exactly as before.
-- **Documentation that ships with it.** _Break It Before It Breaks_, a 24-chapter tutorial book with a model for each
+- **Documentation that ships with it.** _Break It Before It Breaks_, a 25-chapter tutorial book with a model for each
   chapter that opens from the page, a field-by-field reference manual, and a formulas page. **F1** opens the right
   section.
 
@@ -167,7 +167,7 @@ The app opens on a start page with a blank model, worked examples (from the guid
 emergency power, a water-treatment works, a data centre and a phased airliner flight) and links to the
 built-in documentation, which the **Help** ribbon tab also opens:
 
-- **User Guide** — the tutorial book _Break It Before It Breaks_: 24 chapters, from a three-block lantern to a
+- **User Guide** — the tutorial book _Break It Before It Breaks_: 25 chapters, from a three-block lantern to a
   phased airliner flight, with companion `.rbds` models you can open straight from the book (the `opsmodel` buttons).
 - **Reference Manual** — field-by-field reference; **F1** jumps to the section for the focused panel or dialog.
 - **Formulas** — every metric, the importance measures and the distribution table as equations, on one page.
