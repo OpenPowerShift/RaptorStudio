@@ -204,9 +204,12 @@ def run_to_precision(
                 abort is not None and getattr(abort, "is_set", lambda: False)()):
             stopped = "max trials" if len(values) >= precision.max_trials else "cancelled"
             break
-        needed = len(values)
+        # Each pass re-runs from trial 1 with the same seed, so the count
+        # must grow geometrically: with no estimate yet (no failure seen,
+        # mean 0) double it rather than add one trial per pass.
+        needed = max(len(values) + precision.batch, 2 * len(values))
         if relative and half and mean:
-            needed = max(needed + precision.batch,
+            needed = max(len(values) + precision.batch,
                          math.ceil(len(values) * (relative / target) ** 2))
         trials = min(precision.max_trials, max(needed, len(values) + 1))
 

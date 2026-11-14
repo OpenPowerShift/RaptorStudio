@@ -91,3 +91,16 @@ def test_the_report_states_the_interval_and_the_target(tmp_path):
     assert data["target"] == pytest.approx(0.5 / 1.5)
     assert data["mean"] is not None and data["sem"] is not None
     assert data["stopped"] in ("precision", "max trials")
+
+
+def test_a_model_that_never_fails_grows_the_count_geometrically(tmp_path):
+    spec = {**SPEC, "blocks": [dict(SPEC["blocks"][0],
+                                    fail_params=[1e12, 0.0])]}
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(spec), name="m")["model_id"]
+    result = run_to_precision(ws, mid, Precision(min_trials=4, max_trials=64,
+                                                 batch=4))
+    counts = [h["trials"] for h in result.history]
+    # 4, 8, 16, 32, 64: one pass per doubling, never one trial per pass
+    assert counts == [4, 8, 16, 32, 64]
+    assert result.stopped == "max trials"
