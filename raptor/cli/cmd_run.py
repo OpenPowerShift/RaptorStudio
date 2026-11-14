@@ -255,8 +255,12 @@ def _progress_callback(mode: str):
     if mode == "none" or (mode == "auto" and not sys.stderr.isatty()):
         return None
     import json as _json
+    last: list[Any] = [None]
 
     def cb(done: int, total: int | None) -> None:
+        if (done, total) == last[0]:
+            return          # the engine polls; json printed the same line hundreds of times
+        last[0] = (done, total)
         if mode == "json":
             eprint(_json.dumps({"event": "progress", "done": done,
                                 "total": total}))
@@ -273,8 +277,12 @@ def _setup_callback(mode: str):
     if mode == "none" or (mode == "auto" and not sys.stderr.isatty()):
         return None
     import json as _json
+    last: list[Any] = [None]
 
     def cb(stage: str, done: int, total: int) -> None:
+        if (stage, done, total) == last[0]:
+            return
+        last[0] = (stage, done, total)
         if mode == "json":
             eprint(_json.dumps({"event": "setup", "stage": stage,
                                 "done": done, "total": total}))
@@ -283,6 +291,39 @@ def _setup_callback(mode: str):
                              + ("\n" if done >= total else ""))
             sys.stderr.flush()
     return cb
+
+
+def insight_callback(mode: str):
+    """Progress of the work after the last replication (the attribution
+    replay, capacity states): a `raptor.api.progress.ProgressFn`."""
+    if mode == "none" or (mode == "auto" and not sys.stderr.isatty()):
+        return None
+    import json as _json
+    last: list[Any] = [None]
+
+    def cb(p: Any) -> None:
+        key = (p.stage, p.done, p.total)
+        if key == last[0]:
+            return
+        last[0] = key
+        if mode == "json":
+            eprint(_json.dumps({"event": "insight", "stage": p.stage,
+                                "label": p.label, "done": p.done,
+                                "total": p.total}))
+        else:
+            tot = f"/{p.total}" if p.total else ""
+            sys.stderr.write(f"\r{p.label} {p.done}{tot}"
+                             + ("\n" if p.total and p.done >= p.total else ""))
+            sys.stderr.flush()
+    return cb
+
+
+def progress_options(mode: str) -> dict[str, Any]:
+    """The three progress hooks `raptor.api.run.run` takes, for a CLI
+    `--progress` mode."""
+    return {"progress": _progress_callback(mode),
+            "setup_progress": _setup_callback(mode),
+            "insight_progress": insight_callback(mode)}
 
 
 def results_document(result: Any, ws: Any, model_id: str, model_path: str,

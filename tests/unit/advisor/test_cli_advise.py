@@ -126,3 +126,21 @@ def test_a_target_on_an_unknown_metric_is_refused_and_percent_is_accepted():
     assert _targets(["system.ao>=99.5%"])[0]["value"] == pytest.approx(0.995)
     with pytest.raises(CliError, match="unknown requirement metric 'bogus'"):
         _targets(["bogus>=1"])
+
+
+def test_simulating_commands_report_progress_through_the_replay(capsys, tmp_path):
+    """On an 800-block model explain took 3 minutes and advise --simulate 6
+    with nothing on screen. Both now take --progress (advise also -j), the
+    attribution replay is reported, and json never repeats a line."""
+    spec = series_spec(block("A", fail_params=[500, 0, 0], repair_params=[20, 5, 0]),
+                       experiment={"trials": 6, "termination_type": "TimeSim",
+                                   "term_condition": 2000})
+    path = model(tmp_path, spec, "run.rbds")
+    for argv in (("explain", path, "--progress", "json"),
+                 ("advise", path, "--simulate", "-j", "2", "--progress", "json")):
+        code, _out, err = run_cli(capsys, *argv)
+        assert code == X.OK
+        events = [json.loads(line) for line in err.splitlines() if line.startswith("{")]
+        assert any(e["event"] == "insight" and e["done"] == e["total"] == 6
+                   for e in events), argv
+        assert len(err.splitlines()) == len(set(err.splitlines()))

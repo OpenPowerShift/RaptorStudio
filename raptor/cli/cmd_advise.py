@@ -14,6 +14,7 @@ RULES_SCHEMA = "raptor-advise-rules/1"
 
 _MARK = {"error": "error", "warning": "warning", "advice": "advice", "info": "note"}
 _ORDER = ("error", "warning", "advice", "info")
+_PROGRESS = ("auto", "bar", "json", "none")
 
 
 def add_parser(sub: Any) -> None:
@@ -43,6 +44,10 @@ def add_parser(sub: Any) -> None:
     a.add_argument("--target", action="append", metavar="EXPR",
                    help="a requirement to judge the run against, e.g. "
                         "'system.ao>=0.995' (implies --simulate; repeatable)")
+    a.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+                   help="worker processes for --simulate (default 1)")
+    a.add_argument("--progress", choices=_PROGRESS, default="auto",
+                   help="progress of --simulate on stderr (json: one object per line)")
     a.add_argument("--list-rules", action="store_true",
                    help="list every rule and exit")
     a.set_defaults(func=advise_command)
@@ -99,6 +104,9 @@ def add_parser(sub: Any) -> None:
                    help="write the chart as SVG (implies --chart when it is missing)")
     e.add_argument("--list-charts", action="store_true",
                    help="list the chart names and exit")
+    e.add_argument("--progress", choices=_PROGRESS, default="auto",
+                   help="progress on stderr: set-up, replications and the "
+                        "attribution replay (json: one object per line)")
     e.add_argument("-f", "--format", choices=("text", "json"), default="text")
     e.set_defaults(func=explain_command)
 
@@ -175,13 +183,17 @@ def _targets(texts: list[str] | None) -> list[dict]:
     return out
 
 
-def _run_findings(ws: Any, mid: str, targets: list[dict]) -> list:
+def _run_findings(ws: Any, mid: str, targets: list[dict], args: Any = None) -> list:
     from raptor.api import run as run_api
     from raptor.api.advisor import advise_stored_run
+    from raptor.cli.cmd_run import progress_options
+    jobs = max(1, getattr(args, "jobs", 1) or 1)
+    hooks = progress_options(getattr(args, "progress", "none") or "none")
     try:
         # attribution=True: the GUI's Advisor says what drives the downtime
         # after a run (R-DRV rules); without it the CLI said less.
-        result = run_api.run(ws, mid, attribution=True, confirm_long_run=True)
+        result = run_api.run(ws, mid, attribution=True, confirm_long_run=True,
+                             workers=jobs, **hooks)
     except run_api.RunError as exc:
         raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
     return advise_stored_run(ws, result.run_id, requirements=targets)
@@ -209,7 +221,7 @@ def advise_command(args: Any) -> int:
                 continue
             found = advise_model(ws.get(mid).rbd, only=_ids(args.only), skip=_ids(args.skip))
             if simulate and not any(f.severity == "error" for f in found):
-                found = sort_findings(found + _run_findings(ws, mid, targets))
+                found = sort_findings(found + _run_findings(ws, mid, targets, args))
             tally = counts(found)
             shown = [f for f in found if SEVERITY_RANK[f.severity] >= floor]
             docs.append({"model": path, "counts": tally,
@@ -244,13 +256,15 @@ def explain_command(args: Any) -> int:
     if not args.model:
         raise CliError("explain needs a MODEL (or use --list-charts)", X.USAGE)
     chart_name = args.chart or ("downtime-pareto" if args.chart_svg else None)
+    from raptor.cli.cmd_run import progress_options
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         try:
             result = run_api.run(ws, mid, num_runs=args.runs, workers=max(1, args.jobs),
                                  seed=args.seed, attribution=True,
                                  capacity_rule=args.capacity_rule,
-                                 confirm_long_run=True)
+                                 confirm_long_run=True,
+                                 **progress_options(args.progress))
         except run_api.RunError as exc:
             raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
         attribution = drivers.read(ws, result.run_id)
