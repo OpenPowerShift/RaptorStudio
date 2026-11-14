@@ -19,18 +19,9 @@ from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.dots import quantile_dots, proportion_text, split_at
 from raptor.api.insight.drivers import top as top_drivers
 
-#: Requirement metric -> the per-run field that carries it.
-REQUIREMENT_FIELDS = {
-    "system.ao": "availability",
-    "system.availability": "availability",
-    "system.reliability": "reliability",
-    "system.dependability": "dependability",
-    "system.capacity_weighted_availability": "capacity_weighted_availability",
-    "system.mtbde": "mtbde",
-    "system.mdt": "mdt",
-    "system.mtbm": "mtbm",
-    "system.capacity": "capacity_weighted_availability",
-}
+#: Requirement metric -> the per-run field that carries it: one table for
+#: the Story, the Advisor's verdict and scenarios.
+from raptor.api.advisor.context import REQUIREMENT_FIELDS  # noqa: E402
 REQUIREMENT_LABELS = {
     "availability": "Availability",
     "reliability": "Reliability",

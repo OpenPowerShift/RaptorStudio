@@ -113,3 +113,16 @@ def test_target_runs_the_model_and_gives_a_verdict(capsys, tmp_path):
 def test_bad_target_is_a_usage_error(capsys, tmp_path):
     code, _, err = run_cli(capsys, "advise", flawed(tmp_path), "--target", "system.ao=1")
     assert code == X.USAGE and "METRIC>=VALUE" in err
+
+
+def test_a_target_on_an_unknown_metric_is_refused_and_percent_is_accepted():
+    """"ao>=0.99" used to give no verdict and no word why; "99.5%" was not a
+    number although the output prints percentages."""
+    import pytest
+
+    from raptor.cli.cmd_advise import _targets
+    from raptor.cli.exitcodes import CliError
+    assert _targets(["ao>=0.99"]) == [{"metric": "ao", "op": ">=", "value": 0.99}]
+    assert _targets(["system.ao>=99.5%"])[0]["value"] == pytest.approx(0.995)
+    with pytest.raises(CliError, match="unknown requirement metric 'bogus'"):
+        _targets(["bogus>=1"])

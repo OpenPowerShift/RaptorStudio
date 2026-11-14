@@ -152,7 +152,8 @@ def _verdict(ctx: RunContext, req: dict) -> Finding | None:
     runs_meeting = sum((v >= target) if higher_is_better else (v <= target) for v in values)
     half = t_quantile(0.975, n - 1) * sem if sem > 0 else 0.0
     label = str(req.get("label") or metric)
-    is_fraction = ctx.field_for(metric) in ("availability", "reliability", "dependability")
+    is_fraction = ctx.field_for(metric) in ("availability", "reliability", "dependability",
+                                           "capacity_weighted_availability")
     show = (lambda v: text.fmt_pct(v, 5)) if is_fraction else (lambda v: text.fmt_num(v, 4))
     spread = text.fmt_pct(half, 2) if is_fraction else text.fmt_num(half, 2)
     evidence = {"metric": metric, "target": target, "mean": mean, "half_width": half,
@@ -172,13 +173,13 @@ def _verdict(ctx: RunContext, req: dict) -> Finding | None:
     if p_meet >= 0.95:
         return Finding(severity="info", title="Target met",
                        message=(f"Target met: {label} {op} {show(target)}; the runs give "
-                                f"{show(mean)} ± {spread}. {_confident(p_meet)} confident; "
+                                f"{show(mean)} ± {spread} (95 %). {_confident(p_meet)} confident; "
                                 f"{counted}."),
                        confidence=p_meet, impact=0.2, **common)
     if p_meet <= 0.05:
         return Finding(severity="warning", title="Target missed",
                        message=(f"Target missed: {label} {op} {show(target)}; the runs give "
-                                f"{show(mean)} ± {spread}{gap_time}. "
+                                f"{show(mean)} ± {spread} (95 %){gap_time}. "
                                 f"{_confident(1 - p_meet)} confident; {counted}."),
                        confidence=1 - p_meet, impact=1.0, **common)
     needed = min(MAX_SUGGESTED_RUNS,
@@ -187,7 +188,7 @@ def _verdict(ctx: RunContext, req: dict) -> Finding | None:
     evidence["runs_needed"] = needed
     return Finding(severity="advice", title="Too close to call",
                    message=(f"Too close to call: {label} {op} {show(target)}; the runs give "
-                            f"{show(mean)} ± {spread}. About {needed:,} runs would decide it."),
+                            f"{show(mean)} ± {spread} (95 %). About {needed:,} runs would decide it."),
                    confidence=max(p_meet, 1 - p_meet), impact=0.7,
                    fixes=_runs_fix(needed) if needed > n else (), **common)
 

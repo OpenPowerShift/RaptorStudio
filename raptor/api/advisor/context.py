@@ -281,7 +281,22 @@ REQUIREMENT_FIELDS = {
     "system.ao": "availability", "system.availability": "availability",
     "system.reliability": "reliability", "system.dependability": "dependability",
     "system.mtbde": "mtbde", "system.mdt": "mdt", "system.mtbm": "mtbm",
+    "system.capacity_weighted_availability": "capacity_weighted_availability",
+    "system.capacity": "capacity_weighted_availability",
 }
+# the bare names, as `--precision-metric` and the result tables use them
+REQUIREMENT_FIELDS.update({key.split(".", 1)[1]: value
+                           for key, value in list(REQUIREMENT_FIELDS.items())})
+
+
+def check_requirements(requirements: list[dict] | None) -> None:
+    """Refuse a requirement on a metric the run does not report. An unknown
+    name ("ao") used to give no verdict and no word why."""
+    for req in requirements or []:
+        metric = str(req.get("metric", ""))
+        if metric not in REQUIREMENT_FIELDS:
+            names = ", ".join(k for k in REQUIREMENT_FIELDS if k.startswith("system."))
+            raise ValueError(f"unknown requirement metric {metric!r}; use one of {names}")
 
 
 class RunContext(ModelContext):

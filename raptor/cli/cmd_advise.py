@@ -151,18 +151,27 @@ def _markdown(doc: dict) -> None:
 
 
 def _targets(texts: list[str] | None) -> list[dict]:
+    from raptor.api.advisor.context import check_requirements
     out = []
     for text in texts or []:
         for op in (">=", "<="):
             if op in text:
                 metric, value = text.split(op, 1)
+                value = value.strip()
                 try:
-                    out.append({"metric": metric.strip(), "op": op, "value": float(value)})
+                    # "99.5%" as the output prints it, or 0.995
+                    number = (float(value[:-1]) / 100.0 if value.endswith("%")
+                              else float(value))
                 except ValueError as exc:
                     raise CliError(f"--target {text!r}: {value!r} is not a number", X.USAGE) from exc
+                out.append({"metric": metric.strip(), "op": op, "value": number})
                 break
         else:
             raise CliError(f"--target {text!r} must be METRIC>=VALUE or METRIC<=VALUE", X.USAGE)
+    try:
+        check_requirements(out)
+    except ValueError as exc:
+        raise CliError(f"--target: {exc}", X.USAGE) from exc
     return out
 
 
