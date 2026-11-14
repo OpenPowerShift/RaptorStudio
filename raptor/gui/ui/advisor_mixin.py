@@ -16,6 +16,9 @@ log = logging.getLogger(__name__)
 #: `raptor.gui.model_edit._ARMS`) and how to turn the fix's value into the
 #: key's value given the live object.
 _FALSE = ("false", "0", "no", "off")
+#: Set once the Advisor has opened itself after a first run (see
+#: `AdvisorMixin._introduce_advisor`).
+ADVISOR_INTRODUCED = "advisor/introduced"
 
 
 def _dependency_value(obj: Any, text: str) -> tuple:
@@ -91,13 +94,31 @@ class AdvisorMixin:
             cached = getattr(self, "_api_issues", None)
             validation = (cached[1] if cached is not None
                           and cached[0] == getattr(self, "_model_revision", 0) else None)
+            run_findings = self._run_findings()
             findings = sort_findings(advise_model(self._rbd, validation=validation)
-                                     + self._run_findings())
+                                     + run_findings)
         except Exception:  # noqa: BLE001 - the Advisor must never break an edit
             log.exception("advisor refresh failed")
-            findings = []
+            findings, run_findings = [], []
         panel.set_findings(findings)
         self._set_advisor_title(findings)
+        if run_findings:
+            self._introduce_advisor()
+
+    def _introduce_advisor(self) -> None:
+        """The first run with something to say opens the Advisor, once per
+        install: a user who has never opened View > Advisor would otherwise
+        not know the findings exist. Closing it is remembered as usual."""
+        from raptor.gui.ui import settings
+        if settings.get_bool(ADVISOR_INTRODUCED):
+            return
+        settings.set_value(ADVISOR_INTRODUCED, True)
+        dock = getattr(self, "_advisor_dock", None)
+        if dock is not None and not dock.isVisible():
+            self._show_advisor()
+            self._statusbar.showMessage(
+                "The Advisor lists what this run found; "
+                "View > Advisor shows or hides it", 8000)
 
     def _run_findings(self) -> list[Finding]:
         """What the results on screen say: precision, and what drives the downtime."""

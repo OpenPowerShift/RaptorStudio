@@ -216,3 +216,27 @@ def test_cards_take_the_new_theme_on_refresh(panel, monkeypatch):
     monkeypatch.setattr(advisor_dock, "active_colour", lambda: DARK_COLOUR)
     panel.refresh_theme()
     assert DARK_COLOUR["muted"] in panel.cards[0].why.styleSheet()
+
+
+def test_the_first_run_with_findings_opens_the_advisor_once(window, qapp, monkeypatch):
+    """A new user never opened View > Advisor: the first run that has
+    something to say shows it, and only that once."""
+    from raptor.core.engine.runner import run_simulation
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.advisor_mixin import ADVISOR_INTRODUCED
+    settings.set_value(ADVISOR_INTRODUCED, False)  # a fresh install
+    window._advisor_dock.hide()
+    results = window._results
+    reports = []
+    logs = run_simulation(window._rbd, 30, _report_sink=reports)
+    results._event_logs, results._report_data, results._units = logs, reports, "hours"
+    results._schedule_drivers()
+    monkeypatch.setattr(results, "has_results", lambda: True)
+    results.contents_changed.emit()
+    qapp.processEvents()
+    assert window._advisor_dock.isVisible()
+    assert settings.get_bool(ADVISOR_INTRODUCED)
+    window._advisor_dock.hide()                 # the user closes it
+    results.contents_changed.emit()
+    qapp.processEvents()
+    assert not window._advisor_dock.isVisible()

@@ -22,6 +22,7 @@ checked-in models under `tests/data/models/` exercise the result shapes.
 """
 from __future__ import annotations
 
+import html
 import itertools
 import re
 import weakref
@@ -56,6 +57,7 @@ from raptor.gui.ui.results_raw_mixin import ResultsRawMixin
 
 from raptor.gui.ui.results_common import (  # noqa: F401  (names tests and callers import from here)
     _mono_font,
+    _pct_short,
     RAW_VALUE_ROLE,
     CENSOR_ROLE,
     _cell_parts,
@@ -80,6 +82,17 @@ from raptor.gui.ui.results_common import (  # noqa: F401  (names tests and calle
     _SortItem,
     _MetricCard,
 )
+
+
+def _pooled_time_between_downings(data) -> float | None:
+    """Working (not fully down) time over all runs / outages over all runs:
+    a rate that stays meaningful when most runs never go down."""
+    outages = sum(d.num_system_failures or 0 for d in data)
+    if not outages:
+        return None
+    up = sum((d.ending_sim_time or 0.0) * (1 - (d.red_percent or 0.0) / 100)
+             for d in data)
+    return up / outages if up > 0 else None
 
 
 class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
@@ -1868,15 +1881,20 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             f"working {_pct(g)} of the time, still partially working but "
             f"degraded {_pct(y)}, and completely down {_pct(r)}."
         ]
-        if fails_m and fails_m > 0 and mtbde_m:
+        if fails_m and fails_m > 0:
             # "about 0 times per run" for 1 failure in 50 runs read as
             # "never"; say how rare it is instead.
             how_often = (f"about once every {1 / fails_m:,.0f} runs"
                          if fails_m < 0.95 else
                          f"about {_fmt_count(fails_m)} times per run")
-            parts.append(f"It went fully down {how_often} "
-                         f"— roughly once every {_fmt(mtbde_m)}{time_u} of "
-                         f"working time.")
+            # Pooled over the runs: the MTBDE card's mean is a lower bound
+            # when runs end with no outage, and quoting it here put "once
+            # every 25 runs" beside "once every 8,760 hours" (one run).
+            pooled = _pooled_time_between_downings(data)
+            every = f"{pooled:,.0f}" if pooled >= 100 else _fmt(pooled)
+            between = (f" — roughly once every {every}{time_u} of "
+                       f"working time" if pooled else "")
+            parts.append(f"It went fully down {how_often}{between}.")
         elif fails_m == 0:
             parts.append("It never went fully down in any run.")
         parts.append(time_phrase)
@@ -1954,9 +1972,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             layout.setStretchFactor(seg, max(1, round(frac * 200)))
             seg.setVisible(frac > 0.0005)
         legend_texts = {
-            "green": f"■ Fully working — {g:.1f}%",
-            "yellow": f"■ Degraded — {y:.1f}%",
-            "red": f"■ Fully down — {r:.1f}%",
+            "green": f"■ Fully working — {_pct_short(g)}",
+            "yellow": f"■ Degraded — {_pct_short(y)}",
+            "red": f"■ Fully down — {_pct_short(r)}",
         }
         legend_colours = {"green": colours["operating"],
                           "yellow": colours["degraded"],
@@ -1969,7 +1987,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # contrast for readable text.
             lbl.setText(
                 f"<span style='color:{legend_colours[key]}'>&#9632;</span>"
-                f" {text.split(chr(32), 1)[1]}")
+                f" {html.escape(text.split(chr(32), 1)[1])}")
             # No `background: transparent` here (see _update_status_
             # summary in main_window.py: an unscoped background
             # declaration on a widget also paints the tooltip window

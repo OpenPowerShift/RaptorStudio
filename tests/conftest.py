@@ -85,6 +85,15 @@ def _open_models_in_new_windows():
 
 
 @pytest.fixture(autouse=True)
+def _advisor_already_introduced():
+    """The first run with findings opens the Advisor once per install; in
+    tests that would make dock layout depend on which test ran first, so
+    every test starts as an install that has seen it."""
+    QSettings().setValue("advisor/introduced", True)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _empty_clipboard():
     """Nothing on the system clipboard between tests: Copy puts a Raptor
     clip there, and Paste is only available while one is, so a clip left by
