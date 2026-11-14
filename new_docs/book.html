@@ -13210,6 +13210,11 @@ holding your hand. Go point it at something that matters to you.</p>
 </thead>
 <tbody>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2N</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A complete second copy of a chain, either alone able to carry the
+load. The strongest redundancy badge — and the most expensive.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Analytical solver</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The tool that calculates an exact answer from the diagram and the
 failure distributions, with no trials (<strong>Model ▸ Analytical…</strong>). It
@@ -13241,6 +13246,11 @@ yellow "short but up" state.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">A shared root cause (one power feed, one flood zone, one bad batch)
 that breaks parts a diagram treats as independent. The main way real
 redundancy underperforms its paper reliability number.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Component failures</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How many block failures a run had, whether or not they stopped the
+system. Preventive maintenance is not counted.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Convergence</p></td>
@@ -13307,16 +13317,6 @@ clock stopped, not counted as a breakdown. Reached via dependency or
 a Cut mission phase.</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">In / Out marker</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">The two doors of a hierarchy: where flow enters and where it leaves.
-Everything between them is invisible from the parent level.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">k-of-n vote</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">A junction alive while at least k of its n inputs are alive.
-Series is k = n; parallel redundancy is k = 1.</p></td>
-</tr>
-<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Importance measures (Birnbaum, RAW, RRW, Vesely–Fussell)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Numbers that say <strong>which block to improve</strong>. Each is estimated by
 re-simulating the model with one block made unable to fail and again with
@@ -13325,6 +13325,16 @@ availability moves. RAW (risk achievement worth): how much worse things are
 if the block is dead. RRW (risk reduction worth): how much better if it
 never failed. Vesely–Fussell: the block&#8217;s share of the downtime. Each is
 reported with its sampling error.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">In / Out marker</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The two doors of a hierarchy: where flow enters and where it leaves.
+Everything between them is invisible from the parent level.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">k-of-n vote</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A junction alive while at least k of its n inputs are alive.
+Series is k = n; parallel redundancy is k = 1.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Life-cycle cost</p></td>
@@ -13345,6 +13355,15 @@ pipes. Availability never sees it; the capacity report does.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean Down Time. Average length of one full stoppage.</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mission</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One simulated run, Start to finish. The trip, the season, the year.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">MMT</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mean Maintenance Time. Average length of one maintenance visit,
+repairs and preventive maintenance together.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">MTBDE</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean Time Between Downs. Average working stretch between stoppages —
 a <strong>system</strong>-level number.</p></td>
@@ -13355,16 +13374,17 @@ a <strong>system</strong>-level number.</p></td>
 never confuse this component-level number with the system&#8217;s MTBDE.</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">MTBM</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mean Time Between Maintenance. Average time from one maintenance
+visit to the next, repairs and preventive maintenance together.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">MTTF</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean Time To Failure. One part&#8217;s own average life.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">MTTR</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean Time To Repair. One part&#8217;s own average fix time.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Mission</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">One simulated run, Start to finish. The trip, the season, the year.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">N / N+1</p></td>
@@ -13375,17 +13395,6 @@ failure.</p></td>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Node</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">A junction that combines branches by a voting rule.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Weak link</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">The part whose failures cause the most <strong>system</strong> harm — frequency
-times consequence, not frequency alone. Fixing it promotes the
-runner-up.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">2N</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">A complete second copy of a chain, either alone able to carry the
-load. The strongest redundancy badge — and the most expensive.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Nominal / max flow</p></td>
@@ -13423,6 +13432,10 @@ part never comes back.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">One play-through of the mission with fresh dice rolls.</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Seed</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Starting number for the dice generator. Same seed, same story.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">SEM</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Standard error of the mean. Roughly your doubt about the answer:
 truth ≈ Mean ± 2 × SEM.</p></td>
@@ -13430,20 +13443,6 @@ truth ≈ Mean ± 2 × SEM.</p></td>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Series</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">All parts must work; one break kills the chain.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Seed</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Starting number for the dice generator. Same seed, same story.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Validation</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Checking that the <strong>model</strong> matches reality — the question no amount
-of stepping through a run can answer for you.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Verification</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Checking that the <strong>simulation</strong> does what the model says. The
-stepping debugger&#8217;s job.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Startup transient</p></td>
@@ -13463,6 +13462,27 @@ mission time that created it.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">How a system behaves once the startup transient has worn off — its
 long-run, ordinary-day behaviour, as opposed to its brand-new-machine
 behaviour.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">System failures</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How many times per run the whole system went fully down. A count,
+so a longer run has more; compare MTBDE for a rate.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Validation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Checking that the <strong>model</strong> matches reality — the question no amount
+of stepping through a run can answer for you.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Verification</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Checking that the <strong>simulation</strong> does what the model says. The
+stepping debugger&#8217;s job.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Weak link</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The part whose failures cause the most <strong>system</strong> harm — frequency
+times consequence, not frequency alone. Fixing it promotes the
+runner-up.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Weibull shape</p></td>

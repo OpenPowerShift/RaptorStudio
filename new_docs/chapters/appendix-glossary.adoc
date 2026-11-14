@@ -7,6 +7,10 @@ Words an engineer uses, in plain form.
 |===
 |Word |Meaning
 
+|2N
+|A complete second copy of a chain, either alone able to carry the
+load. The strongest redundancy badge — and the most expensive.
+
 |Analytical solver
 |The tool that calculates an exact answer from the diagram and the
 failure distributions, with no trials (*Model ▸ Analytical…*). It
@@ -33,6 +37,10 @@ yellow "short but up" state.
 |A shared root cause (one power feed, one flood zone, one bad batch)
 that breaks parts a diagram treats as independent. The main way real
 redundancy underperforms its paper reliability number.
+
+|Component failures
+|How many block failures a run had, whether or not they stopped the
+system. Preventive maintenance is not counted.
 
 |Convergence
 |The settling of simulation answers as trials pile up.
@@ -86,14 +94,6 @@ the parent diagram sees only one oval.
 clock stopped, not counted as a breakdown. Reached via dependency or
 a Cut mission phase.
 
-|In / Out marker
-|The two doors of a hierarchy: where flow enters and where it leaves.
-Everything between them is invisible from the parent level.
-
-|k-of-n vote
-|A junction alive while at least k of its n inputs are alive.
-Series is k = n; parallel redundancy is k = 1.
-
 |Importance measures (Birnbaum, RAW, RRW, Vesely–Fussell)
 |Numbers that say *which block to improve*. Each is estimated by
 re-simulating the model with one block made unable to fail and again with
@@ -102,6 +102,14 @@ availability moves. RAW (risk achievement worth): how much worse things are
 if the block is dead. RRW (risk reduction worth): how much better if it
 never failed. Vesely–Fussell: the block's share of the downtime. Each is
 reported with its sampling error.
+
+|In / Out marker
+|The two doors of a hierarchy: where flow enters and where it leaves.
+Everything between them is invisible from the parent level.
+
+|k-of-n vote
+|A junction alive while at least k of its n inputs are alive.
+Series is k = n; parallel redundancy is k = 1.
 
 |Life-cycle cost
 |One block's whole bill: purchase + operating + sparing + disposal.
@@ -117,6 +125,13 @@ pipes. Availability never sees it; the capacity report does.
 |MDT
 |Mean Down Time. Average length of one full stoppage.
 
+|Mission
+|One simulated run, Start to finish. The trip, the season, the year.
+
+|MMT
+|Mean Maintenance Time. Average length of one maintenance visit,
+repairs and preventive maintenance together.
+
 |MTBDE
 |Mean Time Between Downs. Average working stretch between stoppages —
 a *system*-level number.
@@ -125,14 +140,15 @@ a *system*-level number.
 |Mean Time Between Failures. MTTF + MTTR for one repaired *part* —
 never confuse this component-level number with the system's MTBDE.
 
+|MTBM
+|Mean Time Between Maintenance. Average time from one maintenance
+visit to the next, repairs and preventive maintenance together.
+
 |MTTF
 |Mean Time To Failure. One part's own average life.
 
 |MTTR
 |Mean Time To Repair. One part's own average fix time.
-
-|Mission
-|One simulated run, Start to finish. The trip, the season, the year.
 
 |N / N+1
 |Capacity shorthand. N = exactly enough parts (any failure bites);
@@ -141,15 +157,6 @@ failure.
 
 |Node
 |A junction that combines branches by a voting rule.
-
-|Weak link
-|The part whose failures cause the most *system* harm — frequency
-times consequence, not frequency alone. Fixing it promotes the
-runner-up.
-
-|2N
-|A complete second copy of a chain, either alone able to carry the
-load. The strongest redundancy badge — and the most expensive.
 
 |Nominal / max flow
 |The two sizes of a link. Nominal is the soft target filled first;
@@ -179,23 +186,15 @@ part never comes back.
 |Run / trial
 |One play-through of the mission with fresh dice rolls.
 
+|Seed
+|Starting number for the dice generator. Same seed, same story.
+
 |SEM
 |Standard error of the mean. Roughly your doubt about the answer:
 truth ≈ Mean ± 2 × SEM.
 
 |Series
 |All parts must work; one break kills the chain.
-
-|Seed
-|Starting number for the dice generator. Same seed, same story.
-
-|Validation
-|Checking that the *model* matches reality — the question no amount
-of stepping through a run can answer for you.
-
-|Verification
-|Checking that the *simulation* does what the model says. The
-stepping debugger's job.
 
 |Startup transient
 |The optimistic bias every simulation starts with: every part begins
@@ -212,6 +211,23 @@ mission time that created it.
 |How a system behaves once the startup transient has worn off — its
 long-run, ordinary-day behaviour, as opposed to its brand-new-machine
 behaviour.
+
+|System failures
+|How many times per run the whole system went fully down. A count,
+so a longer run has more; compare MTBDE for a rate.
+
+|Validation
+|Checking that the *model* matches reality — the question no amount
+of stepping through a run can answer for you.
+
+|Verification
+|Checking that the *simulation* does what the model says. The
+stepping debugger's job.
+
+|Weak link
+|The part whose failures cause the most *system* harm — frequency
+times consequence, not frequency alone. Fixing it promotes the
+runner-up.
 
 |Weibull shape
 |First Weibull parameter. Below 1: infant deaths. Near 1: random.
