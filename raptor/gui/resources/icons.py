@@ -2301,3 +2301,132 @@ def compare_icon(colour: str) -> QIcon:
         p.setBrush(c)
         p.drawRect(QRectF(31, 10, 9, 32))
     return _icon("compare", colour, draw)
+
+
+# ---------------------------------------------------------------------------
+# WP-1.5 / 1.6 / 1.7 commands: each has its own glyph (test_ribbon_icons)
+# ---------------------------------------------------------------------------
+
+def quick_add_icon(colour: str) -> QIcon:
+    """A block outline with a plus at its corner: add here, by name."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(6, 14, 26, 20)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(35, 4, 4, 18)
+        p.drawRect(28, 11, 18, 4)
+    return _icon("quick_add", colour, draw)
+
+
+def focus_icon(colour: str) -> QIcon:
+    """Corner brackets round a filled dot: everything else dims."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(QPen(c, 3))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        for x, y, dx, dy in ((7, 7, 1, 1), (41, 7, -1, 1),
+                             (7, 41, 1, -1), (41, 41, -1, -1)):
+            p.drawLine(x, y, x + 9 * dx, y)
+            p.drawLine(x, y, x, y + 9 * dy)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(17, 17, 14, 14)
+    return _icon("focus", colour, draw)
+
+
+def command_search_icon(colour: str) -> QIcon:
+    """A prompt box with a chevron and a cursor bar: run a command by name."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRoundedRect(5, 10, 38, 28, 4, 4)
+        p.setPen(QPen(c, 3))
+        p.drawPolyline(QPolygonF([QPointF(12, 18), QPointF(19, 24),
+                                  QPointF(12, 30)]))
+        p.drawLine(23, 31, 35, 31)
+    return _icon("command_search", colour, draw)
+
+
+def find_replace_icon(colour: str) -> QIcon:
+    """A small lens and an arrow to the right: find, then replace."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(QPen(c, 3))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(5, 8, 16, 16)
+        p.drawLine(19, 22, 25, 28)
+        p.drawLine(22, 38, 38, 38)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawPolygon(QPolygonF([QPointF(36, 32), QPointF(44, 38),
+                                 QPointF(36, 44)]))
+        p.drawRect(29, 8, 14, 4)
+        p.drawRect(29, 16, 10, 4)
+    return _icon("find_replace", colour, draw)
+
+
+def duplicate_icon(colour: str) -> QIcon:
+    """A filled block and its outlined twin beside it."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(5, 10, 18, 14)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(23, 24, 19, 14)
+    return _icon("duplicate", colour, draw)
+
+
+def duplicate_parallel_icon(colour: str) -> QIcon:
+    """Two blocks one above the other between a split and a join."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(QPen(c, 3))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawLine(4, 24, 12, 24)
+        p.drawLine(12, 13, 12, 35)
+        p.drawLine(36, 13, 36, 35)
+        p.drawLine(36, 24, 44, 24)
+        p.drawRect(15, 7, 18, 12)
+        p.drawRect(15, 29, 18, 12)
+    return _icon("duplicate_parallel", colour, draw)
+
+
+def array_icon(colour: str) -> QIcon:
+    """A row of three blocks and a second row: copies in a grid."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for row in (10, 28):
+            for col in (5, 19, 33):
+                p.drawRect(col, row, 10, 10)
+    return _icon("array", colour, draw)
+
+
+def paste_data_icon(colour: str) -> QIcon:
+    """A clipboard holding rows of data, not a shape."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(10, 9, 28, 32)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(19, 5, 10, 8)
+        for y in (19, 26, 33):
+            p.drawRect(15, y, 18, 3)
+    return _icon("paste_data", colour, draw)
+
+
+def advisor_icon(colour: str) -> QIcon:
+    """A light bulb: advice, not the Issues check mark (errors that stop a
+    run), which the Advisor toggle used to share."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(_outline_pen(c))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(12, 5, 24, 24)
+        p.drawLine(19, 29, 19, 35)
+        p.drawLine(29, 29, 29, 35)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(18, 35, 12, 4)
+        p.drawRect(20, 41, 8, 3)
+    return _icon("advisor", colour, draw)
