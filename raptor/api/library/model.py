@@ -38,6 +38,28 @@ PART_FIELDS: tuple[str, ...] = (
     "dep_pm_thresh", "def_dep_state_idle",
 )
 
+#: Fields per element kind; identity, placement and names are never here.
+KIND_FIELDS: dict[str, tuple[str, ...]] = {
+    "block": PART_FIELDS,
+    "node": ("k", "full_flow", "div_flow", "report_node_anal",
+             "report_capacity", "cold_standby", "priority_return",
+             "check_autos_first", "k_star", "dep_num", "dep_type",
+             "uses_phasing", "phs"),
+    "event": ("dist", "prob", "fail_stream", "init_cost", "op_cost",
+              "rep_cost", "phasing", "uses_phasing"),
+    "hierarchy": ("level", "uses_phasing", "phs"),
+    "annotation": ("kind", "text", "style", "w", "h"),
+}
+_SECTION_BY_KIND = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                    "event": "EVENT_DATA", "hierarchy": "HIERARCHY_DATA"}
+
+
+def element_name(kind: str) -> str:
+    """The table column that names an element of this kind."""
+    return {"block": "blockName", "node": "Name", "event": "eventName",
+            "hierarchy": "hierarchyName"}.get(kind, "name")
+
+
 _PARAM_FIELDS = {
     "fail_params": ("#FParam", ("FParam1", "FParam2", "FParam3")),
     "repair_params": ("#RParam", ("RParam1", "RParam2", "RParam3")),
@@ -59,10 +81,12 @@ class PartType:
     source: str = ""
     basis: str = "judgement"        # data | handbook | judgement
     updated: str = ""
+    kind: str = "block"            # block | node | event | hierarchy | annotation
 
     @property
     def version(self) -> str:
-        blob = json.dumps(self.fields, sort_keys=True, separators=(",", ":"))
+        blob = json.dumps([self.kind, self.fields], sort_keys=True,
+                          separators=(",", ":"))
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:12]
 
     def to_dict(self) -> dict[str, Any]:
@@ -81,6 +105,7 @@ class PartType:
             source=str(row.get("source") or ""),
             basis=str(row.get("basis") or "judgement"),
             updated=str(row.get("updated") or ""),
+            kind=str(row.get("kind") or "block"),
         )
 
 
@@ -131,14 +156,22 @@ def _number(text: Any) -> Any:
         return text
 
 
-def part_from_block(row: dict[str, Any], *, name: str | None = None,
-                    part_id: str | None = None, category: str = "",
-                    description: str = "", source: str = "",
-                    basis: str = "judgement") -> PartType:
-    """Everything a block's row carries that belongs to a part type."""
-    mapping = block_field_map()
+def part_from_element(kind: str, row: dict[str, Any], *,
+                      name: str | None = None, part_id: str | None = None,
+                      category: str = "", description: str = "",
+                      source: str = "", basis: str = "judgement") -> PartType:
+    """Everything an element's row carries that belongs to a part type."""
+    if kind == "annotation":
+        return part_from_annotation(row, name=name, part_id=part_id,
+                                    category=category, description=description,
+                                    source=source, basis=basis)
+    section = _SECTION_BY_KIND.get(kind)
+    if section is None:
+        raise ValueError(f"unknown part kind {kind!r}")
+    from raptor.api.build import combined_map
+    mapping = combined_map(section)
     fields: dict[str, Any] = {}
-    for field_name in PART_FIELDS:
+    for field_name in KIND_FIELDS[kind]:
         target = mapping.get(field_name)
         if target is None:
             continue
@@ -158,10 +191,36 @@ def part_from_block(row: dict[str, Any], *, name: str | None = None,
             continue
         if target in row and row.get(target) not in (None, ""):
             fields[field_name] = _number(row.get(target))
-    display = name or str(row.get("blockName") or row.get("ID") or "Part")
+    display = name or str(row.get(element_name(kind)) or row.get("ID")
+                          or "Part")
     return PartType(id=part_id or _slug(display), name=display,
                     fields=fields, category=category, description=description,
-                    source=source, basis=basis)
+                    source=source, basis=basis, kind=kind)
+
+
+def part_from_block(row: dict[str, Any], *, name: str | None = None,
+                    part_id: str | None = None, category: str = "",
+                    description: str = "", source: str = "",
+                    basis: str = "judgement") -> PartType:
+    """Backward-compatible block part."""
+    return part_from_element("block", row, name=name, part_id=part_id,
+                             category=category, description=description,
+                             source=source, basis=basis)
+
+
+def part_from_annotation(entry: dict[str, Any], *, name: str | None = None,
+                         part_id: str | None = None, category: str = "",
+                         description: str = "", source: str = "",
+                         basis: str = "judgement") -> PartType:
+    """A canvas annotation as a reusable template (kind, text, style, size)."""
+    fields = {key: entry[key] for key in KIND_FIELDS["annotation"]
+              if key in entry and entry[key] not in (None, "")}
+    display = name or str(entry.get("text") or entry.get("kind") or "Note")
+    display = display.strip().splitlines()[0][:40] or "Note"
+    return PartType(id=part_id or _slug(display), name=display,
+                    fields=fields, category=category or "Annotations",
+                    description=description, source=source, basis=basis,
+                    kind="annotation")
 
 
 def _legacy_part(entry: dict[str, Any]) -> PartType:
@@ -180,7 +239,8 @@ def _legacy_part(entry: dict[str, Any]) -> PartType:
             filtered[field_name] = _number(row.get(target))
     display = str(entry.get("name") or row.get("blockName") or "Part")
     return PartType(id=_slug(display), name=display, fields=filtered,
-                    basis="handbook", source="imported block library")
+                    basis="handbook", source="imported block library",
+                    kind="block")
 
 
 def read_library(path: str | Path) -> Library:

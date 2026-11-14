@@ -71,6 +71,8 @@ class DriversChart(QWidget):
         self._hit: list[tuple[QRectF, dict[str, Any]]] = []
         self._cell_hit: list[tuple[QRectF, Cell]] = []
         self._capacity_hit: list[tuple[QRectF, dict[str, Any]]] = []
+        self._cause_hit: list[tuple[QRectF, str]] = []
+        self._year_hit: list[tuple[QRectF, dict[str, Any]]] = []
         self.setMouseTracking(True)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
@@ -129,6 +131,7 @@ class DriversChart(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         self._hit, self._cell_hit, self._capacity_hit = [], [], []
+        self._cause_hit, self._year_hit = [], []
         self._x0, self._w = 8.0, self.width() - 16.0
         colour = active_colour()
         self._text, self._muted = QColor(colour["text"]), QColor(colour["muted"])
@@ -161,7 +164,9 @@ class DriversChart(QWidget):
         shown = [c for c in CAUSES if causes.get(c, 0.0) > 0]
         x = x0
         for cause in shown:
-            _fill(p, QRectF(x, y, w * causes[cause], 16), cause)
+            rect = QRectF(x, y, w * causes[cause], 16)
+            _fill(p, rect, cause)
+            self._cause_hit.append((rect, cause))
             x += w * causes[cause]
         p.setPen(QPen(self._border))
         p.drawRect(QRectF(x0, y, w, 16))
@@ -254,6 +259,7 @@ class DriversChart(QWidget):
         p.setBrush(stop)
         for i, r in enumerate(rows):
             p.drawEllipse(QPointF(px(i), py(r["min"])), 2.5, 2.5)
+            self._year_hit.append((QRectF(px(i) - 8, y, 16, YEARS_H), r))
         p.setBrush(Qt.BrushStyle.NoBrush)
         if threshold is not None:
             p.setPen(QPen(stop, 1, Qt.PenStyle.DashLine))
@@ -385,7 +391,7 @@ class DriversChart(QWidget):
         return y + ANATOMY_H + 8
 
     # ---- interaction -----------------------------------------------------
-    def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt name
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802, C901 - Qt name
         pos = event.position()
         for rect, row in self._hit:
             if rect.contains(pos):
@@ -403,6 +409,21 @@ class DriversChart(QWidget):
                     f"{cell.element}: {CAUSE_LABELS[cell.cause].lower()}\n"
                     f"{_pct(cell.height)} of downtime passes through this step "
                     f"({cell.outages:,} outages)")
+                return
+        for rect, cause in self._cause_hit:
+            if rect.contains(pos):
+                share = ((self._attribution or {}).get("causes") or {}).get(
+                    cause, 0.0)
+                self.setToolTip(f"{CAUSE_LABELS[cause]}: "
+                                f"{_pct(share, 2)} of system downtime")
+                return
+        for rect, row in self._year_hit:
+            if rect.contains(pos):
+                self.setToolTip(
+                    f"Period {row.get('index')}: median "
+                    f"{_pct(row.get('p50'))}, 5-95 % "
+                    f"{_pct(row.get('p5'))}-{_pct(row.get('p95'))}, "
+                    f"worst {_pct(row.get('min'))} in {row.get('n')} run(s)")
                 return
         for rect, row in self._capacity_hit:
             if rect.contains(pos):

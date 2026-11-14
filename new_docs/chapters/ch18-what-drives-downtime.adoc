@@ -36,6 +36,11 @@ summary cards is the Story:
 * the top **findings** from the Advisor;
 * the **key numbers** for this model, and the provenance line.
 
+The **Part Library** tab beside the Explorer saves an element's data as a
+reusable part type (blocks, nodes, events, hierarchies and annotations) and
+applies it to other elements of the same kind; a later change to the part can
+be synced while hand-edited fields stay as overrides.
+
 The same object is available without the application:
 
 [source,bash]

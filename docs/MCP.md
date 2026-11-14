@@ -528,7 +528,8 @@ options; a set that would break a name is refused whole.
 touching names, positions, links or dependencies.
 
 `list_part_types`, `apply_part_type`, `save_part_type` and `sync_part_types`
-share a block's data as a named part type. Applying one writes ordinary
+share an element's data as a named part type: blocks, nodes, events,
+hierarchies and annotations all have one. Applying one writes ordinary
 block columns and records a link in the model, so the engine still sees an
 ordinary block; `sync_part_types` reports (or applies) later changes and
 leaves hand-edited fields alone while they are marked as overrides.

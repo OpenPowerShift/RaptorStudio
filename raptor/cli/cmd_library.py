@@ -43,6 +43,9 @@ def add_parser(sub: Any) -> None:
     p.add_argument("library", metavar="FILE")
     p.add_argument("model", metavar="MODEL")
     p.add_argument("--block", required=True, metavar="NAME|ID")
+    p.add_argument("--kind", default="block",
+                   choices=("block", "node", "event", "hierarchy",
+                            "annotation"))
     p.add_argument("--name", metavar="N")
     p.add_argument("--category", default="", metavar="TEXT")
     p.add_argument("--source", default="", metavar="TEXT")
@@ -99,7 +102,8 @@ def _open(path: str, *, create: bool = False):
 
 def list_command(args: Any) -> int:
     library = _open(args.library)
-    rows = [{"id": part.id, "name": part.name, "category": part.category,
+    rows = [{"id": part.id, "name": part.name, "kind": part.kind,
+             "category": part.category,
              "source": part.source, "basis": part.basis,
              "version": part.version, "fields": len(part.fields)}
             for part in library.parts.values()]
@@ -121,7 +125,7 @@ def show_command(args: Any) -> int:
     if args.format == "json":
         emit_json(part.to_dict(), None)
         return X.OK
-    print(f"{part.name} ({part.id}) v{part.version}")
+    print(f"{part.name} ({part.id}) v{part.version} [{part.kind}]")
     print(f"category: {part.category or '—'}")
     print(f"basis: {part.basis}; source: {part.source or '—'}")
     for field_name, value in part.fields.items():
@@ -144,21 +148,23 @@ def import_command(args: Any) -> int:
 
 
 def add_command(args: Any) -> int:
-    from raptor.api.library.model import part_from_block, write_library
+    from raptor.api.library.model import part_from_element, write_library
     library = _open(args.library, create=True)
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
-        row = _block(ws.get(mid).rbd, args.block)
-        part = part_from_block(row, name=args.name, category=args.category,
-                               source=args.source, basis=args.basis)
+        rbd = ws.get(mid).rbd
+        row = _element(rbd, args.kind, args.block)
+        part = part_from_element(args.kind, row, name=args.name,
+                                 category=args.category, source=args.source,
+                                 basis=args.basis)
         library.parts[part.id] = part
         write_library(library, args.library)
-    eprint(f"added {part.id} to {args.library}")
+    eprint(f"added {part.id} ({part.kind}) to {args.library}")
     return X.OK
 
 
 def apply_command(args: Any) -> int:
-    from raptor.api.library.links import link_block
+    from raptor.api.library.links import link_element
     library = _open(args.library)
     part = library.get(args.part)
     if part is None:
@@ -169,8 +175,8 @@ def apply_command(args: Any) -> int:
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         for block in blocks:
-            link_block(ws, mid, block, part, library=args.library,
-                       overrides=overrides)
+            link_element(ws, mid, part.kind, block, part,
+                         library=args.library, overrides=overrides)
         _save_back(ws, mid, args.model, args.in_place)
     eprint(f"linked {len(blocks)} block(s) to {part.id}"
            + ("" if args.in_place else " (workspace only; pass --in-place)"))
@@ -215,6 +221,28 @@ def detach_command(args: Any) -> int:
     if not result["detached"]:
         eprint("that block had no part link")
     return X.OK
+
+
+def _element(rbd: Any, kind: str, selector: str) -> dict[str, Any]:
+    if kind == "annotation":
+        entry = next((entry for entry in getattr(rbd, "annotations", []) or []
+                      if str(entry.get("id")) == str(selector)), None)
+        if entry is None:
+            raise CliError(f"annotation {selector!r} not found", X.USAGE)
+        return entry
+    from raptor.api.build import resolve_element
+    label = {"block": "Block", "node": "Node", "event": "Event",
+             "hierarchy": "Hier"}[kind]
+    try:
+        section, row = resolve_element(
+            rbd, f"{label}:{selector}" if selector.isdigit() else selector)
+    except Exception as exc:  # noqa: BLE001
+        raise CliError(str(exc), X.USAGE) from exc
+    expected = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                "event": "EVENT_DATA", "hierarchy": "HIERARCHY_DATA"}[kind]
+    if section != expected:
+        raise CliError(f"{selector!r} is not a {kind}", X.USAGE)
+    return row
 
 
 def _block(rbd: Any, selector: str) -> dict[str, Any]:

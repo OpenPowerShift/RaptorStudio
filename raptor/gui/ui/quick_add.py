@@ -36,28 +36,48 @@ class QuickAdd(QFrame):
         self.list.itemActivated.connect(lambda _item: self._choose())
         self._fill("")
 
+    @staticmethod
+    def _recent() -> list[str]:
+        from PySide6.QtCore import QSettings
+        value = QSettings().value("quick_add/recent", [])
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, (list, tuple)):
+            return [str(item) for item in value]
+        return []
+
+    def _note_recent(self, key: str) -> None:
+        from PySide6.QtCore import QSettings
+        recent = [key] + [value for value in self._recent() if value != key]
+        QSettings().setValue("quick_add/recent", recent[:8])
+
     def _candidates(self) -> tuple[list[Candidate], dict[str, Any]]:
         data: dict[str, Any] = {}
         out = []
+        recent = {value: index for index, value in
+                  enumerate(self._recent())}
         for key, label, words in (
                 ("pattern:series", "Series of n blocks…",
                  ("series", "chain", "row")),
                 ("pattern:parallel", "n in parallel (k of n)…",
                  ("parallel", "redundant", "k of n"))):
             data[key] = key
-            out.append(Candidate(label, "Pattern", keywords=words, data=key))
+            out.append(Candidate(label, "Pattern", keywords=words, data=key,
+                                 recent=recent.get(key, 99)))
         for kind, label in (("block", "Block"),
                             ("node", "Node"),
                             ("event", "Event"),
                             ("hierarchy", "Hierarchy")):
             data[f"kind:{kind}"] = kind
             out.append(Candidate(label, "Element kind", keywords=(kind,),
-                                 data=f"kind:{kind}"))
+                                 data=f"kind:{kind}",
+                                 recent=recent.get(f"kind:{kind}", 99)))
         for block in getattr(self._view, "blocks", {}).values():
             key = f"block:{block.id}"
             data[key] = block
             out.append(Candidate(f"{block.name} (copy)", "In this model",
-                                 keywords=("block", "duplicate"), data=key))
+                                 keywords=("block", "duplicate"), data=key,
+                                 recent=recent.get(key, 99)))
         from raptor.api.library.links import local_parts
         rbd = getattr(self._view, "rbd", None)
         if rbd is not None:
@@ -66,7 +86,8 @@ class QuickAdd(QFrame):
                 data[key] = part
                 out.append(Candidate(part.name, part.category or "Part type",
                                      keywords=(part.id, "part", "library"),
-                                     data=key))
+                                     data=key,
+                                     recent=recent.get(key, 99)))
         return out, data
 
     def _fill(self, query: str) -> None:
@@ -96,6 +117,7 @@ class QuickAdd(QFrame):
         if item is None:
             return
         key = item.data(Qt.ItemDataRole.UserRole)
+        self._note_recent(key)
         value = self._data.get(key)
         if value is None:
             return

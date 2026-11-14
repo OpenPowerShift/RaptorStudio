@@ -234,6 +234,15 @@ COMMANDS: tuple[CommandSpec, ...] = (
         shortcut="Ctrl+D",
         enabled_when="can_copy"),
     CommandSpec(
+        id="home.duplicate_parallel",
+        attr="_duplicate_parallel_action",
+        text="Duplicate in Parallel",
+        tooltip="Copy the selected block in parallel between its "
+                "neighbours (Ctrl+Shift+D)",
+        handler="_edit_duplicate_parallel",
+        shortcut="Ctrl+Shift+D",
+        enabled_when="can_copy"),
+    CommandSpec(
         id="home.array",
         attr="_array_action",
         text="Array…",
@@ -1287,7 +1296,8 @@ LAYOUT: tuple[Page, ...] = (
     _p("Model", "_model_page_index",
        Group("Clipboard", (Btn("home.paste", True), Btn("home.cut"),
                            Btn("home.copy"), Btn("home.duplicate"),
-                           Btn("home.array"), Btn("home.paste_data"),
+                           Btn("home.duplicate_parallel"), Btn("home.array"),
+                           Btn("home.paste_data"),
                            Btn("home.select_all")),
              priority=2),
        Group("Tools", (Btn("model.select", True), Btn("model.connect", True))),

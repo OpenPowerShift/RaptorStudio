@@ -30,9 +30,12 @@ def test_every_command_with_a_handler_appears_once(win):
     dialog = CommandSearch(win)
     ids = [dialog.results.item(i).data(256)
            for i in range(dialog.results.count())]
+    commands = [value for value in ids if isinstance(value, str)]
     expected = [spec.id for spec in COMMANDS if spec.handler]
-    assert len(ids) == len(set(ids))
-    assert set(ids) == set(expected)
+    assert len(commands) == len(set(commands))
+    assert set(commands) == set(expected)
+    assert any(isinstance(value, tuple) and value[0] == "element"
+               for value in ids)
 
 
 def test_filter_finds_duplicate_and_disabled_commands_explain(win):

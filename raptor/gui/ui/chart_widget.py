@@ -280,6 +280,8 @@ class ChartWidget(QWidget):
             painter.drawText(QRectF(r.right() - 120, y, 120, height * 0.6),
                              Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                              f"{100 * float(row['value']):.4g} %")
+            self._hits.append((QRectF(r.left(), y, r.width(), height * 0.6),
+                               "element", str(row["name"])))
 
     def _paint_histogram(self, painter, spec, palette) -> None:
         bins = spec.series
@@ -292,9 +294,12 @@ class ChartWidget(QWidget):
         painter.setBrush(QColor("#7A5AA6"))
         for i, row in enumerate(bins):
             height = r.height() * float(row["count"]) / peak
-            painter.drawRect(QRectF(r.left() + i * width + 1,
-                                    r.bottom() - height,
-                                    max(1, width - 2), height))
+            rect = QRectF(r.left() + i * width + 1, r.bottom() - height,
+                          max(1, width - 2), height)
+            painter.drawRect(rect)
+            self._hits.append((rect, "bin",
+                               f"{_fmt(float(row['lo']))}–"
+                               f"{_fmt(float(row['hi']))}"))
         painter.setPen(QColor(palette["muted"]))
         painter.drawText(QRectF(r.left(), r.bottom() + 4, r.width(), 18),
                          Qt.AlignmentFlag.AlignLeft,
@@ -425,6 +430,8 @@ class ChartWidget(QWidget):
             painter.setPen(QColor(palette["text"]))
             painter.drawText(QRectF(r.left() + 4, y, r.width() - 8, height),
                              Qt.AlignmentFlag.AlignVCenter, str(row["name"]))
+            self._hits.append((QRectF(r.left(), y, r.width(), height),
+                               "element", str(row["name"])))
         painter.setPen(QColor(palette["muted"]))
         painter.drawText(QRectF(r.left(), r.top() - 18, r.width(), 16),
                          Qt.AlignmentFlag.AlignLeft,
@@ -587,20 +594,27 @@ class ChartWidget(QWidget):
                 x1 = _scale(float(b), start, end, r.left(), r.right())
                 painter.drawRect(QRectF(x0, y, max(1, x1 - x0),
                                         max(1, height - 0.4)))
+            self._hits.append((QRectF(r.left(), y, r.width(),
+                                      max(1, height)), "element",
+                               f"run {row.get('run', '')}"))
 
     # -- interaction ----------------------------------------------------
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt name
         point = event.position()
-        for rect, kind, name in self._hits:
+        for rect, _kind, name in self._hits:
             if rect.contains(point):
-                if kind == "element" and self._spec is not None:
+                text = name
+                if self._spec is not None:
                     row = next((r for r in self._spec.series
                                 if str(r.get("name")) == name), None)
-                    text = f"{name}"
-                    if row is not None and isinstance(row.get("value"), (int, float)):
+                    if row is not None and isinstance(row.get("value"),
+                                                      (int, float)):
                         text += f": {100 * float(row['value']):.3g} %"
-                    QToolTip.showText(event.globalPosition().toPoint(), text, self)
+                    elif row is not None and isinstance(row.get("count"),
+                                                        (int, float)):
+                        text += f": {row['count']:,.0f}"
+                QToolTip.showText(event.globalPosition().toPoint(), text, self)
                 break
         super().mouseMoveEvent(event)
 

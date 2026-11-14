@@ -10621,10 +10621,10 @@ you need the exact argument shape.</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_part_types</code>, <code>apply_part_type</code>, <code>save_part_type</code>, <code>sync_part_types</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Reuse one block&#8217;s data as a named part type: list parts from a <code>.rbdlib</code>
-  file or the model, apply one to blocks (recording the link), save a
-  block as a part, and show or apply the changes a library has made while
-  respecting per-block overrides.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Reuse an element&#8217;s data as a named part type (block, node, event,
+  hierarchy or annotation): list parts from a <code>.rbdlib</code> file or the model,
+  apply one (recording the link), save an element as a part, and show or
+  apply the changes a library has made while respecting overrides.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>sensitivity</code></p></td>
@@ -12079,6 +12079,12 @@ and by downtime otherwise;</p>
 <p>the <strong>key numbers</strong> for this model, and the provenance line.</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>The <strong>Part Library</strong> tab beside the Explorer saves an element&#8217;s data as a
+reusable part type (blocks, nodes, events, hierarchies and annotations) and
+applies it to other elements of the same kind; a later change to the part can
+be synced while hand-edited fields stay as overrides.</p>
 </div>
 <div class="paragraph">
 <p>The same object is available without the application:</p>

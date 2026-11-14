@@ -132,6 +132,8 @@ class StructureMixin(_Base):
         links: list[raptor.core.model.Link]
         nodes: dict[int, raptor.core.model.RBDNode]
         def scene_to_model(self, scene_pos: Any) -> tuple[float, float]: ...
+        def add_block_from_template(self, row: dict,
+                                    at_model: Any = None) -> int: ...
         structural_about_to_change: PySide6.QtCore.SignalInstance
         def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
 
@@ -1685,6 +1687,114 @@ class StructureMixin(_Base):
                 self.connect_elements("Block", block_id, "Node", join)
             old = self.nodes[join].good_paths if join in self.nodes else -1
             self._stack.push(ParamsCmd(self, "node k", join, old, k))
+        finally:
+            self._stack.endMacro()
+        return ids
+
+
+    def _rewire_link(self, link: Any, endpoint: tuple[str, int],
+                     side: str) -> None:
+        """Delete one link and reconnect its `side` end to `endpoint`."""
+        if link is None:
+            return
+        from raptor.gui.ui.diagram_commands import DeleteCmd
+        rows = self._rbd_ref.section("LINK_DATA").rows
+        row = next((row for row in rows
+                    if _safe_int(row.get("FromID")) == link.connect_from_id
+                    and _safe_int(row.get("ToID")) == link.connect_to_id), None)
+        if row is None:
+            return
+        other = ((link.connect_t_ref.replace("RBD", "", 1),
+                  link.connect_to_id) if side == "from"
+                 else (link.connect_f_ref.replace("RBD", "", 1),
+                       link.connect_from_id))
+        self._stack.push(DeleteCmd(self, [], [], [], [row]))
+        if side == "from":
+            self.connect_elements(endpoint[0], endpoint[1],
+                                  other[0], other[1])
+        else:
+            self.connect_elements(other[0], other[1],
+                                  endpoint[0], endpoint[1])
+
+    def duplicate_parallel(self, copies: int = 1, k: int | None = None
+                           ) -> list[int]:
+        """Add `copies` copies of the one selected block in parallel.
+
+        The copies sit between the block's existing neighbours (nodes are
+        created when a side has no neighbour). If the downstream neighbour
+        is a node, its k is raised to the full path count unless `k` says
+        otherwise. One undo macro.
+        """
+        if copies < 1 or self._rbd_ref is None:
+            return []
+        selected = [bid for bid, item in self._block_items.items()
+                    if item.isSelected() and bid != 0]
+        if len(selected) != 1:
+            _view_status(self, "Duplicate in Parallel needs exactly one "
+                              "selected block")
+            return []
+        bid = selected[0]
+        block = self.blocks[bid]
+        row = next((r for r in self._rbd_ref.section("BLOCK_DATA").rows
+                    if _safe_int(r.get("ID")) == bid), None)
+        if row is None:
+            return []
+
+        def endpoint(link: Any, incoming: bool) -> tuple[str, int]:
+            if incoming:
+                return (link.connect_f_ref.replace("RBD", "", 1),
+                        link.connect_from_id)
+            return (link.connect_t_ref.replace("RBD", "", 1),
+                    link.connect_to_id)
+
+        incoming = next((link for link in self.links
+                         if link.connect_t_ref.replace("RBD", "", 1) == "Block"
+                         and link.connect_to_id == bid), None)
+        outgoing = next((link for link in self.links
+                         if link.connect_f_ref.replace("RBD", "", 1) == "Block"
+                         and link.connect_from_id == bid), None)
+        x, y = block.x_position, block.y_position
+        ids: list[int] = []
+        self._stack.beginMacro(f"Add {copies} in parallel")
+        try:
+            upstream = endpoint(incoming, True) if incoming else None
+            downstream = endpoint(outgoing, False) if outgoing else None
+            if upstream is not None and upstream[0] == "Node":
+                node = self.nodes.get(upstream[1])
+                if node is not None and node.type_node == 1:
+                    # Start allows one outgoing link. Put a split node in
+                    # front of the original, then branch from the split.
+                    split = self.add_node("Split", x - BLOCK_W, y)
+                    self._rewire_link(incoming, ("Node", split), "from")
+                    upstream = ("Node", split)
+            if downstream is not None and downstream[0] == "Node":
+                node = self.nodes.get(downstream[1])
+                if node is not None and node.type_node == 3:
+                    join = self.add_node("Join", x + BLOCK_W, y)
+                    self._rewire_link(outgoing, ("Node", join), "to")
+                    downstream = ("Node", join)
+            if upstream is None:
+                upstream = ("Node", self.add_node("Split", x - BLOCK_W, y))
+            if downstream is None:
+                downstream = ("Node",
+                              self.add_node("Join", x + BLOCK_W, y))
+            for index in range(copies):
+                clone = dict(row)
+                clone["blockName"] = self._unique_block_name(block.name)
+                new_id = self.add_block_from_template(
+                    clone, at_model=(x, y + (index + 1) * (BLOCK_H + 10.0)))
+                ids.append(new_id)
+                self.connect_elements(upstream[0], upstream[1],
+                                      "Block", new_id)
+                self.connect_elements("Block", new_id,
+                                      downstream[0], downstream[1])
+            if downstream[0] == "Node":
+                node = self.nodes.get(downstream[1])
+                old = node.good_paths if node is not None else -1
+                wanted = int(k) if k is not None else copies + 1
+                wanted = max(1, min(wanted, copies + 1))
+                self._stack.push(ParamsCmd(self, "node k", downstream[1],
+                                           old, wanted))
         finally:
             self._stack.endMacro()
         return ids

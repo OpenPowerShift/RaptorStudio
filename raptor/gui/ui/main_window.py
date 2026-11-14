@@ -1063,6 +1063,25 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         if n:
             self._statusbar.showMessage(f"Duplicated {n} element(s)", 4000)
 
+    def _edit_duplicate_parallel(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        if text_editing.active_editor() is not None or \
+                not self._canvas_has_focus():
+            return
+        copies, ok = QInputDialog.getInt(
+            self, "Duplicate in Parallel", "Copies:", 1, 1, 50)
+        if not ok:
+            return
+        k, ok = QInputDialog.getInt(
+            self, "Duplicate in Parallel", "Required (k):", copies + 1,
+            1, copies + 1)
+        if not ok:
+            return
+        n = self._diagram_dock.view.duplicate_parallel(copies, k)
+        if n:
+            self._statusbar.showMessage(
+                f"Added {n} block(s) in parallel", 4000)
+
     def _edit_array(self) -> None:
         from PySide6.QtWidgets import QInputDialog
         if text_editing.active_editor() is not None:
