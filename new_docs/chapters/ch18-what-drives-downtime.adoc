@@ -110,6 +110,13 @@ PNG/SVG/CSV export. The set includes:
   downtime-against-lost-capacity scatter;
 * year-by-year availability when the run covers whole periods.
 
+Two canvas controls tie the views together. **Show on Canvas** chooses one
+result measure (weak link, capacity, cost, spares or importance) and paints
+it over the diagram; **View ▸ Focus** dims everything except the selection,
+so a large diagram keeps its topology but shows only what matters.
+Selecting a block on the canvas also marks its row in the Drivers view, and
+clicking a chart or driver locates the block on the canvas.
+
 The command line writes one chart as SVG, which is what a report embeds:
 
 [source,bash]
