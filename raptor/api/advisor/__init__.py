@@ -22,9 +22,12 @@ __all__ = ["RULES", "Finding", "Fix", "ModelContext", "RuleInfo", "RunContext", 
 
 
 def advise_model(rbd: Any, *, only: Iterable[str] | None = None,
-                 skip: Iterable[str] | None = None) -> list[Finding]:
-    """Every model finding for `rbd`, most important first."""
-    return run_rules(ModelContext(rbd), phase="model", only=only, skip=skip)
+                 skip: Iterable[str] | None = None,
+                 validation: list | None = None) -> list[Finding]:
+    """Every model finding for `rbd`, most important first. `validation` is
+    `raptor.api.validate.issues(rbd)` when the caller has already computed it
+    (it is the slowest check on a large model), else it is computed here."""
+    return run_rules(ModelContext(rbd, validation), phase="model", only=only, skip=skip)
 
 
 def advise_run(rbd: Any, summary: dict, per_run: list[dict], *,

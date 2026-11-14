@@ -90,6 +90,8 @@ class ValidationMixin(_Base):
             return list(cached[1])
         from raptor.api.validate import issues as api_validate
         api_issues = api_validate(self._rbd)
+        # kept for the Advisor, which shows the same issues: one pass, not two
+        self._api_issues = (rev, api_issues)
         issues = self._compute_validation_issues(api_issues)
         warnings = self._warnings_from_api(api_issues)
         self._validation_cache = (rev, issues, warnings)

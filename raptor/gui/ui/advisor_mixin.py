@@ -72,7 +72,11 @@ class AdvisorMixin:
             return
         from raptor.api.advisor import advise_model, sort_findings
         try:
-            findings = sort_findings(advise_model(self._rbd) + self._run_findings())
+            cached = getattr(self, "_api_issues", None)
+            validation = (cached[1] if cached is not None
+                          and cached[0] == getattr(self, "_model_revision", 0) else None)
+            findings = sort_findings(advise_model(self._rbd, validation=validation)
+                                     + self._run_findings())
         except Exception:  # noqa: BLE001 - the Advisor must never break an edit
             log.exception("advisor refresh failed")
             findings = []

@@ -631,8 +631,8 @@ def run(
         from raptor.core import run_experiment
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
         attributed = attribute_logs(
-            (log if isinstance(log, list) else [log] for log in event_logs),
-            float(experiment.get("start_stats") or 0.0))
+            [log if isinstance(log, list) else [log] for log in event_logs],
+            float(experiment.get("start_stats") or 0.0), abort=abort)
         attributed["units"] = model_units(sim_rbd)
         (runs_dir / "attribution.json").write_text(json.dumps(attributed))
     summary = {

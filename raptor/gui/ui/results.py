@@ -37,6 +37,7 @@ from typing import Any, cast
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QStandardItemModel
 from PySide6.QtWidgets import (
+    QApplication,
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QLabel,
     QPlainTextEdit, QComboBox, QLineEdit, QTreeView, QTreeWidget,
     QTreeWidgetItem,
@@ -1171,14 +1172,27 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             return
         from raptor.api.insight.attribution import attribute_logs
         experiment = (self._manifest or {}).get("experiment") or {}
+        big = sum(len(log) for log in logs) > self.DRIVERS_EAGER_LINES
+
+        def show(p) -> None:
+            # a long replay says where it has got to and keeps the window alive
+            if big and (p.done % 10 == 0 or p.done == p.total):
+                self._drivers_page.caption.setText(p.text() + " runs…")
+                QApplication.processEvents()
+
+        if big:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             start = float(experiment.get("start_stats") or 0.0)
-            attribution = attribute_logs(logs, start)
+            attribution = attribute_logs(logs, start, progress=show)
         except Exception:  # noqa: BLE001 - a view must never break showing results
             import logging
             logging.getLogger(__name__).exception("downtime attribution failed")
             self._drivers_page.set_attribution(None)
             return
+        finally:
+            if big:
+                QApplication.restoreOverrideCursor()
         attribution["units"] = self._units
         self._drivers_page.set_attribution(attribution)
 

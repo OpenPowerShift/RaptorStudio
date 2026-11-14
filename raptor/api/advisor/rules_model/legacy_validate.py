@@ -19,8 +19,11 @@ _BLOCK = re.compile(r"^Block (\d+) '(.*)'$")
 @rule("M-VAL-000", title="Model validation", category="structure",
       basis="exact", severity="error")
 def validation(ctx: ModelContext) -> Iterable[Finding]:
-    from raptor.api.validate import issues
-    for issue in issues(ctx.rbd):
+    found = ctx.validation
+    if found is None:
+        from raptor.api.validate import issues
+        found = issues(ctx.rbd)
+    for issue in found:
         targets: tuple[Target, ...] = ()
         m = _BLOCK.match(issue.element or "")
         if m:

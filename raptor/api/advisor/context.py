@@ -73,8 +73,11 @@ class Group:
 
 
 class ModelContext:
-    def __init__(self, rbd: Any) -> None:
+    def __init__(self, rbd: Any, validation: list | None = None) -> None:
         self.rbd = rbd
+        #: `raptor.api.validate.issues(rbd)` when the caller already has it
+        #: (the application validates on every edit); None = compute it.
+        self.validation = validation
 
     # ---- run settings ----------------------------------------------------
     @cached_property

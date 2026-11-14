@@ -120,7 +120,8 @@ class _Replay:
         self.out = TrialAttribution()
         self.start_stats = start_stats
         self.state: dict[Key, str] = {}
-        self.order: dict[Key, int] = {}      # when each element last went down (a counter)
+        self.since: dict[Key, float] = {}    # when each element entered its current state
+        self.down: dict[Key, int] = {}       # elements down now -> when they went down (a counter)
         self.clock = 0
         self.now = 0.0
         self.red = False
@@ -135,10 +136,9 @@ class _Replay:
         current = self.current
         if current is not None and self.state.get(current.initiator, "up") not in _NOT_DOWN:
             return current.initiator, self.state[current.initiator]
-        down = [(self.order.get(k, 0), k) for k, s in self.state.items() if s not in _NOT_DOWN]
-        if not down:
+        if not self.down:
             return SYSTEM_KEY, "other"
-        key = max(down)[1]
+        key = max(self.down, key=lambda k: (self.down[k], k))
         return key, self.state[key]
 
     def advance(self, to: float) -> None:
@@ -146,9 +146,6 @@ class _Replay:
         dt = max(to, self.start_stats) - max(self.now, self.start_stats)
         if dt > 0:
             out.span += dt
-            for key, s in self.state.items():
-                bucket = out.own_time.setdefault(key, {})
-                bucket[s] = bucket.get(s, 0.0) + dt
             if self.red and self.current is not None:
                 key, cause = self.holder()
                 cause = cause if cause in CAUSES else "other"
@@ -160,6 +157,23 @@ class _Replay:
                 per = out.initiator_cause.setdefault(initiator, {})
                 per[cause] = per.get(cause, 0.0) + dt
         self.now = max(self.now, to)
+
+    def book_own_time(self, key: Key, until: float) -> None:
+        """Credit `key`'s time in its current state up to `until`. Done only
+        when an element changes state (and once at the end), so the replay
+        costs one step per log line whatever the size of the model."""
+        start = max(self.since.get(key, 0.0), self.start_stats)
+        dt = until - start
+        if dt > 0:
+            bucket = self.out.own_time.setdefault(key, {})
+            state = self.state[key]
+            bucket[state] = bucket.get(state, 0.0) + dt
+        self.since[key] = until
+
+    def finish(self) -> None:
+        self.close(self.now)
+        for key in self.state:
+            self.book_own_time(key, self.now)
 
     def note_step(self) -> None:
         step = self.holder()
@@ -191,11 +205,19 @@ class _Replay:
         if new is None or line.comment == "End_sim":
             return
         was_down = previous not in _NOT_DOWN
+        if key in self.state:
+            self.book_own_time(key, float(line.time))
+        else:
+            self.since[key] = 0.0
+            self.state[key] = "up"               # up from the start until this first line
+            self.book_own_time(key, float(line.time))
         self.state[key] = new
-        if new not in _NOT_DOWN:
+        if new in _NOT_DOWN:
+            self.down.pop(key, None)
+        else:
             if not was_down:
                 self.clock += 1
-                self.order[key] = self.clock
+                self.down[key] = self.clock
             failed = line.action == "Failed"
             if not was_down or failed:
                 how = "failed" if failed else "pm" if new in ("pm", "pm_wait") else "other"
@@ -247,7 +269,7 @@ def attribute_trial(lines: Iterable[Any], start_stats: float = 0.0) -> TrialAttr
             replay.element_line(line, kind == "Block")
         elif kind == "System":
             replay.system_line(line)
-    replay.close(replay.now)
+    replay.finish()
     return replay.out
 
 
@@ -352,6 +374,23 @@ def aggregate(trials: list[TrialAttribution]) -> dict[str, Any]:
     }
 
 
-def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0) -> dict[str, Any]:
-    """Attribution for a whole batch from its per-run event logs."""
-    return aggregate([attribute_trial(lines, start_stats) for lines in logs])
+ATTRIBUTE_LABEL = "Working out what caused the downtime"
+
+
+def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
+                   progress: Any = None, abort: Any = None,
+                   total: int | None = None) -> dict[str, Any]:
+    """Attribution for a whole batch from its per-run event logs.
+
+    `progress` (a `raptor.api.progress.ProgressFn`) is told after each run;
+    `abort` (a `threading.Event`) stops it with `raptor.api.progress.Cancelled`.
+    """
+    from raptor.api.progress import check, report
+    if total is None and hasattr(logs, "__len__"):
+        total = len(logs)                                   # type: ignore[arg-type]
+    trials = []
+    for i, lines in enumerate(logs, start=1):
+        check(abort)
+        trials.append(attribute_trial(lines, start_stats))
+        report(progress, "attribute", ATTRIBUTE_LABEL, i, total)
+    return aggregate(trials)

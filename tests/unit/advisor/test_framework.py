@@ -117,3 +117,17 @@ def test_advisor_never_imports_qt_or_randomness(path):
             names = [node.module]
         for name in names:
             assert not any(name == b or name.startswith(b + ".") for b in banned), (path, name)
+
+
+def test_validation_can_be_handed_in_instead_of_recomputed(monkeypatch):
+    from raptor.api import validate
+    from raptor.api.advisor import advise_model
+    rbd = build.build_from_spec(series_spec(block("A")))
+    mine = [validate.Issue("warning", "Block 1 'A'", "handed in")]
+
+    def boom(_rbd):
+        raise AssertionError("the validator ran again")
+    monkeypatch.setattr(validate, "issues", boom)
+    out = advise_model(rbd, validation=mine)
+    hit, = [f for f in out if f.rule == "M-VAL-000"]
+    assert "handed in" in hit.message and hit.targets[0].name == "A"
