@@ -82,3 +82,12 @@ def test_the_ladder_rungs_add_up_to_the_reported_downtime():
     assert ladder["inherent"]["value"] == pytest.approx(0.94)
     assert ladder["achieved"]["value"] == pytest.approx(0.92)
     assert ladder["operational"]["value"] == pytest.approx(0.90)
+
+
+def test_failure_counts_are_counts_not_criticality_indices():
+    """The System Failures card once explained DECI (an element's share of
+    outages) and Component Failures FCI."""
+    from raptor.api.insight import measures
+    assert measures.for_label("System_Failures").id == "system_failures"
+    assert measures.for_label("Component failures").id == "component_failures"
+    assert "per run" in measures.for_label("System failures").long
