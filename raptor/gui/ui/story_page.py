@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QGridLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget,
 )
 
+from raptor.api.insight import measures
 from raptor.api.insight.story import Story
 from raptor.gui.resources.design_tokens import active_colour
 from raptor.gui.ui.chart_theme import cause_brush, cause_colour, has_pattern
