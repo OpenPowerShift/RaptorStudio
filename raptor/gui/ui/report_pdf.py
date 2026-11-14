@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QImage, QPainter
@@ -164,6 +165,29 @@ def _raw_blocks(win) -> list[TextBlock]:
             for title, lines, total in collect_raw_report_sections(win)]
 
 
+def _insight(win) -> Any:
+    """The Story, charts and checks from the results already on screen."""
+    res = win._results
+    story = (res._story_page.story()
+             if hasattr(res, "_story_page") else None)
+    if story is None or not getattr(res, "_report_data", None):
+        return None
+    from raptor.api.insight import report_section
+    from raptor.api.run import _rd_to_dict
+    per_run = [_rd_to_dict(rd) for rd in res._report_data]
+    attribution = (res._drivers_page.attribution()
+                   if hasattr(res, "_drivers_page") else None)
+    specs = (list(res._charts_page._specs.values())
+             if hasattr(res, "_charts_page") else None)
+    try:
+        return report_section.from_parts(
+            story, per_run, attribution=attribution, charts_in=specs)
+    except Exception:  # noqa: BLE001 - the report must still print
+        import logging
+        logging.getLogger(__name__).exception("could not build the report story")
+        return None
+
+
 def _add_results(content: ReportContent, win, opts: dict,
                  folder: Path) -> None:
     """The parts of the report that need a run."""
@@ -176,6 +200,8 @@ def _add_results(content: ReportContent, win, opts: dict,
             opts.get("weak") if t.section == "Weak link"
             else opts.get("results"))]
     content.notes = list(getattr(res, "_notes", []) or [])
+    if opts.get("story", True):
+        content.insight = _insight(win)
     if opts.get("results"):
         content.per_run = next((t for t in tables
                                 if t.key == "results.per_run"), None)

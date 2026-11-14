@@ -61,7 +61,7 @@ def test_prompt_export_options_covers_every_result_surface(w, monkeypatch):
     section is ticked except the two long ones (event log, raw reports)."""
     monkeypatch.setattr(QDialog, "exec", lambda self: QDialog.Accepted)
     opts = printing._prompt_export_options(w, "Test")
-    for key in ("diagram", "results", "weak", "graphs"):
+    for key in ("diagram", "story", "results", "weak", "graphs"):
         assert opts[key] is True, key
     assert opts["event_log"] is False and opts["raw"] is False
     assert opts["orientation"] == "portrait"
@@ -90,8 +90,9 @@ def test_prompt_export_options_disables_run_dependent_sections_when_empty(
 
 
 def test_export_pdf_renders_every_section(w, tmp_path):
-    opts = {"diagram": True, "data_tables": True, "results": True,
-            "weak": True, "graphs": True, "event_log": True, "raw": True,
+    opts = {"diagram": True, "data_tables": True, "story": True,
+            "results": True, "weak": True, "graphs": True,
+            "event_log": True, "raw": True,
             "name": "Test", "revision": "1", "date": "2026-08-30"}
     path = tmp_path / "report.pdf"
     report_pdf.export_pdf(w, str(path), opts)
@@ -101,8 +102,8 @@ def test_export_pdf_renders_every_section(w, tmp_path):
     from raptor.api.report_html import build_html
     with tempfile.TemporaryDirectory() as td:
         html = build_html(report_pdf.gather(w, opts, Path(td)))
-    for heading in ("Diagram", "Model data", "Results", "Weak link analysis",
-                    "Event log", "Raw reports"):
+    for heading in ("Story", "Charts", "Diagram", "Model data", "Results",
+                    "Weak link analysis", "Event log", "Raw reports"):
         assert f">{heading}</h2>" in html, heading
     assert "Availability" in html and "Run on" in html
 
