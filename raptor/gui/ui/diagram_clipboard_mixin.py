@@ -17,7 +17,8 @@ from PySide6.QtWidgets import (
 
 from raptor.gui import clipboard_payload
 from raptor.gui.clipboard_plan import (
-    count_elements, plan_copy, plan_paste, remap_dependencies)
+    count_elements, next_free_name, plan_copy, plan_paste, plan_paste_data,
+    remap_dependencies)
 from raptor.gui.ui.diagram_items import routing_batch
 from raptor.gui.ui.diagram_common import (
     BLOCK_H,
@@ -26,6 +27,7 @@ from raptor.gui.ui.diagram_common import (
 )
 from raptor.gui.ui.diagram_commands import (
     AddCmd,
+    BlockCellsCmd,
     DeleteCmd,
     DepResetCmd,
     RouteGripCmd,
@@ -90,6 +92,8 @@ class ClipboardMixin(_Base):
         nodes: dict[int, raptor.core.model.RBDNode]
         paste_state_changed: PySide6.QtCore.SignalInstance
         def selected_element_count(self) -> int: ...
+        def selected_elements(self) -> tuple[list[int], list[int],
+                                            list[int], list[int]]: ...
         structural_about_to_change: PySide6.QtCore.SignalInstance
 
     def copyable_count(self) -> int:
@@ -131,6 +135,122 @@ class ClipboardMixin(_Base):
                                      model_token=self._model_token)))
         mime.setText(clipboard_payload.summary_text(buffer, name))
         QApplication.clipboard().setMimeData(mime)
+
+    def _selection_lists(self):
+        """(blocks, regular nodes, events, hierarchies) selected on canvas."""
+        selected = self.selected_elements()
+        return (selected[0], selected[1], selected[2], selected[3])
+
+    def duplicate_selection(self, offset: tuple[float, float] | None = None
+                            ) -> int:
+        """Copy the selection and paste it one block step down-right.
+
+        Names get the next free suffix, internal links and dependencies are
+        remapped, and the whole gesture is one undo step. The clipboard is
+        untouched.
+        """
+        if self._rbd_ref is None:
+            return 0
+        blocks, nodes, events, hiers = self._selection_lists()
+        if not (blocks or nodes or events or hiers):
+            return 0
+        buffer = plan_copy(self._rbd_ref, self.hiers, blocks=blocks,
+                           nodes=nodes, events=events, sel_hiers=hiers,
+                           parent=self._current_parent)
+        if not buffer:
+            return 0
+        plan = plan_paste(
+            self._rbd_ref, buffer,
+            {"block": self.blocks, "node": self.nodes,
+             "event": self.events, "hier": self.hiers},
+            dx=offset[0] if offset else BLOCK_W,
+            dy=offset[1] if offset else BLOCK_H,
+            parent=self._current_parent,
+            parent_level=(self.hiers[self._current_parent].level
+                          if self._current_parent in self.hiers else None))
+        # The copy keeps the source's shape but not its name. Reserve each
+        # name as it is chosen, so two copies in one gesture cannot pick
+        # the same suffix.
+        existing = {str(row.get("blockName") or "")
+                    for row in self._rbd_ref.section("BLOCK_DATA").rows}
+        block_map = plan.id_maps.get("block", {})
+        for old_id, new_id in block_map.items():
+            source = next((row for row in
+                           self._rbd_ref.section("BLOCK_DATA").rows
+                           if _safe_int(row.get("ID")) == old_id), None)
+            target = next((row for row in plan.new_rows["block"]
+                           if _safe_int(row.get("ID")) == new_id), None)
+            if source is None or target is None:
+                continue
+            base = str(source.get("blockName") or "Block")
+            name = next_free_name(existing, base)
+            existing.add(name)
+            target["blockName"] = name
+        remap_dependencies(plan, keep_external=True)
+        self._stack.beginMacro("Duplicate elements")
+        try:
+            for kind in ("block", "node", "event", "hier"):
+                if plan.new_rows[kind]:
+                    self._stack.push(AddCmd(self, kind, plan.new_rows[kind]))
+            if plan.link_rows:
+                self._stack.push(AddCmd(self, "link", plan.link_rows))
+        finally:
+            self._stack.endMacro()
+        self._scene.clearSelection()
+        for kind, items in (("block", self._block_items),
+                            ("node", self._node_items),
+                            ("event", self._event_items),
+                            ("hier", getattr(self, "_hier_items", {}))):
+            for row in plan.new_rows[kind]:
+                item = items.get(_safe_int(row.get("ID")))
+                if item is not None:
+                    item.setSelected(True)
+        return sum(len(rows) for rows in plan.new_rows.values())
+
+    def array_selection(self, copies: int, direction: str,
+                        spacing: int = 1) -> int:
+        """Duplicate the selection `copies` times in one row or column."""
+        if copies < 1 or self._rbd_ref is None:
+            return 0
+        step_x = spacing * BLOCK_W if direction == "right" else 0.0
+        step_y = spacing * BLOCK_H if direction == "down" else 0.0
+        made = 0
+        self._stack.beginMacro(f"Array {copies} copies")
+        try:
+            for _ in range(copies):
+                made += self.duplicate_selection(offset=(step_x, step_y))
+        finally:
+            self._stack.endMacro()
+        return made
+
+    def paste_data(self, groups: tuple[str, ...] = ("Failure", "Repair")
+                   ) -> int:
+        """Copy the clipboard's first block's data onto selected blocks."""
+        if self._rbd_ref is None:
+            return 0
+        buffer = None
+        payload = self._clipboard_payload()
+        mime = QApplication.clipboard().mimeData()
+        if payload is not None:
+            buffer = payload.buffer
+        elif mime is None or not mime.formats():
+            buffer = self._paste_buffer
+        if not buffer:
+            return 0
+        source = next((row for kind, row in buffer if kind == "block"), None)
+        if source is None:
+            return 0
+        selected = self._selection_lists()[0]
+        rows = [row for row in self._rbd_ref.section("BLOCK_DATA").rows
+                if _safe_int(row.get("ID")) in selected]
+        if not rows:
+            return 0
+        changes = plan_paste_data(source, rows, groups)
+        if not changes:
+            return 0
+        self._stack.push(BlockCellsCmd(self, changes,
+                                       "Paste data onto blocks"))
+        return len(rows)
 
     def copy_selection(self) -> int:
         """Snapshot the selected elements (+ their fully-internal links)

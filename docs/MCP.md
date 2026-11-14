@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **81 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **80**.
+- **84 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **83**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **25 chapters**; the MCP chapter is book chapter 23 of 25 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -519,6 +519,14 @@ the top drivers, the top findings, six key numbers and provenance. It is the
 same object the application's Story tab paints and `raptor explain --story`
 prints.
 
+`replace_in_table` finds and replaces in one model table column
+(`inputs.blocks_all`, nodes, events, pools, ...), with whole-cell and case
+options; a set that would break a name is refused whole.
+
+`duplicate_elements` copies a selection with fresh ids and names, and
+`copy_element_data` copies one block's chosen data groups onto others without
+touching names, positions, links or dependencies.
+
 `list_part_types`, `apply_part_type`, `save_part_type` and `sync_part_types`
 share a block's data as a named part type. Applying one writes ordinary
 block columns and records a link in the model, so the engine still sees an
@@ -539,7 +547,8 @@ scenario is better. The open model is untouched.
 application paints, with the figure itself as SVG unless `render_svg` is
 false. The base charts (`trial-outcome`, `ecdf`, `convergence`,
 `availability-ladder`) need only the run; the downtime charts need
-`attribution=True` (including the treemap and the outage anatomy), and
+`attribution=True` (including the treemap, the outage anatomy and the
+run-to-run ribbon), and
 `importance-quadrant` and `cost-pareto` need those analyses to have run. `raptor explain --chart NAME` prints the same chart and
 `--chart-svg PATH` writes it.
 

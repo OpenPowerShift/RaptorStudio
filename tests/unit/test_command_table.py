@@ -27,6 +27,8 @@ OFF_RIBBON = {
     # On the quick-access bar beside the tabs (always visible), with
     # Ctrl+Z / Ctrl+Y; the Home tab that also held them was merged away.
     "home.undo", "home.redo",
+    # Shortcut/dialog first: Ctrl+Shift+P / Ctrl+K and the grid's Ctrl+H.
+    "view.command_search", "data.find_replace",
 }
 
 #: Attributes of MainWindow that handlers may start from.

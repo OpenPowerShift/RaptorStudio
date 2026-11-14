@@ -49,6 +49,8 @@ def _inputs():
                                       {"lo": 2.0, "hi": 4.0, "count": 2.0}]},
         "sequences": [{"steps": [{"element": "Pump", "cause": "repair"}],
                        "share": 1.0, "outages": 2}],
+        "outages": {"runs": [{"start": 0, "end": 10,
+                              "red": [2, 4]}]},
     }
     importance = {"metrics": {"Availability": {"rows": [
         {"block": "Pump", "raw": 3.0, "rrw": 2.0}]}}}

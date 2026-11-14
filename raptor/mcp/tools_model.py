@@ -2305,3 +2305,42 @@ def workspace_info() -> CallToolResult:
           + "\n\nAllowed read dirs: "
           + ", ".join(info.get("allowed_read") or [info["root"]]))
     return ok(info, markdown=md)
+
+
+@mcp.tool(annotations=ADDITIVE("Duplicate elements"))
+@guarded
+def duplicate_elements(model_id: str, elements: list[str],
+                       copies: int = 1) -> CallToolResult:
+    """Copy blocks, nodes, events or hierarchies with fresh ids and names.
+
+    `elements` are names or ids (optionally kind-prefixed). Internal links
+    are remapped to the copies, dependencies on copied elements follow them,
+    and block names get the next free suffix. One save.
+    """
+    from raptor.api import edit
+
+    if copies < 1:
+        raise ValueError("copies must be at least 1")
+    result = edit.duplicate_elements(context.workspace(), model_id, elements,
+                                     copies=copies)
+    return ok(result, f"Duplicated {result['count']} element(s) "
+                      f"in {copies} copy/copies.")
+
+
+@mcp.tool(annotations=ADDITIVE("Paste block data"))
+@guarded
+def copy_element_data(model_id: str, source: str, targets: list[str],
+                      groups: list[str] | None = None) -> CallToolResult:
+    """Copy one block's data groups onto other blocks.
+
+    Groups: Failure, Repair, Logistics delays, Spares, PM, Costs (default
+    Failure and Repair). Name, position, links, id and dependency are never
+    changed.
+    """
+    from raptor.api import edit
+
+    result = edit.copy_element_data(
+        context.workspace(), model_id, source, targets,
+        tuple(groups or ("Failure", "Repair")))
+    return ok(result, f"Copied data onto {result['blocks']} block(s); "
+                      f"{result['count']} cell(s) changed.")

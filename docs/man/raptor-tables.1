@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-tables \- Write the model's input tables (and, with \-\-run, the result tables of a fresh run) as CSV, text or a spreadsheet.
 .SH SYNOPSIS
-\fBraptor tables\fR [\-h] [\-\-run] [\-\-table KEY] [\-\-list] [\-\-format {csv,txt,report,xlsx,ods}] [\-o DIR] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
+\fBraptor tables\fR [\-h] [\-\-run] [\-\-table KEY] [\-\-list] [\-\-format {csv,txt,report,xlsx,ods}] [\-o DIR] [\-\-find TEXT] [\-\-replace TEXT] [\-\-column COLUMN] [\-\-whole] [\-\-case\-sensitive] [\-\-in\-place] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
 .SH DESCRIPTION
 Write the model's input tables (and, with \-\-run, the result tables of a fresh run) as CSV, text or a spreadsheet.
 .SH OPTIONS
@@ -22,6 +22,24 @@ output format(s); default csv
 .TP
 \fB\-o\fR, \fB\-\-output\fR \fIDIR\fR
 folder (default ./Tables beside the model)
+.TP
+\fB\-\-find\fR \fITEXT\fR
+with \-\-column/\-\-replace: change matching cells instead of exporting
+.TP
+\fB\-\-replace\fR \fITEXT\fR
+replacement text for \-\-find
+.TP
+\fB\-\-column\fR \fICOLUMN\fR
+file column name or index for \-\-find
+.TP
+\fB\-\-whole\fR
+match the whole cell, not a substring
+.TP
+\fB\-\-case\-sensitive\fR
+match case (default insensitive)
+.TP
+\fB\-\-in\-place\fR
+write replacements back to MODEL
 .SS Run control
 .TP
 \fB\-n\fR, \fB\-\-runs\fR \fIN\fR

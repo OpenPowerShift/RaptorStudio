@@ -44,6 +44,7 @@ from raptor.gui.ui.diagram_commands import (
     LayoutCmd,
     CollapseCmd,
     MoveCmd,
+    ParamsCmd,
     RouteGripCmd,
     SplitLinkCmd,
 )
@@ -1629,3 +1630,61 @@ class StructureMixin(_Base):
         self._refresh_lod()
         self._recount_link_ends()
         return eid
+
+
+    # -- patterns (WP-1.6) ------------------------------------------------
+
+    def _unique_block_name(self, stem: str) -> str:
+        existing = {str(row.get("blockName") or "")
+                    for row in self._rbd_ref.section("BLOCK_DATA").rows}
+        if stem not in existing:
+            return stem
+        from raptor.gui.clipboard_plan import next_free_name
+        return next_free_name(existing, stem)
+
+    def add_series(self, count: int, x: float, y: float) -> list[int]:
+        """`count` blocks linked in a row; one undo macro."""
+        if count < 1:
+            return []
+        ids: list[int] = []
+        self._stack.beginMacro(f"Add series of {count}")
+        try:
+            head = self.add_node("In", x, y)
+            for index in range(count):
+                ids.append(self.add_block(
+                    self._unique_block_name(f"Block {index + 1}"),
+                    x + (index + 1) * (BLOCK_W + 20.0), y))
+            tail = self.add_node("Out", x + (count + 1) * (BLOCK_W + 20.0), y)
+            self.connect_elements("Node", head, "Block", ids[0])
+            for left, right in itertools.pairwise(ids):
+                self.connect_elements("Block", left, "Block", right)
+            self.connect_elements("Block", ids[-1], "Node", tail)
+        finally:
+            self._stack.endMacro()
+        return ids
+
+    def add_parallel(self, count: int, k: int, x: float,
+                     y: float) -> list[int]:
+        """A split node, `count` blocks, a join node with k-of-n."""
+        if count < 1:
+            return []
+        k = max(1, min(int(k), count))
+        ids: list[int] = []
+        self._stack.beginMacro(f"Add {k} of {count} in parallel")
+        try:
+            split = self.add_node("Split", x, y)
+            for index in range(count):
+                ids.append(self.add_block(
+                    self._unique_block_name(f"Block {index + 1}"),
+                    x + (index + 1) * (BLOCK_W + 20.0), y))
+            join = self.add_node("Join", x + (count + 1) * (BLOCK_W + 20.0), y)
+            self.connect_elements("Node", split, "Block", ids[0])
+            for block_id in ids[1:]:
+                self.connect_elements("Node", split, "Block", block_id)
+            for block_id in ids:
+                self.connect_elements("Block", block_id, "Node", join)
+            old = self.nodes[join].good_paths if join in self.nodes else -1
+            self._stack.push(ParamsCmd(self, "node k", join, old, k))
+        finally:
+            self._stack.endMacro()
+        return ids

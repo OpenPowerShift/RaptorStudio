@@ -1005,3 +1005,128 @@ def collect(rbd: Any, bundle: ResultsBundle | None = None,
             f"unknown or unavailable table(s) {missing}; available: "
             f"{sorted(by_key)}")
     return [by_key[k] for k in by_key if k in set(wanted)]
+
+
+# -- find and replace over model tables (WP-1.7) ---------------------------
+
+#: Table key -> the model section whose file rows it shows.
+_TABLE_SECTIONS = {
+    "inputs.blocks_all": "BLOCK_DATA",
+    "inputs.nodes": "NODE_DATA",
+    "inputs.events": "EVENT_DATA",
+    "inputs.hierarchies": "HIERARCHY_DATA",
+    "inputs.spare_pools": "SPARE_POOL_DATA",
+    "inputs.resources": "RESOURCE_DATA",
+    "inputs.triggers": "TRIGGERS",
+    "inputs.phases": "PHASES",
+    "inputs.comments": "COMMENTS",
+}
+_NAME_COLUMNS = {"blockName", "Name", "eventName", "hierarchyName",
+                 "PoolName", "TriggerName", "PhaseName"}
+
+
+def replace_in_table(rbd: Any, table_key: str, column: str, find: str,
+                     replace: str, *, whole: bool = False,
+                     case: bool = True,
+                     row_filter: Any = None) -> list[dict[str, Any]]:
+    """Find and replace one column of a model table.
+
+    `table_key` is an input table key (`inputs.blocks_all`, `inputs.nodes`,
+    ...). `column` is a file column or a header index. `whole` matches the
+    whole cell; `case` is case-sensitive. `row_filter` may be a callable on
+    the row or a collection of row indexes.
+
+    Name columns are validated as a manual rename is: at most 20
+    characters, no whitespace, unique in the section. If any replacement
+    would break that, ValueError names the refused cells and **nothing** is
+    changed. Returns `[{row, id, column, old, new}]`.
+    """
+    section_name = _TABLE_SECTIONS.get(table_key)
+    if section_name is None:
+        raise ValueError(f"{table_key!r} is not an editable model table; "
+                         f"use one of {', '.join(sorted(_TABLE_SECTIONS))}")
+    section = rbd.sections.get(section_name)
+    if section is None:
+        return []
+    column = _resolve_column(section, column)
+    rows = _filter_rows(section.rows, row_filter)
+    changes = []
+    for row in rows:
+        old = str(row.get(column, ""))
+        if not _matches(old, find, whole=whole, case=case):
+            continue
+        new = (str(replace) if whole else
+               old.replace(find, replace) if case
+               else _ireplace(old, find, replace))
+        changes.append({"row": row, "id": row.get("ID", ""),
+                        "column": column, "old": old, "new": new})
+    if column in _NAME_COLUMNS and changes:
+        _check_names(section, changes)
+    return changes
+
+
+def _resolve_column(section: Any, column: Any) -> str:
+    if isinstance(column, int) or (isinstance(column, str)
+                                   and column.isdigit()):
+        index = int(column)
+        if not 0 <= index < len(section.columns):
+            raise ValueError(f"column index {index} is out of range")
+        return str(section.columns[index])
+    if column not in section.columns:
+        raise ValueError(f"this table has no column {column!r}")
+    return str(column)
+
+
+def _filter_rows(rows: list[dict], row_filter: Any) -> list[dict]:
+    if row_filter is None:
+        return list(rows)
+    out = []
+    for index, row in enumerate(rows):
+        allowed = (row_filter(index, row) if callable(row_filter)
+                   else index in row_filter)
+        if allowed:
+            out.append(row)
+    return out
+
+
+def _matches(text: str, find: str, *, whole: bool, case: bool) -> bool:
+    haystack, needle = (str(text), str(find))
+    if not case:
+        haystack, needle = haystack.lower(), needle.lower()
+    return haystack == needle if whole else needle in haystack
+
+
+def _check_names(section: Any, changes: list[dict[str, Any]]) -> None:
+    """Validate a whole rename set before anything is written.
+
+    The final names are checked together, so a swap (A->B, B->A) is allowed
+    and a genuine duplicate is refused by name.
+    """
+    column = changes[0]["column"]
+    new_by_row = {id(change["row"]): change["new"] for change in changes}
+    final = [new_by_row.get(id(row), str(row.get(column, "")))
+             for row in section.rows]
+    refused = []
+    for change in changes:
+        name = str(change["new"])
+        if not name or len(name) > 20 or any(ch.isspace() for ch in name):
+            refused.append({"id": change["id"], "name": name,
+                            "why": "must be 1-20 characters with no spaces"})
+    for name in set(final):
+        if name and final.count(name) > 1:
+            for change in changes:
+                if str(change["new"]) == name:
+                    refused.append({"id": change["id"], "name": name,
+                                    "why": "would duplicate another row"})
+    if refused:
+        raise ValueError(
+            "refusing replacements that would break names: "
+            + "; ".join(f"row {item['id']} -> {item['name']!r} "
+                        f"({item['why']})" for item in refused))
+
+
+def _ireplace(text: str, find: str, replace: str) -> str:
+    """Case-insensitive literal replace, keeping the rest of the text."""
+    import re
+    return re.sub(re.escape(find), lambda _m: replace, text,
+                  flags=re.IGNORECASE)

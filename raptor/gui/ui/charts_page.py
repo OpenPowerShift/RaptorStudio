@@ -108,6 +108,9 @@ class ChartsPage(QWidget):
             specs["Downtime treemap"] = charts.downtime_treemap(attribution)
             specs["What an outage looks like"] = charts.outage_anatomy(
                 attribution)
+            if attribution.get("outages"):
+                specs["Run-to-run state ribbon"] = charts.ensemble_ribbon(
+                    attribution)
             if attribution.get("capacity"):
                 specs["Who loses the capacity"] = charts.lost_capacity_pareto(
                     attribution)

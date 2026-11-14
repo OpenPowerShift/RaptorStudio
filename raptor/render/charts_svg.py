@@ -526,6 +526,30 @@ def _icicle(spec: ChartSpec) -> list[str]:
     return out
 
 
+def _ribbon(spec: ChartSpec) -> list[str]:
+    rows = [row for row in spec.series if row.get("span")]
+    if not rows:
+        return []
+    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
+    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
+    start = min(float(row["start"]) for row in rows)
+    end = max(float(row["end"]) for row in rows)
+    height = (bottom - top) / len(rows)
+    out = []
+    for i, row in enumerate(rows):
+        y = top + i * height
+        out.append(f"<rect x='{left}' y='{_fmt(y)}' width='{right - left}' "
+                   f"height='{_fmt(max(1, height - 0.4))}' fill='#22c55e' "
+                   "fill-opacity='0.55'/>")
+        for a, b in row.get("red") or []:
+            x0 = _scale(float(a), start, end, left, right)
+            x1 = _scale(float(b), start, end, left, right)
+            out.append(f"<rect x='{_fmt(x0)}' y='{_fmt(y)}' "
+                       f"width='{_fmt(max(1, x1 - x0))}' "
+                       f"height='{_fmt(max(1, height - 0.4))}' fill='#C4472F'/>")
+    return out
+
+
 _RENDERERS = {
     "dot_plot": _dot_plot,
     "ecdf": _curve,
@@ -542,6 +566,7 @@ _RENDERERS = {
     "fan": _fan,
     "treemap": _treemap,
     "icicle": _icicle,
+    "ribbon": _ribbon,
 }
 
 

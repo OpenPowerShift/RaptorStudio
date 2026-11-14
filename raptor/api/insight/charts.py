@@ -464,6 +464,42 @@ def outage_anatomy(attribution: dict[str, Any], max_columns: int = 6
                     "sequences": len(attribution.get("sequences") or [])})
 
 
+def ensemble_ribbon(attribution: dict[str, Any], max_runs: int = 200
+                    ) -> ChartSpec:
+    """All trials as rows: green where up, red where down (C5/7.6.4)."""
+    record = attribution.get("outages") or {}
+    runs = list(record.get("runs") or ())
+    if not runs:
+        return ChartSpec(
+            "ribbon", "Run-to-run system state", "needs the outage record",
+            "time", "runs", series=[],
+            caption="No per-run outage record in this attribution.")
+    rows: list[dict[str, Any]] = []
+    for index, run in enumerate(runs):
+        start, end = float(run.get("start", 0.0)), float(run.get("end", 0.0))
+        red = [float(value) for value in run.get("red") or ()]
+        pairs = list(zip(red[0::2], red[1::2], strict=False))
+        rows.append({"run": index + 1, "start": start, "end": end,
+                     "red": [list(pair) for pair in pairs],
+                     "downtime": sum(b - a for a, b in pairs),
+                     "span": max(end - start, 1e-12)})
+    rows.sort(key=lambda row: row["downtime"])
+    if len(rows) > max_runs:
+        step = len(rows) / max_runs
+        rows = [rows[min(len(rows) - 1, int(i * step))]
+                for i in range(max_runs)]
+    worst = rows[-1]["downtime"] / rows[-1]["span"]
+    best = rows[0]["downtime"] / rows[0]["span"]
+    return ChartSpec(
+        "ribbon", "Run-to-run system state",
+        "one row per trial, sorted by downtime; red = system down",
+        "time", "runs", series=rows,
+        caption=(f"{len(runs)} runs; best {100 * (1 - best):.3g} % up, "
+                 f"worst {100 * (1 - worst):.3g} % up."),
+        provenance={"runs": attribution.get("runs", len(runs)),
+                    "shown": len(rows)})
+
+
 #: Every chart the application can draw, keyed by the name the CLI and MCP use.
 CHARTS = {
     "trial-outcome": trial_outcome,
@@ -483,6 +519,7 @@ CHARTS = {
     "annual-dots": annual_dots,
     "downtime-treemap": downtime_treemap,
     "outage-anatomy": outage_anatomy,
+    "ensemble-ribbon": ensemble_ribbon,
 }
 
 
@@ -540,6 +577,7 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
         "frequency-duration": lambda: frequency_duration(need_attribution()),
         "downtime-treemap": lambda: downtime_treemap(need_attribution()),
         "outage-anatomy": lambda: outage_anatomy(need_attribution()),
+        "ensemble-ribbon": lambda: ensemble_ribbon(need_attribution()),
         "lost-capacity-pareto": lambda: lost_capacity_pareto(
             need_attribution()),
         "capacity-vs-downtime": lambda: capacity_vs_downtime(
