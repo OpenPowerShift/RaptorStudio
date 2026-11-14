@@ -4439,12 +4439,16 @@ judge a run without paging through `get_report`, and `get_table` /
 `export_tables` (with the same `run_id`) when you need a whole table or
 a workbook.
 
-`top` caps the weak-link list (1..100).
+`top` caps the weak-link list (1..100). `per_run` carries each
+replication's system figures; `per_run_detail=True` adds the nested
+per-element data, which on a large model is megabytes (use `get_table`
+with `results.per_run` to page it instead).
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `per_run_detail` | boolean | no | `false` | — |
 | `run_id` | string | yes | — | — |
 | `top` | integer | no | `10` | — |
 

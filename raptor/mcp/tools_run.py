@@ -624,7 +624,8 @@ def cancel_run(job_id: str) -> CallToolResult:
 
 @mcp.tool(annotations=READ_ONLY("Run results"))
 @guarded
-def get_run_results(run_id: str, top: int = 10) -> CallToolResult:
+def get_run_results(run_id: str, top: int = 10,
+                    per_run_detail: bool = False) -> CallToolResult:
     """One completed run as a single assessable bundle.
 
     Reads what the run wrote: the metric means and per-replication figures,
@@ -633,7 +634,10 @@ def get_run_results(run_id: str, top: int = 10) -> CallToolResult:
     `export_tables` (with the same `run_id`) when you need a whole table or
     a workbook.
 
-    `top` caps the weak-link list (1..100).
+    `top` caps the weak-link list (1..100). `per_run` carries each
+    replication's system figures; `per_run_detail=True` adds the nested
+    per-element data, which on a large model is megabytes (use `get_table`
+    with `results.per_run` to page it instead).
     """
     from raptor.api.run import get_report as _report, run_dir
     from raptor.api.run_tables import read_per_run, read_summary
@@ -652,6 +656,11 @@ def get_run_results(run_id: str, top: int = 10) -> CallToolResult:
         if isinstance(values, dict) and values.get("mean") is not None
     }
     per_run = read_per_run(runs_dir, run_id) or []
+    if not per_run_detail:
+        # the nested per-element lists made this 2 MB for a 500-block model
+        # with 20 runs, beside a 700-character text answer
+        per_run = [{k: v for k, v in row.items()
+                    if not isinstance(v, (list, dict))} for row in per_run]
 
     capacity: dict[str, Any] = {}
     path = runs_dir / "final_results.txt"
