@@ -37,7 +37,7 @@ REQUIREMENT_LABELS = {
     "dependability": "Dependability",
     "capacity_weighted_availability": "Delivered fraction",
     "mtbde": "Time between failures",
-    "mdt": "Time down",
+    "mdt": "Time down per outage",
     "mtbm": "Time between maintenance",
 }
 
@@ -137,15 +137,26 @@ def _values(per_run: list[dict], field_name: str) -> list[float]:
     return out
 
 
+def _fraction_digits(value: float) -> int:
+    """Significant digits for a fraction shown as a percentage: enough to
+    keep two digits of the shortfall, so 0.99986 reads 99.986 %, not 99.99 %."""
+    import math
+    shortfall = 1.0 - value
+    if 0.0 < shortfall < 0.01:
+        return min(9, 3 + math.ceil(-math.log10(shortfall)))
+    return 4
+
+
 def _fmt(value: float | None, field_name: str, units: str) -> str:
     if value is None:
         return "not available"
     if field_name in FRACTION_FIELDS:
-        return f"{100 * value:.4g} %"
+        return f"{100 * value:.{_fraction_digits(value)}g} %"
     if field_name in TIME_FIELDS:
         return f"{value:,.4g}" + (f" {units}" if units else "")
     if field_name == "grand_total":
-        return f"{value:,.4g}"
+        # money: whole units with separators, never 1.933e+05
+        return f"{value:,.0f}" if abs(value) >= 100 else f"{value:,.2f}"
     return f"{value:,.4g}" + (f" {units}" if units else "")
 
 
@@ -198,9 +209,9 @@ def _headline_for(per_run: list[dict], units: str, field_name: str,
             if field_name in FRACTION_FIELDS:
                 points = 100.0 * abs(value - target)
                 gap_text = f"{points:.3g} points"
-                run_length = _mean(_values(per_run, "ending_sim_time"))
-                if run_length and units.lower().startswith("hour"):
-                    gap_text += f" = {points / 100 * run_length:,.3g} h a year"
+                # a year is 8,760 hours whatever the run length
+                if units.lower().startswith("hour"):
+                    gap_text += f" = {points / 100 * 8760:,.3g} h a year"
             else:
                 gap_text = _fmt(abs(value - target), field_name, units)
             gap_text = ("met" if met else "missed by") + (
@@ -269,7 +280,7 @@ _METRIC_CHOICES = (
     ("availability", "Availability"),
     ("reliability", "Reliability"),
     ("mtbde", "Time between failures"),
-    ("mdt", "Time down"),
+    ("mdt", "Time down per outage"),
     ("capacity_weighted_availability", "Delivered fraction"),
     ("grand_total", "Grand total cost"),
 )
@@ -390,7 +401,7 @@ def build(
     met, total = split_at(values, target)
     drivers, others_share, others_time = _driver_lines(attribution,
                                                        bool(has_capacity))
-    run_length = _mean(_values(per_run, "ending_sim_time"))
+    run_length = _mean(_values(per_run, "total_time"))
     provenance = {
         "runs": len(per_run),
         "run_length": run_length,
@@ -449,10 +460,9 @@ def text_lines(story: Story) -> list[str]:
     head = story.headline
     if head is not None:
         lines.append(f"{head.target_text or head.label}: {head.value_text}"
-                     + (f"  ({story.proportion})" if story.total else ""))
-        if head.target_text:
-            lines.append(("met" if head.met else f"missed by {head.gap_text}")
-                         if head.met is not None else "")
+                     + (f"  ({story.proportion})" if story.proportion else ""))
+        if head.target_text and head.met is not None:
+            lines.append(head.gap_text)
     if story.drivers:
         lines += ["", "Where the loss comes from:"]
         for line in story.drivers:
@@ -473,4 +483,4 @@ def text_lines(story: Story) -> list[str]:
                      if prov.get("run_length") else "")
                   + f" · model {str(prov.get('model_hash') or '')[:8]}"
                   + f" · run {prov.get('run_id') or ''}"]
-    return [line for line in lines if line != ""]
+    return lines

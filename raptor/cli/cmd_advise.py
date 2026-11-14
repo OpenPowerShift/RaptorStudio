@@ -159,7 +159,9 @@ def _run_findings(ws: Any, mid: str, targets: list[dict]) -> list:
     from raptor.api import run as run_api
     from raptor.api.advisor import advise_stored_run
     try:
-        result = run_api.run(ws, mid, confirm_long_run=True)
+        # attribution=True: the GUI's Advisor says what drives the downtime
+        # after a run (R-DRV rules); without it the CLI said less.
+        result = run_api.run(ws, mid, attribution=True, confirm_long_run=True)
     except run_api.RunError as exc:
         raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
     return advise_stored_run(ws, result.run_id, requirements=targets)

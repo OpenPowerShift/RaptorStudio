@@ -12,7 +12,7 @@ from raptor.api.insight.story import build
 
 def runs(n=20, **fields):
     base = {"availability": 0.99, "reliability": 0.8, "mtbde": 100.0,
-            "mdt": 5.0, "ending_sim_time": 8760.0}
+            "mdt": 5.0, "total_time": 8760.0}
     base.update(fields)
     return [dict(base) for _ in range(n)]
 
@@ -121,3 +121,22 @@ def test_findings_are_plain_data_and_capped_at_three():
     story = build(runs(5), findings=found)
     assert [f.rule for f in story.findings] == ["R-0", "R-1", "R-2"]
     assert story.to_dict()["headline"]["field"] == "availability"
+
+
+def test_plain_text_reads_cleanly_with_and_without_a_target():
+    """`explain --story` printed "Availability: 99.99 %  ()" with no target,
+    ran its sections together, showed cost as 1.933e+05 and never gave the
+    run length (it read a per-run key that does not exist)."""
+    from raptor.api.insight.story import text_lines
+    plain = build(runs(10, availability=0.99986, grand_total=193331.0),
+                  units="hours", cost_on=True,
+                  attribution=attribution({"repair": 1.0}))
+    lines = text_lines(plain)
+    assert lines[0] == "Availability: 99.986 %"
+    assert "" in lines                       # sections stay apart
+    assert any("193,331" in line for line in lines)
+    assert any("8,760 hours each" in line for line in lines)
+    target = build(runs(10, availability=0.99), units="hours",
+                   requirements=[{"metric": "system.ao", "op": ">=", "value": 0.995}])
+    assert target.headline.gap_text == "missed by 0.5 points = 43.8 h a year"
+    assert text_lines(target)[1] == target.headline.gap_text
