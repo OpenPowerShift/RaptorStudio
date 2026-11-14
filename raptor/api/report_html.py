@@ -53,9 +53,12 @@ RESULT_SECTIONS: tuple[tuple[str, str], ...] = (
                   "limit the system."),
 )
 
-#: Key figures on the cover: (measure label prefix, card title).
-_KEY_FIGURES = (("Availability", "Availability"), ("MTBDE", "MTBDE"),
-                ("MDT", "MDT"), ("Reliability", "Reliability"),
+#: Key figures on the cover: (measure label prefix, card title).  The
+#: cover is read by people who do not know the acronyms: plain words, with
+#: the acronym kept small under the value.
+_KEY_FIGURES = (("Availability", "Availability"),
+                ("MTBDE", "Time between outages"),
+                ("MDT", "Time down per outage"), ("Reliability", "Reliability"),
                 ("System failures", "System failures"),
                 ("Total cost", "Total cost"))
 
@@ -195,6 +198,7 @@ def _summary_means(results: Sequence[Table]) -> dict[str, tuple[str, Any]]:
 def _key_figures(content: ReportContent) -> str:
     means = _summary_means(content.results)
     cards = []
+    censored = False
     for prefix, title in _KEY_FIGURES:
         hit = next(((lb, v) for k, (lb, v) in means.items()
                     if k.startswith(prefix)), None)
@@ -202,14 +206,21 @@ def _key_figures(content: ReportContent) -> str:
             continue
         label, value = hit
         unit = label[len(prefix):].strip(" ()")
+        shown = fmt(value, kind_of(label))
+        censored = censored or shown.startswith(">")
+        under = "mean" + (f", {unit}" if unit else "")
+        if title != prefix:
+            under += f" ({prefix})"
         cards.append(
             f'<div class="card"><div class="k">{_e(title)}</div>'
-            f'<div class="v">{_e(fmt(value, kind_of(label)))}</div>'
-            f'<div class="u">{_e(("mean, " + unit) if unit else "mean")}'
-            f"</div></div>")
+            f'<div class="v">{_e(shown)}</div>'
+            f'<div class="u">{_e(under)}</div></div>')
     if not cards:
         return ""
-    return '<div class="cards">' + "".join(cards) + "</div>"
+    note = ('<p class="note">&gt; means at least this: some runs had no '
+            "outage, so the true average is longer than the figure shown.</p>"
+            if censored else "")
+    return '<div class="cards">' + "".join(cards) + "</div>" + note
 
 
 def _cover(content: ReportContent) -> str:

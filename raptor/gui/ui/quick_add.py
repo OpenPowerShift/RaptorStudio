@@ -5,10 +5,34 @@ from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QFrame, QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
+    QFrame, QLineEdit, QListWidget, QListWidgetItem, QStyle,
+    QStyledItemDelegate, QVBoxLayout,
 )
 
 from raptor.gui.quick_match import Candidate, rank
+
+#: Item role holding a row's category ("Pattern", "In this model", ...).
+CATEGORY_ROLE = Qt.ItemDataRole.UserRole + 1
+
+
+class _CategoryDelegate(QStyledItemDelegate):
+    """Name on the left, its category right-aligned and dimmed: the names
+    line up in one column whatever their length."""
+
+    def paint(self, painter: Any, option: Any, index: Any) -> None:
+        super().paint(painter, option, index)
+        category = index.data(CATEGORY_ROLE)
+        if not category:
+            return
+        painter.save()
+        selected = bool(option.state & QStyle.StateFlag.State_Selected)
+        palette = option.palette
+        painter.setPen(palette.highlightedText().color() if selected
+                       else palette.placeholderText().color())
+        rect = option.rect.adjusted(0, 0, -8, 0)
+        painter.drawText(rect, int(Qt.AlignmentFlag.AlignRight
+                                   | Qt.AlignmentFlag.AlignVCenter), str(category))
+        painter.restore()
 
 
 class QuickAdd(QFrame):
@@ -30,6 +54,7 @@ class QuickAdd(QFrame):
         self.list = QListWidget()
         self.list.setMinimumWidth(360)
         self.list.setMaximumHeight(240)
+        self.list.setItemDelegate(_CategoryDelegate(self.list))
         lay.addWidget(self.list)
         self.query.textChanged.connect(self._fill)
         self.query.returnPressed.connect(self._choose)
@@ -94,8 +119,10 @@ class QuickAdd(QFrame):
         candidates, self._data = self._candidates()
         self.list.clear()
         for candidate in rank(query, candidates):
-            item = QListWidgetItem(f"{candidate.text}    "
-                                   f"{candidate.category}")
+            item = QListWidgetItem(candidate.text)
+            item.setData(CATEGORY_ROLE, candidate.category)
+            item.setData(Qt.ItemDataRole.AccessibleTextRole,
+                         f"{candidate.text}, {candidate.category}")
             item.setData(Qt.ItemDataRole.UserRole, candidate.data)
             self.list.addItem(item)
         if self.list.count():
@@ -130,17 +157,14 @@ class QuickAdd(QFrame):
             if ok:
                 view.add_series(count, x, y)
         elif key == "pattern:parallel":
-            from PySide6.QtWidgets import QInputDialog
-            count, ok = QInputDialog.getInt(
-                self, "Parallel", "Blocks side by side (n):", 2, 1, 50)
-            if ok:
-                # 1 needed is the redundancy most people mean; k = n would
-                # behave as a series arrangement (the Advisor's M-STR-003)
-                k, ok = QInputDialog.getInt(
-                    self, "Parallel", f"How many of the {count} must work (k):",
-                    1, 1, count)
-                if ok:
-                    view.add_parallel(count, k, x, y)
+            from raptor.gui.ui.count_form import ask_redundancy
+            # 1 needed is the redundancy most people mean; k = n would
+            # behave as a series arrangement (the Advisor's M-STR-003)
+            answer = ask_redundancy(
+                self, "Parallel", count_label="Blocks side by side (n):",
+                count_default=2, count_max=50)
+            if answer is not None:
+                view.add_parallel(answer[0], answer[1], x, y)
         elif key == "kind:block":
             view.add_block("Block", x, y)
         elif key == "kind:node":
