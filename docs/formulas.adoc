@@ -697,3 +697,33 @@ Wilson interval.
 <div class="copyright-footer">Copyright © 2026 OpenPowerShift · RAPTOR Studio.<br>
 Original RAPTOR © ARINC / Booz Allen Hamilton, released as open source under the Booz Allen Public License v1.0 — thanks, BAH! New code in this port: Apache License 2.0.</div>
 ++++
+
+[[availability-ladder]]
+== The availability ladder
+
+The same downtime can be counted three ways. The difference between the
+rungs is exactly the delay the next cause adds.
+
+[cols="3,3,5",options="header"]
+|===
+|Rung |Formula |Counts
+
+|Inherent availability stem:[A_i]
+|stem:[1 - ("hands-on repair time") / T]
+|Only the repair itself: a design figure.
+
+|Achieved availability stem:[A_a]
+|stem:[1 - ("repair" + "planned maintenance") / T]
+|Adds planned maintenance: a maintenance-policy figure.
+
+|Operational availability stem:[A_o]
+|stem:["uptime" / T]
+|Adds logistics, waiting for spares and crews, and dependency holds: what
+the plant actually achieved.
+|===
+
+The downtime rungs are the engine's own split
+(stem:["repair" + "PM" + "logistics" + "not repairable" + "other"]), and
+they add to the reported downtime; the measure registry
+(`raptor/api/insight/measures.py`) reads them and the application, the
+report and MCP show the same numbers.

@@ -58,6 +58,8 @@ include::chapters/ch15-debugger.adoc[]
 
 include::chapters/ch16-mcp.adoc[]
 
+include::chapters/ch18-what-drives-downtime.adoc[]
+
 include::chapters/ch-capstone-flight.adoc[]
 
 include::chapters/appendix-glossary.adoc[]
