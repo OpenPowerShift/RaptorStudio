@@ -16,7 +16,7 @@ def add_parser(sub: Any) -> None:
         description="Simulate the analytic spare-stock path with common "
                     "random numbers and recommend the cheapest point whose "
                     "lower confidence bound meets the target. The model file "
-                    "is only changed with --apply.")
+                    "is only changed when the apply flag is given.")
     o.set_defaults(func=_missing)
     s = o.add_subparsers(dest="optimise_command", metavar="WHAT")
     p = s.add_parser("spares", help="spare stock levels")
