@@ -133,6 +133,8 @@ complete -c raptor -n '__fish_seen_subcommand_from info' -l element
 complete -c raptor -n '__fish_seen_subcommand_from info' -l format
 complete -c raptor -n '__fish_seen_subcommand_from info' -l help
 complete -c raptor -n '__fish_use_subcommand' -a mcp
+complete -c raptor -n '__fish_use_subcommand' -a optimise
+complete -c raptor -n '__fish_seen_subcommand_from optimise' -l help
 complete -c raptor -n '__fish_use_subcommand' -a render
 complete -c raptor -n '__fish_seen_subcommand_from render' -l help
 complete -c raptor -n '__fish_seen_subcommand_from render' -l highlight

@@ -82,6 +82,14 @@ CAPABILITIES: tuple[Capability, ...] = (
         absent={"gui": "the Analyse tab's Tornado view is designed but not "
                        "built; use 'raptor sensitivity' or MCP sensitivity"}),
     Capability(
+        "optimise.spares", "The cheapest spare stock that meets a target",
+        api="raptor.api.optimise.spares.optimise_spares",
+        cli="optimise", long_running=True,
+        absent={"mcp": "the MCP optimiser tools are designed but not built; "
+                       "use 'raptor optimise spares'",
+                "gui": "the Analyse tab's Optimise view is designed but not "
+                       "built"}),
+    Capability(
         "insight.precision", "Run until the answer is precise enough",
         api="raptor.api.scenarios.stopping.run_to_precision",
         cli="run --precision", mcp="simulate", long_running=True,
