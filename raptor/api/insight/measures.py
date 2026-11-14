@@ -142,6 +142,17 @@ MEASURES: tuple[Measure, ...] = (
     _m("mttf", "Time to failure", "MTTF",
        "Expected failure time of a non-repairable element", "When will one part fail?",
        "mean of its failure law", "element age"),
+    _m("mtbf", "Time between part failures", "MTBF",
+       "Total time divided by the number of component failures",
+       "How long between one part's failures?",
+       "total time / component failures", "total time",
+       counts=("component failures",), related=("mttf", "mtbde"),
+       beware="Not the system's MTBDE: it counts part failures, not downings."),
+    _m("mtbe", "Time between events", "MTBE",
+       "Total time divided by the number of downing events",
+       "How often does the system go down per unit of calendar time?",
+       "total time / downing events", "total time",
+       related=("mtbde", "mdt")),
     _m("mttr", "Time to repair", "MTTR",
        "Expected hands-on repair time of an element", "How long is one repair?",
        "mean of its repair law", "repair"),
@@ -219,7 +230,7 @@ METRIC_TO_MEASURE: dict[str, str] = {
     "mmts": "mmts",
     "mttff": "mttf",
     "mtbf_total": "mttf",
-    "mtbe_total": "mtbde",
+    "mtbe_total": "mtbe",
     "num_system_failures": "deci",
     "num_component_failures": "fci",
     "num_component_cms": "mmtu",
@@ -239,6 +250,113 @@ METRIC_TO_MEASURE: dict[str, str] = {
     "system_down_cost": "cost_total",
     "system_lost_flow_cost": "cost_total",
 }
+
+
+#: Result-row labels and acronyms as the GUI, exports and reports spell them
+#: -> measure id.  Kept here so a label cannot drift from its definition.
+LABEL_TO_ID: dict[str, str] = {
+    "Availability": "availability",
+    "Ao": "availability",
+    "Operational availability": "availability",
+    "Inherent availability": "inherent_availability",
+    "Achieved availability": "achieved_availability",
+    "Dependability": "dependability",
+    "Do": "dependability",
+    "Reliability": "reliability",
+    "R": "reliability",
+    "Conditional reliability": "conditional_reliability",
+    "Conditional_Reliability": "conditional_reliability",
+    "MTBDE": "mtbde",
+    "MDT": "mdt",
+    "MTBM": "mtbm",
+    "MTBMu": "mtbmu",
+    "MTBMs": "mtbms",
+    "MMT": "mmt",
+    "MMTu": "mmtu",
+    "MMTs": "mmts",
+    "MTTF": "mttf",
+    "MTTR": "mttr",
+    "MTBF": "mtbf",
+    "MTBE": "mtbe",
+    "Green %": "green_percent",
+    "Green_Percent": "green_percent",
+    "Yellow %": "yellow_percent",
+    "Yellow_Percent": "yellow_percent",
+    "Red %": "red_percent",
+    "Red_Percent": "red_percent",
+    "System failures": "deci",
+    "System_Failures": "deci",
+    "Component failures": "fci",
+    "Component_Failures": "fci",
+    "FCI": "fci",
+    "DECI": "deci",
+    "DTCI": "dtci",
+    "RRW": "rrw",
+    "RAW": "raw",
+    "Birnbaum": "birnbaum",
+    "Fussell-Vesely": "vesely_fussell",
+    "Vesely-Fussell": "vesely_fussell",
+    "Capacity-weighted availability": "capacity_delivered",
+    "Lost flow": "lost_flow",
+    "Lost capacity per element": "lost_capacity",
+    "Total Cost": "cost_total",
+    "Grand total": "cost_total",
+    "Units produced": "capacity_delivered",
+    "Mean flow": "capacity_delivered",
+    "Mean capacity": "capacity_delivered",
+}
+
+
+def for_label(label: str) -> Measure | None:
+    """The measure a report label or acronym names, if the registry has one.
+
+    Labels are compared exactly first (the GUI uses the report's own text),
+    then with underscores and spacing normalised so an export header and a
+    row label reach the same measure.
+    """
+    if not label:
+        return None
+    hit = LABEL_TO_ID.get(label)
+    if hit:
+        return get(hit)
+    normalised = " ".join(label.replace("_", " ").split()).lower()
+    for candidate in MEASURES:
+        names = (candidate.name, candidate.short, candidate.long,
+                 candidate.id.replace("_", " "))
+        if normalised in (" ".join(n.replace("_", " ").split()).lower()
+                          for n in names):
+            return candidate
+    return None
+
+
+def glossary_line(measure_id: str) -> str:
+    """One line for an exported workbook's Glossary tab."""
+    m = get(measure_id)
+    return f"{m.long}: {m.answers.rstrip('?')} ({m.formula})."
+
+
+def explainer_text(measure_id: str, *, values: dict[str, Any] | None = None) -> str:
+    """The explainer panel's plain text, with this run's numbers when given."""
+    m = get(measure_id)
+    lines = [f"{m.name} ({m.short})", "", m.long + ".", "", f"Answers: {m.answers}"]
+    if values:
+        for key, value in values.items():
+            lines.append(f"{key}: {value}")
+    lines += ["", f"Formula: {m.formula}", f"Clock: {m.clock}"]
+    if m.counts:
+        lines.append("Counts: " + ", ".join(m.counts) + ".")
+    if m.excludes:
+        lines.append("Leaves out: " + ", ".join(m.excludes) + ".")
+    if m.also_called:
+        lines.append("Other tools: " + ", ".join(
+            f"{tool} calls it {name}" for tool, name in m.also_called.items()) + ".")
+    if m.use_when:
+        lines.append("Use it when: " + m.use_when)
+    if m.beware:
+        lines.append("Beware: " + m.beware)
+    if m.related:
+        lines.append("Related: " + ", ".join(m.related) + ".")
+    return "\n".join(lines)
 
 
 def get(measure_id: str) -> Measure:
@@ -287,14 +405,23 @@ def availability_ladder(per_run: list[dict]) -> dict[str, Any]:
                   if isinstance(row.get(key), (int, float))]
         return sum(values) / len(values) if values else None
 
+    inherent = field_mean("inherent_availability")
+    achieved = field_mean("achieved_availability")
+    operational = field_mean("operational_availability")
+    if inherent is None and total:
+        inherent = max(0.0, 1.0 - repair / total)
+    if achieved is None and total:
+        achieved = max(0.0, 1.0 - (repair + pm) / total)
+    if operational is None and total:
+        operational = max(0.0, 1.0 - down / total)
     return {
-        "inherent": {"value": field_mean("inherent_availability"),
+        "inherent": {"value": inherent,
                      "source": "from the block data / simulation",
                      "counts": ["repair"]},
-        "achieved": {"value": field_mean("achieved_availability"),
+        "achieved": {"value": achieved,
                      "source": "from the simulation",
                      "counts": ["repair", "PM"]},
-        "operational": {"value": field_mean("operational_availability"),
+        "operational": {"value": operational,
                         "source": "from the simulation",
                         "counts": ["repair", "PM", "logistics", "spares",
                                    "crew", "dependency"]},

@@ -170,11 +170,22 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             "padding: 4px 8px; margin: 4px; }")
         self._scope_banner.setVisible(False)
 
+        # The measure explainer sits to the right of the tabs (WP-2.4): it
+        # is non-modal, opens from a metric card or a table row label, and
+        # stays out of the way until asked.
+        from raptor.gui.ui.measure_explainer import MeasureExplainer
+        self._explainer = MeasureExplainer()
+        self._explainer.hide()
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._scope_banner)
         layout.addWidget(self._placeholder)
-        layout.addWidget(self._tabs, 1)
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.addWidget(self._tabs, 1)
+        body.addWidget(self._explainer)
+        layout.addLayout(body, 1)
         self._tabs.hide()
 
         ThemeManager.instance().on_changed(self._refresh_theme)
@@ -232,6 +243,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._story_page = StoryPage()
         self._story_page.element_clicked.connect(
             lambda kind, oid, name: self.element_clicked.emit(kind, name))
+        self._story_page.measure_clicked.connect(self._explain_measure)
         lay.addWidget(self._story_page)
         self._details_heading = QLabel("Details")
         self._details_heading.setObjectName("SectionTitle")
@@ -261,6 +273,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # designed height when there is room; the page scrolls when
             # there is not.
             card.setMinimumWidth(172)
+            card.clicked.connect(self._explain_measure)
             self._cards[acronym] = card
             cards.addWidget(card, i // 3, i % 3)
         lay.addLayout(cards)
@@ -854,6 +867,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             v.addWidget(table)
             if title == "SUMMARY":
                 self._add_summary_notes(v)
+            table.cellDoubleClicked.connect(
+                lambda _row, column, t=table: self._explain_table_cell(t, column))
             self._detail_tables[title] = table
         for group, page in order:
             pages[group].addStretch(1)
@@ -1580,6 +1595,39 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if m.get("seed_strategy"):
             tip.append(f"seeds: {m['seed_strategy']}")
         lbl.setToolTip("\n".join(tip))
+
+    def _explain_table_cell(self, table: QTableWidget, column: int) -> None:
+        """Double-clicking a Final Results row label opens its definition."""
+        if column != 0:
+            return
+        item = table.item(table.currentRow(), 0)
+        if item is not None:
+            self._explain_measure(item.text())
+
+    def _explain_measure(self, label: str) -> None:
+        """Open the non-modal explainer for a card or label (WP-2.4)."""
+        explainer = getattr(self, "_explainer", None)
+        if explainer is None:
+            return
+        ladder = None
+        try:
+            from raptor.api.insight import measures as measure_registry
+            measure = measure_registry.for_label(label)
+        except Exception:  # noqa: BLE001 - an unknown label is not an error
+            measure = None
+        if measure is None:
+            return
+        if measure.id in ("availability", "inherent_availability",
+                          "achieved_availability", "operational_availability",
+                          "mdt", "mmt", "mttr") and self._report_data:
+            try:
+                from raptor.api.insight import measures as measure_registry
+                from raptor.api.run import _rd_to_dict
+                ladder = measure_registry.availability_ladder(
+                    [_rd_to_dict(rd) for rd in self._report_data])
+            except Exception:  # noqa: BLE001 - the definition still shows
+                ladder = None
+        explainer.show_measure(measure.id, ladder=ladder)
 
     def _refresh_story(self) -> None:
         """Rebuild the Story from the held results (WP-2.3)."""

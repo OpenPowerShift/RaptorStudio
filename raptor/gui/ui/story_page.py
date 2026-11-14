@@ -27,6 +27,26 @@ def _pct(value: float | None) -> str:
     return "" if value is None else f"{100 * value:.4g} %"
 
 
+class MeasureChip(QLabel):
+    """A key-number label that opens the measure explainer when clicked."""
+
+    clicked = Signal(str)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._measure_id: str | None = None
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def set_measure(self, measure_id: str | None) -> None:
+        self._measure_id = measure_id
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 - Qt name
+        if (event.button() == Qt.MouseButton.LeftButton
+                and self._measure_id):
+            self.clicked.emit(self._measure_id)
+        super().mouseReleaseEvent(event)
+
+
 class DotPlot(QWidget):
     """One dot per quantile, stacked by value, with the target line."""
 
@@ -184,6 +204,7 @@ class StoryPage(QWidget):
     """The Story tab's content: headline, dots, drivers, findings, chips."""
 
     element_clicked = Signal(str, int, str)
+    measure_clicked = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -229,7 +250,7 @@ class StoryPage(QWidget):
         lay.addWidget(self.provenance)
         lay.addStretch(1)
         self._story: Story | None = None
-        self._chips: list[tuple[QLabel, QLabel]] = []
+        self._chips: list[tuple[MeasureChip, QLabel]] = []
         self._build_chips()
 
     def _build_chips(self) -> None:
@@ -242,8 +263,9 @@ class StoryPage(QWidget):
         for i in range(6):
             label = QLabel("")
             label.setObjectName("StoryNumberLabel")
-            value = QLabel("")
+            value = MeasureChip()
             value.setObjectName("StoryNumberValue")
+            value.clicked.connect(self.measure_clicked)
             font = QFont(value.font())
             font.setBold(True)
             value.setFont(font)
@@ -272,7 +294,10 @@ class StoryPage(QWidget):
         self.provenance.clear()
         for value, label in self._chips:
             value.clear()
+            value.set_measure(None)
+            value.setToolTip("")
             label.clear()
+            label.setToolTip("")
 
     def _show_story(self, story: Story) -> None:  # noqa: C901, PLR0912
         head = story.headline
@@ -312,12 +337,14 @@ class StoryPage(QWidget):
             value.setText(shown)
             label.setText(chip.label)
             definition = measures.for_metric(chip.field)
+            value.set_measure(definition.id if definition is not None else None)
             if definition is not None:
                 value.setToolTip("\n".join(measures.explain_lines(definition.id)))
                 label.setToolTip(value.toolTip())
         for i in range(len(story.numbers), len(self._chips)):
             value, label = self._chips[i]
             value.clear()
+            value.set_measure(None)
             label.clear()
         self.sections.setText("\n".join(
             f"<b>{section.title}</b> · {section.line}" for section in story.sections))
