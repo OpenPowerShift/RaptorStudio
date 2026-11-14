@@ -890,3 +890,50 @@ class RibbonBuilders(_Base):
                 lambda checked, k=key: self._set_recording(k, checked))
             self._report_stream_actions[key] = act
 
+
+    def _build_overlay_control(self, group) -> None:
+        """One "Show on canvas" control for every result overlay (7.6.1)."""
+        combo = QComboBox()
+        combo.setObjectName("CanvasOverlayCombo")
+        self._overlay_combo = combo
+        entries = (
+            ("No canvas overlay", None),
+            ("Weak link (own availability)", "_weak_color_action"),
+            ("Capacity", "_capacity_overlay_action"),
+            ("Cost", "_cost_overlay_action"),
+            ("Spares", "_spares_overlay_action"),
+            ("Importance", "_importance_overlay_action"),
+        )
+        for label, _attr in entries:
+            combo.addItem(label)
+        self._overlay_actions = [attr for _label, attr in entries if attr]
+
+        def choose(index: int) -> None:
+            target = entries[index][1] if 0 <= index < len(entries) else None
+            for attr in self._overlay_actions:
+                action = getattr(self, attr, None)
+                if action is not None and action.isChecked() \
+                        and attr != target:
+                    action.trigger()
+            if target is not None:
+                action = getattr(self, target, None)
+                if action is not None and not action.isChecked():
+                    action.trigger()
+
+        def sync(_on: bool = False) -> None:
+            current = next((index for index, (_label, attr) in
+                            enumerate(entries) if attr and
+                            getattr(self, attr, None) is not None and
+                            getattr(self, attr).isChecked()), 0)
+            combo.blockSignals(True)
+            combo.setCurrentIndex(current)
+            combo.blockSignals(False)
+
+        combo.currentIndexChanged.connect(choose)
+        for attr in self._overlay_actions:
+            action = getattr(self, attr, None)
+            if action is not None:
+                action.toggled.connect(sync)
+        group.add_widget(combo)
+        group.add_widget(QLabel(" "))
+        sync()

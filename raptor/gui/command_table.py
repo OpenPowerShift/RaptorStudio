@@ -238,9 +238,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_duplicate_parallel_action",
         text="Duplicate in Parallel",
         tooltip="Copy the selected block in parallel between its "
-                "neighbours (Ctrl+Shift+D)",
+                "neighbours (Ctrl+Alt+D)",
         handler="_edit_duplicate_parallel",
-        shortcut="Ctrl+Shift+D",
+        shortcut="Ctrl+Alt+D",
         enabled_when="can_copy"),
     CommandSpec(
         id="home.array",
@@ -1376,11 +1376,7 @@ LAYOUT: tuple[Page, ...] = (
                       Btn("results.results_float", True),
                       Btn("results.clear_results"),
                       Btn("results.spof"), Btn("results.domains"))),
-       Group("Show on Canvas", (Btn("results.weak_color", True),
-                                Btn("results.capacity_overlay"),
-                                Btn("results.cost_overlay"),
-                                Btn("results.spares_overlay"),
-                                Btn("results.importance_overlay"))),
+       Group("Show on Canvas", (Custom("_build_overlay_control"),)),
        # Spread belongs with the band controls: it changes the active
        # overlay's bands (Weak Links or Cost), not the overlay itself.
        Group("Bands", (Custom("_build_weak_link_settings"),

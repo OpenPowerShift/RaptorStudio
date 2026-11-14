@@ -29,6 +29,9 @@ OFF_RIBBON = {
     "home.undo", "home.redo",
     # Shortcut/dialog first: Ctrl+Shift+P / Ctrl+K and the grid's Ctrl+H.
     "view.command_search", "data.find_replace",
+    # Results overlays, driven by the one "Show on canvas" combo.
+    "results.weak_color", "results.capacity_overlay", "results.cost_overlay",
+    "results.spares_overlay", "results.importance_overlay",
 }
 
 #: Attributes of MainWindow that handlers may start from.

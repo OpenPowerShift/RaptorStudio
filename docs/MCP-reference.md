@@ -4618,7 +4618,7 @@ Prompts are reusable starting points a client can offer as a slash command or te
 
 ## Book and guide
 
-The tutorial book has **25 chapters**; the MCP chapter is book chapter 23 of 25 (source `new_docs/chapters/ch16-mcp.adoc`).  The hand-written [MCP guide](MCP.md) covers install, client configuration, concepts and worked task recipes.
+The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).  The hand-written [MCP guide](MCP.md) covers install, client configuration, concepts and worked task recipes.
 
 ## Reporting problems
 
