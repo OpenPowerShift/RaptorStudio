@@ -112,12 +112,12 @@ def test_detach_keeps_the_values_and_drops_the_link(tmp_path):
 
 
 def test_the_legacy_block_library_imports_to_part_types(tmp_path):
-    from raptor.gui.ui.block_library import load_library
+    from raptor.core.fileio.block_library import load_library
     source = GOLD / "SpaceStation/input.rbd"
     # export two blocks in the old JSON format, then import
     rows = [r for r in load_rbd(str(source)).section("BLOCK_DATA").rows
             if r.get("ID") != "0"][:2]
-    from raptor.gui.ui.block_library import export_library
+    from raptor.core.fileio.block_library import export_library
     path = tmp_path / "legacy.json"
     export_library(str(path), rows, "SpaceStation")
     library = import_legacy(path)

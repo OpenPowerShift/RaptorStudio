@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from raptor.core.fileio.rbd import load_rbd
-from raptor.gui.clipboard_plan import plan_paste, remap_dependencies
+from raptor.core.edit.clipboard_plan import plan_paste, remap_dependencies
 
 MODEL = "tests/golden/Phasing3/input.rbd"
 

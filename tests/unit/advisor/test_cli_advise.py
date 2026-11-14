@@ -104,6 +104,8 @@ def test_target_runs_the_model_and_gives_a_verdict(capsys, tmp_path):
     code, out, _ = run_cli(capsys, "advise", path, "--target", "system.ao>=0.5", "-f", "json")
     found = {f["rule"]: f for f in json.loads(out)["results"][0]["findings"]}
     assert code == X.OK and found["R-REQ-001"]["title"] == "Target met"
+    # the run is attributed, so the drivers findings the GUI gives appear too
+    assert any(rule.startswith("R-DRV-") for rule in found), sorted(found)
     code, out, _ = run_cli(capsys, "advise", path, "--target", "system.ao>=0.9999")
     assert "R-REQ-001 (statistical): Target missed" in out
 

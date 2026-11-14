@@ -35,7 +35,8 @@ from raptor.core.annotations import (
     ANNO_Z_DEFAULT,
 )
 from raptor.core.edit import row_ops
-from raptor.gui import clipboard_payload, text_editing
+from raptor.core.edit import clipboard_payload
+from raptor.gui import text_editing
 from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 from raptor.gui.model_edit import (BLOCK_COST_FIELDS, PM_OPTION_ATTRS, EditedFields,
                                    ModelEditor, _pos)

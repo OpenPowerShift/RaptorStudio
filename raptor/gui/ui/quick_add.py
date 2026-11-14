@@ -132,10 +132,13 @@ class QuickAdd(QFrame):
         elif key == "pattern:parallel":
             from PySide6.QtWidgets import QInputDialog
             count, ok = QInputDialog.getInt(
-                self, "Parallel", "Units:", 2, 1, 50)
+                self, "Parallel", "Blocks side by side (n):", 2, 1, 50)
             if ok:
+                # 1 needed is the redundancy most people mean; k = n would
+                # behave as a series arrangement (the Advisor's M-STR-003)
                 k, ok = QInputDialog.getInt(
-                    self, "Parallel", "Required (k):", count, 1, count)
+                    self, "Parallel", f"How many of the {count} must work (k):",
+                    1, 1, count)
                 if ok:
                     view.add_parallel(count, k, x, y)
         elif key == "kind:block":

@@ -6,7 +6,7 @@ from PySide6.QtCore import QMimeData
 from PySide6.QtWidgets import QApplication
 
 from raptor.core.fileio.rbd import load_rbd
-from raptor.gui import clipboard_payload as cp
+from raptor.core.edit import clipboard_payload as cp
 
 pytestmark = pytest.mark.gui
 

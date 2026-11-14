@@ -7,7 +7,7 @@ inside it, a node with its blocks, an event, a whole redundant group --
 saved with its internal links and inserted later as a fresh copy.
 
 Saving and inserting reuse the copy/paste planner the canvas uses
-(`raptor.gui.clipboard_plan`, Qt-free), so an inserted assembly gets new ids,
+(`raptor.core.edit.clipboard_plan`, Qt-free), so an inserted assembly gets new ids,
 free names, its own hierarchy subtree and its links remapped exactly as a
 paste would; spare pools and resources the target model lacks are reset the
 way a paste from another model resets them.
@@ -57,7 +57,7 @@ def assembly_from_elements(rbd: Any, elements: Sequence[str], *, name: str,
     them (a name, an id, or ``kind:name``).
     """
     from raptor.api.edit import _hiers, _selection
-    from raptor.gui.clipboard_plan import plan_copy
+    from raptor.core.edit.clipboard_plan import plan_copy
 
     selection = _selection(rbd, elements)
     if not any(selection.values()):
@@ -94,7 +94,7 @@ def adapted_buffer(rbd: Any, part: PartType) -> tuple[list[tuple[str, dict]],
     """The buffer fitted to `rbd`: references to spare pools, resources or
     other model data it does not have are reset, as a paste from another
     model resets them.  Returns (buffer, notes)."""
-    from raptor.gui.clipboard_payload import Payload, adapt_for_target
+    from raptor.core.edit.clipboard_payload import Payload, adapt_for_target
     adapted = adapt_for_target(rbd, Payload(buffer=buffer_of(part)),
                                same_model=False)
     return adapted.buffer, list(adapted.notes)
@@ -111,7 +111,7 @@ def renamed_buffer(rbd: Any, buffer: Sequence[tuple[str, dict]]
     does not use yet (``Pump`` -> ``Pump_2``), so an inserted assembly never
     duplicates a name. The canvas and the command line both insert through
     this, so they name the copy alike."""
-    from raptor.gui.clipboard_plan import next_free_name
+    from raptor.core.edit.clipboard_plan import next_free_name
     existing = {kind: {str(row.get(column) or "")
                        for row in rbd.section(section).rows}
                 for kind, (section, column) in _NAME_COLUMNS.items()}
@@ -139,7 +139,7 @@ def insert_assembly(rbd: Any, part: PartType, *,
     outside it are dropped (they named elements of another model).
     """
     from raptor.api.edit import _append, _int, _live
-    from raptor.gui.clipboard_plan import plan_paste, remap_dependencies
+    from raptor.core.edit.clipboard_plan import plan_paste, remap_dependencies
 
     buffer, notes = adapted_buffer(rbd, part)
     buffer = renamed_buffer(rbd, buffer)

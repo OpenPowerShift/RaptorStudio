@@ -178,6 +178,10 @@ CAPABILITIES: tuple[Capability, ...] = (
                        "command line or MCP precision setting until the "
                        "radio ships"}),
     Capability(
+        "export.report", "The run's report as a PDF or one HTML file: story, charts, diagram",
+        api="raptor.api.report.write_report", cli="explain --report",
+        mcp="export_report", gui="command:file.export_pdf"),
+    Capability(
         "insight.charts", "The chart set: dots, Pareto, waterfall, ladder, histogram",
         api="raptor.api.insight.charts.chart_named",
         cli="explain --chart", mcp="run_chart",

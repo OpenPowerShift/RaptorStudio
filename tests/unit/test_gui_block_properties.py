@@ -526,7 +526,7 @@ def test_block_template_combo_is_greyed_with_a_reason_until_a_library_is_importe
 
 def test_block_template_combo_fills_the_distributions_from_the_library(qapp, monkeypatch):
     from PySide6.QtWidgets import QComboBox, QDoubleSpinBox
-    from raptor.gui.ui.block_library import load_library
+    from raptor.core.fileio.block_library import load_library
     from raptor.gui.ui.main_window import MainWindow
     win = MainWindow()
     win._load_into_app(load_rbd(os.path.join(GOLD, "HierarchyExample", "input.rbd")), None)

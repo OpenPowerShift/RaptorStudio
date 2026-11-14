@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QApplication
 
 from raptor.api.run import model_hash
 from raptor.core.fileio.rbd import load_rbd
-from raptor.gui.clipboard_plan import (
+from raptor.core.edit.clipboard_plan import (
     DATA_GROUPS, next_free_name, plan_paste_data,
 )
 from raptor.gui.ui.main_window import MainWindow

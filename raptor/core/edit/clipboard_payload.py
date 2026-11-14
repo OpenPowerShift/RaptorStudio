@@ -38,7 +38,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from raptor.gui.clipboard_plan import Buffer, count_elements
+from raptor.core.edit.clipboard_plan import Buffer, count_elements
 
 MIME = "application/x-raptor-studio-clip"
 FORMAT = "raptor-studio-clip"

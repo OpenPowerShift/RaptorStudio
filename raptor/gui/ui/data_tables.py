@@ -61,6 +61,11 @@ from raptor.gui.ui.data_tables_sparing_mixin import DataTablesSparingMixin
 from raptor.gui.ui.data_tables_edit_mixin import DataTablesEditMixin
 
 
+def _is_fill_down_key(event) -> bool:
+    return (event.key() == Qt.Key.Key_D
+            and event.modifiers() == Qt.KeyboardModifier.ControlModifier)
+
+
 class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
                      DataTablesCostsMixin, DataTablesKeyedMixin, QWidget):
     #: Emitted after ANY committed edit so MainWindow can mark dirty.
@@ -378,9 +383,6 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         self._pm_table.itemChanged.connect(self._on_pm_cell_changed)
         self._apply_level_column()
         from PySide6.QtGui import QKeySequence, QShortcut
-        fill = QShortcut(QKeySequence("Ctrl+D"), self)
-        fill.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        fill.activated.connect(self.fill_down)
         for _t, _k in self._level_tables():
             cast(_DataTable, _t).paste_text = self.paste_into_selection
             _t.selectionModel().selectionChanged.connect(self._update_banner)
@@ -1108,6 +1110,19 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         label.setGeometry(table.viewport().rect())
         label.raise_()
         label.show()
+
+    def event(self, event):
+        """Ctrl+D inside the tables is fill down (as in a spreadsheet); on
+        the canvas it is Duplicate. A window shortcut and a widget shortcut
+        on one key are ambiguous to Qt and then neither fires, so the
+        tables claim the key while they have the focus instead."""
+        if event.type() in (QEvent.Type.ShortcutOverride, QEvent.Type.KeyPress) \
+                and _is_fill_down_key(event):
+            if event.type() == QEvent.Type.KeyPress:
+                self.fill_down()
+            event.accept()
+            return True
+        return super().event(event)
 
     def eventFilter(self, watched, event):
         """Keep each empty-state note the size of its table viewport, and

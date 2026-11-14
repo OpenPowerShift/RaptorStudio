@@ -83,3 +83,19 @@ def test_series_and_parallel_patterns_are_valid_and_undoable(win):
     assert _blocks(win) == before_blocks + 6
     win._undo_stack.undo()
     assert _blocks(win) == before_blocks + 3
+
+
+def test_parallel_units_stack_and_never_reuse_a_name(win):
+    """User testing: the parallel pattern laid its blocks out in a row (it
+    read as a series chain and ran off-screen) and named one Block_1 beside
+    an existing Block_1 ("Block 1" was checked before it became Block_1)."""
+    view = win._diagram_dock.view
+    view.add_block("Block_1", 50.0, 50.0)
+    ids = view.add_parallel(3, 1, 400.0, 300.0)
+    xs = {view.blocks[b].x_position for b in ids}
+    ys = sorted(view.blocks[b].y_position for b in ids)
+    assert len(xs) == 1 and ys[0] < ys[1] < ys[2]
+    rows = [row for row in win._rbd.section("BLOCK_DATA").rows if row.get("ID") != "0"]
+    new = [str(r.get("blockName")) for r in rows if int(r["ID"]) in ids]
+    old = [str(r.get("blockName")) for r in rows if int(r["ID"]) not in ids]
+    assert len(set(new)) == 3 and not set(new) & set(old), (new, old)

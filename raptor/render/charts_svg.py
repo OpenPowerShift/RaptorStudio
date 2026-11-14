@@ -902,8 +902,12 @@ _RENDERERS: dict[str, Callable[[ChartSpec, _Box], list[str]]] = {
 
 
 def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
-           background: str = "#ffffff", text_colour: str = INK) -> str:
-    """One ChartSpec as a complete SVG document."""
+           background: str = "#ffffff", text_colour: str = INK,
+           id_prefix: str = "") -> str:
+    """One ChartSpec as a complete SVG document.
+
+    `id_prefix` makes the pattern ids unique when several charts are inlined
+    in one HTML page (the report): repeated ids are invalid there."""
     body: list[str] = [
         f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' "
         f"height='{height}' viewBox='0 0 {width} {height}' "
@@ -933,7 +937,11 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
         body.append(_text(PAD, height - 9, spec.caption, size=11,
                           colour=text_colour))
     body.append("</svg>")
-    return "\n".join(body)
+    svg = "\n".join(body)
+    if id_prefix:
+        svg = svg.replace("id='pat-", f"id='{id_prefix}pat-").replace(
+            "url(#pat-", f"url(#{id_prefix}pat-")
+    return svg
 
 
 def write(spec: ChartSpec, path: str | Any) -> str:

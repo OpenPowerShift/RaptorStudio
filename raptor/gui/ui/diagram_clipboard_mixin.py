@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
     QApplication,
 )
 
-from raptor.gui import clipboard_payload
-from raptor.gui.clipboard_plan import (
+from raptor.core.edit import clipboard_payload
+from raptor.core.edit.clipboard_plan import (
     count_elements, next_free_name, plan_copy, plan_paste, plan_paste_data,
     remap_dependencies)
 from raptor.gui.ui.diagram_items import routing_batch

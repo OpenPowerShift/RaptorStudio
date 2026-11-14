@@ -158,6 +158,7 @@ TOOL_CATEGORY: dict[str, str] = {
     "list_tables": "results",
     "get_table": "results",
     "export_tables": "results",
+    "export_report": "results",
     "export_analytical": "results",
     # Meta and documentation
     "list_distributions": "meta",
@@ -345,6 +346,7 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "list_tables": {"model_id": "<model_id>", "run_id": "<run_id>"},
     "get_table": {"model_id": "<model_id>", "table": "results.summary",
                   "run_id": "<run_id>"},
+    "export_report": {"run_id": "<run_id>", "path": "Reports/plant.pdf"},
     "export_tables": {"model_id": "<model_id>", "run_id": "<run_id>",
                       "formats": ["xlsx"]},
     "export_analytical": {"model_id": "<model_id>",
@@ -564,6 +566,7 @@ RETURN_NOTES: dict[str, str] = {
     "get_run_results": "`{run_id, model_id, model_name, runs, units, "
                        "metrics, capacity, per_run, weak_link, files}`.",
     "export_tables": "`{folder, tables, files: [path], resource_links}`.",
+    "export_report": "`{path, sections, bytes, resource_links}`.",
     "render_diagram": "Image content plus `{width, height, elements_drawn, "
                       "elements_in_view, px_per_unit, effective_label_px, "
                       "legible, zoom_to, highlighted, png_path, "

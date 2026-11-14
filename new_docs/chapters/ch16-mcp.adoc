@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *86 tools* (including the `ping` health check), a set of
+The server exposes *87 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -388,8 +388,8 @@ careful about what it exposes:
 
 . *Check the tool list.* Ask your assistant "What RAPTOR tools do you
   have?" or, in the MCP Inspector, click *Tools*. You should see the tools
-  listed below: 86 including `render_diagram`, `render_diagram_svg` and
-  `ping`, or 85 when `--no-render` hides the PNG diagram tool.
+  listed below: 87 including `render_diagram`, `render_diagram_svg` and
+  `ping`, or 86 when `--no-render` hides the PNG diagram tool.
 
 . *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
   tool manually. It should return `"pong"`.
@@ -951,6 +951,13 @@ or `results.summary`.
   fixed-width file per table) and `txt_report` (one combined report), in
   any combination. Files go to `Tables/<model>` in the workspace unless a
   workspace-relative `folder` is given.
+
+| `export_report`
+| Writes the run report a decision maker reads: `.pdf` or one
+  self-contained `.html`. By default the diagram and the plain-English
+  story; add `results` and `data_tables` in `sections` for the tables.
+  The file goes to `Reports/<model>_<run>.pdf` unless a workspace-relative
+  `path` is given.
 |===
 
 ==== Reference

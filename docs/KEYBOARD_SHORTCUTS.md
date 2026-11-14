@@ -20,6 +20,9 @@
 | Ctrl+C | Copy selection (elements, links, annotations, hierarchy subtrees) |
 | Ctrl+X | Cut selection |
 | Ctrl+V | Paste at mouse cursor |
+| Ctrl+D | Duplicate the selection in place (in the Data Tables, Ctrl+D is fill down) |
+| Ctrl+Alt+D | Duplicate in Parallel: a copy of the selected block between the same neighbours |
+| Ctrl+Shift+V | Paste Data Only: copy the copied block's data onto the selected blocks |
 | Del / Backspace | Delete selection (nothing selected: arms click-to-delete) |
 | Arrow keys | Nudge the selection one grid step |
 | Shift+Arrow keys | Nudge the selection 1 px, off the grid |
@@ -47,6 +50,7 @@ button always ascends, whatever is selected.
 | Ctrl+F | Show or hide the filter row of the table that has the focus (tables of more than 10 rows) |
 | Ctrl+D | Data Tables: fill down, the top selected row's value goes to the other selected rows in the current column |
 | Ctrl+V | Data Tables, on the grid itself: paste one value into the current column of every selected row |
+| Ctrl+H | Data Tables: find and replace in the visible rows of the current table |
 
 ## Annotation z-order (Model view)
 Needs one or more annotations selected. Each command is greyed out when
@@ -82,6 +86,7 @@ Front* and *Bring Forward* disabled.
 | Ctrl+Shift+I | Show or hide the Inspector |
 | Ctrl+Shift+D | Show or hide the Data Tables |
 | Ctrl+, | Preferences… |
+| Ctrl+Shift+P / Ctrl+K | Run a Command…: search every command by name |
 
 Ctrl+Shift+R (Simulation, below) shows the Results panel.
 

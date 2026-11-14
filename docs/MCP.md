@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **86 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **85**.
+- **87 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **86**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -656,6 +656,11 @@ field was never applied, not that the model is insensitive.
 - `export_tables` writes CSV, fixed-width text, a combined text report, an
   Excel workbook or an ODS workbook. With no `tables`, it exports the default
   set; with no `formats`, it writes one `.xlsx`.
+- `export_report` writes a run's report as one PDF or one self-contained
+  HTML file: the Story (headline, what drives the downtime, findings,
+  charts, how to read each measure) and the diagram by default; add
+  `results` or `data_tables` to `sections` for the tables. Run with
+  `attribution=True` for the drivers part.
 - `export_analytical` solves exactly and writes a spreadsheet with Summary,
   Elements, Curve, Equation and Assumptions sheets. `phase="all"` solves
   every phase.

@@ -346,10 +346,10 @@ def _story_html(insight: Any) -> str:
 def _charts_html(insight: Any) -> str:
     from raptor.render.charts_svg import render
     out = []
-    for spec in insight.charts or ():
-        out.append(f'<div class="chart"><div class="chart-title">'
-                   f'{_e(spec.title)}</div>{render(spec)}'
-                   f'<p class="note">{_e(spec.caption)}</p></div>')
+    for i, spec in enumerate(insight.charts or ()):
+        # the SVG draws its own title, subtitle and caption; repeating them
+        # around it printed each twice.  Each chart's pattern ids are its own.
+        out.append(f'<div class="chart">{render(spec, id_prefix=f"c{i}-")}</div>')
     return "".join(out)
 
 
@@ -476,8 +476,12 @@ _CSS = """
 @page :first { @top-left { content: none; } @top-right { content: none; } }
 @page wide { size: A4 landscape; }
 @page :left, :right { }
-@page { @top-left, @top-right, @bottom-left, @bottom-right {
-  font-size: 7.5pt; color: #6f7c8a; } }
+@page {
+  @top-left { font-size: 7.5pt; color: #6f7c8a; }
+  @top-right { font-size: 7.5pt; color: #6f7c8a; }
+  @bottom-left { font-size: 7.5pt; color: #6f7c8a; }
+  @bottom-right { font-size: 7.5pt; color: #6f7c8a; }
+}
 
 html { font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", Arial, sans-serif;
        font-size: 9.5pt; color: #23282c; line-height: 1.35; }
@@ -496,7 +500,6 @@ p { margin: 1mm 0; }
 .story-headline { font-size: 20pt; font-weight: 600; color: #23282c; }
 .chart { margin: 4mm 0 6mm 0; break-inside: avoid; }
 .chart svg { width: 100%%; height: auto; }
-.chart-title { font-weight: 600; margin-bottom: 1mm; }
 dl.measures dt { font-weight: 600; margin-top: 2mm; }
 dl.measures dd { margin: 0 0 1mm 4mm; }
 table.checks { width: 100%%; border-collapse: collapse; font-size: 8pt; }
@@ -603,6 +606,17 @@ def build_html(content: ReportContent) -> str:
 def write_pdf(document: str, path: str | Path, base_dir: str | Path) -> None:
     """Render *document* to a PDF at *path*; images resolve against
     *base_dir*."""
+    import logging
+
     import weasyprint
-    weasyprint.HTML(string=document, base_url=str(base_dir)).write_pdf(
-        str(path))
+    # Our own CSS carries rules for browsers printing the HTML report
+    # (print-color-adjust) that WeasyPrint does not know; its warnings about
+    # them only reached a command-line user's terminal as noise.
+    css_log = logging.getLogger("weasyprint")
+    level = css_log.level
+    css_log.setLevel(logging.ERROR)
+    try:
+        weasyprint.HTML(string=document, base_url=str(base_dir)).write_pdf(
+            str(path))
+    finally:
+        css_log.setLevel(level)

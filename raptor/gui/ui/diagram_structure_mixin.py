@@ -1637,11 +1637,14 @@ class StructureMixin(_Base):
     # -- patterns (WP-1.6) ------------------------------------------------
 
     def _unique_block_name(self, stem: str) -> str:
+        # compare the name as it will be stored: "Block 1" is saved as
+        # Block_1, so checking the raw stem let a pattern reuse a name
+        stem = self._sanitize_name(stem)
         existing = {str(row.get("blockName") or "")
                     for row in self._rbd_ref.section("BLOCK_DATA").rows}
         if stem not in existing:
             return stem
-        from raptor.gui.clipboard_plan import next_free_name
+        from raptor.core.edit.clipboard_plan import next_free_name
         return next_free_name(existing, stem)
 
     def add_series(self, count: int, x: float, y: float) -> list[int]:
@@ -1667,19 +1670,23 @@ class StructureMixin(_Base):
 
     def add_parallel(self, count: int, k: int, x: float,
                      y: float) -> list[int]:
-        """A split node, `count` blocks, a join node with k-of-n."""
+        """A split node, `count` blocks stacked one above another, and a
+        join node needing `k` of them."""
         if count < 1:
             return []
         k = max(1, min(int(k), count))
         ids: list[int] = []
+        step = BLOCK_W + 20.0
+        rise = BLOCK_H + 30.0
         self._stack.beginMacro(f"Add {k} of {count} in parallel")
         try:
             split = self.add_node("Split", x, y)
             for index in range(count):
+                # side by side they read as a series chain
                 ids.append(self.add_block(
                     self._unique_block_name(f"Block {index + 1}"),
-                    x + (index + 1) * (BLOCK_W + 20.0), y))
-            join = self.add_node("Join", x + (count + 1) * (BLOCK_W + 20.0), y)
+                    x + step, y + (index - (count - 1) / 2.0) * rise))
+            join = self.add_node("Join", x + 2 * step, y)
             self.connect_elements("Node", split, "Block", ids[0])
             for block_id in ids[1:]:
                 self.connect_elements("Node", split, "Block", block_id)
