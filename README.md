@@ -31,7 +31,8 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **Runs anywhere.** One installer or `pip install`, on Windows, macOS and Linux.
 - **Scriptable.** Everything the application does is also a command (`raptor run`, `sweep`, `compare`, `diff`,
   `estimate`, `validate`, `spf`, `fev`, `step`, `extract`, `analytic`, `render` and more) with machine-readable results. It fits in
-  a continuous-integration job, a Jupyter notebook or a shell loop.
+  a continuous-integration job, a Jupyter notebook or a shell loop. `raptor run --precision 10%` grows the batch
+  until the interval is tight enough instead of making you guess a run count.
 - **Usable from an AI assistant.** An MCP server with **75 tools** (74 when `--no-render` hides the PNG diagram tool) lets an assistant build, edit, validate, simulate,
   compare and explain models, run long batches in the background, and draw the diagram. The
   [MCP server guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) covers install, client

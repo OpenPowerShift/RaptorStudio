@@ -229,6 +229,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
     interim_cost: bool | None = None,
     attribution: bool = False,
     capacity_rule: Literal["proportional", "marginal", "first_failed"] = "proportional",
+    precision: dict | None = None,
     ctx: Context | None = None,
 ) -> CallToolResult:
     """Run a simulation and return structured results.
@@ -286,6 +287,13 @@ async def simulate(  # noqa: PLR0912, PLR0915
     model and run count always return byte-identical numbers.  If a run is
     cut short by `timeout_s`, `runs` is below the requested count and
     `truncated` is true -- do not read a truncated batch as complete.
+
+    `precision` runs in growing batches until the watched metric is
+    precise enough, instead of a fixed count: `{relative: 0.1, metric:
+    "system.ao", on: "unavailability" | "value", confidence: 0.95,
+    min_trials: 50, max_trials: 20000, batch: 50}`. The result carries a
+    `precision` object with the reached interval, the target, the trial
+    count and the pass history; `relative` is a fraction (0.1 = 10 %).
 
     Capacity: delivered flow is limited by link `nom_flow`/`max_flow`
     caps, and those caps only bind on links entering a node whose
@@ -350,6 +358,32 @@ async def simulate(  # noqa: PLR0912, PLR0915
         handle.rbd.experiment = _rx.normalise(experiment)
 
     def _go(abort, progress):
+        if precision is not None:
+            if hierarchy is not None:
+                raise ValueError(
+                    "precision and hierarchy cannot be combined yet")
+            from raptor.api.scenarios import Precision, run_to_precision
+            try:
+                wanted = Precision(**precision)
+                wanted.field()
+            except TypeError as exc:
+                raise ValueError(f"bad precision object: {exc}") from exc
+            except ValueError as exc:
+                raise ValueError(str(exc)) from exc
+            if wanted.max_trials > cap:
+                raise ValueError(
+                    f"precision.max_trials={wanted.max_trials} exceeds the "
+                    f"server cap of {cap}; lower it or raise the cap")
+            outcome = run_to_precision(
+                ws, model_id, wanted, workers=workers, seed=seed,
+                progress=lambda done, _total, _text: progress(done, _total),
+                abort=abort, timeout_s=timeout_s,
+                confirm_long_run=confirm_long_run, collect_events=collect_events,
+                availability_plot=availability_plot, interim_cost=interim_cost,
+                attribution=attribution, capacity_rule=capacity_rule)
+            result = outcome.result
+            result.precision = outcome.to_dict()
+            return result
         kwargs = dict(
             num_runs=num_runs, run_length=run_length, workers=workers,
             timeout_s=timeout_s, collect_events=collect_events,
@@ -371,8 +405,9 @@ async def simulate(  # noqa: PLR0912, PLR0915
     # `requested` must come from the caller or the model's own configured
     # run count -- falling back to `result.num_runs` would make the
     # truncation check vacuous whenever `num_runs` is omitted.
-    requested = effective_runs
-    truncated = requested is not None and result.num_runs < requested
+    requested = (result.num_runs if precision is not None else effective_runs)
+    truncated = (False if precision is not None
+                 else requested is not None and result.num_runs < requested)
     data = {
         "run_id": result.run_id,
         "model_id": result.model_id,
@@ -404,6 +439,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
         data["isolation"] = result.isolation
     if getattr(result, "importance", None):
         data["importance"] = result.importance
+    if getattr(result, "precision", None):
+        data["precision"] = result.precision
     md = summary_table(
         result,
         display_unit=getattr(handle.rbd, "display_unit", None),

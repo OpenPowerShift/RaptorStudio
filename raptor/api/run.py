@@ -97,6 +97,9 @@ class RunResult:
     estimated_wall_seconds: float | None = None
     #: Which optional analyses ran: ``{"capacity": bool, "cost": bool}``.
     analyses: dict[str, bool] = field(default_factory=dict)
+    #: Set when the batch was stopped by `raptor.api.scenarios.stopping`:
+    #: the reached interval, target, trial count and pass history.
+    precision: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d = self._base_dict()
@@ -104,6 +107,8 @@ class RunResult:
             d["isolation"] = self.isolation
         if self.importance is not None:
             d["importance"] = self.importance
+        if self.precision is not None:
+            d["precision"] = self.precision
         return d
 
     def _base_dict(self) -> dict[str, Any]:

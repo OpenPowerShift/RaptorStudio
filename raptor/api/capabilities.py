@@ -69,6 +69,13 @@ CAPABILITIES: tuple[Capability, ...] = (
         api="raptor.api.insight.story.from_run", cli="explain --story",
         mcp="run_story", gui="widget:raptor.gui.ui.story_page.StoryPage"),
     Capability(
+        "insight.precision", "Run until the answer is precise enough",
+        api="raptor.api.scenarios.stopping.run_to_precision",
+        cli="run --precision", mcp="simulate", long_running=True,
+        absent={"gui": "the Run panel still takes a fixed run count; use the "
+                       "command line or MCP precision setting until the "
+                       "radio ships"}),
+    Capability(
         "insight.charts", "The chart set: dots, Pareto, waterfall, ladder, histogram",
         api="raptor.api.insight.charts.chart_named",
         cli="explain --chart", mcp="run_chart",

@@ -3071,6 +3071,13 @@ model and run count always return byte-identical numbers.  If a run is
 cut short by `timeout_s`, `runs` is below the requested count and
 `truncated` is true -- do not read a truncated batch as complete.
 
+`precision` runs in growing batches until the watched metric is
+precise enough, instead of a fixed count: `{relative: 0.1, metric:
+"system.ao", on: "unavailability" | "value", confidence: 0.95,
+min_trials: 50, max_trials: 20000, batch: 50}`. The result carries a
+`precision` object with the reached interval, the target, the trial
+count and the pass history; `relative` is a fraction (0.1 = 10 %).
+
 Capacity: delivered flow is limited by link `nom_flow`/`max_flow`
 caps, and those caps only bind on links entering a node whose
 unrestricted flow is off (`full_flow: false`).  A model with no such
@@ -3091,6 +3098,7 @@ boundary node reports no lost flow.
 | `interim_cost` | boolean \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
 | `num_runs` | integer \| null | no | `null` | — |
+| `precision` | object \| null | no | `null` | — |
 | `run_length` | number \| null | no | `null` | — |
 | `seed` | integer \| null | no | `null` | — |
 | `timeout_s` | number | no | `1800.0` | — |

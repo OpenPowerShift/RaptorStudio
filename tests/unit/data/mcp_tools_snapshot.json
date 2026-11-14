@@ -780,6 +780,7 @@
    "interim_cost",
    "model_id",
    "num_runs",
+   "precision",
    "run_length",
    "seed",
    "timeout_s",

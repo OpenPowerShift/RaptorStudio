@@ -78,6 +78,16 @@ class TestSimulate:
                           timeout_s=60, confirm_long_run=True))
         assert "Availability" in _text(result)
 
+    def test_simulate_precision_reports_its_interval(self, ws_with_motor):
+        from raptor.mcp.tools_run import simulate
+        result = _resolve(simulate(
+            ws_with_motor, num_runs=5, timeout_s=60, confirm_long_run=True,
+            precision={"relative": 0.5, "min_trials": 2, "max_trials": 4}))
+        data = _sc(result)
+        assert data["precision"]["trials"] <= 4
+        assert data["precision"]["target"] == pytest.approx(0.5 / 1.5)
+        assert data["truncated"] is False
+
     def test_simulate_enforces_max_runs(self, ws_with_motor):
         from raptor.mcp.server import mcp
         from raptor.mcp.tools_run import simulate
