@@ -100,3 +100,33 @@ def test_a_named_mark_locates_the_element(qapp):
                      pos=QPoint(int(hit.center().x()), int(hit.center().y())))
     assert spy.count() == 1
     assert spy.at(0) == ["element", "Pump"]
+
+
+def test_capacity_and_annual_charts_appear_when_their_data_does(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": 100.0,
+        "elements": [{"name": "Pump", "share": {"mean": 0.6},
+                      "lost_energy": {"mean": 12.0},
+                      "through_dependents": {"mean": 0.0}}],
+        "causes": {"repair": {"mean": 7.0}}}
+    periods = {"runs": 2, "periods_per_run": 2, "threshold": 0.95,
+               "pooled": {"n": 4, "p5": 0.9, "p50": 0.97, "p95": 1.0},
+               "by_index": [
+                   {"index": 1, "n": 2, "p5": 0.90, "p25": 0.94, "p50": 0.97,
+                    "p75": 0.99, "p95": 1.0},
+                   {"index": 2, "n": 2, "p5": 0.88, "p25": 0.92, "p50": 0.96,
+                    "p75": 0.98, "p95": 1.0}]}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, periods=periods)
+    names = [page.selector.itemText(i) for i in range(page.selector.count())]
+    assert "Who loses the capacity" in names
+    assert "Downtime against lost capacity" in names
+    assert "Availability year by year" in names
+    assert "A bad year, as a frequency" in names
+    for name in ("Who loses the capacity", "Downtime against lost capacity",
+                 "Availability year by year", "A bad year, as a frequency"):
+        page.selector.setCurrentText(name)
+        assert not page.chart.grab().toImage().isNull()

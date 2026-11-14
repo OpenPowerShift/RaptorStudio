@@ -493,3 +493,6 @@ class DriversPage(QWidget):
 
     def attribution(self) -> dict[str, Any] | None:
         return self._attribution
+
+    def periods(self) -> dict[str, Any] | None:
+        return self.chart.periods()

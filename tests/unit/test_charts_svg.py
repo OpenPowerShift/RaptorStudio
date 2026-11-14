@@ -44,7 +44,34 @@ def _specs() -> dict[str, charts.ChartSpec]:
         "quadrant": charts.importance_quadrant(importance),
         "convergence": charts.convergence(per_run, target=0.95),
         "cost": charts.cost_pareto([SimpleNamespace(cost=cost)]),
+        "capacity": charts.lost_capacity_pareto(_capacity()),
+        "scatter": charts.capacity_vs_downtime(_capacity()),
+        "fan": charts.annual_fan(_periods()),
     }
+
+
+def _capacity():
+    return {
+        "runs": 4, "causes": {"repair": 0.7},
+        "capacity": {"rule": "proportional", "generated": 100.0,
+                     "elements": [{"name": "Pump", "share": {"mean": 0.6},
+                                   "lost_energy": {"mean": 12.0},
+                                   "through_dependents": {"mean": 0.0}}],
+                     "causes": {"repair": {"mean": 7.0}}},
+        "elements": [{"name": "Pump", "dtci": {"mean": 0.3},
+                      "deci": {"mean": 0.5}, "red_time": {"mean": 4.0},
+                      "causes": {}}],
+    }
+
+
+def _periods():
+    return {"runs": 2, "periods_per_run": 2, "threshold": 0.95,
+            "pooled": {"n": 4, "p5": 0.9, "p50": 0.97, "p95": 1.0},
+            "by_index": [
+                {"index": 1, "n": 2, "p5": 0.90, "p25": 0.94, "p50": 0.97,
+                 "p75": 0.99, "p95": 1.0},
+                {"index": 2, "n": 2, "p5": 0.88, "p25": 0.92, "p50": 0.96,
+                 "p75": 0.98, "p95": 1.0}]}
 
 
 @pytest.mark.parametrize("name", sorted(_specs()))

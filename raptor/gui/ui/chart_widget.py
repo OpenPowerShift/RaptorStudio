@@ -406,6 +406,106 @@ class ChartWidget(QWidget):
         painter.setPen(QPen(QColor("#2F6FB7"), 2))
         painter.drawPath(path)
 
+    def _paint_capacity_pareto(self, painter, spec, palette) -> None:
+        rows = spec.series
+        if not rows:
+            return self._paint_none(painter, spec, palette)
+        r = self._rect()
+        peak = max(max(float(row.get("value") or 0),
+                       float(row.get("downtime") or 0)) for row in rows) or 1.0
+        height = r.height() / len(rows)
+        for i, row in enumerate(rows):
+            y = r.top() + i * height
+            for offset, key, colour in (
+                    (0.04, "downtime", QColor("#9AA5B1")),
+                    (0.38, "value", QColor("#2F6FB7"))):
+                width = r.width() * float(row.get(key) or 0) / peak
+                painter.fillRect(QRectF(r.left(), y + height * offset,
+                                        width, height * 0.3), colour)
+            painter.setPen(QColor(palette["text"]))
+            painter.drawText(QRectF(r.left() + 4, y, r.width() - 8, height),
+                             Qt.AlignmentFlag.AlignVCenter, str(row["name"]))
+        painter.setPen(QColor(palette["muted"]))
+        painter.drawText(QRectF(r.left(), r.top() - 18, r.width(), 16),
+                         Qt.AlignmentFlag.AlignLeft,
+                         "capacity share (blue) against downtime share (grey)")
+
+    def _paint_scatter(self, painter, spec, palette) -> None:
+        points = [p for p in spec.series
+                  if isinstance(p.get("x"), (int, float))
+                  and isinstance(p.get("y"), (int, float))]
+        if not points:
+            return self._paint_none(painter, spec, palette)
+        high = max(max(float(p["x"]) for p in points),
+                   max(float(p["y"]) for p in points)) * 1.1 or 1.0
+        self._axis(painter, spec, palette, 0, high, 0, high)
+        r = self._rect()
+        if any(mark.get("kind") == "diagonal" for mark in spec.marks):
+            painter.setPen(QPen(QColor(palette["muted"]), 1,
+                                Qt.PenStyle.DashLine))
+            painter.drawLine(QPointF(r.left(), r.bottom()),
+                             QPointF(r.right(), r.top()))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor("#2F6FB7"))
+        for point in points:
+            x = _scale(float(point["x"]), 0, high, r.left(), r.right())
+            y = _scale(float(point["y"]), 0, high, r.bottom(), r.top())
+            painter.drawEllipse(QPointF(x, y), 4, 4)
+            painter.setPen(QColor(palette["text"]))
+            painter.drawText(QRectF(x + 6, y - 16, 140, 16),
+                             str(point["name"]))
+            painter.setPen(Qt.PenStyle.NoPen)
+            self._hits.append((QRectF(x - 6, y - 6, 12, 12),
+                               "element", str(point["name"])))
+
+    def _paint_fan(self, painter, spec, palette) -> None:
+        rows = [row for row in spec.series if row.get("p50") is not None]
+        if not rows:
+            return self._paint_none(painter, spec, palette)
+        lows = [float(row["p5"]) for row in rows
+                if isinstance(row.get("p5"), (int, float))]
+        highs = [float(row["p95"]) for row in rows
+                 if isinstance(row.get("p95"), (int, float))]
+        target = next((m["value"] for m in spec.marks
+                       if m.get("kind") == "target"
+                       and m.get("value") is not None), None)
+        low = min(lows + ([target] if target is not None else []))
+        high = max(highs + ([target] if target is not None else []))
+        if high <= low:
+            high = low + 1e-9
+        self._axis(painter, spec, palette, 1, max(2, len(rows)), low, high)
+        r = self._rect()
+
+        def point(i: int, value: float) -> QPointF:
+            return QPointF(
+                _scale(i + 1, 1, max(2, len(rows)), r.left(), r.right()),
+                _scale(value, low, high, r.bottom(), r.top()))
+
+        def band(upper: str, lower: str, alpha: int) -> None:
+            polygon = QPolygonF(
+                [point(i, float(row[upper])) for i, row in enumerate(rows)]
+                + [point(i, float(rows[i][lower]))
+                   for i in reversed(range(len(rows)))])
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(47, 111, 183, alpha))
+            painter.drawPolygon(polygon)
+
+        if all(isinstance(row.get("p5"), (int, float))
+               and isinstance(row.get("p95"), (int, float)) for row in rows):
+            band("p95", "p5", 30)
+        if all(isinstance(row.get("p25"), (int, float))
+               and isinstance(row.get("p75"), (int, float)) for row in rows):
+            band("p75", "p25", 55)
+        painter.setPen(QPen(QColor("#2F6FB7"), 2))
+        path = QPainterPath(point(0, float(rows[0]["p50"])))
+        for i in range(1, len(rows)):
+            path.lineTo(point(i, float(rows[i]["p50"])))
+        painter.drawPath(path)
+        if target is not None:
+            painter.setPen(QPen(QColor("#C4472F"), 2, Qt.PenStyle.DashLine))
+            y = _scale(float(target), low, high, r.bottom(), r.top())
+            painter.drawLine(QPointF(r.left(), y), QPointF(r.right(), y))
+
     # -- interaction ----------------------------------------------------
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt name

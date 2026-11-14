@@ -59,11 +59,13 @@ class ChartsPage(QWidget):
                    attribution: dict[str, Any] | None = None,
                    importance: dict[str, Any] | None = None,
                    report_data: list[Any] | None = None,
+                   periods: dict[str, Any] | None = None,
                    units: str = "", run_id: str = "",
                    target: float | None = None) -> None:
         """Rebuild the picker from whatever this result set has."""
         self._specs = self._build(per_run or [], attribution, importance,
-                                  report_data or [], units, run_id, target)
+                                  report_data or [], periods, units, run_id,
+                                  target)
         keep = self.selector.currentText()
         self.selector.blockSignals(True)
         self.selector.clear()
@@ -78,6 +80,7 @@ class ChartsPage(QWidget):
 
     def _build(self, per_run: list[dict], attribution: dict[str, Any] | None,
                importance: dict[str, Any] | None, report_data: list[Any],
+               periods: dict[str, Any] | None,
                units: str, run_id: str,
                target: float | None) -> dict[str, charts.ChartSpec]:
         specs: dict[str, charts.ChartSpec] = {}
@@ -102,8 +105,18 @@ class ChartsPage(QWidget):
             specs["How long is an outage?"] = charts.outage_histogram(attribution)
             specs["Frequency against duration"] = charts.frequency_duration(
                 attribution)
+            if attribution.get("capacity"):
+                specs["Who loses the capacity"] = charts.lost_capacity_pareto(
+                    attribution)
+                specs["Downtime against lost capacity"] = (
+                    charts.capacity_vs_downtime(attribution))
+                specs["Where the capacity goes"] = charts.capacity_waterfall(
+                    attribution)
         if importance:
             specs["Importance quadrant"] = charts.importance_quadrant(importance)
+        if periods:
+            specs["Availability year by year"] = charts.annual_fan(periods)
+            specs["A bad year, as a frequency"] = charts.annual_dots(periods)
         if any(getattr(rd, "cost", None) is not None for rd in report_data):
             specs["Where the money goes"] = charts.cost_pareto(report_data)
         return specs

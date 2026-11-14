@@ -1613,10 +1613,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             attribution = (self._drivers_page.attribution()
                            if hasattr(self, "_drivers_page") else None)
             manifest = self._manifest or {}
+            periods = (self._drivers_page.periods()
+                       if hasattr(self, "_drivers_page") else None)
             page.set_inputs(
                 per_run=per_run, attribution=attribution,
                 importance=getattr(self, "_importance", None),
-                report_data=list(self._report_data), units=self._units,
+                report_data=list(self._report_data), periods=periods,
+                units=self._units,
                 run_id=str(manifest.get("run_id") or ""))
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging

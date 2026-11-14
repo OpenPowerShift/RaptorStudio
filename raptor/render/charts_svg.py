@@ -366,6 +366,108 @@ def _curve(spec: ChartSpec) -> list[str]:
     return []
 
 
+def _capacity_pareto(spec: ChartSpec) -> list[str]:
+    rows = spec.series
+    if not rows:
+        return []
+    r_left, r_right = PAD_LEFT, WIDTH - PAD_RIGHT
+    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
+    peak = max(max(float(row.get("value") or 0),
+                   float(row.get("downtime") or 0)) for row in rows) or 1.0
+    height = (bottom - top) / len(rows)
+    out = []
+    for i, row in enumerate(rows):
+        y = top + i * height
+        for offset, key, colour in ((0.04, "downtime", "#9AA5B1"),
+                                    (0.36, "value", "#2F6FB7")):
+            width = (r_right - r_left) * float(row.get(key) or 0) / peak
+            out.append(f"<rect x='{r_left}' y='{_fmt(y + height * offset)}' "
+                       f"width='{_fmt(width)}' height='{_fmt(height * 0.28)}' "
+                       f"fill='{colour}'/>")
+        out.append(_text(r_left + 4, y + height * 0.55, str(row["name"]),
+                         size=11))
+        out.append(_text(r_right, y + height * 0.55,
+                         f"{100 * float(row.get('value') or 0):.3g} %",
+                         size=10, anchor="end"))
+    return out
+
+
+def _scatter(spec: ChartSpec) -> list[str]:
+    points = [p for p in spec.series
+              if isinstance(p.get("x"), (int, float))
+              and isinstance(p.get("y"), (int, float))]
+    if not points:
+        return []
+    x_high = max(float(p["x"]) for p in points) * 1.1 or 1.0
+    y_high = max(float(p["y"]) for p in points) * 1.1 or 1.0
+    high = max(x_high, y_high)
+    out = _axes(spec, x_low=0, x_high=high, y_low=0, y_high=high)
+    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
+    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
+    if any(m.get("kind") == "diagonal" for m in spec.marks):
+        out.append(f"<line x1='{left}' y1='{bottom}' x2='{right}' "
+                   f"y2='{top}' stroke='#999999' stroke-dasharray='5,3'/>")
+    for point in points:
+        x = _scale(float(point["x"]), 0, high, left, right)
+        y = _scale(float(point["y"]), 0, high, bottom, top)
+        out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='4' "
+                   "fill='#2F6FB7'/>")
+        out.append(_text(x + 6, y - 4, str(point["name"]), size=9))
+    return out
+
+
+def _fan(spec: ChartSpec) -> list[str]:
+    rows = [row for row in spec.series if row.get("p50") is not None]
+    if not rows:
+        return []
+    low_values = [float(row["p5"]) for row in rows
+                  if isinstance(row.get("p5"), (int, float))]
+    high_values = [float(row["p95"]) for row in rows
+                   if isinstance(row.get("p95"), (int, float))]
+    target = next((m["value"] for m in spec.marks
+                   if m.get("kind") == "target" and m.get("value") is not None),
+                  None)
+    low = min(low_values + ([target] if target is not None else []))
+    high = max(high_values + ([target] if target is not None else []))
+    if high <= low:
+        high = low + 1e-9
+    count = len(rows)
+    out = _axes(spec, x_low=1, x_high=max(2, count), y_low=low, y_high=high)
+    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
+    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
+
+    def x_of(i: int) -> float:
+        return _scale(i + 1, 1, max(2, count), left, right)
+
+    def y_of(value: float) -> float:
+        return _scale(value, low, high, bottom, top)
+
+    def band(upper: str, lower: str, colour: str, opacity: str) -> None:
+        points = [f"{_fmt(x_of(i))},{_fmt(y_of(float(rows[i][upper])))}"
+                  for i in range(count)]
+        points += [f"{_fmt(x_of(i))},{_fmt(y_of(float(rows[i][lower])))}"
+                   for i in reversed(range(count))]
+        out.append(f"<polygon points='{' '.join(points)}' fill='{colour}' "
+                   f"fill-opacity='{opacity}'/>")
+
+    if all(isinstance(row.get("p5"), (int, float))
+           and isinstance(row.get("p95"), (int, float)) for row in rows):
+        band("p95", "p5", "#2F6FB7", "0.12")
+    if all(isinstance(row.get("p25"), (int, float))
+           and isinstance(row.get("p75"), (int, float)) for row in rows):
+        band("p75", "p25", "#2F6FB7", "0.22")
+    line = " ".join(f"{_fmt(x_of(i))},{_fmt(y_of(float(row['p50'])))}"
+                    for i, row in enumerate(rows))
+    out.append(f"<polyline points='{line}' fill='none' stroke='#2F6FB7' "
+               "stroke-width='2'/>")
+    if target is not None:
+        y = y_of(float(target))
+        out.append(f"<line x1='{left}' y1='{_fmt(y)}' x2='{right}' "
+                   f"y2='{_fmt(y)}' stroke='#C4472F' stroke-width='2' "
+                   "stroke-dasharray='5,3'/>")
+    return out
+
+
 _RENDERERS = {
     "dot_plot": _dot_plot,
     "ecdf": _curve,
@@ -377,6 +479,9 @@ _RENDERERS = {
     "quadrant": _quadrant,
     "convergence": _convergence,
     "curve": _curve,
+    "capacity_pareto": _capacity_pareto,
+    "scatter": _scatter,
+    "fan": _fan,
 }
 
 

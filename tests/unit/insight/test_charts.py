@@ -111,3 +111,79 @@ def test_an_unknown_chart_name_lists_the_choices():
 def test_a_chart_that_needs_attribution_says_so():
     with pytest.raises(ValueError, match="attribution"):
         charts.chart_named("downtime-pareto")
+
+
+def _capacity_attribution():
+    return {
+        "runs": 4,
+        "causes": {"repair": 0.7, "wait_spare": 0.3},
+        "capacity": {
+            "rule": "proportional", "generated": 100.0,
+            "elements": [
+                {"name": "Pump", "share": {"mean": 0.6},
+                 "lost_energy": {"mean": 12.0},
+                 "through_dependents": {"mean": 2.0}},
+                {"name": "Valve", "share": {"mean": 0.2},
+                 "lost_energy": {"mean": 4.0},
+                 "through_dependents": {"mean": 0.0}}],
+            "causes": {"repair": {"mean": 7.0}, "wait_spare": {"mean": 3.0}}},
+        "elements": [
+            {"name": "Pump", "dtci": {"mean": 0.3},
+             "deci": {"mean": 0.5}, "red_time": {"mean": 4.0}, "causes": {}},
+            {"name": "Valve", "dtci": {"mean": 0.4},
+             "deci": {"mean": 0.2}, "red_time": {"mean": 2.0}, "causes": {}}],
+    }
+
+
+def test_the_capacity_pareto_pairs_each_element_with_its_downtime_share():
+    spec = charts.lost_capacity_pareto(_capacity_attribution())
+    assert [row["name"] for row in spec.series] == ["Pump", "Valve"]
+    assert spec.series[0]["downtime"] == pytest.approx(0.3)
+    assert spec.provenance["rule"] == "proportional"
+
+
+def test_the_capacity_scatter_is_the_256_picture():
+    spec = charts.capacity_vs_downtime(_capacity_attribution())
+    assert {p["name"]: (p["x"], p["y"]) for p in spec.series} == {
+        "Pump": (0.3, 0.6), "Valve": (0.4, 0.2)}
+    assert spec.marks == [{"kind": "diagonal"}]
+
+
+def test_the_capacity_waterfall_splits_lost_energy_by_cause():
+    spec = charts.capacity_waterfall(_capacity_attribution())
+    repair, spare = spec.series
+    assert repair["value"] == pytest.approx(0.7)
+    assert spare["value"] == pytest.approx(0.3)
+    assert spare["to"] == pytest.approx(0.0)
+
+
+def _periods():
+    return {
+        "runs": 2, "periods_per_run": 3, "threshold": 0.95,
+        "pooled": {"n": 6, "p5": 0.90, "p25": 0.94, "p50": 0.97,
+                   "p75": 0.99, "p95": 1.0, "p_below": 0.5},
+        "by_index": [
+            {"index": 1, "n": 2, "p5": 0.90, "p25": 0.94, "p50": 0.97,
+             "p75": 0.99, "p95": 1.0},
+            {"index": 2, "n": 2, "p5": 0.88, "p25": 0.92, "p50": 0.96,
+             "p75": 0.98, "p95": 1.0}],
+    }
+
+
+def test_the_annual_fan_keeps_the_bands_and_the_threshold():
+    spec = charts.annual_fan(_periods())
+    assert spec.kind == "fan" and len(spec.series) == 2
+    assert spec.marks == [{"kind": "target", "value": 0.95}]
+    assert "median moves" in spec.caption
+
+
+def test_the_annual_dots_count_below_the_threshold():
+    spec = charts.annual_dots(_periods())
+    assert spec.kind == "dot_plot"
+    assert len(spec.series[0]["dots"]) == 5
+    assert "50 %" in spec.caption
+
+
+def test_an_annual_chart_without_periods_says_what_is_missing():
+    with pytest.raises(ValueError, match="period-by-period"):
+        charts.chart_named("annual-fan")

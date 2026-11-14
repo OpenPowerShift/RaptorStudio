@@ -235,8 +235,11 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     `convergence` (has the run settled), `availability-ladder`, and, when the
     run was made with `attribution=True`, `downtime-pareto`,
     `downtime-waterfall`, `outage-histogram` and `frequency-duration`.
-    `importance-quadrant` needs importance measures and `cost-pareto` needs
-    cost analysis; ask for them only when the run has those.
+    `lost-capacity-pareto`, `capacity-vs-downtime` and `capacity-waterfall`
+    need capacity attribution; `annual-fan` and `annual-dots` need a run long
+    enough for whole periods. `importance-quadrant` needs importance
+    measures and `cost-pareto` needs cost analysis; ask for them only when
+    the run has those.
     """
     from raptor.api.insight import charts, drivers
     from raptor.api.run import run_dir
@@ -249,7 +252,11 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
         attribution = drivers.read(ws, run_id)
     except Exception:  # noqa: BLE001 - the base charts do not need it
         attribution = None
-    spec = charts.chart_named(chart, per_run=per_run, attribution=attribution)
+    periods = None
+    if chart in ("annual-fan", "annual-dots"):
+        periods = drivers.periods(ws, run_id)
+    spec = charts.chart_named(chart, per_run=per_run, attribution=attribution,
+                              periods=periods)
     data = {**spec.to_dict(), "run_id": run_id}
     if render_svg:
         from raptor.render.charts_svg import render
