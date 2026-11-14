@@ -235,3 +235,17 @@ def test_phases_add_up_on_a_real_phased_run():
         result["system"]["span"]["mean"])
     assert sum(r["red_time"]["mean"] for r in rows) == pytest.approx(
         result["system"]["red_time"]["mean"])
+
+
+def test_shares_are_pooled_over_the_runs_not_averaged_per_run():
+    """Three runs each with one outage, of 9, 6 and 3 hours, each started by
+    a different element: their downtime shares are 1/2, 1/3, 1/6 -- not
+    1/3 each, which averaging every run's own 100 % gave."""
+    from raptor.api.insight.attribution import _ratio_stat
+    red_by_a = [9.0, 0.0, 0.0, 0.0]
+    system_red = [9.0, 6.0, 3.0, 0.0]          # the last run had no outage
+    stat = _ratio_stat(red_by_a, system_red)
+    assert stat["mean"] == pytest.approx(0.5)
+    assert stat["n"] == 3 and stat["min"] == 0.0 and stat["max"] == 1.0
+    assert stat["sem"] is not None and stat["sem"] > 0
+    assert _ratio_stat([0.0], [0.0])["mean"] is None

@@ -621,12 +621,15 @@ criticality indices are in the Advisor help (`advisor.html`).
 |DTCI of element stem:[e]
 |stem:["DTCI"_e = ("Red time in outages"_e) / ("total Red time")]
 |Share of the system's downtime caused by outages that element started.
-A per-run ratio, averaged over the runs (so it has an SEM).
+Pooled over the runs: the element's Red time summed over every run, over
+the total Red time summed over every run. Its SEM is the delta-method
+standard error of that ratio. (Averaging each run's own share would weigh
+a run with a minute of downtime like a run with a day.)
 
 |DECI of element stem:[e]
 |stem:["DECI"_e = ("outages started by"_e) / ("all system outages")]
 |Share of downing *events* the element started, regardless of how long
-they lasted.
+they lasted. Pooled over the runs, like DTCI.
 
 |FCI of element stem:[e]
 |stem:["FCI"_e = ("failure outages started by"_e) / ("all failure outages")]

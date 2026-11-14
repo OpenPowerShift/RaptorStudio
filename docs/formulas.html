@@ -960,13 +960,16 @@ criticality indices are in the Advisor help (<code>advisor.html</code>).</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">DTCI of element \$e\$</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">\$"DTCI"_e = ("Red time in outages"_e) / ("total Red time")\$</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Share of the system&#8217;s downtime caused by outages that element started.
-A per-run ratio, averaged over the runs (so it has an SEM).</p></td>
+Pooled over the runs: the element&#8217;s Red time summed over every run, over
+the total Red time summed over every run. Its SEM is the delta-method
+standard error of that ratio. (Averaging each run&#8217;s own share would weigh
+a run with a minute of downtime like a run with a day.)</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">DECI of element \$e\$</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">\$"DECI"_e = ("outages started by"_e) / ("all system outages")\$</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Share of downing <strong>events</strong> the element started, regardless of how long
-they lasted.</p></td>
+they lasted. Pooled over the runs, like DTCI.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">FCI of element \$e\$</p></td>

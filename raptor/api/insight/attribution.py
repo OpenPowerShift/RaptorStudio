@@ -359,6 +359,30 @@ def _stat(values: list[float]) -> dict[str, Any]:
     return {"mean": mean, "sem": sem, "min": min(values), "max": max(values), "n": n}
 
 
+def _ratio_stat(num: list[float], den: list[float]) -> dict[str, Any]:
+    """A share pooled over the runs: sum(num) / sum(den), the measure's own
+    formula ("its outages' Red time / all Red time").  Averaging each run's
+    own share instead weighs a run with a minute of downtime like one with
+    a day, and disagrees with the time-weighted views beside it.
+
+    `sem` is the delta-method standard error of a ratio estimator; `min` and
+    `max` stay the per-run shares; `n` counts the runs with a denominator."""
+    pairs = [(y, x) for y, x in zip(num, den, strict=True) if x > 0]
+    n = len(pairs)
+    total = sum(x for _, x in pairs)
+    if n == 0 or total <= 0:
+        return {"mean": None, "sem": None, "min": None, "max": None, "n": 0}
+    ratio = sum(y for y, _ in pairs) / total
+    sem = None
+    if n > 1:
+        xbar = total / n
+        resid = [y - ratio * x for y, x in pairs]
+        var = sum(r * r for r in resid) / (n - 1)
+        sem = math.sqrt(var / n) / xbar
+    shares = [y / x for y, x in pairs]
+    return {"mean": ratio, "sem": sem, "min": min(shares), "max": max(shares), "n": n}
+
+
 def _label(key: Key, names: dict[Key, str]) -> str:
     if key == SYSTEM_KEY:
         return "(no single element)"
@@ -374,19 +398,15 @@ def _percentile(sorted_values: list[float], p: float) -> float | None:
 
 def _element_row(key: Key, trials: list[TrialAttribution], names: dict[Key, str]) -> dict[str, Any]:
     n = len(trials)
-    dtci, deci, fci, red, started, held, own_down = [], [], [], [], [], [], []
+    red, started, held, own_down = [], [], [], []
+    failures: list[float] = []
     causes: dict[str, list[float]] = {c: [] for c in CAUSES}
     for trial in trials:
         rec = trial.initiated.get(key, Initiated())
         red.append(rec.red_time)
         started.append(float(rec.outages))
+        failures.append(float(rec.failures))
         held.append(trial.holding.get(key, 0.0))
-        if trial.red_time > 0:
-            dtci.append(rec.red_time / trial.red_time)
-        if trial.outages:
-            deci.append(rec.outages / trial.outages)
-        if trial.failure_outages:
-            fci.append(rec.failures / trial.failure_outages)
         mine = trial.initiator_cause.get(key, {})
         for cause in CAUSES:
             causes[cause].append(mine.get(cause, 0.0))
@@ -397,7 +417,9 @@ def _element_row(key: Key, trials: list[TrialAttribution], names: dict[Key, str]
     total_cause = sum(cause_means.values())
     return {
         "kind": key[0], "id": key[1], "name": _label(key, names),
-        "dtci": _stat(dtci), "deci": _stat(deci), "fci": _stat(fci),
+        "dtci": _ratio_stat(red, [t.red_time for t in trials]),
+        "deci": _ratio_stat(started, [float(t.outages) for t in trials]),
+        "fci": _ratio_stat(failures, [float(t.failure_outages) for t in trials]),
         "red_time": _stat(red), "outages": _stat(started), "holding": _stat(held),
         "own_unavailability": _stat(own_down),
         "causes": {c: v / total_cause for c, v in cause_means.items()} if total_cause else {},
