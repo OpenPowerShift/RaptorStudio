@@ -1201,3 +1201,12 @@ def test_an_unknown_label_does_not_open_the_explainer(real_results):
     dock._explainer.hide()
     dock._explain_measure("Not a measure at all")
     assert dock._explainer.isHidden()
+
+
+def test_the_charts_tab_builds_from_a_real_run(real_results):
+    dock, _ = real_results
+    page = dock._charts_page
+    names = [page.selector.itemText(i) for i in range(page.selector.count())]
+    assert "Run-to-run outcome" in names
+    assert "Availability ladder" in names
+    assert page.selected_spec() is not None

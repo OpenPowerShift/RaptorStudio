@@ -68,6 +68,11 @@ CAPABILITIES: tuple[Capability, ...] = (
         "insight.story", "The answer-first Story: headline, dots, drivers, findings",
         api="raptor.api.insight.story.from_run", cli="explain --story",
         mcp="run_story", gui="widget:raptor.gui.ui.story_page.StoryPage"),
+    Capability(
+        "insight.charts", "The chart set: dots, Pareto, waterfall, ladder, histogram",
+        api="raptor.api.insight.charts.chart_named",
+        cli="explain --chart", mcp="run_chart",
+        gui="widget:raptor.gui.ui.charts_page.ChartsPage"),
 )
 
 SURFACES = ("api", "cli", "mcp", "gui")

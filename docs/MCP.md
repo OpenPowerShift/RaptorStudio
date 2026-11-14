@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **74 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **73**.
+- **75 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **74**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **24 chapters**; the MCP chapter is book chapter 23 of 24 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -518,6 +518,14 @@ headline against its target, the run-to-run dots and the share that met it,
 the top drivers, the top findings, six key numbers and provenance. It is the
 same object the application's Story tab paints and `raptor explain --story`
 prints.
+
+`run_chart` returns one chart of a finished run as the same `ChartSpec` the
+application paints, with the figure itself as SVG unless `render_svg` is
+false. The base charts (`trial-outcome`, `ecdf`, `convergence`,
+`availability-ladder`) need only the run; the downtime charts need
+`attribution=True`, and `importance-quadrant` and `cost-pareto` need those
+analyses to have run. `raptor explain --chart NAME` prints the same chart and
+`--chart-svg PATH` writes it.
 
 Attribution replays the event log, so the results are the same with it on;
 it holds the log in memory for the batch, so leave it off for very large

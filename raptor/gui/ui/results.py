@@ -141,6 +141,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._tabs.addTab(self._drivers_page, "Drivers")
         self._tabs.currentChanged.connect(self._on_tab_shown_for_drivers)
         self._tabs.addTab(self._details_holder, "Final Results")
+        from raptor.gui.ui.charts_page import ChartsPage
+        self._charts_page = ChartsPage()
+        self._charts_page.locate_requested.connect(
+            lambda _kind, name: self.element_clicked.emit("block", name))
+        self._tabs.addTab(self._charts_page, "Charts")
         self._tabs.addTab(self._event_page, "Event Log")
         self._tabs.addTab(self._graphs_page, "Graphs")
         self._tabs.addTab(self._raw_page, "Report Text")
@@ -1236,6 +1241,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_page.set_attribution(attribution)
         self._drivers_page.set_periods(self._yearly(outages))
         self._refresh_story()
+        self._refresh_charts()
 
     def _yearly(self, outages: dict | None) -> dict | None:
         """Year-by-year availability when the model's unit is hours and the
@@ -1596,6 +1602,26 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             tip.append(f"seeds: {m['seed_strategy']}")
         lbl.setToolTip("\n".join(tip))
 
+    def _refresh_charts(self) -> None:
+        """Rebuild the Charts tab from the held results (WP-2.5)."""
+        page = getattr(self, "_charts_page", None)
+        if page is None:
+            return
+        try:
+            from raptor.api.run import _rd_to_dict
+            per_run = [_rd_to_dict(rd) for rd in self._report_data]
+            attribution = (self._drivers_page.attribution()
+                           if hasattr(self, "_drivers_page") else None)
+            manifest = self._manifest or {}
+            page.set_inputs(
+                per_run=per_run, attribution=attribution,
+                importance=getattr(self, "_importance", None),
+                report_data=list(self._report_data), units=self._units,
+                run_id=str(manifest.get("run_id") or ""))
+        except Exception:  # noqa: BLE001 - a view must never break results
+            import logging
+            logging.getLogger(__name__).exception("could not build the charts")
+
     def _explain_table_cell(self, table: QTableWidget, column: int) -> None:
         """Double-clicking a Final Results row label opens its definition."""
         if column != 0:
@@ -1675,6 +1701,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._refresh_manifest_line()
         data = self._report_data
         self._refresh_story()
+        self._refresh_charts()
         if not data:
             self._summary_sentence.setText(
                 "Run the simulation to see the summary.")

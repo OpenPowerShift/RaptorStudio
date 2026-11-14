@@ -721,6 +721,16 @@
    "model_id"
   ]
  },
+ "run_chart": {
+  "params": [
+   "chart",
+   "render_svg",
+   "run_id"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
  "run_status": {
   "params": [
    "job_id"

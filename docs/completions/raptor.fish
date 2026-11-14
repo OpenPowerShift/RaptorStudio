@@ -80,9 +80,12 @@ complete -c raptor -n '__fish_seen_subcommand_from estimate' -l runs
 complete -c raptor -n '__fish_use_subcommand' -a explain
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l below
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l capacity-rule
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart-svg
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l format
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l help
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l jobs
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l list-charts
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l runs
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l story

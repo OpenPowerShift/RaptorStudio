@@ -32,7 +32,7 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **Scriptable.** Everything the application does is also a command (`raptor run`, `sweep`, `compare`, `diff`,
   `estimate`, `validate`, `spf`, `fev`, `step`, `extract`, `analytic`, `render` and more) with machine-readable results. It fits in
   a continuous-integration job, a Jupyter notebook or a shell loop.
-- **Usable from an AI assistant.** An MCP server with **74 tools** (73 when `--no-render` hides the PNG diagram tool) lets an assistant build, edit, validate, simulate,
+- **Usable from an AI assistant.** An MCP server with **75 tools** (74 when `--no-render` hides the PNG diagram tool) lets an assistant build, edit, validate, simulate,
   compare and explain models, run long batches in the background, and draw the diagram. The
   [MCP server guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) covers install, client
   setup, concepts and task recipes; the generated
@@ -73,7 +73,7 @@ The equations are on the Formulas page, and the tutorial's weak-link chapter wor
 | **Run-time estimate**                | Know how long a batch will take before you start it, in the app, on the command line and from an assistant.                                                                                                                      |
 | **Check part of a model**            | Run one hierarchy on its own, with its input assumed available, or save it as a standalone model (`raptor extract`). The results are labelled as isolated.                                                                      |
 | **Parameter sweeps and comparisons** | Vary any field over a list of values, or run two or more models side by side, from the application, the command line or an assistant. **Differences** shows what is different between two models, and runs nothing.              |
-| **AI assistant (MCP)**               | 74 tools (73 with `--no-render`) to build, edit, run, analyse and explain models, over stdio or authenticated HTTP.                                                                                                               |
+| **AI assistant (MCP)**               | 75 tools (74 with `--no-render`) to build, edit, run, analyse and explain models, over stdio or authenticated HTTP.                                                                                                               |
 | **Stepping debugger**                | Step a run event by event, pause on a condition, jump to the next run, and see what each step changed. Failure Effects View and the Single Point Failure file are also available headless.                                       |
 | **Several models at once**           | Each model opens in its own window with its own undo history and results.                                                                                                                                                         |
 | **Edit while looking at results**    | Results stay on screen while you edit; undo and redo for edits; spread-banded Weak Link, Cost, Capacity, Spares and Importance colourings.                                                                                       |

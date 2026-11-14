@@ -221,3 +221,37 @@ def run_story(run_id: str) -> CallToolResult:
     story = from_run(context.workspace(), run_id)
     data = {**story.to_dict(), "run_id": run_id}
     return ok(data, "```\n" + "\n".join(text_lines(story)) + "\n```")
+
+
+@mcp.tool(annotations=READ_ONLY("Run chart"))
+@guarded
+def run_chart(run_id: str, chart: str = "trial-outcome",
+              render_svg: bool = True) -> CallToolResult:
+    """One chart of a finished run, as data and optionally as SVG.
+
+    The same `ChartSpec` the application paints and `raptor explain --chart`
+    prints: title, subtitle, axis labels, series, marks, a one-sentence
+    caption and provenance. Names: `trial-outcome` and `ecdf` (the runs),
+    `convergence` (has the run settled), `availability-ladder`, and, when the
+    run was made with `attribution=True`, `downtime-pareto`,
+    `downtime-waterfall`, `outage-histogram` and `frequency-duration`.
+    `importance-quadrant` needs importance measures and `cost-pareto` needs
+    cost analysis; ask for them only when the run has those.
+    """
+    from raptor.api.insight import charts, drivers
+    from raptor.api.run import run_dir
+    from raptor.api.run_tables import read_per_run
+
+    ws = context.workspace()
+    per_run = read_per_run(run_dir(ws, run_id), run_id) or []
+    attribution = None
+    try:
+        attribution = drivers.read(ws, run_id)
+    except Exception:  # noqa: BLE001 - the base charts do not need it
+        attribution = None
+    spec = charts.chart_named(chart, per_run=per_run, attribution=attribution)
+    data = {**spec.to_dict(), "run_id": run_id}
+    if render_svg:
+        from raptor.render.charts_svg import render
+        data["svg"] = render(spec)
+    return ok(data, f"**{spec.title}** — {spec.caption}")

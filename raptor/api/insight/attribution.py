@@ -373,6 +373,30 @@ def _sequences(trials: list[TrialAttribution], names: dict[Key, str]) -> list[di
             for path, v in sorted(found.items(), key=lambda kv: -kv[1][0])[:50]]
 
 
+def _duration_hist(durations: list[float], bins: int = 12) -> list[dict[str, float]]:
+    """Log-spaced histogram of outage durations (C6's data).
+
+    Durations span orders of magnitude, so equal-width bins would put every
+    short outage in the first bar.  Empty input returns no bins.
+    """
+    import math
+
+    positive = sorted(d for d in durations if d > 0)
+    if not positive:
+        return []
+    low, high = positive[0], positive[-1]
+    if high <= low:
+        return [{"lo": low, "hi": high, "count": float(len(positive))}]
+    edges = [low * (high / low) ** (i / bins) for i in range(bins + 1)]
+    counts = [0.0] * bins
+    for value in positive:
+        index = min(bins - 1, max(0, int(
+            bins * math.log(value / low) / math.log(high / low))))
+        counts[index] += 1.0
+    return [{"lo": edges[i], "hi": edges[i + 1], "count": counts[i]}
+            for i in range(bins)]
+
+
 def aggregate(trials: list[TrialAttribution]) -> dict[str, Any]:
     """Statistics over runs, JSON-safe. One sample per run for every measure;
     a run with no outage gives no sample to the shares (DTCI, DECI, FCI)."""
@@ -413,7 +437,8 @@ def aggregate(trials: list[TrialAttribution]) -> dict[str, Any]:
         "causes": {c: v / all_red for c, v in cause_totals.items() if all_red and v > 0},
         "outage_durations": {"count": len(durations), "p50": _percentile(durations, 0.5),
                              "p90": _percentile(durations, 0.9),
-                             "max": durations[-1] if durations else None},
+                             "max": durations[-1] if durations else None,
+                             "hist": _duration_hist(durations)},
         "sequences": _sequences(trials, names),
     }
     if capacity is not None:

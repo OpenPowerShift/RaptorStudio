@@ -142,3 +142,25 @@ def test_run_story_matches_the_api_and_needs_no_attribution(server, model):
     with_attr = ok(call(server, "simulate", model_id=model, seed=4, attribution=True))
     story = ok(call(server, "run_story", run_id=with_attr["run_id"]))
     assert story["drivers_available"] is True and story["drivers"]
+
+
+def test_run_chart_matches_the_api_and_renders_svg(server, model):
+    from raptor.api.insight import charts
+    from raptor.api.run import run_dir
+    from raptor.api.run_tables import read_per_run
+    from raptor.mcp import context
+
+    run = ok(call(server, "simulate", model_id=model, seed=5, attribution=True))
+    data = ok(call(server, "run_chart", run_id=run["run_id"],
+                   chart="downtime-pareto"))
+    ws = context.workspace()
+    per_run = read_per_run(run_dir(ws, run["run_id"]), run["run_id"]) or []
+    from raptor.api.insight import drivers
+    expected = charts.chart_named(
+        "downtime-pareto", per_run=per_run,
+        attribution=drivers.read(ws, run["run_id"]))
+    assert data["series"] == expected.to_dict()["series"]
+    assert data["svg"].startswith("<svg")
+    plain = ok(call(server, "run_chart", run_id=run["run_id"],
+                    chart="trial-outcome", render_svg=False))
+    assert "svg" not in plain and plain["kind"] == "dot_plot"

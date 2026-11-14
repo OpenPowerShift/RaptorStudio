@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *74 tools* (including the `ping` health check), a set of
+The server exposes *75 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -388,7 +388,7 @@ careful about what it exposes:
 
 . *Check the tool list.* Ask your assistant "What RAPTOR tools do you
   have?" or, in the MCP Inspector, click *Tools*. You should see the tools
-  listed below: 74 including `render_diagram`, `render_diagram_svg` and
+  listed below: 75 including `render_diagram`, `render_diagram_svg` and
   `ping`, or 67 when `--no-render` hides the PNG diagram tool.
 
 . *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
@@ -719,6 +719,13 @@ you need the exact argument shape.
   run-to-run dots, the top drivers, the top findings, six key numbers and
   provenance. The same object the application's Story tab paints and
   `raptor explain --story` prints.
+
+| `run_chart`
+| One chart of a finished run as a `ChartSpec`, plus the same figure as
+  SVG unless `render_svg=False`. Names include `trial-outcome`, `ecdf`,
+  `convergence`, `availability-ladder`, and, with `attribution=True`,
+  `downtime-pareto`, `downtime-waterfall`, `outage-histogram` and
+  `frequency-duration`.
 
 | `describe_metrics`
 | List the result metrics and their units (availability, reliability,

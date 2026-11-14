@@ -43,10 +43,10 @@ class LadderBar(QWidget):
         for key, label, colour in rows:
             entry = self._ladder.get(key) or {}
             value = entry.get("value")
-            painter.setPen(QColor(palette.get("text_muted", "#667")))
+            painter.setPen(QColor(palette.get("muted", "#667")))
             painter.drawText(2, top + 10, label)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor(palette.get("panel_alt", "#eeeeee")))
+            painter.setBrush(QColor(palette.get("group_header", "#eeeeee")))
             painter.drawRoundedRect(2, top + 14, width, 10, 3, 3)
             if isinstance(value, (int, float)):
                 painter.setBrush(QColor(colour))
@@ -57,7 +57,7 @@ class LadderBar(QWidget):
                 painter.setPen(QColor(palette.get("text", "#111111")))
                 painter.drawText(2, top + 38, f"{100 * value:.4g} %")
             else:
-                painter.setPen(QColor(palette.get("text_muted", "#667")))
+                painter.setPen(QColor(palette.get("muted", "#667")))
                 painter.drawText(2, top + 38, "not reported for this run")
             top += 30
         painter.end()

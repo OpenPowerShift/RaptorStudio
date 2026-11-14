@@ -55,7 +55,7 @@ def add_parser(sub: Any) -> None:
                     "error), of outages and of failures, and what typical outages "
                     "look like. The engine's results are unchanged: this replays "
                     "the event log.")
-    e.add_argument("model", metavar="MODEL")
+    e.add_argument("model", metavar="MODEL", nargs="?")
     e.add_argument("-n", "--runs", type=int, metavar="N",
                    help="number of runs (default: the model's own)")
     e.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
@@ -81,6 +81,13 @@ def add_parser(sub: Any) -> None:
     e.add_argument("--story", action="store_true",
                    help="print the Story: headline against target, distribution, "
                         "drivers, findings and key numbers")
+    e.add_argument("--chart", metavar="NAME",
+                   help="also build one chart from this run, e.g. downtime-pareto "
+                        "or availability-ladder (see --list-charts)")
+    e.add_argument("--chart-svg", metavar="PATH",
+                   help="write the chart as SVG (implies --chart when it is missing)")
+    e.add_argument("--list-charts", action="store_true",
+                   help="list the chart names and exit")
     e.add_argument("-f", "--format", choices=("text", "json"), default="text")
     e.set_defaults(func=explain_command)
 
@@ -206,7 +213,15 @@ def _emit(docs: list[dict], fmt: str, why: bool) -> None:
 
 def explain_command(args: Any) -> int:
     from raptor.api import run as run_api
-    from raptor.api.insight import drivers
+    from raptor.api.insight import charts, drivers
+    if args.list_charts:
+        for name, function in sorted(charts.CHARTS.items()):
+            summary = function.__doc__.splitlines()[0] if function.__doc__ else ""
+            print(f"{name:<22} {summary}")
+        return X.OK
+    if not args.model:
+        raise CliError("explain needs a MODEL (or use --list-charts)", X.USAGE)
+    chart_name = args.chart or ("downtime-pareto" if args.chart_svg else None)
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         try:
@@ -221,6 +236,7 @@ def explain_command(args: Any) -> int:
         if args.story:
             from raptor.api.insight.story import from_run
             story = from_run(ws, result.run_id)
+        chart = _chart_for(ws, result.run_id, chart_name, attribution)
         yearly = None
         if args.yearly or args.year_length is not None or args.below is not None:
             try:
@@ -228,19 +244,57 @@ def explain_command(args: Any) -> int:
                                          offset=args.year_offset, below=args.below)
             except ValueError as exc:
                 raise CliError(str(exc), X.USAGE) from exc
+    _explain_output(attribution, story, yearly, chart, args)
+    return X.OK
+
+
+def _explain_output(attribution: dict, story: Any, yearly: Any,
+                    chart: Any, args: Any) -> None:
     if args.format == "json":
         attribution["elements"] = attribution["elements"][:max(0, args.top)]
         if yearly is not None:
             attribution["periods"] = yearly
         if story is not None:
             attribution["story"] = story.to_dict()
+        if chart is not None:
+            attribution["chart"] = chart.to_dict()
         emit_json(attribution, None)
-    else:
-        if story is not None:
-            from raptor.api.insight.story import text_lines as story_lines
-            print("\n".join(story_lines(story)))
-            print()
-        print("\n".join(drivers.text_lines(attribution, args.top)))
-        if yearly is not None:
-            print("\n" + "\n".join(drivers.period_lines(yearly)))
-    return X.OK
+        return
+    if story is not None:
+        from raptor.api.insight.story import text_lines as story_lines
+        print("\n".join(story_lines(story)))
+        print()
+    from raptor.api.insight import drivers
+    print("\n".join(drivers.text_lines(attribution, args.top)))
+    if yearly is not None:
+        print("\n" + "\n".join(drivers.period_lines(yearly)))
+    if chart is not None:
+        _print_chart(chart, args)
+
+
+def _chart_for(ws: Any, run_id: str, name: str | None,
+               attribution: dict) -> Any:
+    """Build the requested chart from a finished run, or None."""
+    if not name:
+        return None
+    from raptor.api.insight import charts
+    from raptor.api.run import run_dir
+    from raptor.api.run_tables import read_per_run
+    per_run = read_per_run(run_dir(ws, run_id), run_id) or []
+    try:
+        return charts.chart_named(name, per_run=per_run, attribution=attribution)
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+
+
+def _print_chart(chart: Any, args: Any) -> None:
+    print()
+    print(f"{chart.title} — {chart.caption}")
+    for row in chart.series[:args.top]:
+        name = row.get("name") or row.get("label") or ""
+        value = row.get("value", row.get("count", row.get("mean")))
+        print(f"  {name}: {value}")
+    if args.chart_svg:
+        from raptor.render.charts_svg import write
+        write(chart, args.chart_svg)
+        print(f"SVG written to {args.chart_svg}")
