@@ -201,7 +201,7 @@ def test_time_between_outages_is_pooled_with_mtbde_kept_small():
                                                        up_time=1_751_988.0)))
     assert '<div class="v">about 880,000</div>' in few
     assert "2 outages in 200 runs; too few for a firm figure" in few
-    assert "Raptor MTBDE" in few
+    assert "MTBDE, averaged run by run" in few
     many = _key_figures(_content(outage_rate=OutageRate(outages=40, runs=60,
                                                         up_time=290_000.0)))
     assert "7,250" in many and "too few" not in many

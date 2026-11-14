@@ -117,6 +117,9 @@ class Story:
     provenance: dict[str, Any]
     caption: str
     units: str = ""
+    #: what `drivers` are shares of: "lost capacity" when capacity analysis
+    #: ranked them, else "downtime".  Every door labels the list from this.
+    drivers_measure: str = "downtime"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -229,9 +232,9 @@ def _headline_for(per_run: list[dict], units: str, field_name: str,
 
 
 def _driver_lines(attribution: dict | None, has_capacity: bool
-                  ) -> tuple[list[DriverLine], float, float]:
+                  ) -> tuple[list[DriverLine], float, float, str]:
     if not attribution:
-        return [], 0.0, 0.0
+        return [], 0.0, 0.0, "downtime"
     downtime = {(row["kind"], row["id"]): row
                 for row in attribution.get("elements") or []}
     if has_capacity and (attribution.get("capacity") or {}).get("elements"):
@@ -246,7 +249,8 @@ def _driver_lines(attribution: dict | None, has_capacity: bool
                 downtime_share=(base.get("dtci") or {}).get("mean") or 0.0,
                 causes=base.get("causes") or {},
                 red_time=(base.get("red_time") or {}).get("mean") or 0.0))
-        return lines, max(0.0, 1.0 - sum(line.share for line in lines)), 0.0
+        return (lines, max(0.0, 1.0 - sum(line.share for line in lines)), 0.0,
+                "lost capacity")
     rows = top_drivers(attribution, 3)
     lines = [DriverLine(
         name=row["name"], kind=row["kind"], id=int(row["id"]),
@@ -256,7 +260,7 @@ def _driver_lines(attribution: dict | None, has_capacity: bool
         for row in rows]
     red = (attribution.get("system") or {}).get("red_time", {}).get("mean") or 0.0
     return (lines, max(0.0, 1.0 - sum(line.share for line in lines)),
-            max(0.0, red - sum(line.red_time for line in lines)))
+            max(0.0, red - sum(line.red_time for line in lines)), "downtime")
 
 
 def _finding_list(findings: list[Any]) -> list[StoryFinding]:
@@ -400,8 +404,8 @@ def build(
     dots = quantile_dots(values, 40)
     target = headline.target if headline else None
     met, total = split_at(values, target)
-    drivers, others_share, others_time = _driver_lines(attribution,
-                                                       bool(has_capacity))
+    drivers, others_share, others_time, measure = _driver_lines(
+        attribution, bool(has_capacity))
     run_length = _mean(_values(per_run, "total_time"))
     provenance = {
         "runs": len(per_run),
@@ -425,7 +429,7 @@ def build(
                            bool(cost_on)),
         provenance=provenance,
         caption=_caption(headline, drivers, attribution),
-        units=units)
+        units=units, drivers_measure=measure)
 
 
 def from_run(workspace: Any, run_id: str) -> Story:
@@ -465,7 +469,7 @@ def text_lines(story: Story) -> list[str]:
         if head.target_text and head.met is not None:
             lines.append(head.gap_text)
     if story.drivers:
-        lines += ["", "Where the loss comes from:"]
+        lines += ["", f"Where the {story.drivers_measure} comes from:"]
         for line in story.drivers:
             lines.append(f"  {line.name:<22}{100 * line.share:>7.3g} %")
         if story.other_drivers_share > 0:

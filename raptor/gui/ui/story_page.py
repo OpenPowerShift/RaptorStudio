@@ -229,8 +229,7 @@ class StoryPage(QWidget):
                     "recording and run again.")
         if not story.drivers:
             return "No system outage in these runs."
-        ranked = ("lost capacity" if story.provenance.get("has_capacity")
-                  else "downtime")
+        ranked = story.drivers_measure
         parts = []
         for driver in story.drivers:
             main = max(driver.causes.items(), key=lambda kv: kv[1])[0] \
