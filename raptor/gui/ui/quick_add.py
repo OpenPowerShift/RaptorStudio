@@ -39,6 +39,13 @@ class QuickAdd(QFrame):
     def _candidates(self) -> tuple[list[Candidate], dict[str, Any]]:
         data: dict[str, Any] = {}
         out = []
+        for key, label, words in (
+                ("pattern:series", "Series of n blocks…",
+                 ("series", "chain", "row")),
+                ("pattern:parallel", "n in parallel (k of n)…",
+                 ("parallel", "redundant", "k of n"))):
+            data[key] = key
+            out.append(Candidate(label, "Pattern", keywords=words, data=key))
         for kind, label in (("block", "Block"),
                             ("node", "Node"),
                             ("event", "Event"),
@@ -84,7 +91,7 @@ class QuickAdd(QFrame):
         self.show()
         self.query.setFocus()
 
-    def _choose(self) -> None:  # noqa: C901 - one branch per add kind
+    def _choose(self) -> None:  # noqa: C901, PLR0912 - one branch per add kind
         item = self.list.currentItem()
         if item is None:
             return
@@ -95,7 +102,21 @@ class QuickAdd(QFrame):
         x, y = self._model_xy
         view = self._view
         self.close()
-        if key == "kind:block":
+        if key == "pattern:series":
+            from PySide6.QtWidgets import QInputDialog
+            count, ok = QInputDialog.getInt(self, "Series", "Blocks:", 3, 1, 50)
+            if ok:
+                view.add_series(count, x, y)
+        elif key == "pattern:parallel":
+            from PySide6.QtWidgets import QInputDialog
+            count, ok = QInputDialog.getInt(
+                self, "Parallel", "Units:", 2, 1, 50)
+            if ok:
+                k, ok = QInputDialog.getInt(
+                    self, "Parallel", "Required (k):", count, 1, count)
+                if ok:
+                    view.add_parallel(count, k, x, y)
+        elif key == "kind:block":
             view.add_block("Block", x, y)
         elif key == "kind:node":
             view.add_node("Node", x, y)

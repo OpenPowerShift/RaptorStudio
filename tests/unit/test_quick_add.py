@@ -68,3 +68,18 @@ def test_focus_mode_dims_only_the_unselected(win):
     assert view._block_items[ids[1]].opacity() == 0.25
     view.set_focus_mode(False)
     assert view._block_items[ids[1]].opacity() == 1.0
+
+
+def test_series_and_parallel_patterns_are_valid_and_undoable(win):
+    view = win._diagram_dock.view
+    before_blocks = _blocks(win)
+    before_nodes = len(view.nodes)
+    view.add_series(3, 300.0, 200.0)
+    assert _blocks(win) == before_blocks + 3
+    assert len(view.nodes) == before_nodes + 2
+
+    view.add_parallel(3, 2, 400.0, 300.0)
+    assert len(view.nodes) == before_nodes + 4
+    assert _blocks(win) == before_blocks + 6
+    win._undo_stack.undo()
+    assert _blocks(win) == before_blocks + 3
