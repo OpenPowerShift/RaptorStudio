@@ -402,6 +402,68 @@ def annual_dots(periods: dict[str, Any]) -> ChartSpec:
                     "periods": pooled.get("n", 0), "below": below})
 
 
+def downtime_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
+                     height: float = 600.0, top: int = 200) -> ChartSpec:
+    """The downtime treemap: area = share of downtime, label = element."""
+    from raptor.api.insight.treemap import layout
+
+    rows = sorted(((row for row in attribution.get("elements") or []
+                    if (row.get("dtci", {}).get("mean") or 0) > 0)),
+                  key=lambda row: -(row["dtci"]["mean"] or 0))
+    visible = rows[:max(1, top)]
+    rest = rows[max(1, top):]
+    items = [{"name": row["name"], "value": row["dtci"]["mean"] or 0.0,
+              "cause": row.get("main_cause")} for row in visible]
+    if rest:
+        items.append({"name": f"{len(rest)} others",
+                      "value": sum(row["dtci"]["mean"] or 0.0 for row in rest),
+                      "cause": None})
+    rects = layout(items, width, height)
+    series = [{**item, **rect.to_dict(),
+               "aspect": rect.aspect if rect.area > 0 else None}
+              for item, rect in zip(items, rects, strict=True)]
+    return ChartSpec(
+        "treemap", "Downtime treemap",
+        "area = share of system downtime; click a cell to locate",
+        "width", "height", series=series,
+        caption=(f"{series[0]['name']} occupies the largest area "
+                 f"({100 * float(series[0]['value']):.3g} %)."
+                 if series else "No system outage."),
+        provenance={"runs": attribution.get("runs", 0),
+                    "elements": len(rows), "shown": len(items)})
+
+
+def outage_anatomy(attribution: dict[str, Any], max_columns: int = 6
+                   ) -> ChartSpec:
+    """What outages look like: the ordered steps that start and prolong them."""
+    tracks: dict[tuple, dict[str, Any]] = {}
+    for sequence in attribution.get("sequences") or []:
+        steps = (sequence.get("steps") or [])[:max_columns]
+        prefix: list[tuple[str, str]] = []
+        for column, step in enumerate(steps):
+            prefix.append((str(step.get("element")), str(step.get("cause"))))
+            key = (column, tuple(prefix))
+            entry = tracks.setdefault(key, {
+                "column": column, "path": list(prefix),
+                "label": str(step.get("element")),
+                "cause": str(step.get("cause")),
+                "value": 0.0, "outages": 0.0})
+            entry["value"] += float(sequence.get("share") or 0.0)
+            entry["outages"] += float(sequence.get("outages") or 0.0)
+    series = sorted(tracks.values(),
+                    key=lambda row: (row["column"], -row["value"]))
+    left = series[0]["value"] if series else 0.0
+    return ChartSpec(
+        "icicle", "What an outage looks like",
+        "each column is the next step; width = share of downtime",
+        "step", "share of downtime", series=series,
+        caption=(f"The commonest start is {series[0]['label']} "
+                 f"({100 * left:.3g} % of downtime)."
+                 if series else "No outage sequences recorded."),
+        provenance={"runs": attribution.get("runs", 0),
+                    "sequences": len(attribution.get("sequences") or [])})
+
+
 #: Every chart the application can draw, keyed by the name the CLI and MCP use.
 CHARTS = {
     "trial-outcome": trial_outcome,
@@ -419,6 +481,8 @@ CHARTS = {
     "capacity-waterfall": capacity_waterfall,
     "annual-fan": annual_fan,
     "annual-dots": annual_dots,
+    "downtime-treemap": downtime_treemap,
+    "outage-anatomy": outage_anatomy,
 }
 
 
@@ -474,6 +538,8 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
             measures.availability_ladder(per_run or [])),
         "outage-histogram": lambda: outage_histogram(need_attribution()),
         "frequency-duration": lambda: frequency_duration(need_attribution()),
+        "downtime-treemap": lambda: downtime_treemap(need_attribution()),
+        "outage-anatomy": lambda: outage_anatomy(need_attribution()),
         "lost-capacity-pareto": lambda: lost_capacity_pareto(
             need_attribution()),
         "capacity-vs-downtime": lambda: capacity_vs_downtime(

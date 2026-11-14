@@ -47,6 +47,14 @@ def _specs() -> dict[str, charts.ChartSpec]:
         "capacity": charts.lost_capacity_pareto(_capacity()),
         "scatter": charts.capacity_vs_downtime(_capacity()),
         "fan": charts.annual_fan(_periods()),
+        "treemap": charts.downtime_treemap(_capacity()),
+        "icicle": charts.outage_anatomy({
+            "runs": 2, "sequences": [
+                {"steps": [{"element": "Pump", "cause": "repair"},
+                           {"element": "Valve", "cause": "wait_spare"}],
+                 "share": 0.6, "outages": 3},
+                {"steps": [{"element": "Pump", "cause": "repair"}],
+                 "share": 0.4, "outages": 2}]}),
     }
 
 

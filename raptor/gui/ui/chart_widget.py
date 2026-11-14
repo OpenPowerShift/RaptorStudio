@@ -506,6 +506,67 @@ class ChartWidget(QWidget):
             y = _scale(float(target), low, high, r.bottom(), r.top())
             painter.drawLine(QPointF(r.left(), y), QPointF(r.right(), y))
 
+    def _paint_treemap(self, painter, spec, palette) -> None:
+        rows = [row for row in spec.series if float(row.get("w") or 0) > 0]
+        if not rows:
+            return self._paint_none(painter, spec, palette)
+        r = self._rect()
+        width = max(float(row["x"]) + float(row["w"]) for row in rows) or 1.0
+        height = max(float(row["y"]) + float(row["h"]) for row in rows) or 1.0
+        for row in rows:
+            x = r.left() + float(row["x"]) / width * r.width()
+            y = r.top() + float(row["y"]) / height * r.height()
+            w = float(row["w"]) / width * r.width()
+            h = float(row["h"]) / height * r.height()
+            colour = cause_colour(str(row.get("cause")))
+            painter.fillRect(QRectF(x, y, w, h), colour)
+            painter.setPen(QPen(QColor(palette["surface"]), 1))
+            painter.drawRect(QRectF(x, y, w, h))
+            if w > 52 and h > 16:
+                painter.setPen(QColor("#ffffff"))
+                painter.drawText(QRectF(x + 4, y + 2, w - 6, 16),
+                                 Qt.AlignmentFlag.AlignLeft,
+                                 str(row["name"])[:14])
+                if h > 30:
+                    painter.drawText(
+                        QRectF(x + 4, y + 16, w - 6, 14),
+                        Qt.AlignmentFlag.AlignLeft,
+                        f"{100 * float(row['value']):.3g} %")
+            self._hits.append((QRectF(x, y, max(4.0, w), max(4.0, h)),
+                               "element", str(row["name"])))
+
+    def _paint_icicle(self, painter, spec, palette) -> None:
+        rows = [row for row in spec.series
+                if float(row.get("value") or 0) > 0]
+        if not rows:
+            return self._paint_none(painter, spec, palette)
+        r = self._rect()
+        columns = max(int(row["column"]) for row in rows) + 1
+        width = r.width() / columns
+        painter.setPen(QColor(palette["text"]))
+        for column in range(columns):
+            column_rows = [row for row in rows if int(row["column"]) == column]
+            total = sum(float(row["value"]) for row in column_rows) or 1.0
+            y = r.top()
+            for row in column_rows:
+                height = r.height() * float(row["value"]) / total
+                x = r.left() + column * width
+                painter.fillRect(QRectF(x + 1, y + 1, max(1, width - 2),
+                                        max(1, height - 2)),
+                                 cause_colour(str(row.get("cause"))))
+                if height > 18 and width > 70:
+                    painter.setPen(QColor("#ffffff"))
+                    painter.drawText(QRectF(x + 4, y + 2, width - 8, 16),
+                                     str(row["label"])[:10])
+                self._hits.append((QRectF(x, y, width, max(4.0, height)),
+                                   "element", str(row["label"])))
+                y += height
+            painter.setPen(QColor(palette["muted"]))
+            painter.drawText(QRectF(r.left() + column * width,
+                                    r.bottom() + 4, width, 16),
+                             Qt.AlignmentFlag.AlignHCenter,
+                             f"step {column + 1}")
+
     # -- interaction ----------------------------------------------------
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt name

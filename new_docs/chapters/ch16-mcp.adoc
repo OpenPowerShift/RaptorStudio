@@ -724,8 +724,8 @@ you need the exact argument shape.
 | One chart of a finished run as a `ChartSpec`, plus the same figure as
   SVG unless `render_svg=False`. Names include `trial-outcome`, `ecdf`,
   `convergence`, `availability-ladder`, and, with `attribution=True`,
-  `downtime-pareto`, `downtime-waterfall`, `outage-histogram` and
-  `frequency-duration`.
+  `downtime-pareto`, `downtime-waterfall`, `outage-histogram`,
+  `frequency-duration`, `downtime-treemap` and `outage-anatomy`.
 
 | `describe_metrics`
 | List the result metrics and their units (availability, reliability,

@@ -105,6 +105,9 @@ class ChartsPage(QWidget):
             specs["How long is an outage?"] = charts.outage_histogram(attribution)
             specs["Frequency against duration"] = charts.frequency_duration(
                 attribution)
+            specs["Downtime treemap"] = charts.downtime_treemap(attribution)
+            specs["What an outage looks like"] = charts.outage_anatomy(
+                attribution)
             if attribution.get("capacity"):
                 specs["Who loses the capacity"] = charts.lost_capacity_pareto(
                     attribution)

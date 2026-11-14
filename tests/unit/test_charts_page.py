@@ -47,6 +47,8 @@ def _inputs():
         "outage_durations": {"count": 4, "p50": 2.0, "p90": 8.0,
                              "hist": [{"lo": 1.0, "hi": 2.0, "count": 2.0},
                                       {"lo": 2.0, "hi": 4.0, "count": 2.0}]},
+        "sequences": [{"steps": [{"element": "Pump", "cause": "repair"}],
+                       "share": 1.0, "outages": 2}],
     }
     importance = {"metrics": {"Availability": {"rows": [
         {"block": "Pump", "raw": 3.0, "rrw": 2.0}]}}}

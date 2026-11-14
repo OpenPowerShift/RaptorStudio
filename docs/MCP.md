@@ -523,8 +523,8 @@ prints.
 application paints, with the figure itself as SVG unless `render_svg` is
 false. The base charts (`trial-outcome`, `ecdf`, `convergence`,
 `availability-ladder`) need only the run; the downtime charts need
-`attribution=True`, and `importance-quadrant` and `cost-pareto` need those
-analyses to have run. `raptor explain --chart NAME` prints the same chart and
+`attribution=True` (including the treemap and the outage anatomy), and
+`importance-quadrant` and `cost-pareto` need those analyses to have run. `raptor explain --chart NAME` prints the same chart and
 `--chart-svg PATH` writes it.
 
 Attribution replays the event log, so the results are the same with it on;

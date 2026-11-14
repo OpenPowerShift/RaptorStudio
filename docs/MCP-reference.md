@@ -2658,9 +2658,13 @@ prints: title, subtitle, axis labels, series, marks, a one-sentence
 caption and provenance. Names: `trial-outcome` and `ecdf` (the runs),
 `convergence` (has the run settled), `availability-ladder`, and, when the
 run was made with `attribution=True`, `downtime-pareto`,
-`downtime-waterfall`, `outage-histogram` and `frequency-duration`.
-`importance-quadrant` needs importance measures and `cost-pareto` needs
-cost analysis; ask for them only when the run has those.
+`downtime-waterfall`, `outage-histogram`, `frequency-duration`, the
+`downtime-treemap` and the `outage-anatomy`.
+`lost-capacity-pareto`, `capacity-vs-downtime` and `capacity-waterfall`
+need capacity attribution; `annual-fan` and `annual-dots` need a run long
+enough for whole periods. `importance-quadrant` needs importance
+measures and `cost-pareto` needs cost analysis; ask for them only when
+the run has those.
 
 **Parameters**
 

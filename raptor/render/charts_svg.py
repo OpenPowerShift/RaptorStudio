@@ -468,6 +468,64 @@ def _fan(spec: ChartSpec) -> list[str]:
     return out
 
 
+def _treemap(spec: ChartSpec) -> list[str]:
+    rows = [row for row in spec.series if float(row.get("w") or 0) > 0]
+    if not rows:
+        return []
+    width = max(float(row["x"]) + float(row["w"]) for row in rows) or 1.0
+    height = max(float(row["y"]) + float(row["h"]) for row in rows) or 1.0
+    left, top = PAD_LEFT, PAD_TOP
+    scale_x = (WIDTH - PAD_LEFT - PAD_RIGHT) / width
+    scale_y = (HEIGHT - PAD_TOP - PAD_BOTTOM) / height
+    out = []
+    for row in rows:
+        x = left + float(row["x"]) * scale_x
+        y = top + float(row["y"]) * scale_y
+        w = float(row["w"]) * scale_x
+        h = float(row["h"]) * scale_y
+        colour = CAUSE_COLOURS.get(str(row.get("cause")), "#6B7785")
+        out.append(f"<rect x='{_fmt(x)}' y='{_fmt(y)}' width='{_fmt(w)}' "
+                   f"height='{_fmt(h)}' fill='{colour}' fill-opacity='0.72' "
+                   "stroke='#ffffff' stroke-width='1'/>")
+        if w > 52 and h > 16:
+            out.append(_text(x + 4, y + 14, str(row["name"])[:14], size=9,
+                             colour="#ffffff"))
+            if h > 30:
+                out.append(_text(x + 4, y + 28,
+                                 f"{100 * float(row['value']):.3g} %",
+                                 size=8, colour="#ffffff"))
+    return out
+
+
+def _icicle(spec: ChartSpec) -> list[str]:
+    rows = [row for row in spec.series if float(row.get("value") or 0) > 0]
+    if not rows:
+        return []
+    columns = max(int(row["column"]) for row in rows) + 1
+    left, right = PAD_LEFT, WIDTH - PAD_RIGHT
+    top, bottom = PAD_TOP, HEIGHT - PAD_BOTTOM
+    width = (right - left) / columns
+    out = []
+    for column in range(columns):
+        column_rows = [row for row in rows if int(row["column"]) == column]
+        total = sum(float(row["value"]) for row in column_rows) or 1.0
+        y = float(top)
+        for row in column_rows:
+            height = (bottom - top) * float(row["value"]) / total
+            colour = CAUSE_COLOURS.get(str(row.get("cause")),
+                                       CAUSE_COLOURS["other"])
+            x = left + column * width
+            out.append(f"<rect x='{_fmt(x + 1)}' y='{_fmt(y + 1)}' "
+                       f"width='{_fmt(max(1, width - 2))}' "
+                       f"height='{_fmt(max(1, height - 2))}' fill='{colour}' "
+                       "fill-opacity='0.78' stroke='#ffffff'/>")
+            if height > 18 and width > 70:
+                out.append(_text(x + 4, y + 14, str(row["label"])[:10],
+                                 size=9, colour="#ffffff"))
+            y += height
+    return out
+
+
 _RENDERERS = {
     "dot_plot": _dot_plot,
     "ecdf": _curve,
@@ -482,6 +540,8 @@ _RENDERERS = {
     "capacity_pareto": _capacity_pareto,
     "scatter": _scatter,
     "fan": _fan,
+    "treemap": _treemap,
+    "icicle": _icicle,
 }
 
 

@@ -187,3 +187,28 @@ def test_the_annual_dots_count_below_the_threshold():
 def test_an_annual_chart_without_periods_says_what_is_missing():
     with pytest.raises(ValueError, match="period-by-period"):
         charts.chart_named("annual-fan")
+
+
+def test_the_treemap_shows_every_element_and_pools_the_tail():
+    attribution = {"runs": 3, "elements": [
+        _element("Pump", 0.5), _element("Valve", 0.3), _element("Fan", 0.2)]}
+    spec = charts.downtime_treemap(attribution)
+    assert spec.kind == "treemap"
+    assert [row["name"] for row in spec.series] == ["Pump", "Valve", "Fan"]
+    assert sum(row["w"] * row["h"] for row in spec.series) == pytest.approx(
+        1000.0 * 600.0, rel=1e-9)
+
+
+def test_the_outage_anatomy_builds_one_row_per_path_prefix():
+    attribution = {"runs": 2, "sequences": [
+        {"steps": [{"element": "Pump", "cause": "repair"},
+                   {"element": "Valve", "cause": "wait_spare"}],
+         "share": 0.6, "outages": 3},
+        {"steps": [{"element": "Pump", "cause": "repair"}],
+         "share": 0.4, "outages": 2}]}
+    spec = charts.outage_anatomy(attribution)
+    assert spec.kind == "icicle"
+    first = [row for row in spec.series if row["column"] == 0]
+    assert len(first) == 1
+    assert first[0]["value"] == pytest.approx(1.0)
+    assert [row for row in spec.series if row["column"] == 1][0]["label"] == "Valve"
