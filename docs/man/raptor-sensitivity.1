@@ -1,0 +1,29 @@
+.TH "RAPTOR-SENSITIVITY" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-sensitivity \- One\-at\-a\-time tornado: vary each candidate input at a low and a high value, run every variant with Base's seed, and rank the paired swings. This screens inputs; it cannot show interactions.
+.SH SYNOPSIS
+\fBraptor sensitivity\fR [\-h] [\-\-top N] [\-n N] [\-\-metric FIELD] [\-\-seed N] [\-j N] [\-f {text,json}] MODEL
+.SH DESCRIPTION
+One\-at\-a\-time tornado: vary each candidate input at a low and a high value, run every variant with Base's seed, and rank the paired swings. This screens inputs; it cannot show interactions.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-top\fR \fIN\fR
+how many inputs to screen (default 10)
+.TP
+\fB\-n\fR, \fB\-\-trials\fR \fIN\fR
+runs per variant (default: the model's own)
+.TP
+\fB\-\-metric\fR \fIFIELD\fR
+per\-run field to watch (default availability)
+.TP
+\fB\-\-seed\fR \fIN\fR
+
+.TP
+\fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
+
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+
+.SH SEE ALSO
+\fBraptor\fR(1)

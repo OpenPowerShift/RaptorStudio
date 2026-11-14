@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **76 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **75**.
+- **77 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **76**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **24 chapters**; the MCP chapter is book chapter 23 of 24 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -518,6 +518,11 @@ headline against its target, the run-to-run dots and the share that met it,
 the top drivers, the top findings, six key numbers and provenance. It is the
 same object the application's Story tab paints and `raptor explain --story`
 prints.
+
+`sensitivity` screens the inputs one at a time: it varies block lives,
+repair times, PM intervals, spare stock and crews at a low and a high value,
+pairs each variant with Base, and ranks the swings. It shows each input
+alone; interactions need the global methods.
 
 `what_if` compares one changed model with Base: `changes` are PATH=VALUE
 edits, Base and the scenario run with the same seed, and the result gives

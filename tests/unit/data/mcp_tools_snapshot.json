@@ -767,6 +767,20 @@
    "query"
   ]
  },
+ "sensitivity": {
+  "params": [
+   "metric",
+   "model_id",
+   "seed",
+   "timeout_s",
+   "top",
+   "trials",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "simulate": {
   "params": [
    "attribution",

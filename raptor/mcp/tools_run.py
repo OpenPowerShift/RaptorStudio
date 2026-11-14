@@ -1176,3 +1176,62 @@ def _what_if_markdown(comparison: Any) -> str:
     if cut is not None:
         lines.append(f"Pairing cut the variance by {100 * cut:.3g} %.")
     return "\n".join(lines)
+
+
+@mcp.tool(annotations=ADDITIVE("Sensitivity"))
+@guarded
+async def sensitivity(
+    model_id: str,
+    top: int = 10,
+    trials: int | None = None,
+    metric: str = "availability",
+    seed: int = 1,
+    workers: int | None = None,
+    timeout_s: float = 1800.0,
+    ctx: Context | None = None,
+) -> CallToolResult:
+    """One-at-a-time tornado: which inputs the answer is most sensitive to.
+
+    Builds up to `top` candidate inputs from the model (block life and
+    repair means, PM intervals, finite spare stock, crew counts), varies each
+    at a low and a high value, and runs every variant with Base's seed. The
+    result gives each input's paired effect at both ends with its standard
+    error, the swing, a base-point elasticity where the input is continuous,
+    and whether the swing is distinguishable from no effect at this run
+    count. This is a screening view: it shows each input alone and cannot
+    show interactions.
+    """
+    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+
+    ws = context.workspace()
+    cap = context.max_runs()
+    if trials is not None and trials > cap:
+        raise ValueError(
+            f"trials={trials} exceeds the server cap of {cap}")
+    inputs = default_inputs(ws.get(model_id).rbd, limit=max(1, min(top, 60)))
+    if not inputs:
+        raise ValueError("no input could be varied in this model")
+
+    def work(abort, progress):
+        return tornado(
+            ws, model_id, inputs, trials=trials, metric=metric, seed=seed,
+            workers=max(1, workers or 1), timeout_s=timeout_s,
+            progress=lambda done, total, label: progress(done, total, label),
+            abort=abort)
+
+    data = await run_job(ctx, work, label="Screening inputs")
+    lines = ["| Input | Swing | Low | High | Distinguishable |",
+             "|---|---|---|---|---|"]
+    for row in data["inputs"]:
+        swing = ("—" if row["swing"] is None else f"{row['swing']:.4g}")
+        low = ("—" if row["low"]["effect"] is None
+               else f"{row['low']['effect']:+.4g}")
+        high = ("—" if row["high"]["effect"] is None
+                else f"{row['high']['effect']:+.4g}")
+        flag = "yes" if row["distinguishable"] else "no"
+        lines.append(f"| {row['input']['name']} | {swing} | {low} | "
+                     f"{high} | {flag} |")
+    lines.append("")
+    lines.append(data["caption"])
+    lines.append(data["note"])
+    return ok(data, "\n".join(lines))

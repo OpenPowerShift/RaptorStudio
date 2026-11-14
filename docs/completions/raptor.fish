@@ -184,6 +184,14 @@ complete -c raptor -n '__fish_seen_subcommand_from run' -l workspace
 complete -c raptor -n '__fish_use_subcommand' -a schema
 complete -c raptor -n '__fish_seen_subcommand_from schema' -l help
 complete -c raptor -n '__fish_seen_subcommand_from schema' -l output
+complete -c raptor -n '__fish_use_subcommand' -a sensitivity
+complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l format
+complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l help
+complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l jobs
+complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l metric
+complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l seed
+complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l top
+complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l trials
 complete -c raptor -n '__fish_use_subcommand' -a set
 complete -c raptor -n '__fish_seen_subcommand_from set' -l backup
 complete -c raptor -n '__fish_seen_subcommand_from set' -l help

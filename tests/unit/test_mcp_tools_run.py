@@ -149,6 +149,17 @@ class TestMarkdownRoundTrip:
         assert "Metric" in lines[0]
 
 
+class TestSensitivity:
+    def test_it_returns_a_ranked_paired_tornado(self, ws_with_motor):
+        from raptor.mcp.tools_run import sensitivity
+        data = _sc(_resolve(sensitivity(
+            ws_with_motor, top=2, trials=2, seed=1, timeout_s=60)))
+        assert data["inputs"]
+        assert data["batches"] == 1 + 2 * len(data["inputs"])
+        assert data["metric"] == "availability"
+        assert "swing" in data["inputs"][0]
+
+
 class TestWhatIf:
     def test_a_null_change_is_exactly_zero_and_paired(self, ws_with_motor):
         from raptor.mcp.tools_run import what_if

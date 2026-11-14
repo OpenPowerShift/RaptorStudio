@@ -92,3 +92,56 @@ def describe_dist(code: int, params: list[float]) -> dict[str, Any]:
     if notes:
         out["notes"] = notes
     return out
+
+
+#: Which parameter slots scale when the mean is multiplied, per distribution
+#: code.  `("mean",)` scales one slot; `("mean", "stdev")` keeps the shape
+#: (CV) by scaling spread too; The fixed and uniform laws scale their values.
+_SCALE_SLOTS: dict[int, tuple[int, ...]] = {
+    4: (0, 1),        # Exponential: mean and location shift together
+    5: (1,),          # Erlang: the second slot (mean * k is the mean)
+    6: (1, 2),        # Gamma: scale and location
+    7: (0, 1),        # Lognormal: mean and stdev keep sigma
+    8: (0, 1),        # Normal: mean and stdev keep the CV
+    9: (0, 1),        # Uniform integer: lower and upper
+    10: (0, 1),       # Uniform real: lower and upper
+    11: (1, 2),       # Pearson 5: scale and location
+    12: (2,),         # Pearson 6: scale
+    13: (0,),         # Poisson: mean
+    14: (0, 1, 2),    # Triangular: lower, mode, upper
+    15: (1,),         # Weibull: scale
+    19: (0,),         # Fixed: value
+    21: (0, 1),       # Extreme value: scale and location
+    22: (0, 1),       # Laplace: scale and location
+}
+
+
+def scales_with_mean(code: int) -> bool:
+    """Whether `scale_mean` can move this law's mean by a factor."""
+    return code in _SCALE_SLOTS
+
+
+def scale_mean(code: int, params: list[float], factor: float) -> list[float]:
+    """The parameters with the distribution's mean multiplied by `factor`.
+
+    Shape parameters are untouched: Weibull's shape, Gamma's k, Lognormal's
+    sigma (mean and stdev scale together), so the law keeps its shape and
+    only its time scale moves.  Laws without a scale slot (Beta, Binomial,
+    Chi-square, empirical) raise ValueError rather than guessing.
+
+    `factor` must be positive.  The result is a new list; `params` is not
+    changed.
+    """
+    if factor <= 0:
+        raise ValueError("factor must be positive")
+    slots = _SCALE_SLOTS.get(code)
+    if slots is None:
+        raise ValueError(
+            f"{dist_name(code)} has no scale parameter to move; use its own "
+            "parameters")
+    out = [float(value) for value in params]
+    for slot in slots:
+        if slot >= len(out):
+            continue
+        out[slot] *= factor
+    return out

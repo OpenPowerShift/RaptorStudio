@@ -76,6 +76,12 @@ CAPABILITIES: tuple[Capability, ...] = (
                        "designed but not built; use 'raptor whatif' or MCP "
                        "what_if"}),
     Capability(
+        "whatif.sensitivity", "Which inputs the answer is most sensitive to",
+        api="raptor.api.scenarios.sensitivity.tornado",
+        cli="sensitivity", mcp="sensitivity", long_running=True,
+        absent={"gui": "the Analyse tab's Tornado view is designed but not "
+                       "built; use 'raptor sensitivity' or MCP sensitivity"}),
+    Capability(
         "insight.precision", "Run until the answer is precise enough",
         api="raptor.api.scenarios.stopping.run_to_precision",
         cli="run --precision", mcp="simulate", long_running=True,

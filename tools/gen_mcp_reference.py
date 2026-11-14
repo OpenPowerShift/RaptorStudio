@@ -119,6 +119,7 @@ TOOL_CATEGORY: dict[str, str] = {
     "run_story": "analysis",
     "run_chart": "analysis",
     "what_if": "what-if",
+    "sensitivity": "what-if",
     "single_point_failures": "analysis",
     "failure_effects": "analysis",
     "failure_effects_batch": "analysis",
@@ -271,6 +272,7 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "annual_availability": {"run_id": "<run_id>", "below": 0.97},
     "run_story": {"run_id": "<run_id>"},
     "run_chart": {"run_id": "<run_id>", "chart": "downtime-pareto"},
+    "sensitivity": {"model_id": "<model_id>", "top": 10, "trials": 200},
     "what_if": {"model_id": "<model_id>",
                 "changes": ["block:Pump.repair_params=8,0,0"],
                 "name": "Faster repair", "trials": 200},
@@ -542,6 +544,9 @@ RETURN_NOTES: dict[str, str] = {
     "run_story": "`{headline, dots, drivers, findings, numbers, sections, "
                  "provenance, caption}` — the same object the application "
                  "and `raptor explain --story` render.",
+    "sensitivity": "`{metric, trials, seed, base, inputs, batches, caption, "
+                   "note}`; each input has its low/high paired effect and SEM, "
+                   "swing, elasticity, and whether it is distinguishable.",
     "what_if": "`{trials, seed, base, rows, variance_reduction, "
                "requirements, caption, note}`; each row's `metrics[key]` has "
                "the scenario value, paired delta and SEM, p_better and the "

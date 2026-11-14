@@ -47,6 +47,64 @@ def add_parser(sub: Any) -> None:
     w.add_argument("-f", "--format", choices=("text", "json"), default="text")
     w.set_defaults(func=whatif_command)
 
+    s = sub.add_parser(
+        "sensitivity", help="which inputs the answer is most sensitive to",
+        description="One-at-a-time tornado: vary each candidate input at a "
+                    "low and a high value, run every variant with Base's "
+                    "seed, and rank the paired swings. This screens inputs; "
+                    "it cannot show interactions.")
+    s.add_argument("model", metavar="MODEL")
+    s.add_argument("--top", type=int, default=10, metavar="N",
+                   help="how many inputs to screen (default 10)")
+    s.add_argument("-n", "--trials", type=int, metavar="N",
+                   help="runs per variant (default: the model's own)")
+    s.add_argument("--metric", default="availability", metavar="FIELD",
+                   help="per-run field to watch (default availability)")
+    s.add_argument("--seed", type=int, default=1, metavar="N")
+    s.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    s.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    s.set_defaults(func=sensitivity_command)
+
+
+def sensitivity_command(args: Any) -> int:
+    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        inputs = default_inputs(ws.get(mid).rbd, limit=args.top)
+        if not inputs:
+            raise CliError("no input could be varied in this model", X.REFUSED)
+        result = tornado(
+            ws, mid, inputs, trials=args.trials, metric=args.metric,
+            seed=args.seed, workers=max(1, args.jobs),
+            progress=lambda done, total, label:
+            eprint(f"[{done}/{total}] {label}") if label else None)
+    if args.format == "json":
+        emit_json({**result, "schema": "raptor-sensitivity/1"}, None)
+        return X.OK
+    _print_sensitivity(result)
+    return X.OK
+
+
+def _print_sensitivity(result: dict[str, Any]) -> None:
+    base = result["base"]
+    shown = (f"{100 * base['mean']:.5g} %" if result["metric"] in
+             ("availability", "reliability", "capacity_weighted_availability")
+             else f"{base['mean']:.6g}")
+    print(f"Sensitivity of {result['metric']} (base {shown}), "
+          f"{result['batches']} batches x {result['trials']} paired runs")
+    for row in result["inputs"]:
+        if row["swing"] is None:
+            print(f"  {row['input']['name']:<28} no data")
+            continue
+        marks = "" if row["distinguishable"] else "  (not distinguishable)"
+        small = "  small" if row.get("small") else ""
+        print(f"  {row['input']['name']:<28} swing {row['swing']:.4g}"
+              f"  low {row['low']['effect']:+.4g}  high "
+              f"{row['high']['effect']:+.4g}{marks}{small}")
+    print(f"\n{result['caption']}")
+    print(result["note"])
+
 
 def _parse_requirement(text: str) -> dict[str, Any]:
     for op in (">=", "<=", "!=", "==", ">", "<"):
