@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **68 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **67**.
+- **72 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **71**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **24 chapters**; the MCP chapter is book chapter 23 of 24 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -485,6 +485,32 @@ section; `list_tables` lists the available input and result table keys;
 `get_table` returns typed rows for one of them; `get_timeseries` returns
 points to plot. `describe_metrics` lists the metric names and units if you
 are unsure what a column means.
+
+<a id="advise"></a>
+
+### Ask what is wrong, and what drives the downtime
+
+`advise` checks a model the way a reviewer would, before anything is run: a
+backup that depends on the unit it backs up, parallel paths that are all
+required, placeholder data, spares or crews that cannot meet demand,
+maintenance that cannot pay off, too few runs. Each finding has a stable
+rule id, says whether it is exact or an estimate, carries the numbers it
+used and, where there is one, a fix. `list_advisor_rules` lists every rule.
+`apply_fix` applies one finding's fix as a single undoable edit.
+
+To learn what causes the downtime, run with `attribution=True` (`simulate`
+or `start_run`) and call `downtime_drivers`: each system outage is charged
+to the element that started it and split by cause (hands-on repair, waiting
+for a spare, waiting for people or equipment, logistics delay, planned
+maintenance, held by another element). `advise` with that `run_id` then
+adds the after-run findings: how precisely the downtime is known, which
+few elements cause most of it and which lever fits, and, with `targets`,
+whether each requirement is met, missed or too close to call.
+
+Attribution replays the event log, so the results are the same with it on;
+it holds the log in memory for the batch, so leave it off for very large
+runs. It describes the design as simulated. To learn what a change would
+achieve, change the model and compare.
 
 <a id="analyse"></a>
 

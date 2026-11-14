@@ -102,6 +102,40 @@
   ],
   "type": "object"
  },
+ "advise": {
+  "properties": {
+   "counts": {
+    "type": "object"
+   },
+   "findings": {
+    "type": "array"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "run_id": {
+    "type": [
+     "null",
+     "string"
+    ]
+   },
+   "shown": {
+    "type": "integer"
+   },
+   "truncated": {
+    "type": "boolean"
+   }
+  },
+  "required": [
+   "counts",
+   "findings",
+   "model_id",
+   "run_id",
+   "shown",
+   "truncated"
+  ],
+  "type": "object"
+ },
  "analytical_analysis": {
   "properties": {
    "applicable": {
@@ -208,6 +242,29 @@
    "time",
    "units",
    "warnings"
+  ],
+  "type": "object"
+ },
+ "apply_fix": {
+  "properties": {
+   "applied": {
+    "type": "array"
+   },
+   "label": {
+    "type": "string"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "remaining": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "applied",
+   "label",
+   "model_id",
+   "remaining"
   ],
   "type": "object"
  },
@@ -698,6 +755,57 @@
   ],
   "type": "object"
  },
+ "downtime_drivers": {
+  "properties": {
+   "caption": {
+    "type": "string"
+   },
+   "causes": {
+    "type": "object"
+   },
+   "elements": {
+    "type": "array"
+   },
+   "outage_durations": {
+    "type": "object"
+   },
+   "run_id": {
+    "type": "string"
+   },
+   "runs": {
+    "type": "integer"
+   },
+   "runs_with_outage": {
+    "type": "integer"
+   },
+   "schema": {
+    "type": "string"
+   },
+   "sequences": {
+    "type": "array"
+   },
+   "system": {
+    "type": "object"
+   },
+   "units": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "caption",
+   "causes",
+   "elements",
+   "outage_durations",
+   "run_id",
+   "runs",
+   "runs_with_outage",
+   "schema",
+   "sequences",
+   "system",
+   "units"
+  ],
+  "type": "object"
+ },
  "estimate_runtime": {
   "properties": {
    "advice": {
@@ -1030,6 +1138,17 @@
    "series",
    "t",
    "values"
+  ],
+  "type": "object"
+ },
+ "list_advisor_rules": {
+  "properties": {
+   "rules": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "rules"
   ],
   "type": "object"
  },

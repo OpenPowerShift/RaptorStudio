@@ -227,9 +227,17 @@ async def simulate(  # noqa: PLR0912, PLR0915
     importance: Literal["none", "improvement", "risk", "both"] | None = None,
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
+    attribution: bool = False,
     ctx: Context | None = None,
 ) -> CallToolResult:
     """Run a simulation and return structured results.
+
+    `attribution=True` also works out which element caused each system
+    outage and why (repair, waiting for a spare, waiting for a crew,
+    logistics, maintenance); read it with `downtime_drivers(run_id)` and
+    `advise(model_id, run_id)`. The results themselves are unchanged. It
+    keeps the event log in memory for the batch, so leave it off for very
+    large runs. Not available with `hierarchy`.
 
     `availability_plot` / `interim_cost`: record the availability-over-time
     plot (needed by `get_timeseries(series="availability")`) or the interim
@@ -349,7 +357,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
                                     treatments=treatments, **kwargs)
             except isolate.IsolationError as exc:
                 raise ValueError(str(exc)) from exc
-        return api_run(ws, model_id, **kwargs)
+        return api_run(ws, model_id, attribution=attribution, **kwargs)
 
     result = await run_job(ctx, _go, label="Simulating")
     warnings = list(result.warnings) + validation_warnings
@@ -438,8 +446,12 @@ def start_run(
     seed: int | None = None,
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
+    attribution: bool = False,
 ) -> CallToolResult:
     """Start a simulation in the background and return a job id immediately.
+
+    `attribution=True` also records what caused the downtime, as in
+    `simulate`; read it with `downtime_drivers` once the job is done.
 
     Same arguments as `simulate`, minus the hierarchy/isolation and
     importance options. Use this for batches that outlive one tool call (a
@@ -494,6 +506,7 @@ def start_run(
                        confirm_long_run=True, abort=abort, progress=progress,
                        setup_progress=setup_progress, seed=seed,
                        availability_plot=availability_plot,
+                       attribution=attribution,
                        interim_cost=interim_cost)
 
     job = async_runs.start(work, model_id=model_id, total=effective_runs)

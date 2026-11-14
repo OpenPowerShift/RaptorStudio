@@ -64,6 +64,7 @@ def live_tool_names() -> set[str]:
     import raptor.mcp.tools_data       # noqa: F401
     import raptor.mcp.tools_run        # noqa: F401
     import raptor.mcp.tools_metrics    # noqa: F401
+    import raptor.mcp.tools_advisor    # noqa: F401
     import raptor.mcp.tools_tables     # noqa: F401
     import raptor.mcp.tools_view       # noqa: F401
     import raptor.mcp.tools_svg        # noqa: F401

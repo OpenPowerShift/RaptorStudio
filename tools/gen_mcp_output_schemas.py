@@ -73,7 +73,7 @@ class Recorder:
 
 def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     """The scripted tool session. Deterministic, a few seconds."""
-    from raptor.mcp import tools_model, tools_run, tools_metrics, tools_tables, tools_view, tools_svg, tools_analytic  # noqa: F401 (registers the tools)
+    from raptor.mcp import tools_model, tools_run, tools_metrics, tools_tables, tools_view, tools_svg, tools_analytic, tools_advisor  # noqa: F401 (registers the tools)
     from raptor.mcp.server import mcp
     mcp._raptor_args = type("A", (), {"workspace": str(workspace), "read_only": False})()
     mcp._raptor_ws = None
@@ -140,6 +140,15 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     rec.call("describe_metrics")
     rec.call("describe_metrics", model_id=m1,
              **({"run_id": run} if run else {}))
+    rec.call("list_advisor_rules")
+    rec.call("advise", model_id=m1)
+    attributed = rec.call("simulate", model_id=m1, num_runs=3, attribution=True) or {}
+    if attributed.get("run_id"):
+        rec.call("advise", model_id=m1, run_id=attributed["run_id"], min_severity="info",
+                 targets=[{"metric": "system.ao", "op": ">=", "value": 0.5}])
+        rec.call("downtime_drivers", run_id=attributed["run_id"])
+    if rec.call("apply_fix", model_id=m1, rule="M-EXP-001"):
+        rec.call("undo_last_edit", model_id=m1)
     iso = rec.call("simulate", model_id=m2, num_runs=1,
                    confirm_long_run=True, hierarchy="500path") or {}
     if iso.get("run_id"):

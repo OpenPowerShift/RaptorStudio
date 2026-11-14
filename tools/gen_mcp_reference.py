@@ -111,6 +111,10 @@ TOOL_CATEGORY: dict[str, str] = {
     "validate_model": "analysis",
     "analytical_analysis": "analysis",
     "describe_metrics": "analysis",
+    "advise": "analysis",
+    "list_advisor_rules": "analysis",
+    "apply_fix": "analysis",
+    "downtime_drivers": "analysis",
     "single_point_failures": "analysis",
     "failure_effects": "analysis",
     "failure_effects_batch": "analysis",
@@ -255,6 +259,11 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "analytical_analysis": {"model_id": "<model_id>", "mode": "reliability",
                             "at": 500, "importance": True},
     "describe_metrics": {"run_id": "<run_id>"},
+    "advise": {"model_id": "<model_id>", "run_id": "<run_id>",
+               "targets": [{"metric": "system.ao", "op": ">=", "value": 0.995}]},
+    "list_advisor_rules": {},
+    "apply_fix": {"model_id": "<model_id>", "rule": "M-STR-002", "target": "Pump_B"},
+    "downtime_drivers": {"run_id": "<run_id>", "top": 5},
     "single_point_failures": {"model_id": "<model_id>"},
     "failure_effects": {"model_id": "<model_id>", "fail": ["Pump"]},
     "failure_effects_batch": {
@@ -564,6 +573,7 @@ def _live() -> tuple[list[Any], list[Any], list[Any], list[Any]]:
     from raptor.mcp import (  # noqa: F401 -- importing registers every tool
         prompts, resources, server, tools_analytic, tools_data, tools_model,
         tools_run, tools_metrics, tools_tables, tools_view, tools_svg,
+        tools_advisor,
     )
 
     tools = sorted(asyncio.run(server.mcp.list_tools()), key=lambda t: t.name)

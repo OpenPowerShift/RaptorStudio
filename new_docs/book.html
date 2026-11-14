@@ -9565,7 +9565,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>68 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>72 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10092,7 +10092,7 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 68 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+listed below: 72 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
 <code>ping</code>, or 67 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
@@ -10492,6 +10492,30 @@ you need the exact argument shape.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">"down"`, `standby="active"</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">"absent"`
   or <code>phase=N</code>. Names the first offender.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>advise</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Say what looks wrong or unwise in a model, most important first: redundancy
+  that cannot work, placeholder data, spares or crews that cannot meet
+  demand, maintenance that cannot pay off, too few runs. With <code>run_id</code>, add
+  what the run says (precision, what drives the downtime) and judge it
+  against <code>targets</code>. Each finding has a rule id, a method (exact,
+  statistical or an estimate) and, where there is one, a fix.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_advisor_rules</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">List every Advisor rule with its level, method and phase.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>apply_fix</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Apply one finding&#8217;s suggested fix as a single undoable edit.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>downtime_drivers</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For a run made with <code>attribution=True</code>: each element&#8217;s share of system
+  downtime, of outages and of failures, split by cause (repair, waiting for
+  a spare, waiting for people or equipment, logistics, maintenance), and the
+  commonest outage paths.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>describe_metrics</code></p></td>

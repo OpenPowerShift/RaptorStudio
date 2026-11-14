@@ -85,6 +85,19 @@
    "model_id"
   ]
  },
+ "advise": {
+  "params": [
+   "limit",
+   "min_severity",
+   "model_id",
+   "only",
+   "run_id",
+   "targets"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "analytical_analysis": {
   "params": [
    "at",
@@ -106,6 +119,18 @@
   ],
   "required": [
    "model_id"
+  ]
+ },
+ "apply_fix": {
+  "params": [
+   "fix_index",
+   "model_id",
+   "rule",
+   "target"
+  ],
+  "required": [
+   "model_id",
+   "rule"
   ]
  },
  "auto_layout": {
@@ -365,6 +390,15 @@
    "model_b"
   ]
  },
+ "downtime_drivers": {
+  "params": [
+   "run_id",
+   "top"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
  "estimate_runtime": {
   "params": [
    "importance",
@@ -505,6 +539,10 @@
   "required": [
    "run_id"
   ]
+ },
+ "list_advisor_rules": {
+  "params": [],
+  "required": []
  },
  "list_annotations": {
   "params": [
@@ -702,6 +740,7 @@
  },
  "simulate": {
   "params": [
+   "attribution",
    "availability_plot",
    "collect_events",
    "confirm_long_run",
@@ -734,6 +773,7 @@
  },
  "start_run": {
   "params": [
+   "attribution",
    "availability_plot",
    "collect_events",
    "interim_cost",

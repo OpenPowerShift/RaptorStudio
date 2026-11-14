@@ -5,9 +5,10 @@ import json
 from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
+from raptor.api.workspace import RunArtefactsError
 
 
-class NoAttribution(LookupError):
+class NoAttribution(RunArtefactsError):
     """The run was made without downtime attribution."""
 
 

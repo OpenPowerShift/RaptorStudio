@@ -463,6 +463,7 @@ def _import_tools(args: argparse.Namespace) -> None:
     from raptor.mcp import tools_data  # noqa: F401
     from raptor.mcp import tools_run    # noqa: F401
     from raptor.mcp import tools_metrics  # noqa: F401
+    from raptor.mcp import tools_advisor  # noqa: F401
     from raptor.mcp import tools_analytic  # noqa: F401
     from raptor.mcp import tools_tables  # noqa: F401
     from raptor.mcp import tools_svg  # noqa: F401  (SVG needs no Qt)
