@@ -22,6 +22,33 @@ def read(workspace: Any, run_id: str) -> dict[str, Any]:
     return json.loads(path.read_text())
 
 
+def periods(workspace: Any, run_id: str, length: float | None = None, *,
+            offset: float = 0.0, below: float | None = None,
+            partial: str = "drop") -> dict[str, Any]:
+    """Availability period by period for a run made with attribution.
+    `length` defaults to a year when the model's unit is hours."""
+    from raptor.api.insight.periods import HOURS_PER_YEAR, PeriodSpec, from_outages, sentence
+    from raptor.api.run import run_dir
+    attribution = read(workspace, run_id)
+    units = str(attribution.get("units") or "")
+    if length is None:
+        if not units.lower().startswith("hour"):
+            raise ValueError(
+                f"the model's time unit is {units or 'not set'}: give the period length in that unit")
+        length = HOURS_PER_YEAR
+    path = run_dir(workspace, run_id) / "outages.json"
+    if not path.is_file():
+        raise NoAttribution(
+            f"run {run_id!r} kept no outage intervals (too many to store); use fewer runs")
+    summary = from_outages(json.loads(path.read_text()),
+                           PeriodSpec(float(length), float(offset), partial),  # type: ignore[arg-type]
+                           threshold=below)
+    summary["units"] = units
+    summary["run_id"] = run_id
+    summary["sentence"] = sentence(summary, units)
+    return summary
+
+
 def _pct(x: float | None) -> str:
     return "n/a" if x is None else f"{100 * x:.3g} %"
 
@@ -75,4 +102,31 @@ def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
             path = " -> ".join(f"{s['element']} ({CAUSE_LABELS[s['cause']].lower()})"
                                for s in seq["steps"]) or "(unknown)"
             lines.append(f"  {_pct(seq['share']):>7}  {path}")
+    return lines
+
+
+def period_lines(summary: dict[str, Any]) -> list[str]:
+    """The period (yearly) results as plain text."""
+    pooled = summary["pooled"]
+    lines = [summary["sentence"], ""]
+    if not pooled.get("n"):
+        return lines
+    lines.append(f"{pooled['n']:,} periods of {summary['length']:,.6g} {summary.get('units') or ''}"
+                 f" from {summary['runs']:,} runs"
+                 + (f" ({summary['dropped_partial_periods']:,} part periods left out)"
+                    if summary["dropped_partial_periods"] else ""))
+    lines.append("Pooled:  " + "  ".join(
+        f"P{p} {_pct(pooled[f'p{p}'])}" for p in (1, 5, 10, 50, 90, 95, 99)))
+    lines += ["", f"{'Period':>6}{'Mean':>10}{'P5':>10}{'P50':>10}{'P95':>10}"
+              + (f"{'Below':>10}" if summary.get("threshold") is not None else "")]
+    for row in summary["by_index"]:
+        if not row.get("n"):
+            continue
+        lines.append(f"{row['index']:>6}{_pct(row['mean']):>10}{_pct(row['p5']):>10}"
+                     f"{_pct(row['p50']):>10}{_pct(row['p95']):>10}"
+                     + (f"{_pct(row['p_below']):>10}" if "p_below" in row else ""))
+    worst = summary["worst"][:3]
+    if worst:
+        lines += ["", "Worst: " + ", ".join(
+            f"{_pct(w['value'])} (run {w['run']}, period {w['index']})" for w in worst)]
     return lines

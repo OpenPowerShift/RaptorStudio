@@ -170,3 +170,31 @@ def downtime_drivers(run_id: str, top: int = 10) -> CallToolResult:
     data = {**attribution, "elements": rows, "run_id": run_id,
             "caption": drivers.caption(attribution)}
     return ok(data, "```\n" + "\n".join(drivers.text_lines(attribution, top)) + "\n```")
+
+
+@mcp.tool(annotations=READ_ONLY("Annual availability"))
+@guarded
+def annual_availability(run_id: str, year_length: float | None = None, offset: float = 0.0,
+                        below: float | None = None) -> CallToolResult:
+    """Availability period by period, with percentiles: what a bad year looks like.
+
+    Needs a run made with `attribution=True`. Each run's system outages
+    (exact start and end times) are cut on period boundaries, giving one
+    availability per (run, period). `year_length` is in the model's time
+    unit and defaults to 8,760 when that unit is hours; `offset` moves the
+    first boundary; `below` (e.g. 0.97) adds the share of periods under that
+    availability with a 95 % interval. The last, incomplete period of each
+    run is left out and counted in `dropped_partial_periods`.
+
+    Returns `pooled` (n, mean, sd, min, max, p1..p99, and with `below`:
+    below, p_below, p_below_low, p_below_high), `by_index` (the same per
+    period number: years within one life are not independent, and late life
+    differs from early life when equipment ages), `worst` (the ten worst
+    periods with their run), and a one-sentence `sentence`. The run's own
+    average availability equals the mean of its periods.
+    """
+    from raptor.api.insight import drivers
+
+    summary = drivers.periods(context.workspace(), run_id, year_length,
+                              offset=offset, below=below)
+    return ok(summary, "```\n" + "\n".join(drivers.period_lines(summary)) + "\n```")

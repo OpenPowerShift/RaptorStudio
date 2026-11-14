@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **72 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **71**.
+- **73 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **72**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **24 chapters**; the MCP chapter is book chapter 23 of 24 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -506,6 +506,12 @@ maintenance, held by another element). `advise` with that `run_id` then
 adds the after-run findings: how precisely the downtime is known, which
 few elements cause most of it and which lever fits, and, with `targets`,
 whether each requirement is met, missed or too close to call.
+
+`annual_availability` cuts the same run's outages on year boundaries (or any
+period length) and gives the percentiles of availability per period, pooled
+and by year number, the worst periods, and with `below` how often a period
+falls under a guarantee. An average over a whole life hides a bad year; this
+shows it.
 
 Attribution replays the event log, so the results are the same with it on;
 it holds the log in memory for the batch, so leave it off for very large

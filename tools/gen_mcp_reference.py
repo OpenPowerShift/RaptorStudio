@@ -115,6 +115,7 @@ TOOL_CATEGORY: dict[str, str] = {
     "list_advisor_rules": "analysis",
     "apply_fix": "analysis",
     "downtime_drivers": "analysis",
+    "annual_availability": "analysis",
     "single_point_failures": "analysis",
     "failure_effects": "analysis",
     "failure_effects_batch": "analysis",
@@ -264,6 +265,7 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "list_advisor_rules": {},
     "apply_fix": {"model_id": "<model_id>", "rule": "M-STR-002", "target": "Pump_B"},
     "downtime_drivers": {"run_id": "<run_id>", "top": 5},
+    "annual_availability": {"run_id": "<run_id>", "below": 0.97},
     "single_point_failures": {"model_id": "<model_id>"},
     "failure_effects": {"model_id": "<model_id>", "fail": ["Pump"]},
     "failure_effects_batch": {

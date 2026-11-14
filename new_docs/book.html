@@ -9565,7 +9565,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>72 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>73 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10092,7 +10092,7 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 72 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+listed below: 73 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
 <code>ping</code>, or 67 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
@@ -10516,6 +10516,12 @@ you need the exact argument shape.</p>
   downtime, of outages and of failures, split by cause (repair, waiting for
   a spare, waiting for people or equipment, logistics, maintenance), and the
   commonest outage paths.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>annual_availability</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For a run made with <code>attribution=True</code>: availability year by year (or for
+  any period length) with percentiles, pooled and by year number, the worst
+  periods, and how often a period falls below a given availability.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>describe_metrics</code></p></td>

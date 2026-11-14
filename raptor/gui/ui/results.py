@@ -1169,6 +1169,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         logs = [log for log in (self._event_logs or []) if log]
         if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
             self._drivers_page.set_attribution(None)
+            self._drivers_page.set_periods(None)
             return
         from raptor.api.insight.attribution import attribute_logs
         experiment = (self._manifest or {}).get("experiment") or {}
@@ -1184,7 +1185,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             start = float(experiment.get("start_stats") or 0.0)
-            attribution = attribute_logs(logs, start, progress=show)
+            attribution = attribute_logs(logs, start, progress=show, with_outages=True)
         except Exception:  # noqa: BLE001 - a view must never break showing results
             import logging
             logging.getLogger(__name__).exception("downtime attribution failed")
@@ -1194,7 +1195,21 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             if big:
                 QApplication.restoreOverrideCursor()
         attribution["units"] = self._units
+        outages = attribution.pop("outages", None)
         self._drivers_page.set_attribution(attribution)
+        self._drivers_page.set_periods(self._yearly(outages))
+
+    def _yearly(self, outages: dict | None) -> dict | None:
+        """Year-by-year availability when the model's unit is hours and the
+        runs cover more than one year; None otherwise."""
+        if not outages or not self._units.lower().startswith("hour"):
+            return None
+        from raptor.api.insight.periods import (
+            HOURS_PER_YEAR, PeriodSpec, from_outages, sentence)
+        summary = from_outages(outages, PeriodSpec(HOURS_PER_YEAR))
+        summary["units"] = self._units
+        summary["sentence"] = sentence(summary, self._units)
+        return summary
 
     def _schedule_drivers(self) -> None:
         lines = sum(len(log) for log in (self._event_logs or []))

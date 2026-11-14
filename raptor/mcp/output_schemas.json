@@ -245,6 +245,69 @@
   ],
   "type": "object"
  },
+ "annual_availability": {
+  "properties": {
+   "by_index": {
+    "type": "array"
+   },
+   "dropped_partial_periods": {
+    "type": "integer"
+   },
+   "length": {
+    "type": "number"
+   },
+   "offset": {
+    "type": "number"
+   },
+   "partial": {
+    "type": "string"
+   },
+   "periods_per_run": {
+    "type": "integer"
+   },
+   "pooled": {
+    "type": "object"
+   },
+   "run_id": {
+    "type": "string"
+   },
+   "runs": {
+    "type": "integer"
+   },
+   "schema": {
+    "type": "string"
+   },
+   "sentence": {
+    "type": "string"
+   },
+   "threshold": {
+    "type": "number"
+   },
+   "units": {
+    "type": "string"
+   },
+   "worst": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "by_index",
+   "dropped_partial_periods",
+   "length",
+   "offset",
+   "partial",
+   "periods_per_run",
+   "pooled",
+   "run_id",
+   "runs",
+   "schema",
+   "sentence",
+   "threshold",
+   "units",
+   "worst"
+  ],
+  "type": "object"
+ },
  "apply_fix": {
   "properties": {
    "applied": {

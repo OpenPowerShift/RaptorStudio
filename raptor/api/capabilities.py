@@ -54,6 +54,11 @@ CAPABILITIES: tuple[Capability, ...] = (
         "insight.drivers", "What causes the downtime: elements, causes, outage paths",
         api="raptor.api.insight.drivers.read", cli="explain", mcp="downtime_drivers",
         gui="widget:raptor.gui.ui.drivers_page.DriversPage"),
+    Capability(
+        "insight.periods", "Availability period by period with percentiles (a bad year)",
+        api="raptor.api.insight.drivers.periods", cli="explain --yearly",
+        mcp="annual_availability",
+        gui="widget:raptor.gui.ui.drivers_page.DriversPage"),
 )
 
 SURFACES = ("api", "cli", "mcp", "gui")

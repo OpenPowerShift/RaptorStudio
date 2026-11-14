@@ -632,8 +632,13 @@ def run(
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
         attributed = attribute_logs(
             [log if isinstance(log, list) else [log] for log in event_logs],
-            float(experiment.get("start_stats") or 0.0), abort=abort)
+            float(experiment.get("start_stats") or 0.0), abort=abort, with_outages=True)
         attributed["units"] = model_units(sim_rbd)
+        # the outage intervals go in their own file: they are large and only
+        # the period (yearly) view reads them
+        outages = attributed.pop("outages", None)
+        if outages is not None:
+            (runs_dir / "outages.json").write_text(json.dumps(outages))
         (runs_dir / "attribution.json").write_text(json.dumps(attributed))
     summary = {
         "summary_version": SUMMARY_VERSION,

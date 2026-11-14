@@ -101,3 +101,32 @@ def test_results_dock_fills_the_tab_from_its_event_logs(logs, qapp):
         assert dock._drivers_page.caption.text() == drivers_page.EMPTY_TEXT
     finally:
         dock.deleteLater()
+
+
+def test_year_by_year_chart_needs_hours_and_more_than_one_year(qapp):
+    from raptor.gui.ui.results import ResultsDock
+    spec = dict(SPEC, experiment={"trials": 10, "termination_type": "TimeSim",
+                                  "term_condition": 8760 * 3})
+    long_logs = run_simulation(build.build_from_spec(spec), 10)
+    dock = ResultsDock()
+    try:
+        dock._event_logs, dock._units, dock._manifest = long_logs, "hours", None
+        dock._schedule_drivers()
+        page = dock._drivers_page
+        assert page.chart.periods()["pooled"]["n"] == 30
+        assert page.years.text().startswith("A typical year has availability")
+        dock._units = "miles"
+        dock._refresh_drivers()
+        assert page.chart.periods() is None and page.years.text() == ""
+    finally:
+        dock.deleteLater()
+
+
+def test_short_runs_show_no_year_chart(page, logs, qapp):
+    page.set_attribution(attribute_logs(logs))
+    page.set_periods({"periods_per_run": 1, "by_index": [], "pooled": {"n": 20}, "sentence": "x"})
+    assert page.chart.periods() is None and not page.years.isVisible()
+
+
+def test_percent_text_never_uses_an_exponent():
+    assert drivers_page._pct(1.0, 2) == "100 %" and drivers_page._pct(0.4712, 2) == "47 %"

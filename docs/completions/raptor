@@ -17,7 +17,7 @@ _raptor() {
     diff) opts="--all --exit-code --format --help --ignore --match --only" ;;
     doctor) opts="--format --help" ;;
     estimate) opts="--format --help --length --runs" ;;
-    explain) opts="--format --help --jobs --runs --seed --top" ;;
+    explain) opts="--below --format --help --jobs --runs --seed --top --year-length --year-offset --yearly" ;;
     extract) opts="--deps --format --help --hierarchy --output --pools --report-hazards --streams --treat" ;;
     fev) opts="--capacity --criticality --cycle --fail --format --help --log --phase --repair --script" ;;
     get) opts="--format --help" ;;

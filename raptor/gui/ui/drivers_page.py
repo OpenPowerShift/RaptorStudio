@@ -34,10 +34,16 @@ TOP_ELEMENTS = 8
 ROW_H = 22
 ANATOMY_H = 260
 ANATOMY_DEPTH = 4
+YEARS_H = 150
+#: The year-by-year chart needs at least this many periods per run to say anything.
+MIN_PERIODS = 2
 
 
 def _pct(x: float | None, digits: int = 3) -> str:
-    return "" if x is None else f"{100 * x:.{digits}g} %"
+    if x is None:
+        return ""
+    text = f"{100 * x:.{digits}g}"
+    return (f"{100 * x:.0f}" if "e" in text else text) + " %"
 
 
 def _fill(p: QPainter, rect: QRectF, cause: str) -> None:
@@ -56,6 +62,7 @@ class DriversChart(QWidget):
         self._attribution: dict[str, Any] | None = None
         self._rows: list[dict[str, Any]] = []
         self._cells: list[Cell] = []
+        self._periods: dict[str, Any] | None = None
         self._hit: list[tuple[QRectF, dict[str, Any]]] = []
         self._cell_hit: list[tuple[QRectF, Cell]] = []
         self.setMouseTracking(True)
@@ -69,6 +76,16 @@ class DriversChart(QWidget):
         self.setFixedHeight(self.sizeHint().height())
         self.update()
 
+    def set_periods(self, summary: dict[str, Any] | None) -> None:
+        """The period-by-period (yearly) summary, or None to hide the chart."""
+        usable = bool(summary and summary.get("periods_per_run", 0) >= MIN_PERIODS)
+        self._periods = summary if usable else None
+        self.setFixedHeight(self.sizeHint().height())
+        self.update()
+
+    def periods(self) -> dict[str, Any] | None:
+        return self._periods
+
     def rows(self) -> list[dict[str, Any]]:
         return list(self._rows)
 
@@ -81,6 +98,8 @@ class DriversChart(QWidget):
         h = 26 + 18 + legend_rows * 18 + 16 + 22 + len(self._rows) * ROW_H + 16
         if self._cells:
             h += 26 + ANATOMY_H + 8
+        if self._periods:
+            h += 26 + YEARS_H + 34
         return QSize(640, h)
 
     # ---- painting --------------------------------------------------------
@@ -98,7 +117,9 @@ class DriversChart(QWidget):
         y = self._paint_causes(p, 6.0)
         y = self._paint_rows(p, y)
         if self._cells:
-            self._paint_anatomy(p, y)
+            y = self._paint_anatomy(p, y)
+        if self._periods:
+            self._paint_years(p, y)
         p.end()
 
     def _heading(self, p: QPainter, y: float, label: str) -> float:
@@ -171,7 +192,61 @@ class DriversChart(QWidget):
             y += ROW_H
         return y + 16
 
-    def _paint_anatomy(self, p: QPainter, y: float) -> None:
+    def _paint_years(self, p: QPainter, y: float) -> None:
+        """Availability period by period: median line, 10-90 % and 5-95 % bands,
+        the worst value of each period as a dot, and the threshold line."""
+        from PySide6.QtCore import QPointF
+        from PySide6.QtGui import QPolygonF
+        summary = self._periods or {}
+        rows = [r for r in summary["by_index"] if r.get("n")]
+        x0, w = self._x0 + 52, self._w - 60
+        y = self._heading(p, y, "Period by period: what a bad one looks like "
+                                "(line = typical, bands = 8 in 10 and 9 in 10, dots = worst)")
+        threshold = summary.get("threshold")
+        lows = [r["min"] for r in rows] + ([threshold] if threshold is not None else [])
+        lo, hi = min(lows), max(r["max"] for r in rows)
+        pad = max(1e-9, (hi - lo) * 0.08)
+        lo, hi = max(0.0, lo - pad), min(1.0, hi + pad)
+
+        def px(i: int) -> float:
+            return x0 + (w * i / (len(rows) - 1) if len(rows) > 1 else w / 2)
+
+        def py(v: float) -> float:
+            return y + YEARS_H * (1 - (v - lo) / (hi - lo))
+
+        accent = QColor(active_colour()["accent"])
+        for low_key, high_key, alpha in (("p5", "p95", 45), ("p10", "p90", 80)):
+            band = QPolygonF([QPointF(px(i), py(r[high_key])) for i, r in enumerate(rows)]
+                             + [QPointF(px(i), py(r[low_key]))
+                                for i, r in reversed(list(enumerate(rows)))])
+            fill = QColor(accent)
+            fill.setAlpha(alpha)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(fill)
+            p.drawPolygon(band)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(accent, 2))
+        p.drawPolyline(QPolygonF([QPointF(px(i), py(r["p50"])) for i, r in enumerate(rows)]))
+        stop = QColor(active_colour()["stop"])
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(stop)
+        for i, r in enumerate(rows):
+            p.drawEllipse(QPointF(px(i), py(r["min"])), 2.5, 2.5)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        if threshold is not None:
+            p.setPen(QPen(stop, 1, Qt.PenStyle.DashLine))
+            p.drawLine(int(x0), int(py(threshold)), int(x0 + w), int(py(threshold)))
+        p.setPen(QPen(self._border))
+        p.drawLine(int(x0), int(y + YEARS_H), int(x0 + w), int(y + YEARS_H))
+        p.setPen(self._muted)
+        right = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        for value in (hi, (hi + lo) / 2, lo):
+            p.drawText(QRectF(self._x0, py(value) - 8, 46, 16), right, _pct(value, 4))
+        p.drawText(QRectF(x0, y + YEARS_H + 2, 80, 16), Qt.AlignmentFlag.AlignLeft, "1")
+        p.drawText(QRectF(x0 + w - 80, y + YEARS_H + 2, 80, 16),
+                   Qt.AlignmentFlag.AlignRight, str(rows[-1]["index"]))
+
+    def _paint_anatomy(self, p: QPainter, y: float) -> float:
         """Every outage as a path: started by, then, then."""
         x0, w, fm = self._x0, self._w, self._fm
         y = self._heading(
@@ -192,6 +267,7 @@ class DriversChart(QWidget):
             p.setPen(self._text)
             p.drawText(plate.adjusted(4, 0, 0, 0), centre,
                        fm.elidedText(label, Qt.TextElideMode.ElideRight, int(plate.width() - 6)))
+        return y + ANATOMY_H + 8
 
     # ---- interaction -----------------------------------------------------
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt name
@@ -236,6 +312,11 @@ class DriversPage(QWidget):
         self.caption.setWordWrap(True)
         self.caption.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         lay.addWidget(self.caption)
+        self.years = QLabel("")
+        self.years.setWordWrap(True)
+        self.years.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.years.hide()
+        lay.addWidget(self.years)
         self.chart = DriversChart()
         self.chart.element_clicked.connect(self.element_clicked)
         scroll = QScrollArea()
@@ -268,6 +349,13 @@ class DriversPage(QWidget):
                 f"± 2 standard errors".replace("  ", " "))
         else:
             self.footer.setText("")
+
+    def set_periods(self, summary: dict[str, Any] | None) -> None:
+        """Show the period-by-period (yearly) results under the drivers."""
+        self.chart.set_periods(summary)
+        shown = self.chart.periods() is not None
+        self.years.setVisible(shown)
+        self.years.setText(summary.get("sentence", "") if shown and summary else "")
 
     def attribution(self) -> dict[str, Any] | None:
         return self._attribution

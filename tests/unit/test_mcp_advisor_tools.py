@@ -104,3 +104,14 @@ def test_rules_listing(server):
     rules = ok(call(server, "list_advisor_rules"))["rules"]
     assert {"model", "run"} == {r["phase"] for r in rules}
     assert all(r["id"] and r["title"] for r in rules)
+
+
+def test_annual_availability_matches_the_api(server, model):
+    from raptor.api.insight import drivers
+    from raptor.mcp import context
+    run = ok(call(server, "simulate", model_id=model, seed=4, attribution=True))
+    data = ok(call(server, "annual_availability", run_id=run["run_id"], year_length=500.0,
+                   below=0.5))
+    api = drivers.periods(context.workspace(), run["run_id"], 500.0, below=0.5)
+    assert data == api
+    assert data["pooled"]["n"] == 30 * 6 and "p_below" in data["pooled"]

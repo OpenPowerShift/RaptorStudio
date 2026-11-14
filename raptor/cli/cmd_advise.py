@@ -63,6 +63,16 @@ def add_parser(sub: Any) -> None:
     e.add_argument("--seed", type=int, metavar="N")
     e.add_argument("--top", type=int, default=10, metavar="N",
                    help="how many elements to list (default 10)")
+    e.add_argument("--yearly", action="store_true",
+                   help="also slice availability by period (a year when the model's "
+                        "unit is hours) and give percentiles: what a bad year looks like")
+    e.add_argument("--year-length", type=float, metavar="T",
+                   help="period length in the model's time unit (implies --yearly)")
+    e.add_argument("--year-offset", type=float, default=0.0, metavar="T",
+                   help="where the first period starts (default 0)")
+    e.add_argument("--below", type=float, metavar="A",
+                   help="report the share of periods with availability below A, "
+                        "e.g. 0.97 (implies --yearly)")
     e.add_argument("-f", "--format", choices=("text", "json"), default="text")
     e.set_defaults(func=explain_command)
 
@@ -197,9 +207,20 @@ def explain_command(args: Any) -> int:
         except run_api.RunError as exc:
             raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
         attribution = drivers.read(ws, result.run_id)
+        yearly = None
+        if args.yearly or args.year_length is not None or args.below is not None:
+            try:
+                yearly = drivers.periods(ws, result.run_id, args.year_length,
+                                         offset=args.year_offset, below=args.below)
+            except ValueError as exc:
+                raise CliError(str(exc), X.USAGE) from exc
     if args.format == "json":
         attribution["elements"] = attribution["elements"][:max(0, args.top)]
+        if yearly is not None:
+            attribution["periods"] = yearly
         emit_json(attribution, None)
     else:
         print("\n".join(drivers.text_lines(attribution, args.top)))
+        if yearly is not None:
+            print("\n" + "\n".join(drivers.period_lines(yearly)))
     return X.OK

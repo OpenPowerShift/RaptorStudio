@@ -121,6 +121,17 @@
    "model_id"
   ]
  },
+ "annual_availability": {
+  "params": [
+   "below",
+   "offset",
+   "run_id",
+   "year_length"
+  ],
+  "required": [
+   "run_id"
+  ]
+ },
  "apply_fix": {
   "params": [
    "fix_index",

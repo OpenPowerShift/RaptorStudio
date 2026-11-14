@@ -86,3 +86,13 @@ def test_parallel_workers_give_an_attribution_too(stored):
     attribution = drivers.read(ws, result.run_id)
     red = sum((1 - row["availability"]) * 3000 for row in result.per_run) / 30
     assert attribution["system"]["red_time"]["mean"] == pytest.approx(red, rel=1e-6)
+
+
+def test_explain_yearly(capsys, tmp_path):
+    path = tmp_path / "m.rbds"
+    save_rbds(build.build_from_spec(SPEC), str(path))
+    assert main(["explain", str(path), "--seed", "5", "--year-length", "1000", "--below", "0.9"]) == X.OK
+    out = capsys.readouterr().out
+    assert "90 periods of 1,000 hours from 30 runs" in out and "Pooled:  P1" in out
+    assert main(["explain", str(path), "--seed", "5", "--yearly", "-f", "json"]) == X.OK
+    assert json.loads(capsys.readouterr().out)["periods"]["pooled"]["n"] == 0   # runs under a year

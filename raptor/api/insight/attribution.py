@@ -111,6 +111,11 @@ class TrialAttribution:
     own_time: dict[Key, dict[str, float]] = field(default_factory=dict)
     names: dict[Key, str] = field(default_factory=dict)
     kept: list[Outage] = field(default_factory=list)
+    #: every system-down interval as a flat [start, end, start, end...] list,
+    #: clipped to the time statistics were collected; and that time's bounds
+    red: list[float] = field(default_factory=list)
+    start: float = 0.0
+    end: float = 0.0
 
 
 class _Replay:
@@ -172,6 +177,8 @@ class _Replay:
 
     def finish(self) -> None:
         self.close(self.now)
+        self.out.start = min(self.start_stats, self.now)
+        self.out.end = self.now
         for key in self.state:
             self.book_own_time(key, self.now)
 
@@ -188,6 +195,9 @@ class _Replay:
             return
         current.end = at
         current.steps = tuple(self.steps)
+        lo = max(current.start, self.start_stats)
+        if at > lo:
+            self.out.red += [lo, at]
         if (current.end > max(current.start, self.start_stats)
                 and len(self.out.kept) < MAX_OUTAGES_KEPT):
             self.out.kept.append(current)
@@ -374,16 +384,31 @@ def aggregate(trials: list[TrialAttribution]) -> dict[str, Any]:
     }
 
 
+#: More system-down intervals than this in one batch are not stored.
+MAX_INTERVALS_STORED = 2_000_000
+
+
+def outage_record(trials: list[TrialAttribution]) -> dict[str, Any] | None:
+    """Every run's system-down intervals, for slicing by period later
+    (`raptor.api.insight.periods`). None when there are too many to store."""
+    if sum(len(t.red) for t in trials) > 2 * MAX_INTERVALS_STORED:
+        return None
+    return {"schema": "raptor-outages/1",
+            "runs": [{"start": t.start, "end": t.end, "red": t.red} for t in trials]}
+
+
 ATTRIBUTE_LABEL = "Working out what caused the downtime"
 
 
 def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
                    progress: Any = None, abort: Any = None,
-                   total: int | None = None) -> dict[str, Any]:
+                   total: int | None = None, with_outages: bool = False) -> dict[str, Any]:
     """Attribution for a whole batch from its per-run event logs.
 
     `progress` (a `raptor.api.progress.ProgressFn`) is told after each run;
     `abort` (a `threading.Event`) stops it with `raptor.api.progress.Cancelled`.
+    `with_outages` adds `outages`: every run's system-down intervals, from
+    which `raptor.api.insight.periods` computes yearly availability.
     """
     from raptor.api.progress import check, report
     if total is None and hasattr(logs, "__len__"):
@@ -393,4 +418,7 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
         check(abort)
         trials.append(attribute_trial(lines, start_stats))
         report(progress, "attribute", ATTRIBUTE_LABEL, i, total)
-    return aggregate(trials)
+    result = aggregate(trials)
+    if with_outages:
+        result["outages"] = outage_record(trials)
+    return result

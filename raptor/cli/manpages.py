@@ -74,6 +74,9 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
          "downtime, by element and by cause."),
         ("raptor explain plant.rbds -n 500 -j 4 --top 5",
          "500 runs on four cores; the five largest contributors."),
+        ("raptor explain plant.rbds --yearly --below 0.97",
+         "Also availability year by year with percentiles, and how often a "
+         "year falls below 97 %."),
         ("raptor explain plant.rbds -f json", "The full attribution, machine-readable."),
     ],
     "validate": [

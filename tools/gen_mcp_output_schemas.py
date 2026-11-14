@@ -147,6 +147,7 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
         rec.call("advise", model_id=m1, run_id=attributed["run_id"], min_severity="info",
                  targets=[{"metric": "system.ao", "op": ">=", "value": 0.5}])
         rec.call("downtime_drivers", run_id=attributed["run_id"])
+        rec.call("annual_availability", run_id=attributed["run_id"], year_length=250.0, below=0.9)
     if rec.call("apply_fix", model_id=m1, rule="M-EXP-001"):
         rec.call("undo_last_edit", model_id=m1)
     iso = rec.call("simulate", model_id=m2, num_runs=1,
