@@ -60,3 +60,36 @@ def test_the_simulated_search_reports_a_curve_and_a_recommendation(tmp_path):
     assert any("optimum" in option for option in options)
     assert result["batches"] == 1 + 6
     assert result["caption"]
+
+
+def test_the_availability_screen_weighs_downtimes_worked_by_hand():
+    # PM takes 2 h and a repair 5 h: the age-replacement optimum for a
+    # Weibull(2, 100) life with cp=2, cf=5, computed independently from the
+    # closed form integral of R (erf), is close to 72.4 h.
+    import math
+    rbd = build.build_from_spec(SPEC)
+    entry = screen(rbd, objective="availability")[0]
+    assert (entry.cp, entry.cf) == (2.0, 5.0)
+
+    def rate(t: float) -> float:
+        r = math.exp(-(t / 100) ** 2)
+        return (2 * r + 5 * (1 - r)) / (50 * math.sqrt(math.pi)
+                                        * math.erf(t / 100))
+    hand = min(range(1000, 30000), key=lambda t: rate(t / 100)) / 100
+    assert abs(entry.interval - hand) < 0.05
+
+
+def test_the_cost_screen_multiplies_hourly_rates_by_durations():
+    rbd = build.build_from_spec(SPEC)
+    entry = screen(rbd, objective="cost")[0]
+    # pm_fixed 10 + pm_cost 1/h x 2 h; a failure is rep_fixed 100 +
+    # the default 1/h repair rate x 5 h + the default 1 per spare.
+    assert (entry.cp, entry.cf) == (12.0, 106.0)
+    assert entry.worthwhile is True
+
+
+def test_a_pm_as_long_as_a_repair_is_run_to_failure():
+    spec = {**SPEC, "blocks": [dict(SPEC["blocks"][0],
+                                    pm_params=[5, 0, 0])]}
+    entry = screen(build.build_from_spec(spec), objective="availability")[0]
+    assert entry.worthwhile is False and entry.interval is None

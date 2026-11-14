@@ -45,3 +45,13 @@ def test_sizes_are_paired_and_a_recommendation_is_made(tmp_path):
     assert rec["curve"]
     assert result["batches"] == 1 + len(result["rows"])
     assert result["caption"]
+
+
+def test_planned_maintenance_adds_to_the_offered_load():
+    blocks = [dict(SPEC["blocks"][0], uses_pm=1, pm_freq=100.0,
+                   pm_dist="Fixed", pm_params=[2, 0, 0], res1_pm_rep=1),
+              SPEC["blocks"][1]]
+    (spec,) = resources_from_model(build.build_from_spec(
+        {**SPEC, "blocks": blocks}))
+    # repairs as before, plus one 2 h PM every 100 h on the pump
+    assert abs(spec.offered_load - (2 * (1 / 60) * 5 + 2 / 100)) < 1e-12

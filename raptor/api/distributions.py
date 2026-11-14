@@ -111,7 +111,7 @@ _SCALE_SLOTS: dict[int, tuple[int, ...]] = {
     12: (2,),         # Pearson 6: scale
     13: (0,),         # Poisson: mean
     14: (0, 1, 2),    # Triangular: lower, mode, upper
-    15: (1,),         # Weibull: scale
+    15: (1, 2),       # Weibull: scale and location
     19: (0,),         # Fixed: value
     21: (0, 1),       # Extreme value: scale and location
     22: (0, 1),       # Laplace: scale and location

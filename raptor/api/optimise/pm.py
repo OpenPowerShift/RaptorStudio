@@ -87,72 +87,84 @@ def weibull_optimum(shape: float, scale: float, cp: float,
     return (low + upper) / 2
 
 
-def _costs(row: dict[str, Any]) -> tuple[float, float]:
-    try:
-        cp = (float(row.get("pmFixedCost", 0) or 0)
-              + float(row.get("pmCost", 0) or 0))
-    except (TypeError, ValueError):
-        cp = 0.0
-    try:
-        cf = (float(row.get("repFixedCost", 0) or 0)
-              + float(row.get("repPerTime", 0) or 0)
-              + float(row.get("perSpare", 0) or 0))
-    except (TypeError, ValueError):
-        cf = 0.0
-    return max(cp, 1.0), max(cf, 1.0)
+def _ratio_inputs(ctx: Any, b: dict[str, Any], objective: str
+                  ) -> tuple[float, float]:
+    """(cost of a planned renewal, cost of a failure) for the screen.
+
+    For `availability` both are hours of downtime: the mean PM duration
+    against the mean repair plus logistics delay.  For `cost` they are
+    money: the fixed charge plus the hourly rate times the mean duration,
+    and a spare per failure.  The per-hour rates are rates, so they are
+    multiplied by a duration before being added to a fixed charge.
+    """
+    pm_time = ctx.mean_pm(b) or 0.0
+    repair_time = (ctx.mean_repair(b) or 0.0) + ctx.mean_ldt(b)
+    if objective == "availability":
+        return max(pm_time, 1e-9), max(repair_time, 1e-9)
+
+    def money(key: str) -> float:
+        try:
+            return float(b.get(key) or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+    cp = money("pm_fixed_cost") + money("pm_cost") * pm_time
+    cf = (money("rep_fixed_cost") + money("rep_per_time_cost") * repair_time
+          + money("per_spare_cost"))
+    return cp, cf
 
 
-def screen(rbd: Any, blocks: Sequence[str] | None = None) -> list[PmAdvice]:
-    """Analytic advice per block: worthwhile, first interval, and why."""
-    from raptor.core.engine.diststats import compute_stats
+def screen(rbd: Any, blocks: Sequence[str] | None = None,
+           objective: str = "availability") -> list[PmAdvice]:
+    """Analytic advice per block: worthwhile, first interval, and why.
 
+    The ratio that decides the optimum is downtime per PM against
+    downtime per failure for `availability`, money for `cost`.  A block
+    whose failure costs no more than its PM has no interior optimum.
+    """
+    from raptor.api.advisor.context import ModelContext
+
+    ctx = ModelContext(rbd)
     wanted = set(blocks or ())
     out: list[PmAdvice] = []
-    for row in rbd.section("BLOCK_DATA").rows:
-        if str(row.get("ID", "0")) == "0":
-            continue
-        name = str(row.get("blockName") or row.get("ID"))
+    for b in ctx.blocks:
+        name = str(b.get("name") or b.get("id"))
+        block_id = str(b.get("id"))
         if wanted and name not in wanted:
             continue
-        try:
-            code = int(float(row.get("FDist", 18) or 18))
-        except (TypeError, ValueError):
-            code = 18
-        cp, cf = _costs(row)
-        shape = scale = None
-        if code == 15:
-            try:
-                shape = float(row.get("FParam1", 0) or 0)
-                scale = float(row.get("FParam2", 0) or 0)
-            except (TypeError, ValueError):
-                shape = scale = None
-        stats = compute_stats(code, [
-            float(row.get("FParam1", 0) or 0),
-            float(row.get("FParam2", 0) or 0),
-            float(row.get("FParam3", 0) or 0)])
-        mean = float(stats[0]) if stats and isinstance(stats[0], (int, float)) \
-            else None
-        if code != 15 or shape is None or scale is None or scale <= 0:
+        cp, cf = _ratio_inputs(ctx, b, objective)
+        code = int(b.get("fail_dist") or 0)
+        params = [float(v or 0) for v in (b.get("fail_params") or [])]
+        mean = ctx.mean_life(b)
+        if code != 15 or len(params) < 2 or params[1] <= 0:
             out.append(PmAdvice(
-                name, str(row.get("ID")), shape, scale, None,
+                name, block_id, None, None, None,
                 mean if mean and mean > 0 else None,
                 "simulation only: the life law has no closed-form age-"
                 "replacement optimum here", cp, cf))
             continue
+        shape, scale = params[0], params[1]
+        location = params[2] if len(params) > 2 else 0.0
         if shape <= 1.0:
             out.append(PmAdvice(
-                name, str(row.get("ID")), shape, scale, False, None,
+                name, block_id, shape, scale, False, None,
                 "not worthwhile: constant or falling failure rate", cp, cf))
             continue
-        interval = weibull_optimum(shape, scale, cp, cf)
-        if interval is None:
+        if cp <= 0 and cf <= 0:
             out.append(PmAdvice(
-                name, str(row.get("ID")), shape, scale, False, None,
-                "run to failure: the cost rate has no interior minimum",
-                cp, cf))
+                name, block_id, shape, scale, None, None,
+                f"no {'durations' if objective == 'availability' else 'costs'}"
+                " to weigh: simulation only", cp, cf))
+            continue
+        interval = weibull_optimum(shape, scale, max(cp, 1e-9), cf)
+        if interval is None or cf <= cp:
+            out.append(PmAdvice(
+                name, block_id, shape, scale, False, None,
+                "run to failure: a failure costs no more than a PM, so the "
+                "cost rate has no interior minimum", cp, cf))
         else:
+            interval += max(location, 0.0)
             out.append(PmAdvice(
-                name, str(row.get("ID")), shape, scale, True, interval,
+                name, block_id, shape, scale, True, interval,
                 f"analytic optimum about {interval:.4g}", cp, cf))
     return out
 
@@ -178,7 +190,7 @@ def optimise_pm(  # noqa: C901, PLR0912
     if objective not in ("cost", "availability"):
         raise ValueError("objective must be 'cost' or 'availability'")
     rbd = workspace.get(model_id).rbd
-    advice = screen(rbd, blocks)
+    advice = screen(rbd, blocks, objective)
     metric = "grand_total" if objective == "cost" else "availability"
     variants = [{"label": "Base", "assignments": []}]
     plan: list[tuple[str, str, list[str]]] = []

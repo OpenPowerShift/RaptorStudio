@@ -76,3 +76,12 @@ def test_the_caption_says_when_several_scenarios_were_tried(tmp_path):
         ws, mid, [Scenario("One"), Scenario("Two")], trials=3, seed=1)
     assert "With several scenarios" in comparison.caption
     assert comparison.to_dict()["trials"] == 3
+
+
+def test_a_fall_in_time_down_is_counted_as_better():
+    from raptor.api.scenarios.runner import _paired
+    base = [10.0, 12.0, 11.0, 9.0]
+    shorter = [8.0, 10.5, 9.0, 8.0]
+    _stat, p_up = _paired(base, shorter)
+    _stat, p_better = _paired(base, shorter, lower_better=True)
+    assert p_up < 0.05 and p_better > 0.95

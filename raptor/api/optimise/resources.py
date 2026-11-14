@@ -3,8 +3,8 @@
 Each candidate size is simulated with Base's seed and compared by paired
 trials.  The analytic seed is the offered load: failures per unit time times
 the mean time each repair holds the resource, rounded up.  A size meets the
-target only when its lower confidence bound does; otherwise the knee of the
-downtime-against-size curve is reported.
+target only when its pessimistic confidence bound does (lower for
+availability, upper for MDT); otherwise the best measured size is reported.
 """
 from __future__ import annotations
 
@@ -26,52 +26,53 @@ class ResourceSpec:
 
 def resources_from_model(rbd: Any, names: Sequence[str] | None = None
                          ) -> list[ResourceSpec]:
-    from raptor.core.engine.diststats import compute_stats
+    """Each resource with its offered load (Erlangs of work).
 
+    Load = sum over the blocks that use it of failure rate (duty applied) x
+    mean repair x units needed, plus PM frequency x mean PM duration x units
+    needed for PM when the block has planned maintenance.
+    """
+    from raptor.api.advisor.context import ModelContext, on
+
+    ctx = ModelContext(rbd)
     wanted = set(names or ())
+    members = ctx.resource_members
     out: list[ResourceSpec] = []
-    for row in rbd.section("RESOURCE_DATA").rows:
-        name = str(row.get("PoolName") or row.get("resourceName")
-                   or row.get("ResourceName") or "")
+    for row in ctx.resources:
+        name = str(row.get("name") or "")
         if not name or name.lower() == "none":
             continue
         if wanted and name not in wanted:
             continue
         try:
-            units = int(float(row.get("NumIn") or row.get("numIn") or 1))
+            units = int(float(row.get("num_in") or 1))
         except (TypeError, ValueError):
             units = 1
         load = 0.0
-        for block in rbd.section("BLOCK_DATA").rows:
-            if str(block.get("ID", "0")) == "0":
-                continue
-            if str(block.get("Resource1Name") or "").strip() != name:
-                continue
-            failures = _mean(block, "F", compute_stats)
-            repair = _mean(block, "R", compute_stats)
-            if failures and repair:
-                try:
-                    needed = int(float(block.get("#Res1Rep", 1) or 1))
-                except (TypeError, ValueError):
-                    needed = 1
-                load += (1.0 / failures) * repair * needed
+        for b in members.get(name, []):
+            rate = ctx.failure_rate(b) or 0.0
+            repair = ctx.mean_repair(b) or 0.0
+            load += rate * repair * _int(b.get("repair_resources_needed"), 1)
+            freq = _float(b.get("pm_freq"))
+            if on(b.get("uses_pm")) and freq > 0:
+                load += ((ctx.mean_pm(b) or 0.0) / freq
+                         * _int(b.get("pm_resources_needed"), 1))
         out.append(ResourceSpec(name, units, load))
     return out
 
 
-def _mean(row: dict[str, Any], prefix: str, compute_stats: Any
-          ) -> float | None:
+def _int(value: Any, default: int) -> int:
     try:
-        code = int(float(row.get(f"{prefix}Dist", 18) or 18))
-        count = int(float(row.get(f"#{prefix}Param", 2) or 2))
-        params = [float(row.get(f"{prefix}Param{i + 1}", 0) or 0)
-                  for i in range(min(3, max(1, count)))]
+        return int(float(value))
     except (TypeError, ValueError):
-        return None
-    stats = compute_stats(code, params)
-    if stats and isinstance(stats[0], (int, float)) and stats[0] > 0:
-        return float(stats[0])
-    return None
+        return default
+
+
+def _float(value: Any) -> float:
+    try:
+        return float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def optimise_resources(  # noqa: C901, PLR0912
@@ -145,15 +146,17 @@ def optimise_resources(  # noqa: C901, PLR0912
                  and row["mean"] is not None]
         if not group:
             continue
+        sign = -1 if metric == "mdt" else 1
         meeting = [row for row in group
                    if row["lower"] is not None and target is not None
-                   and row["lower"] >= target]
+                   and (row["lower"] >= target if sign > 0
+                        else 2 * row["mean"] - row["lower"] <= target)]
         if meeting:
             best = min(meeting, key=lambda row: row["units"])
             why = "smallest size whose lower bound meets the target"
         else:
             gains = sorted(group, key=lambda row: row["units"])
-            best = max(gains, key=lambda row: (row["mean"] or 0))
+            best = max(gains, key=lambda row: sign * (row["mean"] or 0))
             why = ("no size met the target; the best measured size is "
                    "shown")
         recommendations.append({"resource": spec.name,

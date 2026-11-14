@@ -69,3 +69,42 @@ def test_curve_mode_returns_the_points_it_paid_for(tmp_path):
     assert result["recommended"] is not None
     assert result["evaluations"] <= 6
     assert result["costs_default"] is True
+
+
+def test_the_lead_time_follows_the_pool_resupply_rule():
+    from raptor.api.optimise.spares import lead_time
+    assert lead_time({"slo": 1, "slo_time": 48, "eso": 1, "emer_time": 5},
+                     1000) == (48.0, "stock-level order")
+    assert lead_time({"eso": "1", "emer_time": 5}, 1000)[0] == 5.0
+    assert lead_time({"rso": 1, "arrive_every": 200}, 1000)[0] == 200.0
+    assert lead_time({}, 1000) == (1000, "no resupply: the whole run")
+
+
+def test_the_seed_demand_is_the_sum_of_member_failure_rates():
+    from raptor.api.optimise.spares import pools_from_model
+    spec = {**SPEC, "blocks": [
+        dict(SPEC["blocks"][0], name="P1"),
+        dict(SPEC["blocks"][0], name="P2", fail_params=[50, 0, 0])],
+        "links": [{"from": "Start", "to": "P1"}, {"from": "P1", "to": "P2"},
+                  {"from": "P2", "to": "End"}]}
+    (pool,) = pools_from_model(build.build_from_spec(spec))
+    assert pool.demand == pytest.approx(1 / 100 + 1 / 50)
+    assert pool.lead_time == 200.0
+
+
+def test_mdt_is_met_by_the_upper_bound_not_the_lower():
+    from raptor.api.optimise.spares import _meets
+    point = {"mean": 10.0, "lower": 8.0, "upper": 12.0}
+    assert _meets(point, 13.0, "mdt") is True
+    assert _meets(point, 11.0, "mdt") is False
+    assert _meets(point, 9.0, "availability") is False
+    assert _meets(point, 7.0, "availability") is True
+
+
+def test_an_unmet_target_is_not_captioned_as_a_recommendation(tmp_path):
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(SPEC), name="m")["model_id"]
+    result = optimise_spares(ws, mid, mode="meet", target=1.5,
+                             max_evaluations=3, trials=4, seed=2)
+    assert result["target_met"] is False
+    assert result["caption"].startswith("No evaluated stock met the target")

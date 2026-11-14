@@ -5,9 +5,10 @@ demand rate comes from the blocks drawing on it, its lead time from the
 ordering settings, and EBO(s) is the expected number of units short with
 `s` on the shelf.  Greedy marginal analysis turns that into a path of
 one-unit increments, cheapest expected backorder reduction first.  The path
-is then simulated with common random numbers: each point is paired against
-Base, and a point counts as meeting the target only when the lower 95 %
-confidence bound does.
+is then simulated, every point with the same seed, and a point counts as
+meeting the target only when its pessimistic 95 % confidence bound does
+(the lower bound for availability or reliability, the upper one for MDT).
+The lead time comes from the pool's own resupply rule; see `lead_time`.
 """
 from __future__ import annotations
 
@@ -58,54 +59,60 @@ def poisson_ebo(demand_over_lead: float, stock: int) -> float:
     return ebo
 
 
+def lead_time(pool: dict[str, Any], mission: float | None) -> tuple[float, str]:
+    """How long a used spare takes to come back, and which rule set it.
+
+    Stock-level ordering and emergency orders replace a used spare after
+    their own delay; routine ordering refills every `arrive_every`; a pool
+    with no resupply loses each spare for the rest of the run, so its
+    "lead time" is the run length.
+    """
+    from raptor.api.advisor.context import on
+
+    def num(key: str) -> float:
+        try:
+            return float(pool.get(key) or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+    if on(pool.get("slo")) and num("slo_time") > 0:
+        return num("slo_time"), "stock-level order"
+    if on(pool.get("eso")) and num("emer_time") > 0:
+        return num("emer_time"), "emergency order"
+    if on(pool.get("rso")) and num("arrive_every") > 0:
+        return num("arrive_every"), "routine restock interval"
+    return (mission or 8760.0), "no resupply: the whole run"
+
+
 def pools_from_model(rbd: Any, names: Sequence[str] | None = None
                      ) -> list[PoolSpec]:
-    """Finite pools with their demand and lead time, or the named ones."""
-    rows = rbd.section("SPARE_POOL_DATA").rows
+    """Finite pools with their demand and lead time, or the named ones.
+
+    Demand is the summed failure rate (duty cycle applied) of the blocks
+    that draw on the pool.
+    """
+    from raptor.api.advisor.context import ModelContext
+
+    ctx = ModelContext(rbd)
     wanted = set(names or ())
+    members = ctx.pool_members
     out: list[PoolSpec] = []
-    for row in rows:
-        name = str(row.get("PoolName") or "")
+    for pool in ctx.pools:
+        name = str(pool.get("name") or "")
         if not name or (wanted and name not in wanted):
             continue
-        try:
-            stock = int(float(row.get("Stock", 0) or 0))
-            cost = float(row.get("SpCost", 1) or 1)
-            lead = float(row.get("ArriveEvery", 0) or 0)
-        except (TypeError, ValueError):
-            continue
-        demand = _demand(rbd, name)
+        demand = sum(ctx.failure_rate(b) or 0.0
+                     for b in members.get(name, []))
         if demand <= 0:
             continue
-        out.append(PoolSpec(name, stock, cost if cost > 0 else 1.0,
-                            demand, lead or 720.0))
-    return out
-
-
-def _demand(rbd: Any, pool: str) -> float:
-    from raptor.api.distributions import dist_name  # noqa: F401 - documents codes
-    from raptor.core.engine.diststats import compute_stats
-
-    rate = 0.0
-    for row in rbd.section("BLOCK_DATA").rows:
-        if str(row.get("ID", "0")) == "0":
-            continue
-        if str(row.get("SparePoolName") or "") != pool:
-            continue
         try:
-            code = int(float(row.get("FDist", 18) or 18))
-            count = int(float(row.get("#FParam", 2) or 2))
-            params = [float(row.get(f"FParam{i + 1}", 0) or 0)
-                      for i in range(min(3, max(1, count)))]
+            stock = int(float(pool.get("stock") or 0))
+            cost = float(pool.get("spare_cost") or 1)
         except (TypeError, ValueError):
             continue
-        stats = compute_stats(code, params)
-        if not stats or not isinstance(stats[0], (int, float)):
-            continue
-        mean = float(stats[0])
-        if mean > 0:
-            rate += 1.0 / mean
-    return rate
+        lead, _rule = lead_time(pool, ctx.run_length)
+        out.append(PoolSpec(name, stock, cost if cost > 0 else 1.0,
+                            demand, lead))
+    return out
 
 
 def analytic_path(pools: Sequence[PoolSpec],
@@ -147,6 +154,7 @@ def _assignments(stocks: dict[str, int], pools: Sequence[PoolSpec]) -> list[str]
 
 def _stat(rows: list[dict], metric: str, confidence: float
           ) -> tuple[float | None, float | None, float | None]:
+    """Mean, standard error and the lower confidence bound."""
     values = [float(row[metric]) for row in rows
               if isinstance(row.get(metric), (int, float))
               and not isinstance(row.get(metric), bool)]
@@ -203,10 +211,17 @@ def optimise_spares(  # noqa: C901, PLR0912
         mode=mode, target=target, metric=metric, max_evaluations=max_evaluations,
         trials=trials, seed=seed, workers=workers, confidence=confidence,
         timeout_s=timeout_s, progress=progress, abort=abort)
+    sign = _better(metric)
+    met = recommended is not None
     if mode == "curve" and points:
-        recommended = max(points, key=lambda point: point["mean"] or 0)
+        recommended = max(points,
+                          key=lambda point: sign * (point["mean"] or 0))
     elif recommended is None and points:
-        recommended = max(points, key=lambda point: point["lower"] or 0)
+        # Nothing met the target: report the best evaluated point, and say
+        # so in the caption, rather than present it as meeting the target.
+        recommended = max(
+            points, key=lambda point: sign * (
+                (point["lower"] if sign > 0 else point["upper"]) or 0))
     costs_default = all(abs(pool.cost - 1.0) < 1e-12 for pool in selected)
     return {
         "mode": mode, "metric": metric, "target": target,
@@ -221,7 +236,10 @@ def optimise_spares(  # noqa: C901, PLR0912
         "evaluations": evaluations,
         "max_evaluations": max_evaluations,
         "costs_default": costs_default,
-        "caption": _caption(recommended, target, metric, costs_default),
+        "target_met": met if mode == "meet" else None,
+        "lead_times": _lead_rules(workspace, model_id, selected),
+        "caption": _caption(recommended, target, metric, costs_default,
+                            met or mode == "curve"),
         "note": ("A point meets the target only when its lower confidence "
                  "bound does; the analytic path is a seed, not a result."),
         "batches": evaluations,
@@ -238,8 +256,11 @@ def _measure(workspace: Any, model_id: str, stocks: dict[str, int],
                      seed=seed, workers=workers, timeout_s=timeout_s,
                      abort=abort)
     mean, sem, lower = _stat(rows, metric, confidence)
+    upper = (None if mean is None or lower is None
+             else mean + (mean - lower))
     return {"stocks": dict(stocks), "cost": _cost(stocks, selected),
-            "mean": mean, "sem": sem, "lower": lower}
+            "mean": mean, "sem": sem, "lower": lower, "upper": upper,
+            "metric": metric}
 
 
 def _walk(  # noqa: C901, PLR0912
@@ -273,8 +294,7 @@ def _walk(  # noqa: C901, PLR0912
         evaluations += 1
         if point is None:
             continue
-        point["meets"] = (point["lower"] is not None and target is not None
-                          and point["lower"] >= target)
+        point["meets"] = _meets(point, target, metric)
         points.append(point)
         if progress:
             progress(evaluations, max_evaluations,
@@ -301,11 +321,27 @@ def _walk(  # noqa: C901, PLR0912
     return points, evaluations, recommended
 
 
+def _better(metric: str) -> int:
+    """+1 when a larger value is better, -1 for a time such as MDT."""
+    return -1 if metric == "mdt" else 1
+
+
+def _meets(point: dict[str, Any], target: float | None, metric: str) -> bool:
+    """The pessimistic bound meets the target in the metric's direction."""
+    if target is None or point.get("mean") is None:
+        return False
+    if _better(metric) > 0:
+        return point["lower"] is not None and point["lower"] >= target
+    upper = point.get("upper")
+    return upper is not None and upper <= target
+
+
 def _gains(points: list[dict[str, Any]]) -> list[float | None] | None:
     """Paired-ish gains between consecutive points, or None if too short."""
     if len(points) < 2:
         return None
-    return [(points[i]["mean"] or 0) - (points[i - 1]["mean"] or 0)
+    sign = _better(points[0].get("metric", "availability"))
+    return [sign * ((points[i]["mean"] or 0) - (points[i - 1]["mean"] or 0))
             for i in range(1, len(points))]
 
 
@@ -332,14 +368,30 @@ def _evaluate(workspace: Any, model_id: str,
         return []
 
 
+def _lead_rules(workspace: Any, model_id: str,
+                selected: Sequence[PoolSpec]) -> dict[str, str]:
+    """Which resupply rule set each selected pool's lead time."""
+    from raptor.api.advisor.context import ModelContext
+    ctx = ModelContext(workspace.get(model_id).rbd)
+    names = {pool.name for pool in selected}
+    return {str(row.get("name")): lead_time(row, ctx.run_length)[1]
+            for row in ctx.pools if str(row.get("name")) in names}
+
+
 def _caption(recommended: dict[str, Any] | None, target: float | None,
-             metric: str, costs_default: bool) -> str:
+             metric: str, costs_default: bool, met: bool = True) -> str:
     if recommended is None:
         return "No point was evaluated."
     stocks = ", ".join(f"{name} {stock}"
                        for name, stock in recommended["stocks"].items())
-    text = (f"Recommended: {stocks} — {metric} "
-            f"{recommended['mean']:.5g} (lower bound {recommended['lower']:.5g})")
+    bound_name, bound = (("lower bound", recommended["lower"])
+                         if _better(metric) > 0
+                         else ("upper bound", recommended.get("upper")))
+    lead = "Recommended" if met else (
+        "No evaluated stock met the target; the best was")
+    text = (f"{lead}: {stocks} — {metric} "
+            f"{recommended['mean']:.5g} ({bound_name} "
+            f"{bound if bound is None else format(bound, '.5g')})")
     if target is not None:
         text += f" against a target of {target:.5g}"
     if costs_default:

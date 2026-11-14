@@ -40,6 +40,8 @@ UNITS = {"mtbde": "time", "mdt": "time", "lost_flow": "flow",
          "grand_total": "cost"}
 FRACTIONS = {"availability", "reliability",
              "capacity_weighted_availability"}
+#: Metrics where a smaller value is the better one.
+LOWER_IS_BETTER = frozenset({"mdt", "lost_flow", "grand_total"})
 
 
 @dataclass(frozen=True)
@@ -94,8 +96,13 @@ def _stat(values: list[float]) -> dict[str, Any]:
     return {"mean": mean, "sem": sem, "n": n}
 
 
-def _paired(base: list[float], other: list[float]
+def _paired(base: list[float], other: list[float], lower_better: bool = False
             ) -> tuple[dict[str, Any], float | None]:
+    """Mean paired difference (other - base) and the chance it is better.
+
+    "Better" is an increase, or a decrease for a metric in
+    `LOWER_IS_BETTER` such as time down or cost.
+    """
     n = min(len(base), len(other))
     if n < 2:
         return _stat([]), None
@@ -104,9 +111,10 @@ def _paired(base: list[float], other: list[float]
     mean, sem = stat["mean"], stat["sem"]
     if mean is None:
         return stat, None
+    gain = -mean if lower_better else mean
     if not sem:
-        return stat, 1.0 if mean > 0 else 0.0 if mean < 0 else 0.5
-    p_better = 0.5 * (1.0 + math.erf(mean / (sem * math.sqrt(2.0))))
+        return stat, 1.0 if gain > 0 else 0.0 if gain < 0 else 0.5
+    p_better = 0.5 * (1.0 + math.erf(gain / (sem * math.sqrt(2.0))))
     return stat, p_better
 
 
@@ -211,7 +219,8 @@ def compare(
             for key in METRICS:
                 base_values = _values(base_data, key)
                 other_values = _values(other, key)
-                delta, p_better = _paired(base_values, other_values)
+                delta, p_better = _paired(base_values, other_values,
+                                          key in LOWER_IS_BETTER)
                 entry["metrics"][key] = {
                     "label": LABELS.get(key, key),
                     "units": UNITS.get(key, ""),
@@ -223,9 +232,12 @@ def compare(
                     "paired": len(base_values) == len(other_values)
                               and bool(base_values),
                 }
-            variance = {key: _variance_reduction(_values(base_data, key),
-                                                 _values(other, key))
-                        for key in METRICS}
+            entry["variance_reduction"] = {
+                key: _variance_reduction(_values(base_data, key),
+                                         _values(other, key))
+                for key in METRICS}
+            if not variance:
+                variance = entry["variance_reduction"]
         rows.append(entry)
     comparison = Comparison(
         trials=int(trials or len(base_data)), seed=seed,
