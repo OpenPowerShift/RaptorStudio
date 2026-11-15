@@ -580,14 +580,10 @@ class OverlayMixin(_Base):
 
     def _node_flow(self) -> dict[int, float]:
         """Each capacity node's average flow over the runs."""
-        caps = [d.capacity for d in (self._results._report_data or [])
-                if d.capacity is not None]
-        flow: dict[int, float] = {}
-        for nid in {nid for cap in caps for nid in cap.nodes}:
-            values = [cap.nodes[nid].ave_flow for cap in caps if nid in cap.nodes]
-            if values:
-                flow[nid] = sum(values) / len(values)
-        return flow
+        from raptor.api.results import node_flows
+        stored = node_flows(list(self._results._report_data or [])) or {}
+        return {int(nid): float(row["ave_flow"])
+                for nid, row in (stored.get("nodes") or {}).items()}
 
     def _share_layer_toggled(self, on: bool, layer: str) -> None:
         from raptor.api.insight.attribution import CAUSE_LABELS

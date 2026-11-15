@@ -898,7 +898,9 @@ you need the exact argument shape.
   `highlight`/`include_annotations` options as `render_diagram`. Available
   even when `--no-render` hides the PNG tool, and useful when SVG text is
   easier to inspect than an image. Fonts are not measured, so long names
-  are shortened (the full name is in each element's `<title>`).
+  are shortened (the full name is in each element's `<title>`). With
+  `layer` and the `run_id` of a run made with attribution it draws the
+  share-of-downtime or lost-capacity layer, with a legend.
 
 | `auto_layout`
 | Re-arrange the diagram onto the shared layered grid and save the

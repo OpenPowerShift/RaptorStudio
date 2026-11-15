@@ -1099,6 +1099,12 @@ average flow through that node (relative to the busiest; links into
 anything else are drawn thin). Flow is recorded per node, not per
 link, so every link into one node has that node&#8217;s width. Needs
 Capacity analysis and the event log.</p>
+<div class="paragraph">
+<p>Both layers can be drawn without the application, as an SVG with a legend:
+<code>raptor render MODEL -o layer.svg --layer downtime-share</code> (or
+<code>lost-capacity</code>) runs the model with attribution and draws it, and the MCP
+tool <code>render_diagram_svg</code> takes <code>layer</code> with a run&#8217;s <code>run_id</code>.</p>
+</div>
 </li>
 <li>
 <p><strong>Weak Links</strong> — paints every block, node, event and hierarchy by
@@ -1367,12 +1373,15 @@ with the same seed (paired trials):</p>
 </ul>
 </div>
 <div class="paragraph">
-<p>Each row shows the change, a verdict, the paired availability gain
-(± its standard error, and the chance it is really better), the downtime
-saved per run and the cost. <strong>Worth doing</strong> needs at least a 95 % chance of
-higher availability. A spare or crew shows the unit cost stored in the
-model; a change the model has no price for says so instead of showing
-zero. Hover a row for the exact <code>PATH=VALUE</code> change and why it was tried.</p>
+<p>Each row shows the change, its measured effect, the paired availability
+gain (± its standard error, and the chance it is really better), the
+downtime saved per run and the cost. <strong>Clearly helps</strong> means the gain is
+real (95 % confidence shared across the changes tested together) and
+material (it removes at least 5 % of the downtime); <strong>helps a little</strong> is
+real but smaller. The verdict never weighs cost: a spare or crew shows the
+unit cost stored in the model, and a change the model has no price for
+says so instead of showing zero, so weigh each gain against its cost
+yourself. Hover a row for the exact <code>PATH=VALUE</code> change and why it was tried.</p>
 </div>
 <div class="paragraph">
 <p><strong>Apply</strong> writes the selected change into the model as one undo step

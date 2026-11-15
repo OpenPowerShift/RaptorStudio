@@ -1171,6 +1171,7 @@ async def recommend_changes(
     seed: int = 1,
     workers: int | None = None,
     timeout_s: float = 1800.0,
+    min_gain: float | None = None,
     ctx: Context | None = None,
 ) -> CallToolResult:
     """Propose and test one change for each top downtime driver.
@@ -1185,9 +1186,14 @@ async def recommend_changes(
     `update_element`/`manage_spare_pools`/`manage_resources`, or `raptor
     set`), the paired availability gain with its standard error and chance
     of being better, the downtime avoided per run, the unit cost the model
-    holds (null when it holds none) and a verdict ("worth doing" = at least
-    95 % confidence of a gain). The open model is never modified. Long runs
-    report progress and can be cancelled.
+    holds (null when it holds none), what is left to weigh, and a verdict of
+    what was MEASURED: "clearly helps" (a real gain, at a confidence shared
+    across all the changes tested, that removes at least 5 % of Base's
+    downtime or `min_gain` availability, a fraction), "helps a little" (real
+    but smaller), "may help; run more trials", "no measurable gain" or
+    "makes it worse". No verdict weighs cost: never present one as advice to
+    spend money. `bars` gives the confidence and minimum gain used. The open
+    model is never modified. Long runs report progress and can be cancelled.
     """
     ws = context.workspace()
     cap = context.max_runs()
@@ -1197,12 +1203,14 @@ async def recommend_changes(
             "raise the cap")
     if not 1 <= top <= 20:
         raise ValueError("top must be between 1 and 20")
+    if min_gain is not None and not 0 <= min_gain <= 1:
+        raise ValueError("min_gain is an availability fraction, 0 to 1 (0.001 = 0.1 points)")
     from raptor.api.scenarios.recommend import recommend, text_lines
 
     def work(abort, progress):
         return recommend(
             ws, model_id, run_id=run_id, top=top, trials=trials, seed=seed,
-            workers=max(1, workers or 1), timeout_s=timeout_s,
+            workers=max(1, workers or 1), timeout_s=timeout_s, min_gain=min_gain,
             progress=lambda done, total, label: progress(done, total, label),
             abort=abort)
 

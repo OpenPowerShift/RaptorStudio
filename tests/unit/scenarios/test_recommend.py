@@ -93,7 +93,12 @@ def test_recommend_finds_the_repair_and_proves_it_on_paired_runs(tmp_path):
     assert seen and seen[0] == "Finding the downtime drivers"
     best = result.rows[0]
     assert best["name"] == "Pump: halve the repair time"
-    assert best["verdict"] == "worth doing"
+    assert best["verdict"] == "clearly helps"
+    # the bar is shared across the changes tested together (Bonferroni)
+    assert result.bars["confidence"] == pytest.approx(1 - 0.05 / result.bars["tested"])
+    assert best["gain"]["p_better"] >= result.bars["confidence"]
+    assert best["gain"]["availability"] >= result.bars["min_gain"] > 0
+    assert "Not priced" in best["weigh"]
     assert best["gain"]["availability"] > 0 and best["gain"]["p_better"] >= 0.95
     assert best["gain"]["downtime_avoided"] > 0
     assert best["gain"]["low"] < best["gain"]["availability"] < best["gain"]["high"]
@@ -105,7 +110,7 @@ def test_recommend_finds_the_repair_and_proves_it_on_paired_runs(tmp_path):
                       sort_keys=True) == before
     text = "\n".join(text_lines(result))
     assert "change: block:Pump.repair_params=10,0" in text
-    assert "[worth doing]" in text
+    assert "[clearly helps]" in text and "No verdict weighs cost" in text
     assert result.to_dict()["schema"] == "raptor-recommend/1"
 
 
@@ -154,3 +159,12 @@ def test_cli_recommend_json(tmp_path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert code == 0 and out["schema"] == "raptor-recommend/1"
     assert ["block:Pump.repair_params=10,0"] in [row["changes"] for row in out["rows"]]
+
+
+def test_a_real_but_small_gain_only_helps_a_little(tmp_path):
+    ws, mid = _workspace(tmp_path)
+    result = recommend(ws, mid, top=1, trials=40, seed=2, min_gain=0.5)
+    best = next(row for row in result.rows if row["name"] == "Pump: halve the repair time")
+    assert best["verdict"] == "helps a little"
+    assert result.caption.startswith("No change removes")
+    assert "clearly helps" not in [row["verdict"] for row in result.rows]

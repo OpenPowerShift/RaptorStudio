@@ -31,6 +31,8 @@ def render_diagram_svg(
     theme: Literal["light", "dark"] = "light",
     include_annotations: bool = True,
     routing: Literal["straight", "angled", "orthogonal"] = "straight",
+    run_id: str | None = None,
+    layer: Literal["downtime-share", "lost-capacity"] | None = None,
 ) -> CallToolResult:
     """Draw one level of the diagram as SVG text, without Qt.
 
@@ -43,6 +45,16 @@ def render_diagram_svg(
     other elements). Blocks never move; an orthogonal link that cannot be
     routed quickly stays straight. It does not measure fonts (long names are shortened,
     the full name is in each element's `<title>`) or show state colours.
+
+    `layer` with `run_id` (a run made with `attribution=True`) draws the
+    run's result on the diagram, as the application's Show on canvas
+    layers do: 'downtime-share' fills each block and event by its share of
+    system downtime (red from 2/3 of the largest share, yellow from 1/3,
+    green below), prints the share under it, puts its main cause's letter in
+    the corner with a dashed ring when the runs disagree, and sums each
+    hierarchy's contents (Σ); 'lost-capacity' does the same for the share of
+    lost flow and draws each link into a capacity node as wide as that
+    node's mean flow. A legend under the drawing says how to read it.
 
     `level` is 0 for the top level or a **hierarchy id** (not a depth).
     `zoom_to` frames the named elements on that level, padded by `margin`
@@ -60,12 +72,21 @@ def render_diagram_svg(
     from raptor.api.run import model_hash as _model_hash
     from raptor.render.svg import render_svg
 
+    layer_data, flow = None, None
+    if layer is not None:
+        if not run_id:
+            raise ValueError("layer needs run_id: a run made with attribution=True")
+        from raptor.api.insight.canvas import run_layer
+        layer_data, flow = run_layer(ws, run_id, layer)
+    elif run_id:
+        raise ValueError("run_id is only used with layer='downtime-share' or "
+                         "'lost-capacity'")
     svg, meta = render_svg(handle.rbd, level=level, highlight=highlight or [],
                            zoom_to=zoom_to or [], margin=margin, theme=theme,
                            include_annotations=include_annotations,
-                           routing=routing)
+                           routing=routing, layer=layer_data, flow=flow)
     digest = hashlib.sha256(
-        f"svg|{_model_hash(handle.rbd)}|{level}|{theme}|{margin}|"
+        f"svg|{_model_hash(handle.rbd)}|{level}|{theme}|{margin}|{run_id}|{layer}|"
         f"{include_annotations}|{routing}|{','.join(sorted(highlight or []))}|"
         f"{','.join(sorted(zoom_to or []))}".encode()).hexdigest()[:12]
     render_dir = ws.root / "renders"
@@ -79,6 +100,9 @@ def render_diagram_svg(
     md = (f"SVG of **{handle.name}** level {level}: {meta['width']}×{meta['height']} "
           f"scene px, {meta['elements_in_view']} element(s) in view, "
           f"{meta['links_drawn']} link(s). File: `{path}`.")
+    if layer_data is not None:
+        md += (f" Layer: {layer_data['measure']} from run `{run_id}`, "
+               f"{meta['layer']['elements_marked']} element(s) marked on this level.")
     if inline:
         md += "\n\n```svg\n" + svg + "```"
     else:

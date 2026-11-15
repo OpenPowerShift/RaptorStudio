@@ -184,6 +184,24 @@ def capacity_values(rd: RunReportData) -> dict[str, float | None] | None:
     }
 
 
+def node_flows(report_data: list[RunReportData]) -> dict[str, Any] | None:
+    """Each capacity node's mean flow over the runs, or None without
+    capacity analysis: ``{generated, nodes: {id: {name, ave_flow}}}``.
+
+    Flow is recorded per capacity node, not per link; the diagram's
+    lost-capacity layer draws each link into a node at the node's flow."""
+    caps = [rd.capacity for rd in report_data if rd.capacity is not None]
+    if not caps:
+        return None
+    nodes: dict[str, dict[str, Any]] = {}
+    for nid in sorted({nid for cap in caps for nid in cap.nodes}):
+        values = [cap.nodes[nid].ave_flow for cap in caps if nid in cap.nodes]
+        name = next(cap.nodes[nid].name for cap in caps if nid in cap.nodes)
+        nodes[str(nid)] = {"name": name, "ave_flow": sum(values) / len(values)}
+    return {"generated": float(caps[0].flow_generated),
+            "system_node": caps[0].system_node_id, "nodes": nodes}
+
+
 #: Cost-analysis metrics, present only when the model runs cost analysis:
 #: ``(key in cost_values, aggregate name)``. The labels are the
 #: ``Cost_Summary``/``Grand_Total`` report rows, so a summary reads the

@@ -157,6 +157,7 @@ complete -c raptor -n '__fish_use_subcommand' -a recommend
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l format
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l help
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l jobs
+complete -c raptor -n '__fish_seen_subcommand_from recommend' -l min-gain
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l run
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l top
@@ -164,11 +165,14 @@ complete -c raptor -n '__fish_seen_subcommand_from recommend' -l trials
 complete -c raptor -n '__fish_use_subcommand' -a render
 complete -c raptor -n '__fish_seen_subcommand_from render' -l help
 complete -c raptor -n '__fish_seen_subcommand_from render' -l highlight
+complete -c raptor -n '__fish_seen_subcommand_from render' -l jobs
+complete -c raptor -n '__fish_seen_subcommand_from render' -l layer
 complete -c raptor -n '__fish_seen_subcommand_from render' -l level
 complete -c raptor -n '__fish_seen_subcommand_from render' -l max-px
 complete -c raptor -n '__fish_seen_subcommand_from render' -l no-annotations
 complete -c raptor -n '__fish_seen_subcommand_from render' -l output
 complete -c raptor -n '__fish_seen_subcommand_from render' -l theme
+complete -c raptor -n '__fish_seen_subcommand_from render' -l trials
 complete -c raptor -n '__fish_seen_subcommand_from render' -l zoom-to
 complete -c raptor -n '__fish_use_subcommand' -a report
 complete -c raptor -n '__fish_seen_subcommand_from report' -l format

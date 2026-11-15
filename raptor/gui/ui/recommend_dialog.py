@@ -14,21 +14,23 @@ from typing import Any
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QDialog, QHBoxLayout, QHeaderView, QLabel,
+    QAbstractItemView, QApplication, QDialog, QDoubleSpinBox, QHBoxLayout, QHeaderView, QLabel,
     QProgressBar, QPushButton, QSpinBox, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QWidget,
 )
 
 from raptor.gui import cores
 
-COLUMNS = ("Change", "Verdict", "Availability gain", "Downtime a run", "Cost")
+COLUMNS = ("Change", "Measured effect", "Availability gain", "Downtime a run", "Cost")
 
 
 class RecommendJob:
     """Runs `recommend` in a thread; the dialog polls it. Plain data only."""
 
-    def __init__(self, rbd: Any, *, top: int, trials: int, workers: int) -> None:
+    def __init__(self, rbd: Any, *, top: int, trials: int, workers: int,
+                 min_gain: float | None = None) -> None:
         self._rbd = rbd
+        self.min_gain = min_gain
         self.top, self.trials, self.workers = top, trials, workers
         self.result: Any = None
         self.error: str | None = None
@@ -60,7 +62,7 @@ class RecommendJob:
             mid = ws.register_model(self._rbd, name="recommend")["model_id"]
             self.result = recommend(
                 ws, mid, top=self.top, trials=self.trials, seed=1,
-                workers=self.workers, timeout_s=24 * 3600.0,
+                workers=self.workers, timeout_s=24 * 3600.0, min_gain=self.min_gain,
                 progress=self._progress, abort=self.abort)
         except Exception as exc:                          # noqa: BLE001
             self.error = (f"{type(exc).__name__}: {exc}"
@@ -126,23 +128,7 @@ class RecommendDialog(QDialog):
             "change against this model with paired runs. Runs on a copy: the "
             "model changes only when you press Apply.")
         intro.setWordWrap(True)
-        self._top = QSpinBox()
-        self._top.setRange(1, 20)
-        self._top.setValue(3)
-        self._top.setToolTip("How many of the largest downtime drivers get a change")
-        from raptor.gui.ui.batch_dialogs import _trials
-        self._trials = QSpinBox()
-        self._trials.setRange(2, 10_000_000)
-        self._trials.setGroupSeparatorShown(True)
-        self._trials.setValue(max(2, _trials(win._rbd)))
-        self._trials.setToolTip("Trials for Base and for every change (paired)")
-        inputs = QHBoxLayout()
-        inputs.addWidget(QLabel("Top drivers"))
-        inputs.addWidget(self._top)
-        inputs.addSpacing(16)
-        inputs.addWidget(QLabel("Trials"))
-        inputs.addWidget(self._trials)
-        inputs.addStretch(1)
+        inputs = self._build_inputs(win)
 
         self.table = self._build_table()
         self.caption = QLabel()
@@ -159,6 +145,39 @@ class RecommendDialog(QDialog):
         layout.addWidget(self.caption)
         layout.addWidget(self._progress)
         layout.addLayout(buttons)
+
+    def _build_inputs(self, win: Any) -> QHBoxLayout:
+        self._top = QSpinBox()
+        self._top.setRange(1, 20)
+        self._top.setValue(3)
+        self._top.setToolTip("How many of the largest downtime drivers get a change")
+        from raptor.gui.ui.batch_dialogs import _trials
+        self._trials = QSpinBox()
+        self._trials.setRange(2, 10_000_000)
+        self._trials.setGroupSeparatorShown(True)
+        self._trials.setValue(max(2, _trials(win._rbd)))
+        self._trials.setToolTip("Trials for Base and for every change (paired)")
+        self._min_gain = QDoubleSpinBox()
+        self._min_gain.setRange(0.0, 100.0)
+        self._min_gain.setDecimals(3)
+        self._min_gain.setSingleStep(0.05)
+        self._min_gain.setSuffix(" pts")
+        self._min_gain.setSpecialValueText("5 % of downtime")
+        self._min_gain.setToolTip(
+            "Smallest availability gain called 'clearly helps'. The default is "
+            "a change that removes 5 % of the model's downtime; a real gain "
+            "below it is 'helps a little'. No verdict weighs cost.")
+        inputs = QHBoxLayout()
+        inputs.addWidget(QLabel("Top drivers"))
+        inputs.addWidget(self._top)
+        inputs.addSpacing(16)
+        inputs.addWidget(QLabel("Trials"))
+        inputs.addWidget(self._trials)
+        inputs.addSpacing(16)
+        inputs.addWidget(QLabel("Material gain"))
+        inputs.addWidget(self._min_gain)
+        inputs.addStretch(1)
+        return inputs
 
     def _build_table(self) -> QTableWidget:
         table = QTableWidget(0, len(COLUMNS))
@@ -218,7 +237,9 @@ class RecommendDialog(QDialog):
             self._job.cleanup()
         self._applied.clear()
         self._job = RecommendJob(_model_copy(self._win), top=self._top.value(),
-                                 trials=self._trials.value(), workers=cores.chosen())
+                                 trials=self._trials.value(), workers=cores.chosen(),
+                                 min_gain=(self._min_gain.value() / 100
+                                           if self._min_gain.value() > 0 else None))
         self.table.setRowCount(0)
         self.caption.setText("Finding the downtime drivers…")
         self._progress.setRange(0, 0)
@@ -228,6 +249,7 @@ class RecommendDialog(QDialog):
         self._stop_btn.setEnabled(True)
         self._top.setEnabled(False)
         self._trials.setEnabled(False)
+        self._min_gain.setEnabled(False)
         self._sync_buttons()
         self._job.start()
         self._timer.start()
@@ -259,6 +281,7 @@ class RecommendDialog(QDialog):
         self._stop_btn.setEnabled(False)
         self._top.setEnabled(True)
         self._trials.setEnabled(True)
+        self._min_gain.setEnabled(True)
         if job.error or job.result is None:
             self._progress.setVisible(False)
             self.caption.setText(job.error or "Nothing ran.")
@@ -279,14 +302,14 @@ class RecommendDialog(QDialog):
             for column, text in enumerate(texts):
                 item = QTableWidgetItem(text)
                 item.setToolTip(f"{row['name']}\n{'; '.join(row['changes'])}\n\n"
-                                f"{row['why']}\n{row['cost']['note']}".strip())
-                if column == 1 and row["verdict"] == "worth doing":
+                                f"{row['why']}\n{row.get('weigh') or row['cost']['note']}".strip())
+                if column == 1 and row["verdict"] == "clearly helps":
                     font = item.font()
                     font.setBold(True)
                     item.setFont(font)
                 self.table.setItem(index, column, item)
         self.table.resizeRowsToContents()
-        self.caption.setText(result.caption)
+        self.caption.setText(f"{result.caption}\n{result.note}")
         if result.rows:
             self.table.selectRow(0)
 

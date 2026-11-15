@@ -67,6 +67,8 @@ def test_the_command_opens_one_window_that_tests_and_applies(win):
     assert dlg._run_btn.isEnabled() and not dlg._stop_btn.isEnabled()
     assert dlg.caption.text()
     assert "change: block:Pump.repair_params=10,0" in dlg.text()
+    assert "No verdict weighs cost" in dlg.caption.text()
+    assert dlg._job.min_gain is None          # the default bar
 
     before = float(_repair_param(win))
     dlg.table.selectRow(names.index("Pump: halve the repair time"))

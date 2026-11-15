@@ -51,7 +51,7 @@ def test_mcp_tool_is_registered(cap):
     pytest.importorskip("mcp")
     from raptor.mcp import (  # noqa: F401
         server, tools_advisor, tools_library, tools_model, tools_run,
-        tools_tables,
+        tools_svg, tools_tables,
     )
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     assert cap.mcp in names

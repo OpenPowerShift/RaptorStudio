@@ -689,6 +689,11 @@ Results-tab ribbon extras beyond the dock itself:
    anything else are drawn thin). Flow is recorded per node, not per
    link, so every link into one node has that node's width. Needs
    Capacity analysis and the event log.
++
+Both layers can be drawn without the application, as an SVG with a legend:
+`raptor render MODEL -o layer.svg --layer downtime-share` (or
+`lost-capacity`) runs the model with attribution and draws it, and the MCP
+tool `render_diagram_svg` takes `layer` with a run's `run_id`.
 ** **Weak Links** — paints every block, node, event and hierarchy by
    its availability, dependability or reliability against the model's
    Green/Yellow and Yellow/Red thresholds (needs Weak Link analysis on).
@@ -874,12 +879,15 @@ with the same seed (paired trials):
 * planned maintenance: the PM interval doubled;
 * the largest driver also gets a part that lasts twice as long.
 
-Each row shows the change, a verdict, the paired availability gain
-(± its standard error, and the chance it is really better), the downtime
-saved per run and the cost. *Worth doing* needs at least a 95 % chance of
-higher availability. A spare or crew shows the unit cost stored in the
-model; a change the model has no price for says so instead of showing
-zero. Hover a row for the exact `PATH=VALUE` change and why it was tried.
+Each row shows the change, its measured effect, the paired availability
+gain (± its standard error, and the chance it is really better), the
+downtime saved per run and the cost. *Clearly helps* means the gain is
+real (95 % confidence shared across the changes tested together) and
+material (it removes at least 5 % of the downtime); *helps a little* is
+real but smaller. The verdict never weighs cost: a spare or crew shows the
+unit cost stored in the model, and a change the model has no price for
+says so instead of showing zero, so weigh each gain against its cost
+yourself. Hover a row for the exact `PATH=VALUE` change and why it was tried.
 
 *Apply* writes the selected change into the model as one undo step
 (*Edit ▸ Undo* takes it back). The other rows were measured against the

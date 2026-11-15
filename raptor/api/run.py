@@ -646,6 +646,11 @@ def run(
     # The per-run figures and the time units travel with the run so its
     # result tables can be rebuilt later (`raptor.api.run_tables`).
     (runs_dir / "per_run.json").write_text(json.dumps(per_run))
+    from raptor.api.results import node_flows
+    flows = node_flows(report_data)
+    if flows is not None:
+        # per-node mean flow: the diagram's lost-capacity layer reads it
+        (runs_dir / "node_flow.json").write_text(json.dumps(flows))
     if attribution:
         from raptor.api.insight.attribution import attribute_logs, model_phases
         from raptor.core import run_experiment

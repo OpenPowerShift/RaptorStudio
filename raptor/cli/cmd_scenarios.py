@@ -73,7 +73,8 @@ def add_parser(sub: Any) -> None:
                     "spare, one more crew, ...), and test every change "
                     "against the open model with paired runs. Each result "
                     "states the change, the measured gain and the cost. The "
-                    "model file is never modified.")
+                    "verdict says what was measured, never whether a change is "
+                    "worth its price. The model file is never modified.")
     r.add_argument("model", metavar="MODEL")
     r.add_argument("--run", metavar="RUN_ID",
                    help="a stored run made with attribution to take the "
@@ -83,6 +84,9 @@ def add_parser(sub: Any) -> None:
                    help="how many top drivers get a change (default 3)")
     r.add_argument("-n", "--trials", type=int, metavar="N",
                    help="runs per change (default: the model's own)")
+    r.add_argument("--min-gain", type=float, metavar="POINTS",
+                   help="smallest availability gain, in points, called "
+                        "'clearly helps' (default: removing 5 %% of Base's downtime)")
     r.add_argument("--seed", type=int, default=1, metavar="N")
     r.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
     r.add_argument("-f", "--format", choices=("text", "json"), default="text")
@@ -95,12 +99,15 @@ def recommend_command(args: Any) -> int:
 
     if args.top < 1:
         raise CliError("--top must be at least 1", X.USAGE)
+    if args.min_gain is not None and not 0 <= args.min_gain <= 100:
+        raise CliError("--min-gain is availability points, 0 to 100", X.USAGE)
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         try:
             result = recommend(
                 ws, mid, run_id=args.run, top=args.top, trials=args.trials,
                 seed=args.seed, workers=max(1, args.jobs),
+                min_gain=None if args.min_gain is None else args.min_gain / 100,
                 progress=lambda done, total, label:
                 eprint(f"[{done}/{total}] {label}") if label else None)
         except NoAttribution as exc:

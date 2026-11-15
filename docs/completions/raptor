@@ -29,8 +29,8 @@ _raptor() {
     library) opts="--help" ;;
     mcp) opts="" ;;
     optimise) opts="--help" ;;
-    recommend) opts="--format --help --jobs --run --seed --top --trials" ;;
-    render) opts="--help --highlight --level --max-px --no-annotations --output --theme --zoom-to" ;;
+    recommend) opts="--format --help --jobs --min-gain --run --seed --top --trials" ;;
+    render) opts="--help --highlight --jobs --layer --level --max-px --no-annotations --output --theme --trials --zoom-to" ;;
     report) opts="--format --help --report --workspace" ;;
     run) opts="--analysis --deps --format --help --hierarchy --importance --jobs --json --legacy-names --length --max-trials --metrics --min-trials --output --pools --precision --precision-batch --precision-metric --progress --report --runs --save-model --seed --set --set-file --stats-start --stop --streams --strict --timeout --treat --weak-type --workspace" ;;
     schema) opts="--help --output" ;;

@@ -10,8 +10,19 @@ outages, and tests each one against Base with paired trials
 trial *i*).
 
 Each candidate is a guess about which lever matters; the simulation is what
-decides.  A change is only called worth doing when the paired gain in
-availability is positive with at least 95 % confidence.  The size of each
+decides.  The verdicts say what was MEASURED, never whether a change is worth
+its price (most changes have no price in the model):
+
+* *clearly helps*: the paired gain is real at the confidence below AND
+  material: it removes at least `MATERIAL` (5 %) of Base's downtime, or the
+  caller's `min_gain`;
+* *helps a little*: real, but smaller than that;
+* *may help; run more trials*: probably positive, not yet sure;
+* *no measurable gain* and *makes it worse*.
+
+"Real" means a chance of being better of at least 1 − 0.05/k for k changes
+tested together (Bonferroni), so testing more changes at once does not let
+one through by luck.  The size of each
 change is a fixed, stated step (repair or delay time halved, one more
 spare, one more crew, maintenance half as often, a part that lasts twice as
 long), not an optimum: the optimisers (`raptor optimise ...`) size a lever
@@ -33,10 +44,20 @@ from typing import Any
 from raptor.api.distributions import scale_mean, scales_with_mean
 from raptor.api.insight.attribution import CAUSE_LABELS
 
-#: A change is "worth doing" when the chance it is better reaches this.
-CONFIDENT = 0.95
-#: Below this chance of being better, the change is "no gain".
+#: The chance, across ALL the changes tested together, of calling one
+#: better by luck; each change needs P(better) >= 1 - FAMILY_ERROR / k.
+FAMILY_ERROR = 0.05
+#: A gain is material when it removes at least this share of Base's downtime.
+MATERIAL = 0.05
+#: From this chance of being better (below the bar), "may help; run more trials".
 UNLIKELY = 0.60
+
+CLEARLY = "clearly helps"
+A_LITTLE = "helps a little"
+MAYBE = "may help; run more trials"
+NO_GAIN = "no measurable gain"
+WORSE = "makes it worse"
+VERDICTS = (CLEARLY, A_LITTLE, MAYBE, NO_GAIN, WORSE)
 #: How many top downtime drivers get a candidate lever by default.
 DEFAULT_TOP = 3
 #: A second cause is tried too when it holds this share of an element's outages.
@@ -73,6 +94,8 @@ class Recommendations:
     caption: str = ""
     note: str = ""
     attribution_run_id: str | None = None
+    #: The bars the verdicts used: {confidence, min_gain, tested}.
+    bars: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {**asdict(self), "schema": SCHEMA}
@@ -297,24 +320,34 @@ def _paired(base: list[dict], other: list[dict], key: str
     return mean, sem
 
 
-def _verdict(gain: float | None, p_better: float | None) -> str:
+def _verdict(gain: float | None, p_better: float | None, *,
+             confidence: float, min_gain: float) -> str:
     if gain is None or p_better is None:
         return "no data"
-    if p_better >= CONFIDENT and gain > 0:
-        return "worth doing"
-    if p_better <= 1 - CONFIDENT and gain < 0:
-        return "makes it worse"
-    if p_better < UNLIKELY:
-        return "no measurable gain"
-    return "likely helps; more runs to be sure"
+    if p_better >= confidence and gain > 0:
+        return CLEARLY if gain >= min_gain else A_LITTLE
+    if p_better <= 1 - confidence and gain < 0:
+        return WORSE
+    if p_better < UNLIKELY or gain <= 0:
+        return NO_GAIN
+    return MAYBE
 
 
-_ORDER = {"worth doing": 0, "likely helps; more runs to be sure": 1,
-          "no measurable gain": 2, "makes it worse": 3, "no data": 4}
+_ORDER = {CLEARLY: 0, A_LITTLE: 1, MAYBE: 2, NO_GAIN: 3, WORSE: 4, "no data": 5}
+
+
+def _weigh(gain: float | None, proposal: Proposal) -> str:
+    """What the user still has to weigh: the gain was measured, not priced."""
+    if gain is None or gain <= 0:
+        return ""
+    if proposal.unit_cost is not None:
+        return (f"Weigh {100 * gain:.3g} availability points against "
+                f"{proposal.unit_cost:,.6g} a unit; this tool does not.")
+    return "Not priced: weigh the gain against what the change would cost you."
 
 
 def _row(proposal: Proposal, entry: dict[str, Any], base_rows: list[dict],
-         workspace: Any) -> dict[str, Any]:
+         workspace: Any, bars: dict[str, Any]) -> dict[str, Any]:
     metrics = entry.get("metrics") or {}
     availability = metrics.get("availability") or {}
     delta = availability.get("delta") or {}
@@ -342,31 +375,39 @@ def _row(proposal: Proposal, entry: dict[str, Any], base_rows: list[dict],
         "cost": {"unit": proposal.unit_cost, "run_total_change": cost_delta,
                  "run_total_sem": cost_sem, "note": proposal.cost_note},
         "gain_per_cost": per_unit,
-        "verdict": "error" if entry.get("error") else _verdict(gain, p_better),
+        "verdict": "error" if entry.get("error") else _verdict(
+            gain, p_better, confidence=bars["confidence"], min_gain=bars["min_gain"]),
+        "weigh": _weigh(gain, proposal),
     }
 
 
-def _caption(rows: list[dict[str, Any]], units: str) -> str:
-    good = [row for row in rows if row["verdict"] == "worth doing"]
-    if not good:
-        likely = [row for row in rows
-                  if row["verdict"] == "likely helps; more runs to be sure"]
-        if likely:
-            return (f"No change is clearly better yet; {likely[0]['name']} "
-                    "likely helps. Run more trials to be sure.")
-        return "None of the tested changes measurably improves availability."
-    best = good[0]
-    gain = best["gain"]
-    text = (f"{best['name']}: availability {100 * gain['availability']:+.3g} "
-            f"points (± {100 * (gain['sem'] or 0):.2g})")
+def _gain_words(row: dict[str, Any], units: str) -> str:
+    gain = row["gain"]
+    text = (f"availability {100 * gain['availability']:+.3g} points "
+            f"(± {100 * (gain['sem'] or 0):.2g})")
     if gain.get("downtime_avoided") is not None:
         text += f", downtime {downtime_words(gain['downtime_avoided'], units or 'time units')}"
-    if best["cost"]["unit"] is not None:
-        text += f", for {best['cost']['unit']:,.6g} a unit"
-    elif best["cost"]["note"]:
-        text += f" ({best['cost']['note']})"
-    others = len(good) - 1
-    return text + (f". {others} more change(s) also worth doing." if others else ".")
+    return text
+
+
+def _caption(rows: list[dict[str, Any]], units: str, bars: dict[str, Any]) -> str:
+    clear = [row for row in rows if row["verdict"] == CLEARLY]
+    small = [row for row in rows if row["verdict"] == A_LITTLE]
+    maybe = [row for row in rows if row["verdict"] == MAYBE]
+    if clear:
+        best = clear[0]
+        others = len(clear) - 1
+        return (f"Clearly helps: {best['name']}, {_gain_words(best, units)}. "
+                + (f"{others} more change(s) clearly help. " if others else "")
+                + "Measured, not priced: weigh each gain against its cost.")
+    if small:
+        return (f"No change removes {100 * MATERIAL:.0f} % or more of the downtime. "
+                f"The largest real gain is small: {small[0]['name']}, "
+                f"{_gain_words(small[0], units)}.")
+    if maybe:
+        return (f"No change is clearly better yet; {maybe[0]['name']} may help. "
+                "Run more trials to be sure.")
+    return "None of the tested changes measurably improves availability."
 
 
 def recommend(
@@ -380,6 +421,7 @@ def recommend(
     seed: int | None = 1,
     workers: int = 1,
     timeout_s: float = 1800.0,
+    min_gain: float | None = None,
     progress: Callable[[int, int, str], None] | None = None,
     abort: Any = None,
 ) -> Recommendations:
@@ -387,6 +429,8 @@ def recommend(
 
     `run_id` names a stored run made with attribution; without it, Base is
     first run with attribution to find the drivers (one more batch).
+    `min_gain` is the smallest availability gain (a fraction: 0.001 = 0.1
+    points) called material; by default `MATERIAL` of Base's unavailability.
     `progress` receives `(done, total, label)` over every batch.  The open
     model is never modified."""
     from raptor.api.insight import drivers
@@ -415,7 +459,7 @@ def recommend(
                 "No system downtime to act on." if not attribution.get("elements")
                 else "No lever could be proposed for the top drivers (their "
                      "laws have no scale, or nothing is stocked or crewed)."),
-            note=_NOTE, attribution_run_id=attribution_run)
+            note=_note({}), attribution_run_id=attribution_run)
     comparison = compare(
         workspace, model_id,
         [Scenario(p.name, p.changes, p.why) for p in found],
@@ -423,27 +467,43 @@ def recommend(
         progress=(lambda done, total, label: progress(done, total, label))
         if progress else None, abort=abort)
     base_rows = _per_run(workspace, comparison.base.get("run_id"))
-    rows = [_row(p, entry, base_rows, workspace)
-            for p, entry in zip(found, comparison.rows, strict=False)]
-    rows.sort(key=lambda r: (_ORDER.get(r["verdict"], 5),
-                             -(r["gain_per_cost"] or 0.0),
-                             -(r["gain"]["availability"] or 0.0)))
     base_availability = (comparison.base.get("metrics") or {}).get("availability") or {}
+    base_mean = base_availability.get("mean")
+    bars = {"confidence": 1.0 - FAMILY_ERROR / max(1, len(found)),
+            "min_gain": (float(min_gain) if min_gain is not None
+                         else MATERIAL * (1.0 - float(base_mean))
+                         if base_mean is not None else 0.0),
+            "tested": len(found), "material_share": MATERIAL if min_gain is None else None}
+    rows = [_row(p, entry, base_rows, workspace, bars)
+            for p, entry in zip(found, comparison.rows, strict=False)]
+    # by verdict, then by gain: a known unit cost does not reorder them,
+    # since most changes have none to compare with
+    rows.sort(key=lambda r: (_ORDER.get(r["verdict"], 6),
+                             -(r["gain"]["availability"] or 0.0)))
     return Recommendations(
         trials=comparison.trials, seed=seed,
         base={"run_id": comparison.base.get("run_id"),
               "availability": base_availability.get("mean"),
               "availability_sem": base_availability.get("sem"),
               "units": units},
-        rows=rows, caption=_caption(rows, units), note=_NOTE,
-        attribution_run_id=attribution_run)
+        rows=rows, caption=_caption(rows, units, bars), note=_note(bars),
+        attribution_run_id=attribution_run, bars=bars)
 
 
-_NOTE = ("Each change is a fixed step chosen from the cause that dominates the "
-         "driver's outages, tested against Base with the same seed and paired "
-         "runs. 'Worth doing' means at least 95 % confidence of higher "
-         "availability. The step is not an optimum: size the lever with "
-         "'raptor optimise'. Costs the model does not hold are shown as unknown.")
+def _note(bars: dict[str, Any]) -> str:
+    text = ("Each change is a fixed step chosen from the cause that dominates the "
+            "driver's outages, tested against Base with the same seed and paired runs. ")
+    if bars:
+        material = (f"removes at least {100 * MATERIAL:.0f} % of Base's downtime "
+                    f"({100 * bars['min_gain']:.3g} availability points)"
+                    if bars.get("material_share") else
+                    f"is at least {100 * bars['min_gain']:.3g} availability points")
+        text += (f"'Clearly helps' means the gain is real (P(better) of at least "
+                 f"{100 * bars['confidence']:.4g} %, the 95 % bar shared across the "
+                 f"{bars['tested']} changes tested) and {material}; 'helps a little' "
+                 "is real but smaller. ")
+    return text + ("No verdict weighs cost: most changes have no price in the model. "
+                   "The step is not an optimum: size the lever with 'raptor optimise'.")
 
 
 def downtime_words(avoided: float, units: str) -> str:
@@ -477,7 +537,7 @@ def text_lines(result: Recommendations) -> list[str]:
         if gain["downtime_avoided"] is not None:
             lines.append(f"          downtime {downtime_words(gain['downtime_avoided'], units)}")
         cost = row["cost"]
-        parts = []
+        parts: list[str] = []
         if cost["unit"] is not None:
             parts.append(f"{cost['unit']:,.6g} a unit")
         if cost["run_total_change"] is not None:
@@ -485,6 +545,8 @@ def text_lines(result: Recommendations) -> list[str]:
         if cost["note"]:
             parts.append(cost["note"])
         lines.append("  cost:   " + ("; ".join(parts) or "unknown"))
+        if row.get("weigh"):
+            lines.append(f"  weigh:  {row['weigh']}")
         lines.append(f"  why:    {row['why']}")
     lines.append("")
     lines.append(result.caption)

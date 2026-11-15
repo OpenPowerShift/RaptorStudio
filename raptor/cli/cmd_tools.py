@@ -168,6 +168,15 @@ def add_parser(sub: Any) -> None:
     d.add_argument("--theme", choices=("light", "dark"), default="light")
     d.add_argument("--max-px", type=int, default=1600)
     d.add_argument("--no-annotations", action="store_true")
+    d.add_argument("--layer", choices=("downtime-share", "lost-capacity"),
+                   help="SVG only: run the model with attribution and draw "
+                        "each element's share of downtime (or of lost flow) "
+                        "on the diagram, as the application's Show on "
+                        "canvas layers do")
+    d.add_argument("-n", "--trials", type=int, metavar="N",
+                   help="with --layer: runs to simulate (default: the model's own)")
+    d.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+                   help="with --layer: cores to run on")
     d.set_defaults(func=render_command)
 
     sp = sub.add_parser(
@@ -597,14 +606,35 @@ def tables_command(args: Any) -> int:
     return X.OK
 
 
+def _render_layer(args: Any) -> tuple[dict, dict | None]:
+    """Run MODEL with attribution in a throwaway workspace; its layer."""
+    from raptor.api.insight.canvas import run_layer
+    from raptor.api.run import run
+    from raptor.cli.common import workspace_for
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        result = run(ws, mid, num_runs=args.trials, workers=max(1, args.jobs),
+                     attribution=True, confirm_long_run=True,
+                     progress=lambda done, total:
+                     eprint(f"[{done}/{total or '?'}] runs"))
+        try:
+            return run_layer(ws, result.run_id, args.layer)
+        except ValueError as exc:
+            raise CliError(str(exc), X.REFUSED) from exc
+
+
 def render_command(args: Any) -> int:
     from raptor.api import render as api_render
+    if args.layer and not str(args.output).lower().endswith(".svg"):
+        raise CliError("--layer draws an SVG: give an output FILE.svg", X.USAGE)
     if str(args.output).lower().endswith(".svg"):
+        layer, flow = (_render_layer(args) if args.layer else (None, None))
         try:
             path, _meta = api_render.render_svg_file(
                 args.model, args.output, level=args.level,
                 highlight=args.highlight or None, zoom_to=args.zoom_to or None,
-                theme=args.theme, include_annotations=not args.no_annotations)
+                theme=args.theme, include_annotations=not args.no_annotations,
+                layer=layer, flow=flow)
         except (api_render.RenderError, ValueError, OSError) as exc:
             raise CliError(str(exc), X.RUNTIME) from exc
         eprint(f"wrote {path}")

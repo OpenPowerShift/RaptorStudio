@@ -10828,7 +10828,9 @@ you need the exact argument shape.</p>
   <code>highlight</code>/<code>include_annotations</code> options as <code>render_diagram</code>. Available
   even when <code>--no-render</code> hides the PNG tool, and useful when SVG text is
   easier to inspect than an image. Fonts are not measured, so long names
-  are shortened (the full name is in each element&#8217;s <code>&lt;title&gt;</code>).</p></td>
+  are shortened (the full name is in each element&#8217;s <code>&lt;title&gt;</code>). With
+  <code>layer</code> and the <code>run_id</code> of a run made with attribution it draws the
+  share-of-downtime or lost-capacity layer, with a legend.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>auto_layout</code></p></td>
@@ -12691,9 +12693,32 @@ standard error and <code>P(better)</code>, the downtime saved per run, and the c
 A spare or crew carries the unit cost stored in the model; with cost
 analysis on, the change in the run&#8217;s grand total is shown too. A faster
 repair or a better part has no price in the model, so its cost is reported
-as unknown, never as zero. A change is called <strong>worth doing</strong> only when
-<code>P(better)</code> reaches 95 %; between 60 and 95 % it <strong>likely helps</strong> and needs
-more runs.</p>
+as unknown, never as zero.</p>
+</div>
+<div class="paragraph">
+<p>The verdict says what was measured, not whether the change is worth its
+price:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>clearly helps</strong>: the gain is real and material. Real means <code>P(better)</code>
+clears 95 % shared across all the changes tested together (with five
+changes, each needs 99 %), so testing several at once does not let one
+through by luck. Material means it removes at least 5 % of Base&#8217;s
+downtime; <code>--min-gain</code> sets another bar in availability points.</p>
+</li>
+<li>
+<p><strong>helps a little</strong>: real, but smaller than that.</p>
+</li>
+<li>
+<p><strong>may help; run more trials</strong>, <strong>no measurable gain</strong>, <strong>makes it worse</strong>.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>No verdict weighs cost. A change that clearly helps can still cost more
+than it is worth: each result says what is left to weigh.</p>
 </div>
 <div class="paragraph">
 <p>The step size is not an optimum. Recommend finds the lever that matters;

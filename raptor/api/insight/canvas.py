@@ -61,6 +61,28 @@ def _row(kind: str, oid: int, name: str, stat: dict[str, Any],
     }
 
 
+def run_layer(workspace: Any, run_id: str, layer: str
+              ) -> tuple[dict[str, Any], dict[int, float] | None]:
+    """A stored run's layer and, for ``lost-capacity``, each capacity node's
+    mean flow (None when the run did not store it).  Raises
+    `raptor.api.insight.drivers.NoAttribution` for a run made without
+    attribution, and ValueError as `canvas_layer` does."""
+    import json
+
+    from raptor.api.insight import drivers
+    from raptor.api.run import run_dir
+    data = canvas_layer(drivers.read(workspace, run_id), layer)
+    flow = None
+    path = run_dir(workspace, run_id) / "node_flow.json"
+    if layer == "lost-capacity" and path.is_file():
+        stored = json.loads(path.read_text())
+        system = stored.get("system_node")
+        flow = {int(nid): float(row["ave_flow"])
+                for nid, row in (stored.get("nodes") or {}).items()
+                if int(nid) != system}
+    return data, flow
+
+
 def canvas_layer(attribution: dict[str, Any], layer: str) -> dict[str, Any]:
     """One layer's per-element data, largest share first.
 

@@ -558,7 +558,10 @@ or crew, PM half as often, a part that lasts twice as long), and tests each
 against Base with paired runs. Every row gives the PATH=VALUE change, the
 availability gain with its standard error and chance of being better, the
 downtime saved per run, the unit cost the model holds (null when none) and
-a verdict; "worth doing" needs at least 95 % confidence.
+a verdict of what was measured: "clearly helps" needs a real gain (95 %
+confidence shared across the changes tested) that removes at least 5 % of
+the downtime; "helps a little" is real but smaller. No verdict weighs cost,
+so do not present one as advice to spend money.
 
 `run_chart` returns one chart of a finished run as the same `ChartSpec` the
 application paints, with the figure itself as SVG unless `render_svg` is
@@ -680,6 +683,12 @@ field was never applied, not that the model is insensitive.
   tell when to zoom in.
 - `render_diagram_svg` draws the same level as SVG text without Qt, which is
   useful on a headless server or when checking layout and connections.
+  With `layer` (`downtime-share` or `lost-capacity`) and the `run_id` of a
+  run made with `attribution=True`, it draws the run's result on the
+  diagram as the application's Show on canvas layers do: band fills, the
+  share under each element, the main cause's letter, a dashed ring where
+  the runs disagree, Σ on each hierarchy, links as wide as their node's
+  flow, and a legend.
 
 Both renderers accept `theme` (`light`/`dark`) and `routing` (`straight`,
 `angled`, `orthogonal`). Renders are content-addressed: an edit changes the

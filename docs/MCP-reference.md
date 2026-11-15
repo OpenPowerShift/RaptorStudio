@@ -3395,14 +3395,20 @@ paired trials. Each row gives the PATH=VALUE change (apply it with
 `update_element`/`manage_spare_pools`/`manage_resources`, or `raptor
 set`), the paired availability gain with its standard error and chance
 of being better, the downtime avoided per run, the unit cost the model
-holds (null when it holds none) and a verdict ("worth doing" = at least
-95 % confidence of a gain). The open model is never modified. Long runs
-report progress and can be cancelled.
+holds (null when it holds none), what is left to weigh, and a verdict of
+what was MEASURED: "clearly helps" (a real gain, at a confidence shared
+across all the changes tested, that removes at least 5 % of Base's
+downtime or `min_gain` availability, a fraction), "helps a little" (real
+but smaller), "may help; run more trials", "no measurable gain" or
+"makes it worse". No verdict weighs cost: never present one as advice to
+spend money. `bars` gives the confidence and minimum gain used. The open
+model is never modified. Long runs report progress and can be cancelled.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `min_gain` | number \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
 | `run_id` | string \| null | no | `null` | — |
 | `seed` | integer | no | `1` | — |
@@ -3413,7 +3419,7 @@ report progress and can be cancelled.
 
 **Returns**
 
-`{schema, trials, seed, base, rows, caption, note, attribution_run_id}`; each row has `name`, `changes` (PATH=VALUE), `why`, `gain` (availability, sem, p_better, low, high, downtime_avoided), `cost` (unit, run_total_change, note) and `verdict`.
+`{schema, trials, seed, base, rows, caption, note, bars, attribution_run_id}`; each row has `name`, `changes` (PATH=VALUE), `why`, `gain` (availability, sem, p_better, low, high, downtime_avoided), `cost` (unit, run_total_change, note), `weigh` and `verdict`; `bars` holds the confidence and minimum gain the verdicts used. Verdicts are measured, never priced.
 
 **Example**
 
@@ -4166,6 +4172,16 @@ other elements). Blocks never move; an orthogonal link that cannot be
 routed quickly stays straight. It does not measure fonts (long names are shortened,
 the full name is in each element's `<title>`) or show state colours.
 
+`layer` with `run_id` (a run made with `attribution=True`) draws the
+run's result on the diagram, as the application's Show on canvas
+layers do: 'downtime-share' fills each block and event by its share of
+system downtime (red from 2/3 of the largest share, yellow from 1/3,
+green below), prints the share under it, puts its main cause's letter in
+the corner with a dashed ring when the runs disagree, and sums each
+hierarchy's contents (Σ); 'lost-capacity' does the same for the share of
+lost flow and draws each link into a capacity node as wide as that
+node's mean flow. A legend under the drawing says how to read it.
+
 `level` is 0 for the top level or a **hierarchy id** (not a depth).
 `zoom_to` frames the named elements on that level, padded by `margin`
 scene units; `highlight` outlines them. A selector is a name, a bare id
@@ -4182,10 +4198,12 @@ highlighted, routing, links_routed, inline}. The file is written to renders/ in 
 | --- | --- | --- | --- | --- |
 | `highlight` | array<string> \| null | no | `null` | — |
 | `include_annotations` | boolean | no | `true` | — |
+| `layer` | string \| null | no | `null` | `downtime-share`, `lost-capacity` |
 | `level` | integer | no | `0` | — |
 | `margin` | number | no | `12.0` | — |
 | `model_id` | string | yes | — | — |
 | `routing` | string | no | `straight` | `straight`, `angled`, `orthogonal` |
+| `run_id` | string \| null | no | `null` | — |
 | `theme` | string | no | `light` | `light`, `dark` |
 | `zoom_to` | array<string> \| null | no | `null` | — |
 

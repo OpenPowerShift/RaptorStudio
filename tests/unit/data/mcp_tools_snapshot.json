@@ -756,6 +756,7 @@
  },
  "recommend_changes": {
   "params": [
+   "min_gain",
    "model_id",
    "run_id",
    "seed",
@@ -796,10 +797,12 @@
   "params": [
    "highlight",
    "include_annotations",
+   "layer",
    "level",
    "margin",
    "model_id",
    "routing",
+   "run_id",
    "theme",
    "zoom_to"
   ],

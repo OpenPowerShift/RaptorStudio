@@ -327,9 +327,21 @@ standard error and `P(better)`, the downtime saved per run, and the cost.
 A spare or crew carries the unit cost stored in the model; with cost
 analysis on, the change in the run's grand total is shown too. A faster
 repair or a better part has no price in the model, so its cost is reported
-as unknown, never as zero. A change is called *worth doing* only when
-`P(better)` reaches 95 %; between 60 and 95 % it *likely helps* and needs
-more runs.
+as unknown, never as zero.
+
+The verdict says what was measured, not whether the change is worth its
+price:
+
+* *clearly helps*: the gain is real and material. Real means `P(better)`
+  clears 95 % shared across all the changes tested together (with five
+  changes, each needs 99 %), so testing several at once does not let one
+  through by luck. Material means it removes at least 5 % of Base's
+  downtime; `--min-gain` sets another bar in availability points.
+* *helps a little*: real, but smaller than that.
+* *may help; run more trials*, *no measurable gain*, *makes it worse*.
+
+No verdict weighs cost. A change that clearly helps can still cost more
+than it is worth: each result says what is left to weigh.
 
 The step size is not an optimum. Recommend finds the lever that matters;
 `raptor optimise` sizes it. In the application the same tool is Simulate ▸

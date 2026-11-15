@@ -139,3 +139,84 @@ def test_raptor_render_writes_an_svg(tmp_path, capsys):
     out = tmp_path / "d.svg"
     assert main(["render", str(GOLD / "FactoryDemo" / "input.rbd"), "-o", str(out)]) == 0
     assert ET.fromstring(out.read_text()).tag.endswith("svg")
+
+
+# ---- result layers -------------------------------------------------------------
+
+PROBE32 = ROOT / "tests" / "fixtures" / "ReleaseProbe32" / "input.rbd"
+
+
+def _layer_run(tmp_path, layer: str, trials: int = 6):
+    """ReleaseProbe32 with capacity analysis on, run with attribution."""
+    from raptor.api.insight.canvas import run_layer
+    from raptor.api.run import run
+    from raptor.api.workspace import Workspace
+    from raptor.mcp.server import mcp
+    ws = Workspace((tmp_path / "ws").resolve())
+    mid = ws.register_model(load_rbd(str(PROBE32)), name="p32")["model_id"]
+    result = run(ws, mid, num_runs=trials, attribution=True, confirm_long_run=True)
+    # the MCP tools use this same workspace (context.workspace keeps it
+    # while its root matches)
+    mcp._raptor_args = type("A", (), {"workspace": str(ws.root)})()
+    mcp._raptor_ws = ws
+    return ws, mid, result.run_id, run_layer(ws, result.run_id, layer)
+
+
+def test_the_downtime_layer_marks_rolls_up_and_explains(tmp_path):
+    ws, mid, _run_id, (layer, flow) = _layer_run(tmp_path, "downtime-share")
+    assert flow is None
+    svg, meta = render_svg(ws.get(mid).rbd, layer=layer)
+    root = ET.fromstring(svg)
+    marks = root.findall(".//svg:g[@class='result-layer']/svg:g[@class='mark']", NS)
+    assert meta["layer"]["elements_marked"] == len(marks) > 0
+    texts = ["".join(t.itertext()) for t in root.iter(f"{{{NS["svg"]}}}text")]
+    assert any("Σ " in t for t in texts) == (meta["layer"]["hierarchies_rolled_up"] > 0)
+    assert any(t.startswith("Colour: share of system downtime") for t in texts)
+    # the largest share is filled with the "high" band
+    top = layer["elements"][0]
+    group = root.find(f".//svg:g[@id='{top['kind']}-{top['id']}']", NS)
+    if group is not None:
+        shape = next(iter(group.findall("svg:rect", NS) + group.findall("svg:polygon", NS)))
+        assert shape.get("fill") == "#FFC9C9"
+    # no layer, no marks: the drawing is unchanged
+    plain, plain_meta = render_svg(ws.get(mid).rbd)
+    assert "result-layer" not in plain and "layer" not in plain_meta
+
+
+def test_the_lost_capacity_layer_widens_links_by_node_flow(tmp_path):
+    ws, mid, _run_id, (layer, flow) = _layer_run(tmp_path, "lost-capacity")
+    assert flow and all(value >= 0 for value in flow.values())
+    svg, meta = render_svg(ws.get(mid).rbd, layer=layer, flow=flow)
+    widths = {float(e.get("stroke-width")) for e in ET.fromstring(svg).iter()
+              if e.get("marker-end") == "url(#arrow-fixed)"}
+    assert max(widths) == pytest.approx(10.0) and min(widths) == pytest.approx(1.0)
+    assert meta["layer"]["links_by_flow"] is True
+    assert "Link width: mean flow" in svg
+
+
+def test_node_flows_are_stored_with_the_run(tmp_path):
+    import json
+    from raptor.api.run import run_dir
+    ws, _mid, run_id, _ = _layer_run(tmp_path, "downtime-share", trials=3)
+    stored = json.loads((run_dir(ws, run_id) / "node_flow.json").read_text())
+    assert stored["generated"] > 0 and str(stored["system_node"]) in stored["nodes"]
+
+
+def test_the_mcp_tool_draws_a_run_layer_and_refuses_a_layer_without_a_run(tmp_path):
+    from raptor.mcp.tools_svg import render_diagram_svg
+    _ws, mid, run_id, _ = _layer_run(tmp_path, "downtime-share", trials=3)
+    result = render_diagram_svg(mid, run_id=run_id, layer="lost-capacity")
+    assert not result.is_error
+    assert result.structured_content["layer"]["links_by_flow"] is True
+    refused = render_diagram_svg(mid, layer="downtime-share")
+    assert refused.structured_content["error"]
+
+
+def test_raptor_render_draws_a_layer(tmp_path, capsys):
+    from raptor.cli.main import main
+    out = tmp_path / "layer.svg"
+    code = main(["render", str(PROBE32), "-o", str(out), "--layer", "downtime-share",
+                 "-n", "3"])
+    assert code == 0 and "result-layer" in out.read_text()
+    assert main(["render", str(PROBE32), "-o", str(tmp_path / "x.png"),
+                 "--layer", "downtime-share"]) != 0

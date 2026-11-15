@@ -1,10 +1,10 @@
 .TH "RAPTOR-RECOMMEND" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-recommend \- Find the blocks that cause the most system downtime, propose one change for each from the cause that dominates its outages (halve the repair time, one more spare, one more crew, ...), and test every change against the open model with paired runs. Each result states the change, the measured gain and the cost. The model file is never modified.
+raptor\-recommend \- Find the blocks that cause the most system downtime, propose one change for each from the cause that dominates its outages (halve the repair time, one more spare, one more crew, ...), and test every change against the open model with paired runs. Each result states the change, the measured gain and the cost. The verdict says what was measured, never whether a change is worth its price. The model file is never modified.
 .SH SYNOPSIS
-\fBraptor recommend\fR [\-h] [\-\-run RUN_ID] [\-\-top N] [\-n N] [\-\-seed N] [\-j N] [\-f {text,json}] MODEL
+\fBraptor recommend\fR [\-h] [\-\-run RUN_ID] [\-\-top N] [\-n N] [\-\-min\-gain POINTS] [\-\-seed N] [\-j N] [\-f {text,json}] MODEL
 .SH DESCRIPTION
-Find the blocks that cause the most system downtime, propose one change for each from the cause that dominates its outages (halve the repair time, one more spare, one more crew, ...), and test every change against the open model with paired runs. Each result states the change, the measured gain and the cost. The model file is never modified.
+Find the blocks that cause the most system downtime, propose one change for each from the cause that dominates its outages (halve the repair time, one more spare, one more crew, ...), and test every change against the open model with paired runs. Each result states the change, the measured gain and the cost. The verdict says what was measured, never whether a change is worth its price. The model file is never modified.
 .SH OPTIONS
 .SS Options
 .TP
@@ -16,6 +16,9 @@ how many top drivers get a change (default 3)
 .TP
 \fB\-n\fR, \fB\-\-trials\fR \fIN\fR
 runs per change (default: the model's own)
+.TP
+\fB\-\-min\-gain\fR \fIPOINTS\fR
+smallest availability gain, in points, called 'clearly helps' (default: removing 5 %% of Base's downtime)
 .TP
 \fB\-\-seed\fR \fIN\fR
 

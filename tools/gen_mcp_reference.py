@@ -601,11 +601,13 @@ RETURN_NOTES: dict[str, str] = {
     "sensitivity": "`{metric, trials, seed, base, inputs, batches, caption, "
                    "note}`; each input has its low/high paired effect and SEM, "
                    "swing, elasticity, and whether it is distinguishable.",
-    "recommend_changes": "`{schema, trials, seed, base, rows, caption, note, "
+    "recommend_changes": "`{schema, trials, seed, base, rows, caption, note, bars, "
                          "attribution_run_id}`; each row has `name`, `changes` "
                          "(PATH=VALUE), `why`, `gain` (availability, sem, "
                          "p_better, low, high, downtime_avoided), `cost` (unit, "
-                         "run_total_change, note) and `verdict`.",
+                         "run_total_change, note), `weigh` and `verdict`; "
+                         "`bars` holds the confidence and minimum gain the "
+                         "verdicts used. Verdicts are measured, never priced.",
     "what_if": "`{trials, seed, base, rows, variance_reduction, "
                "requirements, caption, note}`; each row's `metrics[key]` has "
                "the scenario value, paired delta and SEM, p_better and the "
