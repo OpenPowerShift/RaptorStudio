@@ -314,3 +314,20 @@ def experience_changes(fit: dict[str, Any], block: str,
     params = ",".join(f"{value:.10g}" for value in slots)
     return [f"block:{block}.{use}_dist={fit['law']}",
             f"block:{block}.{use}_params={params}"]
+
+
+def fit_document(fit: dict[str, Any], block: str | None = None,
+                 use: str = "fail") -> dict[str, Any]:
+    """A `from_quantiles` fit as the CLI's JSON and the MCP tool return it:
+    `fitted` and `stated` as lists of {probability, age} (a JSON object's
+    keys are strings, so a share would not read back as a number), and with
+    `block` the `changes` and the `update` fields that give it the law."""
+    out: dict[str, Any] = {
+        **fit,
+        "fitted": [{"probability": p, "age": t} for p, t in fit["fitted"].items()],
+        "stated": [{"probability": p, "age": t} for p, t in fit["stated"].items()],
+    }
+    if block:
+        out["changes"] = experience_changes(fit, block, use)
+        out["update"] = {f"{use}_dist": fit["law"], f"{use}_params": list(fit["slots"])}
+    return out

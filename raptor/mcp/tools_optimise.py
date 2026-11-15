@@ -228,21 +228,14 @@ def fit_from_experience(
     parameters together) for its failure (`use="fail"`) or repair law.
     Nothing is changed here.
     """
-    from raptor.api.distributions import from_quantiles, experience_changes
+    from raptor.api.distributions import fit_document, from_quantiles
     try:
         answers = {float(q["probability"]): float(q["age"]) for q in quantiles}
     except (KeyError, TypeError, ValueError):
         raise ValueError("each answer needs a numeric 'probability' and "
                          "'age', e.g. {\"probability\": 0.1, \"age\": 100}") from None
     fit = from_quantiles(law, answers)
-    out: dict[str, Any] = {
-        **fit,
-        "fitted": [{"probability": p, "age": t} for p, t in fit["fitted"].items()],
-        "stated": [{"probability": p, "age": t} for p, t in fit["stated"].items()],
-    }
-    if block:
-        out["changes"] = experience_changes(fit, block, use)
-        out["update"] = {f"{use}_dist": law, f"{use}_params": list(fit["slots"])}
+    out = fit_document(fit, block, use)
     params = ", ".join(f"{name} {value:.6g}" for name, value in fit["params"].items())
     rows = "\n".join(f"| {100 * p:g} % | {t:.6g} |" for p, t in fit["fitted"].items())
     warnings = "".join(f"\n\n**Warning:** {text}" for text in fit["warnings"])

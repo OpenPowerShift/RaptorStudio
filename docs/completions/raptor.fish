@@ -172,6 +172,7 @@ complete -c raptor -n '__fish_seen_subcommand_from recommend' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l top
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l trials
 complete -c raptor -n '__fish_use_subcommand' -a render
+complete -c raptor -n '__fish_seen_subcommand_from render' -l capacity-rule
 complete -c raptor -n '__fish_seen_subcommand_from render' -l help
 complete -c raptor -n '__fish_seen_subcommand_from render' -l highlight
 complete -c raptor -n '__fish_seen_subcommand_from render' -l jobs
@@ -180,6 +181,7 @@ complete -c raptor -n '__fish_seen_subcommand_from render' -l level
 complete -c raptor -n '__fish_seen_subcommand_from render' -l max-px
 complete -c raptor -n '__fish_seen_subcommand_from render' -l no-annotations
 complete -c raptor -n '__fish_seen_subcommand_from render' -l output
+complete -c raptor -n '__fish_seen_subcommand_from render' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from render' -l theme
 complete -c raptor -n '__fish_seen_subcommand_from render' -l trials
 complete -c raptor -n '__fish_seen_subcommand_from render' -l zoom-to

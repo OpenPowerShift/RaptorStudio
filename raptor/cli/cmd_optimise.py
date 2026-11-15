@@ -268,7 +268,7 @@ def fit_command(args: Any) -> int:
     import shlex
     import sys
 
-    from raptor.api.distributions import from_quantiles, experience_changes
+    from raptor.api.distributions import fit_document, from_quantiles
 
     quantiles: dict[float, float] = {}
     for text in args.quantile:
@@ -284,11 +284,10 @@ def fit_command(args: Any) -> int:
         fit = from_quantiles(args.law, quantiles)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
-    if args.block:
-        fit["changes"] = experience_changes(fit, args.block,
-                                           "repair" if args.repair else "fail")
+    document = fit_document(fit, args.block, "repair" if args.repair else "fail")
     if args.format == "json":
-        emit_json(fit, None)
+        # the same shape as the MCP tool fit_from_experience
+        emit_json(document, None)
         return X.OK
     params = ", ".join(f"{name} {value:.6g}"
                        for name, value in fit["params"].items())
@@ -299,7 +298,7 @@ def fit_command(args: Any) -> int:
     print(fit["shape_note"])
     for warning in fit.get("warnings") or []:
         print(f"warning: {warning}", file=sys.stderr)
-    if fit.get("changes"):
+    if document.get("changes"):
         print("raptor set MODEL --in-place "
-              + " ".join(shlex.quote(c) for c in fit["changes"]))
+              + " ".join(shlex.quote(c) for c in document["changes"]))
     return X.OK

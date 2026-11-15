@@ -285,3 +285,23 @@ def test_the_mcp_and_cli_draw_the_advisor_layer(tmp_path):
     assert main(["render", str(GOLD / "FactoryDemo" / "input.rbd"), "-o", str(out),
                  "--layer", "advisor"]) == 0
     assert "advisor-layer" in out.read_text()
+
+
+def test_raptor_render_passes_its_seed_and_capacity_rule_to_the_run(tmp_path, monkeypatch):
+    """P10: the layer's run could not be given the seed or capacity rule
+    `raptor explain` was, so the two could disagree."""
+    import raptor.api.run as run_module
+    from raptor.cli.main import main
+
+    seen = {}
+    real = run_module.run
+
+    def spy(*args, **kwargs):
+        seen.update(seed=kwargs.get("seed"), rule=kwargs.get("capacity_rule"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(run_module, "run", spy)
+    assert main(["render", str(PROBE32), "-o", str(tmp_path / "l.svg"), "--layer",
+                 "downtime-share", "-n", "2", "--seed", "5",
+                 "--capacity-rule", "marginal"]) == 0
+    assert seen == {"seed": 5, "rule": "marginal"}

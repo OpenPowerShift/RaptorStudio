@@ -30,7 +30,7 @@ _raptor() {
     mcp) opts="" ;;
     optimise) opts="--help" ;;
     recommend) opts="--format --help --jobs --min-gain --progress --run --seed --top --trials" ;;
-    render) opts="--help --highlight --jobs --layer --level --max-px --no-annotations --output --theme --trials --zoom-to" ;;
+    render) opts="--capacity-rule --help --highlight --jobs --layer --level --max-px --no-annotations --output --seed --theme --trials --zoom-to" ;;
     report) opts="--format --help --report --workspace" ;;
     run) opts="--analysis --deps --format --help --hierarchy --importance --jobs --json --legacy-names --length --max-trials --metrics --min-trials --output --pools --precision --precision-batch --precision-confidence --precision-metric --progress --report --runs --save-model --seed --set --set-file --stats-start --stop --streams --strict --timeout --treat --weak-type --workspace" ;;
     schema) opts="--help --output" ;;

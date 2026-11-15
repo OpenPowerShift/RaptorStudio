@@ -189,6 +189,13 @@ def add_parser(sub: Any) -> None:
                         "with --layer advisor, also run and add the run's findings")
     d.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
                    help="with --layer: cores to run on")
+    d.add_argument("--seed", type=int, metavar="N",
+                   help="with --layer: salt every random stream, as raptor "
+                        "explain --seed, so the layer matches its numbers")
+    d.add_argument("--capacity-rule", default="proportional",
+                   choices=("proportional", "marginal", "first_failed"),
+                   help="with --layer lost-capacity: how lost flow is shared "
+                        "among the elements down at once (default proportional)")
     d.set_defaults(func=render_command)
 
     sp = sub.add_parser(
@@ -631,12 +638,14 @@ def _render_layer(args: Any) -> tuple[dict, dict | None]:
             run_id = None
             if args.trials:
                 run_id = run(ws, mid, num_runs=args.trials, workers=max(1, args.jobs),
-                             attribution=True, confirm_long_run=True,
+                             attribution=True, confirm_long_run=True, seed=args.seed,
+                             capacity_rule=args.capacity_rule,
                              progress=lambda done, total:
                              eprint(f"[{done}/{total or '?'}] runs")).run_id
             return workspace_advisor_layer(ws, mid, run_id), None
         result = run(ws, mid, num_runs=args.trials, workers=max(1, args.jobs),
-                     attribution=True, confirm_long_run=True,
+                     attribution=True, confirm_long_run=True, seed=args.seed,
+                     capacity_rule=args.capacity_rule,
                      progress=lambda done, total:
                      eprint(f"[{done}/{total or '?'}] runs"))
         try:

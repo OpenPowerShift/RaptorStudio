@@ -126,3 +126,22 @@ def test_a_loose_or_knife_edge_fit_says_so():
     assert any("nearly a fixed age" in w for w in edge["warnings"])
     good = from_quantiles("weibull", {0.1: 100.0, 0.5: 300.0})
     assert good["warnings"] == []
+
+
+def test_cli_fit_json_is_the_mcp_tools_shape(capsys):
+    """P10: the CLI gave `fitted` as an object keyed by share, the MCP tool as
+    a list of {probability, age}."""
+    import json
+
+    from raptor.cli.main import main
+    from raptor.mcp.tools_optimise import fit_from_experience
+
+    assert main(["fit", "--law", "weibull", "--quantile", "0.1=100",
+                 "--quantile", "0.5=300", "--block", "Pump A", "-f", "json"]) == 0
+    cli = json.loads(capsys.readouterr().out)
+    mcp = fit_from_experience("weibull", [{"probability": 0.1, "age": 100},
+                                          {"probability": 0.5, "age": 300}],
+                              block="Pump A").structured_content
+    mcp = mcp.get("data", mcp)
+    assert set(cli) == set(mcp)
+    assert cli["fitted"] == mcp["fitted"] and cli["update"] == mcp["update"]
