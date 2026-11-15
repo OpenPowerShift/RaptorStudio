@@ -175,14 +175,42 @@ current value).
 |Speed |How fast an animated run is drawn. Applies only while Animate is on |
 |===
 
-==== Batch
+=== Analyse tab
+
+==== What If
 
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
-|Sweep… |Run the model once per value of one number -- a failure or repair parameter, a rate, the k of a k-of-n node -- and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed. |
-|Compare… |Run several models -- this one and others from disk -- with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed. |
+|What If… |Compare changes with this model: half a block's repair time, one more spare, no PM, or any PATH=VALUE change. Base and each scenario run with the same seed, so the gain is measured pair by pair. Runs on copies; Apply writes a scenario in as one undo step. |
 |Recommend… |Find the blocks that cause the most downtime, propose one change for each (faster repair, one more spare, one more crew, ...) and test every change against this model with paired runs: the change, the gain it measurably gives and its cost. Runs on copies; Apply writes a change in as one undo step. |
+|===
+
+==== Sensitivity
+
+[cols="2,4,1",options="header"]
+|===
+|Control |What it does |Shortcut / value
+|Sensitivity… |Which inputs the result is most sensitive to: each block's life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies. |
+|Sweep… |Run the model once per value of one number -- a failure or repair parameter, a rate, the k of a k-of-n node -- and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed. |
+|===
+
+==== Optimise
+
+[cols="2,4,1",options="header"]
+|===
+|Control |What it does |Shortcut / value
+|Spares… |The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in. |
+|Maintenance… |Is planned maintenance worthwhile on each block, and how often? A formula screens each block, then no PM and several intervals are run with paired runs. Runs on copies; Apply writes the best interval in. |
+|Crews… |How many units of each repair crew or tool are needed to meet an availability target with 95 % confidence, found with paired runs. Runs on copies; Apply writes the size in. |
+|===
+
+==== Compare
+
+[cols="2,4,1",options="header"]
+|===
+|Control |What it does |Shortcut / value
+|Compare… |Run several models -- this one and others from disk -- with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed. |
 |===
 
 === Debug tab

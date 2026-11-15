@@ -17,7 +17,7 @@ from __future__ import annotations
 #: tabs; it is F, not the E it used to be (F was Finish's).
 FILE_KEY_TIP = "F"
 TAB_KEY_TIPS: dict[str, str] = {
-    "Model": "M", "Arrange": "A", "Data": "D", "Simulate": "S",
+    "Model": "M", "Arrange": "A", "Data": "D", "Simulate": "S", "Analyse": "N",
     "Debug": "B", "Results": "R", "View": "V", "Help": "H",
 }
 
@@ -50,7 +50,12 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     "Simulate": {
         "sim.run": "R", "sim.live_sim": "A", "sim.run_settings": "S",
         "sim.pause": "P", "sim.stop_run": "T", "sim.jump": "J",
-        "sim.sweep": "W", "sim.compare": "C", "sim.recommend": "M",
+    },
+    "Analyse": {
+        "analyse.whatif": "W", "sim.recommend": "M", "analyse.sensitivity": "T",
+        "sim.sweep": "S", "analyse.optimise_spares": "P",
+        "analyse.optimise_pm": "A", "analyse.optimise_crews": "C",
+        "sim.compare": "O",
     },
     "Debug": {
         "sim.step": "S", "sim.step_next_time": "N", "sim.step_finish": "F",

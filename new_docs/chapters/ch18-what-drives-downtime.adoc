@@ -354,8 +354,8 @@ No verdict weighs cost. A change that clearly helps can still cost more
 than it is worth: each result says what is left to weigh.
 
 The step size is not an optimum. Recommend finds the lever that matters;
-`raptor optimise` sizes it. In the application the same tool is Simulate ▸
-Batch ▸ Recommend, where Apply writes the chosen change into the model as
+`raptor optimise` sizes it (Analyse ▸ Spares, Maintenance and Crews in the
+application). In the application the same tool is Analyse ▸ Recommend, where Apply writes the chosen change into the model as
 one undo step. An AI assistant calls `recommend_changes`.
 
 === The rule that keeps this honest

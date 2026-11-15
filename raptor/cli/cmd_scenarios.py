@@ -10,13 +10,6 @@ from raptor.cli.exitcodes import CliError
 
 WHATIF_SCHEMA = "raptor-whatif/1"
 
-_METRICS = (("availability", "Availability", True),
-            ("reliability", "Reliability", True),
-            ("mtbde", "MTBDE", False),
-            ("mdt", "MDT", False),
-            ("capacity_weighted_availability", "Delivered fraction", True),
-            ("lost_flow", "Lost flow", False),
-            ("grand_total", "Grand total", False))
 
 
 def add_parser(sub: Any) -> None:
@@ -140,23 +133,8 @@ def sensitivity_command(args: Any) -> int:
 
 
 def _print_sensitivity(result: dict[str, Any]) -> None:
-    base = result["base"]
-    shown = (f"{100 * base['mean']:.5g} %" if result["metric"] in
-             ("availability", "reliability", "capacity_weighted_availability")
-             else f"{base['mean']:.6g}")
-    print(f"Sensitivity of {result['metric']} (base {shown}), "
-          f"{result['batches']} batches x {result['trials']} paired runs")
-    for row in result["inputs"]:
-        if row["swing"] is None:
-            print(f"  {row['input']['name']:<28} no data")
-            continue
-        marks = "" if row["distinguishable"] else "  (not distinguishable)"
-        small = "  small" if row.get("small") else ""
-        print(f"  {row['input']['name']:<28} swing {row['swing']:.4g}"
-              f"  low {row['low']['effect']:+.4g}  high "
-              f"{row['high']['effect']:+.4g}{marks}{small}")
-    print(f"\n{result['caption']}")
-    print(result["note"])
+    from raptor.api.scenarios.sensitivity import sensitivity_lines
+    print("\n".join(sensitivity_lines(result)))
 
 
 def _parse_requirement(text: str) -> dict[str, Any]:
@@ -235,34 +213,5 @@ def whatif_command(args: Any) -> int:
 
 
 def _print_comparison(comparison: Any) -> None:
-    print(f"Base: {comparison.trials} paired runs, seed {comparison.seed}")
-    for row in comparison.rows:
-        print(f"\n{row['name']}  ({'; '.join(row['changes']) or 'no changes'})")
-        if row.get("error"):
-            print(f"  error: {row['error']}")
-            continue
-        for key, label, fraction in _METRICS:
-            metric = row["metrics"].get(key) or {}
-            value = (metric.get("value") or {}).get("mean")
-            delta = (metric.get("delta") or {}).get("mean")
-            sem = (metric.get("delta") or {}).get("sem")
-            if value is None:
-                continue
-            shown = f"{100 * value:.5g} %" if fraction else f"{value:,.6g}"
-            change = (f"{100 * delta:+.3g} pts" if fraction and delta is not None
-                      else f"{delta:+,.3g}" if delta is not None else "—")
-            error = (f" ± {100 * sem:.3g}" if fraction and sem
-                     else f" ± {sem:.3g}" if sem else "")
-            chance = metric.get("p_better")
-            chance_text = f"  P(better) {100 * chance:.3g} %" if chance is not None else ""
-            print(f"  {label:<22} {shown:>14}   {change}{error}{chance_text}")
-    if comparison.variance_reduction:
-        cut = comparison.variance_reduction.get("availability")
-        if cut is not None:
-            print(f"\nPairing cut the variance by {100 * cut:.3g} %.")
-    for requirement in comparison.requirements:
-        print(f"\nRequirement {requirement.get('label')}: "
-              f"Base {requirement['base']}")
-        for name, verdict in (requirement.get("scenarios") or {}).items():
-            print(f"  {name}: {verdict}")
-    print(f"\n{comparison.caption}")
+    from raptor.api.scenarios.runner import comparison_lines
+    print("\n".join(comparison_lines(comparison)))

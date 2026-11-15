@@ -135,6 +135,13 @@ def screen(rbd: Any, blocks: Sequence[str] | None = None,
         code = int(b.get("fail_dist") or 0)
         params = [float(v or 0) for v in (b.get("fail_params") or [])]
         mean = ctx.mean_life(b)
+        if code == 4:
+            # memoryless: a renewed part fails as soon as the old one would
+            out.append(PmAdvice(
+                name, block_id, 1.0, mean, False, None,
+                "not worthwhile: an exponential life has a constant failure "
+                "rate, so replacing early buys nothing", cp, cf))
+            continue
         if code != 15 or len(params) < 2 or params[1] <= 0:
             out.append(PmAdvice(
                 name, block_id, None, None, None,
@@ -197,8 +204,10 @@ def optimise_pm(  # noqa: C901, PLR0912
     for item in advice:
         intervals: list[tuple[str, float | None]] = [("no PM", None)]
         if item.interval:
+            # around the formula's optimum, or (no closed form) the mean life
+            anchor = "optimum" if item.worthwhile else "mean life"
             for factor in (0.5, 0.75, 1.0, 1.5, 2.0):
-                intervals.append((f"{factor:.2f} x optimum",
+                intervals.append((f"{factor:.2f} x {anchor}",
                                   item.interval * factor))
         for label, interval in intervals:
             if interval is None:
@@ -231,35 +240,17 @@ def optimise_pm(  # noqa: C901, PLR0912
         result = results[index] if index < len(results) else {}
         values = _values(rows_for(result), metric)
         mean, sem = _stat(values)
-        delta = _paired(base_values, values)
-        row = {"block": block, "option": label, "changes": assignments,
-               "mean": mean, "sem": sem, "delta": delta,
-               "run_id": result.get("run_id"), "error": result.get("error")}
-        rows.append(row)
+        rows.append({"block": block, "option": label, "changes": assignments,
+                     "mean": mean, "sem": sem, "delta": _paired(base_values, values),
+                     "run_id": result.get("run_id"), "error": result.get("error"),
+                     "_values": values})
     by_block: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         by_block.setdefault(row["block"], []).append(row)
-    recommendations = []
-    for block, group in by_block.items():
-        usable = [row for row in group if row["mean"] is not None]
-        if not usable:
-            continue
-        best = (min(usable, key=lambda row: row["mean"])
-                if objective == "cost"
-                else max(usable, key=lambda row: row["mean"]))
-        no_pm = next((row for row in group if row["option"] == "no PM"), None)
-        worth = ((best["mean"] < no_pm["mean"] if objective == "cost"
-                  else best["mean"] > no_pm["mean"])
-                 if no_pm is not None and best["mean"] is not None
-                 and no_pm["mean"] is not None else False)
-        worthwhile = best["option"] != "no PM" and worth
-        recommendations.append({
-            "block": block, "option": best["option"],
-            "mean": best["mean"], "delta_vs_base": best["delta"],
-            "worthwhile": worthwhile,
-            "changes": list(best["changes"]) if worthwhile else [],
-            "curve": sorted(group, key=lambda row: row["mean"]
-                            if row["mean"] is not None else 0.0)})
+    recommendations = [rec for block, group in by_block.items()
+                       if (rec := _recommend(block, group, objective)) is not None]
+    for row in rows:
+        row.pop("_values", None)
     return {
         "objective": objective, "metric": metric, "trials": trials,
         "seed": seed, "batches": len(results), "advice": [
@@ -271,8 +262,34 @@ def optimise_pm(  # noqa: C901, PLR0912
         "caption": _caption(recommendations, objective),
         "note": ("The analytic screen assumes age replacement on one block; "
                  "the recommendation comes from the paired simulation, not "
-                 "from the formula."),
+                 "from the formula, and is worth making only when its paired "
+                 "gain over no PM exceeds twice its standard error."),
     }
+
+
+def _recommend(block: str, group: list[dict[str, Any]],
+               objective: str) -> dict[str, Any] | None:
+    """The best option for one block, and whether it is worth making."""
+    usable = [row for row in group if row["mean"] is not None]
+    if not usable:
+        return None
+    best = (min(usable, key=lambda row: row["mean"]) if objective == "cost"
+            else max(usable, key=lambda row: row["mean"]))
+    no_pm = next((row for row in group if row["option"] == "no PM"), None)
+    # worthwhile only when the paired gain over no PM is told from noise
+    gain, gain_sem = (_paired_stat(no_pm["_values"], best["_values"])
+                      if no_pm is not None else (None, None))
+    sign = -1 if objective == "cost" else 1
+    worthwhile = (best["option"] != "no PM" and gain is not None
+                  and sign * gain > 2 * (gain_sem or 0.0) and sign * gain > 0)
+    return {
+        "block": block, "option": best["option"],
+        "mean": best["mean"], "delta_vs_base": best["delta"],
+        "worthwhile": worthwhile,
+        "gain_vs_no_pm": {"mean": gain, "sem": gain_sem},
+        "changes": list(best["changes"]) if worthwhile else [],
+        "curve": sorted(group, key=lambda row: row["mean"]
+                        if row["mean"] is not None else 0.0)}
 
 
 def _values(rows: list[dict], key: str) -> list[float]:
@@ -289,6 +306,15 @@ def _stat(values: list[float]) -> tuple[float | None, float | None]:
     sem = (math.sqrt(sum((value - mean) ** 2 for value in values)
                      / (n - 1) / n) if n > 1 else None)
     return mean, sem
+
+
+def _paired_stat(base: list[float], other: list[float]
+                 ) -> tuple[float | None, float | None]:
+    """Mean and standard error of the paired differences `other - base`."""
+    n = min(len(base), len(other))
+    if n < 2:
+        return None, None
+    return _stat([other[i] - base[i] for i in range(n)])
 
 
 def _paired(base: list[float], other: list[float]) -> float | None:

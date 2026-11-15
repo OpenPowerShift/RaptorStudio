@@ -392,11 +392,14 @@ def _caption(recommended: dict[str, Any] | None, target: float | None,
                          else ("upper bound", recommended.get("upper")))
     lead = "Recommended" if met else (
         "No evaluated stock met the target; the best was")
-    text = (f"{lead}: {stocks} — {metric} "
-            f"{recommended['mean']:.5g} ({bound_name} "
-            f"{bound if bound is None else format(bound, '.5g')})")
+    def show(value: float | None) -> str:
+        if value is None:
+            return "unknown"
+        return f"{100 * value:.4g} %" if metric == "availability" else f"{value:.5g}"
+    text = (f"{lead}: {stocks} — {metric} {show(recommended['mean'])} "
+            f"({bound_name} {show(bound)})")
     if target is not None:
-        text += f" against a target of {target:.5g}"
+        text += f" against a target of {show(target)}"
     if costs_default:
         text += "; all spare costs are 1, so this minimises the number held"
     return text + "."

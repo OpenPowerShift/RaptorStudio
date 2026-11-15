@@ -762,6 +762,64 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_open_recommend_dialog",
         enabled_when="can_start_batch"),
     CommandSpec(
+        id="analyse.whatif",
+        attr="_whatif_action",
+        text="What If…",
+        icon="whatif_icon:accent",
+        tooltip=(
+            "Compare changes with this model: half a block's repair time, one "
+            "more spare, no PM, or any PATH=VALUE change. Base and each "
+            "scenario run with the same seed, so the gain is measured pair by "
+            "pair. Runs on copies; Apply writes a scenario in as one undo step."),
+        handler="_open_whatif_dialog",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="analyse.sensitivity",
+        attr="_sensitivity_action",
+        text="Sensitivity…",
+        icon="tornado_icon:accent",
+        tooltip=(
+            "Which inputs the result is most sensitive to: each block's life "
+            "and repair, PM intervals, spare stock and crews moved low and "
+            "high one at a time with paired runs, drawn as a tornado, widest "
+            "swing first. Runs on copies."),
+        handler="_open_sensitivity_dialog",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="analyse.optimise_spares",
+        attr="_optimise_spares_action",
+        text="Spares…",
+        icon="spares_optimise_icon:accent",
+        tooltip=(
+            "The cheapest spare stock that meets an availability target with "
+            "95 % confidence, or the whole cost/availability trade-off, found "
+            "with paired runs. Runs on copies; Apply writes the stock in."),
+        handler="_open_optimise_spares",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="analyse.optimise_pm",
+        attr="_optimise_pm_action",
+        text="Maintenance…",
+        icon="pm_optimise_icon:accent",
+        tooltip=(
+            "Is planned maintenance worthwhile on each block, and how often? "
+            "A formula screens each block, then no PM and several intervals "
+            "are run with paired runs. Runs on copies; Apply writes the best "
+            "interval in."),
+        handler="_open_optimise_pm",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="analyse.optimise_crews",
+        attr="_optimise_crews_action",
+        text="Crews…",
+        icon="crew_optimise_icon:accent",
+        tooltip=(
+            "How many units of each repair crew or tool are needed to meet an "
+            "availability target with 95 % confidence, found with paired runs. "
+            "Runs on copies; Apply writes the size in."),
+        handler="_open_optimise_crews",
+        enabled_when="can_start_batch"),
+    CommandSpec(
         id="sim.extract_hierarchy",
         attr="_extract_hierarchy_action",
         text="Extract Hierarchy…",
@@ -1413,11 +1471,19 @@ LAYOUT: tuple[Page, ...] = (
                          Btn("sim.jump")), priority=4),
        # Analyses are run settings and live in the Run panel's Analysis
        # box. No second set of toggles on the ribbon.
-       Group("Animation", (Custom("_build_speed_controls"),), priority=1),
-       # Many runs at once: one parameter across values, or several models.
-       Group("Batch", (Btn("sim.sweep", True), Btn("sim.compare", True),
-                        Btn("sim.recommend", True)),
-             priority=3)),
+       Group("Animation", (Custom("_build_speed_controls"),), priority=1)),
+    # Many runs at once, each answering a question about the model: what a
+    # change would do, which inputs matter, what to hold and how often to
+    # maintain, and how it compares with other models. All run on copies.
+    _p("Analyse", "_analyse_page_index",
+       Group("What If", (Btn("analyse.whatif", True), Btn("sim.recommend", True)),
+             priority=4),
+       Group("Sensitivity", (Btn("analyse.sensitivity", True), Btn("sim.sweep", True)),
+             priority=3),
+       Group("Optimise", (Btn("analyse.optimise_spares", True),
+                          Btn("analyse.optimise_pm", True),
+                          Btn("analyse.optimise_crews", True)), priority=2),
+       Group("Compare", (Btn("sim.compare", True),), priority=1)),
     # Stepping and what-if failures are one activity -- pause, fail a block,
     # step on, repair it -- so they share a tab instead of making the user
     # cross between two. (Raptor 7 keeps its Failure Effects view a

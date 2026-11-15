@@ -202,6 +202,37 @@ def _pm(row: dict[str, Any]) -> str | None:
     return f"block:{_selector(row)}.pm_freq={2.0 * interval:.10g}"
 
 
+def presets(rbd: Any, block: str) -> list[tuple[str, tuple[str, ...]]]:
+    """The ready-made changes for one block, as (label, PATH=VALUE changes):
+    the levers Recommend proposes, offered for any block the user picks.
+    Only those that apply to this block's data are listed."""
+    row = next((r for r in rbd.section("BLOCK_DATA").rows
+                if str(r.get("ID", "0")) != "0"
+                and (str(r.get("blockName") or "") == block or str(r.get("ID")) == block)),
+               None)
+    if row is None:
+        raise ValueError(f"no block named {block!r}")
+    out: list[tuple[str, tuple[str, ...]]] = []
+    repair, life, delays = _repair(row), _life(row), _logistics(row)
+    if repair:
+        out.append(("half the repair time", (repair,)))
+    if life:
+        out.append(("lasts twice as long", (life,)))
+    if delays:
+        out.append(("half the delays", delays))
+    spare = _spare(rbd, row)
+    if spare:
+        out.append(("one more spare", (spare[0],)))
+    crew = _crew(rbd, row)
+    if crew:
+        out.append((f"one more {crew[0]}", (crew[1],)))
+    pm = _pm(row)
+    if pm:
+        out.append(("maintenance half as often", (pm,)))
+        out.append(("no planned maintenance", (f"block:{_selector(row)}.uses_pm=false",)))
+    return out
+
+
 def _for_cause(rbd: Any, row: dict[str, Any], name: str, cause: str,
                share: float) -> Proposal | None:
     part = f"{100 * share:.0f} % of its outage time is {CAUSE_LABELS.get(cause, cause).lower()}"

@@ -81,6 +81,8 @@ def default_inputs(rbd: Any, attribution: dict[str, Any] | None = None,
         if len(inputs) >= limit:
             break
     if len(inputs) < limit:
+        inputs.extend(_pool_inputs(rbd, blocks, limit - len(inputs)))
+    if len(inputs) < limit:
         inputs.extend(_resource_inputs(rbd, limit - len(inputs)))
     return inputs[:limit]
 
@@ -124,23 +126,50 @@ def _pm_inputs(row: dict[str, Any]) -> list[Input]:
 
 
 def _stock_inputs(row: dict[str, Any]) -> list[Input]:
-    pool = str(row.get("SparePoolName") or "").strip()
-    kind = str(row.get("SpType") or "")
-    if not pool or pool.lower() in ("none", "unnamed") \
-            or kind not in ("Pooled", "Custom"):
+    """A block's own (Custom) spare stock. A pooled spare is varied once, on
+    the pool, by `_pool_inputs`: the block row's Stock column is not the
+    pool's stock (it read 100 for an empty pool, so the pool was varied at
+    99 and 101 and showed no effect)."""
+    if str(row.get("SpType") or "") != "Custom":
         return []
     try:
         stock = int(float(row.get("Stock", 0) or 0))
     except (TypeError, ValueError):
         stock = 0
-    prefix = "pool" if kind == "Pooled" else "block"
-    target = pool if kind == "Pooled" else _selector(row)
+    target = _selector(row)
     return [Input(
-        f"{pool} stock", "stock",
-        f"{prefix}:{target}.stock={max(0, stock - 1)}",
-        f"{prefix}:{target}.stock={stock + 1}",
+        f"{target} stock", "stock",
+        f"block:{target}.stock={max(0, stock - 1)}",
+        f"block:{target}.stock={stock + 1}",
         base_value=float(stock), low_value=float(max(0, stock - 1)),
         high_value=float(stock + 1))]
+
+
+def _pool_inputs(rbd: Any, blocks: list[dict[str, Any]], budget: int) -> list[Input]:
+    """Each spare pool some block draws from, varied by one unit either way,
+    in the order the blocks come (so the largest downtime causes first).
+    An effectively infinite pool (10,000 or more) is left out."""
+    stocks = {}
+    for pool in rbd.section("SPARE_POOL_DATA").rows:
+        try:
+            stocks[str(pool.get("PoolName") or "")] = int(float(pool.get("Stock", 0) or 0))
+        except (TypeError, ValueError):
+            continue
+    out: list[Input] = []
+    seen: set[str] = set()
+    for row in blocks:
+        name = str(row.get("SparePoolName") or "").strip()
+        if (str(row.get("SpType") or "") != "Pooled" or name in seen
+                or name not in stocks or stocks[name] >= 10_000):
+            continue
+        seen.add(name)
+        stock = stocks[name]
+        out.append(Input(
+            f"{name} stock", "stock",
+            f"pool:{name}.stock={max(0, stock - 1)}", f"pool:{name}.stock={stock + 1}",
+            base_value=float(stock), low_value=float(max(0, stock - 1)),
+            high_value=float(stock + 1)))
+    return out[:max(0, budget)]
 
 
 def _resource_inputs(rbd: Any, budget: int) -> list[Input]:
@@ -297,3 +326,28 @@ def _caption(rows: list[dict[str, Any]], metric: str,
             f"({top['swing']:.4g}"
             + (f" from a base of {base_mean:.4g}" if base_mean is not None
                else "") + ").")
+
+
+def sensitivity_lines(result: dict[str, Any]) -> list[str]:
+    """A tornado result as text: base, then each input's swing and its low
+    and high effects, widest first. `raptor sensitivity` prints it; the GUI
+    copies it."""
+    lines: list[str] = []
+    base = result["base"]
+    shown = (f"{100 * base['mean']:.5g} %" if result["metric"] in
+             ("availability", "reliability", "capacity_weighted_availability")
+             else f"{base['mean']:.6g}")
+    lines.append(f"Sensitivity of {result['metric']} (base {shown}), "
+          f"{result['batches']} batches x {result['trials']} paired runs")
+    for row in result["inputs"]:
+        if row["swing"] is None:
+            lines.append(f"  {row['input']['name']:<28} no data")
+            continue
+        marks = "" if row["distinguishable"] else "  (not distinguishable)"
+        small = "  small" if row.get("small") else ""
+        lines.append(f"  {row['input']['name']:<28} swing {row['swing']:.4g}"
+              f"  low {row['low']['effect']:+.4g}  high "
+              f"{row['high']['effect']:+.4g}{marks}{small}")
+    lines.append(f"\n{result['caption']}")
+    lines.append(result["note"])
+    return lines

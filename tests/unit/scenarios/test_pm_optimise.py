@@ -1,6 +1,7 @@
 """PM advice: the age-replacement screen and a small simulated search."""
 from __future__ import annotations
 
+import pytest
 
 from raptor.api import build
 from raptor.api.optimise.pm import (
@@ -93,3 +94,26 @@ def test_a_pm_as_long_as_a_repair_is_run_to_failure():
                                     pm_params=[5, 0, 0])]}
     entry = screen(build.build_from_spec(spec), objective="availability")[0]
     assert entry.worthwhile is False and entry.interval is None
+
+
+def test_an_exponential_life_is_never_worth_preventing(tmp_path):
+    """A memoryless part gains nothing from early replacement: the screen
+    says so and only 'no PM' is simulated, so noise cannot recommend PM."""
+    from raptor.api.optimise.pm import optimise_pm
+    spec = {**SPEC, "blocks": [{**SPEC["blocks"][0], "fail_dist": "Exponential",
+                                "fail_params": [100]}]}
+    (advice,) = screen(build.build_from_spec(spec))
+    assert advice.worthwhile is False and "exponential" in advice.reason
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(spec), name="e")["model_id"]
+    result = optimise_pm(ws, mid, trials=3, seed=2)
+    (rec,) = result["recommendations"]
+    assert [row["option"] for row in rec["curve"]] == ["no PM"]
+    assert rec["worthwhile"] is False and result["changes"] == []
+
+
+def test_worthwhile_needs_a_paired_gain_beyond_noise():
+    from raptor.api.optimise.pm import _paired_stat
+    mean, sem = _paired_stat([0.9, 0.9, 0.9], [0.91, 0.89, 0.92])
+    assert mean == pytest.approx(0.00667, rel=1e-2)
+    assert sem is not None and mean < 2 * sem      # not told from noise

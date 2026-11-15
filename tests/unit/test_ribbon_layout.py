@@ -543,16 +543,16 @@ class TestFoldedGroupIcons:
 
     def test_the_icon_comes_from_the_groups_first_command(self, qapp):
         w = TestCompactMode._squeezed(qapp)
-        # Batch (Sweep, Compare) folds on a squeezed Simulate tab.
+        # Compare folds first on a squeezed Analyse tab.
         page = next(pg for pg in w._ribbon._pages
-                    if any(g._label.text() == "Batch"
+                    if any(g._label.text() == "Compare"
                            for g in pg.collapsed_groups()))
         group = next(g for g in page.collapsed_groups()
-                     if g._label.text() == "Batch")
+                     if g._label.text() == "Compare")
         button = group._collapsed_button
         button.refresh_icon()
         assert button.icon().cacheKey() == \
-            w._sweep_action.icon().cacheKey()
+            w._compare_action.icon().cacheKey()
         w._dirty = False
         w.close()
 

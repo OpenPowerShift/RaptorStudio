@@ -71,16 +71,12 @@ CAPABILITIES: tuple[Capability, ...] = (
     Capability(
         "whatif.scenario", "Compare a change with Base using paired trials",
         api="raptor.api.scenarios.runner.compare", cli="whatif",
-        mcp="what_if", long_running=True,
-        absent={"gui": "the Analyse tab's What If bar and Scenarios tab are "
-                       "designed but not built; use 'raptor whatif' or MCP "
-                       "what_if"}),
+        mcp="what_if", gui="command:analyse.whatif", long_running=True),
     Capability(
         "whatif.sensitivity", "Which inputs the answer is most sensitive to",
         api="raptor.api.scenarios.sensitivity.tornado",
-        cli="sensitivity", mcp="sensitivity", long_running=True,
-        absent={"gui": "the Analyse tab's Tornado view is designed but not "
-                       "built; use 'raptor sensitivity' or MCP sensitivity"}),
+        cli="sensitivity", mcp="sensitivity", gui="command:analyse.sensitivity",
+        long_running=True),
     Capability(
         "whatif.recommend", "A tested change for each top downtime driver: change, gain, cost",
         api="raptor.api.scenarios.recommend.recommend", cli="recommend",
@@ -88,21 +84,17 @@ CAPABILITIES: tuple[Capability, ...] = (
     Capability(
         "optimise.spares", "The cheapest spare stock that meets a target",
         api="raptor.api.optimise.spares.optimise_spares",
-        cli="optimise", mcp="optimise_spares", long_running=True,
-        absent={"gui": "the Analyse tab's Optimise view is designed but not "
-                       "built"}),
+        cli="optimise", mcp="optimise_spares", gui="command:analyse.optimise_spares",
+        long_running=True),
     Capability(
         "optimise.pm", "Is planned maintenance worthwhile, and at what interval",
         api="raptor.api.optimise.pm.optimise_pm", cli="optimise",
-        mcp="optimise_pm", long_running=True,
-        absent={"gui": "the Analyse tab's Optimise view is designed but not "
-                       "built"}),
+        mcp="optimise_pm", gui="command:analyse.optimise_pm", long_running=True),
     Capability(
         "optimise.resources", "How many crews or tools are needed",
         api="raptor.api.optimise.resources.optimise_resources",
-        cli="optimise", mcp="optimise_resources", long_running=True,
-        absent={"gui": "the Analyse tab's Optimise view is designed but not "
-                       "built"}),
+        cli="optimise", mcp="optimise_resources", gui="command:analyse.optimise_crews",
+        long_running=True),
     Capability(
         "dist.judgement", "Fit a life law from judged quantiles",
         api="raptor.api.distributions.from_quantiles", cli="fit",

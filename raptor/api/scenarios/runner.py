@@ -286,3 +286,52 @@ def _caption(rows: list[dict[str, Any]]) -> str:
             if len(usable) > 1 else "")
     return (f"{best['name']} is the largest change in availability: "
             f"{100 * delta:+.3g} points ({direction})." + note)
+
+
+#: (metric, label, is a fraction) in the order the text shows them.
+TEXT_METRICS = (("availability", "Availability", True),
+                ("reliability", "Reliability", True),
+                ("mtbde", "MTBDE", False),
+                ("mdt", "MDT", False),
+                ("capacity_weighted_availability", "Delivered fraction", True),
+                ("lost_flow", "Lost flow", False),
+                ("grand_total", "Grand total", False))
+
+
+def comparison_lines(comparison: Any) -> list[str]:
+    """A comparison as text lines: each scenario's metrics with the paired
+    change, its standard error and the chance it is better; the requirement
+    verdicts; the caption. `raptor whatif` prints it; the GUI copies it."""
+    lines: list[str] = []
+    lines.append(f"Base: {comparison.trials} paired runs, seed {comparison.seed}")
+    for row in comparison.rows:
+        lines.append(f"\n{row['name']}  ({'; '.join(row['changes']) or 'no changes'})")
+        if row.get("error"):
+            lines.append(f"  error: {row['error']}")
+            continue
+        for key, label, fraction in TEXT_METRICS:
+            metric = row["metrics"].get(key) or {}
+            value = (metric.get("value") or {}).get("mean")
+            delta = (metric.get("delta") or {}).get("mean")
+            sem = (metric.get("delta") or {}).get("sem")
+            if value is None:
+                continue
+            shown = f"{100 * value:.5g} %" if fraction else f"{value:,.6g}"
+            change = (f"{100 * delta:+.3g} pts" if fraction and delta is not None
+                      else f"{delta:+,.3g}" if delta is not None else "—")
+            error = (f" ± {100 * sem:.3g}" if fraction and sem
+                     else f" ± {sem:.3g}" if sem else "")
+            chance = metric.get("p_better")
+            chance_text = f"  P(better) {100 * chance:.3g} %" if chance is not None else ""
+            lines.append(f"  {label:<22} {shown:>14}   {change}{error}{chance_text}")
+    if comparison.variance_reduction:
+        cut = comparison.variance_reduction.get("availability")
+        if cut is not None:
+            lines.append(f"\nPairing cut the variance by {100 * cut:.3g} %.")
+    for requirement in comparison.requirements:
+        lines.append(f"\nRequirement {requirement.get('label')}: "
+              f"Base {requirement['base']}")
+        for name, verdict in (requirement.get("scenarios") or {}).items():
+            lines.append(f"  {name}: {verdict}")
+    lines.append(f"\n{comparison.caption}")
+    return lines

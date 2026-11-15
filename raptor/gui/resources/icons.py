@@ -2487,3 +2487,74 @@ def advisor_icon(colour: str) -> QIcon:
         p.drawRect(18, 35, 12, 4)
         p.drawRect(20, 41, 8, 3)
     return _icon("advisor", colour, draw)
+
+
+def whatif_icon(colour: str) -> QIcon:
+    """What If: one path forking into two, the changed one marked."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.drawLine(QPointF(4, 24), QPointF(18, 24))
+        p.drawLine(QPointF(18, 24), QPointF(36, 12))
+        p.drawLine(QPointF(18, 24), QPointF(36, 36))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(QPointF(18, 24), 4, 4)
+        p.drawEllipse(QPointF(39, 10), 5, 5)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        _stroke(p, c, 2.5)
+        p.drawEllipse(QPointF(39, 38), 5, 5)
+    return _icon("whatif", colour, draw)
+
+
+def tornado_icon(colour: str) -> QIcon:
+    """Sensitivity: tornado bars, widest at the top, either side of a line."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for y, left, right in ((8, 18, 18), (19, 13, 11), (30, 7, 8), (39, 3, 4)):
+            p.drawRect(QRectF(24 - left, y, left + right, 7))
+        _stroke(p, c, 2)
+        p.drawLine(QPointF(24, 4), QPointF(24, 46))
+    return _icon("tornado", colour, draw)
+
+
+def spares_optimise_icon(colour: str) -> QIcon:
+    """Optimise spares: stacked boxes with a rising arrow."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 2.5)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(QRectF(4, 30, 14, 12))
+        p.drawRect(QRectF(20, 30, 14, 12))
+        p.drawRect(QRectF(12, 17, 14, 12))
+        _stroke(p, c, 3)
+        p.drawLine(QPointF(40, 40), QPointF(40, 8))
+        p.drawPolyline(QPolygonF([QPointF(34, 14), QPointF(40, 7), QPointF(46, 14)]))
+    return _icon("spares_optimise", colour, draw)
+
+
+def pm_optimise_icon(colour: str) -> QIcon:
+    """Optimise maintenance: a clock face with a tick, the interval tested."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(QPointF(20, 26), 15, 15)
+        p.drawLine(QPointF(20, 26), QPointF(20, 16))
+        p.drawLine(QPointF(20, 26), QPointF(27, 30))
+        _stroke(p, c, 4)
+        p.drawPolyline(QPolygonF([QPointF(32, 10), QPointF(37, 15), QPointF(46, 4)]))
+    return _icon("pm_optimise", colour, draw)
+
+
+def crew_optimise_icon(colour: str) -> QIcon:
+    """Optimise crews: two people and a plus/minus."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for x in (12, 28):
+            p.drawEllipse(QPointF(x, 14), 5.5, 5.5)
+            p.drawRoundedRect(QRectF(x - 8, 22, 16, 16), 5, 5)
+        _stroke(p, c, 3)
+        p.drawLine(QPointF(38, 36), QPointF(46, 36))
+        p.drawLine(QPointF(42, 32), QPointF(42, 40))
+        p.drawLine(QPointF(38, 44), QPointF(46, 44))
+    return _icon("crew_optimise", colour, draw)

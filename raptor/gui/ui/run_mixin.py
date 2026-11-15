@@ -227,17 +227,39 @@ class RunMixin(_Base):
         return open_diff(self, other_path, open_model)
 
     def _open_sweep_dialog(self):
-        """Simulate > Batch > Sweep: one number over a range, at full speed."""
+        """Analyse > Sweep: one number over a range, at full speed."""
         return self._open_batch_dialog("_sweep_dialog", "SweepDialog")
 
     def _open_compare_dialog(self):
-        """Simulate > Batch > Compare: this model beside other model files."""
+        """Analyse > Compare: this model beside other model files."""
         return self._open_batch_dialog("_compare_dialog", "CompareDialog")
 
     def _open_recommend_dialog(self):
-        """Simulate > Batch > Recommend: a tested change for each top driver."""
+        """Analyse > Recommend: a tested change for each top driver."""
         from raptor.gui.ui.recommend_dialog import open_recommend
         return open_recommend(self)
+
+    def _open_whatif_dialog(self):
+        """Analyse > What If: scenarios compared with the model, paired."""
+        from raptor.gui.ui.whatif_dialog import open_whatif
+        return open_whatif(self)
+
+    def _open_sensitivity_dialog(self):
+        """Analyse > Sensitivity: the tornado."""
+        from raptor.gui.ui.tornado_dialog import open_tornado
+        return open_tornado(self)
+
+    def _open_optimise_spares(self):
+        from raptor.gui.ui.optimise_dialogs import open_optimiser
+        return open_optimiser(self, "spares")
+
+    def _open_optimise_pm(self):
+        from raptor.gui.ui.optimise_dialogs import open_optimiser
+        return open_optimiser(self, "pm")
+
+    def _open_optimise_crews(self):
+        from raptor.gui.ui.optimise_dialogs import open_optimiser
+        return open_optimiser(self, "crews")
 
     def _open_batch_dialog(self, attr: str, cls_name: str):
         # One window of each kind. It is kept -- with its results and

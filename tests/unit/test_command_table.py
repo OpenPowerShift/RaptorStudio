@@ -116,7 +116,7 @@ def test_every_predicate_used_is_defined_and_explained():
 def test_the_layout_has_the_expected_tabs():
     # File is not a tab: the File button opens the full-page File view.
     assert [p.title for p in LAYOUT] == [
-        "Model", "Arrange", "Data", "Simulate", "Debug",
+        "Model", "Arrange", "Data", "Simulate", "Analyse", "Debug",
         "Results", "View", "Help"]
 
 

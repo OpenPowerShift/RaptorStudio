@@ -1,4 +1,4 @@
-"""Simulate ▸ Batch ▸ Recommend: a change for each top downtime driver, tested.
+"""Analyse ▸ What If ▸ Recommend: a change for each top downtime driver, tested.
 
 The window runs `raptor.api.scenarios.recommend.recommend` on a copy of the
 model in a thread (Base with attribution first, then every proposed change
@@ -332,32 +332,17 @@ class RecommendDialog(QDialog):
         if result is None or not 0 <= index < len(result.rows):
             return False
         row = result.rows[index]
-        from raptor.api.paths import PathError, cell_changes
-        from raptor.gui.ui.diagram_commands import BlockCellsCmd
-        view = self._win._diagram_dock.view
-        self._win._model_for_engine()          # canvas edits into the rows first
-        rbd = view._rbd_ref
-        if rbd is None:
+        from raptor.gui.ui.analysis_dialog import apply_changes
+        why = apply_changes(self._win, list(row["changes"]), row["name"])
+        if why is not None:
+            self.caption.setText(f"Cannot apply {row['name']}: {why}.")
             return False
-        try:
-            cells = cell_changes(rbd, list(row["changes"]))
-        except (PathError, ValueError) as exc:
-            self.caption.setText(f"Cannot apply {row['name']}: {exc}")
-            return False
-        changes = [{"row": rbd.sections[c["section"]].rows[c["index"]],
-                    "column": c["column"], "old": c["old"], "new": c["new"]}
-                   for c in cells]
-        if not changes:
-            self.caption.setText(f"{row['name']} is already in the model.")
-            return False
-        view._stack.push(BlockCellsCmd(view, changes, f"Apply: {row['name']}"))
         self._applied.add(index)
         self._sync_buttons()
         self.caption.setText(
             f"Applied {row['name']} (Edit ▸ Undo takes it back). The other "
             "results were measured against the model before this change: run "
             "again to test them against the new one.")
-        self._win._statusbar.showMessage(f"Applied: {row['name']}", 5000)
         return True
 
     def text(self) -> str:

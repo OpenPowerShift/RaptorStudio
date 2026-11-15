@@ -74,3 +74,20 @@ def test_the_same_seed_pairs_every_effect(tmp_path):
               "block:Pump.repair_params=4,0,0")], trials=4, seed=9)
     assert first["inputs"][0]["swing"] == second["inputs"][0]["swing"]
     assert first["batches"] == 3
+
+
+def test_a_pooled_stock_is_varied_on_the_pool_once():
+    """Two blocks draw from one empty pool: one input, 0 -> 1, on the pool.
+    (It used to read the block row's Stock, 100, and vary the pool at 99 and
+    101, which showed no effect at all.)"""
+    spec = {**SPEC, "blocks": [
+        {**SPEC["blocks"][0], "name": name, "spare_pool": "Seals", "sp_type": "Pooled"}
+        for name in ("Pump", "Fan")],
+        "spare_pools": [{"name": "Seals", "stock": 0, "rso": 1, "new_spares": 1,
+                         "arrive_every": 200.0}],
+        "links": [{"from": "Start", "to": "Pump"}, {"from": "Pump", "to": "Fan"},
+                  {"from": "Fan", "to": "End"}]}
+    stocks = [item for item in default_inputs(build.build_from_spec(spec))
+              if item.kind == "stock"]
+    assert [(s.name, s.low, s.high) for s in stocks] == [
+        ("Seals stock", "pool:Seals.stock=0", "pool:Seals.stock=1")]

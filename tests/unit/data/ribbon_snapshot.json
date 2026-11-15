@@ -975,6 +975,36 @@
    "text": "Open",
    "tooltip": "Open an .rbd or .rbds file (Ctrl+O)"
   },
+  "_optimise_crews_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Crews\u2026",
+   "tooltip": "How many units of each repair crew or tool are needed to meet an availability target with 95 % confidence, found with paired runs. Runs on copies; Apply writes the size in.\n\nUnavailable: open or create a model first"
+  },
+  "_optimise_pm_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Maintenance\u2026",
+   "tooltip": "Is planned maintenance worthwhile on each block, and how often? A formula screens each block, then no PM and several intervals are run with paired runs. Runs on copies; Apply writes the best interval in.\n\nUnavailable: open or create a model first"
+  },
+  "_optimise_spares_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Spares\u2026",
+   "tooltip": "The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in.\n\nUnavailable: open or create a model first"
+  },
   "_paste_action": {
    "checkable": false,
    "checked": false,
@@ -1325,6 +1355,16 @@
    "text": "Select All",
    "tooltip": "Select all blocks/nodes/events/hierarchies (Ctrl+A)\n\nUnavailable: open or create a model first"
   },
+  "_sensitivity_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Sensitivity\u2026",
+   "tooltip": "Which inputs the result is most sensitive to: each block's life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies.\n\nUnavailable: open or create a model first"
+  },
   "_shortcuts_action": {
    "checkable": false,
    "checked": false,
@@ -1581,6 +1621,16 @@
    "text": "Spread",
    "tooltip": "Band the ACTIVE colouring by this result set's values: the best quarter Green, the worst quarter Red, the middle half Yellow. Applies to Weak Links or Cost; Capacity and Spares use fixed or flag bands. For Weak Links it sets the two thresholds."
   },
+  "_whatif_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "What If\u2026",
+   "tooltip": "Compare changes with this model: half a block's repair time, one more spare, no PM, or any PATH=VALUE change. Base and each scenario run with the same seed, so the gain is measured pair by pair. Runs on copies; Apply writes a scenario in as one undo step.\n\nUnavailable: open or create a model first"
+  },
   "_zoom_hierarchy_action": {
    "checkable": false,
    "checked": false,
@@ -1732,6 +1782,9 @@
    "_mcp_docs_action": true,
    "_new_action": true,
    "_open_action": true,
+   "_optimise_crews_action": false,
+   "_optimise_pm_action": false,
+   "_optimise_spares_action": false,
    "_paste_action": false,
    "_paste_data_action": false,
    "_pause_action": false,
@@ -1764,6 +1817,7 @@
    "_save_as_action": false,
    "_select_action": true,
    "_select_all_action": false,
+   "_sensitivity_action": false,
    "_shortcuts_action": true,
    "_snap_action": false,
    "_spares_overlay_action": false,
@@ -1788,6 +1842,7 @@
    "_validate_action": false,
    "_weak_color_action": false,
    "_weak_spread_action": false,
+   "_whatif_action": false,
    "_zoom_hierarchy_action": false,
    "_zoom_in_action": true,
    "_zoom_out_action": true,
@@ -1887,6 +1942,9 @@
    "_mcp_docs_action": true,
    "_new_action": true,
    "_open_action": true,
+   "_optimise_crews_action": true,
+   "_optimise_pm_action": true,
+   "_optimise_spares_action": true,
    "_paste_action": false,
    "_paste_data_action": false,
    "_pause_action": false,
@@ -1919,6 +1977,7 @@
    "_save_as_action": true,
    "_select_action": true,
    "_select_all_action": true,
+   "_sensitivity_action": true,
    "_shortcuts_action": true,
    "_snap_action": true,
    "_spares_overlay_action": false,
@@ -1943,6 +2002,7 @@
    "_validate_action": true,
    "_weak_color_action": false,
    "_weak_spread_action": false,
+   "_whatif_action": true,
    "_zoom_hierarchy_action": false,
    "_zoom_in_action": true,
    "_zoom_out_action": true,
@@ -2042,6 +2102,9 @@
    "_mcp_docs_action": true,
    "_new_action": true,
    "_open_action": true,
+   "_optimise_crews_action": false,
+   "_optimise_pm_action": false,
+   "_optimise_spares_action": false,
    "_paste_action": false,
    "_paste_data_action": false,
    "_pause_action": false,
@@ -2074,6 +2137,7 @@
    "_save_as_action": false,
    "_select_action": true,
    "_select_all_action": false,
+   "_sensitivity_action": false,
    "_shortcuts_action": true,
    "_snap_action": false,
    "_spares_overlay_action": false,
@@ -2098,6 +2162,7 @@
    "_validate_action": false,
    "_weak_color_action": false,
    "_weak_spread_action": false,
+   "_whatif_action": false,
    "_zoom_hierarchy_action": false,
    "_zoom_in_action": true,
    "_zoom_out_action": true,
@@ -2532,18 +2597,18 @@
       }
      ],
      "title": "Animation"
-    },
+    }
+   ],
+   "title": "Simulate"
+  },
+  {
+   "groups": [
     {
      "items": [
       {
        "kind": "action",
        "large": true,
-       "text": "Sweep\u2026"
-      },
-      {
-       "kind": "action",
-       "large": true,
-       "text": "Compare\u2026"
+       "text": "What If\u2026"
       },
       {
        "kind": "action",
@@ -2551,10 +2616,55 @@
        "text": "Recommend\u2026"
       }
      ],
-     "title": "Batch"
+     "title": "What If"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Sensitivity\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Sweep\u2026"
+      }
+     ],
+     "title": "Sensitivity"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Spares\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Maintenance\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Crews\u2026"
+      }
+     ],
+     "title": "Optimise"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Compare\u2026"
+      }
+     ],
+     "title": "Compare"
     }
    ],
-   "title": "Simulate"
+   "title": "Analyse"
   },
   {
    "groups": [

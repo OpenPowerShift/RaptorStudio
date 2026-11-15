@@ -887,13 +887,80 @@ trials already finished, Pause starts no new slice until you resume. **Jump**
 (skip one trial) is unavailable on a multi-core run, because trials are run
 in slices; its tooltip says so.
 
-**Sweep**, **Compare** and **Recommend** (Simulate ▸ Batch) always run at full speed on the
-chosen cores, on a copy of the model: the open model is not changed.
+Everything on the **Analyse** tab (What If, Recommend, Sensitivity, Sweep,
+the optimisers and Compare) runs at full speed on the chosen cores, on a
+copy of the model: the open model is not changed until you press *Apply*.
+Each window shows its progress and has *Stop*; *Apply* writes the selected
+change into the model as one undo step (*Edit ▸ Undo* takes it back), and
+*Copy* puts the result on the clipboard as text.
+
+[[whatif]]
+== What If: compare changes with the model
+
+*Analyse ▸ What If…* compares scenarios with the model. A scenario is a
+name and a list of changes, each a `PATH=VALUE` as `raptor set` takes it
+(`block:Pump.repair_params=2.5`, `pool:Seals.stock=2`,
+`resource:Crew.units=3`). Pick a block (the selected one is chosen for
+you) and a ready-made change (half the repair time, lasts twice as long,
+half the delays, one more spare, one more crew, maintenance half as often,
+no planned maintenance) and press *Add scenario*, or *Add blank* and type
+the changes, separated by `;`.
+
+*Run* runs the model (Base) and every scenario with the same seed, so each
+difference is measured trial by trial. Each row shows the scenario's
+availability, the paired change against Base with its standard error, the
+chance the scenario is really better, and the change in mean downtime.
+*Apply* writes the selected scenario into the model. The same comparison
+is `raptor whatif` on the command line and `what_if` over MCP.
+
+[[sensitivity]]
+== Sensitivity: which inputs matter
+
+*Analyse ▸ Sensitivity…* moves each input to a low and a high value, one at
+a time, and runs it against the model with paired trials: each block's life
+and repair (mean halved and doubled, shape kept), PM intervals, spare stock
+(one unit less and more, on the pool for pooled spares) and crew sizes,
+the largest downtime causes first. The tornado draws each input's effect
+either side of the base value, widest swing first: red is the input at its
+low value, blue at its high value, better to the right. A hollow bar cannot
+be told from no effect at this many trials. Click an input and press *Apply
+the better end* to write that value into the model.
+
+One at a time shows each input alone: it cannot show two inputs that only
+matter together. The same screen is `raptor sensitivity` and the MCP tool
+`sensitivity`.
+
+[[optimise]]
+== Optimise: spares, maintenance and crews
+
+The three optimisers search rather than test one change, each with paired
+trials:
+
+* *Analyse ▸ Spares…* finds the cheapest spare stock that meets an
+  availability target with 95 % confidence (its lower bound must reach the
+  target), or with *Show the trade-off curve*, every level it evaluated. A
+  backorder model proposes the levels; the simulation decides. The chart
+  plots availability against holding cost, with each level's confidence
+  whisker, the target as a dashed line, today's stock as a ring and the
+  recommendation as the large dot.
+* *Analyse ▸ Maintenance…* screens each block (PM pays only for a part that
+  wears out, Weibull shape above 1, whose planned job is cheaper than a
+  failure; an exponential life never gains from it), then simulates no PM
+  and 0.5 to 2 times the formula's interval. A change is *worth changing*
+  only when its paired gain over no PM exceeds twice its standard error.
+* *Analyse ▸ Crews…* simulates each repair crew's size from one below the
+  offered load to a few above, and recommends the smallest size whose lower
+  bound meets the target.
+
+Select a row and press *Apply* to write it into the model. The same
+searches are `raptor optimise spares|pm|resources` (whose `--apply` writes
+the model file) and the MCP tools `optimise_spares`, `optimise_pm` and
+`optimise_resources`.
 
 [[recommend]]
 == Recommend: a tested change for each driver
 
-*Simulate ▸ Batch ▸ Recommend…* turns the downtime drivers into decisions.
+*Analyse ▸ Recommend…* turns the downtime drivers into decisions.
 It runs a copy of the model with attribution, takes the *Top drivers*
 blocks that cause the most system downtime, proposes one change for each
 from the cause behind its outages, and runs every change beside the model
@@ -935,7 +1002,7 @@ as it is now, unsaved edits included — and another model:
   the Recent list.
 
 It compares the models themselves, not their results (for results, run
-them side by side with Simulate ▸ Compare, whose *What's different?*
+them side by side with Analyse ▸ Compare, whose *What's different?*
 button opens this window for the selected model). Nothing is run.
 
 Rows are grouped by element: a field that changed shows its value in
@@ -955,7 +1022,7 @@ writes the list as CSV or Markdown.
 The same comparison is `raptor diff A B` on the command line and the
 `diff_models` tool for AI assistants.
 
-In Simulate ▸ Compare, the **Add models** button is a menu: choose a file,
+In Analyse ▸ Compare, the **Add models** button is a menu: choose a file,
 or a model open in another window, which is run as it is now, unsaved
 edits included.
 

@@ -1,0 +1,179 @@
+"""Analyse tab: What If, Sensitivity and the three optimisers run in the
+background on a copy, show what they measured, and Apply writes the chosen
+change into the model as one undo step."""
+from __future__ import annotations
+
+import time
+
+import pytest
+from PySide6.QtWidgets import QApplication
+
+pytestmark = pytest.mark.gui
+
+SPEC = {
+    "blocks": [
+        {"name": "Pump", "fail_dist": "Weibull", "fail_params": [2.0, 100.0, 0.0],
+         "repair_dist": "Fixed", "repair_params": [5, 0, 0],
+         "uses_pm": 1, "pm_freq": 400.0, "pm_dist": "Fixed", "pm_params": [2, 0, 0],
+         "pm_cost": 1.0, "pm_fixed_cost": 10.0, "rep_fixed_cost": 100.0,
+         "spare_pool": "Seals", "sp_type": "Pooled",
+         "resource1_name": "Crew", "num_res": 1, "res1_rep": 1},
+        {"name": "Valve", "fail_dist": "Exponential", "fail_params": [400],
+         "repair_dist": "Exponential", "repair_params": [2]}],
+    "spare_pools": [{"name": "Seals", "stock": 0, "rso": 1, "new_spares": 1,
+                     "arrive_every": 200.0}],
+    "resources": [{"name": "Crew", "num_in": 1}],
+    "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+    "links": [{"from": "Start", "to": "Pump"}, {"from": "Pump", "to": "Valve"},
+              {"from": "Valve", "to": "End"}],
+    "experiment": {"trials": 4, "termination_type": "TimeSim", "term_condition": 1000.0},
+}
+
+
+@pytest.fixture
+def win(tmp_path):
+    from raptor.api import build
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.main_window import MainWindow
+    QApplication.instance() or QApplication([])
+    settings.set_value("files/save_before_run", "never")
+    w = MainWindow()
+    w._load_into_app(build.build_from_spec(SPEC), str(tmp_path / "m.rbd"))
+    yield w
+    w._dirty = False
+    w.close()
+
+
+def _run(dlg, seconds: float = 180.0) -> None:
+    assert dlg.start(), dlg.caption.text()
+    assert not dlg._run_btn.isEnabled() and dlg._stop_btn.isEnabled()
+    end = time.monotonic() + seconds
+    while dlg._job is not None and not dlg._job.done and time.monotonic() < end:
+        QApplication.processEvents()
+        time.sleep(0.02)
+    dlg._poll()
+    assert dlg._job.error is None, dlg._job.error
+    assert dlg._run_btn.isEnabled() and not dlg._stop_btn.isEnabled()
+
+
+def _rows(w, section):
+    # pool and resource rows have no ID; BLOCK_DATA's ID 0 is the template
+    return [r for r in w._diagram_dock.view._rbd_ref.section(section).rows
+            if str(r.get("ID", "x")) != "0"]
+
+
+def _pump(w):
+    return next(r for r in _rows(w, "BLOCK_DATA") if r.get("blockName") == "Pump")
+
+
+def test_the_analyse_tab_holds_the_analyses(win):
+    from raptor.gui.command_table import LAYOUT
+    page = next(p for p in LAYOUT if p.title == "Analyse")
+    ids = [b.id for g in page.groups for b in g.items if hasattr(b, "id")]
+    for cid in ("analyse.whatif", "sim.recommend", "analyse.sensitivity", "sim.sweep",
+                "analyse.optimise_spares", "analyse.optimise_pm",
+                "analyse.optimise_crews", "sim.compare"):
+        assert cid in ids
+    assert win._whatif_action.text() == "What If…"
+
+
+def test_what_if_compares_a_preset_and_applies_it(win):
+    dlg = win._open_whatif_dialog()
+    assert win._open_whatif_dialog() is dlg
+    assert dlg.start() is False and "Add a scenario" in dlg.caption.text()
+    dlg._block.setCurrentText("Pump")
+    labels = [dlg._preset.itemText(i) for i in range(dlg._preset.count())]
+    assert "half the repair time" in labels and "one more spare" in labels
+    dlg._preset.setCurrentText("half the repair time")
+    dlg._add_preset()
+    dlg._trials.setValue(4)
+    _run(dlg)
+    assert dlg.table.rowCount() == 2
+    assert dlg.table.item(0, 0).text() == "Base"
+    assert dlg.table.item(1, 0).text() == "Pump: half the repair time"
+    assert "pts" in dlg.table.item(1, 2).text()
+    assert "Availability" in dlg.result_text()
+    dlg.table.selectRow(1)
+    assert dlg._apply_btn.isEnabled()
+    assert dlg.apply_selected()
+    assert float(_pump(win)["RParam1"]) == pytest.approx(2.5)
+    assert not dlg._apply_btn.isEnabled()
+    win._undo_stack.undo()
+    assert float(_pump(win)["RParam1"]) == pytest.approx(5.0)
+
+
+def test_sensitivity_draws_the_tornado_and_applies_the_better_end(win):
+    dlg = win._open_sensitivity_dialog()
+    dlg._top.setValue(3)
+    dlg._trials.setValue(4)
+    _run(dlg)
+    rows = dlg.chart.rows
+    assert rows and rows == sorted(rows, key=lambda r: -(r["swing"] or 0))
+    assert "swing" in dlg.result_text()
+    chosen = dlg.selection()
+    if chosen is not None:                      # an end that improves the metric
+        assert dlg.apply_selected()
+        win._undo_stack.undo()
+
+
+def test_spares_optimiser_recommends_and_applies_a_stock(win):
+    dlg = win._open_optimise_spares()
+    dlg._target.setValue(50.0)
+    dlg._budget.setValue(3)
+    dlg._trials.setValue(4)
+    _run(dlg)
+    assert dlg.table.rowCount() == len(dlg.result["points"]) >= 1
+    assert dlg.result["recommended"] is not None
+    _key, _label, changes = dlg.selection()
+    assert all(c.startswith("pool:Seals.") for c in changes)
+    if any(c != "pool:Seals.stock=0" for c in changes):
+        assert dlg.apply_selected()
+        pool = next(r for r in _rows(win, "SPARE_POOL_DATA") if r.get("PoolName") == "Seals")
+        assert int(float(pool["Stock"])) == dlg.result["recommended"]["stocks"]["Seals"]
+        win._undo_stack.undo()
+
+
+def test_pm_optimiser_lists_each_block(win):
+    dlg = win._open_optimise_pm()
+    dlg._trials.setValue(3)
+    _run(dlg)
+    blocks = [dlg.table.item(i, 0).text() for i in range(dlg.table.rowCount())]
+    assert "Pump" in blocks
+    assert dlg.caption.text()
+
+
+def test_crew_optimiser_applies_the_size(win):
+    dlg = win._open_optimise_crews()
+    dlg._target.setValue(50.0)
+    dlg._extra.setValue(1)
+    dlg._trials.setValue(3)
+    _run(dlg)
+    assert dlg.table.item(0, 0).text() == "Crew"
+    units = int(dlg.table.item(0, 1).text())
+    _key, _label, changes = dlg.selection()
+    assert changes == [f"resource:Crew.units={units}"]
+    if units != 1:
+        assert dlg.apply_selected()
+        crew = next(r for r in _rows(win, "RESOURCE_DATA") if r.get("PoolName") == "Crew")
+        assert int(float(crew["NumIn"])) == units
+        win._undo_stack.undo()
+
+
+def test_a_model_without_pools_says_so(tmp_path):
+    from raptor.api import build
+    from raptor.gui.ui.main_window import MainWindow
+    QApplication.instance() or QApplication([])
+    w = MainWindow()
+    spec = {**SPEC, "spare_pools": [], "resources": [],
+            "blocks": [{k: v for k, v in b.items()
+                        if k not in ("spare_pool", "sp_type", "resource1_name", "num_res",
+                                     "res1_rep")} for b in SPEC["blocks"]]}
+    w._load_into_app(build.build_from_spec(spec), str(tmp_path / "n.rbd"))
+    try:
+        spares = w._open_optimise_spares()
+        assert spares.start() is False and "no finite spare pool" in spares.caption.text()
+        crews = w._open_optimise_crews()
+        assert crews.start() is False and "no repair resource" in crews.caption.text()
+    finally:
+        w._dirty = False
+        w.close()

@@ -175,7 +175,7 @@ same way again.
 
 === Asking "what if?": Sweep and Compare
 
-Two buttons in Simulate ▸ Batch run the model many times at full speed,
+Two buttons on the Analyse tab run the model many times at full speed,
 on a copy (the open model is never changed):
 
 * *Sweep* changes one number over a range — a block's MTBF, a rate,

@@ -44,6 +44,9 @@
 </li>
 <li><a href="#run">The Run panel</a></li>
 <li><a href="#cores">Cores, Animate and repeatable results</a></li>
+<li><a href="#whatif">What If: compare changes with the model</a></li>
+<li><a href="#sensitivity">Sensitivity: which inputs matter</a></li>
+<li><a href="#optimise">Optimise: spares, maintenance and crews</a></li>
 <li><a href="#recommend">Recommend: a tested change for each driver</a></li>
 <li><a href="#differences">Comparing two models</a></li>
 <li><a href="#several-models">Several models at once</a></li>
@@ -69,6 +72,7 @@
 <li><a href="#_arrange_tab">Arrange tab</a></li>
 <li><a href="#_data_tab">Data tab</a></li>
 <li><a href="#_simulate_tab">Simulate tab</a></li>
+<li><a href="#_analyse_tab">Analyse tab</a></li>
 <li><a href="#_debug_tab">Debug tab</a></li>
 <li><a href="#_results_tab">Results tab</a></li>
 <li><a href="#_view_tab">View tab</a></li>
@@ -1365,8 +1369,96 @@ trials already finished, Pause starts no new slice until you resume. <strong>Jum
 in slices; its tooltip says so.</p>
 </div>
 <div class="paragraph">
-<p><strong>Sweep</strong>, <strong>Compare</strong> and <strong>Recommend</strong> (Simulate ▸ Batch) always run at full speed on the
-chosen cores, on a copy of the model: the open model is not changed.</p>
+<p>Everything on the <strong>Analyse</strong> tab (What If, Recommend, Sensitivity, Sweep,
+the optimisers and Compare) runs at full speed on the chosen cores, on a
+copy of the model: the open model is not changed until you press <strong>Apply</strong>.
+Each window shows its progress and has <strong>Stop</strong>; <strong>Apply</strong> writes the selected
+change into the model as one undo step (<strong>Edit ▸ Undo</strong> takes it back), and
+<strong>Copy</strong> puts the result on the clipboard as text.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="whatif">What If: compare changes with the model</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Analyse ▸ What If…</strong> compares scenarios with the model. A scenario is a
+name and a list of changes, each a <code>PATH=VALUE</code> as <code>raptor set</code> takes it
+(<code>block:Pump.repair_params=2.5</code>, <code>pool:Seals.stock=2</code>,
+<code>resource:Crew.units=3</code>). Pick a block (the selected one is chosen for
+you) and a ready-made change (half the repair time, lasts twice as long,
+half the delays, one more spare, one more crew, maintenance half as often,
+no planned maintenance) and press <strong>Add scenario</strong>, or <strong>Add blank</strong> and type
+the changes, separated by <code>;</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Run</strong> runs the model (Base) and every scenario with the same seed, so each
+difference is measured trial by trial. Each row shows the scenario&#8217;s
+availability, the paired change against Base with its standard error, the
+chance the scenario is really better, and the change in mean downtime.
+<strong>Apply</strong> writes the selected scenario into the model. The same comparison
+is <code>raptor whatif</code> on the command line and <code>what_if</code> over MCP.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="sensitivity">Sensitivity: which inputs matter</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Analyse ▸ Sensitivity…</strong> moves each input to a low and a high value, one at
+a time, and runs it against the model with paired trials: each block&#8217;s life
+and repair (mean halved and doubled, shape kept), PM intervals, spare stock
+(one unit less and more, on the pool for pooled spares) and crew sizes,
+the largest downtime causes first. The tornado draws each input&#8217;s effect
+either side of the base value, widest swing first: red is the input at its
+low value, blue at its high value, better to the right. A hollow bar cannot
+be told from no effect at this many trials. Click an input and press <strong>Apply
+the better end</strong> to write that value into the model.</p>
+</div>
+<div class="paragraph">
+<p>One at a time shows each input alone: it cannot show two inputs that only
+matter together. The same screen is <code>raptor sensitivity</code> and the MCP tool
+<code>sensitivity</code>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="optimise">Optimise: spares, maintenance and crews</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The three optimisers search rather than test one change, each with paired
+trials:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Analyse ▸ Spares…</strong> finds the cheapest spare stock that meets an
+availability target with 95 % confidence (its lower bound must reach the
+target), or with <strong>Show the trade-off curve</strong>, every level it evaluated. A
+backorder model proposes the levels; the simulation decides. The chart
+plots availability against holding cost, with each level&#8217;s confidence
+whisker, the target as a dashed line, today&#8217;s stock as a ring and the
+recommendation as the large dot.</p>
+</li>
+<li>
+<p><strong>Analyse ▸ Maintenance…</strong> screens each block (PM pays only for a part that
+wears out, Weibull shape above 1, whose planned job is cheaper than a
+failure; an exponential life never gains from it), then simulates no PM
+and 0.5 to 2 times the formula&#8217;s interval. A change is <strong>worth changing</strong>
+only when its paired gain over no PM exceeds twice its standard error.</p>
+</li>
+<li>
+<p><strong>Analyse ▸ Crews…</strong> simulates each repair crew&#8217;s size from one below the
+offered load to a few above, and recommends the smallest size whose lower
+bound meets the target.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Select a row and press <strong>Apply</strong> to write it into the model. The same
+searches are <code>raptor optimise spares|pm|resources</code> (whose <code>--apply</code> writes
+the model file) and the MCP tools <code>optimise_spares</code>, <code>optimise_pm</code> and
+<code>optimise_resources</code>.</p>
 </div>
 </div>
 </div>
@@ -1374,7 +1466,7 @@ chosen cores, on a copy of the model: the open model is not changed.</p>
 <h2 id="recommend">Recommend: a tested change for each driver</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p><strong>Simulate ▸ Batch ▸ Recommend…</strong> turns the downtime drivers into decisions.
+<p><strong>Analyse ▸ Recommend…</strong> turns the downtime drivers into decisions.
 It runs a copy of the model with attribution, takes the <strong>Top drivers</strong>
 blocks that cause the most system downtime, proposes one change for each
 from the cause behind its outages, and runs every change beside the model
@@ -1446,7 +1538,7 @@ the Recent list.</p>
 </div>
 <div class="paragraph">
 <p>It compares the models themselves, not their results (for results, run
-them side by side with Simulate ▸ Compare, whose <strong>What&#8217;s different?</strong>
+them side by side with Analyse ▸ Compare, whose <strong>What&#8217;s different?</strong>
 button opens this window for the selected model). Nothing is run.</p>
 </div>
 <div class="paragraph">
@@ -1470,7 +1562,7 @@ writes the list as CSV or Markdown.</p>
 <code>diff_models</code> tool for AI assistants.</p>
 </div>
 <div class="paragraph">
-<p>In Simulate ▸ Compare, the <strong>Add models</strong> button is a menu: choose a file,
+<p>In Analyse ▸ Compare, the <strong>Add models</strong> button is a menu: choose a file,
 or a model open in another window, which is run as it is now, unsaved
 edits included.</p>
 </div>
@@ -2740,8 +2832,11 @@ current value).</p>
 </tbody>
 </table>
 </div>
+</div>
+<div class="sect2">
+<h3 id="_analyse_tab">Analyse tab</h3>
 <div class="sect3">
-<h4 id="_batch">Batch</h4>
+<h4 id="_what_if">What If</h4>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
 <col style="width: 28.5714%;">
@@ -2757,18 +2852,100 @@ current value).</p>
 </thead>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sweep…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Run the model once per value of one number&#8201;&#8212;&#8201;a failure or repair parameter, a rate, the k of a k-of-n node&#8201;&#8212;&#8201;and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed.</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Compare…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Run several models&#8201;&#8212;&#8201;this one and others from disk&#8201;&#8212;&#8201;with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What If…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compare changes with this model: half a block&#8217;s repair time, one more spare, no PM, or any PATH=VALUE change. Base and each scenario run with the same seed, so the gain is measured pair by pair. Runs on copies; Apply writes a scenario in as one undo step.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Recommend…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Find the blocks that cause the most downtime, propose one change for each (faster repair, one more spare, one more crew, &#8230;&#8203;) and test every change against this model with paired runs: the change, the gain it measurably gives and its cost. Runs on copies; Apply writes a change in as one undo step.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_sensitivity">Sensitivity</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sensitivity…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Which inputs the result is most sensitive to: each block&#8217;s life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sweep…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run the model once per value of one number&#8201;&#8212;&#8201;a failure or repair parameter, a rate, the k of a k-of-n node&#8201;&#8212;&#8201;and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_optimise">Optimise</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spares…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Maintenance…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Is planned maintenance worthwhile on each block, and how often? A formula screens each block, then no PM and several intervals are run with paired runs. Runs on copies; Apply writes the best interval in.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Crews…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How many units of each repair crew or tool are needed to meet an availability target with 95 % confidence, found with paired runs. Runs on copies; Apply writes the size in.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_compare">Compare</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compare…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run several models&#8201;&#8212;&#8201;this one and others from disk&#8201;&#8212;&#8201;with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 </tbody>
