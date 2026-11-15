@@ -209,17 +209,28 @@ class SparesDialog(AnalysisDialog):
         self.chart.set_result(result)
         points = result["points"]
         chosen = result.get("recommended")
-        rows = [(", ".join(f"{name} {n}" for name, n in pt["stocks"].items()),
-                 f"{pt['cost']:,.6g}", _pct(pt["mean"]), _pct(pt["lower"])) for pt in points]
-        bold = {i for i, pt in enumerate(points) if pt == chosen}
-        _fill(self.table, rows, bold, ["; ".join(pt.get("changes") or []) for pt in points])
+        base = result.get("base") or {}
+
+        def stock(pt: dict[str, Any]) -> str:
+            return ", ".join(f"{name} {n}" for name, n in pt["stocks"].items())
+        # Row 0 is today's stock, so the recommendation reads against it
+        # (the chart's ring was the only place it showed).
+        rows = [(f"Today: {stock(base)}" if base.get("stocks") else "Today",
+                 f"{base.get('cost') or 0:,.6g}", _pct(base.get("mean")),
+                 _pct(base.get("lower")))]
+        rows += [(stock(pt), f"{pt['cost']:,.6g}", _pct(pt["mean"]), _pct(pt["lower"]))
+                 for pt in points]
+        bold = {i + 1 for i, pt in enumerate(points) if pt == chosen}
+        _fill(self.table, rows, bold,
+              ["The stock the model holds now"]
+              + ["; ".join(pt.get("changes") or []) for pt in points])
         self.caption.setText(f"{result['caption']} {result['note']}")
         if bold:
             self.table.selectRow(min(bold))
 
     def selection(self) -> tuple[Any, str, list[str]] | None:
         result = self.result
-        index = self.table.currentRow()
+        index = self.table.currentRow() - 1          # row 0 is today's stock
         if result is None or not 0 <= index < len(result["points"]):
             return None
         point = result["points"][index]
@@ -230,9 +241,13 @@ class SparesDialog(AnalysisDialog):
         result = self.result
         if result is None:
             return ""
-        lines = [f"{', '.join(f'{k} {v}' for k, v in pt['stocks'].items())}\t"
-                 f"cost {pt['cost']:,.6g}\t{_pct(pt['mean'])}\tlower {_pct(pt['lower'])}"
-                 for pt in result["points"]]
+        base = result.get("base") or {}
+        lines = [f"today {', '.join(f'{k} {v}' for k, v in (base.get('stocks') or {}).items())}\t"
+                 f"cost {base.get('cost') or 0:,.6g}\t{_pct(base.get('mean'))}\t"
+                 f"lower {_pct(base.get('lower'))}"]
+        lines += [f"{', '.join(f'{k} {v}' for k, v in pt['stocks'].items())}\t"
+                  f"cost {pt['cost']:,.6g}\t{_pct(pt['mean'])}\tlower {_pct(pt['lower'])}"
+                  for pt in result["points"]]
         return "\n".join([*lines, "", result["caption"], result["note"]])
 
 

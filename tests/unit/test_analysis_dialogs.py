@@ -122,8 +122,14 @@ def test_spares_optimiser_recommends_and_applies_a_stock(win):
     dlg._budget.setValue(3)
     dlg._trials.setValue(4)
     _run(dlg)
-    assert dlg.table.rowCount() == len(dlg.result["points"]) >= 1
+    # G10: row 0 is today's stock, read against the recommendation
+    assert dlg.table.rowCount() == len(dlg.result["points"]) + 1 >= 2
+    assert dlg.table.item(0, 0).text().startswith("Today")
+    dlg.table.selectRow(0)
+    assert dlg.selection() is None and not dlg._apply_btn.isEnabled()
     assert dlg.result["recommended"] is not None
+    bold = next(i for i in range(1, dlg.table.rowCount()) if dlg.table.item(i, 0).font().bold())
+    dlg.table.selectRow(bold)
     _key, _label, changes = dlg.selection()
     assert all(c.startswith("pool:Seals.") for c in changes)
     if any(c != "pool:Seals.stock=0" for c in changes):

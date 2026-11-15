@@ -254,7 +254,7 @@ def optimise_spares(  # noqa: C901, PLR0912
                 "not get there."),
             "evaluation limit": (
                 f" It stopped at the limit of {max_evaluations} evaluations; "
-                "raise max_evaluations to search further."),
+                "allow more evaluations to search further."),
             "cancelled": " The search was stopped before it finished.",
         }.get(stopped_by, "")
     return {
@@ -350,8 +350,9 @@ def _walk(  # noqa: C901, PLR0912
         point["meets"] = _meets(point, target, metric)
         points.append(point)
         if progress:
+            total = sum(point["stocks"].values())
             progress(evaluations, max_evaluations,
-                     f"{sum(point['stocks'].values())} spares")
+                     f"{total} spare{'' if total == 1 else 's'}")
         if mode == "meet" and point["meets"]:
             # The path was sampled with growing steps: look back between the
             # last point that missed and this one for the least stock that
