@@ -778,7 +778,7 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
     @staticmethod
     def _ensure_header_widths(table: QTableWidget) -> None:
         """Widen columns whose header text, or whose drop-down's longest
-        choice ("None (unrepairable)"), would otherwise clip mid-word.
+        choice (the unrepairable repair law), would otherwise clip mid-word.
 
         A column's drop-downs share one list of choices, so the first rows
         are enough: a large model does not pay for a scan of every row."""
