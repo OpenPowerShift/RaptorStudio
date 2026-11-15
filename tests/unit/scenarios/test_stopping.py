@@ -70,8 +70,9 @@ def test_cancelling_between_passes_keeps_the_completed_batch(tmp_path):
     calls = []
 
     def progress(done, total, text):
+        # Stop part-way through the second pass: the first, whole, stands
         calls.append(done)
-        if len(calls) > 1:
+        if text.startswith("pass 2") and done > 0:
             abort.set()
 
     outcome = run_to_precision(
@@ -104,3 +105,16 @@ def test_a_model_that_never_fails_grows_the_count_geometrically(tmp_path):
     # 4, 8, 16, 32, 64: one pass per doubling, never one trial per pass
     assert counts == [4, 8, 16, 32, 64]
     assert result.stopped == "max trials"
+
+
+def test_progress_reports_each_trial_of_each_pass(tmp_path):
+    ws, mid = _workspace(tmp_path)
+    calls = []
+    run_to_precision(ws, mid, Precision(relative=1e-6, min_trials=5, max_trials=12,
+                                        batch=5),
+                     seed=3, progress=lambda d, t, text: calls.append((d, t, text)))
+    assert any(done > 0 for done, _t, _x in calls)       # within a pass, not only between
+    assert calls[0][2].startswith("pass 1: 5 trials")
+    later = [text for _d, _t, text in calls if text.startswith("pass 2")]
+    assert later and "target" in later[0]
+    assert all(done <= total for done, total, _x in calls)

@@ -20,6 +20,7 @@ from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont, QFontMetrics
 from PySide6.QtWidgets import (
     QApplication, QDialog, QHBoxLayout, QLabel, QLayout, QProgressBar, QPushButton,
     QSpinBox, QVBoxLayout, QWidget,
@@ -206,12 +207,23 @@ class AnalysisDialog(QDialog):
         self._copy_btn.clicked.connect(self._copy)
         close = QPushButton("Close")
         close.clicked.connect(self.close)
+        # the default button is drawn bold: size both for that, or the
+        # label is clipped when the default moves to it
+        bold = QFont(self.font())
+        bold.setBold(True)
+        metrics = QFontMetrics(bold)
+        for button in (self._run_btn, self._apply_btn):
+            button.setMinimumWidth(metrics.horizontalAdvance(button.text()) + 32)
+        # Copy on its own at the left; on the right the order of the work:
+        # Run (Stop), then the button that writes the answer into the model,
+        # then Close. The write button becomes the default once it can act.
         buttons = QHBoxLayout()
-        buttons.addWidget(self._apply_btn)
         buttons.addWidget(self._copy_btn)
         buttons.addStretch(1)
         buttons.addWidget(self._run_btn)
         buttons.addWidget(self._stop_btn)
+        buttons.addSpacing(12)
+        buttons.addWidget(self._apply_btn)
         buttons.addWidget(close)
         return buttons
 
@@ -271,10 +283,12 @@ class AnalysisDialog(QDialog):
             if job.done_count:
                 self._progress.setRange(0, job.total)
                 self._progress.setValue(job.done_count)
+            else:
+                self._progress.setRange(0, 0)      # busy until the first trial ends
             if not job.abort.is_set():
-                self._progress.setFormat(f"{job.done_count} of {job.total} — {job.label}")
-                self.caption.setText(f"{job.label}…" if not job.done_count else
-                                     f"Running {job.done_count} of {job.total}: {job.label}")
+                self._progress.setFormat(f"{job.done_count:,} of {job.total:,} — {job.label}"
+                                         if job.done_count else f"{job.label}…")
+                self.caption.setText(f"{job.label[:1].upper()}{job.label[1:]}…")
             return
         self._timer.stop()
         self._run_btn.setEnabled(True)
@@ -302,6 +316,10 @@ class AnalysisDialog(QDialog):
             chosen is not None and bool(chosen[2]) and chosen[0] not in self._applied
             and not self.running())
         self._copy_btn.setEnabled(self.result is not None and not self.running())
+        # Enter does the next useful thing: run, or write the answer in
+        can_apply = self._apply_btn.isEnabled()
+        self._apply_btn.setDefault(can_apply)
+        self._run_btn.setDefault(not can_apply)
 
     def apply_selected(self) -> bool:
         chosen = self.selection()

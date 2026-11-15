@@ -151,6 +151,34 @@ def _stats(values: list[float], confidence: float
     return mean, sem, half, relative
 
 
+def _pass_label(number: int, trials: int, relative: float | None,
+                target: float) -> str:
+    """What one pass is doing, for a progress line: its number and size and
+    how far the last pass was from the target."""
+    from raptor.api.insight.axes import pct
+    text = f"pass {number}: {trials:,} trials"
+    if relative is not None:
+        text += f"; last pass ±{pct(relative)} of the value, target ±{pct(target)}"
+    return text
+
+
+def _one_pass(run: Callable[[], RunResult], trials: int, abort: Any, *,
+              first: bool) -> RunResult | None:
+    """One pass, or None when it was stopped part-way (a fragment of a pass
+    is not kept). Stopping the first pass, with nothing to keep, raises."""
+    from raptor.api.run import RunCancelledError
+    try:
+        latest = run()
+    except RunCancelledError:
+        if first:
+            raise
+        return None
+    stopping = abort is not None and getattr(abort, "is_set", lambda: False)()
+    if stopping and not first and len(latest.per_run) < trials:
+        return None
+    return latest
+
+
 def run_to_precision(
     workspace: Any,
     model_id: str,
@@ -164,7 +192,8 @@ def run_to_precision(
 ) -> PrecisionRun:
     """Run the model in growing batches until the relative width is met.
 
-    `progress(done, total, text)` reports each pass; `abort` (a
+    `progress(done, total, text)` reports each trial of each pass (the text
+    names the pass and how far the last one was from the target); `abort` (a
     `threading.Event`) stops between passes, and the last completed batch
     is kept.  Extra keyword arguments go to `raptor.api.run.run`
     (`timeout_s`, `attribution`, ...).
@@ -180,14 +209,27 @@ def run_to_precision(
     mean = sem = half = relative = None
 
     while True:
-        if progress:
-            progress(trials, precision.max_trials, f"running {trials} trials")
         if (result is not None and abort is not None
                 and getattr(abort, "is_set", lambda: False)()):
             stopped = "cancelled"
             break
-        result = run_api(workspace, model_id, num_runs=trials, workers=workers,
-                         seed=seed, abort=abort, **run_options)
+        options = dict(run_options)
+        if progress:
+            label = _pass_label(len(history) + 1, trials, relative, target)
+            progress(0, trials, label)
+            if "progress" not in options:
+                # each trial of this pass, so a long pass is not a frozen bar
+                options["progress"] = (
+                    lambda done, _total, n=trials, text=label: progress(done, n, text))
+        latest = _one_pass(lambda n=trials, o=options: run_api(
+                               workspace, model_id, num_runs=n, workers=workers,
+                               seed=seed, abort=abort, **o),
+                           trials, abort, first=result is None)
+        if latest is None:
+            # stopped part-way through a pass: the last whole pass stands
+            stopped = "cancelled"
+            break
+        result = latest
         values = [value for row in result.per_run
                   if (value := _watch(row, field_name, precision.on))
                   is not None]

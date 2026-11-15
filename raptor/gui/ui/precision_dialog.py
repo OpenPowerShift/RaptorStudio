@@ -4,7 +4,7 @@ States a precision instead of a run count. Runs the model on a copy in
 growing batches with the same seed (`raptor.api.scenarios.run_to_precision`,
 Law's sequential relative-precision rule) until the confidence interval's
 half-width is within the target fraction of the watched value, and lists
-each pass. Apply writes the trial count it reached into the experiment, as
+each pass. “Use these trials” writes the trial count it reached into the experiment, as
 one undo step, for the next Run.
 
 For availability, reliability and delivered fraction the rule watches the
@@ -12,6 +12,7 @@ complement (unavailability): a 10 % precision on 99.9 % availability is
 then a tenth of the 0.1 % that is lost, not of the 99.9 %.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 from typing import Any
 
@@ -44,7 +45,8 @@ class PrecisionDialog(AnalysisDialog):
              "trial count: the model runs on a copy in growing batches with the "
              "same seed until the confidence interval is within the target. "
              "For availability the target is on the part that is lost "
-             "(unavailability). Apply sets the trials for the next Run.")
+             "(unavailability). “Use these trials” sets the trials for "
+             "the next Run.")
     FIRST_LABEL = "Running the first batch"
     SIZE = (760, 520)
 
@@ -120,7 +122,7 @@ class PrecisionDialog(AnalysisDialog):
             texts = (f"{step['trials']:,}",
                      "—" if step["mean"] is None else f"{step['mean']:.5g}",
                      "—" if step["half_width"] is None else f"{step['half_width']:.3g}",
-                     "—" if step["relative"] is None else f"{100 * step['relative']:.3g} %")
+                     "—" if step["relative"] is None else f"{pct(step['relative'])}")
             for column, text in enumerate(texts):
                 self.table.setItem(index, column, QTableWidgetItem(text))
         self.caption.setText(self._summary(result))
@@ -137,11 +139,11 @@ class PrecisionDialog(AnalysisDialog):
                     f": {watched} {result.mean:.5g}"
                     + (f" ± {result.half_width:.3g}" if result.half_width is not None else ""))
         width = ("" if result.relative_half_width is None else
-                 f" (relative width {100 * result.relative_half_width:.3g} %)")
+                 f" (relative width {pct(result.relative_half_width)})")
         return (f"{result.trials:,} trials {reached}{estimate}{width}, "
                 f"{100 * result.precision.confidence:.0f} % confidence. "
-                "Apply sets the next Run to this many trials; that run measures "
-                "its own interval.")
+                "“Use these trials” sets the next Run to this many trials; "
+                "that run measures its own interval.")
 
     def selection(self) -> tuple[Any, str, list[str]] | None:
         result = self.result
