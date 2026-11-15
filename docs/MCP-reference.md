@@ -3918,15 +3918,16 @@ Turn experience into a life law, with no failure data.
 
 Each answer is a share and an age: "one in ten fail by 100 hours,
 half by 300" is `[{probability: 0.1, age: 100}, {probability: 0.5,
-age: 300}]`. Two answers solve the law exactly; three or more are a
-least-squares fit. Weibull suits wear-out lives, lognormal repair
+age: 300}]`. Two answers solve the law exactly (one is enough for an
+exponential); three or more are a least-squares fit. Weibull suits wear-out lives, lognormal repair
 times, exponential random failures. Inconsistent answers (a higher share
 at an earlier age) are refused by name. The fit is only as good as the
 answers.
 
 Returns `params` (named), `slots` (in the model's parameter order),
-`mean`, `fitted` (the law's ages at 1, 10, 50, 90 and 99 %), `stated`
-and `shape_note`. With `block`, also `changes` (PATH=VALUE, for `raptor
+`mean`, `fitted` (the law's ages at 1, 10, 50, 90 and 99 %), `stated`,
+`shape_note` and `warnings` (a loose fit, or answers so close that the
+law is nearly a fixed age). With `block`, also `changes` (PATH=VALUE, for `raptor
 set`) and `update` (the fields to pass to `update_element`, law and
 parameters together) for its failure (`use="fail"`) or repair law.
 Nothing is changed here.
@@ -3957,6 +3958,7 @@ Parameter notes:
 | `slots` | array<any> | yes |
 | `stated` | array<any> | yes |
 | `update` | object | yes |
+| `warnings` | array<any> | yes |
 
 **Example**
 

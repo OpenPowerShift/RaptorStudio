@@ -263,6 +263,7 @@ def _print_resources(result: dict[str, Any]) -> None:
 
 def fit_command(args: Any) -> int:
     import shlex
+    import sys
 
     from raptor.api.distributions import from_quantiles, experience_changes
 
@@ -293,6 +294,8 @@ def fit_command(args: Any) -> int:
     for probability, age in fit["fitted"].items():
         print(f"  P{probability:.2f} = {age:.6g}")
     print(fit["shape_note"])
+    for warning in fit.get("warnings") or []:
+        print(f"warning: {warning}", file=sys.stderr)
     if fit.get("changes"):
         print("raptor set MODEL --in-place "
               + " ".join(shlex.quote(c) for c in fit["changes"]))

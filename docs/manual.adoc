@@ -263,10 +263,12 @@ With no failure data, an engineer can still say "one in ten have failed by
 100 hours, half by 300". *Estimate from experience…*, under a block's failure
 and repair distributions in the Inspector, turns those answers into a law:
 Weibull for lives that wear out, lognormal for repair times, exponential
-for random failures. Type a share and an age on two or more rows; the fit
-updates as you type. Two answers fix the law exactly; more are a
-least-squares fit. Answers that contradict each other (a larger share at
-an earlier age) are refused by name.
+for random failures. Type a share and an age on two or more rows (one is
+enough for an exponential); the fit updates as you type. Two answers fix the
+law exactly; more are a least-squares fit. Answers that contradict each
+other (a larger share at an earlier age) are refused by name. A fit that
+misses an answer by more than a quarter, or answers so close that the law is
+nearly a fixed age, comes with a warning: check the answers before using it.
 
 The chart draws the fitted chance of having failed by each age, with your
 answers as dots, so a law that cannot honour them shows it. Below it are

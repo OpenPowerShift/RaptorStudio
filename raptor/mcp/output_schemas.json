@@ -1338,6 +1338,9 @@
    },
    "update": {
     "type": "object"
+   },
+   "warnings": {
+    "type": "array"
    }
   },
   "required": [
@@ -1349,7 +1352,8 @@
    "shape_note",
    "slots",
    "stated",
-   "update"
+   "update",
+   "warnings"
   ],
   "type": "object"
  },

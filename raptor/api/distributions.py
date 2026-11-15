@@ -173,8 +173,11 @@ def from_quantiles(  # noqa: C901, PLR0912, PLR0915
         raise ValueError(
             "law must be one of weibull, lognormal or exponential")
     points = sorted((float(p), float(t)) for p, t in quantiles.items())
-    if len(points) < 2:
-        raise ValueError("give at least two quantiles")
+    # The exponential has one parameter, so one answer fixes it.
+    if len(points) < (1 if law == "exponential" else 2):
+        raise ValueError("give at least two quantiles"
+                         + ("" if law == "exponential" else
+                            " (an exponential law needs only one)"))
     for probability, age in points:
         if not 0 < probability < 1:
             raise ValueError(f"probability {probability!r} must be in (0, 1)")
@@ -264,7 +267,40 @@ def from_quantiles(  # noqa: C901, PLR0912, PLR0915
                                                               0.9, 0.99)},
         "stated": {p: t for p, t in points},
         "shape_note": note,
+        "warnings": _fit_warnings(law, params, points, implied),
     }
+
+
+#: How far a fitted age may stray from a stated one before the fit is called
+#: loose (as a share of the stated age).
+LOOSE_FIT = 0.25
+
+
+def _fit_warnings(law: str, params: dict[str, float],
+                  points: list[tuple[float, float]], implied: Any) -> list[str]:
+    """What a reader should know before using the law: that it misses an
+    answer by much, or that close answers made it nearly a fixed age (where
+    a small change to either answer moves it a lot)."""
+    out = []
+    worst = max(points, key=lambda pt: abs(implied(params, pt[0]) / pt[1] - 1))
+    gap = abs(implied(params, worst[0]) / worst[1] - 1)
+    if gap > LOOSE_FIT:
+        out.append(
+            f"The {law} law fits the answers loosely: it puts "
+            f"{100 * worst[0]:.3g} % failed at {implied(params, worst[0]):,.4g}, "
+            f"against the {worst[1]:,.4g} given. Check the answers, or try "
+            "another law.")
+    if law == "weibull" and params["shape"] > 10:
+        out.append(
+            f"The answers are very close together, so the law is nearly a "
+            f"fixed age (shape {params['shape']:.3g}): a small change to either "
+            "answer moves it a lot.")
+    if law == "lognormal" and params["sigma"] < 0.05:
+        out.append(
+            f"The answers are very close together, so the law is nearly a "
+            f"fixed time (sigma {params['sigma']:.3g}): a small change to "
+            "either answer moves it a lot.")
+    return out
 
 
 def experience_changes(fit: dict[str, Any], block: str,

@@ -100,3 +100,29 @@ def test_cli_fit_prints_the_changes_for_a_block(capsys):
     assert main(["fit", "--law", "lognormal", "--quantile", "0.5=4",
                  "--quantile", "0.9=12", "--block", "Pump A", "--repair"]) == 0
     assert "raptor set MODEL --in-place 'block:Pump A.repair_dist=lognormal'" in capsys.readouterr().out
+
+
+def test_one_answer_fixes_an_exponential_but_not_a_two_parameter_law():
+    """C12: an exponential has one parameter, yet one answer was refused."""
+    import math
+
+    import pytest
+
+    from raptor.api.distributions import from_quantiles
+    fit = from_quantiles("exponential", {0.5: 100.0})
+    assert fit["mean"] == pytest.approx(100.0 / math.log(2))
+    assert fit["warnings"] == []
+    with pytest.raises(ValueError, match="exponential law needs only one"):
+        from_quantiles("weibull", {0.5: 100.0})
+
+
+def test_a_loose_or_knife_edge_fit_says_so():
+    """C12: no warning when a law missed an answer by far, or when close
+    answers made it nearly a fixed age."""
+    from raptor.api.distributions import from_quantiles
+    loose = from_quantiles("exponential", {0.1: 100.0, 0.5: 120.0, 0.9: 2000.0})
+    assert any("loosely" in w for w in loose["warnings"])
+    edge = from_quantiles("weibull", {0.1: 100.0, 0.9: 102.0})
+    assert any("nearly a fixed age" in w for w in edge["warnings"])
+    good = from_quantiles("weibull", {0.1: 100.0, 0.5: 300.0})
+    assert good["warnings"] == []

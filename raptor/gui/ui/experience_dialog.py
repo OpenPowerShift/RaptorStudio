@@ -132,9 +132,9 @@ class ExperienceDialog(QDialog):
             f"No data for {self.block_name}? Say what share "
             + ("has failed by a given age" if use == "fail"
                else "of repairs is finished within a given time")
-            + ", for two or more shares. Two answers fix the "
-            "law exactly; more are a best fit. The law is only as good as "
-            "the answers.")
+            + ", for two or more shares (one is enough for an exponential). "
+            "Two answers fix the law exactly; more are a best fit. The law is "
+            "only as good as the answers.")
         intro.setWordWrap(True)
         self.law = QComboBox()
         for key, label in LAWS:
@@ -257,8 +257,11 @@ class ExperienceDialog(QDialog):
         from raptor.api.distributions import from_quantiles
         answers, problem = self.answers()
         self.fit = None
-        if problem is None and len(answers) < 2:
-            problem = "Give an age for at least two shares."
+        least = 1 if self.law.currentData() == "exponential" else 2
+        if problem is None and len(answers) < least:
+            problem = ("Give an age for at least one share." if least == 1 else
+                       "Give an age for at least two shares (an exponential "
+                       "law needs only one).")
         if problem is None:
             try:
                 self.fit = from_quantiles(self.law.currentData(), answers)
@@ -275,9 +278,10 @@ class ExperienceDialog(QDialog):
         params = ", ".join(f"{name} {value:.4g}" for name, value in fit["params"].items())
         median = fit["fitted"].get(0.5)
         note = f" {fit['shape_note'].capitalize()}." if fit["shape_note"] else ""
+        warnings = "".join(f" ⚠ {text}" for text in fit.get("warnings") or [])
         return (f"{fit['law'].capitalize()}: {params}. Mean {fit['mean']:.4g}{unit}"
                 + (f", median {median:.4g}{unit}" if median is not None else "")
-                + "." + note)
+                + "." + note + warnings)
 
     def changes(self) -> list[str]:
         from raptor.api.distributions import experience_changes
