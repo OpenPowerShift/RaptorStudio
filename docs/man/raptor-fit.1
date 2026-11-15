@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-fit \- Turn plain judgements ('one in ten fail by 100, half by 300') into Weibull, lognormal or exponential parameters. No data needed; the fit is only as good as the answers.
 .SH SYNOPSIS
-\fBraptor fit\fR [\-h] \-\-law {weibull,lognormal,exponential} [\-\-quantile P=T] [\-f {text,json}]
+\fBraptor fit\fR [\-h] \-\-law {weibull,lognormal,exponential} [\-\-quantile P=T] [\-\-block NAME] [\-\-repair] [\-f {text,json}]
 .SH DESCRIPTION
 Turn plain judgements ('one in ten fail by 100, half by 300') into Weibull, lognormal or exponential parameters. No data needed; the fit is only as good as the answers.
 .SH OPTIONS
@@ -13,6 +13,12 @@ Turn plain judgements ('one in ten fail by 100, half by 300') into Weibull, logn
 .TP
 \fB\-\-quantile\fR \fIP=T\fR
 probability=age, repeatable, e.g. 0.1=100
+.TP
+\fB\-\-block\fR \fINAME\fR
+also print the PATH=VALUE changes that give this block the fitted law (for 'raptor set')
+.TP
+\fB\-\-repair\fR
+with \-\-block, the repair law instead of the failure law
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
 

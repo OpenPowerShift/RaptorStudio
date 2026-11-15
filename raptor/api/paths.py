@@ -260,8 +260,60 @@ def apply_assignments(workspace: Workspace, model_id: str,
                       texts: list[str]) -> list[dict]:
     """Apply several, in order. Stops at the first error (earlier changes
     stay applied to the in-memory copy; callers that need all-or-nothing
-    work on a copy, as `raptor run` does)."""
-    return [apply_assignment(workspace, model_id, t) for t in texts]
+    work on a copy, as `raptor run` does).
+
+    A distribution followed by its parameters on the same element
+    (``fail_dist=weibull`` then ``fail_params=1.5,500``) is applied as one
+    edit: one at a time, the new law would be checked against the old
+    law's parameters (an exponential's mean then a Weibull's scale of 0)
+    and refused."""
+    out: list[dict] = []
+    index = 0
+    while index < len(texts):
+        pair = _dist_pair(texts, index)
+        if pair is not None:
+            out.extend(_apply_dist_pair(workspace, model_id, *pair))
+            index += 2
+            continue
+        out.append(apply_assignment(workspace, model_id, texts[index]))
+        index += 1
+    return out
+
+
+_PARAMS_OF = {"fail_dist": "fail_params", "fdist": "fail_params",
+              "repair_dist": "repair_params", "rdist": "repair_params"}
+
+
+def _dist_pair(texts: list[str], index: int
+               ) -> tuple[ParsedPath, Any, str, ParsedPath, Any, str] | None:
+    if index + 1 >= len(texts):
+        return None
+    try:
+        (path1, value1), (path2, value2) = (split_assignment(texts[index]),
+                                            split_assignment(texts[index + 1]))
+        p1, p2 = parse_path(path1), parse_path(path2)
+    except PathError:
+        return None
+    if (p1.kind not in _ELEMENT_KINDS or p1.field not in _PARAMS_OF
+            or (p2.kind, p2.selector) != (p1.kind, p1.selector)
+            or p2.field != _PARAMS_OF[p1.field]):
+        return None
+    return p1, parse_value(value1), texts[index], p2, parse_value(value2), texts[index + 1]
+
+
+def _apply_dist_pair(workspace: Workspace, model_id: str,
+                     p1: ParsedPath, dist: Any, text1: str,
+                     p2: ParsedPath, params: Any, text2: str) -> list[dict]:
+    from raptor.api import build
+    selector = (f"{_ELEMENT_KINDS[p1.kind]}:{p1.selector}"
+                if p1.selector.isdigit() else p1.selector)
+    if isinstance(dist, str):
+        dist = distribution_code(dist)
+    params = _merge_params(workspace, model_id, selector, p2.field, params)
+    build.update_element(workspace, model_id, selector,
+                         {p1.field: dist, p2.field: params})
+    return [{"path": split_assignment(text1)[0], "value": dist, "applied": [p1.field]},
+            {"path": split_assignment(text2)[0], "value": params, "applied": [p2.field]}]
 
 
 def get_value(workspace: Workspace, model_id: str,  # noqa: C901, PLR0912

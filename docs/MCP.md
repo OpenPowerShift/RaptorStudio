@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **91 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **90**.
+- **92 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **91**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -573,6 +573,11 @@ simulates crew sizes around the offered load. Each returns `changes`, the
 PATH=VALUE edits for its recommendation, and never edits the model: apply
 them with `manage_spare_pools`, `update_element` or `manage_resources`. A
 recommendation that misses its target is said to miss it.
+
+`fit_from_judgement` turns judged shares and ages ("one in ten fail by 100
+hours, half by 300") into a Weibull, lognormal or exponential law, as
+`raptor fit` does. Given a `block`, it also returns the `changes` and the
+`update` fields (law and parameters together) for `update_element`.
 
 `run_chart` returns one chart of a finished run as the same `ChartSpec` the
 application paints. The text gives the caption and the numbers drawn; pass

@@ -183,6 +183,10 @@ class AnalysisDialog(QDialog):
     def apply_label(self) -> str:
         return "Apply"
 
+    def write(self, changes: list[str], label: str) -> str | None:
+        """Write `changes` into the open model; None, or why not."""
+        return apply_changes(self._win, changes, label)
+
     # ---- frame -------------------------------------------------------------------
 
     def _build_buttons(self) -> QHBoxLayout:
@@ -304,7 +308,7 @@ class AnalysisDialog(QDialog):
         if chosen is None:
             return False
         key, label, changes = chosen
-        why = apply_changes(self._win, changes, label)
+        why = self.write(changes, label)
         if why is not None:
             self.caption.setText(f"Cannot apply {label}: {why}.")
             return False

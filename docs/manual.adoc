@@ -256,6 +256,27 @@ apply. Each tab has a *Rename* row with three modes:
 
 Leave the text blank to keep all names. The whole edit is one undo step.
 
+[[judgement]]
+== Estimate from judgement: a law with no data
+
+With no failure data, an engineer can still say "one in ten have failed by
+100 hours, half by 300". *Estimate from judgement…*, under a block's failure
+and repair distributions in the Inspector, turns those answers into a law:
+Weibull for lives that wear out, lognormal for repair times, exponential
+for random failures. Type a share and an age on two or more rows; the fit
+updates as you type. Two answers fix the law exactly; more are a
+least-squares fit. Answers that contradict each other (a larger share at
+an earlier age) are refused by name.
+
+The chart draws the fitted chance of having failed by each age, with your
+answers as dots, so a law that cannot honour them shows it. Below it are
+the parameters, mean, median and what the shape means (a Weibull shape
+above 1 wears out, so planned maintenance can help). *Use for <block>*
+writes the law and its parameters into the block as one undo step. The
+same fit is `raptor fit --law weibull --quantile 0.1=100 --quantile 0.5=300
+--block NAME`, which also prints the `raptor set` line, and the MCP tool
+`fit_from_judgement`. The fit is only as good as the answers.
+
 [[canvas-editing]]
 == Building on the canvas
 
@@ -893,6 +914,24 @@ copy of the model: the open model is not changed until you press *Apply*.
 Each window shows its progress and has *Stop*; *Apply* writes the selected
 change into the model as one undo step (*Edit ▸ Undo* takes it back), and
 *Copy* puts the result on the clipboard as text.
+
+[[precision]]
+== Trials to Precision: how many trials are enough
+
+*Simulate ▸ Trials to Precision…*, or *Precision…* beside Trials in the Run
+panel, states a precision instead of a trial count. Pick what to watch
+(availability, reliability, delivered fraction, time between outages or
+mean downtime), the precision (the half-width of the confidence interval
+as a share of the watched value), the confidence and a trial limit, and
+press *Run*. The model runs on a copy in growing batches with the same
+seed until the interval is narrow enough; the table lists each pass. For
+availability, reliability and delivered fraction the precision is on the
+part that is lost: 10 % of 0.1 % unavailability, not of 99.9 %
+availability, which any run would meet.
+
+*Use these trials* sets the next Run to the count reached, as one undo
+step. That run measures its own interval. The same rule is `raptor run
+--precision 10%` and `simulate` with `precision` over MCP.
 
 [[whatif]]
 == What If: compare changes with the model

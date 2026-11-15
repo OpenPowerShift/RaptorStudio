@@ -30,6 +30,11 @@ def add_parser(sub: Any) -> None:
     f.add_argument("--quantile", action="append", default=[],
                    metavar="P=T", help="probability=age, repeatable, e.g. "
                                        "0.1=100")
+    f.add_argument("--block", metavar="NAME",
+                   help="also print the PATH=VALUE changes that give this "
+                        "block the fitted law (for 'raptor set')")
+    f.add_argument("--repair", action="store_true",
+                   help="with --block, the repair law instead of the failure law")
     f.add_argument("-f", "--format", choices=("text", "json"), default="text")
     f.set_defaults(func=fit_command)
     s = o.add_subparsers(dest="optimise_command", metavar="WHAT")
@@ -249,7 +254,9 @@ def _print_resources(result: dict[str, Any]) -> None:
 
 
 def fit_command(args: Any) -> int:
-    from raptor.api.distributions import from_quantiles
+    import shlex
+
+    from raptor.api.distributions import from_quantiles, judgement_changes
 
     quantiles: dict[float, float] = {}
     for text in args.quantile:
@@ -265,6 +272,9 @@ def fit_command(args: Any) -> int:
         fit = from_quantiles(args.law, quantiles)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
+    if args.block:
+        fit["changes"] = judgement_changes(fit, args.block,
+                                           "repair" if args.repair else "fail")
     if args.format == "json":
         emit_json(fit, None)
         return X.OK
@@ -275,4 +285,7 @@ def fit_command(args: Any) -> int:
     for probability, age in fit["fitted"].items():
         print(f"  P{probability:.2f} = {age:.6g}")
     print(fit["shape_note"])
+    if fit.get("changes"):
+        print("raptor set MODEL --in-place "
+              + " ".join(shlex.quote(c) for c in fit["changes"]))
     return X.OK

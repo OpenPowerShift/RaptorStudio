@@ -260,3 +260,16 @@ def from_quantiles(  # noqa: C901, PLR0912, PLR0915
         "stated": {p: t for p, t in points},
         "shape_note": note,
     }
+
+
+def judgement_changes(fit: dict[str, Any], block: str,
+                      use: str = "fail") -> list[str]:
+    """PATH=VALUE edits that give `block` the law `fit` (from
+    `from_quantiles`) as its failure (`use="fail"`) or repair
+    (`use="repair"`) distribution, every parameter slot written."""
+    if use not in ("fail", "repair"):
+        raise ValueError("use must be 'fail' or 'repair'")
+    slots = list(fit["slots"]) + [0.0] * (3 - len(fit["slots"]))
+    params = ",".join(f"{value:.10g}" for value in slots)
+    return [f"block:{block}.{use}_dist={fit['law']}",
+            f"block:{block}.{use}_params={params}"]

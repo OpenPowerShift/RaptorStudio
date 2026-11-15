@@ -21,7 +21,7 @@ _raptor() {
     explain) opts="--below --capacity-rule --chart --chart-min-share --chart-page --chart-run --chart-svg --format --help --jobs --list-charts --progress --report --report-include --runs --seed --story --top --y-floor --year-length --year-offset --yearly" ;;
     extract) opts="--deps --format --help --hierarchy --output --pools --report-hazards --streams --treat" ;;
     fev) opts="--capacity --criticality --cycle --fail --format --help --log --phase --repair --script" ;;
-    fit) opts="--format --help --law --quantile" ;;
+    fit) opts="--block --format --help --law --quantile --repair" ;;
     get) opts="--format --help" ;;
     gui) opts="--help --new --theme" ;;
     help) opts="--help" ;;

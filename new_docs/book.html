@@ -3528,7 +3528,8 @@ raptor run models/Lantern1.rbds --precision 10% --metrics Reliability</code></pr
 <p><code>-n</code> sets the trial count and <code>--seed</code> re-rolls the dice reproducibly:
 the same seed gives the same numbers every time. <code>--precision 10%</code>
 keeps adding batches of trials until the ±2 SEM half-width is a tenth
-of the mean, then stops. <code>-j 4</code> runs on four cores, and <code>raptor sweep</code>
+of the mean, then stops (<strong>Precision…</strong> beside Trials in the Run panel
+does the same and sets the trial count). <code>-j 4</code> runs on four cores, and <code>raptor sweep</code>
 and <code>raptor compare</code> are the command-line Sweep and Compare.</p>
 </div>
 </div>
@@ -9737,7 +9738,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>91 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>92 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10264,8 +10265,8 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 91 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
-<code>ping</code>, or 87 when <code>--no-render</code> hides the PNG diagram tool.</p>
+listed below: 92 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+<code>ping</code>, or 91 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
 <p><strong>Ping the server.</strong> Ask the assistant to "ping RAPTOR" or call the <code>ping</code>
@@ -10733,6 +10734,14 @@ you need the exact argument shape.</p>
   are needed. Each searches with paired simulation and returns its
   recommendation as <code>changes</code> (<code>PATH=VALUE</code>) to apply with the editing
   tools. The open model is never modified.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fit_from_judgement</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A Weibull, lognormal or exponential law from judged shares and ages ("one
+  in ten fail by 100 hours, half by 300"), with no data: the parameters,
+  mean, the law&#8217;s own ages at 1 to 99 % and what its shape means. Given a
+  <code>block</code>, also the <code>changes</code> and the <code>update_element</code> fields that give it
+  the law. Changes nothing itself.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>replace_in_table</code></p></td>
@@ -12672,7 +12681,10 @@ carries the reached interval, the target, the trial count and the pass
 history.</p>
 </div>
 <div class="paragraph">
-<p>In MCP, pass <code>precision={"relative": 0.05}</code> to <code>simulate</code>.</p>
+<p>In MCP, pass <code>precision={"relative": 0.05}</code> to <code>simulate</code>. In the
+application, <strong>Simulate ▸ Trials to Precision…</strong> (or <strong>Precision…</strong> beside
+Trials in the Run panel) runs the same passes on a copy, lists each one,
+and sets the next Run to the trial count it reached.</p>
 </div>
 </div>
 <div class="sect2">

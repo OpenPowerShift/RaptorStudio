@@ -1079,6 +1079,16 @@
    "text": "Triggers\u2026",
    "tooltip": "Triggers \u2014 schedules Preventive Maintenance (PM)\n\nUnavailable: open or create a model first"
   },
+  "_precision_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Trials to Precision\u2026",
+   "tooltip": "How many trials the answer needs: runs a copy in growing batches until the confidence interval is within a stated precision (for availability, of the unavailability), then sets the trials for the next Run.\n\nUnavailable: open or create a model first"
+  },
   "_prefs_action": {
    "checkable": false,
    "checked": false,
@@ -1792,6 +1802,7 @@
    "_pool_actions[RESOURCE_DATA]": false,
    "_pool_actions[SPARE_POOL_DATA]": false,
    "_pool_actions[TRIGGERS]": false,
+   "_precision_action": false,
    "_prefs_action": true,
    "_print_action": false,
    "_quick_add_action": true,
@@ -1952,6 +1963,7 @@
    "_pool_actions[RESOURCE_DATA]": true,
    "_pool_actions[SPARE_POOL_DATA]": true,
    "_pool_actions[TRIGGERS]": true,
+   "_precision_action": true,
    "_prefs_action": true,
    "_print_action": true,
    "_quick_add_action": true,
@@ -2112,6 +2124,7 @@
    "_pool_actions[RESOURCE_DATA]": false,
    "_pool_actions[SPARE_POOL_DATA]": false,
    "_pool_actions[TRIGGERS]": false,
+   "_precision_action": false,
    "_prefs_action": true,
    "_print_action": false,
    "_quick_add_action": true,
@@ -2558,6 +2571,11 @@
        "kind": "action",
        "large": false,
        "text": "Run Settings\u2026"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Trials to Precision\u2026"
       }
      ],
      "title": "Run"

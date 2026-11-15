@@ -81,6 +81,7 @@ class InspectorBlockMixin(_Base):
         block_dep_master_changed: PySide6.QtCore.SignalInstance
         block_duty_cycle_changed: PySide6.QtCore.SignalInstance
         block_fail_params_changed: PySide6.QtCore.SignalInstance
+        judgement_requested: PySide6.QtCore.SignalInstance
         block_fail_type_changed: PySide6.QtCore.SignalInstance
         block_gd_enabled_changed: PySide6.QtCore.SignalInstance
         block_gd_rate_limit_changed: PySide6.QtCore.SignalInstance
@@ -225,6 +226,17 @@ class InspectorBlockMixin(_Base):
                 "also counts as age already used when a restoration factor "
                 "applies. 0 = new.")
 
+    def _judgement_button(self, form, block_id: int, use: str) -> None:
+        """No data? Fit the law from judged shares and ages instead."""
+        from PySide6.QtWidgets import QPushButton
+        button = QPushButton("Estimate from judgement…")
+        button.setToolTip(
+            "No data? Say what share " + ("fails" if use == "fail" else "is repaired")
+            + " by a given age (one in ten by 100 hours, half by 300) and fit "
+            "a Weibull, lognormal or exponential law to the answers.")
+        button.clicked.connect(lambda: self.judgement_requested.emit(block_id, use))
+        form.addRow("", button)
+
     def _populate_failure(self, block: RBDBlock):
         w = self._scroll_failure.widget()
         layout = req(w).layout()
@@ -240,6 +252,7 @@ class InspectorBlockMixin(_Base):
             lambda vals: self.block_fail_params_changed.emit(block_id, vals),
             addr_prefix=f"block:{block_id}:F",
         )
+        self._judgement_button(fl, block_id, "fail")
 
         # Advanced tab fields (Raptor 7 "Mean Life Growth and
         # Decay" plus Raptor 7 "Standby Stress") folded in here: Raptor 7's
@@ -411,6 +424,7 @@ class InspectorBlockMixin(_Base):
                 lambda vals: self.block_repair_params_changed.emit(block_id, vals),
                 addr_prefix=f"block:{block_id}:R",
             )
+            self._judgement_button(fl, block_id, "repair")
 
     def _populate_spares(self, block: RBDBlock):
         w = self._scroll_spares.widget()

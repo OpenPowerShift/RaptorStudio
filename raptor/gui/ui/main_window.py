@@ -1358,6 +1358,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._on_system_config_changed)
         self._run_panel.dependency_blocked.connect(self._on_panel_dependency)
         self._run_panel.cores_changed.connect(self._on_cores_changed)
+        self._run_panel.precision_requested.connect(self._open_precision_dialog)
         self._run_panel.scope_changed.connect(self._on_run_scope_changed)
         self._sync_cores_box()
         self._run_dock.setMinimumHeight(120)
@@ -2065,6 +2066,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             lambda bid, vals: self._diagram_dock.view.set_block_ldt_params(
                 bid, "post", vals))
         self._inspector.block_fail_params_changed.connect(self._on_block_fail_params_changed)
+        self._inspector.judgement_requested.connect(self._open_judgement_dialog)
         self._inspector.block_repair_params_changed.connect(self._on_block_repair_params_changed)
         # Re-populate after a Type change: _distribution_params_row builds the param
         # rows from the distribution current when the tab was populated,

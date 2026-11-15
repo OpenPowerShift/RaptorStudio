@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     import raptor.gui.widgets.ribbon
 
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QUndoCommand
 from PySide6.QtWidgets import QSpinBox
 
 from raptor.core import run_experiment
@@ -191,9 +191,16 @@ class RunExperimentMixin:
         # still-good validity answer (see `_carry_validity_across_run_
         # setting_edit`).
         self._in_run_setting_edit = True
+        v = self._diagram_dock.view
+        old = run_experiment.normalise(self._rbd.experiment)
+        experiment[key] = value
+        # The experiment itself is part of the undo step, with the legacy
+        # columns below: undoing used to put NumRuns back but leave the
+        # experiment (which the panel and the next run read) at the new
+        # value, so the model contradicted itself.
+        v._stack.beginMacro("Run settings")
         try:
-            experiment[key] = value
-            self._rbd.experiment = experiment
+            v._stack.push(_ExperimentCmd(self, old, experiment))
 
             sec = self._rbd.sections.get("SYSTEM_DATA")
             if not sec or not sec.rows:
@@ -201,7 +208,6 @@ class RunExperimentMixin:
                 return
             row = sec.rows[0]
             wanted = dict(run_experiment.to_system_row(experiment))
-            v = self._diagram_dock.view
             # Run settings are NOT structural: the rule gate would
             # deep-copy the whole model and run every link/block rule
             # twice (before and after) to prove that changing a trial
@@ -219,6 +225,7 @@ class RunExperimentMixin:
             self._inspector.show_system_config()
             self._mark_dirty()
         finally:
+            v._stack.endMacro()
             self._in_run_setting_edit = False
         # Changing a run setting cannot break the model's structure, so
         # do not pay for a whole-model re-validation 600 ms later. See
@@ -792,3 +799,23 @@ class RunExperimentMixin:
         self._statusbar.showMessage(
             f"{label} analysis {'enabled' if on else 'disabled'} "
             f"for the NEXT run", 6000)
+
+
+class _ExperimentCmd(QUndoCommand):
+    """The run experiment before and after one Run-settings edit."""
+
+    def __init__(self, win: Any, old: dict, new: dict) -> None:
+        super().__init__("Run settings")
+        self._win, self._old, self._new = win, old, run_experiment.normalise(new)
+
+    def _set(self, experiment: dict) -> None:
+        if self._win._rbd is None:
+            return
+        self._win._rbd.experiment = run_experiment.normalise(experiment)
+        self._win._sync_run_mirrors()
+
+    def redo(self) -> None:
+        self._set(self._new)
+
+    def undo(self) -> None:
+        self._set(self._old)

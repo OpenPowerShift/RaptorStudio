@@ -1,7 +1,7 @@
 """MCP tools: the optimisers (plan WP-4.1, 4.2 and 4.5).
 
-Registers ``optimise_spares``, ``optimise_pm`` and ``optimise_resources``.
-Each searches with paired simulation, never edits the open model, and returns
+Registers ``optimise_spares``, ``optimise_pm`` and ``optimise_resources``,
+and ``fit_from_judgement`` (a life law from judged quantiles). Each search with paired simulation, never edits the open model, and returns
 the recommendation as ``changes``: PATH=VALUE edits to apply with
 ``update_element``, ``manage_spare_pools`` or ``manage_resources`` (or
 ``raptor set``). Long searches report progress and can be cancelled.
@@ -15,7 +15,7 @@ from mcp.types import CallToolResult
 
 from raptor.mcp import context
 from raptor.mcp.jobs import run_job
-from raptor.mcp.result import ADDITIVE, guarded, ok
+from raptor.mcp.result import ADDITIVE, READ_ONLY, guarded, ok
 from raptor.mcp.server import mcp
 
 
@@ -185,3 +185,50 @@ async def optimise_resources(
                      f"{_fmt(rec['lower'])} | {rec['why']} |")
     md = f"{result['caption']}\n\n" + "\n".join(lines) + f"\n\n{result['note']}"
     return ok(result, md + _changes_md(result["changes"]))
+
+
+@mcp.tool(annotations=READ_ONLY("Fit a law from judgement"))
+@guarded
+def fit_from_judgement(
+    law: Literal["weibull", "lognormal", "exponential"],
+    quantiles: list[dict[str, float]],
+    block: str | None = None,
+    use: Literal["fail", "repair"] = "fail",
+) -> CallToolResult:
+    """Turn plain judgements into a life law, with no data.
+
+    Each judgement is a share and an age: "one in ten fail by 100 hours,
+    half by 300" is `[{probability: 0.1, age: 100}, {probability: 0.5,
+    age: 300}]`. Two judgements solve the law exactly; three or more are a
+    least-squares fit. Weibull suits wear-out lives, lognormal repair
+    times, exponential random failures. Inconsistent answers (a higher share
+    at an earlier age) are refused by name. The fit is only as good as the
+    answers.
+
+    Returns `params` (named), `slots` (in the model's parameter order),
+    `mean`, `fitted` (the law's ages at 1, 10, 50, 90 and 99 %), `stated`
+    and `shape_note`. With `block`, also `changes` (PATH=VALUE, for `raptor
+    set`) and `update` (the fields to pass to `update_element`, law and
+    parameters together) for its failure (`use="fail"`) or repair law.
+    Nothing is changed here.
+    """
+    from raptor.api.distributions import from_quantiles, judgement_changes
+    try:
+        judged = {float(q["probability"]): float(q["age"]) for q in quantiles}
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("each judgement needs a numeric 'probability' and "
+                         "'age', e.g. {\"probability\": 0.1, \"age\": 100}") from None
+    fit = from_quantiles(law, judged)
+    out: dict[str, Any] = {
+        **fit,
+        "fitted": [{"probability": p, "age": t} for p, t in fit["fitted"].items()],
+        "stated": [{"probability": p, "age": t} for p, t in fit["stated"].items()],
+    }
+    if block:
+        out["changes"] = judgement_changes(fit, block, use)
+        out["update"] = {f"{use}_dist": law, f"{use}_params": list(fit["slots"])}
+    params = ", ".join(f"{name} {value:.6g}" for name, value in fit["params"].items())
+    rows = "\n".join(f"| {100 * p:g} % | {t:.6g} |" for p, t in fit["fitted"].items())
+    md = (f"**{law}**: {params}; mean {fit['mean']:.6g}. {fit['shape_note']}\n\n"
+          f"| Share | Age |\n|---|---|\n{rows}")
+    return ok(out, md + (_changes_md(out["changes"]) if block else ""))

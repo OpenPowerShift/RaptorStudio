@@ -48,7 +48,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "data.export_library": "E", "data.import_library": "I",
     },
     "Simulate": {
-        "sim.run": "R", "sim.live_sim": "A", "sim.run_settings": "S",
+        "sim.run": "R", "sim.live_sim": "A", "sim.run_settings": "S", "sim.precision": "N",
         "sim.pause": "P", "sim.stop_run": "T", "sim.jump": "J",
     },
     "Analyse": {

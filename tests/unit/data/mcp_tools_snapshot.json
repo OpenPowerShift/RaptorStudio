@@ -545,6 +545,18 @@
    "scenarios"
   ]
  },
+ "fit_from_judgement": {
+  "params": [
+   "block",
+   "law",
+   "quantiles",
+   "use"
+  ],
+  "required": [
+   "law",
+   "quantiles"
+  ]
+ },
  "get_element": {
   "params": [
    "detail",

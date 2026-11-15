@@ -725,6 +725,18 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_show_run_panel",
         enabled_when="run_settings_available"),
     CommandSpec(
+        id="sim.precision",
+        attr="_precision_action",
+        text="Trials to Precision…",
+        icon="precision_icon:accent",
+        tooltip=(
+            "How many trials the answer needs: runs a copy in growing batches "
+            "until the confidence interval is within a stated precision (for "
+            "availability, of the unavailability), then sets the trials for "
+            "the next Run."),
+        handler="_open_precision_dialog",
+        enabled_when="can_start_batch"),
+    CommandSpec(
         id="sim.sweep",
         attr="_sweep_action",
         text="Sweep…",
@@ -1466,7 +1478,7 @@ LAYOUT: tuple[Page, ...] = (
        # watched); off, Run uses the cores shown right beside it.
        Group("Run", (Btn("sim.run", True), Btn("sim.live_sim", True),
                      Custom("_build_trials_box"), Custom("_build_cores_box"),
-                     Btn("sim.run_settings"))),
+                     Btn("sim.run_settings"), Btn("sim.precision"))),
        Group("Control", (Btn("sim.pause"), Btn("sim.stop_run"),
                          Btn("sim.jump")), priority=4),
        # Analyses are run settings and live in the Run panel's Analysis

@@ -98,11 +98,8 @@ CAPABILITIES: tuple[Capability, ...] = (
     Capability(
         "dist.judgement", "Fit a life law from judged quantiles",
         api="raptor.api.distributions.from_quantiles", cli="fit",
-        absent={"mcp": "the judgement wizard is a command-line and editor "
-                       "affordance; an assistant can call the same fit with "
-                       "the API",
-                "gui": "the distribution editor's 'Estimate from judgement' "
-                       "dialog is designed but not built; use 'raptor fit'"}),
+        mcp="fit_from_judgement",
+        gui="widget:raptor.gui.ui.judgement_dialog.JudgementDialog"),
     Capability(
         "edit.duplicate", "Duplicate elements with fresh ids and names",
         api="raptor.api.edit.duplicate_elements", cli="edit",
@@ -164,9 +161,7 @@ CAPABILITIES: tuple[Capability, ...] = (
         "insight.precision", "Run until the answer is precise enough",
         api="raptor.api.scenarios.stopping.run_to_precision",
         cli="run --precision", mcp="simulate", long_running=True,
-        absent={"gui": "the Run panel still takes a fixed run count; use the "
-                       "command line or MCP precision setting until the "
-                       "radio ships"}),
+        gui="command:sim.precision"),
     Capability(
         "export.report", "The run's report as a PDF or one HTML file: story, charts, diagram",
         api="raptor.api.report.write_report", cli="explain --report",

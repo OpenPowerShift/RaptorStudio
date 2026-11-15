@@ -249,6 +249,16 @@ class RunMixin(_Base):
         from raptor.gui.ui.tornado_dialog import open_tornado
         return open_tornado(self)
 
+    def _open_judgement_dialog(self, block_id: int, use: str = "fail"):
+        """Inspector > Estimate from judgement: a law from judged quantiles."""
+        from raptor.gui.ui.judgement_dialog import open_judgement
+        return open_judgement(self, block_id, use)
+
+    def _open_precision_dialog(self):
+        """Simulate > Trials to Precision: size the run by a precision."""
+        from raptor.gui.ui.precision_dialog import open_precision
+        return open_precision(self)
+
     def _open_optimise_spares(self):
         from raptor.gui.ui.optimise_dialogs import open_optimiser
         return open_optimiser(self, "spares")

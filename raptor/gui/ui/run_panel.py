@@ -71,6 +71,8 @@ class RunPanel(QWidget):
     #: this machine gives a run is an app setting, shared with the ribbon's
     #: Cores box (`cores.KEY`), so it never goes into the model file.
     cores_changed = Signal(int)
+    #: The Precision… button beside Trials: size the run by a precision.
+    precision_requested = Signal()
     #: The panel's content height changed -- the dock caps its
     #: height to the content and must recompute (see
     #: `RunPanelDock.fit_height`).
@@ -326,6 +328,14 @@ class RunPanel(QWidget):
         trials_row = QHBoxLayout()
         trials_row.setContentsMargins(0, 0, 0, 0)
         trials_row.addWidget(self._trials, 1)
+        # a precision instead of a count: Simulate > Trials to Precision
+        self._precision_btn = QPushButton()
+        self._precision_btn.setText("Precision…")
+        self._precision_btn.setToolTip(
+            "Find how many trials a stated precision needs (runs a copy), "
+            "then use that count")
+        self._precision_btn.clicked.connect(self.precision_requested.emit)
+        trials_row.addWidget(self._precision_btn)
         cores_label = QLabel("Cores:")
         cores_label.setBuddy(self._cores)
         trials_row.addWidget(cores_label)
@@ -1071,7 +1081,7 @@ class RunPanel(QWidget):
         locking them would prevent the very use they exist for."""
         self._enabled = enabled
         for w in (self._scope, self._scope_deps, self._scope_pools,
-                  self._scope_streams, self._profile, self._trials,
+                  self._scope_streams, self._profile, self._trials, self._precision_btn,
                   self._term_type, self._term_value, self._start_stats,
                   self._ao_interval, self._cost_interval,
                   self._flow_gen, self._system_red_cost_field,

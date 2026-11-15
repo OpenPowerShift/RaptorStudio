@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *91 tools* (including the `ping` health check), a set of
+The server exposes *92 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -388,8 +388,8 @@ careful about what it exposes:
 
 . *Check the tool list.* Ask your assistant "What RAPTOR tools do you
   have?" or, in the MCP Inspector, click *Tools*. You should see the tools
-  listed below: 91 including `render_diagram`, `render_diagram_svg` and
-  `ping`, or 87 when `--no-render` hides the PNG diagram tool.
+  listed below: 92 including `render_diagram`, `render_diagram_svg` and
+  `ping`, or 91 when `--no-render` hides the PNG diagram tool.
 
 . *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
   tool manually. It should return `"pong"`.
@@ -747,6 +747,13 @@ you need the exact argument shape.
   are needed. Each searches with paired simulation and returns its
   recommendation as `changes` (`PATH=VALUE`) to apply with the editing
   tools. The open model is never modified.
+
+| `fit_from_judgement`
+| A Weibull, lognormal or exponential law from judged shares and ages ("one
+  in ten fail by 100 hours, half by 300"), with no data: the parameters,
+  mean, the law's own ages at 1 to 99 % and what its shape means. Given a
+  `block`, also the `changes` and the `update_element` fields that give it
+  the law. Changes nothing itself.
 
 | `replace_in_table`
 | Find and replace in one model table column, with whole-cell and case

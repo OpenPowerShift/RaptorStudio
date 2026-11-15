@@ -241,7 +241,10 @@ trials of a fixed *n*-trial run; the seed table is untouched. The result
 carries the reached interval, the target, the trial count and the pass
 history.
 
-In MCP, pass `precision={"relative": 0.05}` to `simulate`.
+In MCP, pass `precision={"relative": 0.05}` to `simulate`. In the
+application, *Simulate ▸ Trials to Precision…* (or *Precision…* beside
+Trials in the Run panel) runs the same passes on a copy, lists each one,
+and sets the next Run to the trial count it reached.
 
 === What if: compare against the model you have
 

@@ -1306,6 +1306,49 @@
   ],
   "type": "object"
  },
+ "fit_from_judgement": {
+  "properties": {
+   "changes": {
+    "type": "array"
+   },
+   "fitted": {
+    "type": "array"
+   },
+   "law": {
+    "type": "string"
+   },
+   "mean": {
+    "type": "number"
+   },
+   "params": {
+    "type": "object"
+   },
+   "shape_note": {
+    "type": "string"
+   },
+   "slots": {
+    "type": "array"
+   },
+   "stated": {
+    "type": "array"
+   },
+   "update": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "changes",
+   "fitted",
+   "law",
+   "mean",
+   "params",
+   "shape_note",
+   "slots",
+   "stated",
+   "update"
+  ],
+  "type": "object"
+ },
  "get_element": {
   "properties": {
    "dependency": {

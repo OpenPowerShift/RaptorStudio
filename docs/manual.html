@@ -24,6 +24,7 @@
 </li>
 <li><a href="#block-defaults">Block Defaults</a></li>
 <li><a href="#mass-edit">Mass Edit</a></li>
+<li><a href="#judgement">Estimate from judgement: a law with no data</a></li>
 <li><a href="#canvas-editing">Building on the canvas</a>
 <ul class="sectlevel2">
 <li><a href="#_copy_cut_and_paste">Copy, cut and paste</a></li>
@@ -44,6 +45,7 @@
 </li>
 <li><a href="#run">The Run panel</a></li>
 <li><a href="#cores">Cores, Animate and repeatable results</a></li>
+<li><a href="#precision">Trials to Precision: how many trials are enough</a></li>
 <li><a href="#whatif">What If: compare changes with the model</a></li>
 <li><a href="#sensitivity">Sensitivity: which inputs matter</a></li>
 <li><a href="#optimise">Optimise: spares, maintenance and crews</a></li>
@@ -503,6 +505,31 @@ use it on a single kind of thing you genuinely want identically named.</p>
 </div>
 <div class="paragraph">
 <p>Leave the text blank to keep all names. The whole edit is one undo step.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="judgement">Estimate from judgement: a law with no data</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>With no failure data, an engineer can still say "one in ten have failed by
+100 hours, half by 300". <strong>Estimate from judgement…</strong>, under a block&#8217;s failure
+and repair distributions in the Inspector, turns those answers into a law:
+Weibull for lives that wear out, lognormal for repair times, exponential
+for random failures. Type a share and an age on two or more rows; the fit
+updates as you type. Two answers fix the law exactly; more are a
+least-squares fit. Answers that contradict each other (a larger share at
+an earlier age) are refused by name.</p>
+</div>
+<div class="paragraph">
+<p>The chart draws the fitted chance of having failed by each age, with your
+answers as dots, so a law that cannot honour them shows it. Below it are
+the parameters, mean, median and what the shape means (a Weibull shape
+above 1 wears out, so planned maintenance can help). <strong>Use for &lt;block&gt;</strong>
+writes the law and its parameters into the block as one undo step. The
+same fit is <code>raptor fit --law weibull --quantile 0.1=100 --quantile 0.5=300
+--block NAME</code>, which also prints the <code>raptor set</code> line, and the MCP tool
+<code>fit_from_judgement</code>. The fit is only as good as the answers.</p>
 </div>
 </div>
 </div>
@@ -1375,6 +1402,28 @@ copy of the model: the open model is not changed until you press <strong>Apply</
 Each window shows its progress and has <strong>Stop</strong>; <strong>Apply</strong> writes the selected
 change into the model as one undo step (<strong>Edit ▸ Undo</strong> takes it back), and
 <strong>Copy</strong> puts the result on the clipboard as text.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="precision">Trials to Precision: how many trials are enough</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Simulate ▸ Trials to Precision…</strong>, or <strong>Precision…</strong> beside Trials in the Run
+panel, states a precision instead of a trial count. Pick what to watch
+(availability, reliability, delivered fraction, time between outages or
+mean downtime), the precision (the half-width of the confidence interval
+as a share of the watched value), the confidence and a trial limit, and
+press <strong>Run</strong>. The model runs on a copy in growing batches with the same
+seed until the interval is narrow enough; the table lists each pass. For
+availability, reliability and delivered fraction the precision is on the
+part that is lost: 10 % of 0.1 % unavailability, not of 99.9 %
+availability, which any run would meet.</p>
+</div>
+<div class="paragraph">
+<p><strong>Use these trials</strong> sets the next Run to the count reached, as one undo
+step. That run measures its own interval. The same rule is <code>raptor run
+--precision 10%</code> and <code>simulate</code> with <code>precision</code> over MCP.</p>
 </div>
 </div>
 </div>
@@ -2759,6 +2808,11 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Run Settings…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Open the Run panel — the single editor for trials, termination, analyses and recording</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Trials to Precision…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How many trials the answer needs: runs a copy in growing batches until the confidence interval is within a stated precision (for availability, of the unavailability), then sets the trials for the next Run.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

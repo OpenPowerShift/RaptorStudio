@@ -131,10 +131,12 @@ complete -c raptor -n '__fish_seen_subcommand_from fev' -l phase
 complete -c raptor -n '__fish_seen_subcommand_from fev' -l repair
 complete -c raptor -n '__fish_seen_subcommand_from fev' -l script
 complete -c raptor -n '__fish_use_subcommand' -a fit
+complete -c raptor -n '__fish_seen_subcommand_from fit' -l block
 complete -c raptor -n '__fish_seen_subcommand_from fit' -l format
 complete -c raptor -n '__fish_seen_subcommand_from fit' -l help
 complete -c raptor -n '__fish_seen_subcommand_from fit' -l law
 complete -c raptor -n '__fish_seen_subcommand_from fit' -l quantile
+complete -c raptor -n '__fish_seen_subcommand_from fit' -l repair
 complete -c raptor -n '__fish_use_subcommand' -a get
 complete -c raptor -n '__fish_seen_subcommand_from get' -l format
 complete -c raptor -n '__fish_seen_subcommand_from get' -l help

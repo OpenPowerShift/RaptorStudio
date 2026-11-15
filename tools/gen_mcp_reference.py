@@ -136,6 +136,7 @@ TOOL_CATEGORY: dict[str, str] = {
     "optimise_spares": "what-if",
     "optimise_pm": "what-if",
     "optimise_resources": "what-if",
+    "fit_from_judgement": "what-if",
     "single_point_failures": "analysis",
     "failure_effects": "analysis",
     "failure_effects_batch": "analysis",
@@ -294,6 +295,9 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "optimise_spares": {"model_id": "<model_id>", "target": 0.995, "trials": 200},
     "optimise_pm": {"model_id": "<model_id>", "objective": "cost", "trials": 200},
     "optimise_resources": {"model_id": "<model_id>", "target": 0.995, "trials": 200},
+    "fit_from_judgement": {"law": "weibull", "block": "Pump",
+                           "quantiles": [{"probability": 0.1, "age": 100},
+                                         {"probability": 0.5, "age": 300}]},
     "duplicate_elements": {"model_id": "<model_id>",
                            "elements": ["Pump_A"], "copies": 2},
     "copy_element_data": {"model_id": "<model_id>", "source": "Pump_A",
@@ -616,6 +620,9 @@ RETURN_NOTES: dict[str, str] = {
     "optimise_resources": "`{metric, target, resources, rows, recommendations, "
                           "changes, caption, note, ...}`; each recommendation has "
                           "resource, units, mean, lower, why and `changes`.",
+    "fit_from_judgement": "`{law, params, slots, mean, fitted, stated, shape_note}`; "
+                          "with `block`, also `changes` (PATH=VALUE) and `update` "
+                          "(the fields for `update_element`).",
     "recommend_changes": "`{schema, trials, seed, base, rows, caption, note, bars, "
                          "attribution_run_id}`; each row has `name`, `changes` "
                          "(PATH=VALUE), `why`, `gain` (availability, sem, "

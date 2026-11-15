@@ -2558,3 +2558,18 @@ def crew_optimise_icon(colour: str) -> QIcon:
         p.drawLine(QPointF(42, 32), QPointF(42, 40))
         p.drawLine(QPointF(38, 44), QPointF(46, 44))
     return _icon("crew_optimise", colour, draw)
+
+
+def precision_icon(colour: str) -> QIcon:
+    """Trials to precision: an estimate with its interval closing in."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.drawLine(QPointF(8, 24), QPointF(40, 24))
+        for x in (8, 40):
+            p.drawLine(QPointF(x, 16), QPointF(x, 32))
+        p.drawLine(QPointF(14, 38), QPointF(20, 42))
+        p.drawLine(QPointF(34, 38), QPointF(28, 42))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(QPointF(24, 24), 5, 5)
+    return _icon("precision", colour, draw)
