@@ -373,3 +373,16 @@ def test_blocks_that_share_a_name_are_told_apart():
     gold = Path(__file__).resolve().parents[2] / "golden" / "TwoBlockRedundancy" / "input.rbd"
     messages = [f.message for f in advise_model(load_rbd(str(gold)))]
     assert len(messages) == len(set(messages))
+
+
+def test_unlimited_spares_are_not_noted_when_no_block_is_repaired():
+    """U29: Lantern1's blocks are never repaired, so they draw no spare."""
+    from pathlib import Path
+
+    from raptor.api.advisor import advise_model as advise
+    from raptor.core.fileio.model_file import load_model_file
+
+    models = Path(__file__).resolve().parents[3] / "new_docs" / "models"
+    rules = {f.rule for f in advise(load_model_file(models / "Lantern1.rbds"))}
+    assert "M-SPR-001" not in rules
+    assert "M-SPR-001" in {f.rule for f in advise(load_model_file(models / "Van1.rbds"))}

@@ -78,7 +78,10 @@ def _certain_shortfall(demand: float, supply: float) -> bool:
 @rule("M-SPR-001", title="Spares are unlimited everywhere",
       category="spares", basis="exact", severity="info")
 def all_infinite(ctx: ModelContext) -> Iterable[Finding]:
-    if ctx.blocks and all(b.get("sparing_type") == "Infinite" for b in ctx.blocks):
+    # Only a repaired block draws a spare: a model whose blocks are never
+    # repaired (Lantern1) uses none, so "unlimited" assumes nothing there.
+    repaired = [b for b in ctx.blocks if ctx.mean_repair(b) is not None]
+    if repaired and all(b.get("sparing_type") == "Infinite" for b in repaired):
         yield Finding(
             rule="M-SPR-001", severity="info", category="spares",
             title="Spares are unlimited everywhere",
