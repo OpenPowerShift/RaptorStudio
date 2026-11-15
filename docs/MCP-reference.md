@@ -5345,7 +5345,7 @@ Read, page, plot and export the numbers from a completed run.
 
 #### `export_analytical`
 
-- **Kind:** writes
+- **Kind:** destructive
 - **Group:** [Results and tables](#tools-results)
 
 Solve exactly, as `analytical_analysis` does, and write a spreadsheet.
@@ -5431,7 +5431,7 @@ Parameter notes:
 
 #### `export_report`
 
-- **Kind:** writes
+- **Kind:** destructive
 - **Group:** [Results and tables](#tools-results)
 
 Write a run's report as one PDF or one self-contained HTML file: the
@@ -5445,7 +5445,8 @@ model); 'data_tables' the model's input tables.  The run needs
 `attribution=True` for the drivers part of the story.
 
 `path` is inside the workspace and ends in .pdf or .html; default
-`Reports/<model>_<run_id>.pdf`.  Returns {path, sections, bytes}.
+`Reports/<model>_<run_id>.pdf`; a file already there is replaced.
+Returns {path, sections, bytes}.
 
 **Parameters**
 
@@ -5458,7 +5459,7 @@ model); 'data_tables' the model's input tables.  The run needs
 
 Parameter notes:
 
-- `path` — `path` is inside the workspace and ends in .pdf or .html; default `Reports/<model>_<run_id>.pdf`.
+- `path` — `path` is inside the workspace and ends in .pdf or .html; default `Reports/<model>_<run_id>.pdf`; a file already there is replaced.
 - `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
 - `sections` — `sections` (default ['diagram', 'story']): 'story' is the headline, what drives the downtime, the findings, the charts and how to read each measure; 'results' adds every result table (dozens of pages on a large model); 'data_tables' the model's input tables.
 
@@ -5484,10 +5485,11 @@ Parameter notes:
 
 #### `export_tables`
 
-- **Kind:** writes
+- **Kind:** destructive
 - **Group:** [Results and tables](#tools-results)
 
-Write tables to files: CSV, text, or one spreadsheet.
+Write tables to files: CSV, text, or one spreadsheet.  Files of the
+same name in the folder are replaced.
 
 `tables`: keys from `list_tables`; omit for the default set (all input
 tables except the all-columns block table, plus every result table

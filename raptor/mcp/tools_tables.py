@@ -13,7 +13,7 @@ from mcp.types import CallToolResult
 
 from raptor.mcp import context
 from raptor.mcp.result import (
-    ADDITIVE, EDIT, READ_ONLY, guarded, markdown_table, ok,
+    DESTRUCTIVE, EDIT, READ_ONLY, guarded, markdown_table, ok,
 )
 from raptor.mcp.server import mcp
 
@@ -125,13 +125,14 @@ def get_table(model_id: str, table: str, run_id: str | None = None,
     return ok(data, markdown=md)
 
 
-@mcp.tool(annotations=ADDITIVE("Export tables"))
+@mcp.tool(annotations=DESTRUCTIVE("Export tables"))
 @guarded
 def export_tables(model_id: str, run_id: str | None = None,
                   tables: list[str] | None = None,
                   formats: list[Format] | None = None,
                   folder: str | None = None) -> CallToolResult:
-    """Write tables to files: CSV, text, or one spreadsheet.
+    """Write tables to files: CSV, text, or one spreadsheet.  Files of the
+    same name in the folder are replaced.
 
     `tables`: keys from `list_tables`; omit for the default set (all input
     tables except the all-columns block table, plus every result table
@@ -209,7 +210,7 @@ def export_tables(model_id: str, run_id: str | None = None,
     return ok(data, markdown=md)
 
 
-@mcp.tool(annotations=ADDITIVE("Export report"))
+@mcp.tool(annotations=DESTRUCTIVE("Export report"))
 @guarded
 def export_report(run_id: str, path: str | None = None,
                   sections: list[Literal["diagram", "story", "results",
@@ -226,7 +227,8 @@ def export_report(run_id: str, path: str | None = None,
     `attribution=True` for the drivers part of the story.
 
     `path` is inside the workspace and ends in .pdf or .html; default
-    `Reports/<model>_<run_id>.pdf`.  Returns {path, sections, bytes}.
+    `Reports/<model>_<run_id>.pdf`; a file already there is replaced.
+    Returns {path, sections, bytes}.
     """
     context.require_write()
     from raptor.api.report import ReportError, write_report

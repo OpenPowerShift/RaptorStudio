@@ -366,12 +366,13 @@ Every tool carries an MCP risk hint:
 
 - **read-only** — changes no model. Safe to call repeatedly. Examples:
   `list_models`, `validate_model`, `get_report`, `render_diagram`.
-- **writes** — edits a model, writes run results, or exports a file.
-  Examples: `add_block`, `connect`, `configure_system`, `simulate`,
-  `export_tables`.
-- **destructive** — deletes, closes or reverts something. Examples:
-  `delete_element`, `close_model`, `delete_file`, `undo_last_edit`,
-  `save_model_as` (overwrites an existing export of that name).
+- **writes** — edits a model or writes run results. Examples:
+  `add_block`, `connect`, `configure_system`, `simulate`.
+- **destructive** — deletes, closes, reverts or overwrites something.
+  Examples: `delete_element`, `close_model`, `delete_file`,
+  `undo_last_edit`, and the exports `save_model_as`, `export_tables`,
+  `export_report` and `export_analytical` (each replaces a file of the
+  same name).
 
 Start the server with `--read-only` to refuse tools that create, edit or
 delete a model or export a file; opening an existing model, analysis and

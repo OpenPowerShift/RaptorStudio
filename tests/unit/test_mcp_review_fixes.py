@@ -60,7 +60,9 @@ DESTRUCTIVE = {"save_model_as", "close_model", "delete_element",
                "delete_elements", "delete_link", "undo_last_edit",
                "redo_last_edit", "delete_file", "delete_annotation",
                # they can overwrite a part in an existing .rbdlib file
-               "save_part_type", "save_assembly"}
+               "save_part_type", "save_assembly",
+               # each replaces a file of the same name
+               "export_tables", "export_report", "export_analytical"}
 
 
 class TestAnnotations:
