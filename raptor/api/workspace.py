@@ -1238,7 +1238,36 @@ class Workspace:
         return {
             "removed_runs": removed_runs,
             "removed_renders": removed_renders,
+            "removed_scratch": self._sweep_scratch(),
         }
+
+    #: A run's scratch in the workspace root (`raptor.api.run.run`): the
+    #: availability-plot spool and the developer draw logs.  A run removes
+    #: its own, but a killed process cannot.
+    _SCRATCH = (".spool-*", ".simDetails-*", ".mission-*", ".cumtrial-*", ".cumtime-*")
+
+    def _sweep_scratch(self, older_than_s: float = 86400.0) -> int:
+        """Remove run scratch nothing has written to for a day.  Age is the
+        newest write inside a spool folder, so a long run still writing is
+        left alone."""
+        cutoff = time.time() - older_than_s
+        removed = 0
+        for pattern in self._SCRATCH:
+            for path in self.root.glob(pattern):
+                try:
+                    stamps = [path.stat().st_mtime]
+                    if path.is_dir():
+                        stamps += [p.stat().st_mtime for p in path.iterdir()]
+                    if max(stamps) >= cutoff:
+                        continue
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                    else:
+                        path.unlink()
+                    removed += 1
+                except OSError:
+                    continue
+        return removed
 
     # ------------------------------------------------------------------
     # Helpers

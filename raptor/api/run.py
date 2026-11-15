@@ -513,130 +513,141 @@ def run(
 
     wall = time.monotonic() - t0
 
-    # --- importance measures (opt-in) -----------------------------------
-    # Runs AFTER the ordinary batch, which is its baseline: the user sees
-    # their own results first, and the variants then cost the extra batches
-    # the panel warned about. `importance_progress` reports those batches
-    # separately so the run's own counter is not disturbed.
-    importance_data: dict[str, Any] | None = None
-    if importance_mode not in ("none", "") and report_data:
-        from raptor.api import importance as _importance
-        importance_data = _importance.analyse(
-            sim_rbd, report_data, mode=importance_mode,
-            runs=len(report_data), workers=max(1, int(workers)), seed=seed,
-            progress=importance_progress, stop_check=abort.is_set)
-        wall = time.monotonic() - t0
-
-    if abort.is_set() and not report_data:
+    def _discard_scratch() -> None:
         for tmp in (sd_tmp, mission_tmp, cumtrial_tmp, cumtime_tmp):
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
-    if abort.is_set() and not report_data:
         if ao_lines is not None:
             ao_lines.close()
         shutil.rmtree(spool_dir, ignore_errors=True)
-        if timed_out.is_set():
+
+    # Everything from here to the end of persisting can still fail (an
+    # importance batch, a full disk); without this the spool folder, the
+    # draw-log scratch files and a half-written run folder stayed behind.
+    runs_dir: Path | None = None
+    try:
+        # --- importance measures (opt-in) -----------------------------------
+        # Runs AFTER the ordinary batch, which is its baseline: the user sees
+        # their own results first, and the variants then cost the extra batches
+        # the panel warned about. `importance_progress` reports those batches
+        # separately so the run's own counter is not disturbed.
+        importance_data: dict[str, Any] | None = None
+        if importance_mode not in ("none", "") and report_data:
+            from raptor.api import importance as _importance
+            importance_data = _importance.analyse(
+                sim_rbd, report_data, mode=importance_mode,
+                runs=len(report_data), workers=max(1, int(workers)), seed=seed,
+                progress=importance_progress, stop_check=abort.is_set)
+            wall = time.monotonic() - t0
+
+        if abort.is_set() and not report_data:
+            if timed_out.is_set():
+                raise RunTimeoutError(
+                    f"Simulation did not complete within {timeout_s}s")
+            if cancelled_by_caller:
+                raise RunCancelledError("Simulation was cancelled")
             raise RunTimeoutError(
                 f"Simulation did not complete within {timeout_s}s")
-        if cancelled_by_caller:
-            raise RunCancelledError("Simulation was cancelled")
-        raise RunTimeoutError(
-            f"Simulation did not complete within {timeout_s}s")
 
-    # --- persist artefacts ---
-    run_id = _new_run_id()
-    runs_dir = workspace.root / "runs" / run_id
-    runs_dir.mkdir(parents=True, exist_ok=True)
-    if sd_tmp is not None and sd_tmp.exists():
-        os.replace(sd_tmp, runs_dir / SECTION_FILES["sim_details"])
-    if mission_tmp is not None and mission_tmp.exists():
-        os.replace(mission_tmp, runs_dir / SECTION_FILES["mission_file"])
-    if cumtrial_tmp is not None and cumtrial_tmp.exists():
-        os.replace(cumtrial_tmp, runs_dir / SECTION_FILES["cumulative_by_trial"])
-    if cumtime_tmp is not None and cumtime_tmp.exists():
-        os.replace(cumtime_tmp, runs_dir / SECTION_FILES["cumulative_by_time"])
+        # --- persist artefacts ---
+        run_id = _new_run_id()
+        runs_dir = workspace.root / "runs" / run_id
+        runs_dir.mkdir(parents=True, exist_ok=True)
+        if sd_tmp is not None and sd_tmp.exists():
+            os.replace(sd_tmp, runs_dir / SECTION_FILES["sim_details"])
+        if mission_tmp is not None and mission_tmp.exists():
+            os.replace(mission_tmp, runs_dir / SECTION_FILES["mission_file"])
+        if cumtrial_tmp is not None and cumtrial_tmp.exists():
+            os.replace(cumtrial_tmp, runs_dir / SECTION_FILES["cumulative_by_trial"])
+        if cumtime_tmp is not None and cumtime_tmp.exists():
+            os.replace(cumtime_tmp, runs_dir / SECTION_FILES["cumulative_by_time"])
 
-    eor_text = "\n".join(eor_lines)
-    final_text = "\n".join(final_lines)
-    artefacts = {
-        "end_of_run": eor_text,
-        "final_results": final_text,
-        "final_results_ids": json.dumps(tags_of(final_lines)),
-        "capacity": "\n".join(cap_lines),
-    }
-    if cost_lines is not None:
-        artefacts["cost"] = "\n".join(cost_lines)
-    from raptor.core.engine.data_files import DATA_FILES
-    for kind, build in DATA_FILES.items():
-        artefacts[kind] = "\n".join(build(report_data))
-    if collect_events:
-        from raptor.core.engine.eventlog import format_event_log_file
-        runs = [log if isinstance(log, list) else [log] for log in event_logs]
-        cats = developer.event_log_filter
-        event_file = format_event_log_file(
-            runs, sim_rbd.file_name, time.ctime(),
-            blocks="block" in cats, nodes="node" in cats, system="system" in cats,
-            phases="phase" in cats,
-            component=developer.event_log_component)
-        artefacts["events"] = "\n".join(str(x) for x in event_file)
-        artefacts["events_ids"] = json.dumps(tags_of(event_file))
-    if importance_data is not None:
-        artefacts["importance"] = "\n".join(
-            _importance.table_lines(importance_data))
+        eor_text = "\n".join(eor_lines)
+        final_text = "\n".join(final_lines)
+        artefacts = {
+            "end_of_run": eor_text,
+            "final_results": final_text,
+            "final_results_ids": json.dumps(tags_of(final_lines)),
+            "capacity": "\n".join(cap_lines),
+        }
+        if cost_lines is not None:
+            artefacts["cost"] = "\n".join(cost_lines)
+        from raptor.core.engine.data_files import DATA_FILES
+        for kind, build in DATA_FILES.items():
+            artefacts[kind] = "\n".join(build(report_data))
+        if collect_events:
+            from raptor.core.engine.eventlog import format_event_log_file
+            runs = [log if isinstance(log, list) else [log] for log in event_logs]
+            cats = developer.event_log_filter
+            event_file = format_event_log_file(
+                runs, sim_rbd.file_name, time.ctime(),
+                blocks="block" in cats, nodes="node" in cats, system="system" in cats,
+                phases="phase" in cats,
+                component=developer.event_log_component)
+            artefacts["events"] = "\n".join(str(x) for x in event_file)
+            artefacts["events_ids"] = json.dumps(tags_of(event_file))
+        if importance_data is not None:
+            artefacts["importance"] = "\n".join(
+                _importance.table_lines(importance_data))
 
-    # Written through `section_path`, from the same map the readers use, so
-    # the writer cannot spell a filename the reader will not look for.
-    #
-    # The guard is in the direction that matters: every artefact produced
-    # must be a DECLARED section (otherwise the reader has no name for it),
-    # and every declared section must be written unless it is one of the
-    # conditionally-collected ones. A section added to SECTION_FILES without
-    # a writer here would otherwise be readable-but-never-written, which is
-    # how the copies drifted in the first place.
-    optional = {"events", "events_ids"} if not collect_events else set()
-    # Written by the engine itself, as it draws, when the `sim_details` option is on.
-    optional.add("sim_details")
-    # Only when the experiment asked for importance measures.
-    optional.add("importance")
-    optional.add("mission_file")
-    optional.add("cumulative_by_trial")
-    optional.add("cumulative_by_time")
-    if developer.diagnostics_log:
-        from raptor.core import diagnostics as _diag
-        artefacts["diagnostics_log"] = "\n".join(
-            [*_diag.startup_lines(time.ctime(), file_to_open=sim_rbd.file_name),
-             *_diag.pre_sim_lines(), _diag.start_simulation_line(run_started), _diag.end_simulation_line()])
-    optional.add("diagnostics_log")
-    if developer.domain_tree or developer.core_file:
-        from raptor.core.engine.domain_tree import domain_tree_lines
-        today = time.ctime()
-        if developer.domain_tree:
-            artefacts["domain_tree"] = "\n".join(
-                domain_tree_lines(sim_rbd, sim_rbd.file_name, today))
-        if developer.core_file:
-            artefacts["core_file"] = "\n".join(
-                domain_tree_lines(sim_rbd, sim_rbd.file_name, today, core=True))
-    optional |= {"domain_tree", "core_file"} - set(artefacts)
-    undeclared = set(artefacts) - set(SECTION_FILES)
-    # Moved into place from its spool file below, never held as text; and
-    # both of these only when this run recorded them.
-    optional.add("availability_plot")
-    optional.add("cost")
-    unwritten = set(SECTION_FILES) - set(artefacts) - optional
-    assert not undeclared and not unwritten, (
-        f"the artefact layout and its writer disagree: undeclared="
-        f"{sorted(undeclared)} never-written={sorted(unwritten)} "
-        f"optional={sorted(optional)}"
-    )
-    for section, text in artefacts.items():
-        path = section_path(runs_dir, section)
-        assert path is not None      # guaranteed by the assertion above
-        path.write_text(text)
-    if ao_lines is not None:
-        ao_path = section_path(runs_dir, "availability_plot")
-        assert ao_path is not None
-        ao_lines.move_to(str(ao_path))
-    shutil.rmtree(spool_dir, ignore_errors=True)
+        # Written through `section_path`, from the same map the readers use, so
+        # the writer cannot spell a filename the reader will not look for.
+        #
+        # The guard is in the direction that matters: every artefact produced
+        # must be a DECLARED section (otherwise the reader has no name for it),
+        # and every declared section must be written unless it is one of the
+        # conditionally-collected ones. A section added to SECTION_FILES without
+        # a writer here would otherwise be readable-but-never-written, which is
+        # how the copies drifted in the first place.
+        optional = {"events", "events_ids"} if not collect_events else set()
+        # Written by the engine itself, as it draws, when the `sim_details` option is on.
+        optional.add("sim_details")
+        # Only when the experiment asked for importance measures.
+        optional.add("importance")
+        optional.add("mission_file")
+        optional.add("cumulative_by_trial")
+        optional.add("cumulative_by_time")
+        if developer.diagnostics_log:
+            from raptor.core import diagnostics as _diag
+            artefacts["diagnostics_log"] = "\n".join(
+                [*_diag.startup_lines(time.ctime(), file_to_open=sim_rbd.file_name),
+                 *_diag.pre_sim_lines(), _diag.start_simulation_line(run_started), _diag.end_simulation_line()])
+        optional.add("diagnostics_log")
+        if developer.domain_tree or developer.core_file:
+            from raptor.core.engine.domain_tree import domain_tree_lines
+            today = time.ctime()
+            if developer.domain_tree:
+                artefacts["domain_tree"] = "\n".join(
+                    domain_tree_lines(sim_rbd, sim_rbd.file_name, today))
+            if developer.core_file:
+                artefacts["core_file"] = "\n".join(
+                    domain_tree_lines(sim_rbd, sim_rbd.file_name, today, core=True))
+        optional |= {"domain_tree", "core_file"} - set(artefacts)
+        undeclared = set(artefacts) - set(SECTION_FILES)
+        # Moved into place from its spool file below, never held as text; and
+        # both of these only when this run recorded them.
+        optional.add("availability_plot")
+        optional.add("cost")
+        unwritten = set(SECTION_FILES) - set(artefacts) - optional
+        assert not undeclared and not unwritten, (
+            f"the artefact layout and its writer disagree: undeclared="
+            f"{sorted(undeclared)} never-written={sorted(unwritten)} "
+            f"optional={sorted(optional)}"
+        )
+        for section, text in artefacts.items():
+            path = section_path(runs_dir, section)
+            assert path is not None      # guaranteed by the assertion above
+            path.write_text(text)
+        if ao_lines is not None:
+            ao_path = section_path(runs_dir, "availability_plot")
+            assert ao_path is not None
+            ao_lines.move_to(str(ao_path))
+        shutil.rmtree(spool_dir, ignore_errors=True)
+    except BaseException:
+        _discard_scratch()
+        if runs_dir is not None and not (runs_dir / "summary.json").exists():
+            shutil.rmtree(runs_dir, ignore_errors=True)
+        raise
 
     metrics = aggregate_metrics(report_data)
     per_run = [_rd_to_dict(rd) for rd in report_data]

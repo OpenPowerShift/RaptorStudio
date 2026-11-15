@@ -267,3 +267,41 @@ def test_the_engine_run_is_the_same_from_the_api_as_without_sinks(tmp_path):
         load_rbd(str(GOLDEN / "MotorDemo" / "input.rbd")), num_runs=3,
         report_sink=[], collect_logs=False)
     assert api.end_of_run.splitlines()[2:] == "\n".join(eor).splitlines()[2:]
+
+
+def test_a_run_that_fails_while_saving_leaves_no_scratch(tmp_path, monkeypatch):
+    """S8: the spool folder and a half-written run folder stayed behind when
+    anything after the batch (an importance pass, a full disk) raised."""
+    import raptor.api.run as run_module
+
+    def boom(*_a, **_k):
+        raise OSError("disk full")
+
+    ws = Workspace(tmp_path)
+    mid = ws.open_model(GOLDEN / "MotorDemo" / "input.rbd")["model_id"]
+    monkeypatch.setattr(run_module, "section_path", boom)
+    with pytest.raises(OSError, match="disk full"):
+        api_run(ws, mid, num_runs=2, workers=1, confirm_long_run=True,
+                availability_plot=True)
+    assert not list(ws.root.glob(".spool-*"))
+    assert not [p for p in (ws.root / "runs").iterdir() if p.is_dir()]
+
+
+def test_stale_run_scratch_is_swept_and_fresh_scratch_kept(tmp_path):
+    import os
+    import time
+    ws = Workspace(tmp_path)
+    old = ws.root / ".spool-old"
+    old.mkdir()
+    (old / "rows.txt").write_text("x")
+    stale = time.time() - 3 * 86400
+    for path in (old / "rows.txt", old):
+        os.utime(path, (stale, stale))
+    fresh = ws.root / ".spool-live"
+    fresh.mkdir()
+    (fresh / "rows.txt").write_text("x")
+    log = ws.root / ".simDetails-1-2"
+    log.write_text("x")
+    os.utime(log, (stale, stale))
+    assert ws.sweep_retention()["removed_scratch"] == 2
+    assert fresh.exists() and not old.exists() and not log.exists()
