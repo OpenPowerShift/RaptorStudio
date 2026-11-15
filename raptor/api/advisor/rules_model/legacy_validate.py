@@ -13,7 +13,8 @@ from raptor.api.advisor.context import ModelContext
 from raptor.api.advisor.finding import Finding, Target
 from raptor.api.advisor.registry import rule
 
-_BLOCK = re.compile(r"^Block (\d+) '(.*)'$")
+_ELEMENT = re.compile(r"^(Block|Node|Event|Hierarchy) (\d+) '(.*)'$")
+_KINDS = {"Block": "block", "Node": "node", "Event": "event", "Hierarchy": "hier"}
 
 
 @rule("M-VAL-000", title="Model validation", category="structure",
@@ -25,17 +26,22 @@ def validation(ctx: ModelContext) -> Iterable[Finding]:
         found = issues(ctx.rbd)
     for issue in found:
         targets: tuple[Target, ...] = ()
-        m = _BLOCK.match(issue.element or "")
+        # every element kind gets a target, so Show can go to it (only
+        # blocks did: overlapping nodes or events could not be found)
+        m = _ELEMENT.match(issue.element or "")
         if m:
-            targets = (Target("block", int(m.group(1)), m.group(2)),)
+            targets = (Target(_KINDS[m.group(1)], int(m.group(2)), m.group(3)),)
         is_error = issue.severity == "error"
+        stacked = "is drawn on top of" in issue.message
         message = issue.message.split(" [RAPTOR Studio, ", 1)[0].rstrip()
         if issue.element and not message.startswith(issue.element):
             message = f"{issue.element}: {message}"
         yield Finding(
             rule="M-VAL-000", severity="error" if is_error else "warning",
             category="structure",
-            title="The model cannot run" if is_error else "Validation warning",
+            title=("The model cannot run" if is_error
+                   else "Elements on top of each other" if stacked
+                   else "Validation warning"),
             message=message,
             why="Found by the model validator, which checks structure and "
                 "parameter ranges before a run.",

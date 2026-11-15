@@ -386,3 +386,19 @@ def test_unlimited_spares_are_not_noted_when_no_block_is_repaired():
     rules = {f.rule for f in advise(load_model_file(models / "Lantern1.rbds"))}
     assert "M-SPR-001" not in rules
     assert "M-SPR-001" in {f.rule for f in advise(load_model_file(models / "Van1.rbds"))}
+
+
+def test_a_validation_finding_about_any_element_can_be_shown():
+    """U30: only blocks got a target, so overlapping nodes or events had no
+    Show and could not be found one after another."""
+    from raptor.api.advisor.context import ModelContext
+    from raptor.api.advisor.rules_model.legacy_validate import validation
+    from raptor.api.validate import Issue
+
+    issues = [Issue("warning", "Node 7 'Vote'", "is drawn on top of Block 'A', hiding it; "
+                    "move one of them apart or run Auto Layout."),
+              Issue("warning", "Event 3 'Storm'", "has no failure probability")]
+    found = list(validation(ModelContext(object(), validation=issues)))
+    assert [(f.targets[0].kind, f.targets[0].id) for f in found] == [("node", 7), ("event", 3)]
+    assert found[0].title == "Elements on top of each other"
+    assert found[1].title == "Validation warning"
