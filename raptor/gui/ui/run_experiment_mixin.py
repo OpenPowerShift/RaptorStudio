@@ -171,9 +171,14 @@ class RunExperimentMixin:
             return float(run_experiment.RUN_DEFAULTS["recording"][key])
 
     def _set_exp_field(self, key: str, value) -> None:
-        """One experiment field (trials, termination, ...) -> the
+        """One experiment field (trials, termination, ...): see
+        `_set_exp_fields`."""
+        self._set_exp_fields({key: value})
+
+    def _set_exp_fields(self, changes: dict) -> None:
+        """Experiment fields (trials, termination, ...) -> the
         experiment, AND into the legacy SYSTEM_DATA columns, as a single
-        undoable macro.
+        undoable step however many fields change.
 
         Both destinations are written because both are read: the engine
         still reads trials/termination/analyses from SYSTEM_DATA (a
@@ -185,7 +190,8 @@ class RunExperimentMixin:
         if self._rbd is None:
             return
         experiment = self._current_experiment()
-        if experiment.get(key) == value:
+        changes = {k: v for k, v in changes.items() if experiment.get(k) != v}
+        if not changes:
             return
         # Mark the writes as run-setting writes BEFORE the first undoable
         # command lands: `_mark_dirty` reads this to avoid invalidating a
@@ -194,7 +200,7 @@ class RunExperimentMixin:
         self._in_run_setting_edit = True
         v = self._diagram_dock.view
         old = run_experiment.normalise(self._rbd.experiment)
-        experiment[key] = value
+        experiment.update(changes)
         # The experiment itself is part of the undo step, with the legacy
         # columns below: undoing used to put NumRuns back but leave the
         # experiment (which the panel and the next run read) at the new
@@ -414,17 +420,11 @@ class RunExperimentMixin:
             return
         current = self._current_experiment()
         wanted = run_needs.turn_on(current, keys)
-        changed = [k for k in ("analyses", "recording", "importance")
-                   if wanted.get(k) != current.get(k)]
+        changed = {k: wanted[k] for k in ("analyses", "recording", "importance")
+                   if wanted.get(k) != current.get(k)}
         if changed:
-            stack = self._diagram_dock.view._stack
             label = run_needs.button_text(*keys).removesuffix(" and run")
-            stack.beginMacro(label)
-            try:
-                for key in changed:
-                    self._set_exp_field(key, wanted[key])
-            finally:
-                stack.endMacro()
+            self._set_exp_fields(changed)
             self._statusbar.showMessage(f"{label}: running again (Edit ▸ Undo "
                                         "takes the setting back)", 8000)
         self._run_simulation()

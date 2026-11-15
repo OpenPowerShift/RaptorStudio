@@ -297,3 +297,14 @@ def test_turn_on_and_run_is_one_undo_step_and_runs(win, monkeypatch):
     experiment = win._current_experiment()
     assert "capacity" not in experiment["analyses"]
     assert not experiment["recording"]["capacity_plot"] and experiment["importance"] != "both"
+
+
+def test_turning_on_a_recording_alone_is_still_undoable(win, monkeypatch):
+    monkeypatch.setattr(win, "_run_simulation", lambda: None)
+    stack = win._diagram_dock.view._stack
+    before = stack.index()
+    win._results.enable_requested.emit(["availability_plot"])
+    assert win._current_experiment()["recording"]["ao_plot"]
+    assert stack.index() == before + 1
+    stack.undo()
+    assert not win._current_experiment()["recording"]["ao_plot"]
