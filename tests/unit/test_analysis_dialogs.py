@@ -140,6 +140,13 @@ def test_pm_optimiser_lists_each_block(win):
     blocks = [dlg.table.item(i, 0).text() for i in range(dlg.table.rowCount())]
     assert "Pump" in blocks
     assert dlg.caption.text()
+    # the formula's screen and the simulated verdict are named apart
+    headers = [dlg.table.horizontalHeaderItem(c).text() for c in range(dlg.table.columnCount())]
+    assert headers == ["Block", "Formula screen", "Best simulated option",
+                       "Its availability", "Recommendation"]
+    pump = blocks.index("Pump")
+    assert dlg.table.item(pump, 1).text() in ("PM may pay", "PM cannot pay", "not enough data")
+    assert dlg.table.item(pump, 4).text().startswith(("change to", "keep as is", "not simulated"))
 
 
 def test_crew_optimiser_applies_the_size(win):

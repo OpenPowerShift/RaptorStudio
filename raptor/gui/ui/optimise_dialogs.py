@@ -261,7 +261,11 @@ class PmDialog(AnalysisDialog):
         return row
 
     def build_result_area(self) -> QWidget:
-        self.table = _table(("Block", "Screen", "Best option", "Result", "Worth changing"))
+        # The formula's screen and the simulation's verdict are two different
+        # answers: named apart, "worthwhile" beside "Worth changing: no" read
+        # as a contradiction.
+        self.table = _table(("Block", "Formula screen", "Best simulated option",
+                             "Its availability", "Recommendation"))
         self.table.itemSelectionChanged.connect(self.sync_buttons)
         return self.table
 
@@ -287,14 +291,20 @@ class PmDialog(AnalysisDialog):
             return
         rows, tips, bold = [], [], set()
         fraction = result["objective"] == "availability"
+        header = self.table.horizontalHeaderItem(3)
+        if header is not None:
+            header.setText("Its availability" if fraction else "Its mean cost")
         for index, entry in enumerate(self._rows()):
             advice, rec = entry["advice"], entry["rec"] or {}
-            screen = ("worthwhile" if advice["worthwhile"]
-                      else "not worthwhile" if advice["worthwhile"] is False else "incomplete")
+            screen = ("PM may pay" if advice["worthwhile"]
+                      else "PM cannot pay" if advice["worthwhile"] is False
+                      else "not enough data")
             mean = rec.get("mean")
+            verdict = (f"change to {rec.get('option')}" if rec.get("worthwhile")
+                       else "keep as is" if rec else "not simulated")
             rows.append((advice["block"], screen, rec.get("option", "—"),
                          _pct(mean) if fraction else ("—" if mean is None else f"{mean:,.6g}"),
-                         "yes" if rec.get("worthwhile") else "no"))
+                         verdict))
             tips.append(advice.get("reason") or "")
             if rec.get("worthwhile"):
                 bold.add(index)
