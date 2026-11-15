@@ -64,11 +64,15 @@ class WhatIfDialog(AnalysisDialog):
 
     # ---- inputs: the scenario list --------------------------------------------
 
-    def build_inputs(self) -> QLayout:
-        win = self._win
-        self._block = QComboBox()
+    def _preset_row(self) -> QWidget:
+        """The block (searchable, scoped to a hierarchy), its ready-made
+        changes and the add/remove buttons."""
+        from raptor.gui.ui.element_picker import ScopeBox, searchable
+        self._block = searchable(QComboBox())
         self._block.setMinimumWidth(180)
-        self._block.setToolTip("The block the preset changes")
+        self._block.setToolTip("The block the preset changes: type part of a "
+                               "name to find it")
+        self._scope = ScopeBox(self._win._rbd, self._block, [])
         self._preset = QComboBox()
         self._preset.setMinimumWidth(220)
         self._block.currentTextChanged.connect(self._fill_presets)
@@ -84,6 +88,7 @@ class WhatIfDialog(AnalysisDialog):
         row = QHBoxLayout(presets)
         row.setContentsMargins(0, 0, 0, 0)
         row.addWidget(QLabel("Block"))
+        row.addWidget(self._scope)
         row.addWidget(self._block)
         row.addWidget(QLabel("Change"))
         row.addWidget(self._preset)
@@ -92,6 +97,12 @@ class WhatIfDialog(AnalysisDialog):
         row.addWidget(add_blank)
         row.addWidget(remove)
         row.addStretch(1)
+        return presets
+
+
+    def build_inputs(self) -> QLayout:
+        win = self._win
+        presets = self._preset_row()
 
         self.scenarios = QTableWidget(0, 2)
         self.scenarios.setHorizontalHeaderLabels(("Scenario", "Changes (separate with ;)"))
@@ -121,13 +132,20 @@ class WhatIfDialog(AnalysisDialog):
 
     def _fill_blocks(self) -> None:
         rbd = self._win._rbd
-        names = [str(r.get("blockName") or r.get("ID"))
-                 for r in (rbd.section("BLOCK_DATA").rows if rbd is not None else [])
-                 if str(r.get("ID", "0")) != "0"]
+        rows = [r for r in (rbd.section("BLOCK_DATA").rows if rbd is not None else [])
+                if str(r.get("ID", "0")) != "0"]
+        names = [str(r.get("blockName") or r.get("ID")) for r in rows]
         self._block.addItems(names)
+        homes: list[int | None] = []
+        for r in rows:
+            try:
+                homes.append(int(float(r.get("ParentId") or 0)))
+            except (TypeError, ValueError):
+                homes.append(0)
+        self._scope.set_homes(homes)
         chosen = self._selected_block()
         if chosen in names:
-            self._block.setCurrentText(chosen)
+            self._block.setCurrentIndex(names.index(chosen))
         self._fill_presets(self._block.currentText())
 
     def _selected_block(self) -> str | None:

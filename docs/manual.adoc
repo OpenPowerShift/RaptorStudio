@@ -1020,7 +1020,10 @@ one is chosen for you) and a ready-made change (half the repair time, lasts
 twice as long, half the delays, one more spare, double the spares, one more
 crew, maintenance twice as often, maintenance half as often, no planned
 maintenance) and press *Add scenario*, or *Add blank* and type the changes,
-separated by `;`. Hover a column heading for examples.
+separated by `;`. Hover a column heading for examples. The block list
+can be typed into (part of a name, in any case, finds it), and in a model
+with hierarchies the list beside it limits it to one hierarchy and those
+inside it; Sweep's *Change* list works the same way.
 
 *Run* runs the model (Base) and every scenario with the same seed, so each
 difference is measured trial by trial. The pairing is exact only until the

@@ -221,6 +221,15 @@ def _node_choices(rbd) -> list[tuple[str, list[SweepTarget]]]:
     return out
 
 
+def _home(rbd, targets: list[SweepTarget]) -> int | None:
+    """The hierarchy a sweep choice's element sits in (None for a rate,
+    which belongs to the whole model)."""
+    import re
+    from raptor.gui.ui.element_picker import parent_of
+    m = re.match(r"(block|node):(\d+)\.", targets[0].path) if targets else None
+    return parent_of(rbd, m.group(1), int(m.group(2))) if m else None
+
+
 def element_choices(rbd) -> list[tuple[str, list[SweepTarget]]]:
     """[(element label, its sweepable numbers)], rates first, then blocks,
     then k-of-n nodes. An element with nothing to sweep is left out."""
@@ -702,12 +711,16 @@ class SweepDialog(_BatchDialog):
     def __init__(self, win):
         super().__init__(win)
         self._choices = element_choices(win._rbd) if win._rbd else []
-        self._element = QComboBox()
+        from raptor.gui.ui.element_picker import ScopeBox, searchable
+        self._element = searchable(QComboBox())
         self._element.setMinimumContentsLength(26)
+        self._element.setToolTip("What to change: type part of a name to find it")
         self._field = QComboBox()
         self._field.setMinimumContentsLength(26)
         for label, _ in self._choices:
             self._element.addItem(label)
+        self._scope = ScopeBox(win._rbd, self._element,
+                               [_home(win._rbd, targets) for _label, targets in self._choices])
         self._now = QLabel()
         self._now.setWordWrap(True)
         self._from = _NumberBox()
@@ -737,6 +750,8 @@ class SweepDialog(_BatchDialog):
 
     def _build_form(self) -> QFormLayout:
         form = QFormLayout()
+        if self._scope.count() > 2:          # the model has hierarchies
+            form.addRow("Look in:", self._scope)
         form.addRow("Change:", self._element)
         form.addRow("Number:", self._field)
         form.addRow("", self._now)
