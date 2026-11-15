@@ -242,6 +242,9 @@ class _BlockItem(QGraphicsRectItem):
         self._link_cut: str | None = None  # None | "linked" | "cut" -- Raptor 7 overlay
         self._fev_hatch = False  # Failure Effects View: induced by a dependency
         self._result_badge: tuple[str, str | None] | None = None  # None | (glyph_str, colour_hex)
+        #: A hollow dashed ring round the result badge: the result is
+        #: uncertain (the runs disagree), so read the colour as rough.
+        self._result_ring = False
         self._dep_badge: dict | None = None  # None | dict(colour, glyph, tooltip, ...)
         # Live Simulation View state (Appendix D fill) -- set by
         # `set_live_fill`, cleared by `retheme`. While it is on, the
@@ -434,6 +437,13 @@ class _BlockItem(QGraphicsRectItem):
             self._result_badge = new
             self.update()
 
+    def set_result_ring(self, on: bool) -> None:
+        """A hollow dashed ring round the result badge: the share's ±2 SE
+        range is wider than the share itself (`canvas.UNCERTAIN`)."""
+        if self._result_ring != bool(on):
+            self._result_ring = bool(on)
+            self.update()
+
     def set_dependency_badge(self, desc: dict | None):
         """Dependency marker -- a small dot in the bottom-left corner
         (the one corner `_link_cut`/`_result_badge` don't use), coloured
@@ -455,8 +465,9 @@ class _BlockItem(QGraphicsRectItem):
 
     def boundingRect(self) -> QRectF:
         # Room for the corner badges, which overhang the block by half
-        # their size (painting outside the bounding rect leaves trails).
-        m = 9.0
+        # their size, and the uncertainty ring round one (painting outside
+        # the bounding rect leaves trails).
+        m = 13.0
         return super().boundingRect().adjusted(-m, -m, m, m)
 
     def hoverEnterEvent(self, event):
@@ -509,6 +520,11 @@ class _BlockItem(QGraphicsRectItem):
             f.setBold(True)
             painter.setFont(f)
             painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, glyph)
+            if self._result_ring:
+                ring = QPen(QColor(COLOUR["text"]), 1.4, Qt.PenStyle.DashLine)
+                painter.setPen(ring)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawEllipse(badge_rect.adjusted(-3.5, -3.5, 3.5, 3.5))
             painter.restore()
         if self._dep_badge:
             painter.save()

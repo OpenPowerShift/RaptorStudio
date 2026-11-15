@@ -664,10 +664,31 @@ and makes the whole model editable without waiting for the question.
 
 Results-tab ribbon extras beyond the dock itself:
 
-* **Show on Canvas** — five colourings of the diagram from the last
-  run (Weak Links, Capacity, Cost, Spares, Importance); one shows at a
-  time, and turning one on clears the others. Each is offered only when
-  the run produced its data. A run does not turn one on by itself.
+* **Show on Canvas** — one list of colourings of the diagram from the
+  last run (Share of downtime, Lost capacity, Weak Links, Capacity,
+  Cost, Spares, Importance); one shows at a time, and choosing one clears
+  the others. Each is offered only when the run produced its data. A run
+  does not turn one on by itself.
+** **Share of downtime** — each block and event by its share of system
+   downtime (the Drivers tab's numbers, worked out from the event log if
+   that tab has not yet), banded against the largest share (Red at
+   two-thirds of it or more, Yellow at a third or more). The share is
+   printed under the element; the letter in its corner is the cause that
+   dominates it, in that cause's colour (R hands-on repair, S waiting for
+   a spare, P waiting for people or equipment, L logistics delay, M
+   planned maintenance, W waiting to start maintenance, H held by another
+   element, X not repairable, O other). A dashed ring round the letter,
+   and a ± after the share, mean the runs disagree: the ±2 standard-error
+   range is wider than the share itself, so read the colour as rough and
+   run more trials. A hierarchy shows Σ, the total of everything inside
+   it (shares add up, since each outage counts once against the element
+   that started it). Hover for the range and the full cause mix.
+** **Lost capacity** — the same, for each element's share of the lost
+   flow, and each link into a capacity node drawn as wide as the
+   average flow through that node (relative to the busiest; links into
+   anything else are drawn thin). Flow is recorded per node, not per
+   link, so every link into one node has that node's width. Needs
+   Capacity analysis and the event log.
 ** **Weak Links** — paints every block, node, event and hierarchy by
    its availability, dependability or reliability against the model's
    Green/Yellow and Yellow/Red thresholds (needs Weak Link analysis on).

@@ -874,15 +874,31 @@ class _LinkItem(QGraphicsPathItem):
         rect = item.sceneBoundingRect()
         return rect, rect.center(), None
 
+    #: A result layer's stroke width (the flow through it), or None for
+    #: the themed width; kept across a retheme (selection, theme flip).
+    _flow_width: float | None = None
+
     def retheme(self, c: Mapping[str, Any]):
         self._live_active = False
         # Forget the state colour too: `set_live_fill` skips a colour it
         # thinks is already painted, so a stale one left the item plain
         # when the same colour came back (Weak Link off and on again).
         self._live_colour: str | None = None
+        width = 3 if self.isSelected() else 2.5
+        if self._flow_width is not None:
+            width = self._flow_width + (0.5 if self.isSelected() else 0.0)
         self.setPen(QPen(QColor(c["accent"] if self.isSelected()
-                                else c["muted"]),
-                         3 if self.isSelected() else 2.5))
+                                else c["muted"]), width))
+
+    def set_flow_width(self, width: float | None, tooltip: str = "") -> None:
+        """Draw the link `width` pixels wide (a result layer's flow), or
+        back at the themed width when None."""
+        if width == self._flow_width:
+            return
+        self._flow_width = width
+        self.setToolTip(tooltip if width is not None else "")
+        self.prepareGeometryChange()
+        self.retheme(COLOUR)
 
     def set_live_fill(self, colour_hex: str, tooltip: str | None = None):
         """Solid state colour during the live simulation view -- a link

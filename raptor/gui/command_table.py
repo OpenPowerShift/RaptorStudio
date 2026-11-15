@@ -1025,6 +1025,37 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checkable=True,
         enabled=False),
     CommandSpec(
+        id="results.downtime_overlay",
+        attr="_downtime_overlay_action",
+        text="Share of downtime",
+        icon="share_icon:accent",
+        tooltip=(
+            "Colour each block and event by its share of system downtime "
+            "(Red from ⅔ of the largest share, Yellow from ⅓), print the "
+            "share under it, mark the cause that dominates it with a letter "
+            "in the corner, and ring the letter when the runs disagree on "
+            "the share. Works out the drivers from the event log when the "
+            "Drivers tab has not."),
+        handler="_on_downtime_overlay_toggled",
+        on="toggled",
+        checkable=True,
+        enabled=False),
+    CommandSpec(
+        id="results.lost_capacity_overlay",
+        attr="_lost_capacity_overlay_action",
+        text="Lost capacity",
+        icon="flow_icon:warn",
+        tooltip=(
+            "Colour each element by its share of the lost flow, with the "
+            "main-cause letter and the uncertainty ring as for Share of "
+            "downtime, and draw each link into a capacity node as wide as "
+            "the flow through that node. Needs Capacity analysis and the "
+            "event log."),
+        handler="_on_lost_capacity_overlay_toggled",
+        on="toggled",
+        checkable=True,
+        enabled=False),
+    CommandSpec(
         id="results.weak_spread",
         attr="_weak_spread_action",
         text="Spread",

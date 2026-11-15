@@ -1192,6 +1192,31 @@ def gauge_icon(colour: str) -> QIcon:
 
 
 
+def share_icon(colour: str) -> QIcon:
+    """Share of downtime layer: a pie with one slice pulled out."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(QPen(c, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(7, 11, 30, 30)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawPie(13, 5, 30, 30, 0, 90 * 16)
+    return _icon("share", colour, draw)
+
+
+def flow_icon(colour: str) -> QIcon:
+    """Lost capacity layer: a wide flow and a thin one, as the links draw."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 9, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawLine(8, 18, 40, 18)
+        p.setPen(QPen(c, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawLine(8, 34, 30, 34)
+        p.drawLine(34, 30, 40, 34)
+        p.drawLine(34, 38, 40, 34)
+    return _icon("flow", colour, draw)
+
+
 def rank_icon(colour: str) -> QIcon:
     """Importance measures: three ranked bars, tallest first.
 

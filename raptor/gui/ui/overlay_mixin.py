@@ -1,4 +1,5 @@
-"""Canvas overlays: weak-link, spread, importance, capacity, cost and spares.
+"""Canvas overlays: weak-link, spread, importance, capacity, cost, spares,
+share of downtime and lost capacity.
 
 Expects on `self`: `_diagram_dock`, `_results_dock`, the overlay actions."""
 from __future__ import annotations
@@ -51,6 +52,8 @@ class OverlayMixin(_Base):
         _diagram_dock: raptor.gui.ui.diagram.DiagramDock
         _gy_spin: PySide6.QtWidgets.QDoubleSpinBox
         _importance_overlay_action: Any
+        _downtime_overlay_action: Any
+        _lost_capacity_overlay_action: Any
         _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         _results: raptor.gui.ui.results.ResultsDock
         _spares_overlay_action: Any
@@ -338,7 +341,11 @@ class OverlayMixin(_Base):
             else vis.get("kind")
         names = {"weak": "Weak Links", "capacity": "Capacity",
                  "cost": "Cost", "spares": "Spares",
-                 "importance": "Importance"}
+                 "importance": "Importance",
+                 "downtime-share": "Share of downtime",
+                 "lost-capacity": "Lost capacity"}
+        if kind == "share":
+            kind = str((vis.get("layer") or {}).get("layer", kind))
         if kind:
             chip.setText(f"Canvas: {names.get(kind, kind)}")
             chip.show()
@@ -417,7 +424,8 @@ class OverlayMixin(_Base):
         if except_kind != "weak" and getattr(v, "_weak_colors_on", False):
             v._weak_colors_on = False
             self._weak_color_action.setChecked(False)
-        for kind in ("capacity", "cost", "spares", "importance"):
+        for kind in ("capacity", "cost", "spares", "importance", "downtime",
+                     "lost_capacity"):
             if kind != except_kind:
                 self._uncheck_overlay(f"_{kind}_overlay_action")
 
@@ -542,4 +550,89 @@ class OverlayMixin(_Base):
         self._statusbar.showMessage(
             f"Spares colouring on — {flagged} of {len(exhausted_frac)} "
             f"block(s) had spares/life-exhausted time this run")
+        self._update_overlay_chip()
+
+    # -- result layers from the attribution (plan 7.6.1) -----------------
+
+    _SHARE_LAYERS = {
+        "downtime-share": ("_downtime_overlay_action", "downtime",
+                           "Share of downtime"),
+        "lost-capacity": ("_lost_capacity_overlay_action", "lost_capacity",
+                          "Lost capacity"),
+    }
+
+    def _canvas_attribution(self) -> dict | None:
+        """The run's downtime attribution, worked out now when the Drivers
+        tab has not done it yet (it replays the event log, with progress)."""
+        results = self._results
+        page = getattr(results, "_drivers_page", None)
+        attribution = getattr(page, "_attribution", None)
+        if attribution is None and getattr(results, "_event_logs", None):
+            results._refresh_drivers()
+            attribution = getattr(page, "_attribution", None)
+        return attribution
+
+    def _on_downtime_overlay_toggled(self, on: bool) -> None:
+        self._share_layer_toggled(on, "downtime-share")
+
+    def _on_lost_capacity_overlay_toggled(self, on: bool) -> None:
+        self._share_layer_toggled(on, "lost-capacity")
+
+    def _node_flow(self) -> dict[int, float]:
+        """Each capacity node's average flow over the runs."""
+        caps = [d.capacity for d in (self._results._report_data or [])
+                if d.capacity is not None]
+        flow: dict[int, float] = {}
+        for nid in {nid for cap in caps for nid in cap.nodes}:
+            values = [cap.nodes[nid].ave_flow for cap in caps if nid in cap.nodes]
+            if values:
+                flow[nid] = sum(values) / len(values)
+        return flow
+
+    def _share_layer_toggled(self, on: bool, layer: str) -> None:
+        from raptor.api.insight.attribution import CAUSE_LABELS
+        from raptor.api.insight.canvas import canvas_layer
+        attr, kind, title = self._SHARE_LAYERS[layer]
+        v = self._diagram_dock.view
+        if not on:
+            v.clear_result_overlays()
+            self._statusbar.showMessage(f"{title} off")
+            self._update_overlay_chip()
+            return
+        attribution = self._canvas_attribution()
+        if attribution is None:
+            self._statusbar.showMessage(
+                f"{title} needs the run's event log: tick Event log under Run "
+                "panel ▸ Recording and run again.", 12000)
+            self._uncheck_overlay(attr)
+            return
+        try:
+            data = canvas_layer(attribution, layer)
+        except ValueError as exc:
+            self._statusbar.showMessage(f"{title}: {exc}.", 12000)
+            self._uncheck_overlay(attr)
+            return
+        if not data["elements"]:
+            self._statusbar.showMessage(
+                f"{title}: no element has a share in this run (no system "
+                "outage).", 12000)
+            self._uncheck_overlay(attr)
+            return
+        flow = generated = None
+        if layer == "lost-capacity":
+            flow = self._node_flow() or None
+            generated = (attribution.get("capacity") or {}).get("generated")
+        self._deactivate_other_canvas_overlays(except_kind=kind)
+        v.clear_result_overlays()
+        v.apply_share_layer(data, flow, generated)
+        top = data["elements"][0]
+        cause = CAUSE_LABELS.get(top.get("main_cause") or "", "")
+        rough = sum(1 for row in data["elements"] if row["uncertain"])
+        self._statusbar.showMessage(
+            f"{title} on — {top['name']} has the largest {data['measure']} "
+            f"({100 * top['value']:.3g} %{', mostly ' + cause.lower() if cause else ''})."
+            f" The letter is the main cause; a dashed ring marks "
+            f"{rough} share(s) the runs disagree on."
+            + (" Link width = flow through the node it feeds." if flow else ""),
+            15000)
         self._update_overlay_chip()

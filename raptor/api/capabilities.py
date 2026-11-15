@@ -186,6 +186,22 @@ CAPABILITIES: tuple[Capability, ...] = (
         api="raptor.api.insight.charts.chart_named",
         cli="explain --chart", mcp="run_chart",
         gui="widget:raptor.gui.ui.charts_page.ChartsPage"),
+    Capability(
+        "insight.chart_export",
+        "Charts for reports and slides: page sizes, no shortened labels, small items folded",
+        api="raptor.render.charts_svg.render",
+        cli="explain --chart-page", mcp="run_chart",
+        gui="widget:raptor.gui.ui.charts_page.ChartsPage"),
+    Capability(
+        "insight.canvas_downtime",
+        "Each element's share of downtime, main cause and certainty on the diagram",
+        api="raptor.api.insight.canvas.canvas_layer", cli="explain",
+        mcp="downtime_drivers", gui="command:results.downtime_overlay"),
+    Capability(
+        "insight.canvas_lost_capacity",
+        "Each element's share of the lost flow on the diagram, links as wide as their flow",
+        api="raptor.api.insight.canvas.canvas_layer", cli="explain",
+        mcp="downtime_drivers", gui="command:results.lost_capacity_overlay"),
 )
 
 SURFACES = ("api", "cli", "mcp", "gui")

@@ -899,6 +899,8 @@ class RibbonBuilders(_Base):
         self._overlay_combo = combo
         entries = (
             ("No canvas overlay", None),
+            ("Share of downtime", "_downtime_overlay_action"),
+            ("Lost capacity", "_lost_capacity_overlay_action"),
             ("Weak link (own availability)", "_weak_color_action"),
             ("Capacity", "_capacity_overlay_action"),
             ("Cost", "_cost_overlay_action"),

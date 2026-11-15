@@ -575,6 +575,7 @@ class LiveOverlayMixin:
             # fresh right after, overwriting this clear correctly.
             for item in self._block_items.values():
                 item.set_result_badge(None, None)
+                item.set_result_ring(False)
                 item.set_anal_label(None)
             for node_item in self._node_items.values():
                 node_item.set_capacity_badge(None, None)
@@ -609,7 +610,10 @@ class LiveOverlayMixin:
         """
         self._last_result_visuals = None
         self._weak_colors_on = False
+        for link in self._links:
+            link.set_flow_width(None)
         for item in self._block_items.values():
+            item.set_result_ring(False)
             item.set_result_badge(None, None)
             item.set_anal_label(None)
             if hasattr(item, "_live_colour"):
@@ -667,6 +671,9 @@ class LiveOverlayMixin:
             elif vis["kind"] == "spares":
                 self.apply_spares_colors(vis["exhausted_frac"],
                                          vis["sparing_cost"])
+            elif vis["kind"] == "share":
+                self.apply_share_layer(vis["layer"], vis.get("flow"),
+                                       vis.get("generated"))
             elif vis["kind"] == "importance":
                 # Missing branch: entering a hierarchy rebuilt the items and
                 # repainted only the four kinds above, so the importance
@@ -941,3 +948,132 @@ class LiveOverlayMixin:
                 f"Spares — {name}: {frac * 100:.2f}% of run time "
                 f"spares/life exhausted{cost_txt} → {band}")
             item.set_result_badge("!" if frac > 0.0 else None, colour)
+
+    def apply_share_layer(self: DiagramView, layer: dict[str, Any],  # type: ignore[misc]
+                          flow: dict[int, float] | None = None,
+                          generated: float | None = None) -> None:
+        """A result layer from `raptor.api.insight.canvas.canvas_layer`:
+        each block and event coloured by its share (relative to the
+        largest: Red from two thirds, Yellow from a third, Green below),
+        the share and its ±2 SE range printed under it, the letter of the
+        cause that dominates it in the corner (in that cause's colour), and
+        a dashed ring round the letter when the runs disagree.
+
+        `flow` (capacity node id -> average flow) and `generated` (the
+        flow a fully working system delivers) draw each link into a
+        capacity node as wide as the flow through that node: per-link flow
+        is not recorded, so the width is the node's and the tooltip says
+        so."""
+        from raptor.gui.ui.chart_theme import cause_colour
+        c = ThemeManager.instance().colour
+        self._last_result_visuals = {"kind": "share", "layer": layer,
+                                     "flow": dict(flow or {}),
+                                     "generated": generated}
+        measure = str(layer.get("measure", "share"))
+        bands = {"high": ("Red", c["result_red"]), "mid": ("Yellow", c["result_yellow"]),
+                 "low": ("Green", c["result_green"])}
+        items: dict[str, dict[int, Any]] = {"block": self._block_items,
+                                            "event": self._event_items}
+        parents: dict[tuple[str, int], int] | None = None
+
+        def parent_of(kind: str, oid: int) -> int:
+            # elements off this level are not parsed: read their rows once
+            nonlocal parents
+            if parents is None:
+                parents = {}
+                rbd = getattr(self, "_rbd_ref", None)
+                for k in ("block", "event"):
+                    section, column, _attr = self._LOCATE[k]
+                    for r in getattr(getattr(rbd, "sections", {}).get(section),
+                                     "rows", []):
+                        try:
+                            parents[(k, int(float(r.get("ID") or 0)))] = \
+                                int(float(r.get(column) or 0))
+                        except (TypeError, ValueError):
+                            continue
+            return parents.get((kind, oid), 0)
+
+        rolled: dict[int, float] = {}
+        rolled_names: dict[int, list[str]] = {}
+
+        def hier_on_level(parent: int) -> int | None:
+            # the hierarchy oval on this level that holds `parent`, if any
+            for _depth in range(16):
+                if not parent:
+                    return None
+                if parent in self._hier_items:
+                    return parent
+                parent = getattr(self.hiers.get(parent), "parent_id", 0) or 0
+            return None
+
+        for row in layer.get("elements") or []:
+            kind = str(row.get("kind")).lower()
+            item = items.get(kind, {}).get(int(row["id"]))
+            if item is None:
+                hid = hier_on_level(parent_of(kind, int(row["id"])))
+                if hid is not None:
+                    rolled[hid] = rolled.get(hid, 0.0) + float(row["value"])
+                    rolled_names.setdefault(hid, []).append(row["name"])
+                continue
+            band, colour = bands[row["band"]]
+            value = float(row["value"])
+            spread = (f" (±2 SE {100 * row['low']:.3g} to {100 * row['high']:.3g} %)"
+                      if row.get("low") is not None else "")
+            mix = ", ".join(f"{k.replace('_', ' ')} {100 * v:.0f} %"
+                            for k, v in sorted((row.get("causes") or {}).items(),
+                                               key=lambda kv: -kv[1]))
+            note = ("\nUncertain: the runs disagree (the range is wider than "
+                    "the share itself); read the colour as rough."
+                    if row.get("uncertain") else "")
+            item.set_live_fill(
+                colour,
+                f"{row['name']}: {measure} {100 * value:.3g} %{spread} → {band}\n"
+                f"Main cause: {row.get('cause_label') or 'none recorded'}"
+                + (f" ({mix})" if mix else "")
+                + f"\nBands: Red from ⅔ of the largest share "
+                  f"({100 * float(layer.get('largest') or 0):.3g} %), Yellow from ⅓."
+                + note)
+            item.set_anal_label(
+                f"{100 * value:.3g} %" + (" ±" if row.get("uncertain") else ""),
+                f"{measure}: {100 * value:.4g} %{spread}")
+            if hasattr(item, "set_result_badge"):
+                item.set_result_badge(row.get("glyph") or None,
+                                      cause_colour(str(row.get("main_cause") or "other")).name())
+                item.set_result_ring(bool(row.get("uncertain")))
+        largest = float(layer.get("largest") or 0.0)
+        for hid, total in rolled.items():
+            item = self._hier_items[hid]
+            fraction = total / largest if largest > 0 else 0.0
+            band, colour = bands["high" if fraction >= 2 / 3 else
+                                 "mid" if fraction >= 1 / 3 else "low"]
+            inside = rolled_names[hid]
+            item.set_live_fill(
+                colour,
+                f"{getattr(self.hiers.get(hid), 'name', '') or f'Hierarchy {hid}'}: "
+                f"{measure} {100 * total:.3g} % from the {len(inside)} element(s) "
+                f"inside it → {band}\n"
+                + ", ".join(inside[:8]) + (" …" if len(inside) > 8 else "")
+                + "\nShares add up: each outage counts once, against the "
+                  "element that started it.")
+            item.set_anal_label(f"Σ {100 * total:.3g} %",
+                                f"{measure}, summed over the hierarchy's contents")
+        if flow and generated:
+            # widths relative to the busiest node, so the paths read apart
+            # even when the system delivers a small part of its full flow
+            busiest = max(flow.values()) or 1.0
+            for link in self._links:
+                node_id = getattr(link._to, "_node_id", None)
+                if node_id is None or node_id not in flow:
+                    link.set_flow_width(
+                        1.0, "No flow recorded for what this link feeds: flow "
+                             "is recorded at capacity nodes.")
+                    continue
+                value = float(flow[node_id])
+                link.set_flow_width(
+                    1.5 + 8.5 * max(0.0, value) / busiest,
+                    f"The node this link feeds carries {value:.4g} on average: "
+                    f"{100 * value / float(generated):.3g} % of the {generated:.4g} "
+                    f"a fully working system delivers. Width is relative to "
+                    f"the busiest node ({busiest:.4g}). Flow is recorded per "
+                    f"node, not per link, so every link into a node is drawn "
+                    f"at the node's flow.")

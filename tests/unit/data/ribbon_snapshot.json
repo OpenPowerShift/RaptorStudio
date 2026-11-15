@@ -449,6 +449,16 @@
    "text": "Domains\u2026",
    "tooltip": "Domain of each node \u2014 which elements' failures can propagate to it\n\nUnavailable: open or create a model first"
   },
+  "_downtime_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Share of downtime",
+   "tooltip": "Colour each block and event by its share of system downtime (Red from \u2154 of the largest share, Yellow from \u2153), print the share under it, mark the cause that dominates it with a letter in the corner, and ring the letter when the runs disagree on the share. Works out the drivers from the event log when the Drivers tab has not."
+  },
   "_duplicate_action": {
    "checkable": false,
    "checked": false,
@@ -891,6 +901,16 @@
    "text": "Animate",
    "tooltip": "Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model."
   },
+  "_lost_capacity_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Lost capacity",
+   "tooltip": "Colour each element by its share of the lost flow, with the main-cause letter and the uncertainty ring as for Share of downtime, and draw each link into a capacity node as wide as the flow through that node. Needs Capacity analysis and the event log."
+  },
   "_manual_action": {
    "checkable": false,
    "checked": false,
@@ -1108,7 +1128,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Availability Plot",
-   "tooltip": "Collect the Availability plot data (the rpt_availability_plot file): the Graphs tab's Per Trial / Interval / Multi-run Ao plots. Streamed to a temp file \u2014 never held in RAM."
+   "tooltip": "Collect the Availability plot data (the rpt_availability_plot file): the Charts tab's availability charts over time (through a run, interval by interval, across all runs). Streamed to a temp file \u2014 never held in RAM."
   },
   "_report_stream_actions[capacity_plot]": {
    "checkable": true,
@@ -1118,7 +1138,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Capacity Plot",
-   "tooltip": "Collect capacity plot data (the rpt_capacity_plot file) for the Graphs tab's Capacity (Flow) plot and the live capacity readouts. Requires Capacity Analysis."
+   "tooltip": "Collect capacity plot data (the rpt_capacity_plot file) for the Charts tab's capacity charts over time and the live capacity readouts. Requires Capacity Analysis."
   },
   "_report_stream_actions[cost_plot]": {
    "checkable": true,
@@ -1641,6 +1661,7 @@
    "_delete_tool": false,
    "_diff_action": false,
    "_domains_action": false,
+   "_downtime_overlay_action": false,
    "_duplicate_action": false,
    "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
@@ -1684,6 +1705,7 @@
    "_jump_action": false,
    "_live_log_toggle_action": false,
    "_live_sim_action": true,
+   "_lost_capacity_overlay_action": false,
    "_manual_action": true,
    "_mass_edit_action": false,
    "_mcp_docs_action": true,
@@ -1792,6 +1814,7 @@
    "_delete_tool": false,
    "_diff_action": true,
    "_domains_action": true,
+   "_downtime_overlay_action": false,
    "_duplicate_action": false,
    "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
@@ -1835,6 +1858,7 @@
    "_jump_action": false,
    "_live_log_toggle_action": false,
    "_live_sim_action": true,
+   "_lost_capacity_overlay_action": false,
    "_manual_action": true,
    "_mass_edit_action": false,
    "_mcp_docs_action": true,
@@ -1943,6 +1967,7 @@
    "_delete_tool": false,
    "_diff_action": false,
    "_domains_action": false,
+   "_downtime_overlay_action": false,
    "_duplicate_action": false,
    "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
@@ -1986,6 +2011,7 @@
    "_jump_action": false,
    "_live_log_toggle_action": false,
    "_live_sim_action": true,
+   "_lost_capacity_overlay_action": false,
    "_manual_action": true,
    "_mass_edit_action": false,
    "_mcp_docs_action": true,
