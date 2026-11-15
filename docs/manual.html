@@ -51,6 +51,8 @@
 <li><a href="#sensitivity">Sensitivity: which inputs matter</a></li>
 <li><a href="#optimise">Optimise: spares, maintenance and crews</a></li>
 <li><a href="#recommend">Recommend: a tested change for each driver</a></li>
+<li><a href="#analysis-words">Words the analysis tools use</a></li>
+<li><a href="#target-missed">When the target is not met</a></li>
 <li><a href="#differences">Comparing two models</a></li>
 <li><a href="#several-models">Several models at once</a></li>
 <li><a href="#ai-assistant">AI assistant (MCP)</a></li>
@@ -1665,6 +1667,118 @@ yourself. Hover a row for the exact <code>PATH=VALUE</code> change and why it wa
 model before that change: run again to test them against the new one.
 <strong>Copy</strong> puts the whole result on the clipboard as text. The same tool is
 <code>raptor recommend</code> on the command line and <code>recommend_changes</code> over MCP.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="analysis-words">Words the analysis tools use</h2>
+<div class="sectionbody">
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Paired trials (common random numbers)</dt>
+<dd>
+<p>The model and the changed model are run with the same seed, so trial 7
+of each starts from the same dice. A difference between them then comes
+mostly from the change, not from luck, and fewer trials are needed to
+see it. The pairing loosens once the change moves an event, which is why
+each result says how much noise it removed.</p>
+</dd>
+<dt class="hdlist1">Standard error (SEM)</dt>
+<dd>
+<p>How far a mean from this many trials could be from the true value by
+chance. About two standard errors either side of a result is its 95 %
+range. It falls with the square root of the trials: four times the
+trials halve it.</p>
+</dd>
+<dt class="hdlist1">Confidence interval, lower bound</dt>
+<dd>
+<p>The range the true value lies in with the stated confidence (95 %
+unless you change it). The <strong>lower bound</strong> is its bottom end. Spares and
+Crews recommend a level only when the lower bound reaches the target,
+so a lucky run cannot pass.</p>
+</dd>
+<dt class="hdlist1">Chance it is really better (P(better))</dt>
+<dd>
+<p>From the paired differences: the chance that the change truly raises
+availability rather than only appearing to at this many trials. Near
+50 % means the trials cannot tell; above 97.5 % is about two standard
+errors.</p>
+</dd>
+<dt class="hdlist1">Elasticity</dt>
+<dd>
+<p>In Sensitivity, the percentage change in the result for a 1 % change in
+the input. An elasticity of 0.2 on a repair time means halving the
+repair time moves the result by about 10 %.</p>
+</dd>
+<dt class="hdlist1">Offered load</dt>
+<dd>
+<p>For a crew: the mean number of people busy if there were always enough,
+that is the repair demand per unit time times the mean repair time. A
+crew smaller than its offered load can never keep up, so Crews starts
+one below it.</p>
+</dd>
+<dt class="hdlist1">Age replacement</dt>
+<dd>
+<p>The planned maintenance Maintenance proposes: replace a part when it
+reaches a set age, or when it fails if that comes first. It pays only
+for a part that wears out (Weibull shape above 1).</p>
+</dd>
+<dt class="hdlist1">Backorder model</dt>
+<dd>
+<p>The textbook formula Spares uses to choose which stock levels to
+simulate. It assumes each failure is independent and repair is the same
+every time. The simulation then checks each level against the model&#8217;s
+real behaviour.</p>
+</dd>
+<dt class="hdlist1">Optimistic winner</dt>
+<dd>
+<p>When a search tries many options and keeps the best, the best one&#8217;s
+measured gain is usually a little lucky. Expect a rerun of the
+recommendation to show slightly less. Maintenance says so with its
+result.</p>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="target-missed">When the target is not met</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Spares, Crews and Precision can finish without meeting what you asked
+for. Their result says so and gives the best they found. What to do next
+depends on which limit was hit:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>No level reaches the target</strong> (Spares, Crews): the shortfall is not the
+spares or the crew. Open the Drivers page and look at what causes the
+downtime that is left. Usually it is hands-on repair, a single block
+with no redundancy, or logistics delay. <strong>Analyse ▸ Recommend…</strong> tests a
+change for each.</p>
+</li>
+<li>
+<p><strong>The lower bound is just under the target</strong>: the level may well be good
+enough, but this many trials cannot show it. Run again with more trials
+(Precision tells you how many), or accept a level one step higher.</p>
+</li>
+<li>
+<p><strong>The search stopped at its evaluation limit</strong>: allow more evaluations, or
+start from a narrower range.</p>
+</li>
+<li>
+<p><strong>Precision stopped at its trial limit</strong>: the watched value is too rare
+to pin down in that many trials (a very reliable system fails seldom).
+Raise the limit, relax the precision, or watch a value that happens more
+often, such as mean downtime.</p>
+</li>
+<li>
+<p><strong>The target itself is out of reach</strong>: Sensitivity shows which inputs can
+move the result at all. If none of them moves it far enough, the
+architecture is the limit: add redundancy where the Drivers page points.</p>
+</li>
+</ul>
 </div>
 </div>
 </div>
