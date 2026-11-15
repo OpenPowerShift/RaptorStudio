@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **92 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **91**.
+- **93 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **92**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -497,6 +497,9 @@ maintenance that cannot pay off, too few runs. Each finding has a stable
 rule id, says whether it is exact or an estimate, carries the numbers it
 used and, where there is one, a fix. `list_advisor_rules` lists every rule.
 `apply_fix` applies one finding's fix as a single undoable edit.
+`ignore_finding` dismisses a finding that does not apply (one target, or
+the whole rule) with a reason saved in the model; `advise` then leaves it
+out and lists it under `ignored`, and `restore=True` brings it back.
 
 To learn what causes the downtime, run with `attribution=True` (`simulate`
 or `start_run`) and call `downtime_drivers`: each system outage is charged

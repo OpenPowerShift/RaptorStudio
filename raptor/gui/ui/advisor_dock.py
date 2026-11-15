@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QToolButton, QVBoxLayout, QWidget,
+    QFrame, QHBoxLayout, QLabel, QMenu, QPushButton, QScrollArea, QToolButton, QVBoxLayout,
+    QWidget,
 )
 
 from raptor.api.advisor.finding import Finding
@@ -63,6 +64,8 @@ def evidence_text(finding: Finding) -> str:
 class FindingCard(QFrame):
     locate_requested = Signal(object)
     fix_requested = Signal(object, object)
+    #: (finding, whole rule?): the user wants it dismissed
+    ignore_requested = Signal(object, bool)
 
     def __init__(self, finding: Finding, parent: QWidget | None = None):
         super().__init__(parent)
@@ -143,16 +146,36 @@ class FindingCard(QFrame):
             t.kind in ("block", "node", "event", "hier") and t.id for t in finding.targets))
         self.show_button.clicked.connect(lambda: self.locate_requested.emit(self.finding))
         actions.addWidget(self.show_button)
+        # Dismiss: a menu, not a button, so one click cannot lose a finding.
+        # The actions are reachable without exec() (tests trigger them).
+        self.ignore_button = QToolButton()
+        self.ignore_button.setText("Ignore")
+        self.ignore_button.setAutoRaise(True)
+        self.ignore_button.setToolTip("Dismiss this finding in this model, with a reason "
+                                      "(saved in the model; Edit > Undo or Restore brings it back)")
+        self.ignore_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        menu = QMenu(self.ignore_button)
+        subject = finding.targets[0].name if finding.targets else ""
+        self.ignore_one = menu.addAction(
+            f"Ignore for {subject}…" if subject else "Ignore this finding…")
+        self.ignore_one.triggered.connect(
+            lambda: self.ignore_requested.emit(self.finding, False))
+        self.ignore_rule = menu.addAction(f"Ignore every {finding.rule} in this model…")
+        self.ignore_rule.triggered.connect(
+            lambda: self.ignore_requested.emit(self.finding, True))
+        self.ignore_rule.setVisible(bool(subject))
+        self.ignore_button.setMenu(menu)
+        actions.addWidget(self.ignore_button)
         actions.addStretch(1)
-        rule = QLabel(finding.rule)
-        rule.setStyleSheet(f"color: {colour['muted']}; font-size: 11px;")
-        rule.setToolTip("The rule's id, for the documentation and for scripts")
-        actions.addWidget(rule)
+        # the rule id is for documentation and scripts: in Why? and the
+        # title's tooltip, not in the action row a narrow dock clips
+        self.title.setToolTip(f"Rule {finding.rule}")
         return actions
 
     def _why_text(self) -> str:
         evidence = evidence_text(self.finding)
-        return self.finding.why + (f"\n\n{evidence}" if evidence else "")
+        return (self.finding.why + (f"\n\n{evidence}" if evidence else "")
+                + f"\n\nRule {self.finding.rule}")
 
 
 class AdvisorPanel(QWidget):
@@ -160,12 +183,17 @@ class AdvisorPanel(QWidget):
 
     locate_requested = Signal(object)        # Finding
     fix_requested = Signal(object, object)   # Finding, Fix
+    ignore_requested = Signal(object, bool)  # Finding, whole rule
+    restore_requested = Signal(str, str)     # rule, target
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._findings: list[Finding] = []
+        self._ignored: list[dict] = []
         self._expanded = False
+        self._show_ignored = False
         self.cards: list[FindingCard] = []
+        self.ignored_rows: list[QWidget] = []
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -194,13 +222,30 @@ class AdvisorPanel(QWidget):
         self.more_button.hide()
         lay.addWidget(self.more_button)
 
+        # what the model's owner dismissed: never silently gone
+        self.ignored_button = QPushButton()
+        self.ignored_button.setFlat(True)
+        self.ignored_button.setToolTip("Findings dismissed in this model, with the reasons")
+        self.ignored_button.clicked.connect(self._toggle_ignored)
+        self.ignored_button.hide()
+        lay.addWidget(self.ignored_button)
+        self._ignored_host = QWidget()
+        self._ignored_layout = QVBoxLayout(self._ignored_host)
+        self._ignored_layout.setContentsMargins(8, 0, 8, 6)
+        self._ignored_layout.setSpacing(4)
+        self._ignored_host.hide()
+        lay.addWidget(self._ignored_host)
+
     # ---- content ---------------------------------------------------------
     def findings(self) -> list[Finding]:
         return list(self._findings)
 
-    def set_findings(self, findings: list[Finding] | None) -> None:
-        """Show `findings` (already ordered). `None` means no model is open."""
+    def set_findings(self, findings: list[Finding] | None,
+                     ignored: list[dict] | None = None) -> None:
+        """Show `findings` (already ordered). `None` means no model is open.
+        `ignored` are the model's dismissed entries (rule, target, reason)."""
         self._findings = list(findings or [])
+        self._ignored = list(ignored or [])
         if findings is None:
             self.summary.setText(NO_MODEL_TEXT)
         elif not findings:
@@ -212,6 +257,48 @@ class AdvisorPanel(QWidget):
     def refresh_theme(self) -> None:
         """Rebuild the cards: each one takes its colours when it is built."""
         self._rebuild()
+
+    def ignored(self) -> list[dict]:
+        return list(self._ignored)
+
+    def _toggle_ignored(self) -> None:
+        self._show_ignored = not self._show_ignored
+        self._rebuild_ignored()
+
+    def _rebuild_ignored(self) -> None:
+        for row in self.ignored_rows:
+            self._ignored_layout.removeWidget(row)
+            row.hide()
+            row.deleteLater()
+        self.ignored_rows = []
+        n = len(self._ignored)
+        self.ignored_button.setVisible(bool(n))
+        self.ignored_button.setText(
+            f"{'Hide' if self._show_ignored else 'Show'} {n} ignored")
+        self._ignored_host.setVisible(bool(n) and self._show_ignored)
+        if not (n and self._show_ignored):
+            return
+        colour = active_colour()
+        for entry in self._ignored:
+            row = QWidget(self._ignored_host)
+            line = QHBoxLayout(row)
+            line.setContentsMargins(0, 0, 0, 0)
+            what = entry["rule"] + (f" · {entry['target']}" if entry.get("target")
+                                    else " · every finding")
+            label = QLabel(what + (f"\n{entry['reason']}" if entry.get("reason") else
+                                   "\n(no reason given)"))
+            label.setWordWrap(True)
+            label.setStyleSheet(f"color: {colour['muted']};")
+            line.addWidget(label, 1)
+            restore = QToolButton(row)
+            restore.setText("Restore")
+            restore.setAutoRaise(True)
+            restore.setToolTip("Show this finding again")
+            restore.clicked.connect(lambda _=False, e=entry: self.restore_requested.emit(
+                e["rule"], e.get("target", "")))
+            line.addWidget(restore, 0, Qt.AlignmentFlag.AlignTop)
+            self._ignored_layout.addWidget(row)
+            self.ignored_rows.append(row)
 
     def _toggle_more(self) -> None:
         self._expanded = not self._expanded
@@ -228,6 +315,7 @@ class AdvisorPanel(QWidget):
             card = FindingCard(finding, self._host)
             card.locate_requested.connect(self.locate_requested)
             card.fix_requested.connect(self.fix_requested)
+            card.ignore_requested.connect(self.ignore_requested)
             self._cards_layout.insertWidget(self._cards_layout.count() - 1, card)
             card.show()      # a layout shows a new child on the next event-loop turn
             self.cards.append(card)
@@ -236,3 +324,4 @@ class AdvisorPanel(QWidget):
         if hidden > 0:
             self.more_button.setText("Show the first five only" if self._expanded
                                      else f"Show {hidden} more")
+        self._rebuild_ignored()

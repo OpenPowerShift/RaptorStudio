@@ -144,3 +144,30 @@ def test_simulating_commands_report_progress_through_the_replay(capsys, tmp_path
         assert any(e["event"] == "insight" and e["done"] == e["total"] == 6
                    for e in events), argv
         assert len(err.splitlines()) == len(set(err.splitlines()))
+
+
+def test_ignore_writes_the_entry_back_and_restore_removes_it(capsys, tmp_path):
+    path = flawed(tmp_path)
+    code, out, _ = run_cli(capsys, "advise", path, "--ignore", "M-STR-002@block:2",
+                           "--reason", "cold standby by design")
+    assert code == X.OK
+    assert "M-STR-002: B backs up A" not in out
+    assert "ignored: M-STR-002@block:2: cold standby by design" in out
+    saved = json.loads(open(path).read())
+    assert saved["advisor"]["ignored"] == [
+        {"rule": "M-STR-002", "target": "block:2", "reason": "cold standby by design"}]
+    code, out, _ = run_cli(capsys, "advise", path, "-f", "json")
+    assert json.loads(out)["results"][0]["ignored"] == saved["advisor"]["ignored"]
+    code, out, _ = run_cli(capsys, "advise", path, "--restore", "M-STR-002@block:2")
+    assert code == X.OK and "M-STR-002: B backs up A" in out
+    assert "advisor" not in json.loads(open(path).read())
+
+
+def test_ignore_refuses_an_unknown_rule(capsys, tmp_path):
+    code, _, err = run_cli(capsys, "advise", flawed(tmp_path), "--ignore", "NOPE-1")
+    assert code == X.USAGE and "NOPE-1" in err
+
+
+def test_restoring_what_was_not_ignored_warns(capsys, tmp_path):
+    code, _, err = run_cli(capsys, "advise", flawed(tmp_path), "--restore", "M-STR-002")
+    assert code == X.OK and "was not ignored" in err

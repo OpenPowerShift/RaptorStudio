@@ -240,3 +240,64 @@ def test_the_first_run_with_findings_opens_the_advisor_once(window, qapp, monkey
     results.contents_changed.emit()
     qapp.processEvents()
     assert not window._advisor_dock.isVisible()
+
+
+# ---- dismissing findings ----------------------------------------------------------
+
+def test_ignoring_a_finding_hides_it_keeps_the_reason_and_undoes(window, qapp, monkeypatch):
+    monkeypatch.setattr(type(window), "_ask_ignore_reason", lambda self, what: "on purpose")
+    panel = window._advisor_panel
+    target = card(window, "M-SPR-002").finding.targets[0]
+    depth = window._diagram_dock.view._stack.index()
+    card(window, "M-SPR-002").ignore_one.trigger()
+    qapp.processEvents()
+    assert "M-SPR-002" not in rules(window)
+    assert panel.ignored() == [{"rule": "M-SPR-002", "target": f"block:{target.id}",
+                                "reason": "on purpose"}]
+    assert panel.ignored_button.isVisible() and "1 ignored" in panel.ignored_button.text()
+    assert window._diagram_dock.view._stack.index() == depth + 1
+    window._diagram_dock.view._stack.undo()
+    qapp.processEvents()
+    assert "M-SPR-002" in rules(window) and panel.ignored() == []
+
+
+def test_cancelling_the_reason_ignores_nothing(window, qapp, monkeypatch):
+    monkeypatch.setattr(type(window), "_ask_ignore_reason", lambda self, what: None)
+    card(window, "M-SPR-002").ignore_one.trigger()
+    qapp.processEvents()
+    assert "M-SPR-002" in rules(window) and window._advisor_panel.ignored() == []
+
+
+def test_restore_from_the_ignored_list(window, qapp, monkeypatch):
+    monkeypatch.setattr(type(window), "_ask_ignore_reason", lambda self, what: "")
+    panel = window._advisor_panel
+    card(window, "M-SPR-002").ignore_rule.trigger()
+    qapp.processEvents()
+    assert panel.ignored()[0]["target"] == ""
+    panel.ignored_button.click()
+    qapp.processEvents()
+    assert len(panel.ignored_rows) == 1
+    from PySide6.QtWidgets import QToolButton
+    panel.ignored_rows[0].findChild(QToolButton).click()
+    qapp.processEvents()
+    assert "M-SPR-002" in rules(window) and panel.ignored() == []
+
+
+def test_a_fixed_run_finding_clears_until_the_next_run(window, qapp, monkeypatch):
+    from raptor.api import advisor
+    from raptor.api.advisor.finding import Finding, Fix, Target
+    pump = next(b for b in window._diagram_dock.view.blocks.values() if b.name == "Pump_A")
+    found = Finding(rule="R-SPR-101", severity="advice", category="spares",
+                    title="Spares ran out", message="m", why="w",
+                    targets=(Target("block", pump.id, "Pump_A", "stock"),),
+                    fixes=(Fix("Hold 3 spares", (f"block:{pump.id}.stock=3",)),))
+    report = [object()]
+    results = type("Res", (), {"has_results": lambda self: True, "_report_data": report})()
+    monkeypatch.setattr(window, "_results", results, raising=False)
+    monkeypatch.setattr(advisor, "advise_run", lambda *a, **k: [found])
+    monkeypatch.setattr("raptor.api.run._rd_to_dict", lambda rd: {})
+    assert window._run_findings() == [found]
+    assert window._advisor_apply_fix(found, found.fixes[0])
+    assert window._run_findings() == []
+    results._report_data = [object()]          # a new run
+    assert window._run_findings() == [found]

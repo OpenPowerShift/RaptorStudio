@@ -52,6 +52,8 @@ class AdvisorMixin:
         self._advisor_panel = AdvisorPanel()
         self._advisor_panel.locate_requested.connect(self._advisor_locate)
         self._advisor_panel.fix_requested.connect(self._advisor_apply_fix)
+        self._advisor_panel.ignore_requested.connect(self._advisor_ignore)
+        self._advisor_panel.restore_requested.connect(self._advisor_restore)
         self._advisor_dock = QDockWidget("Advisor", self)   # type: ignore[call-overload]
         self._advisor_dock.setWidget(self._advisor_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,  # type: ignore[attr-defined]
@@ -92,7 +94,7 @@ class AdvisorMixin:
             if sync is not None:
                 sync()
             return
-        from raptor.api.advisor import advise_model, sort_findings
+        from raptor.api.advisor import advise_model, ignore, sort_findings
         try:
             cached = getattr(self, "_api_issues", None)
             validation = (cached[1] if cached is not None
@@ -103,7 +105,7 @@ class AdvisorMixin:
         except Exception:  # noqa: BLE001 - the Advisor must never break an edit
             log.exception("advisor refresh failed")
             findings, run_findings = [], []
-        panel.set_findings(findings)
+        panel.set_findings(findings, ignore.entries(self._rbd))
         self._set_advisor_title(findings)
         sync = getattr(self, "_sync_advisor_overlay", None)
         if sync is not None:
@@ -127,16 +129,23 @@ class AdvisorMixin:
                 "View > Advisor shows or hides it", 8000)
 
     def _run_findings(self) -> list[Finding]:
-        """What the results on screen say: precision, and what drives the downtime."""
+        """What the results on screen say: precision, and what drives the
+        downtime. A run finding whose fix was applied since those results is
+        left out: the results cannot know about the change until the next run."""
         results = getattr(self, "_results", None)
         if results is None or not results.has_results():
             return []
-        from raptor.api.advisor import advise_run
+        from raptor.api.advisor import advise_run, ignore
         from raptor.api.run import _rd_to_dict
-        per_run = [_rd_to_dict(rd) for rd in getattr(results, "_report_data", [])]
+        report = getattr(results, "_report_data", [])
+        per_run = [_rd_to_dict(rd) for rd in report]
         page = getattr(results, "_drivers_page", None)
         attribution = page.attribution() if page is not None else None
-        return advise_run(self._rbd, {}, per_run, attribution=attribution)
+        found = advise_run(self._rbd, {}, per_run, attribution=attribution)
+        fixed = getattr(self, "_advisor_fixed", None)
+        if fixed is None or fixed[0] is not report:
+            return found
+        return [f for f in found if (f.rule, ignore.target_of(f)) not in fixed[1]]
 
     def _set_advisor_title(self, findings: list[Finding] | None) -> None:
         dock = getattr(self, "_advisor_dock", None)
@@ -187,9 +196,73 @@ class AdvisorMixin:
         for kind, key, _oid, _old, new in edits:
             if kind == "experiment":
                 self._set_exp_field(key, new)        # type: ignore[attr-defined]
-        self._statusbar.showMessage(f"Applied: {fix.label}", 4000)
+        from raptor.api.advisor import RULES
+        info = RULES.get(finding.rule)
+        is_run = info is not None and info.phase == "run"
+        if is_run:
+            self._note_fixed(finding)
+        self._statusbar.showMessage(
+            f"Applied: {fix.label}" + (" (run again to see its effect)" if is_run else ""),
+            5000)
         self._refresh_advisor()
         return bool(changed) or any(e[0] == "experiment" for e in edits)
+
+    def _note_fixed(self, finding: Finding) -> None:
+        """Remember a run finding as dealt with until the results change."""
+        from raptor.api.advisor import ignore
+        report = getattr(getattr(self, "_results", None), "_report_data", None)
+        fixed = getattr(self, "_advisor_fixed", None)
+        keys = fixed[1] if fixed is not None and fixed[0] is report else set()
+        keys.add((finding.rule, ignore.target_of(finding)))
+        self._advisor_fixed = (report, keys)
+
+    # ---- dismiss ---------------------------------------------------------
+    def _ask_ignore_reason(self, what: str) -> str | None:
+        """The reason for dismissing `what`, or None if the user cancelled."""
+        from PySide6.QtWidgets import QInputDialog
+        text, ok = QInputDialog.getText(
+            self, "Ignore finding",                            # type: ignore[arg-type]
+            f"Why does {what} not apply to this model?\n"
+            "The reason is saved with the model, for whoever reviews it.")
+        return text.strip() if ok else None
+
+    def _advisor_ignore(self, finding: Finding, whole_rule: bool = False) -> bool:
+        """Dismiss `finding` (or every finding of its rule) in this model, as
+        one undo step; the reason is kept in the model."""
+        from raptor.api.advisor import ignore
+        if self._rbd is None:
+            return False
+        target = "" if whole_rule else ignore.target_of(finding)
+        what = (f"every {finding.rule} finding" if whole_rule or not finding.targets
+                else f"'{finding.title}' for {finding.targets[0].name}")
+        reason = self._ask_ignore_reason(what)
+        if reason is None:
+            return False
+        before = dict(getattr(self._rbd, "advisor", None) or {})
+        ignore.ignore(self._rbd, finding.rule, target, reason)
+        self._push_advisor_state(before, f"Ignore {finding.rule}")
+        self._statusbar.showMessage(
+            f"Ignored {what}. 'Show ignored' in the Advisor or Edit > Undo brings it back",
+            6000)
+        return True
+
+    def _advisor_restore(self, rule: str, target: str) -> bool:
+        from raptor.api.advisor import ignore
+        if self._rbd is None:
+            return False
+        before = dict(getattr(self._rbd, "advisor", None) or {})
+        if not ignore.restore(self._rbd, rule, target):
+            return False
+        self._push_advisor_state(before, f"Restore {rule}")
+        return True
+
+    def _push_advisor_state(self, before: dict, label: str) -> None:
+        """Make the change to `rbd.advisor` (already applied) one undo step."""
+        from raptor.gui.ui.diagram_commands import AdvisorStateCmd
+        after = dict(getattr(self._rbd, "advisor", None) or {})
+        self._rbd.advisor = before
+        view = self._diagram_dock.view
+        view._stack.push(AdvisorStateCmd(self, before, after, label))
 
     def _edit_for(self, view: Any, assignment: str) -> tuple | None:
         """`block:2.stock=11` -> (kind, edit key, id, old, new), or None."""

@@ -47,6 +47,10 @@ CAPABILITIES: tuple[Capability, ...] = (
         absent={"cli": "the finding prints the PATH=VALUE to pass to `raptor set`; "
                        "a one-step `advise --fix` is planned"}),
     Capability(
+        "advise.ignore", "Dismiss or restore a finding, with the reason, in the model",
+        api="raptor.api.advisor.ignore.ignore", cli="advise --ignore", mcp="ignore_finding",
+        gui="widget:raptor.gui.ui.advisor_dock.FindingCard"),
+    Capability(
         "insight.attribution", "Run with downtime attribution",
         api="raptor.api.run.run", cli="explain", mcp="simulate",
         gui="widget:raptor.gui.ui.drivers_page.DriversPage", long_running=True),

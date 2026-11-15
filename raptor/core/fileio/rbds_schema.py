@@ -223,6 +223,16 @@ def build_schema() -> dict[str, Any]:
             "annotations": {"type": "array", "items": annotation},
             "flow_directions": {"type": "object",
                                 "additionalProperties": {"type": "string"}},
+            "advisor": {"type": "object", "additionalProperties": False,
+                        "description": "Advisor findings the model's owner "
+                                       "dismissed, each with its reason",
+                        "properties": {"ignored": {"type": "array", "items": {
+                            "type": "object", "additionalProperties": False,
+                            "required": ["rule"],
+                            "properties": {
+                                "rule": {"type": "string"},
+                                "target": {"type": "string"},
+                                "reason": {"type": "string"}}}}}},
             "view": {"type": "object", "additionalProperties": False,
                      "properties": {
                          "link_routing": {"enum": ["straight", "angled",

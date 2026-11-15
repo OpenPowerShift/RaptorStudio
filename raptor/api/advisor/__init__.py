@@ -12,40 +12,64 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from raptor.api.advisor import ignore
 from raptor.api.advisor.context import ModelContext, RunContext
 from raptor.api.advisor.finding import Finding, Fix, Target, sort_findings
 from raptor.api.advisor.registry import RULES, RuleInfo, list_rules, rule, run_rules
 
-__all__ = ["RULES", "Finding", "Fix", "ModelContext", "RuleInfo", "RunContext", "Target",
-           "advise_model", "advise_run", "advise_stored_run", "counts", "list_rules",
-           "rule", "run_rules", "sort_findings"]
+__all__ = [
+    "RULES",
+    "Finding",
+    "Fix",
+    "ModelContext",
+    "RuleInfo",
+    "RunContext",
+    "Target",
+    "advise_model",
+    "advise_run",
+    "advise_stored_run",
+    "counts",
+    "ignore",
+    "list_rules",
+    "rule",
+    "run_rules",
+    "sort_findings",
+]
 
 
 def advise_model(rbd: Any, *, only: Iterable[str] | None = None,
                  skip: Iterable[str] | None = None,
-                 validation: list | None = None) -> list[Finding]:
+                 validation: list | None = None,
+                 include_ignored: bool = False) -> list[Finding]:
     """Every model finding for `rbd`, most important first. `validation` is
     `raptor.api.validate.issues(rbd)` when the caller has already computed it
-    (it is the slowest check on a large model), else it is computed here."""
-    return run_rules(ModelContext(rbd, validation), phase="model", only=only, skip=skip)
+    (it is the slowest check on a large model), else it is computed here.
+    Findings the model's owner dismissed (`raptor.api.advisor.ignore`) are
+    left out unless `include_ignored`."""
+    found = run_rules(ModelContext(rbd, validation), phase="model", only=only, skip=skip)
+    return found if include_ignored else ignore.split(found, rbd)[0]
 
 
 def advise_run(rbd: Any, summary: dict, per_run: list[dict], *,
                requirements: list[dict] | None = None,
                attribution: dict | None = None,
                only: Iterable[str] | None = None,
-               skip: Iterable[str] | None = None) -> list[Finding]:
+               skip: Iterable[str] | None = None,
+               include_ignored: bool = False) -> list[Finding]:
     """Every run finding for one finished batch of `rbd`, most important first.
     `attribution` (see `raptor.api.insight.attribution`) adds the findings
-    about what drives the downtime."""
+    about what drives the downtime. Dismissed findings are left out unless
+    `include_ignored`."""
     from raptor.api.advisor.context import check_requirements
     check_requirements(requirements)
     ctx = RunContext(rbd, summary, per_run, requirements, attribution)
-    return run_rules(ctx, phase="run", only=only, skip=skip)
+    found = run_rules(ctx, phase="run", only=only, skip=skip)
+    return found if include_ignored else ignore.split(found, rbd)[0]
 
 
 def advise_stored_run(workspace: Any, run_id: str, *,
-                      requirements: list[dict] | None = None) -> list[Finding]:
+                      requirements: list[dict] | None = None,
+                      include_ignored: bool = False) -> list[Finding]:
     """`advise_run` for a run kept in a workspace (reads its stored artefacts)."""
     from raptor.api.run import run_dir
     from raptor.api.run_tables import read_per_run, read_summary
@@ -59,7 +83,7 @@ def advise_stored_run(workspace: Any, run_id: str, *,
     except drivers.NoAttribution:
         attribution = None
     return advise_run(rbd, summary, per_run, requirements=requirements,
-                      attribution=attribution)
+                      attribution=attribution, include_ignored=include_ignored)
 
 
 def counts(findings: Iterable[Finding]) -> dict[str, int]:

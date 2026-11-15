@@ -6,7 +6,7 @@ import sys
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, open_model, workspace_for
+from raptor.cli.common import emit_json, eprint, open_model, workspace_for
 from raptor.cli.exitcodes import CliError
 
 ADVISE_SCHEMA = "raptor-advise/1"
@@ -50,6 +50,13 @@ def add_parser(sub: Any) -> None:
                    help="progress of --simulate on stderr (json: one object per line)")
     a.add_argument("--list-rules", action="store_true",
                    help="list every rule and exit")
+    a.add_argument("--ignore", action="append", metavar="RULE[@TARGET]",
+                   help="dismiss a finding in the model file (written back): RULE "
+                        "for every finding of it, RULE@block:3 for one; repeatable")
+    a.add_argument("--restore", action="append", metavar="RULE[@TARGET]",
+                   help="bring back a dismissed finding (written back); repeatable")
+    a.add_argument("--reason", metavar="TEXT", default="",
+                   help="why the --ignore'd findings do not apply (kept in the model)")
     a.set_defaults(func=advise_command)
 
     e = sub.add_parser(
@@ -160,6 +167,9 @@ def _text(doc: dict, why: bool) -> None:
         for fix in f["fixes"]:
             how = "; ".join(fix["assignments"]) or "in the application"
             print(f"      fix: {fix['label']} [{how}]")
+    for entry in doc.get("ignored") or []:
+        what = entry["rule"] + (f"@{entry['target']}" if entry["target"] else "")
+        print(f"  ignored: {what}" + (f": {entry['reason']}" if entry["reason"] else ""))
 
 
 def _markdown(doc: dict) -> None:
@@ -235,17 +245,44 @@ def advise_command(args: Any) -> int:
                 docs.append({"model": path, "error": str(exc)})
                 worst = max(worst, exc.code)
                 continue
+            if getattr(args, "ignore", None) or getattr(args, "restore", None):
+                _change_ignored(ws, mid, path, args)
             found = advise_model(ws.get(mid).rbd, only=_ids(args.only), skip=_ids(args.skip))
             if simulate and not any(f.severity == "error" for f in found):
                 found = sort_findings(found + _run_findings(ws, mid, targets, args))
             tally = counts(found)
             shown = [f for f in found if SEVERITY_RANK[f.severity] >= floor]
+            from raptor.api.advisor import ignore
             docs.append({"model": path, "counts": tally,
-                         "findings": [f.to_dict() for f in shown]})
+                         "findings": [f.to_dict() for f in shown],
+                         "ignored": ignore.entries(ws.get(mid).rbd)})
             if tally["error"] or (args.strict and tally["warning"]):
                 worst = max(worst, X.INVALID)
     _emit(docs, args.format, args.why)
     return worst
+
+
+def _change_ignored(ws: Any, mid: str, path: str, args: Any) -> None:
+    """--ignore / --restore: change the model's dismissed findings and write
+    the file back (an .rbds file: a legacy .rbd has nowhere to keep them)."""
+    from raptor.api.advisor import ignore, list_rules
+    from raptor.cli.cmd_optimise import write_back
+    if path.lower().endswith(".rbd"):
+        raise CliError(f"{path}: a legacy .rbd cannot keep dismissed findings; "
+                       "save it as .rbds first", X.USAGE)
+    known = {r.id for r in list_rules()}
+    rbd = ws.get(mid).rbd
+    for text in args.ignore or []:
+        rule, target = ignore.parse(text)
+        if rule not in known:
+            raise CliError(f"no advisor rule {rule!r} (advise --list-rules)", X.USAGE)
+        ignore.ignore(rbd, rule, target, args.reason)
+    for text in args.restore or []:
+        rule, target = ignore.parse(text)
+        if not ignore.restore(rbd, rule, target):
+            eprint(f"warning: {text} was not ignored in {path}")
+    ws.save(mid)
+    write_back(ws, mid, path)
 
 
 def _emit(docs: list[dict], fmt: str, why: bool) -> None:

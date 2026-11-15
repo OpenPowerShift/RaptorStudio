@@ -615,6 +615,19 @@
    "run_id"
   ]
  },
+ "ignore_finding": {
+  "params": [
+   "model_id",
+   "reason",
+   "restore",
+   "rule",
+   "target"
+  ],
+  "required": [
+   "model_id",
+   "rule"
+  ]
+ },
  "insert_assembly": {
   "params": [
    "library_path",

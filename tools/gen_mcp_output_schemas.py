@@ -144,6 +144,8 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
              **({"run_id": run} if run else {}))
     rec.call("list_advisor_rules")
     rec.call("advise", model_id=m1)
+    rec.call("ignore_finding", model_id=m1, rule="M-STR-002", reason="example")
+    rec.call("ignore_finding", model_id=m1, rule="M-STR-002", restore=True)
     attributed = rec.call("simulate", model_id=m1, num_runs=3, attribution=True) or {}
     if attributed.get("run_id"):
         rec.call("advise", model_id=m1, run_id=attributed["run_id"], min_severity="info",

@@ -125,6 +125,9 @@
    "findings": {
     "type": "array"
    },
+   "ignored": {
+    "type": "array"
+   },
    "model_id": {
     "type": "string"
    },
@@ -144,6 +147,7 @@
   "required": [
    "counts",
    "findings",
+   "ignored",
    "model_id",
    "run_id",
    "shown",
@@ -1584,6 +1588,25 @@
    "series",
    "t",
    "values"
+  ],
+  "type": "object"
+ },
+ "ignore_finding": {
+  "properties": {
+   "changed": {
+    "type": "boolean"
+   },
+   "ignored": {
+    "type": "array"
+   },
+   "model_id": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "changed",
+   "ignored",
+   "model_id"
   ],
   "type": "object"
  },

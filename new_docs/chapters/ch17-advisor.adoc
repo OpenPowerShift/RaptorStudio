@@ -78,6 +78,36 @@ against the current model with the same seed. Read the paired interval
 before accepting it; a one-unit change on a noisy run can look larger than
 it is.
 
+A fix to an after-run finding changes the model, not the results on
+screen, so the finding leaves the panel when you apply it and the status
+bar says to run again. The next run judges the change for itself.
+
+=== When a finding does not apply
+
+Sometimes you know better: the backup that depends on the unit it backs up
+is a deliberate cold standby, or the placeholder repair time is the
+contract figure. Dismiss the finding rather than living with the noise.
+In the window, open the card's *Ignore* menu and choose to ignore it for
+that element or for every finding of the rule in this model; give the
+reason when asked. The dismissal is saved in the model (the `.rbds`
+`advisor` key) with the reason, so whoever opens the file next sees the
+same panel and can read why. *Show N ignored* at the foot of the panel
+lists them, each with *Restore*, and Edit › Undo takes a dismissal back.
+
+On the command line and over MCP:
+
+[source,bash]
+----
+raptor advise models/VanFlat.rbds --ignore M-STR-002@block:2 --reason "cold standby by design"
+raptor advise models/VanFlat.rbds --restore M-STR-002@block:2
+----
+
+`RULE` alone ignores every finding of that rule; `RULE@block:3` one. The
+MCP tool is `ignore_finding` (`restore=true` to bring one back), and
+`advise` lists what was dismissed under `ignored`, so nothing is hidden
+without a trace. A legacy `.rbd` file has nowhere to keep dismissals: save
+it as `.rbds` first.
+
 === What the Advisor will not do
 
 * It will not invent failure data. A guessed distribution is worse than a

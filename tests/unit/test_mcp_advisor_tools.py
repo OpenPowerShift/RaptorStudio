@@ -201,3 +201,41 @@ def test_run_chart_draws_a_chart_over_time(server, model):
     missing = call(server, "run_chart", run_id=run["run_id"], chart="capacity-band")
     assert missing.is_error
     assert "capacity plot" in " ".join(c.text for c in missing.content)
+
+
+def test_ignore_finding_hides_it_from_advise_and_restores(server, model):
+    from raptor.mcp import context
+    first = ok(call(server, "advise", model_id=model, min_severity="info", limit=200))
+    hit = next(f for f in first["findings"] if f["rule"] == "M-STR-002")
+    target = hit["targets"][0]["path"].split(".", 1)[0]
+    data = ok(call(server, "ignore_finding", model_id=model, rule="M-STR-002",
+                   target=target, reason="cold standby by design"))
+    assert data["changed"] and data["ignored"] == [
+        {"rule": "M-STR-002", "target": target, "reason": "cold standby by design"}]
+    after = ok(call(server, "advise", model_id=model, min_severity="info", limit=200))
+    assert "M-STR-002" not in {f["rule"] for f in after["findings"]}
+    assert after["ignored"] == data["ignored"]
+    assert context.workspace().get(model).rbd.advisor["ignored"] == data["ignored"]
+    back = ok(call(server, "ignore_finding", model_id=model, rule="M-STR-002",
+                   target=target, restore=True))
+    assert back == {"model_id": model, "ignored": [], "changed": True}
+    again = ok(call(server, "ignore_finding", model_id=model, rule="M-STR-002",
+                    target=target, restore=True))
+    assert again["changed"] is False
+
+
+@pytest.mark.parametrize("args", [
+    {"rule": "NOT-A-RULE"},
+    {"rule": "M-STR-002", "reason": "x" * 501},
+    {"rule": "M-STR-002", "target": "b" * 201},
+])
+def test_ignore_finding_refuses_bad_input(server, model, args):
+    assert call(server, "ignore_finding", model_id=model, **args).is_error
+
+
+def test_ignore_finding_is_refused_read_only(server, model):
+    server.mcp._raptor_args.read_only = True
+    try:
+        assert call(server, "ignore_finding", model_id=model, rule="M-STR-002").is_error
+    finally:
+        server.mcp._raptor_args.read_only = False

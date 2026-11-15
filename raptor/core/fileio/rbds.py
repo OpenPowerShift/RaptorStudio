@@ -169,7 +169,7 @@ TOP_LEVEL_KEYS = frozenset({
     "format", "version", "meta", "system", "experiment", "elements", "links",
     "defaults", "spare_pools", "resources", "triggers", "phases",
     "annotations", "link_grips", "flow_directions", "view", "rates", "formulas",
-    "display_unit",
+    "display_unit", "advisor",
     "project_meta", "view_transform", "comments",
     # an early layout put the element lists at the top level; still read
     "blocks", "nodes", "events", "hierarchies"})
@@ -633,6 +633,11 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
                                   for k, v in rbd.flow_directions.items()}
     if getattr(rbd, "view", None):
         doc["view"] = {str(k): str(v) for k, v in rbd.view.items()}
+    ignored = (getattr(rbd, "advisor", None) or {}).get("ignored")
+    if ignored:
+        doc["advisor"] = {"ignored": [
+            {"rule": str(e.get("rule", "")), "target": str(e.get("target") or ""),
+             "reason": str(e.get("reason") or "")} for e in ignored]}
     # A rate's value follows from its expression, and a linked field's
     # value is the field itself: neither is stored (the reader computes
     # them), so editing an expression by hand cannot leave a stale number.
@@ -1047,6 +1052,7 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
                                    (doc.get("flow_directions") or {}).items()},
                   view={str(k): str(v) for k, v in
                         (doc.get("view") or {}).items()},
+                  advisor=_read_advisor(doc),
                   rates=[dict(r) for r in (doc.get("rates") or [])],
                   formulas={k: dict(v) for k, v in
                             (doc.get("formulas") or {}).items()},
@@ -1066,6 +1072,19 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
         from raptor.api.rates import propagate_rates
         propagate_rates(out)
     return out
+
+
+def _read_advisor(doc: dict) -> dict:
+    """The `advisor` key: dismissed findings, each with its rule, target and
+    reason. Anything malformed is dropped, never fatal."""
+    raw = doc.get("advisor")
+    if not isinstance(raw, dict):
+        return {}
+    ignored = [{"rule": str(e["rule"]), "target": str(e.get("target") or ""),
+                "reason": str(e.get("reason") or "")}
+               for e in raw.get("ignored") or []
+               if isinstance(e, dict) and e.get("rule")]
+    return {"ignored": ignored} if ignored else {}
 
 
 def load_rbds(path: str) -> RbdFile:

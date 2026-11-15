@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *92 tools* (including the `ping` health check), a set of
+The server exposes *93 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -388,8 +388,8 @@ careful about what it exposes:
 
 . *Check the tool list.* Ask your assistant "What RAPTOR tools do you
   have?" or, in the MCP Inspector, click *Tools*. You should see the tools
-  listed below: 92 including `render_diagram`, `render_diagram_svg` and
-  `ping`, or 91 when `--no-render` hides the PNG diagram tool.
+  listed below: 93 including `render_diagram`, `render_diagram_svg` and
+  `ping`, or 92 when `--no-render` hides the PNG diagram tool.
 
 . *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
   tool manually. It should return `"pong"`.
@@ -702,6 +702,12 @@ you need the exact argument shape.
 
 | `apply_fix`
 | Apply one finding's suggested fix as a single undoable edit.
+
+| `ignore_finding`
+| Dismiss a finding that does not apply to this model (one target, or every
+  finding of a rule), with the reason; or bring it back with
+  `restore=True`. The entry is saved in the model, so `advise` and the
+  application stop showing it for everyone and list it under `ignored`.
 
 | `downtime_drivers`
 | For a run made with `attribution=True`: each element's share of system

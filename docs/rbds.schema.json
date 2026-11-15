@@ -2375,6 +2375,34 @@
     "type": "string"
    }
   },
+  "advisor": {
+   "type": "object",
+   "additionalProperties": false,
+   "description": "Advisor findings the model's owner dismissed, each with its reason",
+   "properties": {
+    "ignored": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "rule"
+      ],
+      "properties": {
+       "rule": {
+        "type": "string"
+       },
+       "target": {
+        "type": "string"
+       },
+       "reason": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  },
   "view": {
    "type": "object",
    "additionalProperties": false,

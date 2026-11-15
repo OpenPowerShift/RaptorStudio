@@ -182,12 +182,19 @@ def _apply(ws: Any, model_id: str, changes: list[str], model_path: str) -> None:
     `model_path` (through a temporary file, so a failed save never truncates
     it). Before this saved, --apply edited a throwaway copy and the model
     file never changed."""
-    from pathlib import Path
 
     from raptor.api import build, paths
     with build.no_layout_on_save():
-        for change in changes:
-            paths.apply_assignment(ws, model_id, change)
+        # together: a law and its parameters are one change (applying the
+        # law first checked it against the old parameters and failed)
+        paths.apply_assignments(ws, model_id, list(changes))
+    write_back(ws, model_id, model_path)
+
+
+def write_back(ws: Any, model_id: str, model_path: str) -> None:
+    """Write the model to `model_path` through a temporary file, so a failed
+    save never truncates it."""
+    from pathlib import Path
     dest = Path(model_path)
     fmt = "rbd" if dest.suffix.lower() == ".rbd" else "rbds"
     try:

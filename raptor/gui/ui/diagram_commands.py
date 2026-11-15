@@ -1493,3 +1493,28 @@ class BlockCellsCmd(_ViewCmd):
 
     def undo(self) -> None:
         self._apply(False)
+
+
+class AdvisorStateCmd(_ViewCmd):
+    """Ignore or restore an Advisor finding: swaps the model's `advisor`
+    state (dismissed findings and their reasons). No data rule reads it."""
+
+    needs_rule_check = False
+
+    def __init__(self, win: Any, before: dict, after: dict, label: str):
+        super().__init__(win._diagram_dock.view, label)
+        self._win, self.before, self.after = win, before, after
+
+    def _set(self, state: dict) -> None:
+        if self._win._rbd is not None:
+            self._win._rbd.advisor = dict(state)
+        self._done()
+        refresh = getattr(self._win, "_refresh_advisor", None)
+        if refresh is not None:
+            refresh()
+
+    def redo(self):
+        self._set(self.after)
+
+    def undo(self):
+        self._set(self.before)
