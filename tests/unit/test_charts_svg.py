@@ -134,3 +134,80 @@ def test_write_round_trips_the_document(tmp_path):
     path = tmp_path / "chart.svg"
     charts_svg.write(_specs()["ladder"], path)
     assert path.read_text(encoding="utf-8").startswith("<svg")
+
+
+# -- presentation quality: nothing shortened, page sizes, folding ----------
+
+_LONG = "Primary_Coolant_Recirculation_Pump_Assembly_North"
+
+
+def _texts(svg: str) -> list[str]:
+    return [node.text or "" for node in ET.fromstring(svg).iter()
+            if node.tag.endswith("text")]
+
+
+def _long_attribution(n: int = 12) -> dict:
+    names = [f"{_LONG}_{i}" for i in range(n)]
+    shares = [0.5, 0.3] + [0.2 / (n - 2)] * (n - 2)
+    return {
+        "runs": 4, "causes": {"repair": 0.6, "wait_spare": 0.4},
+        "elements": [{"name": name, "dtci": {"mean": share, "sem": 0.4},
+                      "deci": {"mean": 0.1}, "red_time": {"mean": 1.0},
+                      "causes": {"repair": 1.0}, "main_cause": "repair"}
+                     for name, share in zip(names, shares, strict=True)],
+    }
+
+
+@pytest.mark.parametrize("page", [None, *charts_svg.PAGES])
+@pytest.mark.parametrize("build", [
+    lambda a: charts.downtime_pareto(a, top=12),
+    lambda a: charts.downtime_treemap(a),
+    lambda a: charts.downtime_waterfall(a, operational=0.9),
+], ids=["pareto", "treemap", "waterfall"])
+def test_no_label_is_ever_shortened(build, page):
+    """Saved charts go into reports and slides: a name cut to "Prim…" is
+    useless, so names wrap (or a treemap cell is numbered and named in a
+    footnote) instead."""
+    spec = build(_long_attribution())
+    svg = charts_svg.render(spec, page=page)
+    texts = _texts(svg)
+    assert not any("…" in t for t in texts)
+    joined = "".join(texts).replace(" ", "")
+    for row in spec.series:
+        assert str(row["name"]).replace(" ", "") in joined
+
+
+def test_wrapping_breaks_names_at_underscores_and_never_inside_numbers():
+    lines = charts_svg._wrap("Ground_Control_Station 10.4 %", 90)
+    assert "".join(lines).replace(" ", "") == "Ground_Control_Station10.4%"
+    assert all(len(line) <= int(90 / charts_svg.CHAR_W) for line in lines)
+    assert not any(line.endswith("10.") for line in lines)
+
+
+def test_a_share_axis_and_its_uncertainty_range_stop_at_100_percent():
+    spec = charts.downtime_pareto(_long_attribution(3))
+    texts = _texts(charts_svg.render(spec))
+    assert "100 %" in texts
+    assert not any(t in ("120 %", "150 %", "200 %") for t in texts)
+
+
+def test_a_page_declares_its_physical_size():
+    root = ET.fromstring(charts_svg.render(_specs()["pareto"], page="a4"))
+    assert root.get("width") == "297mm" and root.get("height") == "210mm"
+    assert root.get("viewBox") == "0 0 1123 794"
+    with pytest.raises(ValueError, match="unknown page"):
+        charts_svg.render(_specs()["pareto"], page="letter")
+
+
+def test_cells_too_small_to_label_are_named_under_the_treemap():
+    spec = charts.downtime_treemap(_long_attribution(30))
+    texts = _texts(charts_svg.render(spec))
+    footnote = " ".join(t for t in texts if t.startswith("Not labelled")
+                        or "·" in t)
+    assert "Not labelled in the chart" in footnote
+
+
+def test_write_takes_a_page(tmp_path):
+    path = tmp_path / "chart.svg"
+    charts_svg.write(_specs()["ladder"], path, page="slide")
+    assert "338.67mm" in path.read_text(encoding="utf-8")

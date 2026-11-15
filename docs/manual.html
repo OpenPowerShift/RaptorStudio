@@ -823,49 +823,49 @@ or turn on (for the charts over time, Availability Plot or Capacity
 Plot under Run panel ▸ Recording) and, for the downtime charts, offers
 to work out the drivers there and then. Above the chart are only the
 controls it uses: <strong>Run</strong> for a one-run chart over time, <strong>Axis from</strong>
-for an availability chart over time, and <strong>Export</strong> (copy, PNG, SVG,
-the chart&#8217;s data as CSV, and, for a chart over time, every recorded
-plot row in Raptor&#8217;s <code>rpt_*_plot</code> layout). Hover a chart over time to
-read every layer at that moment.</p>
-<div class="ulist">
-<ul>
-<li>
-<p><strong>Availability through a run</strong> shows the share of time so far spent
-fully up (green), degraded (yellow) and down (red); the top of the
-yellow band is the run&#8217;s availability to date.</p>
-</li>
-<li>
-<p><strong>Availability interval by interval</strong> is the availability of each
-recording interval, with the availability to date dashed. A run with
-more intervals than the chart can show is grouped, keeping the worst
-interval of each group, so a dip is never smoothed away.</p>
-</li>
-<li>
-<p><strong>Availability across all runs</strong> draws the mean with two bands: 8 runs
-in 10, and every run. Where the bands stop narrowing, a longer run no
-longer changes the answer.</p>
-</li>
-<li>
-<p><strong>Capacity through a run</strong> draws the flow delivered against the
-model&#8217;s flow generated; the shaded gap is the capacity lost, the same
-loss the lost-capacity charts split by element. The capacity plot
-records only changes, so the last value is held to the end of the run.</p>
-</li>
-<li>
-<p><strong>Capacity across all runs</strong> draws the mean flow with the same two
-bands, and the share of the flow generated the runs delivered.</p>
-</li>
-<li>
-<p><strong>Axis from</strong> is <strong>auto</strong> at 0 (the axis is fitted to the data); a
-saved non-zero value (<code>graphYmin</code>) is a fixed floor for every
-availability chart over time.</p>
+for an availability chart over time, <strong>Fold items below</strong> for a
+ranking or treemap (gathers the items under 1, 2 or 5 % of the whole
+into one "N others" row or cell, on screen and in what you save; the
+caption names them), and <strong>Export</strong> (copy, PNG, SVG, PDF, the chart&#8217;s
+data as CSV, and, for a chart over time, every recorded plot row in
+Raptor&#8217;s <code>rpt_*_plot</code> layout). Hover a chart over time to read every
+layer at that moment.</p>
 <div class="paragraph">
-<p>The same charts come from the command line (<code>raptor explain MODEL
+<p>Saved and copied charts are drawn for a page, chosen under <strong>Export ▸
+Page size</strong>: Screen (760 × 400), Slide (16:9), A4 or A3 landscape (the
+default is A4). The PNG (300 dpi), SVG and PDF (vector) show the same
+drawing, made for reports and slides: no label is ever shortened with
+"…". Long names wrap onto more lines, a bigger page gives them more
+room, and a treemap cell too small for its name gets a number and is
+named under the chart. A share and its uncertainty range never pass
+100 %. <code>raptor explain --chart NAME --chart-svg FILE</code> takes the same
+<code>--chart-page</code> and <code>--chart-min-share</code>, and the <code>run_chart</code> tool takes
+<code>page</code> and <code>min_share</code>.
+<strong> <strong>Availability through a run</strong> shows the share of time so far spent
+   fully up (green), degraded (yellow) and down (red); the top of the
+   yellow band is the run&#8217;s availability to date.
+</strong> <strong>Availability interval by interval</strong> is the availability of each
+   recording interval, with the availability to date dashed. A run with
+   more intervals than the chart can show is grouped, keeping the worst
+   interval of each group, so a dip is never smoothed away.
+<strong> <strong>Availability across all runs</strong> draws the mean with two bands: 8 runs
+   in 10, and every run. Where the bands stop narrowing, a longer run no
+   longer changes the answer.
+</strong> <strong>Capacity through a run</strong> draws the flow delivered against the
+   model&#8217;s flow generated; the shaded gap is the capacity lost, the same
+   loss the lost-capacity charts split by element. The capacity plot
+   records only changes, so the last value is held to the end of the run.
+<strong> <strong>Capacity across all runs</strong> draws the mean flow with the same two
+   bands, and the share of the flow generated the runs delivered.
+</strong> <strong>Axis from</strong> is <strong>auto</strong> at 0 (the axis is fitted to the data); a
+   saved non-zero value (<code>graphYmin</code>) is a fixed floor for every
+   availability chart over time.</p>
+</div>
+<div class="paragraph">
+<p>+
+The same charts come from the command line (<code>raptor explain MODEL
 --chart NAME</code>, with <code>--chart-run N</code> and <code>--y-floor F</code> for the charts over
 time; <code>--list-charts</code> names them) and from the MCP <code>run_chart</code> tool.</p>
-</div>
-</li>
-</ul>
 </div>
 </li>
 <li>

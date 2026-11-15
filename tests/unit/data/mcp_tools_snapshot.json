@@ -814,6 +814,8 @@
  "run_chart": {
   "params": [
    "chart",
+   "min_share",
+   "page",
    "render_svg",
    "run",
    "run_id",

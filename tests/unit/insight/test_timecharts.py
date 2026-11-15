@@ -150,6 +150,11 @@ def test_explain_records_the_plot_an_availability_chart_needs(capsys, tmp_path):
     assert "Availability across all runs — 5 runs end with 8 in 10" in out
     assert "mean availability:" in out
     assert svg.read_text().startswith("<svg")
+    assert main(["explain", str(path), "--seed", "5", "--chart", "downtime-pareto",
+                 "--chart-svg", str(svg), "--chart-page", "a4",
+                 "--chart-min-share", "0.01"]) == X.OK
+    capsys.readouterr()
+    assert "width='297mm'" in svg.read_text()
     assert main(["explain", str(path), "--seed", "5", "--chart",
                  "availability-through-run", "--chart-run", "3", "-f", "json"]) == X.OK
     data = json.loads(capsys.readouterr().out)

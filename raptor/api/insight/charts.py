@@ -760,6 +760,89 @@ def ensemble_ribbon(attribution: dict[str, Any], max_runs: int = 200
                     "shown": len(rows)})
 
 
+#: Chart kinds whose small items `fold_small` can gather into one row or cell.
+FOLDABLE_KINDS = ("pareto", "capacity_pareto", "treemap")
+
+
+def _share_of(spec: ChartSpec, row: dict[str, Any]) -> float | None:
+    """A row's share of the whole: its own `share`, or its value when the
+    value already is a share (a percent chart)."""
+    if isinstance(row.get("share"), (int, float)):
+        return float(row["share"])
+    if spec.provenance.get("format") == "percent" or spec.kind == "capacity_pareto":
+        value = row.get("value")
+        return float(value) if isinstance(value, (int, float)) else None
+    return None
+
+
+def foldable(spec: ChartSpec) -> bool:
+    """Whether `fold_small` applies: element rankings and treemaps (not a
+    chart in a fixed order, such as downtime by phase)."""
+    if spec.kind not in FOLDABLE_KINDS:
+        return False
+    if spec.kind == "pareto" and spec.x_label != "element":
+        return False
+    return any(_share_of(spec, row) is not None for row in spec.series)
+
+
+def fold_small(spec: ChartSpec, min_share: float) -> ChartSpec:
+    """The same chart with every item below `min_share` (0 to 1) of the
+    whole gathered into one "N others below X %" row or cell.
+
+    For a presentation: a ranking or treemap of many slivers reads better
+    with them folded, and nothing is hidden (the folded row carries the
+    names and their total).  A treemap is laid out again.  Charts that are
+    not `foldable`, or a fold that would gather fewer than two items, come
+    back unchanged."""
+    if min_share <= 0 or not foldable(spec):
+        return spec
+    keep: list[dict[str, Any]] = []
+    small: list[dict[str, Any]] = []
+    for row in spec.series:
+        share = _share_of(spec, row)
+        (small if share is not None and share < min_share else keep).append(row)
+    if len(small) < 2:
+        return spec
+    label = f"{len(small)} others below {100 * min_share:.3g} %"
+    total = sum(float(r.get("value") or 0.0) for r in small)
+    names = [str(r.get("name")) for r in small]
+    folded: dict[str, Any] = {"name": label, "value": total, "folded": names}
+    if any("share" in r for r in small):
+        folded["share"] = sum(_share_of(spec, r) or 0.0 for r in small)
+    if spec.kind == "capacity_pareto":
+        folded["downtime"] = sum(float(r.get("downtime") or 0.0) for r in small)
+    causes: dict[str, float] = {}
+    for row in small:
+        for cause, part in (row.get("causes") or {}).items():
+            causes[cause] = causes.get(cause, 0.0) + float(part) * float(
+                row.get("value") or 0.0)
+    if causes and total > 0:
+        folded["causes"] = {c: v / total for c, v in causes.items()}
+    provenance = {**spec.provenance, "folded_below": min_share,
+                  "folded": len(small)}
+    caption = (f"{spec.caption} " if spec.caption else "") + \
+        f"{label}: {', '.join(names)}."
+    if spec.kind != "treemap":
+        return ChartSpec(spec.kind, spec.title, spec.subtitle, spec.x_label,
+                         spec.y_label, series=[*keep, folded], marks=spec.marks,
+                         annotations=spec.annotations, caption=caption,
+                         provenance=provenance)
+    from raptor.api.insight.treemap import layout
+    width = max(float(r["x"]) + float(r["w"]) for r in spec.series)
+    height = max(float(r["y"]) + float(r["h"]) for r in spec.series)
+    cells = [{k: v for k, v in r.items() if k not in ("x", "y", "w", "h", "aspect")}
+             for r in keep] + [{**folded, "cause": None}]
+    cells.sort(key=lambda cell: -float(cell.get("value") or 0.0))
+    rects = layout(cells, width, height)
+    series = [{**cell, **rect.to_dict(),
+               "aspect": rect.aspect if rect.area > 0 else None}
+              for cell, rect in zip(cells, rects, strict=True)]
+    return ChartSpec(spec.kind, spec.title, spec.subtitle, spec.x_label,
+                     spec.y_label, series=series, marks=spec.marks,
+                     annotations=spec.annotations, caption=caption,
+                     provenance=provenance)
+
+
 def _time_chart(name: str, doc: str) -> Any:
     """A `CHARTS` entry for one of the charts over time (`timecharts`).
 

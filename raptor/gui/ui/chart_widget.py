@@ -113,13 +113,25 @@ class ChartWidget(QWidget):
         self._probe = None
         self.update()
 
+    #: The page a saved or copied chart is drawn for (`charts_svg.PAGES`).
+    export_page = "a4"
+
     def save_svg(self, path: str) -> None:
-        from raptor.render.charts_svg import write
+        from raptor.gui.ui import chart_export
         if self._spec is not None:
-            write(self._spec, path)
+            chart_export.save_svg(self._spec, path, self.export_page)
 
     def save_png(self, path: str) -> None:
-        self.grab().toImage().save(path)
+        """The saved drawing at print resolution, not a screen grab: the
+        same layout as the SVG and PDF, every label in full."""
+        from raptor.gui.ui import chart_export
+        if self._spec is not None:
+            chart_export.save_png(self._spec, path, self.export_page)
+
+    def save_pdf(self, path: str) -> None:
+        from raptor.gui.ui import chart_export
+        if self._spec is not None:
+            chart_export.save_pdf(self._spec, path, self.export_page)
 
     def save_csv(self, path: str) -> None:
         spec = self._spec
@@ -149,7 +161,11 @@ class ChartWidget(QWidget):
                         row.get("lo", ""), ])
 
     def copy_image(self) -> None:
-        QApplication.clipboard().setImage(self.grab().toImage())
+        """The saved drawing, for pasting into a document or slide."""
+        from raptor.gui.ui import chart_export
+        if self._spec is not None:
+            QApplication.clipboard().setImage(
+                chart_export.image(self._spec, self.export_page, dpi=200))
 
     # -- formatting -----------------------------------------------------
 
@@ -505,8 +521,12 @@ class ChartWidget(QWidget):
                      max(fm.horizontalAdvance(str(r["name"])) for r in rows) + 10)
         labels = [self._bar_label(row, money) for row in rows]
         value_w = max(fm.horizontalAdvance(t) for t in labels) + 10
-        peak = max(float(r["value"]) + 2 * float(r.get("sem") or 0) for r in rows)
-        peak = nice_range(0.0, peak or 1.0, 4)[1]
+        # a share's uncertainty range stops at 0 and 100 %, and so does its axis
+        ceiling = 1.0 if fmt == "percent" and all(float(r["value"]) <= 1.0
+                                                   for r in rows) else math.inf
+        peak = max(min(ceiling, float(r["value"]) + 2 * float(r.get("sem") or 0))
+                   for r in rows)
+        peak = min(ceiling, nice_range(0.0, peak or 1.0, 4)[1])
         plot = QRectF(area.left() + gutter, area.top(),
                       max(40.0, area.width() - gutter - value_w),
                       area.height())
@@ -534,7 +554,7 @@ class ChartWidget(QWidget):
             sem = row.get("sem")
             if _number(sem) and float(sem) > 0:
                 lo = frame.x(max(0.0, float(row["value"]) - 2 * float(sem)))
-                hi = frame.x(float(row["value"]) + 2 * float(sem))
+                hi = frame.x(min(ceiling, float(row["value"]) + 2 * float(sem)))
                 mid = top + bar_h / 2
                 painter.setPen(QPen(QColor(palette["text"]), 1.2))
                 painter.drawLine(QPointF(lo, mid), QPointF(hi, mid))
@@ -546,8 +566,8 @@ class ChartWidget(QWidget):
                              fm.elidedText(str(row["name"]),
                                            Qt.TextElideMode.ElideMiddle,
                                            int(gutter - 8)))
-            end = max(width, frame.x(float(row["value"]) + 2 * float(row.get("sem") or 0))
-                      - r.left())
+            end = max(width, frame.x(min(ceiling, float(row["value"])
+                                         + 2 * float(row.get("sem") or 0))) - r.left())
             painter.drawText(QRectF(r.left() + end + 6, top - 4, value_w, bar_h + 8),
                              Qt.AlignmentFlag.AlignVCenter, label)
             tip = f"{row['name']}: {label}"
@@ -1235,6 +1255,7 @@ class ChartWidget(QWidget):
         menu.addAction("Copy image", self.copy_image)
         menu.addAction("Save PNG…", self._ask_png)
         menu.addAction("Save SVG…", self._ask_svg)
+        menu.addAction("Save PDF…", self._ask_pdf)
         menu.addAction("Save CSV…", self._ask_csv)
         menu.exec(self.mapToGlobal(position))
 
@@ -1249,6 +1270,12 @@ class ChartWidget(QWidget):
                                               "SVG image (*.svg)")
         if path:
             self.save_svg(path)
+
+    def _ask_pdf(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(self, "Save chart", "",
+                                              "PDF document (*.pdf)")
+        if path:
+            self.save_pdf(path)
 
     def _ask_csv(self) -> None:
         path, _ = QFileDialog.getSaveFileName(self, "Save chart data", "",

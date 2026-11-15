@@ -480,10 +480,24 @@ After a run (or a stepped Finish) the Results dock offers:
   Plot under Run panel ▸ Recording) and, for the downtime charts, offers
   to work out the drivers there and then. Above the chart are only the
   controls it uses: **Run** for a one-run chart over time, **Axis from**
-  for an availability chart over time, and **Export** (copy, PNG, SVG,
-  the chart's data as CSV, and, for a chart over time, every recorded
-  plot row in Raptor's `rpt_*_plot` layout). Hover a chart over time to
-  read every layer at that moment.
+  for an availability chart over time, **Fold items below** for a
+  ranking or treemap (gathers the items under 1, 2 or 5 % of the whole
+  into one "N others" row or cell, on screen and in what you save; the
+  caption names them), and **Export** (copy, PNG, SVG, PDF, the chart's
+  data as CSV, and, for a chart over time, every recorded plot row in
+  Raptor's `rpt_*_plot` layout). Hover a chart over time to read every
+  layer at that moment.
++
+Saved and copied charts are drawn for a page, chosen under **Export ▸
+Page size**: Screen (760 × 400), Slide (16:9), A4 or A3 landscape (the
+default is A4). The PNG (300 dpi), SVG and PDF (vector) show the same
+drawing, made for reports and slides: no label is ever shortened with
+"…". Long names wrap onto more lines, a bigger page gives them more
+room, and a treemap cell too small for its name gets a number and is
+named under the chart. A share and its uncertainty range never pass
+100 %. `raptor explain --chart NAME --chart-svg FILE` takes the same
+`--chart-page` and `--chart-min-share`, and the `run_chart` tool takes
+`page` and `min_share`.
 ** *Availability through a run* shows the share of time so far spent
    fully up (green), degraded (yellow) and down (red); the top of the
    yellow band is the run's availability to date.

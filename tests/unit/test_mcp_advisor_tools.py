@@ -164,6 +164,13 @@ def test_run_chart_matches_the_api_and_renders_svg(server, model):
     plain = ok(call(server, "run_chart", run_id=run["run_id"],
                     chart="trial-outcome", render_svg=False))
     assert "svg" not in plain and plain["kind"] == "dot_plot"
+    a3 = ok(call(server, "run_chart", run_id=run["run_id"], chart="downtime-pareto",
+                 page="a3", min_share=0.5))
+    assert "width='420mm'" in a3["svg"]
+    assert a3["provenance"].get("folded_below", 0.5) == 0.5
+    bad = call(server, "run_chart", run_id=run["run_id"], chart="downtime-pareto",
+               page="letter")
+    assert bad.is_error
 
 
 def test_run_chart_draws_a_chart_over_time(server, model):

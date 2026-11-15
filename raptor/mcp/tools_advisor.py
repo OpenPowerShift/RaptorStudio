@@ -236,7 +236,8 @@ def run_story(run_id: str) -> CallToolResult:
 @guarded
 def run_chart(run_id: str, chart: str = "trial-outcome",
               render_svg: bool = True, run: int = 1,
-              y_floor: float | None = None) -> CallToolResult:
+              y_floor: float | None = None, page: str = "screen",
+              min_share: float = 0.0) -> CallToolResult:
     """One chart of a finished run, as data and optionally as SVG.
 
     The same `ChartSpec` the application paints and `raptor explain --chart`
@@ -258,6 +259,14 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     plot recorded (`availability_plot=true`), `capacity-through-run` and
     `capacity-band` capacity analysis; `run` picks the run of a one-run
     chart and `y_floor` (0 to 1) the bottom of an availability axis.
+
+    For a report or slide: `page` sizes the SVG (`screen` 760 x 400,
+    `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names
+    more room and declare their size in mm) and `min_share` (0 to 1, e.g.
+    0.01) folds the items below that share of the whole into one "N others"
+    row or cell (element rankings and treemaps; the caption names them).
+    No label is ever shortened: names wrap, and treemap cells too small for
+    their name are numbered and listed under the chart.
     """
     from raptor.api.insight import charts, drivers
     from raptor.api.run import run_dir
@@ -280,11 +289,17 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
                  else {})
     if y_floor is not None and not 0.0 <= y_floor < 1.0:
         raise ValueError("y_floor must be at least 0 and below 1")
-    spec = charts.chart_named(chart, per_run=per_run, attribution=attribution,
-                              periods=periods, costs=costs, run=run,
-                              y_floor=y_floor, **over_time)
+    if not 0.0 <= min_share < 1.0:
+        raise ValueError("min_share must be at least 0 and below 1")
+    from raptor.render.charts_svg import PAGES
+    if page not in PAGES:
+        raise ValueError(f"page must be one of {', '.join(PAGES)}")
+    spec = charts.fold_small(
+        charts.chart_named(chart, per_run=per_run, attribution=attribution,
+                           periods=periods, costs=costs, run=run,
+                           y_floor=y_floor, **over_time), min_share)
     data = {**spec.to_dict(), "run_id": run_id}
     if render_svg:
         from raptor.render.charts_svg import render
-        data["svg"] = render(spec)
+        data["svg"] = render(spec, page=page)
     return ok(data, f"**{spec.title}** — {spec.caption}")

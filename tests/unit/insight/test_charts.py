@@ -328,3 +328,51 @@ def test_phase_downtime_keeps_phase_order_and_names_the_weakest():
                             "25 % of all downtime, mostly started by Pump.")
     from raptor.render.charts_svg import render
     assert "availability 50 %" in render(spec)
+
+
+# -- folding the small items (presentation setting) ------------------------
+
+def _many(n: int = 8) -> dict:
+    shares = [0.6, 0.3] + [0.1 / (n - 2)] * (n - 2)
+    return {"runs": 2, "causes": {"repair": 1.0},
+            "elements": [{"name": f"E{i}", "dtci": {"mean": s},
+                          "deci": {"mean": 0.1}, "red_time": {"mean": 1.0},
+                          "causes": {"repair": 0.5, "wait_spare": 0.5},
+                          "main_cause": "repair"}
+                         for i, s in enumerate(shares)]}
+
+
+def test_fold_small_gathers_a_ranking_tail_and_names_it():
+    from raptor.api.insight import charts
+    spec = charts.fold_small(charts.downtime_pareto(_many()), 0.05)
+    assert [r["name"] for r in spec.series][:2] == ["E0", "E1"]
+    folded = spec.series[-1]
+    assert folded["name"] == "6 others below 5 %"
+    assert folded["value"] == pytest.approx(0.1)
+    assert folded["folded"] == [f"E{i}" for i in range(2, 8)]
+    assert folded["causes"] == pytest.approx({"repair": 0.5, "wait_spare": 0.5})
+    assert "E7" in spec.caption
+    assert spec.provenance["folded"] == 6
+
+
+def test_fold_small_relays_a_treemap_and_keeps_the_total():
+    from raptor.api.insight import charts
+    base = charts.downtime_treemap(_many())
+    spec = charts.fold_small(base, 0.05)
+    assert len(spec.series) == 3
+    area = sum(r["w"] * r["h"] for r in spec.series)
+    assert area == pytest.approx(sum(r["w"] * r["h"] for r in base.series))
+    assert sum(r["value"] for r in spec.series) == pytest.approx(1.0)
+
+
+def test_fold_small_leaves_other_charts_and_single_items_alone():
+    from raptor.api.insight import charts
+    phases = charts.ChartSpec("pareto", "Downtime by phase", x_label="phase",
+                              series=[{"name": "a", "value": 0.001},
+                                      {"name": "b", "value": 0.001}],
+                              provenance={"format": "percent"})
+    assert charts.fold_small(phases, 0.05) is phases
+    one_small = charts.downtime_pareto(_many(3))
+    assert charts.fold_small(one_small, 0.05) is one_small
+    assert charts.fold_small(charts.downtime_pareto(_many()), 0.0).series[-1][
+        "name"] == "E7"

@@ -2818,11 +2818,21 @@ plot recorded (`availability_plot=true`), `capacity-through-run` and
 `capacity-band` capacity analysis; `run` picks the run of a one-run
 chart and `y_floor` (0 to 1) the bottom of an availability axis.
 
+For a report or slide: `page` sizes the SVG (`screen` 760 x 400,
+`slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names
+more room and declare their size in mm) and `min_share` (0 to 1, e.g.
+0.01) folds the items below that share of the whole into one "N others"
+row or cell (element rankings and treemaps; the caption names them).
+No label is ever shortened: names wrap, and treemap cells too small for
+their name are numbered and listed under the chart.
+
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `chart` | string | no | `trial-outcome` | — |
+| `min_share` | number | no | `0.0` | — |
+| `page` | string | no | `screen` | — |
 | `render_svg` | boolean | no | `true` | — |
 | `run` | integer | no | `1` | — |
 | `run_id` | string | yes | — | — |

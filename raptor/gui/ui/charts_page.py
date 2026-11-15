@@ -24,15 +24,16 @@ from dataclasses import dataclass
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtGui import QAction, QActionGroup, QColor, QFont
 from PySide6.QtWidgets import (
-    QFileDialog, QHBoxLayout, QLabel, QMenu, QPushButton, QSpinBox,
+    QComboBox, QFileDialog, QHBoxLayout, QLabel, QMenu, QPushButton, QSpinBox,
     QSplitter, QStackedWidget, QToolButton, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QWidget,
 )
 
 from raptor.api.insight import charts, timecharts
 from raptor.gui.resources.design_tokens import SPACING, active_colour
+from raptor.gui.ui import chart_export
 from raptor.gui.ui.chart_widget import ChartWidget
 
 _KEY = Qt.ItemDataRole.UserRole
@@ -142,9 +143,19 @@ class ChartsPage(QWidget):
             "axis to the data; a value above 0 is a fixed floor used by every "
             "availability chart over time. Saved with the model.")
         self.floor_button.clicked.connect(self._ask_floor)
+        self.fold_box = QComboBox()
+        for text, share in (("Show every item", 0.0), ("Fold items below 1 %", 0.01),
+                            ("Fold items below 2 %", 0.02),
+                            ("Fold items below 5 %", 0.05)):
+            self.fold_box.addItem(text, share)
+        self.fold_box.setToolTip(
+            "Gather the items below a share of the whole into one \"N others\" "
+            "row or cell, on screen and in what you save; the caption names them")
+        self.fold_box.currentIndexChanged.connect(lambda _i: self._show_current())
         for widget in (self.run_label, self.run_box, self.run_of):
             bar.addWidget(widget)
         bar.addStretch(1)
+        bar.addWidget(self.fold_box)
         bar.addWidget(self.floor_button)
         self.export_button = QToolButton()
         self.export_button.setText("Export")
@@ -154,7 +165,20 @@ class ChartsPage(QWidget):
         self.export_menu.addAction("Copy image", self.copy_image)
         self.export_menu.addAction("Save PNG…", self._ask_png)
         self.export_menu.addAction("Save SVG…", self._ask_svg)
+        self.export_menu.addAction("Save PDF…", self._ask_pdf)
         self.export_menu.addAction("Save chart data (CSV)…", self._ask_csv)
+        self.export_menu.addSeparator()
+        self.page_menu = self.export_menu.addMenu("Page size")
+        self.page_menu.setToolTipsVisible(True)
+        group = QActionGroup(self.page_menu)
+        self.page_actions: dict[str, QAction] = {}
+        for key, text in chart_export.PAGE_CHOICES:
+            action = self.page_menu.addAction(text)
+            action.setCheckable(True)
+            action.setChecked(key == ChartWidget.export_page)
+            action.triggered.connect(lambda _c=False, k=key: self.set_export_page(k))
+            group.addAction(action)
+            self.page_actions[key] = action
         self.export_menu.addSeparator()
         self.raw_action = self.export_menu.addAction(
             "Save the recorded plot rows…", self._ask_raw)
@@ -489,6 +513,9 @@ class ChartsPage(QWidget):
                 self._show_missing(entry.title, "This chart cannot be drawn from "
                                    "this result.", "")
             return
+        self.fold_box.setVisible(charts.foldable(spec))
+        if self.fold_share > 0:
+            spec = charts.fold_small(spec, self.fold_share)
         self.chart.set_spec(spec)
         self.chart.setToolTip(spec.caption)
         self.stack.setCurrentWidget(self.chart)
@@ -514,9 +541,26 @@ class ChartsPage(QWidget):
         floor = key in ("availability-through-run", "interval-availability",
                         "availability-band")
         self.floor_button.setVisible(floor)
+        self.fold_box.setVisible(False)      # _show_current shows it when it applies
         self._sync_floor_text()
         self.export_button.setEnabled(bool(key))
         self.raw_action.setVisible(key in timecharts.TIME_CHARTS)
+
+    @property
+    def fold_share(self) -> float:
+        """The share below which items are folded (0: show every item)."""
+        return float(self.fold_box.currentData() or 0.0)
+
+    @property
+    def export_page(self) -> str:
+        return self.chart.export_page
+
+    def set_export_page(self, page: str) -> None:
+        """The page saved and copied charts are drawn for: a bigger page
+        gives long names more room (`charts_svg.PAGES`)."""
+        self.chart.export_page = page
+        if page in self.page_actions:
+            self.page_actions[page].setChecked(True)
 
     def _sync_floor_text(self) -> None:
         self.floor_button.setText(
@@ -575,6 +619,9 @@ class ChartsPage(QWidget):
     def save_png(self, path: str) -> None:
         self.chart.save_png(path)
 
+    def save_pdf(self, path: str) -> None:
+        self.chart.save_pdf(path)
+
     def save_csv(self, path: str) -> None:
         self.chart.save_csv(path)
 
@@ -590,6 +637,10 @@ class ChartsPage(QWidget):
     def _ask_png(self) -> None:
         if path := self._ask("Save chart", "PNG image (*.png)"):
             self.save_png(path)
+
+    def _ask_pdf(self) -> None:
+        if path := self._ask("Save chart", "PDF document (*.pdf)"):
+            self.save_pdf(path)
 
     def _ask_csv(self) -> None:
         if path := self._ask("Save chart data", "CSV (*.csv)"):

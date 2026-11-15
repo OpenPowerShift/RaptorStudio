@@ -242,3 +242,54 @@ def test_capacity_and_annual_charts_appear_when_their_data_does(qapp):
         assert name in names
         page.select(name)
         assert not page.chart.grab().toImage().isNull()
+
+
+def _many_elements(attribution, n=8):
+    shares = [0.6, 0.3] + [0.1 / (n - 2)] * (n - 2)
+    attribution = dict(attribution)
+    attribution["elements"] = [
+        {"name": f"Element_{i}", "dtci": {"mean": s, "sem": 0.01},
+         "deci": {"mean": 0.1}, "red_time": {"mean": 1.0},
+         "causes": {"repair": 1.0}, "main_cause": "repair"}
+        for i, s in enumerate(shares)]
+    return attribution
+
+
+def test_the_fold_setting_folds_rankings_on_screen_and_in_saved_files(qapp, tmp_path):
+    page = ChartsPage()
+    per_run, attribution, _importance = _inputs()
+    page.set_inputs(per_run=per_run, attribution=_many_elements(attribution))
+    page.select("downtime-pareto")
+    assert page.fold_box.isVisibleTo(page)
+    assert len(page.chart.spec().series) == 8
+    page.fold_box.setCurrentIndex(page.fold_box.findData(0.05))
+    assert page.fold_share == 0.05
+    names = [row["name"] for row in page.chart.spec().series]
+    assert names == ["Element_0", "Element_1", "6 others below 5 %"]
+    path = tmp_path / "folded.svg"
+    page.save_svg(str(path))
+    assert "6 others below 5 %" in path.read_text(encoding="utf-8")
+    page.select("trial-outcome")           # not a ranking: no fold control
+    assert not page.fold_box.isVisibleTo(page)
+
+
+def test_saved_charts_use_the_chosen_page_in_every_format(qapp, tmp_path):
+    from PySide6.QtGui import QImage
+
+    page = ChartsPage()
+    per_run, attribution, _importance = _inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution)
+    page.select("downtime-pareto")
+    assert page.export_page == "a4" and page.page_actions["a4"].isChecked()
+    page.set_export_page("slide")
+    assert page.page_actions["slide"].isChecked()
+    page.save_svg(str(tmp_path / "c.svg"))
+    assert "338.67mm" in (tmp_path / "c.svg").read_text(encoding="utf-8")
+    page.save_png(str(tmp_path / "c.png"))
+    picture = QImage(str(tmp_path / "c.png"))
+    assert picture.width() == 4000 and picture.height() == 2250   # 300 dpi
+    page.save_pdf(str(tmp_path / "c.pdf"))
+    pdf = (tmp_path / "c.pdf").read_bytes()
+    assert pdf.startswith(b"%PDF") and len(pdf) > 2000
+    titles = [a.text() for a in page.export_menu.actions()]
+    assert "Save PDF…" in titles and "Page size" in titles

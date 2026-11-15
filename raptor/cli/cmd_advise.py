@@ -102,6 +102,15 @@ def add_parser(sub: Any) -> None:
                         "or availability-ladder (see --list-charts)")
     e.add_argument("--chart-svg", metavar="PATH",
                    help="write the chart as SVG (implies --chart when it is missing)")
+    e.add_argument("--chart-page", choices=("screen", "slide", "a4", "a3"),
+                   default="screen",
+                   help="page the SVG is drawn for: a bigger page gives long "
+                        "names more room; slide, a4 and a3 also set the "
+                        "physical size (default screen, 760 x 400)")
+    e.add_argument("--chart-min-share", metavar="S", type=float, default=0.0,
+                   help="fold the items below this share of the whole (0 to 1, "
+                        "e.g. 0.01) into one 'N others' row or cell; rankings "
+                        "and treemaps only")
     e.add_argument("--chart-run", metavar="N", type=int, default=1,
                    help="the run a one-run chart over time shows "
                         "(availability-through-run, interval-availability, "
@@ -286,7 +295,8 @@ def explain_command(args: Any) -> int:
             from raptor.api.insight.story import from_run
             story = from_run(ws, result.run_id)
         chart = _chart_for(ws, result.run_id, chart_name, attribution,
-                           run=args.chart_run, y_floor=args.y_floor)
+                           run=args.chart_run, y_floor=args.y_floor,
+                           min_share=args.chart_min_share)
         yearly = None
         if args.yearly or args.year_length is not None or args.below is not None:
             try:
@@ -336,8 +346,9 @@ def _explain_output(attribution: dict, story: Any, yearly: Any,
 
 def _chart_for(ws: Any, run_id: str, name: str | None,
                attribution: dict, *, run: int = 1,
-               y_floor: float | None = None) -> Any:
-    """Build the requested chart from a finished run, or None."""
+               y_floor: float | None = None, min_share: float = 0.0) -> Any:
+    """Build the requested chart from a finished run, or None; with
+    `min_share`, its small items folded into one (`charts.fold_small`)."""
     if not name:
         return None
     from raptor.api.insight import charts
@@ -349,6 +360,8 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
                  else {})
     if y_floor is not None and not 0.0 <= y_floor < 1.0:
         raise CliError("--y-floor must be at least 0 and below 1", X.USAGE)
+    if not 0.0 <= min_share < 1.0:
+        raise CliError("--chart-min-share must be at least 0 and below 1", X.USAGE)
     periods = None
     if name in ("annual-fan", "annual-dots", "annual-capacity-fan"):
         from raptor.api.insight import drivers
@@ -356,9 +369,10 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
     try:
         costs = (charts.stored_element_costs(ws, run_id)
                  if name in charts.COST_CHARTS else None)
-        return charts.chart_named(name, per_run=per_run, attribution=attribution,
-                                  periods=periods, costs=costs, run=run,
-                                  y_floor=y_floor, **over_time)
+        return charts.fold_small(
+            charts.chart_named(name, per_run=per_run, attribution=attribution,
+                               periods=periods, costs=costs, run=run,
+                               y_floor=y_floor, **over_time), min_share)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
 
@@ -395,5 +409,5 @@ def _print_chart(chart: Any, args: Any) -> None:
         print(f"  {name}: {value}")
     if args.chart_svg:
         from raptor.render.charts_svg import write
-        write(chart, args.chart_svg)
+        write(chart, args.chart_svg, page=args.chart_page)
         print(f"SVG written to {args.chart_svg}")

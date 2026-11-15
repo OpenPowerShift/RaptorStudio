@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import html
 import math
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -88,10 +89,42 @@ def _width(text: str) -> float:
     return len(str(text)) * CHAR_W
 
 
-def _fit(text: str, width: float) -> str:
-    text = str(text)
-    room = max(1, int(width / CHAR_W))
-    return text if len(text) <= room else text[:max(1, room - 1)] + "…"
+def _tokens(text: str) -> list[tuple[str, bool]]:
+    """(piece, starts a new word) - words split after `_ - /` and after a
+    dot followed by a letter as well, so an element name such as
+    Ground_Control can break at its underscore (but 10.4 never breaks)."""
+    out: list[tuple[str, bool]] = []
+    for word in str(text).split():
+        for i, piece in enumerate(re.split(r"(?<=[_\-/])(?=.)|(?<=\.)(?=[A-Za-z])", word)):
+            out.append((piece, i == 0))
+    return out
+
+
+def _wrap(text: str, width: float, *, size: int = 11) -> list[str]:
+    """`text` broken into lines no wider than `width`, never shortened.
+
+    Saved charts go into reports and slides, where a name cut to "Gro…"
+    is useless: a name too long for its space takes more lines instead
+    (and a single piece longer than a line breaks at the line's edge)."""
+    room = max(1, int(width / (CHAR_W * size / 11)))
+    lines: list[str] = []
+    line = ""
+    for piece, new_word in _tokens(text):
+        while len(piece) > room:
+            if line:
+                lines.append(line)
+                line = ""
+            lines.append(piece[:room])
+            piece = piece[room:]
+        joined = (f"{line} {piece}" if new_word else line + piece) if line else piece
+        if len(joined) <= room:
+            line = joined
+        else:
+            lines.append(line)
+            line = piece
+    if line:
+        lines.append(line)
+    return lines or [""]
 
 
 def _darker(colour: str) -> str:
@@ -144,6 +177,38 @@ def _text(x: float, y: float, body: str, *, size: int = 11,
     return (f"<text x='{_fmt(x)}' y='{_fmt(y)}' font-size='{size}' "
             f"font-weight='{weight}' text-anchor='{anchor}' "
             f"fill='{colour}' font-family='sans-serif'>{_esc(body)}</text>")
+
+
+def _lines(x: float, y: float, lines: Sequence[str], *, size: int = 11,
+           anchor: str = "start", weight: str = "400", colour: str = INK,
+           step: float = LINE_H) -> str:
+    """Several lines, one text element each (no tspans, which SVG Tiny
+    renderers and slide software place inconsistently); `y` is the first
+    line's baseline."""
+    return "\n".join(_text(x, y + i * step, line, size=size, anchor=anchor,
+                           weight=weight, colour=colour)
+                     for i, line in enumerate(lines))
+
+
+def _name_lines(out: list[str], right: float, middle: float, name: str,
+                width: float) -> None:
+    """An element name right-aligned in a gutter, wrapped, centred on `middle`."""
+    lines = _wrap(name, width)
+    first = middle + 4 - (len(lines) - 1) * LINE_H / 2
+    out.append(_lines(right, first, lines, anchor="end"))
+
+
+def _gutter(area: _Box, names: Sequence[str], rows: int, share: float = 0.4) -> float:
+    """A name gutter: as wide as the longest name, at most `share` of the
+    width, widened to half when the names would need more lines than a row
+    has room for."""
+    natural = max((_width(n) for n in names), default=0.0) + 10
+    gutter = min(area.width * share, natural)
+    band = (area.height - 3 * LINE_H) / max(1, rows)
+    fits = max(1, int(band / LINE_H))
+    if any(len(_wrap(n, gutter - 8)) > fits for n in names):
+        gutter = min(area.width * 0.5, natural)
+    return gutter
 
 
 def _rect(x: float, y: float, w: float, h: float, fill: str, extra: str = "") -> str:
@@ -377,7 +442,7 @@ def _bars(spec: ChartSpec, area: _Box, rows: list[dict], *, fmt: str,
           draw: Callable[[list[str], _Frame, dict, float, float], float | None],
           ) -> list[str]:
     """Horizontal bars with names in a gutter and a value after each bar."""
-    gutter = min(area.width * 0.4, max(_width(r["name"]) for r in rows) + 10)
+    gutter = _gutter(area, [str(r["name"]) for r in rows], len(rows))
     value_w = max(_width(t) for t in labels) + 10
     plot = _Box(area.left + gutter, area.top,
                 max(area.left + gutter + 40, area.right - value_w), area.bottom)
@@ -390,8 +455,8 @@ def _bars(spec: ChartSpec, area: _Box, rows: list[dict], *, fmt: str,
     for i, (row, label) in enumerate(zip(rows, labels, strict=True)):
         top = box.top + i * band + (band - bar_h) / 2
         end = draw(out, frame, row, top, bar_h)
-        out.append(_text(area.left + gutter - 8, top + bar_h / 2 + 4,
-                         _fit(row["name"], gutter - 8), anchor="end"))
+        _name_lines(out, area.left + gutter - 8, top + bar_h / 2, str(row["name"]),
+                    gutter - 8)
         out.append(_text(box.left + (end or 0.0) + 6, top + bar_h / 2 + 4, label,
                          size=10))
     return out
@@ -415,8 +480,12 @@ def _pareto(spec: ChartSpec, area: _Box) -> list[str]:
             text += f" (availability {format_value(float(row['availability']), 'percent', 5)})"
         return text
 
-    peak = max(float(r["value"]) + 2 * float(r.get("sem") or 0) for r in rows)
-    peak = nice_range(0.0, peak or 1.0, 4)[1]
+    # a share's uncertainty range stops at 0 and 100 %, and so does its axis
+    ceiling = 1.0 if fmt == "percent" and all(float(r["value"]) <= 1.0
+                                               for r in rows) else math.inf
+    peak = max(min(ceiling, float(r["value"]) + 2 * float(r.get("sem") or 0))
+               for r in rows)
+    peak = min(ceiling, nice_range(0.0, peak or 1.0, 4)[1])
 
     def draw(out: list[str], frame: _Frame, row: dict, top: float, bar_h: float) -> float:
         width = frame.x(float(row["value"])) - frame.box.left
@@ -433,7 +502,7 @@ def _pareto(spec: ChartSpec, area: _Box) -> list[str]:
         end = width
         if sem > 0:
             lo = frame.x(max(0.0, float(row["value"]) - 2 * sem))
-            hi = frame.x(float(row["value"]) + 2 * sem)
+            hi = frame.x(min(ceiling, float(row["value"]) + 2 * sem))
             mid = top + bar_h / 2
             out.append(_line(lo, mid, hi, mid, INK, width=1.2))
             out.append(_line(lo, mid - 4, lo, mid + 4, INK, width=1.2))
@@ -464,6 +533,10 @@ def _waterfall(spec: ChartSpec, area: _Box) -> list[str]:
     low = max(0.0, low)
     high = min(1.0, high) if max(ends) <= 1.0 else high
     columns = len(steps) + (1 if _number(operational) else 0)
+    column_w = (area.width - 60) / columns
+    names = [_wrap(str(s["name"]), column_w - 6, size=10) for s in steps]
+    extra = (max(len(n) for n in names) - 1) * 12
+    area = _Box(area.left, area.top, area.right, area.bottom - extra)
     out: list[str] = []
     frame = _frame(out, spec, area, x_range=(0, columns), y_range=(low, high),
                    y_fmt="percent", x_ticks=[], x_label="",
@@ -488,8 +561,8 @@ def _waterfall(spec: ChartSpec, area: _Box) -> list[str]:
                              _width(drop) + 6, LINE_H, fill))
             out.append(_text(x + width / 2, min(y0, y1) + 14, drop, size=10,
                              anchor="middle", colour=_ink_on(fill)))
-        out.append(_text(x + width / 2, box.bottom + 15,
-                         _fit(step["name"], width - 4), size=10, anchor="middle"))
+        out.append(_lines(x + width / 2, box.bottom + 15, names[i], size=10,
+                          anchor="middle", step=12))
     if not _number(operational):
         return out
     end = float(steps[-1]["to"])
@@ -526,7 +599,7 @@ def _ladder(spec: ChartSpec, area: _Box) -> list[str]:
 
 def _ladder_zoomed(spec: ChartSpec, area: _Box, rows: list[dict], labels: list[str],
                    x_range: tuple[float, float], colours: list[str]) -> list[str]:
-    gutter = min(area.width * 0.45, max(_width(r["name"]) for r in rows) + 10)
+    gutter = _gutter(area, [str(r["name"]) for r in rows], len(rows), 0.45)
     value_w = max(_width(t) for t in labels) + 10
     plot = _Box(area.left + gutter, area.top,
                 max(area.left + gutter + 40, area.right - value_w), area.bottom)
@@ -542,8 +615,8 @@ def _ladder_zoomed(spec: ChartSpec, area: _Box, rows: list[dict], labels: list[s
         right = frame.x(float(row["value"]))
         out.append(_rect(box.left, top, right - box.left, bar_h,
                          colours[i % len(colours)]))
-        out.append(_text(area.left + gutter - 8, top + bar_h / 2 + 4,
-                         _fit(row["name"], gutter - 8), anchor="end"))
+        _name_lines(out, area.left + gutter - 8, top + bar_h / 2, str(row["name"]),
+                    gutter - 8)
         out.append(_text(right + 6, top + bar_h / 2 + 4, label, size=10))
     return out
 
@@ -728,7 +801,7 @@ def _capacity_pareto(spec: ChartSpec, area: _Box) -> list[str]:
     peak = max(max(float(r.get("value") or 0), float(r.get("downtime") or 0))
                for r in rows) or 1.0
     peak = nice_range(0.0, peak, 4)[1]
-    gutter = min(area.width * 0.4, max(_width(r["name"]) for r in rows) + 10)
+    gutter = _gutter(area, [str(r["name"]) for r in rows], len(rows))
     value_w = _width("100 %") + 10
     plot = _Box(area.left + gutter, area.top,
                 max(area.left + gutter + 40, area.right - value_w), area.bottom)
@@ -746,8 +819,8 @@ def _capacity_pareto(spec: ChartSpec, area: _Box) -> list[str]:
             out.append(_rect(box.left, y, frame.x(value) - box.left, bar_h, colour))
             out.append(_text(frame.x(value) + 4, y + bar_h - 1,
                              format_value(value, "percent", 3), size=9))
-        out.append(_text(area.left + gutter - 8, top + bar_h + 4,
-                         _fit(row["name"], gutter - 8), anchor="end"))
+        _name_lines(out, area.left + gutter - 8, top + bar_h + 1, str(row["name"]),
+                    gutter - 8)
     return out
 
 
@@ -833,20 +906,109 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:
     return out
 
 
+@dataclass
+class _Unlabelled:
+    """A cell too small for its name: a number in the cell (when even that
+    fits) and an entry in the footnote under the chart."""
+    text: str
+    share: float
+    marker: tuple[float, float] | None = None
+    number: int = 0
+
+
 def _cell_text(out: list[str], x: float, y: float, w: float, h: float,
-               cause: str, lines: Sequence[str]) -> None:
-    if w < 28 or h < LINE_H + 2:
-        return
+               cause: str, lines: Sequence[str]) -> bool:
+    """Label a cell in full (name wrapped, then the amount) on a plate of
+    the cell's colour.  Returns False, drawing nothing, when the whole label
+    does not fit: a cell is never labelled with a shortened name."""
+    if w < 28:
+        return False
+    wrapped = [part for line in lines for part in _wrap(line, w - 10, size=10)]
+    if len(wrapped) * LINE_H + 3 > h:
+        return False
     colour = CAUSE_COLOURS.get(cause, CAUSE_COLOURS["other"])
     ink = _ink_on(colour)
     top = y + 2
-    for line in lines:
-        if top + LINE_H > y + h - 1:
-            break
-        text = _fit(line, w - 10)
-        out.append(_rect(x + 2, top, _width(text) + 6, LINE_H, colour))
+    for text in wrapped:
+        out.append(_rect(x + 2, top, _width(text) * 10 / 11 + 6, LINE_H, colour))
         out.append(_text(x + 5, top + 11, text, size=10, colour=ink))
         top += LINE_H
+    return True
+
+
+def _footnote(missing: list[_Unlabelled], limit: int) -> list[str]:
+    """The footnote's entries: every numbered cell, then the others by size
+    while they are at least 0.5 % and there are fewer than `limit`, then one
+    entry summing the rest (so the footnote never outgrows the chart)."""
+    entries: list[str] = []
+    rest: list[_Unlabelled] = []
+    for item in sorted(missing, key=lambda m: (m.number == 0, m.number, -m.share)):
+        if item.number or (len(entries) < limit and item.share >= 0.005):
+            entries.append(f"({item.number}) {item.text}" if item.number else item.text)
+        else:
+            rest.append(item)
+    if rest:
+        entries.append(f"+ {len(rest)} smaller cells, together "
+                       f"{format_value(sum(m.share for m in rest), 'percent', 3)}")
+    return entries
+
+
+def _pack(entries: list[str], width: float, *, size: int = 10,
+          lead: str = "Not labelled in the chart:") -> list[str]:
+    """Entries joined by " · " into lines no wider than `width`, an entry
+    never split across lines unless it is wider than a line by itself."""
+    room = width / (CHAR_W * size / 11)
+    lines, line = [], lead
+    for entry in entries:
+        joined = f"{line} {entry}" if line == lead else f"{line} · {entry}"
+        if len(joined) <= room:
+            line = joined
+        elif len(entry) > room:
+            lines.append(line)
+            *full, line = _wrap(entry, width, size=size)
+            lines.extend(full)
+        else:
+            lines.append(line)
+            line = entry
+    lines.append(line)
+    return lines
+
+
+def _with_footnote(area: _Box,
+                   draw: Callable[[_Box], tuple[list[str], list[_Unlabelled]]],
+                   limit: int = 40) -> list[str]:
+    """Draw cells in `area` less room for the footnote naming the cells too
+    small to label, re-drawing until the footnote's height settles."""
+    lines: list[str] = []
+    out: list[str] = []
+    missing: list[_Unlabelled] = []
+    for _attempt in range(4):
+        body = _Box(area.left, area.top, area.right,
+                    area.bottom - (len(lines) * LINE_H + 6 if lines else 0))
+        out, missing = draw(body)
+        number = 0
+        for item in missing:
+            if item.marker is not None:
+                number += 1
+                item.number = number
+        new = _pack(_footnote(missing, limit), area.width) if missing else []
+        if len(new) <= len(lines):
+            break
+        lines = new
+    lines = _pack(_footnote(missing, limit), area.width) if missing else []
+    for item in missing:
+        if item.marker is not None and item.number:
+            mx, my = item.marker
+            label = str(item.number)
+            w = _width(label) * 9 / 11 + 6
+            out.append(_rect(mx + 1, my + 1, w, 12, "#ffffff",
+                             " fill-opacity='0.92' rx='2'"))
+            out.append(_text(mx + 1 + w / 2, my + 10.5, label, size=9,
+                             anchor="middle", colour=INK))
+    if lines:
+        out.append(_lines(area.left, area.bottom - len(lines) * LINE_H + 10, lines,
+                          size=10, colour=MUTED))
+    return out
 
 
 def _treemap_amount(spec: ChartSpec, row: dict) -> str:
@@ -858,23 +1020,39 @@ def _treemap_amount(spec: ChartSpec, row: dict) -> str:
     return text
 
 
+def _share(row: dict, total: float) -> float:
+    if _number(row.get("share")):
+        return float(row["share"])
+    return float(row.get("value") or 0.0) / total if total else 0.0
+
+
 def _treemap(spec: ChartSpec, area: _Box) -> list[str]:
     rows = [row for row in spec.series if float(row.get("w") or 0) > 0]
     if not rows:
         return []
     width = max(float(r["x"]) + float(r["w"]) for r in rows) or 1.0
     height = max(float(r["y"]) + float(r["h"]) for r in rows) or 1.0
-    out: list[str] = []
-    for row in rows:
-        x = area.left + float(row["x"]) / width * area.width
-        y = area.top + float(row["y"]) / height * area.height
-        w = float(row["w"]) / width * area.width
-        h = float(row["h"]) / height * area.height
-        cause = str(row.get("cause") or "other")
-        out.append(_rect(x, y, w, h, _cause_fill(cause),
-                         " stroke='#ffffff' stroke-width='1.5'"))
-        _cell_text(out, x, y, w, h, cause, [str(row["name"]), _treemap_amount(spec, row)])
-    return out
+    total = sum(float(r.get("value") or 0.0) for r in rows)
+
+    def draw(body: _Box) -> tuple[list[str], list[_Unlabelled]]:
+        out: list[str] = []
+        missing: list[_Unlabelled] = []
+        for row in rows:
+            x = body.left + float(row["x"]) / width * body.width
+            y = body.top + float(row["y"]) / height * body.height
+            w = float(row["w"]) / width * body.width
+            h = float(row["h"]) / height * body.height
+            cause = str(row.get("cause") or "other")
+            out.append(_rect(x, y, w, h, _cause_fill(cause),
+                             " stroke='#ffffff' stroke-width='1.5'"))
+            amount = _treemap_amount(spec, row)
+            if not _cell_text(out, x, y, w, h, cause, [str(row["name"]), amount]):
+                missing.append(_Unlabelled(
+                    f"{row['name']}: {amount}", _share(row, total),
+                    (x, y) if w >= 16 and h >= 14 else None))
+        return out, missing
+
+    return _with_footnote(area, draw)
 
 
 def _icicle(spec: ChartSpec, area: _Box) -> list[str]:
@@ -882,26 +1060,35 @@ def _icicle(spec: ChartSpec, area: _Box) -> list[str]:
     if not rows:
         return []
     columns = max(int(row["column"]) for row in rows) + 1
-    body = _Box(area.left, area.top, area.right, area.bottom - LINE_H - 4)
-    width = body.width / columns
     total = sum(float(r["value"]) for r in rows if int(r["column"]) == 0) or 1.0
-    out: list[str] = []
-    for column in range(columns):
-        y = body.top
-        for row in (r for r in rows if int(r["column"]) == column):
-            h = body.height * float(row["value"]) / total
-            cause = str(row.get("cause") or "other")
-            x = body.left + column * width
-            out.append(_rect(x + 1, y + 1, max(1.0, width - 2), max(1.0, h - 2),
-                             _cause_fill(cause)))
-            _cell_text(out, x + 1, y + 1, width - 2, h - 2, cause,
-                       [str(row["label"]),
-                        format_value(float(row["value"]), "percent", 3)])
-            y += h
-        out.append(_text(body.left + column * width + width / 2, body.bottom + 14,
-                         "first" if column == 0 else f"then (step {column + 1})",
-                         size=10, anchor="middle", colour=MUTED))
-    return out
+
+    def draw(region: _Box) -> tuple[list[str], list[_Unlabelled]]:
+        body = _Box(region.left, region.top, region.right, region.bottom - LINE_H - 4)
+        width = body.width / columns
+        out: list[str] = []
+        missing: list[_Unlabelled] = []
+        for column in range(columns):
+            y = body.top
+            for row in (r for r in rows if int(r["column"]) == column):
+                h = body.height * float(row["value"]) / total
+                cause = str(row.get("cause") or "other")
+                x = body.left + column * width
+                out.append(_rect(x + 1, y + 1, max(1.0, width - 2), max(1.0, h - 2),
+                                 _cause_fill(cause)))
+                amount = format_value(float(row["value"]), "percent", 3)
+                if not _cell_text(out, x + 1, y + 1, width - 2, h - 2, cause,
+                                  [str(row["label"]), amount]):
+                    missing.append(_Unlabelled(
+                        f"step {column + 1} {row['label']}: {amount}",
+                        float(row["value"]) / total,
+                        (x + 1, y + 1) if h - 2 >= 14 else None))
+                y += h
+            out.append(_text(body.left + column * width + width / 2, body.bottom + 14,
+                             "first" if column == 0 else f"then (step {column + 1})",
+                             size=10, anchor="middle", colour=MUTED))
+        return out, missing
+
+    return _with_footnote(area, draw, limit=8)
 
 
 def _ribbon(spec: ChartSpec, area: _Box) -> list[str]:
@@ -955,25 +1142,53 @@ _RENDERERS: dict[str, Callable[[ChartSpec, _Box], list[str]]] = {
 }
 
 
+#: Page sizes for saved charts: the drawing size in SVG units and the
+#: physical size the file declares (None: plain pixels).  Text keeps its
+#: size in drawing units, so a bigger page gives the names more room (A3
+#: holds what A4 must wrap) and prints at a readable size: 11 units is
+#: 8 pt on A4 and A3, 13 pt on a 16:9 slide.
+PAGES: dict[str, tuple[int, int, tuple[str, str] | None]] = {
+    "screen": (WIDTH, HEIGHT, None),
+    "slide": (800, 450, ("338.67mm", "190.5mm")),
+    "a4": (1123, 794, ("297mm", "210mm")),
+    "a3": (1587, 1123, ("420mm", "297mm")),
+}
+
+
 def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
-           background: str = "#ffffff", text_colour: str = INK,
-           id_prefix: str = "") -> str:
+           page: str | None = None, background: str = "#ffffff",
+           text_colour: str = INK, id_prefix: str = "") -> str:
     """One ChartSpec as a complete SVG document.
 
+    `page` (a `PAGES` name) sets the size, overriding `width` and `height`.
+    No label is ever shortened: names wrap onto more lines, and a treemap
+    cell too small for its name is numbered and named in a footnote.
     `id_prefix` makes the pattern ids unique when several charts are inlined
     in one HTML page (the report): repeated ids are invalid there."""
+    physical: tuple[str, str] | None = None
+    if page is not None:
+        if page not in PAGES:
+            raise ValueError(f"unknown page {page!r}; known pages: "
+                             f"{', '.join(PAGES)}")
+        width, height, physical = PAGES[page]
+    size = (f"width='{physical[0]}' height='{physical[1]}'" if physical
+            else f"width='{width}' height='{height}'")
+    title = _wrap(spec.title, width - 2 * PAD, size=15)
+    subtitle = _wrap(spec.subtitle, width - 2 * PAD) if spec.subtitle else []
     body: list[str] = [
-        f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' "
-        f"height='{height}' viewBox='0 0 {width} {height}' "
+        f"<svg xmlns='http://www.w3.org/2000/svg' {size} "
+        f"viewBox='0 0 {width} {height}' "
         f"role='img' aria-label='{_esc(spec.title)}'>",
         f"<rect width='{width}' height='{height}' fill='{background}'/>",
-        _text(width / 2, 22, spec.title, size=15, anchor="middle",
-              weight="600", colour=text_colour),
-        _text(width / 2, 39, spec.subtitle, size=11, anchor="middle",
-              colour=MUTED),
+        _lines(width / 2, 22, title, size=15, anchor="middle", weight="600",
+               colour=text_colour, step=19),
         *_cause_defs(),
     ]
-    top = float(TITLE_H)
+    sub_y = 22 + 19 * (len(title) - 1) + 17
+    if subtitle:
+        body.append(_lines(width / 2, sub_y, subtitle, anchor="middle", colour=MUTED))
+    top = sub_y + LINE_H * (len(subtitle) - 1) + 9.0 if subtitle else sub_y - 8.0
+    top = max(top, float(TITLE_H))
     x = float(PAD)
     for label, fill in _key(spec):
         w = 18 + _width(label) + 14
@@ -984,12 +1199,14 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
         x += w
     if _key(spec):
         top += KEY_H
-    area = _Box(PAD, top + 4, width - PAD, height - CAPTION_H)
+    caption = _wrap(spec.caption, width - 2 * PAD) if spec.caption else []
+    bottom = height - CAPTION_H - LINE_H * max(0, len(caption) - 1)
+    area = _Box(PAD, top + 4, width - PAD, bottom)
     renderer = _RENDERERS.get(spec.kind)
     body.extend(renderer(spec, area) if renderer is not None else [])
-    if spec.caption:
-        body.append(_text(PAD, height - 9, spec.caption, size=11,
-                          colour=text_colour))
+    if caption:
+        body.append(_lines(PAD, height - 9 - LINE_H * (len(caption) - 1), caption,
+                           colour=text_colour))
     body.append("</svg>")
     svg = "\n".join(body)
     if id_prefix:
@@ -998,9 +1215,10 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
     return svg
 
 
-def write(spec: ChartSpec, path: str | Any) -> str:
-    """Write the SVG and return the path as text."""
-    text = render(spec)
+def write(spec: ChartSpec, path: str | Any, *, page: str | None = None) -> str:
+    """Write the SVG (at a `PAGES` size when `page` is given) and return
+    the path as text."""
+    text = render(spec, page=page)
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(text)
     return str(path)

@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-explain \- Run MODEL and attribute every system outage to the element that started it and to a cause: hands\-on repair, waiting for a spare, waiting for people or equipment, logistics delay, planned maintenance, or being held by another element. Shows each element's share of system downtime (with its sampling error), of outages and of failures, and what typical outages look like. The engine's results are unchanged: this replays the event log.
 .SH SYNOPSIS
-\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-report PATH] [\-\-report\-include LIST] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-chart\-run N] [\-\-y\-floor F] [\-\-list\-charts] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] [MODEL]
+\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-report PATH] [\-\-report\-include LIST] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-chart\-page {screen,slide,a4,a3}] [\-\-chart\-min\-share S] [\-\-chart\-run N] [\-\-y\-floor F] [\-\-list\-charts] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] [MODEL]
 .SH DESCRIPTION
 Run MODEL and attribute every system outage to the element that started it and to a cause: hands\-on repair, waiting for a spare, waiting for people or equipment, logistics delay, planned maintenance, or being held by another element. Shows each element's share of system downtime (with its sampling error), of outages and of failures, and what typical outages look like. The engine's results are unchanged: this replays the event log.
 .SH OPTIONS
@@ -49,6 +49,12 @@ also build one chart from this run, e.g. downtime\-pareto or availability\-ladde
 .TP
 \fB\-\-chart\-svg\fR \fIPATH\fR
 write the chart as SVG (implies \-\-chart when it is missing)
+.TP
+\fB\-\-chart\-page\fR \fI{screen|slide|a4|a3}\fR
+page the SVG is drawn for: a bigger page gives long names more room; slide, a4 and a3 also set the physical size (default screen, 760 x 400)
+.TP
+\fB\-\-chart\-min\-share\fR \fIS\fR
+fold the items below this share of the whole (0 to 1, e.g. 0.01) into one 'N others' row or cell; rankings and treemaps only
 .TP
 \fB\-\-chart\-run\fR \fIN\fR
 the run a one\-run chart over time shows (availability\-through\-run, interval\-availability, capacity\-through\-run; default 1)
