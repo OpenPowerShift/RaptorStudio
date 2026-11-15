@@ -92,6 +92,27 @@ failures are absorbed. When you budget improvements, multiply
 frequency by cost, and look at the product, not the frequency.
 ====
 
+==== From the command line
+
+`raptor explain` runs the model, reads every event log and prints the
+blame table:
+
+[source,bash]
+----
+raptor explain models/VanFlat.rbds -n 200 --top 6
+----
+
+Its *Outages* column is the share of stoppages each part started (the
+table above), and *Downtime* is its share of the hours the van stood
+still. The timesheet comes from the weak-link tables, as a share of the
+mission (0.78 % of 2000 h is Fuel_Pump's 15.7 hours in repair):
+
+[source,bash]
+----
+raptor tables models/VanFlat.rbds --run -n 200 --analysis weak \
+  --table results.weak_link_analysis_block_analysis_state_data --format txt -o out
+----
+
 === Let the colours do the reading
 
 **Results ▸ Show on Canvas ▸ Weak Links** paints each block by its availability

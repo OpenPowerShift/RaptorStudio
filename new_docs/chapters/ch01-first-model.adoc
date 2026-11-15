@@ -232,6 +232,19 @@ With these exact files and 10 trials you should see something like:
 |System Failures (Mean) |about 0.5 to 0.7 per trial
 |===
 
+==== From the command line
+
+The same run without the window, from the `new_docs` folder:
+
+[source,bash]
+----
+raptor run models/Lantern1.rbds --metrics Reliability,System_Failures
+----
+
+It prints one row per measure: mean, min, max, standard deviation and
+the standard error of the mean (`sem`). `raptor info models/Lantern1.rbds`
+lists the blocks and links you just read on the canvas.
+
 === What just happened
 
 The simulator played your camping trip **10 times**. Each play is one

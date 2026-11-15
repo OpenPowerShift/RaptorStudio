@@ -99,12 +99,12 @@ def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
         lines.append("By cause: " + ", ".join(
             f"{CAUSE_LABELS[c].lower()} {_pct(v)}" for c, v in by_cause))
     lines.append("")
-    lines.append(f"{'Element':<22}{'Downtime':>10}{'±':>8}{'Outages':>9}{'Failures':>10}  Main cause")
+    lines.append(f"{'Element':<22}{'Downtime':>10}{'±':>11}{'Outages':>10}{'Failures':>10}  Main cause")
     for e in top(attribution, n):
         sem = e["dtci"]["sem"]
         lines.append(
             f"{e['name'][:21]:<22}{_pct(e['dtci']['mean']):>10}"
-            f"{(_pct(sem) if sem is not None else ''):>8}{_pct(e['deci']['mean']):>9}"
+            f"{(_pct(sem) if sem is not None else ''):>11}{_pct(e['deci']['mean']):>10}"
             f"{_pct(e['fci']['mean']):>10}  "
             f"{CAUSE_LABELS.get(e['main_cause'] or '', '')}")
     sequences = attribution.get("sequences") or []
@@ -163,12 +163,12 @@ def hierarchy_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
     """Each hierarchy's share of downtime: the outages started by anything
     inside it, at any depth, pooled over the runs (so ± is its own)."""
     lines = ["By hierarchy (everything inside it, at any depth):",
-             f"{'Hierarchy':<22}{'Downtime':>10}{'±':>8}{'Inside':>8}  Main cause"]
+             f"{'Hierarchy':<22}{'Downtime':>10}{'±':>11}{'Inside':>8}  Main cause"]
     for row in (attribution.get("hierarchies") or [])[:n]:
         sem = row["dtci"]["sem"]
         indent = "  " * max(0, int(row.get("depth") or 1) - 1)
         lines.append(f"{(indent + row['name'])[:21]:<22}{_pct(row['dtci']['mean']):>10}"
-                     f"{(_pct(sem) if sem is not None else ''):>8}{row['elements']:>8}  "
+                     f"{(_pct(sem) if sem is not None else ''):>11}{row['elements']:>8}  "
                      f"{CAUSE_LABELS.get(row['main_cause'] or '', '')}")
     return lines
 

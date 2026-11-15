@@ -473,6 +473,25 @@ you are using.
 </tr>
 </table>
 </div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Tip</div>
+</td>
+<td class="content">
+Every word the book uses in a special sense (trial, DTCI, MTBDE,
+SEM and the rest) is in the <a href="#appendix-glossary">Chapter 27, <em>Appendix: Glossary</em></a>.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>The chapters show the desktop application, but nothing in them needs it.
+Each early chapter ends its run with a <strong>From the command line</strong> box: the
+same model and measures through <code>raptor</code>, run from the <code>new_docs</code> folder.
+<code>raptor help</code> lists the commands and <code>raptor help run</code> explains one.</p>
+</div>
 <div class="admonitionblock note">
 <table>
 <tr>
@@ -1204,6 +1223,22 @@ table. Look at the <strong>Reliability</strong> row, <strong>Mean</strong> colum
 </tr>
 </tbody>
 </table>
+<div class="sect3">
+<h4 id="_from_the_command_line">2.8.1. From the command line</h4>
+<div class="paragraph">
+<p>The same run without the window, from the <code>new_docs</code> folder:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor run models/Lantern1.rbds --metrics Reliability,System_Failures</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>It prints one row per measure: mean, min, max, standard deviation and
+the standard error of the mean (<code>sem</code>). <code>raptor info models/Lantern1.rbds</code>
+lists the blocks and links you just read on the canvas.</p>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_what_just_happened">2.9. What just happened</h3>
@@ -1613,6 +1648,24 @@ system shrugs and carries on. Later, if Pump_B also dies, the node goes
 <p>This ripple — part fails, node re-checks, system re-checks — is how
 every event in every model travels.</p>
 </div>
+<div class="sect3">
+<h4 id="_from_the_command_line_2">3.7.1. From the command line</h4>
+<div class="paragraph">
+<p><code>raptor step</code> plays one trial a state change at a time and stops when a
+block you name changes status:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor run models/Espresso1.rbds -n 1000 --metrics Reliability
+raptor step models/Espresso1.rbds --break Pump_A -f text</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The first command gives the long-run reliability. The second prints the
+moment Pump_A dies, the event-log lines above, and the node going
+<strong>Degraded</strong>. <code>raptor run &#8230;&#8203; -r events -o DIR</code> writes the whole event
+log of every trial to <code>DIR/rpt_events_Espresso1.txt</code>.</p>
+</div>
 <div class="admonitionblock note">
 <table>
 <tr>
@@ -1634,6 +1687,7 @@ two parts have in common besides the job they share.</p>
 </td>
 </tr>
 </table>
+</div>
 </div>
 </div>
 <div class="sect2">
@@ -3459,6 +3513,22 @@ for the same relative precision. The
 <a href="../docs/formulas.html#rare-events">Formulas quick reference</a> has
 the trial counts by target; the data centre in the book&#8217;s capstone runs
 straight into this problem.</p>
+</div>
+<div class="sect3">
+<h4 id="_from_the_command_line_3">8.7.1. From the command line</h4>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor run models/Lantern1.rbds -n 200 --seed 7 --metrics Reliability
+raptor run models/Lantern1.rbds --precision 10% --metrics Reliability</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>-n</code> sets the trial count and <code>--seed</code> re-rolls the dice reproducibly:
+the same seed gives the same numbers every time. <code>--precision 10%</code>
+keeps adding batches of trials until the ±2 SEM half-width is a tenth
+of the mean, then stops. <code>-j 4</code> runs on four cores, and <code>raptor sweep</code>
+and <code>raptor compare</code> are the command-line Sweep and Compare.</p>
+</div>
 </div>
 </div>
 <div class="sect2">
@@ -7692,6 +7762,30 @@ frequency by cost, and look at the product, not the frequency.</p>
 </td>
 </tr>
 </table>
+</div>
+<div class="sect3">
+<h4 id="_from_the_command_line_4">18.6.1. From the command line</h4>
+<div class="paragraph">
+<p><code>raptor explain</code> runs the model, reads every event log and prints the
+blame table:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor explain models/VanFlat.rbds -n 200 --top 6</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Its <strong>Outages</strong> column is the share of stoppages each part started (the
+table above), and <strong>Downtime</strong> is its share of the hours the van stood
+still. The timesheet comes from the weak-link tables, as a share of the
+mission (0.78 % of 2000 h is Fuel_Pump&#8217;s 15.7 hours in repair):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor tables models/VanFlat.rbds --run -n 200 --analysis weak \
+  --table results.weak_link_analysis_block_analysis_state_data --format txt -o out</code></pre>
+</div>
+</div>
 </div>
 </div>
 <div class="sect2">

@@ -116,6 +116,20 @@ xref:../docs/formulas.html#rare-events[Formulas quick reference] has
 the trial counts by target; the data centre in the book's capstone runs
 straight into this problem.
 
+==== From the command line
+
+[source,bash]
+----
+raptor run models/Lantern1.rbds -n 200 --seed 7 --metrics Reliability
+raptor run models/Lantern1.rbds --precision 10% --metrics Reliability
+----
+
+`-n` sets the trial count and `--seed` re-rolls the dice reproducibly:
+the same seed gives the same numbers every time. `--precision 10%`
+keeps adding batches of trials until the ±2 SEM half-width is a tenth
+of the mean, then stops. `-j 4` runs on four cores, and `raptor sweep`
+and `raptor compare` are the command-line Sweep and Compare.
+
 === Check yourself
 
 [cols="1,4"]

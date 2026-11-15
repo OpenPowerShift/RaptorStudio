@@ -43,6 +43,14 @@ in the *xref:../docs/formulas.html[Formulas quick reference]*. Press
 kbd:[F1] in the app to jump to the manual section for whatever panel
 you are using.
 
+TIP: Every word the book uses in a special sense (trial, DTCI, MTBDE,
+SEM and the rest) is in the <<appendix-glossary>>.
+
+The chapters show the desktop application, but nothing in them needs it.
+Each early chapter ends its run with a *From the command line* box: the
+same model and measures through `raptor`, run from the `new_docs` folder.
+`raptor help` lists the commands and `raptor help run` explains one.
+
 [NOTE]
 ====
 Your simulation numbers will not match the book digit for digit. The
