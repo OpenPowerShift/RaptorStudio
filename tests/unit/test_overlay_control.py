@@ -26,12 +26,12 @@ def qapp():
 def test_one_combo_lists_every_overlay_and_none(qapp):
     win = MainWindow()
     combo = win._overlay_combo
-    assert combo.count() == 8
+    assert combo.count() == 9
     assert combo.itemText(0) == "No canvas overlay"
     assert {combo.itemText(i) for i in range(1, combo.count())} == {
         "Share of downtime", "Lost capacity",
         "Weak link (own availability)", "Capacity", "Cost", "Spares",
-        "Importance"}
+        "Importance", "Advisor findings"}
 
 
 def test_choosing_an_overlay_checks_only_that_action(qapp):
