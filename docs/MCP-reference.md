@@ -4066,7 +4066,8 @@ availability meets `target`; when none does, the best measured size,
 said so. `resources` limits the search to those resources.
 
 Returns every size simulated (`rows`), `recommendations` ({resource,
-units, mean, lower, why, changes}) and `changes`: the PATH=VALUE edits
+units, mean, lower, cost, why, changes}; `cost` is the run's mean total
+cost, present when the model has cost analysis on) and `changes`: the PATH=VALUE edits
 for the recommended sizes (apply them with `manage_resources` or `raptor
 set`). The open model is never modified.
 

@@ -175,7 +175,8 @@ async def optimise_resources(
     said so. `resources` limits the search to those resources.
 
     Returns every size simulated (`rows`), `recommendations` ({resource,
-    units, mean, lower, why, changes}) and `changes`: the PATH=VALUE edits
+    units, mean, lower, cost, why, changes}; `cost` is the run's mean total
+    cost, present when the model has cost analysis on) and `changes`: the PATH=VALUE edits
     for the recommended sizes (apply them with `manage_resources` or `raptor
     set`). The open model is never modified.
     """
@@ -192,10 +193,11 @@ async def optimise_resources(
                       progress=lambda done, total, text: progress(done, total, text))
 
     result = await run_job(ctx, work, label="Sizing crews")
-    lines = ["| Resource | Units | Mean | Lower bound | Why |", "|---|---|---|---|---|"]
+    lines = ["| Resource | Units | Mean | Lower bound | Mean cost | Why |",
+             "|---|---|---|---|---|---|"]
     for rec in result["recommendations"]:
         lines.append(f"| {rec['resource']} | {rec['units']} | {_fmt(rec['mean'])} | "
-                     f"{_fmt(rec['lower'])} | {rec['why']} |")
+                     f"{_fmt(rec['lower'])} | {_fmt(rec.get('cost'))} | {rec['why']} |")
     md = f"{result['caption']}\n\n" + "\n".join(lines) + f"\n\n{result['note']}"
     return ok(result, md + _changes_md(result["changes"]))
 

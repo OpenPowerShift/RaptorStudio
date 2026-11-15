@@ -255,8 +255,9 @@ def _print_resources(result: dict[str, Any]) -> None:
         print(f"{recommendation['resource']}: {recommendation['units']} "
               f"({recommendation['mean']:.5g}) — {recommendation['why']}")
         for row in recommendation["curve"]:
+            cost = (f"  cost {row['cost']:,.6g}" if row.get("cost") is not None else "")
             print(f"   {row['units']:>3} crews  {row['mean']:.5g} "
-                  f"(lower {row['lower']:.5g})")
+                  f"(lower {row['lower']:.5g}){cost}")
     print(f"\n{result['caption']}")
     print(result["note"])
 

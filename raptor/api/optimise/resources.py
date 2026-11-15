@@ -94,6 +94,7 @@ def optimise_resources(  # noqa: C901, PLR0912
     """Evaluate crew sizes around the offered-load seed and recommend one."""
     from raptor.api.batch import run_variants
     from raptor.api.run import run_dir
+    from raptor.api.run_needs import how
     from raptor.api.run_tables import read_per_run
 
     specs = resources_from_model(workspace.get(model_id).rbd, resources)
@@ -128,11 +129,18 @@ def optimise_resources(  # noqa: C901, PLR0912
     rows: list[dict[str, Any]] = []
     for index, (name, units, _assignment) in enumerate(plan, start=1):
         result = results[index] if index < len(results) else {}
-        values = [float(row[metric]) for row in rows_for(result)
+        per_run = rows_for(result)
+        values = [float(row[metric]) for row in per_run
                   if isinstance(row.get(metric), (int, float))]
         mean, sem, lower = _stats(values, confidence)
+        # What the size costs, from the run's own cost analysis (crew cost,
+        # per use and per time, with everything else): a bigger crew is
+        # never free, and the answer used to show only what it bought.
+        costs = [float(row["grand_total"]) for row in per_run
+                 if isinstance(row.get("grand_total"), (int, float))]
         rows.append({"resource": name, "units": units, "mean": mean,
                      "sem": sem, "lower": lower,
+                     "cost": sum(costs) / len(costs) if costs else None,
                      "delta": (sum(values[i] - base_values[i]
                                    for i in range(min(len(values),
                                                      len(base_values))))
@@ -163,6 +171,7 @@ def optimise_resources(  # noqa: C901, PLR0912
                                 "units": best["units"],
                                 "changes": [f"resource:{spec.name}.units={best['units']}"],
                                 "mean": best["mean"], "lower": best["lower"],
+                                "cost": best.get("cost"),
                                 "why": why, "curve": sorted(
                                     group, key=lambda row: row["units"])})
     from raptor.api.batch import discard_runs
@@ -176,7 +185,10 @@ def optimise_resources(  # noqa: C901, PLR0912
         "rows": rows, "recommendations": recommendations,
         # PATH=VALUE edits that give the model the recommended sizes
         "changes": [c for r in recommendations for c in r["changes"]],
-        "caption": _caption(recommendations),
+        "caption": _caption(recommendations) + (
+            "" if any(row.get("cost") is not None for row in rows) else
+            f" What each size costs is not shown: it needs cost analysis; "
+            f"{how('cost')}."),
         "note": ("Paired against Base with the same seed; a size meets the "
                  "target only when its lower confidence bound does."),
     }

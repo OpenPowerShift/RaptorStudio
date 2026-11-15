@@ -145,3 +145,16 @@ def test_sensitivity_refuses_an_unknown_metric(opt_model):
     from raptor.mcp import tools_run
     text = _refused(tools_run.sensitivity(opt_model, top=1, trials=2, metric="bogus"))
     assert "bogus" in text and "availability" in text
+
+
+def test_the_pm_caption_says_which_blocks_the_formula_ruled_out():
+    """C14: a block with only "no PM" run read as a simulated verdict."""
+    from raptor.api.optimise.pm import _caption
+    recs = [{"block": "Pump", "option": "no PM", "worthwhile": False, "mean": 0.9,
+             "options_simulated": 0},
+            {"block": "Seal", "option": "1.00 x optimum", "worthwhile": False,
+             "mean": 0.91, "options_simulated": 5}]
+    text = _caption(recs, "availability")
+    assert "No simulated interval beat running to failure" in text
+    assert "Pump: the formula rules PM out" in text and "Seal:" not in text
+    assert _caption(recs[:1], "availability").startswith("No PM interval was simulated.")

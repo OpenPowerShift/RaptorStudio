@@ -266,7 +266,10 @@ def optimise_pm(  # noqa: C901, PLR0912
         "note": ("The analytic screen assumes age replacement on one block; "
                  "the recommendation comes from the paired simulation, not "
                  "from the formula, and is worth making only when its paired "
-                 "gain over no PM exceeds twice its standard error."),
+                 "gain over no PM exceeds twice its standard error. The best "
+                 "of several intervals is picked on the same runs that measure "
+                 "it, so its gain is a little optimistic: confirm it with What "
+                 "If on fresh runs before relying on its size."),
     }
 
 
@@ -289,6 +292,8 @@ def _recommend(block: str, group: list[dict[str, Any]],
         "block": block, "option": best["option"],
         "mean": best["mean"], "delta_vs_base": best["delta"],
         "worthwhile": worthwhile,
+        # 0 when the formula ruled PM out and only "no PM" was run
+        "options_simulated": sum(1 for row in usable if row["option"] != "no PM"),
         "gain_vs_no_pm": {"mean": gain, "sem": gain_sem},
         "changes": list(best["changes"]) if worthwhile else [],
         "curve": sorted(group, key=lambda row: row["mean"]
@@ -331,9 +336,23 @@ def _caption(recommendations: list[dict[str, Any]], objective: str) -> str:
     useful = [row for row in recommendations if row["worthwhile"]]
     if not recommendations:
         return "No block could be screened."
-    if not useful:
-        return ("No screened interval beat running to failure; keep the "
+    tried = [row for row in recommendations if row.get("options_simulated")]
+    if useful:
+        best = useful[0]
+        text = (f"{best['block']}: {best['option']} is worthwhile on "
+                f"{objective} ({best['mean']:.5g}).")
+    elif tried:
+        text = ("No simulated interval beat running to failure; keep the "
                 "current plan.")
-    best = useful[0]
-    return (f"{best['block']}: {best['option']} is worthwhile on "
-            f"{objective} ({best['mean']:.5g}).")
+    else:
+        text = "No PM interval was simulated."
+    # A block the formula rules out has only "no PM" run: say so, rather
+    # than let "keep" read as a simulated verdict.
+    ruled_out = [row["block"] for row in recommendations
+                 if not row.get("options_simulated")]
+    if ruled_out:
+        names = ", ".join(ruled_out[:4]) + (f" and {len(ruled_out) - 4} more"
+                                            if len(ruled_out) > 4 else "")
+        text += (f" {names}: the formula rules PM out (a constant or falling "
+                 "failure rate), so no interval was simulated.")
+    return text

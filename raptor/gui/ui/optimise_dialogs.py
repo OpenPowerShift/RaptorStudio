@@ -316,6 +316,7 @@ class PmDialog(AnalysisDialog):
                       else "not enough data")
             mean = rec.get("mean")
             verdict = (f"change to {rec.get('option')}" if rec.get("worthwhile")
+                       else "keep as is (formula)" if rec and not rec.get("options_simulated")
                        else "keep as is" if rec else "not simulated")
             rows.append((advice["block"], screen, rec.get("option", "—"),
                          _pct(mean) if fraction else ("—" if mean is None else f"{mean:,.6g}"),
@@ -373,7 +374,8 @@ class CrewsDialog(AnalysisDialog):
         return row
 
     def build_result_area(self) -> QWidget:
-        self.table = _table(("Resource", "Recommended units", "Availability", "Lower bound", "Why"))
+        self.table = _table(("Resource", "Recommended units", "Availability", "Lower bound",
+                             "Mean cost", "Why"))
         self.table.itemSelectionChanged.connect(self.sync_buttons)
         return self.table
 
@@ -393,9 +395,12 @@ class CrewsDialog(AnalysisDialog):
 
     def show_result(self, result: Any) -> None:
         recs = result["recommendations"]
-        rows = [(r["resource"], str(r["units"]), _pct(r["mean"]), _pct(r["lower"]), r["why"])
-                for r in recs]
+        def cost(value: float | None) -> str:
+            return "—" if value is None else f"{value:,.6g}"
+        rows = [(r["resource"], str(r["units"]), _pct(r["mean"]), _pct(r["lower"]),
+                 cost(r.get("cost")), r["why"]) for r in recs]
         tips = ["\n".join(f"{row['units']} units: {_pct(row['mean'])} (lower {_pct(row['lower'])})"
+                          + (f", cost {cost(row.get('cost'))}" if row.get("cost") is not None else "")
                           for row in r["curve"]) for r in recs]
         _fill(self.table, rows, set(), tips)
         self.caption.setText(f"{result['caption']} {result['note']}")
@@ -414,7 +419,9 @@ class CrewsDialog(AnalysisDialog):
         if self.result is None:
             return ""
         lines = [f"{r['resource']}\t{r['units']} units\t{_pct(r['mean'])}\t"
-                 f"lower {_pct(r['lower'])}\t{r['why']}" for r in self.result["recommendations"]]
+                 f"lower {_pct(r['lower'])}\t"
+                 f"cost {'—' if r.get('cost') is None else format(r['cost'], ',.6g')}\t"
+                 f"{r['why']}" for r in self.result["recommendations"]]
         return "\n".join([*lines, "", self.result["caption"], self.result["note"]])
 
 

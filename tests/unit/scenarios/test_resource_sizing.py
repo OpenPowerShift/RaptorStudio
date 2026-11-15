@@ -78,3 +78,20 @@ def test_the_cli_applies_the_recommended_changes(tmp_path):
     mid = ws.open_model(path)["model_id"]
     (spec,) = resources_from_model(ws.get(mid).rbd)
     assert spec.units == units != 1          # the file holds the new size
+
+
+def test_each_size_says_what_it_costs_or_why_it_cannot(tmp_path):
+    """C14: crew sizing showed what a size bought, never what it cost."""
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(SPEC), name="m")["model_id"]
+    plain = optimise_resources(ws, mid, target=0.90, trials=3, seed=2, extra=1)
+    assert all(row["cost"] is None for row in plain["rows"])
+    assert "needs cost analysis" in plain["caption"]
+    costed_spec = {**SPEC,
+                   "resources": [{"name": "Crew", "num_in": 1, "per_time_unit": 10.0}],
+                   "experiment": {**SPEC["experiment"], "analyses": ["cost"]}}
+    mid2 = ws.register_model(build.build_from_spec(costed_spec), name="c")["model_id"]
+    costed = optimise_resources(ws, mid2, target=0.90, trials=3, seed=2, extra=1)
+    assert all(row["cost"] is not None for row in costed["rows"] if row["mean"] is not None)
+    assert costed["recommendations"][0]["cost"] is not None
+    assert "cost analysis" not in costed["caption"]
