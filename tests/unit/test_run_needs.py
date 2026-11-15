@@ -56,3 +56,30 @@ def qapp_offscreen():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
     return QApplication.instance() or QApplication([])
+
+
+def test_options_in_one_place_are_named_once():
+    from raptor.api.run_needs import gui_hint
+    assert gui_hint("weak_link", "cost") == (
+        "Tick <b>Weak Link</b> and <b>Cost</b> under Run panel ▸ Analysis, then run again.")
+
+
+def test_the_extended_results_page_says_how_to_fill_blank_shares():
+    """U15: the criticality table's %Downtime and %Cost were N/A with no word
+    on why; the report's own note was dropped by the table parser."""
+    import pytest
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication
+
+    from raptor.gui.ui.results import ResultsDock
+    QApplication.instance() or QApplication([])
+    dock = ResultsDock()
+    dock._final_lines = ["***EXTENDED_RESULTS***", "",
+                         "MTTFF: 4 of 5 run(s) had no system failure; their run length is used, "
+                         "so the MTTFF is a lower bound.",
+                         "Downtime shares need Weak Link analysis. Cost shares need Cost analysis."]
+    notes = dock._extended_notes()
+    assert notes[0].startswith("MTTFF: 4 of 5")
+    assert "%Downtime and %Cost" in notes[1] and "<b>Weak Link</b> and <b>Cost</b>" in notes[1]
+    dock._final_lines = ["no banner"]
+    assert dock._extended_notes() == []

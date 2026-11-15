@@ -891,6 +891,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             table.cellDoubleClicked.connect(
                 lambda _row, column, t=table: self._explain_table_cell(t, column))
             self._detail_tables[title] = table
+        extended = pages.get(section_of("EXTENDED_RESULTS"))
+        if extended is not None:
+            for text in self._extended_notes():
+                note = QLabel(text)
+                note.setObjectName("SectionNote")
+                note.setWordWrap(True)
+                extended.addWidget(note)
         for group, page in order:
             pages[group].addStretch(1)
             # The table shows all its rows; this scroll area handles
@@ -1030,6 +1037,29 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         hdr.setObjectName("SectionTitle")
         hdr.setWordWrap(True)
         v.addWidget(hdr)
+
+    def _extended_notes(self) -> list[str]:
+        """The Extended results section's own notes (an MTTFF that is a
+        lower bound; criticality shares that need an analysis), which the
+        table parser drops. A missing share says which box to tick."""
+        from raptor.api.run_needs import gui_hint
+        from raptor.core.engine.extended_results import EXTENDED_RESULTS_BANNER
+        lines = [ln.strip() for ln in self._final_lines]
+        if EXTENDED_RESULTS_BANNER not in lines:
+            return []
+        notes = []
+        for line in lines[lines.index(EXTENDED_RESULTS_BANNER):]:
+            if line.startswith("MTTFF:"):
+                notes.append(line)
+            needs = [key for key, phrase in (("weak_link", "need Weak Link analysis"),
+                                             ("cost", "need Cost analysis"))
+                     if phrase in line]
+            if needs:
+                what = " and ".join(
+                    {"weak_link": "%Downtime", "cost": "%Cost"}[k] for k in needs)
+                notes.append(f"{what} in Block criticality {'are' if len(needs) > 1 else 'is'} "
+                             f"blank because the analysis was off. {gui_hint(*needs)}")
+        return notes
 
     def _add_summary_notes(self, v: QVBoxLayout) -> None:
         """The report builder's censoring/sampling notes (dialog labels in

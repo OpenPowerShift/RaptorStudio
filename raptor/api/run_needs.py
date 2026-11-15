@@ -51,6 +51,9 @@ NEEDS: dict[str, Need] = {
     "cost": Need(
         "cost analysis", "configure_system(cost=true)",
         "--analysis cost", "Cost", ANALYSIS),
+    "weak_link": Need(
+        "Weak Link analysis", "configure_system(weak_link=true)",
+        "--analysis weak", "Weak Link", ANALYSIS),
     "importance": Need(
         "importance measures (mode both, for RAW and RRW)",
         "simulate(importance=\"both\")", "--importance both",
@@ -95,7 +98,11 @@ def message(*keys: str, subject: str = "this chart") -> str:
 def gui_hint(*keys: str) -> str:
     """The window's wording: the exact control label and where it is."""
     needs = [NEEDS[k] for k in _expanded(keys)]
-    ticks = " and ".join(f"<b>{n.label}</b> under {n.place}" for n in needs)
+    places: dict[str, list[str]] = {}
+    for n in needs:      # one "under …" per place: "Weak Link and Cost under …"
+        places.setdefault(n.place, []).append(f"<b>{n.label}</b>")
+    ticks = " and ".join(f"{' and '.join(labels)} under {place}"
+                         for place, labels in places.items())
     return f"Tick {ticks}, then run again."
 
 
@@ -117,9 +124,10 @@ def turn_on(experiment: dict[str, Any], keys: Iterable[str]) -> dict[str, Any]:
             out["recording"]["ao_plot"] = True
         elif key == "capacity_plot":
             out["recording"]["capacity_plot"] = True
-        elif key in ("capacity", "cost"):
-            if key not in out["analyses"]:
-                out["analyses"].append(key)
+        elif key in ("capacity", "cost", "weak_link"):
+            name = "weak" if key == "weak_link" else key
+            if name not in out["analyses"]:
+                out["analyses"].append(name)
         elif key == "importance":
             out["importance"] = "both"
     return out
@@ -134,5 +142,6 @@ def is_on(experiment: dict[str, Any], key: str) -> bool:
         "capacity_plot": bool(recording.get("capacity_plot")),
         "capacity": "capacity" in (experiment.get("analyses") or []),
         "cost": "cost" in (experiment.get("analyses") or []),
+        "weak_link": "weak" in (experiment.get("analyses") or []),
         "importance": experiment.get("importance") == "both",
     }[key]
