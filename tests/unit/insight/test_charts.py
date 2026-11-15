@@ -72,6 +72,16 @@ def test_the_frequency_duration_map_divides_downtime_by_outages():
         _element("Pump", 0.2, deci=0.4), _element("Idle", 0.0, deci=0.0)]}
     spec = charts.frequency_duration(attribution)
     assert spec.series == [{"name": "Pump", "x": 0.4, "y": 0.5, "area": 0.2}]
+    assert spec.y_label == "relative outage length"
+
+
+def test_the_frequency_duration_map_reads_in_counts_and_time_when_it_can():
+    pump = {**_element("Pump", 0.2, deci=0.4), "outages": {"mean": 4.0},
+            "red_time": {"mean": 10.0}}
+    spec = charts.frequency_duration({"runs": 3, "units": "hours", "elements": [pump]})
+    assert spec.series == [{"name": "Pump", "x": 4.0, "y": 2.5, "area": 0.2}]
+    assert spec.y_label == "mean outage length (hours)"
+    assert spec.caption.startswith("Low right, frequent short outages: improve reliability")
 
 
 def test_the_quadrant_drops_elements_without_both_importance_measures():

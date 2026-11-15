@@ -297,24 +297,47 @@ def outage_histogram(attribution: dict[str, Any]) -> ChartSpec:
 
 
 def frequency_duration(attribution: dict[str, Any], top: int = 20) -> ChartSpec:
-    """C7: reliability against maintainability, bubble area = DTCI."""
+    """C7: reliability against maintainability, bubble area = DTCI.
+
+    x is how many system outages the element starts a run and y how long
+    they last on average, in the model's time unit, so both axes read as
+    quantities. An attribution without per-element counts (an older stored
+    run) falls back to the two shares, y then being relative (1 = an
+    average outage)."""
     rows = sorted((r for r in attribution.get("elements") or []
                    if (r.get("deci", {}).get("mean") or 0) > 0),
                   key=lambda r: -(r.get("dtci", {}).get("mean") or 0))[:top]
-    points = [{"name": r["name"],
-               "x": r["deci"]["mean"] or 0.0,
-               "y": ((r["dtci"]["mean"] or 0.0)
-                     / (r["deci"]["mean"] or 1.0)),
-               "area": r["dtci"]["mean"] or 0.0} for r in rows]
+    units = str(attribution.get("units") or "")
+    absolute = bool(rows) and all(
+        (r.get("outages") or {}).get("mean") and (r.get("red_time") or {}).get("mean")
+        is not None for r in rows)
+    if absolute:
+        points = [{"name": r["name"],
+                   "x": r["outages"]["mean"],
+                   "y": r["red_time"]["mean"] / r["outages"]["mean"],
+                   "area": r["dtci"]["mean"] or 0.0} for r in rows]
+        subtitle = ("x = system outages it starts a run, y = how long they last, "
+                    "area = share of downtime")
+        x_label, y_label = "outages started a run", (
+            f"mean outage length ({units})" if units else "mean outage length")
+    else:
+        points = [{"name": r["name"],
+                   "x": r["deci"]["mean"] or 0.0,
+                   "y": ((r["dtci"]["mean"] or 0.0)
+                         / (r["deci"]["mean"] or 1.0)),
+                   "area": r["dtci"]["mean"] or 0.0} for r in rows]
+        subtitle = ("x = share of outages started, y = outage length relative to "
+                    "the average (1 = average), area = share of downtime")
+        x_label, y_label = "share of outages started", "relative outage length"
     return ChartSpec(
-        "bubble", "Frequency against duration",
-        "x = share of outages started, y = share of downtime per outage "
-        "started, area = share of downtime", "outages started",
-        "downtime per outage", series=points,
-        caption=("Reliability is the lever for bubbles high on the left; "
-                 "repair and logistics for those low on the right."
+        "bubble", "Frequency against duration", subtitle, x_label, y_label,
+        series=points,
+        # frequent short outages sit low on the right; rare long ones high on
+        # the left (the caption had the two levers the other way round)
+        caption=("Low right, frequent short outages: improve reliability. "
+                 "High left, rare long ones: repair and logistics."
                  if points else "No element started an outage."),
-        provenance={"runs": attribution.get("runs", 0)})
+        provenance={"runs": attribution.get("runs", 0), "absolute": absolute})
 
 
 def importance_quadrant(importance: dict[str, Any],
