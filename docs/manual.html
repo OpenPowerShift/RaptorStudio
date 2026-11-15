@@ -1116,13 +1116,15 @@ it. Needs no run, and follows edits as the Advisor re-checks the
 model. Findings about a setting (a pool, a resource, the experiment)
 have no element to mark and stay in the Advisor panel. Focus keeps
 the marked elements. <code>raptor advise</code> and the MCP tool <code>advise</code> give
-the same findings with their targets; the SVG drawing does not
-offer this layer yet.</p>
+the same findings with their targets.</p>
 <div class="paragraph">
-<p>The two result layers above can be drawn without the application, as an SVG with a legend:
+<p>All three layers can be drawn without the application, as an SVG with a legend:
 <code>raptor render MODEL -o layer.svg --layer downtime-share</code> (or
 <code>lost-capacity</code>) runs the model with attribution and draws it, and the MCP
-tool <code>render_diagram_svg</code> takes <code>layer</code> with a run&#8217;s <code>run_id</code>.</p>
+tool <code>render_diagram_svg</code> takes <code>layer</code> with a run&#8217;s <code>run_id</code>.
+<code>--layer advisor</code> draws the model&#8217;s findings without a run; add <code>-n N</code>
+to run it as well and include the run&#8217;s findings (in MCP, pass a
+<code>run_id</code>).</p>
 </div>
 <div class="paragraph">
 <p>With either layer on, <strong>View ▸ Focus</strong> keeps the elements that matter: any

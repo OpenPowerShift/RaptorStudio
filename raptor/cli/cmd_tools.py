@@ -168,13 +168,15 @@ def add_parser(sub: Any) -> None:
     d.add_argument("--theme", choices=("light", "dark"), default="light")
     d.add_argument("--max-px", type=int, default=1600)
     d.add_argument("--no-annotations", action="store_true")
-    d.add_argument("--layer", choices=("downtime-share", "lost-capacity"),
+    d.add_argument("--layer", choices=("downtime-share", "lost-capacity", "advisor"),
                    help="SVG only: run the model with attribution and draw "
                         "each element's share of downtime (or of lost flow) "
                         "on the diagram, as the application's Show on "
-                        "canvas layers do")
+                        "canvas layers do; 'advisor' marks what `raptor "
+                        "advise` finds, without a run unless -n is given")
     d.add_argument("-n", "--trials", type=int, metavar="N",
-                   help="with --layer: runs to simulate (default: the model's own)")
+                   help="with --layer: runs to simulate (default: the model's own); "
+                        "with --layer advisor, also run and add the run's findings")
     d.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
                    help="with --layer: cores to run on")
     d.set_defaults(func=render_command)
@@ -613,6 +615,15 @@ def _render_layer(args: Any) -> tuple[dict, dict | None]:
     from raptor.cli.common import workspace_for
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
+        if args.layer == "advisor":
+            from raptor.api.advisor.canvas import workspace_advisor_layer
+            run_id = None
+            if args.trials:
+                run_id = run(ws, mid, num_runs=args.trials, workers=max(1, args.jobs),
+                             attribution=True, confirm_long_run=True,
+                             progress=lambda done, total:
+                             eprint(f"[{done}/{total or '?'}] runs")).run_id
+            return workspace_advisor_layer(ws, mid, run_id), None
         result = run(ws, mid, num_runs=args.trials, workers=max(1, args.jobs),
                      attribution=True, confirm_long_run=True,
                      progress=lambda done, total:

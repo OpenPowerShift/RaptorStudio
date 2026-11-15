@@ -206,6 +206,11 @@ CAPABILITIES: tuple[Capability, ...] = (
         "Each element's share of the lost flow on the diagram, links as wide as their flow",
         api="raptor.api.insight.canvas.run_layer", cli="render --layer",
         mcp="render_diagram_svg", gui="command:results.lost_capacity_overlay"),
+    Capability(
+        "advisor.canvas",
+        "The Advisor's findings marked on the diagram by worst severity, rolled into hierarchies",
+        api="raptor.api.advisor.canvas.workspace_advisor_layer", cli="render --layer",
+        mcp="render_diagram_svg", gui="command:results.advisor_overlay"),
 )
 
 SURFACES = ("api", "cli", "mcp", "gui")

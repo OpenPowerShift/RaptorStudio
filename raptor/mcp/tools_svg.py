@@ -32,7 +32,7 @@ def render_diagram_svg(
     include_annotations: bool = True,
     routing: Literal["straight", "angled", "orthogonal"] = "straight",
     run_id: str | None = None,
-    layer: Literal["downtime-share", "lost-capacity"] | None = None,
+    layer: Literal["downtime-share", "lost-capacity", "advisor"] | None = None,
 ) -> CallToolResult:
     """Draw one level of the diagram as SVG text, without Qt.
 
@@ -55,6 +55,11 @@ def render_diagram_svg(
     hierarchy's contents (Σ); 'lost-capacity' does the same for the share of
     lost flow and draws each link into a capacity node as wide as that
     node's mean flow. A legend under the drawing says how to read it.
+    'advisor' marks what `advise` finds: each element a finding is about is
+    filled by its worst severity (red error, yellow warning, blue advice or
+    note) with the number of findings under it and the findings in its
+    title, and each hierarchy counts what is flagged inside it; it needs no
+    run, and `run_id` adds the run's findings.
 
     `level` is 0 for the top level or a **hierarchy id** (not a depth).
     `zoom_to` frames the named elements on that level, padded by `margin`
@@ -73,14 +78,17 @@ def render_diagram_svg(
     from raptor.render.svg import render_svg
 
     layer_data, flow = None, None
-    if layer is not None:
+    if layer == "advisor":
+        from raptor.api.advisor.canvas import workspace_advisor_layer
+        layer_data = workspace_advisor_layer(ws, model_id, run_id)
+    elif layer is not None:
         if not run_id:
             raise ValueError("layer needs run_id: a run made with attribution=True")
         from raptor.api.insight.canvas import run_layer
         layer_data, flow = run_layer(ws, run_id, layer)
     elif run_id:
-        raise ValueError("run_id is only used with layer='downtime-share' or "
-                         "'lost-capacity'")
+        raise ValueError("run_id is only used with layer='downtime-share', "
+                         "'lost-capacity' or 'advisor'")
     svg, meta = render_svg(handle.rbd, level=level, highlight=highlight or [],
                            zoom_to=zoom_to or [], margin=margin, theme=theme,
                            include_annotations=include_annotations,
@@ -100,7 +108,11 @@ def render_diagram_svg(
     md = (f"SVG of **{handle.name}** level {level}: {meta['width']}×{meta['height']} "
           f"scene px, {meta['elements_in_view']} element(s) in view, "
           f"{meta['links_drawn']} link(s). File: `{path}`.")
-    if layer_data is not None:
+    if layer == "advisor" and layer_data is not None:
+        md += (f" Layer: Advisor findings ({layer_data['findings']}, "
+               f"{layer_data['off_canvas']} about settings and not drawn), "
+               f"{meta['layer']['elements_marked']} element(s) marked on this level.")
+    elif layer_data is not None:
         md += (f" Layer: {layer_data['measure']} from run `{run_id}`, "
                f"{meta['layer']['elements_marked']} element(s) marked on this level.")
     if inline:

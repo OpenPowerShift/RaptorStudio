@@ -900,7 +900,8 @@ you need the exact argument shape.
   easier to inspect than an image. Fonts are not measured, so long names
   are shortened (the full name is in each element's `<title>`). With
   `layer` and the `run_id` of a run made with attribution it draws the
-  share-of-downtime or lost-capacity layer, with a legend.
+  share-of-downtime or lost-capacity layer, with a legend;
+  `layer="advisor"` marks the Advisor's findings and needs no run.
 
 | `auto_layout`
 | Re-arrange the diagram onto the shared layered grid and save the

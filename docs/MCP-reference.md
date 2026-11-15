@@ -4838,6 +4838,11 @@ the corner with a dashed ring when the runs disagree, and sums each
 hierarchy's contents (Σ); 'lost-capacity' does the same for the share of
 lost flow and draws each link into a capacity node as wide as that
 node's mean flow. A legend under the drawing says how to read it.
+'advisor' marks what `advise` finds: each element a finding is about is
+filled by its worst severity (red error, yellow warning, blue advice or
+note) with the number of findings under it and the findings in its
+title, and each hierarchy counts what is flagged inside it; it needs no
+run, and `run_id` adds the run's findings.
 
 `level` is 0 for the top level or a **hierarchy id** (not a depth).
 `zoom_to` frames the named elements on that level, padded by `margin`
@@ -4855,7 +4860,7 @@ highlighted, routing, links_routed, inline}. The file is written to renders/ in 
 | --- | --- | --- | --- | --- |
 | `highlight` | array<string> \| null | no | `null` | — |
 | `include_annotations` | boolean | no | `true` | — |
-| `layer` | string \| null | no | `null` | `downtime-share`, `lost-capacity` |
+| `layer` | string \| null | no | `null` | `downtime-share`, `lost-capacity`, `advisor` |
 | `level` | integer | no | `0` | — |
 | `margin` | number | no | `12.0` | — |
 | `model_id` | string | yes | — | — |

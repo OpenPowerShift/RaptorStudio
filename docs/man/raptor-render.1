@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-render \- Render the diagram of MODEL to a PNG file (needs Qt) or, when FILE ends in .svg, to a plain SVG drawing (no Qt needed).
 .SH SYNOPSIS
-\fBraptor render\fR [\-h] \-o FILE.png|FILE.svg [\-\-level LEVEL] [\-\-highlight SELECTOR] [\-\-zoom\-to SELECTOR] [\-\-theme {light,dark}] [\-\-max\-px MAX_PX] [\-\-no\-annotations] [\-\-layer {downtime\-share,lost\-capacity}] [\-n N] [\-j N] MODEL
+\fBraptor render\fR [\-h] \-o FILE.png|FILE.svg [\-\-level LEVEL] [\-\-highlight SELECTOR] [\-\-zoom\-to SELECTOR] [\-\-theme {light,dark}] [\-\-max\-px MAX_PX] [\-\-no\-annotations] [\-\-layer {downtime\-share,lost\-capacity,advisor}] [\-n N] [\-j N] MODEL
 .SH DESCRIPTION
 Render the diagram of MODEL to a PNG file (needs Qt) or, when FILE ends in .svg, to a plain SVG drawing (no Qt needed).
 .SH OPTIONS
@@ -29,11 +29,11 @@ hierarchy id to draw (0 = top level)
 \fB\-\-no\-annotations\fR
 
 .TP
-\fB\-\-layer\fR \fI{downtime\-share|lost\-capacity}\fR
-SVG only: run the model with attribution and draw each element's share of downtime (or of lost flow) on the diagram, as the application's Show on canvas layers do
+\fB\-\-layer\fR \fI{downtime\-share|lost\-capacity|advisor}\fR
+SVG only: run the model with attribution and draw each element's share of downtime (or of lost flow) on the diagram, as the application's Show on canvas layers do; 'advisor' marks what `raptor advise` finds, without a run unless \-n is given
 .TP
 \fB\-n\fR, \fB\-\-trials\fR \fIN\fR
-with \-\-layer: runs to simulate (default: the model's own)
+with \-\-layer: runs to simulate (default: the model's own); with \-\-layer advisor, also run and add the run's findings
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 with \-\-layer: cores to run on

@@ -48,3 +48,15 @@ def advisor_layer(findings: Iterable[Finding]) -> dict[str, Any]:
         out.append(row)
     out.sort(key=lambda r: (-SEVERITY_RANK[r["severity"]], -r["count"], r["name"]))
     return {"layer": "advisor", "elements": out, "findings": total, "off_canvas": off_canvas}
+
+
+def workspace_advisor_layer(workspace: Any, model_id: str,
+                            run_id: str | None = None) -> dict[str, Any]:
+    """The Advisor layer of a model in `workspace`: its model findings and,
+    with `run_id` (a finished run of that model), the run's findings too, as
+    `advise` reports them."""
+    from raptor.api.advisor import advise_model, advise_stored_run, sort_findings
+    found = advise_model(workspace.get(model_id).rbd)
+    if run_id is not None:
+        found = sort_findings(found + advise_stored_run(workspace, run_id))
+    return advisor_layer(found)

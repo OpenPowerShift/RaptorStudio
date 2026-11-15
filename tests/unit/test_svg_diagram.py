@@ -229,3 +229,59 @@ def test_raptor_render_draws_a_layer(tmp_path, capsys):
     assert code == 0 and "result-layer" in out.read_text()
     assert main(["render", str(PROBE32), "-o", str(tmp_path / "x.png"),
                  "--layer", "downtime-share"]) != 0
+
+
+def test_the_advisor_layer_marks_findings_and_counts_them_inside_hierarchies():
+    from raptor.api.advisor.canvas import advisor_layer
+    from raptor.api.advisor.finding import Finding, Target
+
+    def finding(rule, severity, *targets):
+        return Finding(rule=rule, severity=severity, category="test", title=rule,
+                       message="", why="", targets=tuple(targets))
+
+    rbd = load_rbd(str(PROBE32))
+    layer = advisor_layer([
+        finding("M-X-001", "error", Target("block", 5, "Attitude")),
+        finding("M-X-002", "warning", Target("block", 1, "SolarP_500W")),   # inside 500path
+        finding("M-X-003", "advice", Target("block", 2, "BatteriesNiCd")),  # inside 500path
+        finding("M-X-004", "info", Target("pool", None, "Spares")),
+    ])
+    svg, meta = render_svg(rbd, layer=layer)
+    root = ET.fromstring(svg)
+    assert meta["layer"] == {"name": "advisor", "measure": "Advisor findings",
+                             "elements_marked": 1, "hierarchies_rolled_up": 1,
+                             "links_by_flow": False, "findings": 4, "off_canvas": 1}
+    # the flagged block is filled by its worst severity, the hierarchy by
+    # the worst inside it
+    block = root.find(".//svg:g[@id='block-5']/svg:rect", NS)
+    assert block.get("fill") == "#FFC9C9"
+    oval = root.find(".//svg:g[@id='hier-23']/svg:ellipse", NS)
+    assert oval.get("fill") == "#FFE8A3"
+    marks = root.findall(".//svg:g[@class='result-layer advisor-layer']/svg:g[@class='mark']", NS)
+    labels = sorted("".join(m.find("svg:text", NS).itertext()) for m in marks)
+    assert labels == ["Σ ⚠ 2", "⚠ 1"]
+    titles = " ".join(m.find("svg:title", NS).text for m in marks)
+    assert "error: M-X-001" in titles and "SolarP_500W: 1" in titles
+    assert "1 finding(s) about settings" in svg
+    # inside the hierarchy each element is marked on its own
+    _svg, inner = render_svg(rbd, level=23, layer=layer)
+    assert inner["layer"]["elements_marked"] == 2
+
+
+def test_the_mcp_and_cli_draw_the_advisor_layer(tmp_path):
+    from raptor.api.workspace import Workspace
+    from raptor.cli.main import main
+    from raptor.mcp.server import mcp
+    from raptor.mcp.tools_svg import render_diagram_svg
+    ws = Workspace((tmp_path / "ws").resolve())
+    mid = ws.register_model(load_rbd(str(GOLD / "FactoryDemo" / "input.rbd")), name="f")["model_id"]
+    mcp._raptor_args = type("A", (), {"workspace": str(ws.root)})()
+    mcp._raptor_ws = ws
+    res = render_diagram_svg(mid, layer="advisor")
+    data = res.structured_content
+    assert data["layer"]["name"] == "advisor" and data["layer"]["elements_marked"] >= 1
+    assert "Advisor findings" in res.content[0].text
+    out = tmp_path / "a.svg"
+    assert main(["render", str(GOLD / "FactoryDemo" / "input.rbd"), "-o", str(out),
+                 "--layer", "advisor"]) == 0
+    assert "advisor-layer" in out.read_text()

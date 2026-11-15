@@ -16,6 +16,11 @@ share printed under it, the letter of its main cause in the corner, a dashed
 ring when the runs disagree, each hierarchy oval with the sum of what is
 inside it, links into capacity nodes as wide as the node's mean flow, and a
 legend saying how to read it.
+
+The Advisor layer (`raptor.api.advisor.canvas.advisor_layer`) is drawn the
+same way: each element a finding is about filled by its worst severity, the
+number of findings under it, the findings in its `<title>`, and each
+hierarchy oval with the count of what is flagged inside it.
 """
 from __future__ import annotations
 
@@ -50,6 +55,11 @@ _BANDS = {
     "light": {"high": "#FFC9C9", "mid": "#FFE8A3", "low": "#C8F0D0"},
     "dark": {"high": "#6B2424", "mid": "#5E4C14", "low": "#1F4D2B"},
 }
+
+#: The band an Advisor finding of each severity is filled with; advice and
+#: notes take the "note" fill.
+_SEVERITY_BAND = {"error": "high", "warning": "mid", "advice": "note", "info": "note"}
+_NOTE_FILL = {"light": "#D0E4FF", "dark": "#1E3A5F"}
 
 _NODE_LABEL = {1: "S", 3: "E", 4: "HI", 5: "HO"}
 _LINE_DASH = {"dash": "8 4", "dot": "2 3", "dash-dot": "8 3 2 3", "dash-dot-dot": "8 3 2 3 2 3"}
@@ -324,12 +334,14 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
     painted: dict[tuple[str, int], dict[str, Any]] = {}
     rolled: dict[int, tuple[float, int, list[dict[str, Any]]]] = {}
     legend: list[str] = []
+    advisor = layer is not None and layer.get("layer") == "advisor"
     if layer is not None:
         painted, rolled = _layer_marks(rbd, layer, by_key)
-        legend = _legend_lines(layer, bool(flow), w)
+        legend = (_advisor_legend(layer, w) if advisor
+                  else _legend_lines(layer, bool(flow), w))
         h += 16.0 * len(legend) + 10.0
 
-    widths = _flow_widths(flow) if layer is not None and flow else None
+    widths = _flow_widths(flow) if layer is not None and flow and not advisor else None
     # the fixed-size arrow is only for links drawn by flow, so a plain
     # diagram carries just the one marker
     fixed = (f'<marker id="arrow-fixed" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" '
@@ -346,9 +358,12 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
     out.extend(link_svg)
     out.append("</g>")
     out.append('<g class="elements">')
-    out.extend(_elements_svg(shapes, painted, rolled, layer, c, _BANDS[theme]))
+    bands = {**_BANDS[theme], "note": _NOTE_FILL[theme]}
+    out.extend(_elements_svg(shapes, painted, rolled, layer, c, bands))
     out.append("</g>")
-    if layer is not None:
+    if advisor:
+        out.extend(_advisor_svg(shapes, painted, rolled, legend, c, (x0 + margin, y0 + h - 12)))
+    elif layer is not None:
         pooled = {int(row["id"]): row for row in layer.get("hierarchies") or []}
         out.extend(_layer_svg(shapes, painted, rolled, legend, c,
                               (x0 + margin, y0 + h - 12), pooled))
@@ -375,10 +390,20 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
         "annotations_drawn": len(annos), "highlighted": [s.name or f"{s.kind}:{s.id}" for s in lit],
     }
     if layer is not None:
-        meta["layer"] = {"name": layer.get("layer"), "measure": layer.get("measure"),
-                         "elements_marked": len(painted), "hierarchies_rolled_up": len(rolled),
-                         "links_by_flow": bool(flow)}
+        meta["layer"] = _layer_meta(layer, advisor, len(painted), len(rolled), bool(widths))
     return "\n".join(out) + "\n", meta
+
+
+def _layer_meta(layer: dict[str, Any], advisor: bool, marked: int, rolled: int,
+                by_flow: bool) -> dict[str, Any]:
+    meta: dict[str, Any] = {
+        "name": layer.get("layer"),
+        "measure": layer.get("measure") or ("Advisor findings" if advisor else None),
+        "elements_marked": marked, "hierarchies_rolled_up": rolled, "links_by_flow": by_flow}
+    if advisor:
+        meta["findings"] = int(layer.get("findings") or 0)
+        meta["off_canvas"] = int(layer.get("off_canvas") or 0)
+    return meta
 
 
 def _check(rbd: Any, *, level: int, margin: float, theme: str, routing: str) -> None:
@@ -397,12 +422,16 @@ def _elements_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str,
                   c: dict[str, str], bands: dict[str, str]) -> list[str]:
     """Every element, filled by its band where a result layer marks it."""
     out = []
+    advisor = layer is not None and layer.get("layer") == "advisor"
     for s in shapes:
         mark = painted.get((s.kind, s.id))
         if mark is not None:
-            out.append(_shape_svg(s, {**c, "fill": bands[mark["band"]]}))
+            band = _SEVERITY_BAND[mark["severity"]] if advisor else mark["band"]
+            out.append(_shape_svg(s, {**c, "fill": bands[band], "hier": bands[band]}))
         elif s.kind == "hier" and s.id in rolled:
-            out.append(_shape_svg(s, {**c, "hier": bands[_band_of(rolled[s.id][0], layer)]}))
+            band = (_SEVERITY_BAND[_worst(rolled[s.id][2])] if advisor
+                    else _band_of(rolled[s.id][0], layer))
+            out.append(_shape_svg(s, {**c, "hier": bands[band]}))
         else:
             out.append(_shape_svg(s, c))
     return out
@@ -465,6 +494,61 @@ def _scent_svg(s: _Shape, inside: list[dict[str, Any]], total: float,
     return out
 
 
+def _worst(rows: list[dict[str, Any]]) -> str:
+    from raptor.api.advisor.finding import SEVERITY_RANK
+    return max((str(r["severity"]) for r in rows), key=lambda v: SEVERITY_RANK[v])
+
+
+def _advisor_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, Any]],
+                 rolled: dict[int, tuple[float, int, list[dict[str, Any]]]], legend: list[str],
+                 c: dict[str, str], legend_at: tuple[float, float]) -> list[str]:
+    """The Advisor's marks: under each flagged element a warning sign (or a
+    note sign for advice) and how many findings concern it, with the
+    findings in its title; under a hierarchy the count of what is flagged
+    inside it; then the legend."""
+    out = ['<g class="result-layer advisor-layer">']
+    for s in shapes:
+        row = painted.get((s.kind, s.id))
+        rows = [row] if row is not None else (rolled[s.id][2] if s.kind == "hier" and s.id in rolled
+                                              else [])
+        if not rows:
+            continue
+        worst = _worst(rows)
+        count = sum(int(r.get("count") or 0) for r in rows)
+        sign = "⚠" if worst in ("error", "warning") else "ⓘ"
+        if row is not None:
+            title = f"{row.get('name')}: {count} Advisor finding(s)\n" + "\n".join(
+                f"• {f['severity']}: {f['title']} ({f['rule']})" for f in row.get("findings") or [])
+            label = f"{sign} {count}"
+        else:
+            title = (f"{count} Advisor finding(s) about {len(rows)} element(s) inside; worst: {worst}\n"
+                     + "\n".join(f"• {r.get('name')}: {r.get('count')}" for r in rows[:8]))
+            label = f"Σ {sign} {count}"
+        _hw, hh = s.half
+        y = (s.cy + HIER_H / 2 + 12 if s.kind == "hier"
+             else s.cy + hh + (24 if s.kind in ("event", "node") else 11))
+        out.append(f'<g class="mark"><title>{escape(title)}</title>'
+                   f'<text x="{s.cx:.1f}" y="{y:.1f}" font-size="10" font-weight="bold" '
+                   f'fill="{c["text"]}" text-anchor="middle">{escape(label)}</text></g>')
+    x, bottom = legend_at
+    for i, line in enumerate(legend):
+        out.append(f'<text x="{x:.1f}" y="{bottom - 16 * (len(legend) - 1 - i):.1f}" '
+                   f'font-size="11" fill="{c["text"]}">{escape(line)}</text>')
+    out.append("</g>")
+    return out
+
+
+def _advisor_legend(layer: dict[str, Any], width: float) -> list[str]:
+    off = int(layer.get("off_canvas") or 0)
+    text = ("Advisor findings: red = an error, yellow = a warning, blue = advice or a note; "
+            "⚠ n / ⓘ n = how many findings concern the element (hover for them). "
+            "Σ = what is flagged inside a hierarchy.")
+    if off:
+        text += (f" {off} finding(s) about settings rather than elements (pools, crews, "
+                 "the run) are not drawn: see the Advisor's full list.")
+    return _wrap(text, width)
+
+
 def _band_of(value: float, layer: dict[str, Any] | None) -> str:
     largest = float((layer or {}).get("largest") or 0.0)
     fraction = value / largest if largest > 0 else 0.0
@@ -483,7 +567,12 @@ def _layer_marks(rbd: Any, layer: dict[str, Any], by_key: dict[tuple[str, int], 
     for row in _rows(rbd, "EVENT_DATA"):
         e = event_from_row(row)
         parents[("event", e.id)] = e.parent_id
+    for row in _rows(rbd, "NODE_DATA"):
+        n = node_from_row(row)
+        parents[("node", n.id)] = n.parent_id
     hier_parent = {h.id: h.parent_id for h in (hier_from_row(r) for r in _rows(rbd, "HIERARCHY_DATA"))}
+    for hid, parent in hier_parent.items():
+        parents[("hier", hid)] = parent
     painted: dict[tuple[str, int], dict[str, Any]] = {}
     rolled: dict[int, tuple[float, int, list[dict[str, Any]]]] = {}
     for row in layer.get("elements") or []:
@@ -523,18 +612,21 @@ def _legend_lines(layer: dict[str, Any], flow: bool, width: float) -> list[str]:
     if flow:
         lines.append("Link width: mean flow through the capacity node it feeds, "
                      "relative to the busiest node (flow is recorded per node, not per link).")
-    # wrap to the drawing's width (about 6 px a character at 11 px)
+    return [part for line in lines for part in _wrap(line, width)]
+
+
+def _wrap(line: str, width: float) -> list[str]:
+    """`line` wrapped to the drawing's width (about 6 px a character at 11 px)."""
     out: list[str] = []
     per_line = max(40, int(width / 6.2))
-    for line in lines:
-        words, current = line.split(" "), ""
-        for word in words:
-            if current and len(current) + 1 + len(word) > per_line:
-                out.append(current)
-                current = word
-            else:
-                current = f"{current} {word}".strip()
-        out.append(current)
+    current = ""
+    for word in line.split(" "):
+        if current and len(current) + 1 + len(word) > per_line:
+            out.append(current)
+            current = word
+        else:
+            current = f"{current} {word}".strip()
+    out.append(current)
     return out
 
 
