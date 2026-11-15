@@ -1284,11 +1284,14 @@ flow has no utilization and stays plain.</p>
 <li>
 <p><strong>Cost</strong> — each block by its total life-cycle cost, relative to the
 most expensive block (Red at two-thirds of it or more, Yellow at a
-third or more).</p>
+third or more). A hierarchy is coloured by what all the blocks inside
+it cost together, against the dearest hierarchy on the same level;
+hover for the total.</p>
 </li>
 <li>
 <p><strong>Spares</strong> — a block Red if it ever ran out of spares or reached
-end of life; the share of run time and the sparing cost are on hover.</p>
+end of life; the share of run time and the sparing cost are on hover.
+A hierarchy is Red when any block inside it ran out, and says how many.</p>
 </li>
 <li>
 <p><strong>Importance</strong> — each block by the importance measure the Importance tab

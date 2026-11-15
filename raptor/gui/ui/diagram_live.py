@@ -869,6 +869,27 @@ class LiveOverlayMixin:
                 f"Cost — {name}: ${cost:,.2f} total life-cycle cost "
                 f"→ {band_name}\n{basis}")
             item.set_result_badge("$", colour)
+        # U14: a hierarchy shows what its blocks cost in total, banded
+        # against the dearest hierarchy on this level (a sum would always
+        # outrank single blocks)
+        totals: dict[int, list[float]] = {}
+        for bid, cost in cost_by_block.items():
+            hid = self._level_hier_of("block", bid)
+            if hid is not None:
+                totals.setdefault(hid, []).append(cost)
+        dearest = max((sum(v) for v in totals.values()), default=0.0)
+        for hid, inside in totals.items():
+            oval = self._hier_items[hid]
+            total = sum(inside)
+            frac = total / dearest if dearest > 0 else 0.0
+            band_name = ("Red" if frac >= 2 / 3 else "Yellow" if frac >= 1 / 3 else "Green")
+            colour = c[f"result_{band_name.lower()}"]
+            name = getattr(self.hiers.get(hid), "name", "") or f"Hierarchy {hid}"
+            oval.set_live_fill(
+                colour,
+                f"Cost — {name}: ${total:,.2f} total life-cycle cost of the "
+                f"{len(inside)} block(s) inside → {band_name}\n(relative to the "
+                f"dearest hierarchy on this level, ${dearest:,.2f})")
 
     def apply_importance_colors(self: DiagramView, values: dict[int, float],  # type: ignore[misc]
                                 *, measure: str = "Birnbaum",
@@ -955,6 +976,23 @@ class LiveOverlayMixin:
                 f"Spares — {name}: {frac * 100:.2f}% of run time "
                 f"spares/life exhausted{cost_txt} → {band}")
             item.set_result_badge("!" if frac > 0.0 else None, colour)
+        # U14: a hierarchy is red when any block inside ran out
+        inside: dict[int, list[int]] = {}
+        for bid in exhausted_frac:
+            hid = self._level_hier_of("block", bid)
+            if hid is not None:
+                inside.setdefault(hid, []).append(bid)
+        for hid, bids in inside.items():
+            short = [bid for bid in bids if exhausted_frac[bid] > 0.0]
+            colour = c["result_red"] if short else c["result_green"]
+            name = getattr(self.hiers.get(hid), "name", "") or f"Hierarchy {hid}"
+            spend = sum(sparing_cost.get(bid, 0.0) for bid in bids)
+            self._hier_items[hid].set_live_fill(
+                colour,
+                f"Spares — {name}: {len(short)} of {len(bids)} block(s) inside "
+                f"had spares or life exhausted"
+                + (f", ${spend:,.2f} sparing cost" if spend else "")
+                + f" → {'Red' if short else 'Green'}")
 
     def _level_hier_of(self: DiagramView, kind: str, oid: int) -> int | None:  # type: ignore[misc]
         """The hierarchy oval on this level that holds element (kind, oid)
