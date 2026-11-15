@@ -723,12 +723,13 @@ def _build_stylesheet(c: dict) -> str:
     /* Dialog default buttons (Open/Save/OK), marked via
        QPushButton::default, get the accent fill so the primary action
        stands out from Cancel. The native-dialog toolbuttons are themed by
-       forcing non-native dialogs; see filedialogs.py. */
+       forcing non-native dialogs; see filedialogs.py. No bolder font:
+       Qt sizes a button from its plain font, not a pseudo-state's, so a
+       bold :default label was cut at both ends ("Jse for Intake_Screer"). */
     QPushButton:default {{
         background: {c['accent']};
         color: {c['surface']};
         border-color: {c['accent']};
-        font-weight: 600;
     }}
     QPushButton:default:hover {{
         background: {c['accent']};

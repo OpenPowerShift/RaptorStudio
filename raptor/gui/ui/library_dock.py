@@ -24,7 +24,7 @@ from PySide6.QtGui import QDrag
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
     QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox, QPushButton,
-    QRadioButton, QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
+    QRadioButton, QSizePolicy, QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
     QWidget,
 )
 
@@ -243,6 +243,7 @@ class LibraryDock(QWidget):
         self.status = QLabel("")
         self.status.setObjectName("SectionNote")
         self.status.setWordWrap(True)
+        self.status.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         lay.addWidget(self.status)
         self.follows = self.status      # the name older callers use
 
@@ -319,6 +320,7 @@ class LibraryDock(QWidget):
         self.tree.clear()
         if rbd is None:
             self.status.setText("Open or create a model to use the library.")
+            self._show_empty(True)
             self._sync_buttons()
             return
         counts: dict[str, int] = {}
@@ -373,7 +375,16 @@ class LibraryDock(QWidget):
             self.status.setText(
                 (f"{linked} element(s) follow a part type" if linked else "")
                 + (f"; {pending} change(s) to sync" if pending else ""))
+        self._show_empty(not heads)
         self._sync_buttons()
+
+    def _show_empty(self, empty: bool) -> None:
+        """With nothing to list, the message takes the list's place: below
+        an empty list it was squeezed into two lines and cut off."""
+        self.tree.setVisible(not empty)
+        self.status.setSizePolicy(
+            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Expanding if empty else QSizePolicy.Policy.Preferred)
 
     def _selected_part(self) -> tuple[str, Any] | None:
         item = self.tree.currentItem()

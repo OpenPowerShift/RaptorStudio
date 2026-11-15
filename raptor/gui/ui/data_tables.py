@@ -777,14 +777,28 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
 
     @staticmethod
     def _ensure_header_widths(table: QTableWidget) -> None:
-        """Widen columns whose header text would otherwise clip mid-word."""
+        """Widen columns whose header text, or whose drop-down's longest
+        choice ("None (unrepairable)"), would otherwise clip mid-word.
+
+        A column's drop-downs share one list of choices, so the first rows
+        are enough: a large model does not pay for a scan of every row."""
         header = table.horizontalHeader()
         metrics = header.fontMetrics()
+        rows = min(table.rowCount(), 25)
         for col in range(table.columnCount()):
             item = table.horizontalHeaderItem(col)
             if item is None:
                 continue
             need = metrics.horizontalAdvance(item.text()) + 24
+            for row in range(rows):
+                combo = table.cellWidget(row, col)
+                if isinstance(combo, QComboBox) and combo.count():
+                    cm = combo.fontMetrics()
+                    longest = max(cm.horizontalAdvance(combo.itemText(i))
+                                  for i in range(combo.count()))
+                    # the arrow, the frame and the theme's padding
+                    need = max(need, longest + 44)
+                    break
             if table.columnWidth(col) < need:
                 table.setColumnWidth(col, need)
 

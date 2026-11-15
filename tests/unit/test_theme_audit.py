@@ -294,3 +294,38 @@ os._exit(0)
     proc = subprocess.run([sys.executable, "-c", code],
                           capture_output=True, text=True, timeout=120)
     assert "LINKS_OK" in proc.stdout, f"{proc.stdout}\n{proc.stderr[-800:]}"
+
+
+def test_no_pseudo_state_changes_a_font(qapp):
+    """Qt sizes a widget from its plain font, so a bolder or larger font
+    under :default, :selected, :checked or :hover is drawn in a box sized
+    for the smaller one and is cut off ("Jse for Intake_Screer")."""
+    import re
+    from raptor.gui.resources.design_tokens import ThemeManager
+    for dark in (False, True):
+        ThemeManager.instance().set_dark(dark)
+        sheet = qapp.styleSheet()
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", sheet):
+            states = re.findall(r":(default|selected|checked|hover|pressed|focus|on)\b",
+                                selector)
+            if states and "::" not in selector:
+                assert "font" not in body, selector.strip()
+    ThemeManager.instance().set_dark(False)
+
+
+def test_a_default_buttons_label_fits(qapp):
+    from PySide6.QtWidgets import QDialog, QHBoxLayout, QPushButton
+    from raptor.gui.resources.design_tokens import ThemeManager
+    ThemeManager.instance().set_dark(True)
+    dlg = QDialog()
+    lay = QHBoxLayout(dlg)
+    btn = QPushButton("Use for Intake_Screen")
+    btn.setDefault(True)
+    lay.addWidget(btn)
+    lay.addStretch(1)
+    dlg.show()
+    qapp.processEvents()
+    room = btn.contentsRect().width()
+    assert btn.fontMetrics().horizontalAdvance(btn.text()) < room
+    dlg.close()
+    ThemeManager.instance().set_dark(False)

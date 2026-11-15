@@ -213,3 +213,13 @@ def test_the_basis_is_one_of_three():
     assert PartType("p", "P", basis="judgement").basis == "experience"
     with _pytest.raises(ValueError, match="basis"):
         PartType("p", "P", basis="guesswork")
+
+
+def test_an_empty_library_gives_its_message_the_lists_room(win):
+    dock = win._library_dock_widget
+    dock.refresh()
+    assert dock.tree.isHidden() and "No parts yet" in dock.status.text()
+    row = _first_block(win._rbd)
+    apply_part_to_rbd(win._rbd, row["ID"], part_from_block(row, name="Unit"))
+    dock.refresh()
+    assert not dock.tree.isHidden()
