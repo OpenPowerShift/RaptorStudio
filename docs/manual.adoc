@@ -961,6 +961,15 @@ repeat a result exactly, run it the same way: on one core (Animate, or Cores
 1) to match Raptor 7, or on any number of cores from 2 up to match another
 multi-core run. A computer with a single core always runs the one-core way.
 
+Every result says which way it was run. The run-settings line above the
+results reads *sequential streams* or *parallel streams*, and pointing at it
+gives the command that repeats it. The command line prints the same word in
+its header (`HospitalPower: 40 run(s), 0.5s, parallel streams`), and the MCP
+`simulate` result carries `streams` and `seed`. The surfaces start from
+different defaults: the command line runs on one core unless you pass `-j`,
+and the MCP server does the same except for a large model. So a desktop
+result on *Automatic* matches `raptor run -j 2`, not a plain `raptor run`.
+
 **Stop and Pause** work on a multi-core run between slices: Stop keeps the
 trials already finished, Pause starts no new slice until you resume. **Jump**
 (skip one trial) is unavailable on a multi-core run, because trials are run

@@ -1481,6 +1481,16 @@ repeat a result exactly, run it the same way: on one core (Animate, or Cores
 multi-core run. A computer with a single core always runs the one-core way.</p>
 </div>
 <div class="paragraph">
+<p>Every result says which way it was run. The run-settings line above the
+results reads <strong>sequential streams</strong> or <strong>parallel streams</strong>, and pointing at it
+gives the command that repeats it. The command line prints the same word in
+its header (<code>HospitalPower: 40 run(s), 0.5s, parallel streams</code>), and the MCP
+<code>simulate</code> result carries <code>streams</code> and <code>seed</code>. The surfaces start from
+different defaults: the command line runs on one core unless you pass <code>-j</code>,
+and the MCP server does the same except for a large model. So a desktop
+result on <strong>Automatic</strong> matches <code>raptor run -j 2</code>, not a plain <code>raptor run</code>.</p>
+</div>
+<div class="paragraph">
 <p><strong>Stop and Pause</strong> work on a multi-core run between slices: Stop keeps the
 trials already finished, Pause starts no new slice until you resume. <strong>Jump</strong>
 (skip one trial) is unavailable on a multi-core run, because trials are run

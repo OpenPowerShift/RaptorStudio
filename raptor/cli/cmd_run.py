@@ -369,6 +369,7 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
             "stats_start": _num(row.get("StartStats")),
             "seed": getattr(args, "seed", None),
             "jobs": getattr(args, "jobs", 1),
+            "streams": getattr(result, "streams", "sequential"),
             "applied": applied,
         },
         "summary": {m.name: _null_nan(m.to_dict())
@@ -407,7 +408,8 @@ def summary_text(doc: dict, metrics: list[str] | None) -> str:
     rows = doc["summary"]
     names = [n for n in rows if not metrics or n in metrics]
     head = (f"{doc['model']['name']}: {doc['options']['runs']} run(s), "
-            f"{doc['wall_seconds']:.1f}s")
+            f"{doc['wall_seconds']:.1f}s, "
+            f"{doc['options'].get('streams', 'sequential')} streams")
     lines = [head, ""]
     if doc.get("isolation"):
         lines.insert(0, doc["isolation"]["banner"])

@@ -437,7 +437,14 @@ def run_simulation(
                 f.write("".join(f"{ln}\r\n" for ln in by_trial_lines(
                     _report_sink, cumulative_trial_interval)).encode("latin-1"))
 
-    if num_workers > 1 and runs > 1 and not count_draws and not (cumulative_time_path and cumulative_time_mesh > 0):
+    parallel = (num_workers > 1 and runs > 1 and not count_draws
+                and not (cumulative_time_path and cumulative_time_mesh > 0))
+    if metadata_sink is not None:
+        # which random streams the numbers came from: "parallel" (the fixed
+        # chunk split, the same for any worker count above one) or
+        # "sequential" (one stream per object, as Raptor 7 draws them)
+        metadata_sink["streams"] = "parallel" if parallel else "sequential"
+    if parallel:
         # ---- parallel path (see docstring) -------------------------
         import multiprocessing as _mp
         from raptor.core.fileio.rbds import render_rbds

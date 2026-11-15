@@ -3,6 +3,7 @@
 Expects on `self`: the window's docks, `_rbd` and `_statusbar`."""
 from __future__ import annotations
 
+from raptor.core.run_manifest import manifest_with_streams
 from raptor.gui.run_text import run_outcome_text
 from raptor.gui.ui.foreground_run import ForegroundRun
 
@@ -368,7 +369,7 @@ class RunMixin(_Base):
             logs=logs, eor=eor_source, fin=fin, report_data=report_data,
             notes=report_notes, ao_lines=ao_lines, cap_lines=cap_lines,
             cost_lines=cost_lines, units=units,
-            manifest=(state.get("run_metadata") or {}).get("manifest"),
+            manifest=manifest_with_streams(state.get("run_metadata") or {}),
             importance_total=total, rbd=getattr(self, "_last_run_model", None))
 
     #: Ask before a run that a MEASURED previous run of this model says
@@ -773,7 +774,7 @@ class RunMixin(_Base):
                     fin=final_results_lines, report_data=report_data,
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
-                    units=units, manifest=run_metadata.get("manifest"),
+                    units=units, manifest=manifest_with_streams(run_metadata),
                     rbd=run_model,
                     importance_total=importance_total)
                 importance = self._importance_for(run_model, report_data)
@@ -796,7 +797,7 @@ class RunMixin(_Base):
                     report_data=report_data, units=units,
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
-                    manifest=run_metadata.get("manifest"),
+                    manifest=manifest_with_streams(run_metadata),
                     importance=importance, rbd=run_model)
                 self._note_results_basis()
                 self._remember_report_streams(streams)

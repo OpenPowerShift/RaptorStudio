@@ -94,6 +94,10 @@ class RunResult:
     #: `wall_seconds`, which is the simulation batch itself; callers that
     #: time the whole tool call need both.
     estimate_seconds: float = 0.0
+    #: "parallel" or "sequential": which random streams the numbers came
+    #: from (see `streams_note`); with `seed`, what reproduces them
+    streams: str = "sequential"
+    seed: int = 0
     #: The pre-run predicted batch wall time, when one was computed.
     estimated_wall_seconds: float | None = None
     #: Which optional analyses ran: ``{"capacity": bool, "cost": bool}``.
@@ -707,6 +711,8 @@ def run(
         "metrics": metrics_to_dict(metrics),
         "wall_seconds": round(wall, 3),
         "negative_draws": sum(run_metadata.get("negative_draws", [])),
+        "streams": run_metadata.get("streams", "sequential"),
+        "seed": int(seed or 0),
     }
     if importance_data is not None:
         summary["importance"] = importance_data
@@ -759,6 +765,8 @@ def run(
         importance=importance_data,
         estimate_seconds=estimate_seconds,
         estimated_wall_seconds=est_wall,
+        streams=summary["streams"],
+        seed=summary["seed"],
         analyses=analyses,
     )
 
@@ -1423,3 +1431,20 @@ def _series_view(runs: list[dict], key: str) -> list[dict]:
         {"t": r["t"], "values": r.get(key, r["values"])}
         for r in runs
     ]
+
+
+def streams_note(summary: dict) -> str:
+    """One line saying which random streams a run used and how to get the
+    same numbers again.
+
+    A run on one core and a run on several give different (equally valid)
+    numbers, and the GUI, CLI and MCP do not all default to the same, so a
+    result that does not say which it was cannot be reproduced."""
+    seed = int(summary.get("seed") or 0)
+    salt = f" --seed {seed}" if seed else ""
+    if summary.get("streams") == "parallel":
+        return ("Random streams: parallel (any 2 or more cores give these "
+                f"numbers; repeat with `raptor run -j 2{salt}`, MCP workers=2, "
+                "or Cores 2+ in the GUI).")
+    return ("Random streams: sequential, as Raptor 7 draws them (repeat with "
+            f"`raptor run -j 1{salt}`, MCP workers=1, or Cores 1 in the GUI).")

@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from raptor.gui.ui import settings
 from raptor.core.engine.runner import run_simulation_with_reports
+from raptor.core.run_manifest import manifest_with_streams
 
 
 
@@ -716,7 +717,7 @@ class BackgroundRunMixin(_Base):
                     units=units, notes=report_notes,
                     ao_lines=ao_lines, cap_lines=cap_lines,
                     cost_lines=cost_lines,
-                    manifest=(state.get("run_metadata") or {}).get("manifest"),
+                    manifest=manifest_with_streams(state.get("run_metadata") or {}),
                     importance=importance,
                     rbd=getattr(self, "_last_run_model", None))
                 self._note_results_basis()

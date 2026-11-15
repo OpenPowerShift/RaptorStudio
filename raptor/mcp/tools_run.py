@@ -284,8 +284,11 @@ async def simulate(  # noqa: PLR0912, PLR0915
     bit-identical to a sequential batch.  Leave `workers` out and a large
     model (500+ blocks, events and nodes) run 20+ times uses several cores
     (half the machine's, at most 8); the result reports the `workers` used
-    and `workers_auto`. Pass `workers=1` for the sequential numbers. This is
-    a server default only: the desktop app and the command line are unchanged.
+    and `workers_auto`. Pass `workers=1` for the sequential numbers.
+    `streams` says which the numbers are ("sequential" or "parallel",
+    the same for any worker count above one) and `seed` the salt used: the
+    two together reproduce a result on any surface (the desktop app's
+    Cores box, `raptor run -j`).
 
     `seed` (optional, non-negative) re-rolls the batch reproducibly;
     leaving it unset keeps the engine's fixed seeds, under which the same
@@ -443,6 +446,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
         "caveats": validation_warnings,
         "workers": workers,
         "workers_auto": workers_auto,
+        "streams": getattr(result, "streams", "sequential"),
+        "seed": getattr(result, "seed", 0),
     }
     if getattr(result, "isolation", None):
         data["isolation"] = result.isolation
@@ -469,9 +474,10 @@ async def simulate(  # noqa: PLR0912, PLR0915
                "the end; `Capacity_Weighted_Availability` (Mean_Flow / "
                "FlowGenerated) is the delivered fraction, and `Lost_Flow` the "
                "flow not delivered.")
+    from raptor.api.run import streams_note
     if workers_auto:
-        md += (f"\n\nRan on {workers} cores (chosen for a large model; pass "
-               "`workers=1` for the sequential numbers).")
+        md += f"\n\nRan on {workers} cores (chosen for a large model)."
+    md += "\n\n" + streams_note(data)
     if truncated:
         md = (f"**Partial batch: only {result.num_runs} of {requested} runs "
               f"completed** (timeout or abort) -- these estimates are noisier "

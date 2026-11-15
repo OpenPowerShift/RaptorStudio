@@ -4465,8 +4465,11 @@ unless `confirm_long_run=true`.  `workers > 1` is faster but not
 bit-identical to a sequential batch.  Leave `workers` out and a large
 model (500+ blocks, events and nodes) run 20+ times uses several cores
 (half the machine's, at most 8); the result reports the `workers` used
-and `workers_auto`. Pass `workers=1` for the sequential numbers. This is
-a server default only: the desktop app and the command line are unchanged.
+and `workers_auto`. Pass `workers=1` for the sequential numbers.
+`streams` says which the numbers are ("sequential" or "parallel",
+the same for any worker count above one) and `seed` the salt used: the
+two together reproduce a result on any surface (the desktop app's
+Cores box, `raptor run -j`).
 
 `seed` (optional, non-negative) re-rolls the batch reproducibly;
 leaving it unset keeps the engine's fixed seeds, under which the same
@@ -4527,7 +4530,7 @@ Parameter notes:
 - `precision` — `precision` runs in growing batches until the watched metric is precise enough, instead of a fixed count: `{relative: 0.1, metric: "system.ao", on: "auto" | "unavailability" | "value", confidence: 0.95, min_trials: 50, max_trials: 20000, batch: 50}`.
 - `run_length` — Simulated time per run, in the model's units. Leave out for the model's own setting.
 - `run_length` — Defaults to the model's configured run length.
-- `seed` — `seed` (optional, non-negative) re-rolls the batch reproducibly; leaving it unset keeps the engine's fixed seeds, under which the same model and run count always return byte-identical numbers.
+- `seed` — `streams` says which the numbers are ("sequential" or "parallel", the same for any worker count above one) and `seed` the salt used: the two together reproduce a result on any surface (the desktop app's Cores box, `raptor run -j`).
 - `timeout_s` — The run is estimated first and refused with a clear message if the estimate exceeds `timeout_s`, unless `confirm_long_run=true`.
 - `treatments` — `treatments` is `{deps: up|system| refuse, pools: full|share|refuse, streams: keep|separate, items: {...}}`; call `extract_hierarchy` with `report_only` first to see the hazards.
 - `workers` — Leave `workers` out and a large model (500+ blocks, events and nodes) run 20+ times uses several cores (half the machine's, at most 8); the result reports the `workers` used and `workers_auto`.
@@ -4548,6 +4551,8 @@ Parameter notes:
 | `requested_runs` | integer | yes |
 | `run_id` | string | yes |
 | `runs` | integer | yes |
+| `seed` | integer | yes |
+| `streams` | string | yes |
 | `summary` | object | yes |
 | `total_seconds` | number | yes |
 | `truncated` | boolean | yes |

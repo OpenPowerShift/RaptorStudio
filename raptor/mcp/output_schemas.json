@@ -2685,6 +2685,12 @@
    "runs": {
     "type": "integer"
    },
+   "seed": {
+    "type": "integer"
+   },
+   "streams": {
+    "type": "string"
+   },
    "summary": {
     "type": "object"
    },
@@ -2721,6 +2727,8 @@
    "requested_runs",
    "run_id",
    "runs",
+   "seed",
+   "streams",
    "summary",
    "total_seconds",
    "truncated",

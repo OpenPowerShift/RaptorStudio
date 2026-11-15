@@ -1611,6 +1611,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                            else ""))
         if m.get("analyses"):
             bits.append("analyses: " + ", ".join(m["analyses"]))
+        if m.get("streams"):
+            # one core and several give different, equally valid numbers
+            bits.append(f"{m['streams']} streams")
         record = m.get("recording") or {}
         if record:
             on = [k for k in ("event_log", "ao_plot", "capacity_plot",
@@ -1630,6 +1633,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             tip.append(f"engine: {m['engine_version']}")
         if m.get("seed_strategy"):
             tip.append(f"seeds: {m['seed_strategy']}")
+        if m.get("streams"):
+            from raptor.api.run import streams_note
+            tip.append(streams_note(m))
         lbl.setToolTip("\n".join(tip))
 
     def _refresh_charts(self) -> None:
