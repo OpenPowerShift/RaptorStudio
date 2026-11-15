@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
@@ -122,6 +123,40 @@ def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
         from raptor.api.insight.capacity_attribution import text_lines as capacity_lines
         lines += [""] + capacity_lines(capacity, n)
     return lines
+
+
+#: The keys of a summary statistic kept by `compact`: enough to quote a
+#: mean with its interval and say how many runs it rests on.
+SUMMARY_STAT = ("mean", "sem", "n")
+
+
+def _is_stat(value: Any) -> bool:
+    return isinstance(value, dict) and "mean" in value and "sem" in value
+
+
+def _round(value: Any, digits: int = 6) -> Any:
+    if isinstance(value, float) and math.isfinite(value) and value != 0.0:
+        return float(f"{value:.{digits}g}")
+    return value
+
+
+def compact(value: Any, top: int = 10) -> Any:
+    """`value` (an attribution, or part of one) for a reader rather than a
+    store: each statistic cut to `SUMMARY_STAT`, floats to six significant
+    figures, and the ranked lists (outage sequences, lost-capacity elements)
+    to their first `top`. The numbers kept are unchanged apart from rounding."""
+    if _is_stat(value):
+        return {k: _round(value[k]) for k in SUMMARY_STAT if k in value}
+    if isinstance(value, dict):
+        out = {}
+        for key, item in value.items():
+            if key in ("sequences", "elements") and isinstance(item, list):
+                item = item[:top]
+            out[key] = compact(item, top)
+        return out
+    if isinstance(value, list):
+        return [compact(item, top) for item in value]
+    return _round(value)
 
 
 def hierarchy_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:

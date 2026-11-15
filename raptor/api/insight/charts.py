@@ -40,6 +40,40 @@ def _mean(values: list[float]) -> float | None:
     return sum(values) / len(values) if values else None
 
 
+def text_lines(chart: ChartSpec, top: int = 10) -> list[str]:
+    """The chart as text: its title and caption, then the numbers it draws.
+    A timeline gives each layer's value at the end; any other chart its
+    first `top` series rows that carry a value."""
+    from raptor.api.insight.axes import format_value
+    fmt = str(chart.provenance.get("format") or "")
+
+    def shown(value: float) -> str:            # a timeline layer's end value
+        return format_value(value, fmt, 5) if fmt else f"{value:,.4g}"
+
+    def row_value(value: float) -> str:
+        return f"{value:,.2f}" if fmt == "money" else format_value(value, fmt, 6)
+
+    lines = [f"{chart.title} — {chart.caption}"]
+    if chart.kind == "timeline":
+        for layer in chart.series:
+            if layer.get("read") == "none" or not layer.get("t"):
+                continue
+            if layer.get("role") != "area":
+                text = shown(float(layer["y"][-1]))
+            elif layer.get("read") == "range":
+                text = f"{shown(float(layer['lo'][-1]))} to {shown(float(layer['hi'][-1]))}"
+            else:
+                text = shown(float(layer["hi"][-1]) - float(layer["lo"][-1]))
+            lines.append(f"  {layer.get('name', '')}: {text} at the end")
+        return lines
+    for row in chart.series[:top]:
+        name = row.get("name") or row.get("label") or ""
+        value = row.get("value", row.get("count", row.get("mean")))
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            lines.append(f"  {name}: {row_value(float(value))}")
+    return lines
+
+
 def _values(per_run: list[dict], field_name: str) -> list[float]:
     return [float(row[field_name]) for row in per_run
             if isinstance(row.get(field_name), (int, float))

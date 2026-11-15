@@ -431,6 +431,7 @@
  },
  "downtime_drivers": {
   "params": [
+   "detail",
    "run_id",
    "top"
   ],

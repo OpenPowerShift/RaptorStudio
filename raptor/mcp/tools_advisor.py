@@ -142,7 +142,8 @@ def apply_fix(model_id: str, rule: str, target: str | None = None,
 
 @mcp.tool(annotations=READ_ONLY("Downtime drivers"))
 @guarded
-def downtime_drivers(run_id: str, top: int = 10) -> CallToolResult:
+def downtime_drivers(run_id: str, top: int = 10,
+                     detail: Literal["summary", "full"] = "summary") -> CallToolResult:
     """What causes the system's downtime in a finished run.
 
     Needs a run made with `attribution=True` (`simulate` or `start_run`).
@@ -161,6 +162,11 @@ def downtime_drivers(run_id: str, top: int = 10) -> CallToolResult:
     interval, not a sum of the elements'), with `depth`, `parent`,
     `elements` (how many inside started an outage) and `main_cause`.
 
+    `detail` is `summary` by default: each statistic is {mean, sem, n},
+    numbers have six significant figures, and `sequences` and the capacity
+    `elements` stop at `top` like the elements do. `full` returns the stored
+    attribution as it is (min and max of every statistic, every sequence).
+
     This describes the design as simulated. It does not say what a change
     would achieve: for that, change the model and compare (`sweep_parameter`,
     `compare_models`). The engine's results are unchanged by attribution; it
@@ -174,6 +180,10 @@ def downtime_drivers(run_id: str, top: int = 10) -> CallToolResult:
     rows = drivers.top(attribution, top)
     data = {**attribution, "elements": rows, "run_id": run_id,
             "caption": drivers.caption(attribution)}
+    if detail == "summary":
+        data = drivers.compact(data, top)
+    elif detail != "full":
+        raise ValueError("detail must be 'summary' or 'full'")
     return ok(data, "```\n" + "\n".join(drivers.text_lines(attribution, top)) + "\n```")
 
 
@@ -239,10 +249,15 @@ def run_story(run_id: str) -> CallToolResult:
 @mcp.tool(annotations=READ_ONLY("Run chart"))
 @guarded
 def run_chart(run_id: str, chart: str = "trial-outcome",
-              render_svg: bool = True, run: int = 1,
+              render_svg: bool = False, run: int = 1,
               y_floor: float | None = None, page: str = "screen",
               min_share: float = 0.0) -> CallToolResult:
     """One chart of a finished run, as data and optionally as SVG.
+
+    The text gives the caption and the numbers the chart draws (the leading
+    rows, or each layer's end value over time). `render_svg=True` adds the
+    figure as `svg`; it is off by default because the SVG is most of the
+    answer's size.
 
     The same `ChartSpec` the application paints and `raptor explain --chart`
     prints: title, subtitle, axis labels, series, marks, a one-sentence
@@ -306,4 +321,5 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     if render_svg:
         from raptor.render.charts_svg import render
         data["svg"] = render(spec, page=page)
-    return ok(data, f"**{spec.title}** — {spec.caption}")
+    lines = charts.text_lines(spec)
+    return ok(data, "\n".join([f"**{spec.title}** — {spec.caption}", *lines[1:]]))

@@ -2068,9 +2068,6 @@
    "subtitle": {
     "type": "string"
    },
-   "svg": {
-    "type": "string"
-   },
    "title": {
     "type": "string"
    },

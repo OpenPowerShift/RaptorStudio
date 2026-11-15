@@ -378,35 +378,10 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
 
 
 def _print_chart(chart: Any, args: Any) -> None:
+    from raptor.api.insight.charts import text_lines
     print()
-    print(f"{chart.title} — {chart.caption}")
-    if chart.kind == "timeline":
-        # one line per layer: where it ends (the caption has the reading)
-        fmt = str(chart.provenance.get("format") or "")
-        from raptor.api.insight.axes import format_value
-
-        def shown(value: float) -> str:
-            return format_value(value, fmt, 5) if fmt else f"{value:,.4g}"
-
-        for layer in chart.series:
-            if layer.get("read") == "none" or not layer.get("t"):
-                continue
-            if layer.get("role") != "area":
-                text = shown(float(layer["y"][-1]))
-            elif layer.get("read") == "range":
-                text = f"{shown(float(layer['lo'][-1]))} to {shown(float(layer['hi'][-1]))}"
-            else:
-                text = shown(float(layer["hi"][-1]) - float(layer["lo"][-1]))
-            print(f"  {layer.get('name', '')}: {text} at the end")
-    for row in ([] if chart.kind == "timeline" else chart.series[:args.top]):
-        name = row.get("name") or row.get("label") or ""
-        value = row.get("value", row.get("count", row.get("mean")))
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            from raptor.api.insight.axes import format_value
-            fmt = str(chart.provenance.get("format") or "")
-            value = (f"{value:,.2f}" if fmt == "money"
-                     else format_value(float(value), fmt, 6))
-        print(f"  {name}: {value}")
+    for line in text_lines(chart, top=args.top):
+        print(line)
     if args.chart_svg:
         from raptor.render.charts_svg import write
         write(chart, args.chart_svg, page=args.chart_page)

@@ -564,8 +564,9 @@ the downtime; "helps a little" is real but smaller. No verdict weighs cost,
 so do not present one as advice to spend money.
 
 `run_chart` returns one chart of a finished run as the same `ChartSpec` the
-application paints, with the figure itself as SVG unless `render_svg` is
-false. The base charts (`trial-outcome`, `ecdf`, `convergence`,
+application paints. The text gives the caption and the numbers drawn; pass
+`render_svg=true` for the figure itself as SVG (off by default: the SVG is
+most of the answer's size). The base charts (`trial-outcome`, `ecdf`, `convergence`,
 `availability-ladder`) need only the run; the downtime charts need
 `attribution=True` (including the treemap, the outage anatomy and the
 run-to-run ribbon), and

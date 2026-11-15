@@ -262,11 +262,23 @@ def apply_output_schemas() -> int:
     return n
 
 
+def apply_param_docs() -> int:
+    """Give each input property without a `description` one (see
+    `raptor.mcp.param_docs`). Returns how many were set."""
+    from raptor.mcp.param_docs import describe
+    n = 0
+    for tool in mcp._tool_manager._tools.values():
+        properties = (tool.parameters or {}).get("properties") or {}
+        n += describe(properties, tool.description or "")
+    return n
+
+
 _list_tools_without_schemas = mcp.list_tools
 
 
 async def _list_tools_with_schemas():
     apply_output_schemas()
+    apply_param_docs()
     return await _list_tools_without_schemas()
 
 

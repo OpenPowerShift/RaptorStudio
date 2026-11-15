@@ -721,8 +721,8 @@ you need the exact argument shape.
   `raptor explain --story` prints.
 
 | `run_chart`
-| One chart of a finished run as a `ChartSpec`, plus the same figure as
-  SVG unless `render_svg=False`. Names include `trial-outcome`, `ecdf`,
+| One chart of a finished run as a `ChartSpec`, with its numbers in the
+  text; `render_svg=True` adds the figure as SVG. Names include `trial-outcome`, `ecdf`,
   `convergence`, `availability-ladder`, and, with `attribution=True`,
   `downtime-pareto`, `downtime-waterfall`, `outage-histogram`,
   `frequency-duration`, `downtime-treemap`, `outage-anatomy` and

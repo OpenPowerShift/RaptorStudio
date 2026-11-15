@@ -87,12 +87,23 @@ def test_drivers_need_attribution_and_match_the_api(server, model):
 
     run = ok(call(server, "simulate", model_id=model, seed=4, attribution=True))
     assert run["summary"] == plain["summary"]            # attribution changes no result
-    data = ok(call(server, "downtime_drivers", run_id=run["run_id"], top=1))
+    data = ok(call(server, "downtime_drivers", run_id=run["run_id"], top=1, detail="full"))
     from raptor.api.insight import drivers
     from raptor.mcp import context
     api = drivers.read(context.workspace(), run["run_id"])
     assert data["system"] == api["system"] and data["causes"] == api["causes"]
     assert len(data["elements"]) == 1 and data["caption"] == drivers.caption(api)
+
+    # the default is the summary: mean, sem and n, six figures, same numbers
+    brief = ok(call(server, "downtime_drivers", run_id=run["run_id"], top=1))
+    assert brief["elements"][0]["dtci"] == drivers.compact(data["elements"][0]["dtci"])
+    assert set(brief["elements"][0]["dtci"]) == {"mean", "sem", "n"}
+    assert brief["elements"][0]["dtci"]["mean"] == pytest.approx(
+        data["elements"][0]["dtci"]["mean"], rel=1e-5)
+    assert len(brief.get("sequences") or []) <= 1
+    assert brief["caption"] == data["caption"]
+    with pytest.raises(Exception, match="summary"):       # refused by the input schema
+        call(server, "downtime_drivers", run_id=run["run_id"], detail="all")
 
     advised = ok(call(server, "advise", model_id=model, run_id=run["run_id"], min_severity="info",
                       limit=200, targets=[{"metric": "system.ao", "op": ">=", "value": 0.2}]))
@@ -151,8 +162,14 @@ def test_run_chart_matches_the_api_and_renders_svg(server, model):
     from raptor.mcp import context
 
     run = ok(call(server, "simulate", model_id=model, seed=5, attribution=True))
+    result = call(server, "run_chart", run_id=run["run_id"], chart="downtime-pareto")
+    data = ok(result)
+    assert "svg" not in data            # the figure only on request
+    text = " ".join(c.text for c in result.content)
+    top = data["series"][0]
+    assert f"{top['name']}:" in text    # the numbers are in the text too
     data = ok(call(server, "run_chart", run_id=run["run_id"],
-                   chart="downtime-pareto"))
+                   chart="downtime-pareto", render_svg=True))
     ws = context.workspace()
     per_run = read_per_run(run_dir(ws, run["run_id"]), run["run_id"]) or []
     from raptor.api.insight import drivers
@@ -165,7 +182,7 @@ def test_run_chart_matches_the_api_and_renders_svg(server, model):
                     chart="trial-outcome", render_svg=False))
     assert "svg" not in plain and plain["kind"] == "dot_plot"
     a3 = ok(call(server, "run_chart", run_id=run["run_id"], chart="downtime-pareto",
-                 page="a3", min_share=0.5))
+                 page="a3", min_share=0.5, render_svg=True))
     assert "width='420mm'" in a3["svg"]
     assert a3["provenance"].get("folded_below", 0.5) == 0.5
     bad = call(server, "run_chart", run_id=run["run_id"], chart="downtime-pareto",
@@ -176,7 +193,8 @@ def test_run_chart_matches_the_api_and_renders_svg(server, model):
 def test_run_chart_draws_a_chart_over_time(server, model):
     run = ok(call(server, "simulate", model_id=model, seed=5, availability_plot=True))
     data = ok(call(server, "run_chart", run_id=run["run_id"],
-                   chart="availability-through-run", run=2, y_floor=0.5))
+                   chart="availability-through-run", run=2, y_floor=0.5,
+                   render_svg=True))
     assert data["kind"] == "timeline" and data["title"] == "Availability through run 2"
     assert data["provenance"]["y_range"] == [0.5, 1.0]
     assert data["svg"].startswith("<svg")

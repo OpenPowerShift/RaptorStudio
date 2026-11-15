@@ -146,6 +146,10 @@ history goes with it. It does not delete exported files (use
 | `delete` | boolean | no | `false` | — |
 | `model_id` | string \| array<string> | yes | — | — |
 
+Parameter notes:
+
+- `model_id` — `model_id` accepts a single id or a list, for cleaning up several scratch/sweep models in one call.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -261,6 +265,11 @@ describe the rest.
 | `limit` | integer | no | `100` | — |
 | `offset` | integer | no | `0` | — |
 
+Parameter notes:
+
+- `limit` — Long workspaces are paged: `limit` (max 200) and `offset`; `total` and `next_offset` describe the rest.
+- `offset` — Long workspaces are paged: `limit` (max 200) and `offset`; `total` and `next_offset` describe the rest.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -366,6 +375,12 @@ validate() first and refuses on ERROR. The layout is saved as it is;
 | `model_id` | string | yes | — | — |
 | `path` | string | yes | — | — |
 
+Parameter notes:
+
+- `format` — An explicit extension must match `format`; a mismatch or a path into the managed models/runs/renders trees is refused.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `path` — If `path` has **no extension** the format's own extension is appended (so `"out"` -> `out.rbds`).
+
 **Returns**
 
 | Field | Type | Always present |
@@ -461,6 +476,13 @@ Returns {block_id, name, warnings}.
 | `repair_dist` | integer \| string \| null | no | `null` | — |
 | `repair_params` | array<number \| string> \| null | no | `null` | — |
 
+Parameter notes:
+
+- `after` — `after` wires the new block after an existing element name/id, which must not already have its one link out.
+- `fail_dist` — `fail_dist`/`repair_dist` take a distribution name ("Weibull") or a code from `list_distributions`.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `repair_dist` — `fail_dist`/`repair_dist` take a distribution name ("Weibull") or a code from `list_distributions`.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -516,6 +538,7 @@ Returns {added, elements: [{kind, id, name}]}.
 Parameter notes:
 
 - `elements` — List of {"kind": "block"|"node"|"event", ...fields}
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -563,6 +586,11 @@ Add an event to the model.  `prob` is its probability (0-1).
 | `model_id` | string | yes | — | — |
 | `name` | string | yes | — | — |
 | `prob` | number | no | `1.0` | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `prob` — `prob` is its probability (0-1).
 
 **Returns**
 
@@ -622,6 +650,11 @@ Returns {hier_id, name, in_id, out_id, parent, depth, levels_below}.
 | `name` | string | yes | — | — |
 | `parent` | integer | no | `0` | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `parent` — This is the fiddly part to do by hand: each marker's own `parent` must be the new hierarchy's id (not the enclosing level) and both markers' `n` must match their real link counts, or the engine crashes on load with an unhelpful KeyError.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -671,6 +704,10 @@ runs.
 | `name` | string | no | `` | — |
 | `parent` | integer | no | `0` | — |
 | `type` | string | no | `regular` | `start`, `regular`, `end`, `in`, `out` |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -812,6 +849,13 @@ errors (e.g. `k > n`).
 | `spec_path` | string \| null | no | `null` | — |
 | `validate_model` | boolean | no | `true` | — |
 
+Parameter notes:
+
+- `auto_layout` — `auto_layout` (default True) places every element on the shared layered grid (Start left -> End right) so the model's diagram renders cleanly; pass False only when the spec carries its own `xPos`/`yPos` coordinates you want to keep.
+- `model_id` — `model_id` is accepted only to reject it with a clear message: it used to be ignored silently, so a caller that passed one believed it was appending to that model.
+- `spec` — Give the spec inline as `spec`, or, for a large one, as `spec_path`: a JSON file **relative to the workspace** (or an `--allow-read` directory).
+- `spec_path` — Give the spec inline as `spec`, or, for a large one, as `spec_path`: a JSON file **relative to the workspace** (or an `--allow-read` directory).
+
 **Returns**
 
 | Field | Type | Always present |
@@ -907,6 +951,11 @@ levels_below}.
 | `parent` | integer | no | `0` | — |
 | `selectors` | array<string> | yes | — | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `selectors` — `selectors` names the elements (by name, or `Block:N` / `Node:N` / `Event:N`) that should become the new hierarchy's contents.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -968,6 +1017,11 @@ across server restarts.
 | `repair_dist` | integer \| null | no | `null` | — |
 | `repair_params` | array<number> \| null | no | `null` | — |
 
+Parameter notes:
+
+- `fail_dist` — `fail_dist`/`repair_dist` are distribution codes from `list_distributions`. - `action='clear'` — forget them and fall back to model defaults.
+- `repair_dist` — `fail_dist`/`repair_dist` are distribution codes from `list_distributions`. - `action='clear'` — forget them and fall back to model defaults.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1023,6 +1077,11 @@ dialog exactly (unknown keys raise an error):
 | `pm_params` | array<number> \| null | no | `null` | — |
 | `selector` | string | yes | — | — |
 | `trigger_name` | string \| null | no | `null` | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `selector` — One element: its name, or Kind:id such as Block:3, Node:2, Event:1, Hier:4 or Link:7.
 
 **Returns**
 
@@ -1085,6 +1144,13 @@ for that phase.  Phase rows are always built through rbdlib.make_phase_row.
 | `remove` | array<string> \| null | no | `null` | — |
 | `unassign` | array<string> \| null | no | `null` | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `phases` — `mode='replace'` (default) makes `phases` the whole list; `mode='add'` appends them to the phases already there (cells for the new phase are filled with Raptor's default); `mode='remove'` deletes the phases named in `remove` and shifts the rest down.
+- `remove` — `mode='replace'` (default) makes `phases` the whole list; `mode='add'` appends them to the phases already there (cells for the new phase are filled with Raptor's default); `mode='remove'` deletes the phases named in `remove` and shifts the rest down.
+- `unassign` — `unassign` names blocks/events/nodes whose phasing is cleared (flag off, per-phase cells dropped) -- previously there was no MCP route for this. assignments: {element: [per-phase state]}, one list entry per phase (a short list is an error, not padded).
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1146,6 +1212,13 @@ Returns {applied, warnings}.
 | `spare_pool` | string \| null | no | `null` | — |
 | `stock` | integer \| null | no | `null` | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `selector` — One element: its name, or Kind:id such as Block:3, Node:2, Event:1, Hier:4 or Link:7.
+- `spare_pool` — `spare_pool` is required for mode='pool' and must name an existing pool (create one with `manage_spare_pools`). stock: initial spare count; restock_every: restock interval (hours); emergency: emergency shipping time (hours); slo: stock level order.
+- `stock` — With mode='pool' the POOL's stock and restock interval govern; the block's own `stock` only applies to mode='custom'.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1198,6 +1271,14 @@ system is asked to deliver).  Returns {applied, previous}.
 | `units` | string \| null | no | `null` | — |
 | `weak_link` | boolean \| null | no | `null` | — |
 | `yr_threshold` | number \| null | no | `null` | — |
+
+Parameter notes:
+
+- `flow_generated` — Configure system-level simulation settings. run_length: simulation duration (hours unless `units` says otherwise). termination: 'TimeSim' or 'CycleSim'. display_unit overrides the display unit without changing stored values. capacity=true enables capacity analysis; `flow_generated` sets its demand…
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `num_runs` — Replications (trials). Leave out to use the model's own setting.
+- `run_length` — Simulated time per run, in the model's units. Leave out for the model's own setting.
+- `units` — Configure system-level simulation settings. run_length: simulation duration (hours unless `units` says otherwise). termination: 'TimeSim' or 'CycleSim'. display_unit overrides the display unit without changing stored values. capacity=true enables capacity analysis; `flow_generated` sets its demand…
 
 **Returns**
 
@@ -1255,6 +1336,12 @@ element to it.
 | `replace` | boolean | no | `false` | — |
 | `to_element` | any | no | `null` | — |
 
+Parameter notes:
+
+- `from_element` — `from_element`/`to_element` are either ["Block", id] / ["Node", id] or a bare element name like "PumpA".
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `to_element` — `from_element`/`to_element` are either ["Block", id] / ["Node", id] or a bare element name like "PumpA".
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1294,6 +1381,7 @@ written once. Returns {connected, links: [{link_id, from, to}]}.
 Parameter notes:
 
 - `links` — List of {"from": endpoint, "to": endpoint} objects
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -1342,6 +1430,10 @@ changed.
 | `source` | string | yes | — | — |
 | `targets` | array<string> | yes | — | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1385,6 +1477,11 @@ Returns {removed, links_removed}.
 | `reconnect` | boolean | no | `true` | — |
 | `selector` | string | yes | — | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `selector` — One element: its name, or Kind:id such as Block:3, Node:2, Event:1, Hier:4 or Link:7.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1426,6 +1523,8 @@ Returns {deleted: [{selector, kind}], links_removed}.
 
 Parameter notes:
 
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `reconnect` — `reconnect` behaves as for `delete_element`.
 - `selectors` — Element names or Kind:id selectors to delete
 
 **Returns**
@@ -1467,6 +1566,10 @@ link ids in `describe_model(detail='full')` or `get_table('inputs.links')`.
 | `link_id` | string | yes | — | — |
 | `model_id` | string | yes | — | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1504,6 +1607,11 @@ tables).  `level` filters to a hierarchy level (0 = whole model).
 | `detail` | string | no | `summary` | `summary`, `full` |
 | `level` | integer | no | `0` | — |
 | `model_id` | string | yes | — | — |
+
+Parameter notes:
+
+- `level` — `level` filters to a hierarchy level (0 = whole model).
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -1576,6 +1684,13 @@ change has `field`, `label`, `category` and the values `a` and `b`
 | `model_a` | string | yes | — | — |
 | `model_b` | string | yes | — | — |
 
+Parameter notes:
+
+- `ignore` — `ignore` lists categories to leave out.
+- `match` — Elements are paired by name, then by id (`match`: "auto"; "name" or "id" to use only one; "id" is right for a model against an earlier copy of itself).
+- `model_a` — `model_a` / `model_b` are workspace model ids (the reference and the one changed); open files with `open_model` first, this tool does not load paths.
+- `model_b` — `model_a` / `model_b` are workspace model ids (the reference and the one changed); open files with `open_model` first, this tool does not load paths.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1631,6 +1746,11 @@ and block names get the next free suffix. One save.
 | `elements` | array<string> | yes | — | — |
 | `model_id` | string | yes | — | — |
 
+Parameter notes:
+
+- `elements` — `elements` are names or ids (optionally kind-prefixed).
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1679,6 +1799,12 @@ The source model is not changed.
 | `name` | string \| null | no | `null` | — |
 | `report_only` | boolean | no | `false` | — |
 | `treatments` | object \| null | no | `null` | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `report_only` — With `report_only` nothing is created and the hazards (with the treatment each would get) are returned.
+- `treatments` — Hazards at the boundary -- elements following something outside, spare and resource pools shared with outside blocks, random streams shared with outside elements -- each get a documented treatment; see `simulate`'s `treatments`.
 
 **Returns**
 
@@ -1733,6 +1859,11 @@ value for those parameters, e.g. a Pearson 5 with shape <= 2.
 | `detail` | string | no | `summary` | `summary`, `full` |
 | `model_id` | string | yes | — | — |
 | `selector` | string | yes | — | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `selector` — `selector` is an element name or 'Block:N' / 'Node:N' / 'Event:N' / 'Hier:N' / 'Link:N' (links have no name; use their id).
 
 **Returns**
 
@@ -1793,6 +1924,11 @@ Returns {rates} for 'list', else the affected entry.
 | `model_id` | string | yes | — | — |
 | `name` | string \| null | no | `null` | — |
 
+Parameter notes:
+
+- `expr` — `expr` is an expression like "0.00015 * 20000 / 8760 # failure rate".
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1842,6 +1978,15 @@ refuses while a block still names the resource. Fields match the
 | `per_time_unit` | number \| null | no | `null` | — |
 | `phases` | integer \| null | no | `null` | — |
 | `spare_cost` | number \| null | no | `null` | — |
+
+Parameter notes:
+
+- `fixed_per_use` — Fields match the `inputs.resources` table: `num_in`, `spare_cost`, `fixed_per_use`, `per_time_unit`, `phases`.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `num_in` — Fields match the `inputs.resources` table: `num_in`, `spare_cost`, `fixed_per_use`, `per_time_unit`, `phases`.
+- `per_time_unit` — Fields match the `inputs.resources` table: `num_in`, `spare_cost`, `fixed_per_use`, `per_time_unit`, `phases`.
+- `phases` — Fields match the `inputs.resources` table: `num_in`, `spare_cost`, `fixed_per_use`, `per_time_unit`, `phases`.
+- `spare_cost` — Fields match the `inputs.resources` table: `num_in`, `spare_cost`, `fixed_per_use`, `per_time_unit`, `phases`.
 
 **Returns**
 
@@ -1907,6 +2052,23 @@ The pool's own `stock` is what governs a Pooled block; the block's
 | `spare_cost` | number \| null | no | `null` | — |
 | `stock` | integer \| null | no | `null` | — |
 
+Parameter notes:
+
+- `arrive_every` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `emer_ship_cost` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `emer_time` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `eso` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `level` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `name` — `action='add'` needs `name`; `action='update'` patches only the fields you pass; `action='delete'` refuses while a block still has Pooled sparing that names the pool.
+- `new_spares` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `quantity` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `rso` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `slo` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `slo_time` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `spare_cost` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+- `stock` — Field names match the `inputs.spare_pools` table and the .rbds `spare_pools` entries: `stock`, `new_spares`, `arrive_every` (restock interval, h), `eso`, `emer_time` (emergency shipping, h), `slo`, `level`, `quantity`, `slo_time`, `rso`, `spare_cost`, `emer_ship_cost`.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -1955,6 +2117,8 @@ first. Deleting is refused while a block's PM still names it.
 
 Parameter notes:
 
+- `dist` — `dist` takes a name ("Normal") or a code; `params` its parameters.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `params` — Up to three distribution parameters
 
 **Returns**
@@ -2005,6 +2169,12 @@ moved into itself or one of its own descendants.
 | `parent` | integer | yes | — | — |
 | `selector` | string | yes | — | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `parent` — `update_element` refuses `parent` because it is structural, and the only alternative used to be deleting and recreating the element (losing its links, sparing and PM settings).
+- `selector` — One element: its name, or Kind:id such as Block:3, Node:2, Event:1, Hier:4 or Link:7.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -2040,6 +2210,10 @@ a new edit has cleared the redo history.
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -2086,6 +2260,14 @@ changed cell.
 | `table` | string | yes | — | — |
 | `whole` | boolean | no | `false` | — |
 
+Parameter notes:
+
+- `case` — `whole` matches the whole cell; `case` is case-sensitive.
+- `column` — `column` is a file column name or index.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `table` — `table` is an input table key that edits model rows: `inputs.blocks_all`, `inputs.nodes`, `inputs.events`, `inputs.hierarchies`, `inputs.spare_pools`, `inputs.resources`, `inputs.triggers`, `inputs.phases` or `inputs.comments`.
+- `whole` — `whole` matches the whole cell; `case` is case-sensitive.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -2127,6 +2309,10 @@ other editor.
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -2187,7 +2373,9 @@ model already had (a file written elsewhere) does not block other edits.
 
 Parameter notes:
 
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `patch` — Field -> value. Friendly names by element kind (the .rbd file's column names and indexed forms such as repair_params[0] also work) -- Block: add_done, amount_exhausted, amt_exhausted, arrive, arrive_every, def_dep_state_idle, dep_fail, dep_idle, dep_nothing, dep_num, dep_pm, dep_pm_thresh, dep_type, dependency_num, dependency_type, done_fixed, done_per_time, duty, duty_cycle, emer_ship_cost, emer_shipping, emer_time, emergency, emertime, eso, fail_dist, fail_params, fail_stream, fdist, fparams, fstream, gd_limit, gd_rate, gd_type, growth_decay_limit, growth_decay_rate, growth_decay_type, id, idle, idle_cost, initial, initial_cost, level, name, new_sp, new_spares, newsp, num_res, num_resources, parent, per_spare, per_spare_cost, pm_cost, pm_dist, pm_duration_dist, pm_fail_reset, pm_fixed_cost, pm_freq, pm_hold_cost, pm_mis_defer, pm_params, pm_refresh, pm_req_defer, pm_resources_needed, pm_spare, pm_stagger_time, pm_trig, pm_trigger, pm_triggered, pmfreq, post_dist, post_ldt_dist, post_ldt_params, post_params, pre_dist, pre_ldt_dist, pre_ldt_params, pre_params, quan, quantity, rdist, rep_fixed, rep_fixed_cost, rep_hold, rep_hold_cost, rep_per_time, rep_per_time_cost, repair_dist, repair_params, repair_resources_needed, repair_stream, res1_pm_rep, res1_rep, resource1_name, resource_name, restock_every, restoration_factor, restoration_type, restore_factor, restore_type, rparams, rso, rstream, running, running_cost, sb_stress, sim_start, simstart, slo, slo_time, slotime, sp_type, spare_pool, spare_pool_name, spare_type, sparing_type, standby, standby_cost, standby_stress, start_age, stock, uses_phasing, uses_pm, usespm, x, y; Node: autos, check_autos_first, cold, cold_standby, dep_num, dep_type, div_flow, full_flow, id, k, k_star, kstar, n, name, ntype, out, parent, phases, pr, priority_return, rep_cap, rep_na, report_capacity, report_node_anal, type, uses_phasing, x, y; Event: dist, distro, fail_dist, fail_stream, id, init_cost, name, op_cost, parent, phasing, prob, rep_cost, uses_phasing, x, y; Hier: id, in_id, level, name, out_id, parent, phs, uses_phasing, x, y; Link: a_prob, aprob, auto, auto_time, cap_pri, cappri, cold_pri, coldpri, from_type, id, man, man_time, max_flow, maxflow, nom_flow, nomflow, parent, probability, to_type; System: capacity, capacity_analysis, cost, cost_analysis, flowGenerated, flow_generated, flowgenerated, graphics, gy_threshold, lost_cost, node_anal_type, num_runs, red_cost, run_length, start_stats, sys_streams, system_streams, term, term_condition, term_type, termination, termination_type, units, weak_analysis, weak_link, yr_threshold
+- `selector` — `selector` is an element name, 'Block:N' / 'Node:N' / 'Event:N', a link ('Link:N', which carries capacity: `nom_flow`, `max_flow`, `cap_pri`), or an auxiliary row by name ('Pool:RackSpares', 'Resource:Crew', 'Trigger:Storm', 'Phase:Summer' -- the bare name works too).
 
 **Returns**
 
@@ -2240,6 +2428,7 @@ Returns {updated, results: [{selector, id, name, kind, changed}]}.
 
 Parameter notes:
 
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `updates` — List of {"selector": str, "patch": {...}} objects
 
 **Returns**
@@ -2320,6 +2509,14 @@ model data, not instructions.
 | `only` | array<string> \| null | no | `null` | — |
 | `run_id` | string \| null | no | `null` | — |
 | `targets` | array<object> \| null | no | `null` | — |
+
+Parameter notes:
+
+- `limit` — Most items to return in this page.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `only` — `only` limits the rules by id or prefix (`["M-SPR", "M-PM-003"]`).
+- `run_id` — With `run_id` (a finished run of this model) it adds what the run says: how precisely downtime is known and how many runs would fix it, too few system failures, and, for a run made with `attribution=True`, which elements cause the downtime and which lever fits.
+- `targets` — `targets` judges the run against requirements, e.g.
 
 **Returns**
 
@@ -2417,7 +2614,16 @@ results), with the stage and the time left in the message.
 
 Parameter notes:
 
+- `at` — `at` defaults to the model's time-terminated run length.
 - `at` — Defaults to the model's time-terminated run length.
+- `dependencies` — Without `dependencies`, a model with dependencies is refused.
+- `hierarchy` — `hierarchy` analyses one hierarchy on its own: its In node is treated as Start and its Out node as End, so its input is assumed always available.
+- `ignore_repairs` — `ignore_repairs` (same as `ignore=["repairs"]`) gives the first-failure reliability of a repairable model.
+- `max_bdd_nodes` — `max_variables` and `max_bdd_nodes` override them; `max_bdd_nodes` may go up to half of the machine's free memory at about 350 bytes a node, and a higher value is refused.
+- `max_variables` — `max_variables` and `max_bdd_nodes` override them; `max_bdd_nodes` may go up to half of the machine's free memory at about 350 bytes a node, and a higher value is refused.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `phase` — `standby="active"` keeps cold-standby paths in service and `standby="absent"` removes them; `phase` analyses a phased model as if it stayed in that phase.
+- `tau` — `tau` adds the conditional reliability of a further mission of that length after `at`.
 
 **Returns**
 
@@ -2497,6 +2703,13 @@ period), which shows a year that stays "available" but loses output.
 | `run_id` | string | yes | — | — |
 | `year_length` | number \| null | no | `null` | — |
 
+Parameter notes:
+
+- `below` — `year_length` is in the model's time unit and defaults to 8,760 when that unit is hours; `offset` moves the first boundary; `below` (e.g. 0.97) adds the share of periods under that availability with a 95 % interval.
+- `offset` — `year_length` is in the model's time unit and defaults to 8,760 when that unit is hours; `offset` moves the first boundary; `below` (e.g. 0.97) adds the share of periods under that availability with a 95 % interval.
+- `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
+- `year_length` — `year_length` is in the model's time unit and defaults to 8,760 when that unit is hours; `offset` moves the first boundary; `below` (e.g. 0.97) adds the share of periods under that availability with a 95 % interval.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -2552,6 +2765,12 @@ still present}.
 | `rule` | string | yes | — | — |
 | `target` | string \| null | no | `null` | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `rule` — `rule` is the finding's rule id; `target` picks one finding when several share the rule, by the name or path of its first target (`"Pump_A"` or `"block:12"`).
+- `target` — `rule` is the finding's rule id; `target` picks one finding when several share the rule, by the name or path of its first target (`"Pump_A"` or `"block:12"`).
+
 **Returns**
 
 | Field | Type | Always present |
@@ -2606,6 +2825,11 @@ marked with `>` in the Markdown view.
 | `model_id` | string \| null | no | `null` | — |
 | `run_id` | string \| null | no | `null` | — |
 
+Parameter notes:
+
+- `model_id` — `model_id` is optional and only checks that the run belongs to that model.
+- `run_id` — Without `run_id`, returns the name and units of every metric RAPTOR reports: availability, reliability, conditional reliability, dependability, MTBDE/MDT, MTBM/MTBMs/MTBMu, MMT/MMTs/MMTu, system and component failures, and green/yellow/red percentages, plus, for a run with capacity analysis, units…
+
 **Returns**
 
 | Field | Type | Always present |
@@ -2652,6 +2876,11 @@ everything inside it at any depth, pooled over the runs (its own
 interval, not a sum of the elements'), with `depth`, `parent`,
 `elements` (how many inside started an outage) and `main_cause`.
 
+`detail` is `summary` by default: each statistic is {mean, sem, n},
+numbers have six significant figures, and `sequences` and the capacity
+`elements` stop at `top` like the elements do. `full` returns the stored
+attribution as it is (min and max of every statistic, every sequence).
+
 This describes the design as simulated. It does not say what a change
 would achieve: for that, change the model and compare (`sweep_parameter`,
 `compare_models`). The engine's results are unchanged by attribution; it
@@ -2661,8 +2890,15 @@ replays the event log.
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `detail` | string | no | `summary` | `summary`, `full` |
 | `run_id` | string | yes | — | — |
 | `top` | integer | no | `10` | — |
+
+Parameter notes:
+
+- `detail` — `detail` is `summary` by default: each statistic is {mean, sem, n}, numbers have six significant figures, and `sequences` and the capacity `elements` stop at `top` like the elements do.
+- `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
+- `top` — `detail` is `summary` by default: each statistic is {mean, sem, n}, numbers have six significant figures, and `sequences` and the capacity `elements` stop at `top` like the elements do.
 
 **Returns**
 
@@ -2722,6 +2958,13 @@ several simultaneous failures, name them all in one `fail` list; a
 | `phase` | integer \| null | no | `null` | — |
 | `repair` | array<string \| integer> \| null | no | `null` | — |
 
+Parameter notes:
+
+- `fail` — To test several simultaneous failures, name them all in one `fail` list; a `repair` can only undo a failure named in the same call.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `phase` — A phased model starts in phase 1; `phase` moves it to another phase first.
+- `repair` — To test several simultaneous failures, name them all in one `fail` list; a `repair` can only undo a failure named in the same call.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -2775,6 +3018,12 @@ phase). A bad scenario does not stop the others. `failed` counts them.
 | `include_log` | boolean | no | `false` | — |
 | `model_id` | string | yes | — | — |
 | `scenarios` | array<object> | yes | — | — |
+
+Parameter notes:
+
+- `include_log` — `scenarios[i]` has the scenario's `index`, `fail` and `repair`, then either its result ({system_status, affected, effects, criticality, phase}, `capacity` for a model with capacity analysis, plus the `log` text when `include_log` is true) or `{"error": ...}` when that scenario could not be applied…
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `scenarios` — `scenarios` is a list of `{"fail": [...], "repair": [...], "phase": N}` (every key optional), up to 2000.
 
 **Returns**
 
@@ -2851,6 +3100,11 @@ No parameters.
 
 One chart of a finished run, as data and optionally as SVG.
 
+The text gives the caption and the numbers the chart draws (the leading
+rows, or each layer's end value over time). `render_svg=True` adds the
+figure as `svg`; it is off by default because the SVG is most of the
+answer's size.
+
 The same `ChartSpec` the application paints and `raptor explain --chart`
 prints: title, subtitle, axis labels, series, marks, a one-sentence
 caption and provenance. Names: `trial-outcome` and `ecdf` (the runs),
@@ -2886,10 +3140,18 @@ their name are numbered and listed under the chart.
 | `chart` | string | no | `trial-outcome` | — |
 | `min_share` | number | no | `0.0` | — |
 | `page` | string | no | `screen` | — |
-| `render_svg` | boolean | no | `true` | — |
+| `render_svg` | boolean | no | `false` | — |
 | `run` | integer | no | `1` | — |
 | `run_id` | string | yes | — | — |
 | `y_floor` | number \| null | no | `null` | — |
+
+Parameter notes:
+
+- `min_share` — For a report or slide: `page` sizes the SVG (`screen` 760 x 400, `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names more room and declare their size in mm) and `min_share` (0 to 1, e.g. 0.01) folds the items below that share of the whole into one "N others" row or cell (element…
+- `page` — For a report or slide: `page` sizes the SVG (`screen` 760 x 400, `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names more room and declare their size in mm) and `min_share` (0 to 1, e.g. 0.01) folds the items below that share of the whole into one "N others" row or cell (element…
+- `run` — Over time: `availability-through-run`, `interval-availability` and `availability-band` need the availability plot recorded (`availability_plot=true`), `capacity-through-run` and `capacity-band` capacity analysis; `run` picks the run of a one-run chart and `y_floor` (0 to 1) the bottom of an availab…
+- `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
+- `y_floor` — Over time: `availability-through-run`, `interval-availability` and `availability-band` need the availability plot recorded (`availability_plot=true`), `capacity-through-run` and `capacity-band` capacity analysis; `run` picks the run of a one-run chart and `y_floor` (0 to 1) the bottom of an availab…
 
 **Returns**
 
@@ -2903,7 +3165,6 @@ their name are numbered and listed under the chart.
 | `run_id` | string | yes |
 | `series` | array<any> | yes |
 | `subtitle` | string | yes |
-| `svg` | string | no |
 | `title` | string | yes |
 | `x_label` | string | yes |
 | `y_label` | string | yes |
@@ -2942,6 +3203,10 @@ still renders and says how to turn it on.
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `run_id` | string | yes | — | — |
+
+Parameter notes:
+
+- `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
 
 **Returns**
 
@@ -3003,6 +3268,13 @@ tests on an unphased model.
 | `offset` | integer | no | `0` | — |
 | `workers` | integer | no | `1` | — |
 
+Parameter notes:
+
+- `limit` — `limit` pages the response (default 100, use 0 for all); the full row set is still computed and cached by model content, so later pages and repeated calls are instant.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `offset` — Items to skip: pass the previous page's next_offset to continue.
+- `workers` — Worker processes. Leave out for the server default (several cores for a large model); 1 gives the sequential numbers.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -3043,6 +3315,10 @@ before a run.
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -3093,6 +3369,14 @@ bookkeeping, so the engine still sees an ordinary element.
 | `overrides` | array<string> \| null | no | `null` | — |
 | `part` | string | yes | — | — |
 
+Parameter notes:
+
+- `elements` — `elements` are names or ids of elements of the part's kind (block, node, event, hierarchy or annotation).
+- `library_path` — `part` is an id (or exact name) from `library_path`, or from the parts stored inside the model when no path is given.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `overrides` — `overrides` are fields to leave as the element has them.
+- `part` — `part` is an id (or exact name) from `library_path`, or from the parts stored inside the model when no path is given.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -3141,6 +3425,14 @@ listed in `notes`.
 | `x` | number \| null | no | `null` | — |
 | `y` | number \| null | no | `null` | — |
 
+Parameter notes:
+
+- `library_path` — `part` is the assembly's id or name, from `library_path` or the model's own part list.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `part` — `part` is the assembly's id or name, from `library_path` or the model's own part list.
+- `x` — It is placed at (`x`, `y`) or, by default, to the right of the model, and is NOT connected: link it in with `connect`.
+- `y` — It is placed at (`x`, `y`) or, by default, to the right of the model, and is NOT connected: link it in with `connect`.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -3182,6 +3474,12 @@ lists the parts of the current model made available by `save_part_type`.
 | `library_path` | string \| null | no | `null` | — |
 | `model_id` | string \| null | no | `null` | — |
 | `query` | string | no | `` | — |
+
+Parameter notes:
+
+- `library_path` — `library_path` reads a `.rbdlib` file; `model_id` lists the parts stored inside that model (the ones its linked blocks follow).
+- `model_id` — `library_path` reads a `.rbdlib` file; `model_id` lists the parts stored inside that model (the ones its linked blocks follow).
+- `query` — `query` filters on id, name, category and source, case-insensitively.
 
 **Returns**
 
@@ -3225,6 +3523,12 @@ itself is not changed.
 | `model_id` | string | yes | — | — |
 | `name` | string | yes | — | — |
 | `source` | string | no | `` | — |
+
+Parameter notes:
+
+- `elements` — An assembly is structure, not values: the named `elements` (blocks, nodes, events, hierarchies), everything inside a named hierarchy, and the links between them.
+- `library_path` — With `library_path` the assembly is added to that `.rbdlib` file; without it, it is kept in the model's own part list.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -3276,6 +3580,13 @@ position or id.
 | `name` | string \| null | no | `null` | — |
 | `source` | string | no | `` | — |
 
+Parameter notes:
+
+- `element` — `kind` is block, node, event, hierarchy or annotation; `element` is the name/id (or annotation id).
+- `kind` — `kind` is block, node, event, hierarchy or annotation; `element` is the name/id (or annotation id).
+- `library_path` — With `library_path`, adds the part to that `.rbdlib` file.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -3313,6 +3624,11 @@ without it the copies stored inside the model are used.
 | `dry_run` | boolean | no | `true` | — |
 | `library_path` | string \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
+
+Parameter notes:
+
+- `library_path` — `library_path` reads the current part definitions; without it the copies stored inside the model are used.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -3357,6 +3673,10 @@ the job snapshot; poll `run_status` until `state` is `cancelled`.
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `job_id` | string | yes | — | — |
+
+Parameter notes:
+
+- `job_id` — Id of a background job, from start_run.
 
 **Returns**
 
@@ -3409,6 +3729,12 @@ to stay unique.
 | `metrics` | array<string> \| null | no | `null` | — |
 | `models` | array<string> | yes | — | — |
 | `num_runs` | integer | no | `5` | — |
+
+Parameter notes:
+
+- `metrics` — Returns per-metric values (`metrics`, in `models`/`labels` order), deltas against the first entry, and which entry is best per metric, plus a Markdown comparison table.
+- `models` — Returns per-metric values (`metrics`, in `models`/`labels` order), deltas against the first entry, and which entry is best per metric, plus a Markdown comparison table.
+- `num_runs` — Replications (trials). Leave out to use the model's own setting.
 
 **Returns**
 
@@ -3471,6 +3797,14 @@ plot is sampled at the model's own interval on every run).
 | `num_runs` | integer | no | `10` | — |
 | `run_length` | number \| null | no | `null` | — |
 | `workers` | integer \| null | no | `null` | — |
+
+Parameter notes:
+
+- `importance` — `importance` overrides the model experiment's importance setting for the estimate.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `num_runs` — Replications (trials). Leave out to use the model's own setting.
+- `run_length` — Simulated time per run, in the model's units. Leave out for the model's own setting.
+- `workers` — `workers` is taken into account with a contention-aware speed-up: parallel replications on a large model scale at roughly ``w / (1 + 0.25 (w - 1))``, not ``w`` (8 workers measured 2.8x on an 8-core box).
 
 **Returns**
 
@@ -3545,6 +3879,17 @@ model is never modified. Long runs report progress and can be cancelled.
 | `trials` | integer \| null | no | `null` | — |
 | `workers` | integer \| null | no | `null` | — |
 
+Parameter notes:
+
+- `min_gain` — Each row gives the PATH=VALUE change (apply it with `update_element`/`manage_spare_pools`/`manage_resources`, or `raptor set`), the paired availability gain with its standard error and chance of being better, the downtime avoided per run, the unit cost the model holds (null when it holds none), wha…
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `run_id` — Finds the `top` blocks causing the most system downtime (from `run_id`, a stored run made with `attribution=True`, or else from a Base run with attribution made first), proposes a fixed-step lever from the cause that dominates each one's outages (halve the repair time or the logistics delays, one m…
+- `seed` — Non-negative seed that re-rolls the batch reproducibly.
+- `timeout_s` — Wall-clock limit for the call, in seconds.
+- `top` — Finds the `top` blocks causing the most system downtime (from `run_id`, a stored run made with `attribution=True`, or else from a Base run with attribution made first), proposes a fixed-step lever from the cause that dominates each one's outages (halve the repair time or the logistics delays, one m…
+- `trials` — Paired trials per scenario. Leave out for the tool's default.
+- `workers` — Worker processes. Leave out for the server default (several cores for a large model); 1 gives the sequential numbers.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -3597,6 +3942,10 @@ still in the workspace, the job id is not.
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `job_id` | string | yes | — | — |
+
+Parameter notes:
+
+- `job_id` — Id of a background job, from start_run.
 
 **Returns**
 
@@ -3654,6 +4003,15 @@ show interactions.
 | `top` | integer | no | `10` | — |
 | `trials` | integer \| null | no | `null` | — |
 | `workers` | integer \| null | no | `null` | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `seed` — Non-negative seed that re-rolls the batch reproducibly.
+- `timeout_s` — Wall-clock limit for the call, in seconds.
+- `top` — Builds up to `top` candidate inputs from the model (block life and repair means, PM intervals, finite spare stock, crew counts), varies each at a low and a high value, and runs every variant with Base's seed.
+- `trials` — Paired trials per scenario. Leave out for the tool's default.
+- `workers` — Worker processes. Leave out for the server default (several cores for a large model); 1 gives the sequential numbers.
 
 **Returns**
 
@@ -3781,8 +4139,23 @@ boundary node reports no lost flow.
 
 Parameter notes:
 
+- `attribution` — Also work out which element caused each system outage and why; read it with downtime_drivers and advise.
+- `availability_plot` — `availability_plot` / `interim_cost`: record the availability-over-time plot (needed by `get_timeseries(series="availability")`) or the interim cost report for this run.
+- `capacity_rule` — `capacity_rule` (with attribution on a capacity-analysis model) shares the lost flow among the elements that were down: `proportional` sums to the engine's own lost flow, `marginal` answers "what would fixing this one buy?" (shares need not add up), `first_failed` is for comparison.
+- `collect_events` — Keep the event log of every run (larger output; needed for event-level analysis).
+- `confirm_long_run` — True runs even when the estimate exceeds timeout_s.
+- `hierarchy` — Not available with `hierarchy`.
+- `interim_cost` — `availability_plot` / `interim_cost`: record the availability-over-time plot (needed by `get_timeseries(series="availability")`) or the interim cost report for this run.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `num_runs` — Replications (trials). Leave out to use the model's own setting.
 - `num_runs` — Defaults to the model's configured `NumRuns`.
+- `precision` — `precision` runs in growing batches until the watched metric is precise enough, instead of a fixed count: `{relative: 0.1, metric: "system.ao", on: "unavailability" | "value", confidence: 0.95, min_trials: 50, max_trials: 20000, batch: 50}`.
+- `run_length` — Simulated time per run, in the model's units. Leave out for the model's own setting.
 - `run_length` — Defaults to the model's configured run length.
+- `seed` — `seed` (optional, non-negative) re-rolls the batch reproducibly; leaving it unset keeps the engine's fixed seeds, under which the same model and run count always return byte-identical numbers.
+- `timeout_s` — The run is estimated first and refused with a clear message if the estimate exceeds `timeout_s`, unless `confirm_long_run=true`.
+- `treatments` — `treatments` is `{deps: up|system| refuse, pools: full|share|refuse, streams: keep|separate, items: {...}}`; call `extract_hierarchy` with `report_only` first to see the hazards.
+- `workers` — Leave `workers` out and a large model (500+ blocks, events and nodes) run 20+ times uses several cores (half the machine's, at most 8); the result reports the `workers` used and `workers_auto`.
 - `workers` — Defaults to automatic selection: 1, or for a large model run 20+ times, half the machine's cores (at most 8, at least 2).
 
 **Returns**
@@ -3869,8 +4242,19 @@ shows `phase` (`setting_up` while a big model is being prepared, then
 
 Parameter notes:
 
+- `attribution` — Also work out which element caused each system outage and why; read it with downtime_drivers and advise.
+- `availability_plot` — Record the availability-over-time plot for this run. Leave out for the model's setting.
+- `capacity_rule` — `capacity_rule` chooses how the lost flow is shared, as in `simulate`.
+- `collect_events` — Keep the event log of every run (larger output; needed for event-level analysis).
+- `interim_cost` — Record the interim cost report for this run. Leave out for the model's setting.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `num_runs` — Replications (trials). Leave out to use the model's own setting.
 - `num_runs` — Defaults to the model's configured `NumRuns`.
+- `run_length` — Simulated time per run, in the model's units. Leave out for the model's own setting.
 - `run_length` — Defaults to the model's configured run length.
+- `seed` — Non-negative seed that re-rolls the batch reproducibly.
+- `timeout_s` — Wall-clock limit for the call, in seconds.
+- `workers` — `workers` defaults as it does for `simulate`: a large model run 20+ times uses several cores unless you pass `workers=1`.
 - `workers` — Defaults to automatic selection: 1, or for a large model run 20+ times, half the machine's cores (at most 8, at least 2).
 
 **Returns**
@@ -3934,6 +4318,13 @@ one batch both succeed.
 | `num_runs` | integer | no | `5` | — |
 | `selector` | string | yes | — | — |
 | `values` | array<any> | yes | — | — |
+
+Parameter notes:
+
+- `field` — `field` may be a friendly field or an indexed form like `repair_params[0]`.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `num_runs` — Replications (trials). Leave out to use the model's own setting.
+- `selector` — One element: its name, or Kind:id such as Block:3, Node:2, Event:1, Hier:4 or Link:7.
 
 **Returns**
 
@@ -3999,6 +4390,17 @@ cancelled by the client.
 | `timeout_s` | number | no | `1800.0` | — |
 | `trials` | integer \| null | no | `null` | — |
 | `workers` | integer \| null | no | `null` | — |
+
+Parameter notes:
+
+- `changes` — `changes` are PATH=VALUE edits (the grammar of `raptor set`), e.g.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `precision` — `trials` sets the fixed count; `precision` (`{relative: 0.1, min_trials: 50, max_trials: 20000}`) sizes Base first with run-to-precision.
+- `requirements` — `requirements` are `{metric, op, value, label}` rows judged for Base and the scenario.
+- `seed` — Non-negative seed that re-rolls the batch reproducibly.
+- `timeout_s` — Wall-clock limit for the call, in seconds.
+- `trials` — `trials` sets the fixed count; `precision` (`{relative: 0.1, min_trials: 50, max_trials: 20000}`) sizes Base first with run-to-precision.
+- `workers` — Worker processes. Leave out for the server default (several cores for a large model); 1 gives the sequential numbers.
 
 **Returns**
 
@@ -4098,6 +4500,25 @@ Annotations exist only in `.rbds`; exporting with
 | `y1` | number \| null | no | `null` | — |
 | `y2` | number \| null | no | `null` | — |
 
+Parameter notes:
+
+- `adjacent_to` — Place it **next to an element or another annotation** with `adjacent_to` (a block/node/event/hierarchy name or `Kind:id`, or `Annotation:<id>` / an annotation's label) plus `location` (`right`/`left`/`above`/`below`/`center`, default `above`) and `gap`: it is anchored, so it moves with the target w…
+- `from_` — An `arrow` connects two things by name: give `from_` and `to` (an element or an `Annotation:<id>`), or the four coordinates `x1`/`y1`/`x2`/`y2`.
+- `gap` — Place it **next to an element or another annotation** with `adjacent_to` (a block/node/event/hierarchy name or `Kind:id`, or `Annotation:<id>` / an annotation's label) plus `location` (`right`/`left`/`above`/`below`/`center`, default `above`) and `gap`: it is anchored, so it moves with the target w…
+- `h` — Or place it **by coordinates** with `x`/`y` (+ `w`/`h`): in scene pixels (the default, what the GUI stores) or, with `units="model"`, in the model's own coordinates (the numbers element `x`/`y` use).
+- `location` — Place it **next to an element or another annotation** with `adjacent_to` (a block/node/event/hierarchy name or `Kind:id`, or `Annotation:<id>` / an annotation's label) plus `location` (`right`/`left`/`above`/`below`/`center`, default `above`) and `gap`: it is anchored, so it moves with the target w…
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `parent` — It inherits the target's hierarchy; set `parent` to draw it inside another level.
+- `style` — `style` carries the cosmetic fields: `border_colour`, `border_width` (0 = none), `line_style` (`solid`/`dash`/`dot`/`dash-dot`/ `dash-dot-dot`), `fill_colour` (null = transparent), `text_colour`, `font_family`, `font_size`, `font_bold`, `font_italic`, `z`.
+- `to` — An `arrow` connects two things by name: give `from_` and `to` (an element or an `Annotation:<id>`), or the four coordinates `x1`/`y1`/`x2`/`y2`.
+- `w` — Or place it **by coordinates** with `x`/`y` (+ `w`/`h`): in scene pixels (the default, what the GUI stores) or, with `units="model"`, in the model's own coordinates (the numbers element `x`/`y` use).
+- `x` — Or place it **by coordinates** with `x`/`y` (+ `w`/`h`): in scene pixels (the default, what the GUI stores) or, with `units="model"`, in the model's own coordinates (the numbers element `x`/`y` use).
+- `x1` — An `arrow` connects two things by name: give `from_` and `to` (an element or an `Annotation:<id>`), or the four coordinates `x1`/`y1`/`x2`/`y2`.
+- `x2` — An `arrow` connects two things by name: give `from_` and `to` (an element or an `Annotation:<id>`), or the four coordinates `x1`/`y1`/`x2`/`y2`.
+- `y` — Or place it **by coordinates** with `x`/`y` (+ `w`/`h`): in scene pixels (the default, what the GUI stores) or, with `units="model"`, in the model's own coordinates (the numbers element `x`/`y` use).
+- `y1` — An `arrow` connects two things by name: give `from_` and `to` (an element or an `Annotation:<id>`), or the four coordinates `x1`/`y1`/`x2`/`y2`.
+- `y2` — An `arrow` connects two things by name: give `from_` and `to` (an element or an `Annotation:<id>`), or the four coordinates `x1`/`y1`/`x2`/`y2`.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -4191,6 +4612,16 @@ handover_points, handover_points_removed, refine_cut_short}.
 | `selectors` | array<string> \| null | no | `null` | — |
 | `spacing` | number | no | `1.0` | — |
 
+Parameter notes:
+
+- `direction` — `direction` is LR/RL/TB/BT; `max_columns` wraps the flow after that many series elements (parallel branches share one position) into a new band instead of waiting for the canvas width.
+- `hierarchy` — Scope the pass with one of: - `hierarchy`: a hierarchy name or id — only that level's elements are repositioned; every other level keeps its coordinates. - `selectors`: names / `Kind:id` of the elements to move.
+- `label_side` — `label_side` places above/below labels on the left or right when the flow is top-to-bottom (auto = right for TB, left for BT).
+- `max_columns` — `direction` is LR/RL/TB/BT; `max_columns` wraps the flow after that many series elements (parallel branches share one position) into a new band instead of waiting for the canvas width.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `selectors` — Scope the pass with one of: - `hierarchy`: a hierarchy name or id — only that level's elements are repositioned; every other level keeps its coordinates. - `selectors`: names / `Kind:id` of the elements to move.
+- `spacing` — `spacing` scales every gap (0.25-3; 1 = nominal, lower compacts, higher opens it up).
+
 **Returns**
 
 | Field | Type | Always present |
@@ -4228,6 +4659,10 @@ Delete one annotation by id.  Returns {deleted: annotation id, kind}.
 | `annotation_id` | integer | yes | — | — |
 | `model_id` | string | yes | — | — |
 
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -4264,6 +4699,11 @@ ones, its `anchor` (target/location/gap, or from/to for an arrow).
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `parent` | integer \| null | no | `null` | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `parent` — `parent` filters to one hierarchy level (the `parent` field, 0 = home).
 
 **Returns**
 
@@ -4333,6 +4773,17 @@ also written to renders/ in the workspace.
 | `routing` | string | no | `straight` | `straight`, `angled`, `orthogonal` |
 | `theme` | string | no | `light` | `light`, `dark` |
 | `zoom_to` | array<string> \| null | no | `null` | — |
+
+Parameter notes:
+
+- `highlight` — `highlight` outlines named elements (e.g. the single points of failure).
+- `include_annotations` — `include_annotations` draws the model's text/rect/ellipse/arrow annotations (default true).
+- `level` — `level` is a **hierarchy id**, not a depth index: 0 renders the whole model (home level); to render inside a hierarchy pass its id, e.g. the hierarchy `id=900` is `level=900` (read hierarchy ids from `describe_model`).
+- `margin` — `zoom_to` frames a **close-up** on one or more named/id'd elements (block/node/event/hierarchy) **within the current `level`** (it does not change which level is shown), padded by `margin` scene units — the way to render a large model legibly in sections.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `routing` — `routing` is the link style: 'straight' (default); 'angled' (a short stub out of each port, then a straight run); or 'orthogonal' (right angles only, steering round other elements).
+- `theme` — `theme` is 'light' or 'dark'.
+- `zoom_to` — `zoom_to` frames a **close-up** on one or more named/id'd elements (block/node/event/hierarchy) **within the current `level`** (it does not change which level is shown), padded by `margin` scene units — the way to render a large model legibly in sections.
 
 **Returns**
 
@@ -4413,6 +4864,18 @@ highlighted, routing, links_routed, inline}. The file is written to renders/ in 
 | `theme` | string | no | `light` | `light`, `dark` |
 | `zoom_to` | array<string> \| null | no | `null` | — |
 
+Parameter notes:
+
+- `highlight` — `zoom_to` frames the named elements on that level, padded by `margin` scene units; `highlight` outlines them.
+- `layer` — `layer` with `run_id` (a run made with `attribution=True`) draws the run's result on the diagram, as the application's Show on canvas layers do: 'downtime-share' fills each block and event by its share of system downtime (red from 2/3 of the largest share, yellow from 1/3, green below), prints the…
+- `level` — `level` is 0 for the top level or a **hierarchy id** (not a depth).
+- `margin` — `zoom_to` frames the named elements on that level, padded by `margin` scene units; `highlight` outlines them.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `routing` — It draws blocks, nodes (S/E, HI/HO, k/n), events, hierarchy ovals, links with arrowheads and annotations at the GUI's scene positions; `routing` is 'straight' (default), 'angled' (short stubs then a straight run) or 'orthogonal' (right angles only, round the other elements).
+- `run_id` — `layer` with `run_id` (a run made with `attribution=True`) draws the run's result on the diagram, as the application's Show on canvas layers do: 'downtime-share' fills each block and event by its share of system downtime (red from 2/3 of the largest share, yellow from 1/3, green below), prints the…
+- `theme` — Colour theme of the drawing: light or dark.
+- `zoom_to` — `zoom_to` frames the named elements on that level, padded by `margin` scene units; `highlight` outlines them.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -4467,6 +4930,10 @@ where it is.  Returns {annotation_id, annotation, summary}.
 | `annotation_id` | integer | yes | — | — |
 | `model_id` | string | yes | — | — |
 | `patch` | object | yes | — | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**
 
@@ -4546,10 +5013,17 @@ availability}]}.
 
 Parameter notes:
 
+- `at` — Reliability-only settings (`at`, `times`, `bx`, `tau`, ignoring repairs) apply to the reliability solve only.
 - `at` — Defaults to the model's time-terminated run length.
+- `bx` — Reliability-only settings (`at`, `times`, `bx`, `tau`, ignoring repairs) apply to the reliability solve only.
+- `folder` — `Plant_analytical_reliability_availability.xlsx`, in `folder` (inside the workspace; default `Tables/<model>`).
 - `folder` — Defaults to `Tables/<model>` when omitted. The file name adds `_h<hierarchy>` and/or `_phase<N>`/`_all_phases` for a hierarchy or phase solve; an existing file of that name is replaced.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `modes` — `modes` (default `["reliability"]`): one or both of reliability and availability, solved with the same settings into ONE workbook, a set of sheets per mode (Summary, Elements with the importance measures, Curve, Equation, Assumptions).
 - `modes` — Defaults to `["reliability"]` when omitted.
 - `phase` — Defaults to no phase. A phase-dependent model is refused with "Choose one phase" unless you pass a phase number; `"all"` solves every phase.
+- `tau` — Reliability-only settings (`at`, `times`, `bx`, `tau`, ignoring repairs) apply to the reliability solve only.
+- `times` — Reliability-only settings (`at`, `times`, `bx`, `tau`, ignoring repairs) apply to the reliability solve only.
 
 **Returns**
 
@@ -4601,6 +5075,12 @@ model); 'data_tables' the model's input tables.  The run needs
 | `run_id` | string | yes | — | — |
 | `sections` | array<string> \| null | no | `null` | `diagram`, `story`, `results`, `data_tables` |
 | `title` | string \| null | no | `null` | — |
+
+Parameter notes:
+
+- `path` — `path` is inside the workspace and ends in .pdf or .html; default `Reports/<model>_<run_id>.pdf`.
+- `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
+- `sections` — `sections` (default ['diagram', 'story']): 'story' is the headline, what drives the downtime, the findings, the charts and how to read each measure; 'results' adds every result table (dozens of pages on a large model); 'data_tables' the model's input tables.
 
 **Returns**
 
@@ -4659,8 +5139,13 @@ Returns {folder, tables, files: [path], resource_links}.
 
 Parameter notes:
 
+- `folder` — `folder` is inside the workspace (relative paths resolve against its root); default `Tables/<model>` (or `Tables/<model>_<run_id>`).
 - `folder` — Defaults to `Tables/<model>` (or `Tables/<model>_<run_id>` with a run).
+- `formats` — `formats` (default ['xlsx']): 'csv' one .csv per table; 'txt' one fixed-width .txt per table; 'txt_report' ONE combined text report; 'xlsx' ONE Excel workbook and 'ods' the same as an OpenDocument spreadsheet: a Contents tab, a Run Info tab, a tab per table and a Glossary, real numeric cells, filte…
 - `formats` — Defaults to `["xlsx"]` when omitted.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `run_id` — Result tables need `run_id`.
+- `tables` — `tables`: keys from `list_tables`; omit for the default set (all input tables except the all-columns block table, plus every result table except the long ones).
 - `tables` — Defaults to all input tables except the all-columns block table, plus every result table except the long ones.
 
 **Returns**
@@ -4711,6 +5196,13 @@ replication where the section is per-run.  format: 'markdown'
 | `run_number` | integer \| null | no | `null` | — |
 | `section` | string | no | `final_results` | `final_results`, `end_of_run`, `events`, `capacity`, `cost`, `weak_link`, `importance`, `availability_plot` |
 
+Parameter notes:
+
+- `limit` — Returns {lines, total, next_offset, markdown}; `lines` never exceeds `limit` (≤200).
+- `offset` — Items to skip: pass the previous page's next_offset to continue.
+- `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
+- `run_number` — `run_number` selects one replication where the section is per-run. format: 'markdown' (default) or 'raw'.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -4757,6 +5249,11 @@ with `results.per_run` to page it instead).
 | `per_run_detail` | boolean | no | `false` | — |
 | `run_id` | string | yes | — | — |
 | `top` | integer | no | `10` | — |
+
+Parameter notes:
+
+- `run_id` — Use it to judge a run without paging through `get_report`, and `get_table` / `export_tables` (with the same `run_id`) when you need a whole table or a workbook.
+- `top` — `top` caps the weak-link list (1..100).
 
 **Returns**
 
@@ -4808,6 +5305,14 @@ headers, rows, total_rows, next_offset, notes}.
 | `run_id` | string \| null | no | `null` | — |
 | `table` | string | yes | — | — |
 
+Parameter notes:
+
+- `limit` — `limit` is at most 200; use `offset` and `next_offset` to page.
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `offset` — `limit` is at most 200; use `offset` and `next_offset` to page.
+- `run_id` — `table` is a key from `list_tables` (e.g. 'inputs.blocks', 'results.summary'; result tables need `run_id`).
+- `table` — `table` is a key from `list_tables` (e.g. 'inputs.blocks', 'results.summary'; result tables need `run_id`).
+
 **Returns**
 
 | Field | Type | Always present |
@@ -4858,6 +5363,10 @@ short Markdown preview.  No image is ever returned.
 | `runs` | string | no | `mean` | — |
 | `series` | string | no | `availability` | `availability`, `capacity`, `cost` |
 
+Parameter notes:
+
+- `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
+
 **Returns**
 
 | Field | Type | Always present |
@@ -4906,6 +5415,11 @@ ones (event log, end-of-run report, interim cost, all block columns).
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
 | `run_id` | string \| null | no | `null` | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `run_id` — Pass `run_id` (from `simulate`) to include a run's result tables; without it only the inputs are listed and the result tables are shown as unavailable.
 
 **Returns**
 
@@ -4991,6 +5505,12 @@ total_lines, offset, next_offset, text}.
 | `name` | string | yes | — | — |
 | `offset` | integer | no | `0` | — |
 
+Parameter notes:
+
+- `limit` — `offset`/ `limit` page the lines (limit <= 400).
+- `name` — `name` is 'rbds' (the `.rbds` format guide), 'rbds-schema' (its JSON Schema; open_model, build_model and validate_model check files against it), 'dependency' (the dependency tutorial chapter), 'mcp-docs' (the human MCP setup guide), 'mcp-reference' (the generated catalogue of every tool, parameter,…
+- `offset` — `offset`/ `limit` page the lines (limit <= 400).
+
 **Returns**
 
 | Field | Type | Always present |
@@ -5030,6 +5550,10 @@ score}.  Use `read_doc` to read a whole document.
 | --- | --- | --- | --- | --- |
 | `limit` | integer | no | `5` | — |
 | `query` | string | yes | — | — |
+
+Parameter notes:
+
+- `limit` — Most items to return in this page.
 
 **Returns**
 
