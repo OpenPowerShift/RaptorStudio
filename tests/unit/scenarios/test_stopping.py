@@ -148,3 +148,11 @@ def test_a_metric_some_runs_lack_still_stops_at_the_trial_limit(tmp_path):
                                seed=3)
     assert outcome.stopped == "max trials"
     assert outcome.history[-1]["trials"] == 20
+
+
+def test_t_critical_is_exact_at_any_confidence():
+    from raptor.api.scenarios.stopping import t_critical
+    assert t_critical(4, 0.95) == 2.776                 # the table
+    assert abs(t_critical(4, 0.80) - 1.533) < 1e-3      # was read as 0.90 (2.132)
+    assert abs(t_critical(100, 0.95) - 1.984) < 1e-3
+    assert abs(t_critical(10, 0.975) - 2.634) < 1e-3

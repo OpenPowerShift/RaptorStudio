@@ -96,3 +96,11 @@ def test_the_caption_follows_the_direction_of_the_change():
     assert "largest gain" in _caption([row("S", 0.01), row("T", -0.01)])
     text = _caption([row("S", -0.02), row("T", -0.01)])
     assert text.startswith("No scenario improves") and "T" in text
+
+
+def test_p_better_uses_students_t_at_small_counts():
+    from raptor.api.scenarios.runner import _paired
+    base = [0.0, 0.0, 0.0]
+    other = [1.0, 2.0, 3.0]            # mean 2, sem 0.577, t = 3.46 on 2 df
+    _stat, p = _paired(base, other)
+    assert abs(p - 0.9629) < 1e-3     # the normal said 0.9997

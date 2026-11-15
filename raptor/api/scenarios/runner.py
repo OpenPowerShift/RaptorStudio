@@ -115,8 +115,10 @@ def _paired(base: list[float], other: list[float], lower_better: bool = False
     gain = -mean if lower_better else mean
     if not sem:
         return stat, 1.0 if gain > 0 else 0.0 if gain < 0 else 0.5
-    p_better = 0.5 * (1.0 + math.erf(gain / (sem * math.sqrt(2.0))))
-    return stat, p_better
+    # Student's t on n - 1 degrees of freedom, not the normal: at the small
+    # trial counts a what-if often has, the normal overstates the certainty
+    from raptor.api.advisor.stats import t_cdf
+    return stat, t_cdf(gain / sem, n - 1)
 
 
 def _variance_reduction(base: list[float], other: list[float]) -> float | None:

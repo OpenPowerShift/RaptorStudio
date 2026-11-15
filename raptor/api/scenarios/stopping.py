@@ -15,6 +15,7 @@ the batch so the loop takes about ten passes at most.
 from __future__ import annotations
 
 import functools
+from functools import lru_cache
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -56,18 +57,23 @@ _T_TABLE = {
 
 
 def t_critical(df: int, confidence: float = 0.95) -> float:
-    """Two-sided Student-t quantile, normal approximation when very free."""
+    """Two-sided Student-t quantile for `confidence` with `df` degrees of
+    freedom: the table for the common levels, otherwise computed exactly
+    (an 80 % level was silently read as 90 %)."""
     if df <= 0:
         return float("inf")
-    level = min(_T_TABLE, key=lambda key: abs(key - confidence))
-    if df <= 30:
-        return _T_TABLE[level][df - 1]
-    z = {0.90: 1.644854, 0.95: 1.959964, 0.99: 2.575829}.get(level, 1.959964)
-    # Cornish-Fisher expansion; accurate to ~1e-3 for df > 30.
-    return (z
-            + (z ** 3 + z) / (4 * df)
-            + (5 * z ** 5 + 16 * z ** 3 + 3 * z) / (96 * df ** 2)
-            + (3 * z ** 7 + 19 * z ** 5 + 17 * z ** 3 - 15 * z) / (384 * df ** 3))
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between 0 and 1")
+    for level, row in _T_TABLE.items():
+        if abs(level - confidence) < 1e-9 and df <= len(row):
+            return row[df - 1]
+    return _t_quantile_cached(round(confidence, 12), int(df))
+
+
+@lru_cache(maxsize=512)
+def _t_quantile_cached(confidence: float, df: int) -> float:
+    from raptor.api.advisor.stats import t_quantile
+    return t_quantile(0.5 + confidence / 2.0, df)
 
 
 #: Fields that are probabilities: by default precision watches the part
