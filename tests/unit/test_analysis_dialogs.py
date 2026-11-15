@@ -308,3 +308,14 @@ def test_turning_on_a_recording_alone_is_still_undoable(win, monkeypatch):
     assert stack.index() == before + 1
     stack.undo()
     assert not win._current_experiment()["recording"]["ao_plot"]
+
+
+def test_the_repair_dialog_speaks_of_repairs_throughout(win):
+    view = win._diagram_dock.view
+    valve = next(bid for bid, b in view.blocks.items() if b.name == "Valve")
+    win._open_experience_dialog(valve, "repair")
+    dlg = win._experience_dialog
+    assert dlg.apply_btn.text() == "Use as Valve's repair law"
+    assert dlg.chart.use == "repair"
+    win._open_experience_dialog(valve, "fail")
+    assert win._experience_dialog.apply_btn.text() == "Use as Valve's failure law"

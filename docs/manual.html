@@ -526,8 +526,10 @@ an earlier age) are refused by name.</p>
 <p>The chart draws the fitted chance of having failed by each age, with your
 answers as dots, so a law that cannot honour them shows it. Below it are
 the parameters, mean, median and what the shape means (a Weibull shape
-above 1 wears out, so planned maintenance can help). <strong>Use for &lt;block&gt;</strong>
-writes the law and its parameters into the block as one undo step. The
+above 1 wears out, so planned maintenance can help). <strong>Use as &lt;block&gt;'s
+failure law</strong> writes the law and its parameters into the block as one undo
+step. Opened for a repair law, the dialog asks what share of repairs is
+finished within a time, and the button writes the repair law. The
 same fit is <code>raptor fit --law weibull --quantile 0.1=100 --quantile 0.5=300
 --block NAME</code>, which also prints the <code>raptor set</code> line, and the MCP tool
 <code>fit_from_experience</code>. The fit is only as good as the answers.</p>

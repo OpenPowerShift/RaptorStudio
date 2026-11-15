@@ -5,7 +5,7 @@ hours, half by 300") and fits a Weibull, lognormal or exponential law
 (`raptor.api.distributions.from_quantiles`), refitting as each answer is
 typed. The chart draws the fitted law's chance of having failed by each age,
 with the stated answers as points, so a law that cannot honour the answers
-shows it. *Use for <block>* writes the law and its parameters into the
+shows it. *Use as <block>'s failure (or repair) law* writes the law and its parameters into the
 block's failure or repair distribution as one undo step
 (`experience_changes`, the same edits `raptor fit --block` prints).
 """
@@ -51,6 +51,8 @@ class FitChart(QWidget):
         super().__init__(parent)
         self.fit: dict[str, Any] | None = None
         self.units = ""
+        #: "fail" or "repair": a repair law is read as time to finish
+        self.use = "fail"
         self.setMinimumHeight(200)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -91,9 +93,12 @@ class FitChart(QWidget):
             x = self.LEFT + w * fraction
             p.drawText(QRectF(x - 50, self.TOP + h + 4, 100, 16),
                        Qt.AlignmentFlag.AlignHCenter, f"{age:.4g}")
+        unit = f" ({self.units})" if self.units else ""
+        axis = (f"age{unit}: the line is the fitted chance of having failed by then"
+                if self.use == "fail" else
+                f"time{unit}: the line is the fitted chance the repair is finished by then")
         p.drawText(QRectF(self.LEFT, self.TOP + h + 18, w, 16), Qt.AlignmentFlag.AlignHCenter,
-                   f"age{f' ({self.units})' if self.units else ''}: the line is the "
-                   "fitted chance of having failed by then, the dots your answers")
+                   f"{axis}, the dots your answers")
         path = QPainterPath(pt(0, 0))
         for step in range(1, 121):
             age = top_age * step / 120
@@ -125,8 +130,9 @@ class ExperienceDialog(QDialog):
 
         intro = QLabel(
             f"No data for {self.block_name}? Say what share "
-            + ("has failed" if use == "fail" else "of repairs is finished")
-            + " by a given age, for two or more shares. Two answers fix the "
+            + ("has failed by a given age" if use == "fail"
+               else "of repairs is finished within a given time")
+            + ", for two or more shares. Two answers fix the "
             "law exactly; more are a best fit. The law is only as good as "
             "the answers.")
         intro.setWordWrap(True)
@@ -140,6 +146,7 @@ class ExperienceDialog(QDialog):
         law_row.addWidget(self.law, 1)
 
         self.chart = FitChart()
+        self.chart.use = use
         self.summary = QLabel()
         self.summary.setWordWrap(True)
         self.summary.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -183,7 +190,7 @@ class ExperienceDialog(QDialog):
         return rows
 
     def _build_buttons(self, what: str) -> QHBoxLayout:
-        self.apply_btn = QPushButton(f"Use for {self.block_name}")
+        self.apply_btn = QPushButton(f"Use as {self.block_name}'s {what} law")
         self.apply_btn.setToolTip(f"Write this law into {self.block_name}'s {what} "
                                   "distribution (one undo step)")
         self.apply_btn.clicked.connect(self.apply)
